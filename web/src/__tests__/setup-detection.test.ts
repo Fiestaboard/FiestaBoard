@@ -1,17 +1,19 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { WizardProgress } from "@/lib/setup-detection";
 import {
-  shouldShowWizard,
+  clearWizardCompletion,
+  clearWizardProgress,
   getSetupStatus,
+  getWizardProgress,
   isWizardCompleted,
   markWizardComplete,
-  clearWizardCompletion,
   saveWizardProgress,
-  getWizardProgress,
-  clearWizardProgress,
-  WizardProgress,
+  shouldShowWizard,
 } from "@/lib/setup-detection";
+
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 const WIZARD_COMPLETE_KEY = "fiestaboard_wizard_complete";
@@ -26,8 +28,8 @@ describe("setup-detection", () => {
     it("returns true when is_first_run is true", async () => {
       server.use(
         http.get(`${API_BASE}/config/validate`, () =>
-          HttpResponse.json({ valid: false, is_first_run: true, errors: [], missing_fields: [] })
-        )
+          HttpResponse.json({ valid: false, is_first_run: true, errors: [], missing_fields: [] }),
+        ),
       );
       expect(await shouldShowWizard()).toBe(true);
     });
@@ -35,8 +37,8 @@ describe("setup-detection", () => {
     it("returns true when config is invalid and wizard not completed", async () => {
       server.use(
         http.get(`${API_BASE}/config/validate`, () =>
-          HttpResponse.json({ valid: false, is_first_run: false, errors: ["missing host"], missing_fields: ["host"] })
-        )
+          HttpResponse.json({ valid: false, is_first_run: false, errors: ["missing host"], missing_fields: ["host"] }),
+        ),
       );
       expect(await shouldShowWizard()).toBe(true);
     });
@@ -45,8 +47,8 @@ describe("setup-detection", () => {
       localStorage.setItem(WIZARD_COMPLETE_KEY, "true");
       server.use(
         http.get(`${API_BASE}/config/validate`, () =>
-          HttpResponse.json({ valid: false, is_first_run: false, errors: ["missing host"], missing_fields: ["host"] })
-        )
+          HttpResponse.json({ valid: false, is_first_run: false, errors: ["missing host"], missing_fields: ["host"] }),
+        ),
       );
       expect(await shouldShowWizard()).toBe(false);
     });
@@ -54,18 +56,14 @@ describe("setup-detection", () => {
     it("returns false when config is valid", async () => {
       server.use(
         http.get(`${API_BASE}/config/validate`, () =>
-          HttpResponse.json({ valid: true, is_first_run: false, errors: [], missing_fields: [] })
-        )
+          HttpResponse.json({ valid: true, is_first_run: false, errors: [], missing_fields: [] }),
+        ),
       );
       expect(await shouldShowWizard()).toBe(false);
     });
 
     it("returns false when API call fails", async () => {
-      server.use(
-        http.get(`${API_BASE}/config/validate`, () =>
-          new HttpResponse(null, { status: 500 })
-        )
-      );
+      server.use(http.get(`${API_BASE}/config/validate`, () => new HttpResponse(null, { status: 500 })));
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       expect(await shouldShowWizard()).toBe(false);
       consoleSpy.mockRestore();
@@ -76,8 +74,8 @@ describe("setup-detection", () => {
     it("returns validation response on success", async () => {
       server.use(
         http.get(`${API_BASE}/config/validate`, () =>
-          HttpResponse.json({ valid: true, is_first_run: false, errors: [], missing_fields: [] })
-        )
+          HttpResponse.json({ valid: true, is_first_run: false, errors: [], missing_fields: [] }),
+        ),
       );
       const result = await getSetupStatus();
       expect(result).not.toBeNull();
@@ -85,11 +83,7 @@ describe("setup-detection", () => {
     });
 
     it("returns null on API failure", async () => {
-      server.use(
-        http.get(`${API_BASE}/config/validate`, () =>
-          new HttpResponse(null, { status: 500 })
-        )
-      );
+      server.use(http.get(`${API_BASE}/config/validate`, () => new HttpResponse(null, { status: 500 })));
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const result = await getSetupStatus();
       expect(result).toBeNull();

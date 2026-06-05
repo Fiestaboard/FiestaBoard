@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, useDeferredValue } from "react";
-import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Timer } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Timer } from "lucide-react";
-import { toast } from "sonner";
 import { api } from "@/lib/api";
 
 export function UpdateIntervals() {
@@ -40,8 +41,7 @@ export function UpdateIntervals() {
   }, [deferredPolling]);
 
   const updatePollingMutation = useMutation({
-    mutationFn: (updates: Parameters<typeof api.updatePollingSettings>[0]) =>
-      api.updatePollingSettings(updates),
+    mutationFn: (updates: Parameters<typeof api.updatePollingSettings>[0]) => api.updatePollingSettings(updates),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["polling-settings"] });
       queryClient.invalidateQueries({ queryKey: ["all-settings"] });
@@ -57,8 +57,7 @@ export function UpdateIntervals() {
   });
 
   const updateBoardReadIntervalMutation = useMutation({
-    mutationFn: (updates: Parameters<typeof api.updatePollingSettings>[0]) =>
-      api.updatePollingSettings(updates),
+    mutationFn: (updates: Parameters<typeof api.updatePollingSettings>[0]) => api.updatePollingSettings(updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["polling-settings"] });
       queryClient.invalidateQueries({ queryKey: ["all-settings"] });
@@ -190,9 +189,7 @@ export function UpdateIntervals() {
                 />
                 <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
               </div>
-              {boardReadIntervalCloud < 60 && (
-                <p className="text-xs text-warning">{t("boardReadIntervalWarning")}</p>
-              )}
+              {boardReadIntervalCloud < 60 && <p className="text-xs text-warning">{t("boardReadIntervalWarning")}</p>}
             </div>
           </>
         )}

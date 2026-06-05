@@ -24,26 +24,20 @@
  *     (WCAG 2.4.4 Link Purpose, 3.2.5 Change on Request).
  */
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Loader2, Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Lock, ShieldAlert, ShieldCheck, ShieldQuestion, Loader2 } from "lucide-react";
-import type { AuthStatusResponse } from "@/lib/api";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+
+import { FiestaLogo } from "@/components/fiesta-logo";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FiestaLogo } from "@/components/fiesta-logo";
+import type { AuthStatusResponse } from "@/lib/api";
 
 type AuthStatus = AuthStatusResponse;
 
@@ -128,9 +122,7 @@ export default function LoginPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setStatusError(
-            err instanceof Error ? err.message : "Failed to check auth status",
-          );
+          setStatusError(err instanceof Error ? err.message : "Failed to check auth status");
         }
       });
     return () => {
@@ -255,11 +247,7 @@ export default function LoginPage() {
 
   if (!status) {
     return (
-      <CenteredCard
-        tCommon={tCommon}
-        icon={<Loader2 className="h-6 w-6 animate-spin" />}
-        title={t("loadingTitle")}
-      >
+      <CenteredCard tCommon={tCommon} icon={<Loader2 className="h-6 w-6 animate-spin" />} title={t("loadingTitle")}>
         <p className="text-sm text-muted-foreground">{t("loadingDescription")}</p>
       </CenteredCard>
     );
@@ -268,11 +256,7 @@ export default function LoginPage() {
   // While redirecting we render a placeholder rather than flashing the form.
   if (!status.enabled || status.authenticated) {
     return (
-      <CenteredCard
-        tCommon={tCommon}
-        icon={<Loader2 className="h-6 w-6 animate-spin" />}
-        title={t("redirectingTitle")}
-      >
+      <CenteredCard tCommon={tCommon} icon={<Loader2 className="h-6 w-6 animate-spin" />} title={t("redirectingTitle")}>
         <p className="text-sm text-muted-foreground">{t("redirectingDescription")}</p>
       </CenteredCard>
     );
@@ -298,13 +282,7 @@ export default function LoginPage() {
           >
             <ShieldCheck className="h-4 w-4" /> {t("protectEnableButton")}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleSkipAuth}
-            disabled={submitting}
-          >
+          <Button type="button" variant="outline" className="w-full" onClick={handleSkipAuth} disabled={submitting}>
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" /> {t("disablingButton")}
@@ -382,12 +360,7 @@ export default function LoginPage() {
               <AlertDescription>{formError}</AlertDescription>
             </Alert>
           )}
-          <Button
-            type="submit"
-            variant="brand"
-            className="w-full"
-            disabled={submitting}
-          >
+          <Button type="submit" variant="brand" className="w-full" disabled={submitting}>
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" /> {t("creatingButton")}
@@ -454,12 +427,7 @@ export default function LoginPage() {
             <AlertDescription>{formError}</AlertDescription>
           </Alert>
         )}
-        <Button
-          type="submit"
-          variant="brand"
-          className="w-full"
-          disabled={submitting}
-        >
+        <Button type="submit" variant="brand" className="w-full" disabled={submitting}>
           {submitting ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" /> {t("submittingButton")}
@@ -492,13 +460,7 @@ function CenteredCard({
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="mb-6 flex items-center gap-3">
-        <Image
-          src="/icons/favicon-32x32.png"
-          alt=""
-          width={36}
-          height={36}
-          className="flex-shrink-0"
-        />
+        <Image src="/icons/favicon-32x32.png" alt="" width={36} height={36} className="flex-shrink-0" />
         <FiestaLogo className="text-2xl" />
       </div>
       <Card className="w-full max-w-md">

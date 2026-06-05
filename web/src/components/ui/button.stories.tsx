@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { ChevronRight, Loader2, Mail, Plus, Trash2 } from "lucide-react";
+
 import { Button } from "./button";
-import { Mail, Loader2, ChevronRight, Plus, Trash2 } from "lucide-react";
 
 const meta = {
   title: "UI/Button",
@@ -146,9 +147,15 @@ export const AllSizes = () => (
     <Button size="sm">Small</Button>
     <Button size="default">Default</Button>
     <Button size="lg">Large</Button>
-    <Button size="icon" aria-label="Add"><Plus className="h-4 w-4" /></Button>
-    <Button size="icon-sm" aria-label="Add"><Plus className="h-4 w-4" /></Button>
-    <Button size="icon-lg" aria-label="Add"><Plus className="h-4 w-4" /></Button>
+    <Button size="icon" aria-label="Add">
+      <Plus className="h-4 w-4" />
+    </Button>
+    <Button size="icon-sm" aria-label="Add">
+      <Plus className="h-4 w-4" />
+    </Button>
+    <Button size="icon-lg" aria-label="Add">
+      <Plus className="h-4 w-4" />
+    </Button>
   </div>
 );
 

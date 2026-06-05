@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -19,29 +18,20 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { ChainingModePicker } from "@/components/chaining-mode-picker";
+import { ChatMarkdown } from "@/components/chat-markdown";
+import { InlineBoardPreview } from "@/components/inline-board-preview";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChatMarkdown } from "@/components/chat-markdown";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { InlineBoardPreview } from "@/components/inline-board-preview";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { api, type AISettings } from "@/lib/api";
 import type {
   ChainingMode,
   ChatMessage,
@@ -52,8 +42,8 @@ import type {
   ToolCall,
   ToolCallDisplay,
 } from "@/lib/ai-chat-types";
+import { type AISettings, api } from "@/lib/api";
 import { useAiChat } from "@/lib/use-ai-chat";
-import { ChainingModePicker } from "@/components/chaining-mode-picker";
 
 export interface AiChatPanelProps {
   /** Per-turn editor context (device type + current page snapshot). */
@@ -118,22 +108,19 @@ export function AiChatPanel({
   const effectiveProviderId = selectedProvider?.id ?? "";
   const availableModels = selectedProvider?.models ?? [];
   const effectiveModel =
-    model && availableModels.includes(model)
-      ? model
-      : selectedProvider?.default_model ?? availableModels[0] ?? "";
+    model && availableModels.includes(model) ? model : (selectedProvider?.default_model ?? availableModels[0] ?? "");
 
   const aiDisabled = settings ? !settings.enabled : false;
   const noProviders = providers.length === 0;
   const noModels = !!selectedProvider && !effectiveModel;
   const blocked = aiDisabled || noProviders || noModels;
 
-  const { messages, status, error, send, resume, cancel, retryLast, reset } =
-    useAiChat({
-      getTurnContext,
-      onToolCall,
-      providerId: effectiveProviderId || undefined,
-      model: effectiveModel || undefined,
-    });
+  const { messages, status, error, send, resume, cancel, retryLast, reset } = useAiChat({
+    getTurnContext,
+    onToolCall,
+    providerId: effectiveProviderId || undefined,
+    model: effectiveModel || undefined,
+  });
 
   // Slot-ref pattern: keep the parent's ref pointed at the latest resume fn.
   useEffect(() => {
@@ -148,9 +135,7 @@ export function AiChatPanel({
 
   // Boards beyond the 3 most recent are collapsed by default.
   // Users can manually expand them; that choice is tracked here.
-  const [manuallyExpandedBoardIds, setManuallyExpandedBoardIds] = useState<Set<string>>(
-    new Set(),
-  );
+  const [manuallyExpandedBoardIds, setManuallyExpandedBoardIds] = useState<Set<string>>(new Set());
 
   const allBoardIds = useMemo(() => {
     const ids: string[] = [];
@@ -197,17 +182,10 @@ export function AiChatPanel({
           <div className="flex min-w-0 items-center gap-2">
             <Sparkles className="h-4 w-4 shrink-0 text-brand-emphasis" />
             <span className="truncate text-sm font-semibold">FiestaBot (Beta)</span>
-            {status === "streaming" && (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-            )}
+            {status === "streaming" && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
           </div>
           <div className="flex items-center gap-1">
-            {onChainingModeChange && (
-              <ChainingModePicker
-                mode={chainingMode}
-                onChange={onChainingModeChange}
-              />
-            )}
+            {onChainingModeChange && <ChainingModePicker mode={chainingMode} onChange={onChainingModeChange} />}
             {messages.length > 0 && (
               <Button
                 type="button"
@@ -236,23 +214,17 @@ export function AiChatPanel({
         </div>
 
         {/* Task list panel — shown when the AI has an active task list */}
-        {(taskList?.length ?? 0) > 0 && (
-          <TaskListPanel tasks={taskList!} />
-        )}
+        {(taskList?.length ?? 0) > 0 && <TaskListPanel tasks={taskList!} />}
 
         {/* Messages — scrollable middle section */}
         <ScrollArea className="min-h-0 flex-1 overflow-x-hidden">
           <div className="min-w-0 max-w-full overflow-x-hidden space-y-3 px-4 py-4">
-            {messages.length === 0 && (
-              <EmptyState blocked={blocked} aiDisabled={aiDisabled} />
-            )}
+            {messages.length === 0 && <EmptyState blocked={blocked} aiDisabled={aiDisabled} />}
             {messages.map((m, i) => (
               <MessageBubble
                 key={i}
                 message={m}
-                isLastAssistant={
-                  m.role === "assistant" && i === messages.length - 1
-                }
+                isLastAssistant={m.role === "assistant" && i === messages.length - 1}
                 canUndo={canUndo}
                 onUndo={onUndo}
                 isBoardVisible={isBoardVisible}
@@ -266,12 +238,7 @@ export function AiChatPanel({
                 <AlertDescription className="break-words">
                   {error}
                   <div className="mt-1.5">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={retryLast}
-                    >
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={retryLast}>
                       <RotateCcw className="mr-1 h-3 w-3" />
                       Retry
                     </Button>
@@ -319,18 +286,10 @@ export function AiChatPanel({
                 model={effectiveModel}
                 onModelChange={setModel}
               />
-              <span className="text-[10px] text-muted-foreground">
-                ⌘/Ctrl+Enter
-              </span>
+              <span className="text-[10px] text-muted-foreground">⌘/Ctrl+Enter</span>
             </div>
             {status === "streaming" ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 gap-1 text-xs"
-                onClick={cancel}
-              >
+              <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={cancel}>
                 <Square className="h-3 w-3" />
                 Stop
               </Button>
@@ -372,9 +331,7 @@ function TaskStatusIcon({ status }: { status: TaskStatus }) {
 }
 
 function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
-  const allDone =
-    tasks.length > 0 &&
-    tasks.every((t) => t.status === "done" || t.status === "failed");
+  const allDone = tasks.length > 0 && tasks.every((t) => t.status === "done" || t.status === "failed");
   const doneCount = tasks.filter((t) => t.status === "done").length;
   const [visible, setVisible] = useState(true);
 
@@ -398,10 +355,7 @@ function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
           Tasks ({doneCount}/{tasks.length})
         </span>
         <div className="h-1 w-20 rounded-full bg-muted overflow-hidden">
-          <div
-            className="h-full bg-brand-emphasis transition-all duration-300"
-            style={{ width: `${pct}%` }}
-          />
+          <div className="h-full bg-brand-emphasis transition-all duration-300" style={{ width: `${pct}%` }} />
         </div>
       </div>
       <ul className="space-y-0.5 max-h-28 overflow-y-auto">
@@ -426,10 +380,7 @@ function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
 
 function GradientSparkles({ className }: { className?: string }) {
   return (
-    <span
-      className={`relative inline-block shrink-0 ${className ?? ""}`}
-      aria-hidden="true"
-    >
+    <span className={`relative inline-block shrink-0 ${className ?? ""}`} aria-hidden="true">
       {/* Big central star — gradient sweep via CSS mask */}
       <span className="ai-sparkle-icon absolute inset-0 h-full w-full" />
       {/* Small elements — pulse independently from their own centers */}
@@ -459,13 +410,7 @@ function GradientSparkles({ className }: { className?: string }) {
   );
 }
 
-function EmptyState({
-  blocked,
-  aiDisabled,
-}: {
-  blocked: boolean;
-  aiDisabled: boolean;
-}) {
+function EmptyState({ blocked, aiDisabled }: { blocked: boolean; aiDisabled: boolean }) {
   if (blocked) {
     return (
       <Alert variant="destructive" className="text-xs">
@@ -483,9 +428,7 @@ function EmptyState({
       <GradientSparkles className="h-8 w-8" />
       <div>
         <p className="text-sm font-medium">How can I help?</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Describe what you&apos;d like to build or change.
-        </p>
+        <p className="mt-1 text-xs text-muted-foreground">Describe what you&apos;d like to build or change.</p>
       </div>
       <div className="w-full space-y-2 text-left text-xs">
         {[
@@ -493,10 +436,7 @@ function EmptyState({
           "Replace line 2 with today’s date",
           "What plugin variables can I use on this page?",
         ].map((s) => (
-          <div
-            key={s}
-            className="flex items-start gap-2 text-muted-foreground"
-          >
+          <div key={s} className="flex items-start gap-2 text-muted-foreground">
             <ChevronRight className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground/50" />
             <span>&ldquo;{s}&rdquo;</span>
           </div>
@@ -529,16 +469,11 @@ function ModelPill({
   onModelChange: (m: string) => void;
 }) {
   const onlyOneProvider = providers.length <= 1;
-  const shortModel = model
-    ? model.split("/").slice(-1)[0] || model
-    : "Default";
+  const shortModel = model ? model.split("/").slice(-1)[0] || model : "Default";
   return (
     <div className="flex items-center gap-1">
       {!onlyOneProvider && (
-        <Select
-          value={providerId}
-          onValueChange={onProviderChange}
-        >
+        <Select value={providerId} onValueChange={onProviderChange}>
           <SelectTrigger
             className="h-6 gap-1 rounded-full border-border/60 bg-muted/40 px-2 text-[11px] shadow-none hover:bg-muted/70"
             aria-label="Provider"
@@ -554,11 +489,7 @@ function ModelPill({
           </SelectContent>
         </Select>
       )}
-      <Select
-        value={model}
-        onValueChange={onModelChange}
-        disabled={models.length === 0}
-      >
+      <Select value={model} onValueChange={onModelChange} disabled={models.length === 0}>
         <SelectTrigger
           className="h-6 max-w-[180px] gap-1 truncate rounded-full border-border/60 bg-muted/40 px-2 font-mono text-[11px] shadow-none hover:bg-muted/70"
           aria-label="Model"
@@ -608,9 +539,7 @@ function MessageBubble({
   if (message.role === "user") {
     // Tool-result injection messages get a compact system pill, not a user bubble.
     if (message.isToolResult) {
-      const displayText = message.content
-        .replace(/^\[Tool result:\s*/, "")
-        .replace(/\]$/, "");
+      const displayText = message.content.replace(/^\[Tool result:\s*/, "").replace(/\]$/, "");
       return (
         <div ref={ref} className="flex justify-center py-0.5">
           <div className="flex items-center gap-1.5 overflow-hidden rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 text-[10px] text-muted-foreground max-w-[85%]">
@@ -633,12 +562,8 @@ function MessageBubble({
     <div ref={ref} className="flex flex-col gap-1.5">
       <div className="flex items-center gap-1.5">
         <Sparkles className="h-3 w-3 text-brand-emphasis" />
-        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          AI
-        </span>
-        {message.pending && (
-          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-        )}
+        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">AI</span>
+        {message.pending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
       </div>
       {message.content && (
         <div className="break-words text-sm">
@@ -737,12 +662,7 @@ function ToolCallCard({
           )}
         </div>
       </div>
-      {hasBoard && boardVisible && (
-        <InlineBoardPreview
-          snapshot={call.appliedSnapshot!}
-          deviceType={deviceType}
-        />
-      )}
+      {hasBoard && boardVisible && <InlineBoardPreview snapshot={call.appliedSnapshot!} deviceType={deviceType} />}
       <ToolCallSummary call={call} />
     </div>
   );
@@ -804,11 +724,7 @@ function ToolCallSummary({ call }: { call: ToolCall }) {
               {summarizeLineOp(c)}
             </li>
           ))}
-          {call.args.rename && (
-            <li className="break-all font-mono">
-              → rename to "{call.args.rename}"
-            </li>
-          )}
+          {call.args.rename && <li className="break-all font-mono">→ rename to &quot;{call.args.rename}&quot;</li>}
         </ul>
       </PatchDetailDisclosure>
     );
@@ -819,9 +735,7 @@ function ToolCallSummary({ call }: { call: ToolCall }) {
         {call.args.suggestions.map((s, i) => (
           <li key={i}>
             <code className="font-mono text-[10px]">{`{{${s.ref}}}`}</code>
-            {s.description && (
-              <span className="text-muted-foreground"> — {s.description}</span>
-            )}
+            {s.description && <span className="text-muted-foreground"> — {s.description}</span>}
           </li>
         ))}
       </ul>
@@ -832,13 +746,7 @@ function ToolCallSummary({ call }: { call: ToolCall }) {
   return null;
 }
 
-function PatchDetailDisclosure({
-  count,
-  children,
-}: {
-  count: number;
-  children: React.ReactNode;
-}) {
+function PatchDetailDisclosure({ count, children }: { count: number; children: React.ReactNode }) {
   return (
     <Collapsible className="text-[11px]">
       <CollapsibleTrigger asChild>
@@ -847,9 +755,7 @@ function PatchDetailDisclosure({
           className="group/disclose flex w-full items-center gap-1 rounded text-[10px] text-muted-foreground transition-colors hover:text-foreground"
         >
           <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]/disclose:rotate-90" />
-          <span>
-            {count === 1 ? "View change" : `View ${count} changes`}
-          </span>
+          <span>{count === 1 ? "View change" : `View ${count} changes`}</span>
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>{children}</CollapsibleContent>

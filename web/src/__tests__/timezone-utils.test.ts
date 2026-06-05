@@ -1,12 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
 import {
-  localTimeToUTC,
-  utcToLocalTime,
-  formatTimestampLocal,
   formatLogTimestamp,
   formatLogTimestampFull,
+  formatTimestampLocal,
   getTimezoneAbbreviation,
   getTimezoneOffsetString,
+  localTimeToUTC,
+  utcToLocalTime,
 } from "@/lib/timezone-utils";
 
 describe("timezone-utils", () => {
@@ -29,7 +30,7 @@ describe("timezone-utils", () => {
     });
 
     it("handles invalid time gracefully", () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const result = localTimeToUTC("invalid", "America/Los_Angeles");
       // Should return fallback value when parsing fails
       expect(result).toBe("00:00+00:00");
@@ -37,7 +38,7 @@ describe("timezone-utils", () => {
     });
 
     it("handles invalid timezone gracefully", () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const result = localTimeToUTC("20:00", "Invalid/Timezone");
       // Should return fallback value when timezone is invalid
       expect(result).toBe("00:00+00:00");
@@ -67,7 +68,7 @@ describe("timezone-utils", () => {
     });
 
     it("handles invalid UTC time gracefully", () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const result = utcToLocalTime("invalid", "America/Los_Angeles");
       // Should return fallback time value
       expect(result).toBe("00:00");
@@ -75,7 +76,7 @@ describe("timezone-utils", () => {
     });
 
     it("handles invalid timezone gracefully", () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const result = utcToLocalTime("04:00+00:00", "Invalid/Timezone");
       // Should return fallback time value
       expect(result).toBe("00:00");
@@ -85,29 +86,19 @@ describe("timezone-utils", () => {
 
   describe("formatTimestampLocal", () => {
     it("formats UTC timestamp to local timezone", () => {
-      const result = formatTimestampLocal(
-        "2025-12-26T22:30:00+00:00",
-        "America/Los_Angeles"
-      );
+      const result = formatTimestampLocal("2025-12-26T22:30:00+00:00", "America/Los_Angeles");
       expect(result).toContain("2025");
       expect(result).toContain("PST");
     });
 
     it("uses custom format string", () => {
-      const result = formatTimestampLocal(
-        "2025-12-26T22:30:00+00:00",
-        "America/Los_Angeles",
-        "HH:mm:ss"
-      );
+      const result = formatTimestampLocal("2025-12-26T22:30:00+00:00", "America/Los_Angeles", "HH:mm:ss");
       expect(result).toMatch(/^\d{2}:\d{2}:\d{2}$/);
     });
 
     it("handles invalid timestamp gracefully", () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const result = formatTimestampLocal(
-        "invalid",
-        "America/Los_Angeles"
-      );
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const result = formatTimestampLocal("invalid", "America/Los_Angeles");
       expect(result).toBe("invalid");
       consoleSpy.mockRestore();
     });
@@ -115,20 +106,14 @@ describe("timezone-utils", () => {
 
   describe("formatLogTimestamp", () => {
     it("formats timestamp as time only", () => {
-      const result = formatLogTimestamp(
-        "2025-12-26T22:30:45+00:00",
-        "America/Los_Angeles"
-      );
+      const result = formatLogTimestamp("2025-12-26T22:30:45+00:00", "America/Los_Angeles");
       expect(result).toMatch(/^\d{2}:\d{2}:\d{2}$/);
     });
   });
 
   describe("formatLogTimestampFull", () => {
     it("formats timestamp with full date", () => {
-      const result = formatLogTimestampFull(
-        "2025-12-26T22:30:45+00:00",
-        "America/Los_Angeles"
-      );
+      const result = formatLogTimestampFull("2025-12-26T22:30:45+00:00", "America/Los_Angeles");
       expect(result).toContain("Dec");
       expect(result).toContain("2025");
       expect(result).toContain("PST");
@@ -148,7 +133,7 @@ describe("timezone-utils", () => {
     });
 
     it("handles invalid timezone gracefully", () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const result = getTimezoneAbbreviation("Invalid/Timezone");
       expect(result).toBe("Invalid/Timezone");
       consoleSpy.mockRestore();
@@ -185,10 +170,10 @@ describe("timezone-utils", () => {
     it("converts local -> UTC -> local and gets same result", () => {
       const timezone = "America/Los_Angeles";
       const originalTime = "14:30";
-      
+
       const utcTime = localTimeToUTC(originalTime, timezone);
       const convertedBack = utcToLocalTime(utcTime, timezone);
-      
+
       expect(convertedBack).toBe(originalTime);
     });
 
@@ -207,4 +192,3 @@ describe("timezone-utils", () => {
     });
   });
 });
-

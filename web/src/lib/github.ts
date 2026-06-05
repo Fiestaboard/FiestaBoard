@@ -64,10 +64,7 @@ export interface FetchPluginReadmeResult {
  * - If empty, tries `main` then `master` (common default branches).
  * Returns null on failure (network, 404, non-GitHub URL).
  */
-export async function fetchPluginReadme(
-  repoUrl: string,
-  registryBranch = ""
-): Promise<FetchPluginReadmeResult | null> {
+export async function fetchPluginReadme(repoUrl: string, registryBranch = ""): Promise<FetchPluginReadmeResult | null> {
   if (!parseGitHubRepoPath(repoUrl)) return null;
 
   const explicit = registryBranch.trim();
@@ -110,7 +107,7 @@ export async function fetchPluginManifest(repoUrl: string, branch = "main"): Pro
 export function resolveHeroImageUrl(
   repoUrl: string,
   manifest: Record<string, unknown> | null,
-  branch = "main"
+  branch = "main",
 ): string {
   const screenshots = manifest?.screenshots as Array<{ src: string; primary?: boolean }> | undefined;
   let src: string | undefined;
@@ -135,13 +132,10 @@ export function rewriteMarkdownImageUrls(markdown: string, repoUrl: string, bran
   if (!base) return markdown;
 
   // Match markdown images with relative paths (not starting with http/https)
-  return markdown.replace(
-    /!\[([^\]]*)\]\(((?!https?:\/\/)\.?\/?\S+)\)/g,
-    (_, alt, src) => {
-      const normalised = src.replace(/^\.\//, "");
-      return `![${alt}](${base}/${normalised})`;
-    }
-  );
+  return markdown.replace(/!\[([^\]]*)\]\(((?!https?:\/\/)\.?\/?\S+)\)/g, (_, alt, src) => {
+    const normalised = src.replace(/^\.\//, "");
+    return `![${alt}](${base}/${normalised})`;
+  });
 }
 
 /**

@@ -14,7 +14,7 @@
  * against that user. Running them in parallel against the same container
  * would race on the user store.
  */
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:4420";
 const API_URL = `${BASE_URL}/api`;
@@ -51,10 +51,7 @@ test.describe("Authentication", () => {
     // If somebody runs this file against an auth-disabled container by
     // accident, skip with a clear message instead of failing every test.
     const status = await fetchAuthStatus(request);
-    test.skip(
-      !status.enabled,
-      "Container has FIESTABOARD_AUTH_ENABLED=false; auth specs require it on.",
-    );
+    test.skip(!status.enabled, "Container has FIESTABOARD_AUTH_ENABLED=false; auth specs require it on.");
   });
 
   test.describe.serial("setup, login, and logout flow", () => {
@@ -69,9 +66,7 @@ test.describe("Authentication", () => {
       expect(status.first_run).toBe(false);
     });
 
-    test("protected API endpoint returns 409 setup_required when no user exists", async ({
-      request,
-    }) => {
+    test("protected API endpoint returns 409 setup_required when no user exists", async ({ request }) => {
       const res = await request.get(`${API_URL}/pages`);
       expect(res.status()).toBe(409);
       const body = await res.json();
@@ -135,9 +130,7 @@ test.describe("Authentication", () => {
       }
     });
 
-    test("logout clears the session cookie and protects the API again", async ({
-      playwright,
-    }) => {
+    test("logout clears the session cookie and protects the API again", async ({ playwright }) => {
       const ctx = await playwright.request.newContext({ baseURL: BASE_URL });
       try {
         const login = await ctx.post(`${API_URL}/auth/login`, {
@@ -318,8 +311,6 @@ async function ensureBoardConfigured(page: Page): Promise<void> {
     },
   });
   if (!res.ok()) {
-    throw new Error(
-      `ensureBoardConfigured failed: ${res.status()} ${await res.text()}`,
-    );
+    throw new Error(`ensureBoardConfigured failed: ${res.status()} ${await res.text()}`);
   }
 }

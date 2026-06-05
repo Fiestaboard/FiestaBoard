@@ -5,16 +5,16 @@
  * covering the biggest coverage gap in the test suite.
  */
 import {
-  test,
-  expect,
-  configureBoard,
-  suppressWizard,
-  createPage,
-  deletePage,
-  deleteAllPages,
-  setActivePage,
-  waitForNoActiveDisplay,
   API_URL,
+  configureBoard,
+  createPage,
+  deleteAllPages,
+  deletePage,
+  expect,
+  setActivePage,
+  suppressWizard,
+  test,
+  waitForNoActiveDisplay,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
@@ -41,34 +41,21 @@ test.describe("Page Builder", () => {
     }
 
     // Save the page
-    const saveButton = page
-      .getByRole("button", { name: "Save Page" })
-      .or(page.getByRole("button", { name: /save/i }));
+    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
     // Should redirect to /pages
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Verify page exists via API
     const res = await fetch(`${API_URL}/pages`);
     const data = await res.json();
-    const found = data.pages.some(
-      (p: { name: string }) => p.name === "E2E Builder Test",
-    );
+    const found = data.pages.some((p: { name: string }) => p.name === "E2E Builder Test");
     expect(found).toBe(true);
   });
 
   test("can edit an existing page name and content", async ({ page }) => {
-    const pageId = await createPage("Original Name", [
-      "ORIGINAL",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    const pageId = await createPage("Original Name", ["ORIGINAL", "", "", "", "", ""]);
 
     await page.goto(`/pages/edit/${pageId}`);
     await expect(page.getByText("Edit Page").first()).toBeVisible({
@@ -78,14 +65,10 @@ test.describe("Page Builder", () => {
     const nameInput = page.getByPlaceholder("My Custom Page");
     await nameInput.fill("Updated Name");
 
-    const saveButton = page
-      .getByRole("button", { name: "Save Page" })
-      .or(page.getByRole("button", { name: /save/i }));
+    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
     await saveButton.first().click();
 
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Verify via API
     const res = await fetch(`${API_URL}/pages/${pageId}`);
@@ -93,18 +76,14 @@ test.describe("Page Builder", () => {
     expect(data.name).toBe("Updated Name");
   });
 
-  test("validates required fields — name cannot be empty", async ({
-    page,
-  }) => {
+  test("validates required fields — name cannot be empty", async ({ page }) => {
     await page.goto("/pages/new");
     await expect(page.getByText("Create Page").first()).toBeVisible({
       timeout: 15_000,
     });
 
     // Leave name empty — save button should be disabled
-    const saveButton = page
-      .getByRole("button", { name: "Save Page" })
-      .or(page.getByRole("button", { name: /save/i }));
+    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
     const isDisabled = await saveButton
       .first()
       .isDisabled({ timeout: 3_000 })
@@ -119,15 +98,11 @@ test.describe("Page Builder", () => {
         .getByText(/name|required/i)
         .first()
         .or(page.getByText(/error/i).first());
-      const hasError = await errorMsg
-        .isVisible({ timeout: 5_000 })
-        .catch(() => false);
+      const hasError = await errorMsg.isVisible({ timeout: 5_000 }).catch(() => false);
       // At minimum the page should not navigate away
       expect(page.url()).toContain("/pages/new");
       // Allow test to pass if either disabled or shows error
-      expect(isDisabled || hasError || page.url().includes("/pages/new")).toBe(
-        true,
-      );
+      expect(isDisabled || hasError || page.url().includes("/pages/new")).toBe(true);
     }
   });
 
@@ -142,9 +117,7 @@ test.describe("Page Builder", () => {
 
     // Check for a preview panel / BoardDisplay component
     const preview = page.getByText("Preview").first();
-    const previewVisible = await preview
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    const previewVisible = await preview.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (previewVisible) {
       // The preview panel should contain some board tile elements
@@ -156,9 +129,7 @@ test.describe("Page Builder", () => {
   });
 
   test("can delete a page from the editor", async ({ page }) => {
-    const pageId = await createPage("Delete From Editor", [
-      "Delete test content",
-    ]);
+    const pageId = await createPage("Delete From Editor", ["Delete test content"]);
 
     await page.goto(`/pages/edit/${pageId}`);
     await expect(page.getByText("Edit Page").first()).toBeVisible({
@@ -175,19 +146,13 @@ test.describe("Page Builder", () => {
       await deleteButton.click();
 
       // Confirm in dialog
-      const confirmButton = page
-        .getByRole("button", { name: "Delete" })
-        .last();
-      if (
-        await confirmButton.isVisible({ timeout: 3_000 }).catch(() => false)
-      ) {
+      const confirmButton = page.getByRole("button", { name: "Delete" }).last();
+      if (await confirmButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
         await confirmButton.click();
       }
 
       // Should redirect to /pages
-      await expect(
-        page.getByRole("heading", { name: "Pages", exact: true }),
-      ).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
       // Verify deleted via API
       const res = await fetch(`${API_URL}/pages/${pageId}`);
@@ -205,9 +170,7 @@ test.describe("Page Builder", () => {
     }
 
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const res = await fetch(`${API_URL}/pages`);
     const data = await res.json();
@@ -226,33 +189,20 @@ test.describe("Page Builder", () => {
       .first()
       .or(page.getByText(/variables/i).first());
 
-    const hasVariablePicker = await variableBtn
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    const hasVariablePicker = await variableBtn.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (hasVariablePicker) {
       const isEnabled = await variableBtn.isEnabled().catch(() => false);
       if (!isEnabled) return;
       await variableBtn.click();
       // Should show variable options
-      const variableOption = page
-        .getByText(/time|date|weather/i)
-        .first();
+      const variableOption = page.getByText(/time|date|weather/i).first();
       await expect(variableOption).toBeVisible({ timeout: 5_000 });
     }
   });
 
-  test("page with template variables renders correctly in preview", async ({
-    page,
-  }) => {
-    const pageId = await createPage("Variable Preview", [
-      "{date}",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
+  test("page with template variables renders correctly in preview", async ({ page }) => {
+    const pageId = await createPage("Variable Preview", ["{date}", "", "", "", "", ""]);
 
     // Check the preview via API
     const res = await fetch(`${API_URL}/pages/${pageId}/preview`, {
@@ -270,9 +220,7 @@ test.describe("Page Builder", () => {
 });
 
 test.describe("Sync from Board", () => {
-  test("Sync from Board button is visible on new page, hidden on edit page", async ({
-    page,
-  }) => {
+  test("Sync from Board button is visible on new page, hidden on edit page", async ({ page }) => {
     // New page: button should appear
     await page.goto("/pages/new");
     await expect(page.getByText("Create Page").first()).toBeVisible({
@@ -291,9 +239,7 @@ test.describe("Sync from Board", () => {
       timeout: 15_000,
     });
 
-    await expect(
-      page.getByRole("button", { name: "Sync from current board display" }),
-    ).not.toBeVisible();
+    await expect(page.getByRole("button", { name: "Sync from current board display" })).not.toBeVisible();
 
     await deletePage(pageId);
   });
@@ -330,33 +276,19 @@ test.describe("Sync from Board", () => {
     // We match on URL only (not status) so a 200 produces an assertion
     // failure rather than a cryptic timeout.
     const [response] = await Promise.all([
-      page.waitForResponse(
-        (res) => res.url().includes("/api/pages/current-display"),
-        { timeout: 10_000 },
-      ),
+      page.waitForResponse((res) => res.url().includes("/api/pages/current-display"), { timeout: 10_000 }),
       syncBtn.click(),
     ]);
     expect(response.status()).toBe(404);
 
     // An error toast should be visible — use text-based detection since Sonner
     // toast attribute structure can vary between versions/configurations.
-    await expect(
-      page.getByText("No active display to sync from").first(),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("No active display to sync from").first()).toBeVisible({ timeout: 5_000 });
   });
 
-  test("populates template lines from active page on successful sync", async ({
-    page,
-  }) => {
+  test("populates template lines from active page on successful sync", async ({ page }) => {
     // Create a page with known content and make it active
-    const sourcePageId = await createPage("Sync Source Page", [
-      "HELLO SYNC",
-      "LINE TWO",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    const sourcePageId = await createPage("Sync Source Page", ["HELLO SYNC", "LINE TWO", "", "", "", ""]);
     await setActivePage(sourcePageId);
 
     await page.goto("/pages/new");
@@ -371,9 +303,7 @@ test.describe("Sync from Board", () => {
     await syncBtn.click();
 
     // Success toast should appear with the source page name
-    await expect(
-      page.getByText(/synced from/i).first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/synced from/i).first()).toBeVisible({ timeout: 10_000 });
 
     await deletePage(sourcePageId);
   });

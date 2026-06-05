@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { applyLineOpInPlace, applyPatchToSnapshot } from "@/lib/line-ops";
+import { describe, expect, it } from "vitest";
+
 import type { LineAlignment } from "@/lib/api";
+import { applyLineOpInPlace, applyPatchToSnapshot } from "@/lib/line-ops";
 
 describe("applyLineOpInPlace", () => {
   function makeArrays(lines: string[]) {
@@ -21,7 +22,12 @@ describe("applyLineOpInPlace", () => {
 
     it("sets alignment when provided", () => {
       const a = makeArrays(["x"]);
-      applyLineOpInPlace({ type: "replace_line", index: 0, text: "x", alignment: "right" }, a.template, a.alignments, a.wraps);
+      applyLineOpInPlace(
+        { type: "replace_line", index: 0, text: "x", alignment: "right" },
+        a.template,
+        a.alignments,
+        a.wraps,
+      );
       expect(a.alignments[0]).toBe("right");
     });
 
@@ -78,7 +84,12 @@ describe("applyLineOpInPlace", () => {
 
     it("respects provided alignment and wrap", () => {
       const a = makeArrays(["a"]);
-      applyLineOpInPlace({ type: "insert_line", index: 0, text: "x", alignment: "center", wrap: true }, a.template, a.alignments, a.wraps);
+      applyLineOpInPlace(
+        { type: "insert_line", index: 0, text: "x", alignment: "center", wrap: true },
+        a.template,
+        a.alignments,
+        a.wraps,
+      );
       expect(a.alignments[0]).toBe("center");
       expect(a.wraps[0]).toBe(true);
     });
@@ -116,7 +127,12 @@ describe("applyLineOpInPlace", () => {
   describe("update_line_metadata", () => {
     it("updates alignment at valid index", () => {
       const a = makeArrays(["x"]);
-      applyLineOpInPlace({ type: "update_line_metadata", index: 0, alignment: "center" }, a.template, a.alignments, a.wraps);
+      applyLineOpInPlace(
+        { type: "update_line_metadata", index: 0, alignment: "center" },
+        a.template,
+        a.alignments,
+        a.wraps,
+      );
       expect(a.alignments[0]).toBe("center");
     });
 
@@ -128,7 +144,12 @@ describe("applyLineOpInPlace", () => {
 
     it("is a no-op when index is out of range", () => {
       const a = makeArrays(["x"]);
-      applyLineOpInPlace({ type: "update_line_metadata", index: 5, alignment: "right" }, a.template, a.alignments, a.wraps);
+      applyLineOpInPlace(
+        { type: "update_line_metadata", index: 5, alignment: "right" },
+        a.template,
+        a.alignments,
+        a.wraps,
+      );
       expect(a.alignments[0]).toBe("left");
     });
   });
@@ -142,11 +163,7 @@ describe("applyPatchToSnapshot", () => {
   ];
 
   it("applies a replace_line op", () => {
-    const result = applyPatchToSnapshot(
-      [{ type: "replace_line", index: 0, text: "hi" }],
-      baseTemplate,
-      baseMeta,
-    );
+    const result = applyPatchToSnapshot([{ type: "replace_line", index: 0, text: "hi" }], baseTemplate, baseMeta);
     expect(result.template[0]).toBe("hi");
     expect(result.template[1]).toBe("world");
   });

@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "next-themes";
+import React from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { BoardDisplay } from "@/components/board-display";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
-import React from "react";
 
 // Test wrapper with providers
 function TestWrapper({ children }: { children: React.ReactNode }) {
@@ -37,10 +38,7 @@ describe("BoardDisplay white/black tile colors", () => {
 
   it("renders white color tile as white on black board", async () => {
     // {white} is color code 69
-    render(
-      <BoardDisplay message="{white}" boardType="black" size="md" />,
-      { wrapper: TestWrapper }
-    );
+    render(<BoardDisplay message="{white}" boardType="black" size="md" />, { wrapper: TestWrapper });
     await vi.advanceTimersByTimeAsync(200);
 
     const tile = screen.queryByTestId("char-tile-0-0");
@@ -50,10 +48,7 @@ describe("BoardDisplay white/black tile colors", () => {
   });
 
   it("renders white color tile as black on white board (inverted)", async () => {
-    render(
-      <BoardDisplay message="{white}" boardType="white" size="md" />,
-      { wrapper: TestWrapper }
-    );
+    render(<BoardDisplay message="{white}" boardType="white" size="md" />, { wrapper: TestWrapper });
     await vi.advanceTimersByTimeAsync(200);
 
     const tile = screen.queryByTestId("char-tile-0-0");
@@ -62,10 +57,7 @@ describe("BoardDisplay white/black tile colors", () => {
   });
 
   it("renders black color tile as black on black board", async () => {
-    render(
-      <BoardDisplay message="{black}" boardType="black" size="md" />,
-      { wrapper: TestWrapper }
-    );
+    render(<BoardDisplay message="{black}" boardType="black" size="md" />, { wrapper: TestWrapper });
     await vi.advanceTimersByTimeAsync(200);
 
     const tile = screen.queryByTestId("char-tile-0-0");
@@ -73,10 +65,7 @@ describe("BoardDisplay white/black tile colors", () => {
   });
 
   it("renders black color tile as white on white board (inverted)", async () => {
-    render(
-      <BoardDisplay message="{black}" boardType="white" size="md" />,
-      { wrapper: TestWrapper }
-    );
+    render(<BoardDisplay message="{black}" boardType="white" size="md" />, { wrapper: TestWrapper });
     await vi.advanceTimersByTimeAsync(200);
 
     const tile = screen.queryByTestId("char-tile-0-0");
@@ -95,10 +84,7 @@ describe("BoardDisplay Note device heart character", () => {
 
   it("renders degree symbol as heart (♥) on Note device", async () => {
     // Degree symbol ° (code 62) should become ♥ on Note
-    render(
-      <BoardDisplay message="°" deviceType="note" boardType="black" size="md" />,
-      { wrapper: TestWrapper }
-    );
+    render(<BoardDisplay message="°" deviceType="note" boardType="black" size="md" />, { wrapper: TestWrapper });
     await vi.advanceTimersByTimeAsync(200);
 
     const tile = screen.queryByTestId("char-tile-0-0");
@@ -110,10 +96,7 @@ describe("BoardDisplay Note device heart character", () => {
   });
 
   it("keeps degree symbol on Flagship device", async () => {
-    render(
-      <BoardDisplay message="°" deviceType="flagship" boardType="black" size="md" />,
-      { wrapper: TestWrapper }
-    );
+    render(<BoardDisplay message="°" deviceType="flagship" boardType="black" size="md" />, { wrapper: TestWrapper });
     await vi.advanceTimersByTimeAsync(200);
 
     const tile = screen.queryByTestId("char-tile-0-0");

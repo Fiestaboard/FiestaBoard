@@ -11,20 +11,24 @@ interface PageLayoutProps {
 
 export function PageLayout({ children, className, outerClassName, fillHeight }: PageLayoutProps) {
   return (
-    <div className={cn(
-      "bg-background overflow-x-hidden",
-      // fillHeight pins the page to the viewport so inner content (e.g. the
-      // calendar grid) can scroll independently. The mobile topbar (`pt-[72px]`
-      // on MainContent) is subtracted on small screens so the wrapper doesn't
-      // extend past the viewport bottom.
-      fillHeight ? "h-[calc(100dvh-72px)] lg:h-dvh flex flex-col overflow-hidden" : "min-h-full",
-      outerClassName
-    )}>
-      <div className={cn(
-        "container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 lg:py-3 max-w-full",
-        fillHeight && "flex-1 min-h-0 flex flex-col overflow-hidden",
-        className
-      )}>
+    <div
+      className={cn(
+        "bg-background overflow-x-hidden",
+        // fillHeight pins the page to the viewport so inner content (e.g. the
+        // calendar grid) can scroll independently. The mobile topbar (`pt-[72px]`
+        // on MainContent) is subtracted on small screens so the wrapper doesn't
+        // extend past the viewport bottom.
+        fillHeight ? "h-[calc(100dvh-72px)] lg:h-dvh flex flex-col overflow-hidden" : "min-h-full",
+        outerClassName,
+      )}
+    >
+      <div
+        className={cn(
+          "container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 lg:py-3 max-w-full",
+          fillHeight && "flex-1 min-h-0 flex flex-col overflow-hidden",
+          className,
+        )}
+      >
         {children}
       </div>
     </div>

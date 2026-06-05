@@ -7,14 +7,15 @@
 // - Position select has all 5 options
 // - Initial load populates from config (indicator_text/indicator_position)
 // - Save sends PUT with indicator_text + indicator_position
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
 import { http, HttpResponse } from "msw";
+import { ThemeProvider } from "next-themes";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { mockOutputSettings, mockTransitionSettings } from "./mocks/handlers";
 import { server } from "./mocks/server";
-import { mockTransitionSettings, mockOutputSettings } from "./mocks/handlers";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -109,11 +110,7 @@ async function enableSilenceAndSelectMode(user: ReturnType<typeof userEvent.setu
 describe("GeneralSettings - silence indicator controls visibility", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    server.use(
-      http.get(`${API_BASE}/settings/all`, () =>
-        HttpResponse.json(allSettingsResponse()),
-      ),
-    );
+    server.use(http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettingsResponse())));
   });
 
   afterEach(() => server.resetHandlers());
@@ -131,11 +128,7 @@ describe("GeneralSettings - silence indicator controls visibility", () => {
   });
 
   it("hides indicator text + position inputs when mode is 'freeze'", async () => {
-    server.use(
-      http.get(`${API_BASE}/settings/all`, () =>
-        HttpResponse.json(allSettingsResponse({ mode: "freeze" })),
-      ),
-    );
+    server.use(http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettingsResponse({ mode: "freeze" }))));
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     // Silence enabled, mode=freeze — text/position controls must be absent
@@ -145,11 +138,7 @@ describe("GeneralSettings - silence indicator controls visibility", () => {
   });
 
   it("hides indicator controls when silence is disabled", async () => {
-    server.use(
-      http.get(`${API_BASE}/settings/all`, () =>
-        HttpResponse.json(allSettingsResponse({ enabled: false })),
-      ),
-    );
+    server.use(http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettingsResponse({ enabled: false }))));
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
     // Silence disabled — entire silence section including indicator is hidden
@@ -161,19 +150,13 @@ describe("GeneralSettings - silence indicator controls visibility", () => {
 describe("GeneralSettings - indicator text input behaviour", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    server.use(
-      http.get(`${API_BASE}/settings/all`, () =>
-        HttpResponse.json(allSettingsResponse()),
-      ),
-    );
+    server.use(http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettingsResponse())));
   });
   afterEach(() => server.resetHandlers());
 
   it("pre-populates indicator text from config", async () => {
     server.use(
-      http.get(`${API_BASE}/settings/all`, () =>
-        HttpResponse.json(allSettingsResponse({ indicator_text: "BEDTIME" })),
-      ),
+      http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettingsResponse({ indicator_text: "BEDTIME" }))),
     );
     render(<GeneralSettings />, { wrapper: TestWrapper });
 
@@ -203,11 +186,7 @@ describe("GeneralSettings - indicator text input behaviour", () => {
 describe("GeneralSettings - indicator position select", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    server.use(
-      http.get(`${API_BASE}/settings/all`, () =>
-        HttpResponse.json(allSettingsResponse()),
-      ),
-    );
+    server.use(http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettingsResponse())));
   });
   afterEach(() => server.resetHandlers());
 
@@ -242,9 +221,7 @@ describe("GeneralSettings - save includes indicator fields", () => {
     vi.clearAllMocks();
     capturedBody = null;
     server.use(
-      http.get(`${API_BASE}/settings/all`, () =>
-        HttpResponse.json(allSettingsResponse()),
-      ),
+      http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettingsResponse())),
       http.put(`${API_BASE}/settings/silence-schedule`, async ({ request }) => {
         capturedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ status: "success", config: capturedBody });

@@ -53,12 +53,7 @@ export function tokensToString(tokens: Token[]): string {
     .join("");
 }
 
-export type IndicatorPosition =
-  | "center"
-  | "top-left"
-  | "top-right"
-  | "bottom-left"
-  | "bottom-right";
+export type IndicatorPosition = "center" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 export function addSnoozingIndicator(
   content: string,

@@ -1,44 +1,211 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { LucideIcon } from "lucide-react";
+import {
+  Activity,
+  AlarmClock,
+  AlertCircle,
+  Ambulance,
+  Anchor,
+  Apple,
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowUp,
+  Award,
+  BarChart,
+  Battery,
+  BatteryCharging,
+  Beer,
+  Bell,
+  Bike,
+  Bird,
+  Bitcoin,
+  Bluetooth,
+  Bookmark,
+  BookOpen,
+  Bot,
+  Box,
+  Bug,
+  Building,
+  Building2,
+  Cake,
+  Calendar,
+  CalendarClock,
+  CalendarDays,
+  Camera,
+  Car,
+  Cat,
+  Check,
+  CheckCircle,
+  ChevronDown,
+  ChevronsUp,
+  ChevronUp,
+  Church,
+  Clock,
+  Cloud,
+  CloudRain,
+  CloudSnow,
+  CloudSun,
+  Code,
+  Coffee,
+  Cog,
+  Compass,
+  Cookie,
+  Copy,
+  CopyPlus,
+  Cpu,
+  Crown,
+  CupSoda,
+  Database,
+  Dog,
+  DollarSign,
+  Download,
+  Droplets,
+  Dumbbell,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Factory,
+  Fan,
+  Film,
+  Filter,
+  Fish,
+  Flag,
+  Flame,
+  Flower,
+  Flower2,
+  Gamepad2,
+  Gem,
+  Ghost,
+  Gift,
+  GitBranch,
+  GlassWater,
+  Globe,
+  GraduationCap,
+  Hammer,
+  HardDrive,
+  Headphones,
+  Heart,
+  History,
+  Home,
+  Hourglass,
+  IceCream,
+  Image,
+  Key,
+  Landmark,
+  Laptop,
+  LayoutGrid,
+  LayoutList,
+  Leaf,
+  Library,
+  Lightbulb,
+  LineChart,
+  Link as LinkIcon,
+  Lock,
+  Mail,
+  Map,
+  MapPin,
+  Megaphone,
+  MessageCircle,
+  MessageSquare,
+  Mic,
+  Monitor,
+  Moon,
+  MoreHorizontal,
+  Mountain,
+  Music,
+  Navigation,
+  Newspaper,
+  Package,
+  PartyPopper,
+  Pause,
+  Phone,
+  PieChart,
+  Pill,
+  Pin,
+  Pizza,
+  Plane,
+  Play,
+  Plus,
+  Power,
+  Puzzle,
+  QrCode,
+  Radio,
+  RefreshCw,
+  Rocket,
+  Route,
+  Rss,
+  Satellite,
+  School,
+  Search,
+  Send,
+  Server,
+  Settings,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  Ship,
+  ShoppingCart,
+  Signpost,
+  Skull,
+  Smartphone,
+  Smile,
+  Snowflake,
+  Sparkles,
+  Speaker,
+  Sprout,
+  Star,
+  Stethoscope,
+  Store,
+  Sun,
+  Sunrise,
+  Sunset,
+  Tag,
+  Tags,
+  Target,
+  Tent,
+  Terminal,
+  Thermometer,
+  Timer,
+  TrainFront,
+  Trash2,
+  TreePine,
+  Trees,
+  TrendingUp,
+  Trophy,
+  Tv,
+  Umbrella,
+  Unlock,
+  Upload,
+  UserCircle,
+  Users,
+  Video,
+  Volume2,
+  Wand,
+  Wand2,
+  Warehouse,
+  Watch,
+  Waves,
+  Wifi,
+  WifiOff,
+  Wind,
+  Wine,
+  Wrench,
+  X,
+  XCircle,
+  Zap,
+} from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, PluginInfo, RegistryEntry } from "@/lib/api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-  SheetClose,
-} from "@/components/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
 import { SchemaForm } from "@/components/plugin-settings";
-import { FIESTABOARD_COLORS, AVAILABLE_COLORS, FiestaboardColorName } from "@/lib/board-colors";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,211 +216,46 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import {
-  Cloud,
-  Calendar,
-  Home,
-  Wifi,
-  Sparkles,
-  Wind,
-  TrainFront,
-  Waves,
-  Bike,
-  Car,
-  TrendingUp,
-  Plane,
-  Puzzle,
-  Settings,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  Sun,
-  Moon,
-  Thermometer,
-  Droplets,
-  Zap,
-  Music,
-  Film,
-  Gamepad2,
-  GitBranch,
-  Box,
-  BookOpen,
-  Coffee,
-  ShoppingCart,
-  DollarSign,
-  Bitcoin,
-  Globe,
-  MapPin,
-  Navigation,
-  Clock,
-  Bell,
-  MessageSquare,
-  Mail,
-  Phone,
-  Camera,
-  Image,
-  Video,
-  Mic,
-  Volume2,
-  Heart,
-  Star,
-  Award,
-  Trophy,
-  Target,
-  Activity,
-  BarChart,
-  PieChart,
-  LineChart,
-  Database,
-  Server,
-  Cpu,
-  HardDrive,
-  Smartphone,
-  Laptop,
-  Monitor,
-  Tv,
-  Radio,
-  Headphones,
-  Speaker,
-  Battery,
-  BatteryCharging,
-  Power,
-  Lightbulb,
-  Fan,
-  Umbrella,
-  CloudRain,
-  CloudSnow,
-  CloudSun,
-  Sunrise,
-  Sunset,
-  Eye,
-  EyeOff,
-  Lock,
-  Unlock,
-  Key,
-  Shield,
-  ShieldCheck,
-  ShieldAlert,
-  UserCircle,
-  Users,
-  Building,
-  Building2,
-  Factory,
-  Store,
-  Warehouse,
-  Package,
-  Gift,
-  Trash2,
-  Leaf,
-  TreePine,
-  Flower2,
-  Bug,
-  Fish,
-  Bird,
-  Dog,
-  Cat,
-  Dumbbell,
-  Pill,
-  Stethoscope,
-  Ambulance,
-  Flame,
-  Snowflake,
-  Anchor,
-  Ship,
-  Rocket,
-  Satellite,
-  Rss,
-  WifiOff,
-  Bluetooth,
-  QrCode,
-  Bot,
-  Cog,
-  Wrench,
-  Hammer,
-  Code,
-  Terminal,
-  Download,
-  Upload,
-  RefreshCw,
-  ArrowDownToLine,
-  Play,
-  Pause,
-  Copy,
-  Check,
-  X,
-  Plus,
-  ArrowUp,
-  ArrowDown,
-  ChevronUp,
-  ChevronDown,
-  ChevronsUp,
-  ExternalLink,
-  Link as LinkIcon,
-  Pin,
-  Compass,
-  Map,
-  Route,
-  Signpost,
-  Flag,
-  Bookmark,
-  Tag,
-  Tags,
-  Search,
-  Filter,
-  LayoutGrid,
-  LayoutList,
-  CalendarDays,
-  CalendarClock,
-  AlarmClock,
-  Timer,
-  Hourglass,
-  Watch,
-  History,
-  Send,
-  MessageCircle,
-  Megaphone,
-  Newspaper,
-  GraduationCap,
-  School,
-  Library,
-  Landmark,
-  Church,
-  Tent,
-  Mountain,
-  Trees,
-  Flower,
-  Sprout,
-  Apple,
-  Pizza,
-  IceCream,
-  Cake,
-  Cookie,
-  CupSoda,
-  Beer,
-  Wine,
-  GlassWater,
-  Gem,
-  Crown,
-  Wand,
-  Wand2,
-  PartyPopper,
-  Ghost,
-  Skull,
-  Smile,
-  MoreHorizontal,
-  CopyPlus,
-} from "lucide-react";
-import { LucideIcon } from "lucide-react";
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { PluginInfo, RegistryEntry } from "@/lib/api";
+import { api } from "@/lib/api";
+import type { FiestaboardColorName } from "@/lib/board-colors";
+import { AVAILABLE_COLORS, FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
-
 
 /**
  * Comprehensive icon mapping from Lucide icon names to components.
@@ -279,7 +281,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   snowflake: Snowflake,
   flame: Flame,
   waves: Waves,
-  
+
   // Transportation
   car: Car,
   bike: Bike,
@@ -297,7 +299,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   map: Map,
   route: Route,
   signpost: Signpost,
-  
+
   // Home & Smart Home
   home: Home,
   lightbulb: Lightbulb,
@@ -316,7 +318,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   shield: Shield,
   shield_check: ShieldCheck,
   shieldcheck: ShieldCheck,
-  
+
   // Time & Calendar
   calendar: Calendar,
   calendar_days: CalendarDays,
@@ -330,7 +332,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   hourglass: Hourglass,
   watch: Watch,
   history: History,
-  
+
   // Finance
   trending_up: TrendingUp,
   trendingup: TrendingUp,
@@ -344,7 +346,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   line_chart: LineChart,
   linechart: LineChart,
   activity: Activity,
-  
+
   // Entertainment
   sparkles: Sparkles,
   music: Music,
@@ -359,7 +361,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   pause: Pause,
   party_popper: PartyPopper,
   partypopper: PartyPopper,
-  
+
   // Communication
   message_square: MessageSquare,
   messagesquare: MessageSquare,
@@ -371,7 +373,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   megaphone: Megaphone,
   send: Send,
   rss: Rss,
-  
+
   // Technology
   smartphone: Smartphone,
   laptop: Laptop,
@@ -388,7 +390,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   satellite: Satellite,
   qr_code: QrCode,
   qrcode: QrCode,
-  
+
   // Health & Fitness
   heart: Heart,
   activity2: Activity,
@@ -397,7 +399,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   stethoscope: Stethoscope,
   ambulance: Ambulance,
   apple: Apple,
-  
+
   // Nature
   leaf: Leaf,
   tree_pine: TreePine,
@@ -412,7 +414,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   bird: Bird,
   dog: Dog,
   cat: Cat,
-  
+
   // Food & Drink
   coffee: Coffee,
   pizza: Pizza,
@@ -426,7 +428,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   glasswater: GlassWater,
   cup_soda: CupSoda,
   cupsoda: CupSoda,
-  
+
   // Places
   building: Building,
   building2: Building2,
@@ -438,7 +440,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   landmark: Landmark,
   church: Church,
   tent: Tent,
-  
+
   // Shopping
   shopping_cart: ShoppingCart,
   shoppingcart: ShoppingCart,
@@ -446,7 +448,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   gift: Gift,
   tag: Tag,
   tags: Tags,
-  
+
   // Actions & UI
   settings: Settings,
   cog: Cog,
@@ -461,7 +463,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   eye: Eye,
   eye_off: EyeOff,
   eyeoff: EyeOff,
-  
+
   // Status
   check_circle: CheckCircle,
   checkcircle: CheckCircle,
@@ -471,7 +473,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   xcircle: XCircle,
   check: Check,
   x: X,
-  
+
   // Miscellaneous
   star: Star,
   award: Award,
@@ -503,7 +505,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   image: Image,
   video: Video,
   mic: Mic,
-  
+
   // Default fallback
   puzzle: Puzzle,
 };
@@ -514,10 +516,10 @@ const ICON_MAP: Record<string, LucideIcon> = {
  */
 function getPluginIcon(iconName?: string): LucideIcon {
   if (!iconName) return Puzzle;
-  
+
   // Normalize: lowercase and handle both snake_case and lowercase
-  const normalized = iconName.toLowerCase().replace(/-/g, '_');
-  
+  const normalized = iconName.toLowerCase().replace(/-/g, "_");
+
   return ICON_MAP[normalized] || Puzzle;
 }
 
@@ -627,189 +629,191 @@ function ColorRulesEditor({
 
   return (
     <TooltipProvider>
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-muted-foreground">
-          {t("colorRules.title")}
-          <span className="ml-2 text-xs font-normal">({t("colorRules.firstMatchWins")})</span>
-        </h4>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 text-xs"
-          onClick={() => setShowAddField(!showAddField)}
-        >
-          <Plus className="h-3 w-3 mr-1" />
-          {t("colorRules.addField")}
-        </Button>
-      </div>
-
-      {/* Add new field input */}
-      {showAddField && (
-        <div className="flex gap-2 p-2 rounded-md border bg-muted/30">
-          <input
-            type="text"
-            value={newFieldName}
-            onChange={(e) => setNewFieldName(e.target.value)}
-            placeholder="Field name (e.g., temperature)"
-            className="flex-1 h-8 px-2 text-xs rounded border bg-background"
-          />
-          <Button size="sm" className="h-8 text-xs" onClick={handleAddField}>
-            {tCommon("add")}
-          </Button>
-          <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setShowAddField(false)}>
-            {tCommon("cancel")}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-medium text-muted-foreground">
+            {t("colorRules.title")}
+            <span className="ml-2 text-xs font-normal">({t("colorRules.firstMatchWins")})</span>
+          </h4>
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowAddField(!showAddField)}>
+            <Plus className="h-3 w-3 mr-1" />
+            {t("colorRules.addField")}
           </Button>
         </div>
-      )}
 
-      {fieldNames.length === 0 ? (
-        <p className="text-xs text-muted-foreground py-2">
-          No color rules configured. Add a field to create dynamic colors.
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {fieldNames.map((fieldName) => {
-            const rules = colorRules[fieldName];
-            return (
-              <div key={fieldName} className="rounded-md border overflow-hidden">
-                {/* Field header */}
-                <div className="bg-muted/50 px-3 py-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <code className="text-xs font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                      {pluginId}.{fieldName}
-                    </code>
-                    <span className="text-xs text-muted-foreground">→ color based on value</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => onCopyVar(`${fieldName}_color`)}
-                      className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-muted"
-                    >
-                      {copiedVar === `${fieldName}_color` ? (
-                        <Check className="h-3 w-3 text-success" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
-                      <code className="font-mono text-[10px]">{fieldName}_color</code>
-                    </button>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => handleDeleteField(fieldName)}
-                          className="p-1 text-destructive hover:bg-destructive/10 rounded"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{t("colorRules.deleteFieldTooltip")}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </div>
+        {/* Add new field input */}
+        {showAddField && (
+          <div className="flex gap-2 p-2 rounded-md border bg-muted/30">
+            <input
+              type="text"
+              value={newFieldName}
+              onChange={(e) => setNewFieldName(e.target.value)}
+              placeholder="Field name (e.g., temperature)"
+              className="flex-1 h-8 px-2 text-xs rounded border bg-background"
+            />
+            <Button size="sm" className="h-8 text-xs" onClick={handleAddField}>
+              {tCommon("add")}
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setShowAddField(false)}>
+              {tCommon("cancel")}
+            </Button>
+          </div>
+        )}
 
-                {/* Rules */}
-                <div className="divide-y">
-                  {rules.map((rule, idx) => {
-                    const colorStyle = COLOR_DISPLAY[rule.color as FiestaboardColorName] || { bg: "bg-muted", text: "text-muted-foreground", hex: "#6b7280" };
-                    return (
-                      <div key={idx} className="px-3 py-2 flex items-center gap-2 text-xs">
-                        {/* Reorder buttons */}
-                        <div className="flex flex-col gap-0.5">
+        {fieldNames.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-2">
+            No color rules configured. Add a field to create dynamic colors.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {fieldNames.map((fieldName) => {
+              const rules = colorRules[fieldName];
+              return (
+                <div key={fieldName} className="rounded-md border overflow-hidden">
+                  {/* Field header */}
+                  <div className="bg-muted/50 px-3 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                        {pluginId}.{fieldName}
+                      </code>
+                      <span className="text-xs text-muted-foreground">→ color based on value</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => onCopyVar(`${fieldName}_color`)}
+                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-muted"
+                      >
+                        {copiedVar === `${fieldName}_color` ? (
+                          <Check className="h-3 w-3 text-success" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                        <code className="font-mono text-[10px]">{fieldName}_color</code>
+                      </button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
                           <button
-                            onClick={() => handleMoveRule(fieldName, idx, "up")}
-                            disabled={idx === 0}
-                            className="p-0.5 hover:bg-muted rounded disabled:opacity-50"
+                            onClick={() => handleDeleteField(fieldName)}
+                            className="p-1 text-destructive hover:bg-destructive/10 rounded"
                           >
-                            <ArrowUp className="h-3 w-3" />
+                            <Trash2 className="h-3 w-3" />
                           </button>
-                          <button
-                            onClick={() => handleMoveRule(fieldName, idx, "down")}
-                            disabled={idx === rules.length - 1}
-                            className="p-0.5 hover:bg-muted rounded disabled:opacity-50"
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{t("colorRules.deleteFieldTooltip")}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+
+                  {/* Rules */}
+                  <div className="divide-y">
+                    {rules.map((rule, idx) => {
+                      const colorStyle = COLOR_DISPLAY[rule.color as FiestaboardColorName] || {
+                        bg: "bg-muted",
+                        text: "text-muted-foreground",
+                        hex: "#6b7280",
+                      };
+                      return (
+                        <div key={idx} className="px-3 py-2 flex items-center gap-2 text-xs">
+                          {/* Reorder buttons */}
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              onClick={() => handleMoveRule(fieldName, idx, "up")}
+                              disabled={idx === 0}
+                              className="p-0.5 hover:bg-muted rounded disabled:opacity-50"
+                            >
+                              <ArrowUp className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => handleMoveRule(fieldName, idx, "down")}
+                              disabled={idx === rules.length - 1}
+                              className="p-0.5 hover:bg-muted rounded disabled:opacity-50"
+                            >
+                              <ArrowDown className="h-3 w-3" />
+                            </button>
+                          </div>
+
+                          {/* Color picker */}
+                          <select
+                            value={rule.color}
+                            onChange={(e) => handleUpdateRule(fieldName, idx, { color: e.target.value })}
+                            className="h-7 px-2 rounded border text-xs font-medium"
+                            style={{
+                              backgroundColor: colorStyle.hex,
+                              color: colorStyle.text === "text-board-black" ? "#000" : "#fff",
+                            }}
                           >
-                            <ArrowDown className="h-3 w-3" />
+                            {AVAILABLE_COLORS.map((color) => (
+                              <option key={color} value={color} className="bg-background text-foreground">
+                                {color}
+                              </option>
+                            ))}
+                          </select>
+
+                          <span className="text-muted-foreground shrink-0">when</span>
+
+                          {/* Condition picker */}
+                          <select
+                            value={rule.condition}
+                            onChange={(e) => handleUpdateRule(fieldName, idx, { condition: e.target.value })}
+                            className="h-7 px-2 rounded border bg-background text-xs font-mono"
+                          >
+                            {AVAILABLE_CONDITIONS.map((cond) => (
+                              <option key={cond.value} value={cond.value}>
+                                {cond.value}
+                              </option>
+                            ))}
+                          </select>
+
+                          {/* Value input */}
+                          <input
+                            type="text"
+                            value={rule.value}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              // Try to parse as number, otherwise keep as string
+                              const numVal = parseFloat(val);
+                              handleUpdateRule(fieldName, idx, {
+                                value: isNaN(numVal) ? val : numVal,
+                              });
+                            }}
+                            className="w-20 h-7 px-2 rounded border bg-background text-xs font-mono"
+                            placeholder="value"
+                          />
+
+                          {/* Delete button */}
+                          <button
+                            onClick={() => handleDeleteRule(fieldName, idx)}
+                            className="p-1 text-destructive hover:bg-destructive/10 rounded ml-auto"
+                          >
+                            <Trash2 className="h-3 w-3" />
                           </button>
                         </div>
+                      );
+                    })}
+                  </div>
 
-                        {/* Color picker */}
-                        <select
-                          value={rule.color}
-                          onChange={(e) => handleUpdateRule(fieldName, idx, { color: e.target.value })}
-                          className="h-7 px-2 rounded border text-xs font-medium"
-                          style={{ backgroundColor: colorStyle.hex, color: colorStyle.text === "text-board-black" ? "#000" : "#fff" }}
-                        >
-                          {AVAILABLE_COLORS.map((color) => (
-                            <option key={color} value={color} className="bg-background text-foreground">
-                              {color}
-                            </option>
-                          ))}
-                        </select>
-
-                        <span className="text-muted-foreground shrink-0">when</span>
-
-                        {/* Condition picker */}
-                        <select
-                          value={rule.condition}
-                          onChange={(e) => handleUpdateRule(fieldName, idx, { condition: e.target.value })}
-                          className="h-7 px-2 rounded border bg-background text-xs font-mono"
-                        >
-                          {AVAILABLE_CONDITIONS.map((cond) => (
-                            <option key={cond.value} value={cond.value}>
-                              {cond.value}
-                            </option>
-                          ))}
-                        </select>
-
-                        {/* Value input */}
-                        <input
-                          type="text"
-                          value={rule.value}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            // Try to parse as number, otherwise keep as string
-                            const numVal = parseFloat(val);
-                            handleUpdateRule(fieldName, idx, { 
-                              value: isNaN(numVal) ? val : numVal 
-                            });
-                          }}
-                          className="w-20 h-7 px-2 rounded border bg-background text-xs font-mono"
-                          placeholder="value"
-                        />
-
-                        {/* Delete button */}
-                        <button
-                          onClick={() => handleDeleteRule(fieldName, idx)}
-                          className="p-1 text-destructive hover:bg-destructive/10 rounded ml-auto"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {/* Add rule button */}
+                  <div className="px-3 py-2 border-t bg-muted/20">
+                    <button
+                      onClick={() => handleAddRule(fieldName)}
+                      className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    >
+                      <Plus className="h-3 w-3" />
+                      {t("colorRules.addRule")}
+                    </button>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
 
-                {/* Add rule button */}
-                <div className="px-3 py-2 border-t bg-muted/20">
-                  <button
-                    onClick={() => handleAddRule(fieldName)}
-                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                  >
-                    <Plus className="h-3 w-3" />
-                    {t("colorRules.addRule")}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <p className="text-xs text-muted-foreground">
-        {t("colorRules.ruleDescription", { example: `{{${pluginId}.field_color}}` })}
-      </p>
-    </div>
+        <p className="text-xs text-muted-foreground">
+          {t("colorRules.ruleDescription", { example: `{{${pluginId}.field_color}}` })}
+        </p>
+      </div>
     </TooltipProvider>
   );
 }
@@ -904,9 +908,7 @@ function PluginCard({
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setShowDemoConfirm(false);
     } catch (error) {
-      toast.error(
-        `Failed to create demo page: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
+      toast.error(`Failed to create demo page: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsCreatingDemo(false);
     }
@@ -929,26 +931,26 @@ function PluginCard({
     };
     const required = schema.required ?? [];
     const config = pluginDetails.config ?? {};
-    return required.every(
-      (field) => field === "enabled" || Boolean(config[field])
-    );
+    return required.every((field) => field === "enabled" || Boolean(config[field]));
   };
 
   // Parse variables from plugin details - handles both array and object formats for variables.simple
   const getVariablesList = () => {
     if (!pluginDetails?.variables) return [];
     const variables = pluginDetails.variables as {
-      simple?: string[] | Record<string, { description?: string; max_length?: number; group?: string; example?: string }>;
+      simple?:
+        | string[]
+        | Record<string, { description?: string; max_length?: number; group?: string; example?: string }>;
       arrays?: Record<string, { label_field: string; item_fields: string[] }>;
     };
     const list: Array<{ name: string; description: string; maxChars: number }> = [];
 
     if (variables.simple) {
       if (Array.isArray(variables.simple)) {
-        variables.simple.forEach(name => {
+        variables.simple.forEach((name) => {
           list.push({
             name,
-            description: name.replace(/_/g, ' '),
+            description: name.replace(/_/g, " "),
             maxChars: pluginDetails.max_lengths?.[name] ?? 22,
           });
         });
@@ -956,7 +958,7 @@ function PluginCard({
         Object.entries(variables.simple).forEach(([name, meta]) => {
           list.push({
             name,
-            description: meta.description ?? name.replace(/_/g, ' '),
+            description: meta.description ?? name.replace(/_/g, " "),
             maxChars: pluginDetails.max_lengths?.[name] ?? meta.max_length ?? 22,
           });
         });
@@ -972,11 +974,11 @@ function PluginCard({
         });
         // Skip label_field in item_fields to avoid duplicate keys
         config.item_fields
-          .filter(field => field !== config.label_field)
-          .forEach(field => {
+          .filter((field) => field !== config.label_field)
+          .forEach((field) => {
             list.push({
               name: `${arrayName}.{index}.${field}`,
-              description: `${arrayName} ${field.replace(/_/g, ' ')}`,
+              description: `${arrayName} ${field.replace(/_/g, " ")}`,
               maxChars: pluginDetails.max_lengths?.[`${arrayName}.${field}`] ?? 22,
             });
           });
@@ -1000,7 +1002,8 @@ function PluginCard({
     if (!instanceLabel.trim()) return;
     setIsCreatingInstance(true);
     const baseId = plugin.base_plugin_id ?? plugin.id;
-    api.createPluginInstance(baseId, instanceLabel.trim())
+    api
+      .createPluginInstance(baseId, instanceLabel.trim())
       .then(() => {
         toast.success(`Instance "${instanceLabel}" created for ${plugin.name}`);
         queryClient.invalidateQueries({ queryKey: ["plugins"] });
@@ -1042,9 +1045,7 @@ function PluginCard({
             <Icon className="h-5 w-5" />
             {plugin.name}
           </SheetTitle>
-          <SheetDescription>
-            Configure settings for this integration
-          </SheetDescription>
+          <SheetDescription>Configure settings for this integration</SheetDescription>
         </SheetHeader>
         <div className="py-6 space-y-6">
           {isLoadingDetails ? (
@@ -1070,11 +1071,7 @@ function PluginCard({
                     {pluginDetails.demo_page_id ? (
                       <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
                         <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={!areDemoRequirementsMet() || isCreatingDemo}
-                          >
+                          <Button variant="outline" size="sm" disabled={!areDemoRequirementsMet() || isCreatingDemo}>
                             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                             Recreate
                           </Button>
@@ -1083,22 +1080,15 @@ function PluginCard({
                           <DialogHeader>
                             <DialogTitle>Recreate Demo Page?</DialogTitle>
                             <DialogDescription>
-                              This will delete the existing demo page and create a
-                              fresh one with default settings. This action cannot be
-                              undone.
+                              This will delete the existing demo page and create a fresh one with default settings. This
+                              action cannot be undone.
                             </DialogDescription>
                           </DialogHeader>
                           <DialogFooter>
-                            <Button
-                              variant="outline"
-                              onClick={() => setShowDemoConfirm(false)}
-                            >
+                            <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
                               Cancel
                             </Button>
-                            <Button
-                              onClick={handleCreateDemoPage}
-                              disabled={isCreatingDemo}
-                            >
+                            <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
                               {isCreatingDemo ? "Creating..." : "Recreate Demo Page"}
                             </Button>
                           </DialogFooter>
@@ -1125,17 +1115,18 @@ function PluginCard({
               )}
 
               {/* Settings Section */}
-              {pluginDetails?.settings_schema && Object.keys(pluginDetails.settings_schema.properties || {}).length > 0 && (
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium text-muted-foreground">Settings</h4>
-                  <SchemaForm
-                    schema={pluginDetails.settings_schema}
-                    values={configValues}
-                    onChange={setConfigValues}
-                    disabled={isSaving}
-                  />
-                </div>
-              )}
+              {pluginDetails?.settings_schema &&
+                Object.keys(pluginDetails.settings_schema.properties || {}).length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium text-muted-foreground">Settings</h4>
+                    <SchemaForm
+                      schema={pluginDetails.settings_schema}
+                      values={configValues}
+                      onChange={setConfigValues}
+                      disabled={isSaving}
+                    />
+                  </div>
+                )}
 
               {/* Template Variables Section */}
               {getVariablesList().length > 0 && (
@@ -1172,9 +1163,7 @@ function PluginCard({
                                 )}
                               </div>
                             </td>
-                            <td className="px-3 py-2 text-muted-foreground capitalize">
-                              {variable.description}
-                            </td>
+                            <td className="px-3 py-2 text-muted-foreground capitalize">{variable.description}</td>
                             <td className="px-3 py-2 text-center">
                               <Badge variant="outline" className="text-[10px]">
                                 {variable.maxChars}
@@ -1194,9 +1183,7 @@ function PluginCard({
               {/* Environment Variables Section */}
               {pluginDetails?.env_vars && pluginDetails.env_vars.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground">
-                    Environment Variables
-                  </h4>
+                  <h4 className="text-sm font-medium text-muted-foreground">Environment Variables</h4>
                   <div className="rounded-md border overflow-hidden">
                     <table className="w-full text-xs">
                       <thead className="bg-muted/50">
@@ -1214,14 +1201,16 @@ function PluginCard({
                                 {envVar.name}
                               </code>
                             </td>
-                            <td className="px-3 py-2 text-muted-foreground">
-                              {envVar.description}
-                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">{envVar.description}</td>
                             <td className="px-3 py-2 text-center">
                               {envVar.required ? (
-                                <Badge variant="destructive" className="text-[10px]">Required</Badge>
+                                <Badge variant="destructive" className="text-[10px]">
+                                  Required
+                                </Badge>
                               ) : (
-                                <Badge variant="outline" className="text-[10px]">Optional</Badge>
+                                <Badge variant="outline" className="text-[10px]">
+                                  Optional
+                                </Badge>
                               )}
                             </td>
                           </tr>
@@ -1244,12 +1233,11 @@ function PluginCard({
               />
 
               {/* No config message */}
-              {(!pluginDetails?.settings_schema || Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
-               getVariablesList().length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  No configuration options available for this plugin.
-                </p>
-              )}
+              {(!pluginDetails?.settings_schema ||
+                Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
+                getVariablesList().length === 0 && (
+                  <p className="text-sm text-muted-foreground">No configuration options available for this plugin.</p>
+                )}
             </>
           )}
         </div>
@@ -1284,204 +1272,220 @@ function PluginCard({
 
   const rows = (
     <>
-    <tr className={cn(
-      "border-b last:border-b-0 transition-colors",
-      plugin.enabled ? "hover:bg-muted/30" : "opacity-60 hover:opacity-80 hover:bg-muted/20"
-    )}>
-      {/* Name column: icon + name + version + source badges */}
-      <td className="px-4 py-2.5">
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            "p-1.5 rounded-md shrink-0",
-            plugin.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-          )}>
-            <Icon className="h-4 w-4" />
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-            <span className="font-medium text-sm whitespace-nowrap">{plugin.name}</span>
-            <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 h-4 shrink-0">
-              v{plugin.version}
-            </Badge>
-            {isCore && (
-              <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-orange-300 text-orange-600 dark:text-orange-400 dark:border-orange-700">
-                <Box className="h-2.5 w-2.5" />
-                Core
-              </Badge>
-            )}
-            {isMarketplace && (
-              <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-sky-300 text-sky-600 dark:text-sky-400 dark:border-sky-700">
-                <Package className="h-2.5 w-2.5" />
-                Marketplace
-              </Badge>
-            )}
-            {isGitExternal && (
-              <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-purple-300 text-purple-600 dark:text-purple-400 dark:border-purple-700">
-                <GitBranch className="h-2.5 w-2.5" />
-                External
-              </Badge>
-            )}
-            {hasUpdate && (
-              <Badge variant="outline" className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950 dark:text-amber-400">
-                <ArrowDownToLine className="h-2.5 w-2.5" />
-                Update
-              </Badge>
-            )}
-          </div>
-        </div>
-      </td>
-
-      {/* Category column */}
-      <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap hidden sm:table-cell">
-        {categoryLabel}
-      </td>
-
-      {/* Status column */}
-      <td className="px-4 py-2.5 whitespace-nowrap hidden md:table-cell">
-        {plugin.enabled ? (
-          plugin.configured ? (
-            <Badge variant="default" className="text-[10px] gap-1 px-1.5 py-0 h-5">
-              <CheckCircle className="h-2.5 w-2.5" />
-              Configured
-            </Badge>
-          ) : (
-            <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 h-5">
-              <AlertCircle className="h-2.5 w-2.5" />
-              Setup Required
-            </Badge>
-          )
-        ) : (
-          <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 h-5">
-            <XCircle className="h-2.5 w-2.5" />
-            Disabled
-          </Badge>
+      <tr
+        className={cn(
+          "border-b last:border-b-0 transition-colors",
+          plugin.enabled ? "hover:bg-muted/30" : "opacity-60 hover:opacity-80 hover:bg-muted/20",
         )}
-      </td>
-
-      {/* Actions column: toggle + configure + overflow */}
-      <td className="px-4 py-2.5">
-        <div className="flex items-center justify-end gap-0.5">
-          <Switch
-            checked={plugin.enabled}
-            onCheckedChange={(checked) => onToggle(plugin.id, checked)}
-            disabled={isToggling}
-            aria-label={`Toggle ${plugin.name}`}
-          />
-          {configSheet}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="More options">
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setIsConfigOpen(true)}>
-                <Settings className="h-3.5 w-3.5 mr-2" />
-                Configure
-              </DropdownMenuItem>
-              {!isInstance && (
-                <DropdownMenuItem onClick={() => setShowAddInstance(true)}>
-                  <CopyPlus className="h-3.5 w-3.5 mr-2" />
-                  Add Instance
-                </DropdownMenuItem>
+      >
+        {/* Name column: icon + name + version + source badges */}
+        <td className="px-4 py-2.5">
+          <div className="flex items-center gap-3">
+            <div
+              className={cn(
+                "p-1.5 rounded-md shrink-0",
+                plugin.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
               )}
-              <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
-                {plugin.enabled ? (
-                  <XCircle className="h-3.5 w-3.5 mr-2" />
-                ) : (
-                  <CheckCircle className="h-3.5 w-3.5 mr-2" />
-                )}
-                {plugin.enabled ? "Disable" : "Enable"}
-              </DropdownMenuItem>
-              {hasUpdate && onUpdate && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onUpdate(plugin.id)} disabled={isUpdating}>
-                    <RefreshCw className={cn("h-3.5 w-3.5 mr-2", isUpdating && "animate-spin")} />
-                    {isUpdating ? "Updating..." : "Update"}
-                  </DropdownMenuItem>
-                </>
-              )}
-              {isInstance && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </>
-              )}
-              {isExternal && onUninstall && !isInstance && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setShowDeleteConfirm(true)}
-                    disabled={isUninstalling}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-2" />
-                    {isUninstalling ? "Uninstalling..." : "Delete"}
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </td>
-    </tr>
-    {showAddInstance && (
-      <tr className="border-b last:border-b-0">
-        <td colSpan={4} className="px-4 py-3">
-          <div className="flex items-center gap-3 max-w-md">
-            <Label htmlFor={`instance-label-${plugin.id}`} className="text-sm whitespace-nowrap">
-              Instance name:
-            </Label>
-            <Input
-              id={`instance-label-${plugin.id}`}
-              placeholder="e.g. sf, prod, api-2"
-              value={instanceLabel}
-              onChange={(e) => setInstanceLabel(e.target.value)}
-              className="h-8 text-sm"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && instanceLabel.trim()) {
-                  handleCreateInstance();
-                }
-                if (e.key === "Escape") {
-                  setShowAddInstance(false);
-                  setInstanceLabel("");
-                }
-              }}
-            />
-            <Button
-              size="sm"
-              className="h-8"
-              disabled={!instanceLabel.trim() || isCreatingInstance}
-              onClick={handleCreateInstance}
             >
-              {isCreatingInstance ? "Creating..." : "Create"}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8"
-              onClick={() => {
-                setShowAddInstance(false);
-                setInstanceLabel("");
-              }}
-            >
-              Cancel
-            </Button>
+              <Icon className="h-4 w-4" />
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+              <span className="font-medium text-sm whitespace-nowrap">{plugin.name}</span>
+              <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 h-4 shrink-0">
+                v{plugin.version}
+              </Badge>
+              {isCore && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-orange-300 text-orange-600 dark:text-orange-400 dark:border-orange-700"
+                >
+                  <Box className="h-2.5 w-2.5" />
+                  Core
+                </Badge>
+              )}
+              {isMarketplace && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-sky-300 text-sky-600 dark:text-sky-400 dark:border-sky-700"
+                >
+                  <Package className="h-2.5 w-2.5" />
+                  Marketplace
+                </Badge>
+              )}
+              {isGitExternal && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-purple-300 text-purple-600 dark:text-purple-400 dark:border-purple-700"
+                >
+                  <GitBranch className="h-2.5 w-2.5" />
+                  External
+                </Badge>
+              )}
+              {hasUpdate && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950 dark:text-amber-400"
+                >
+                  <ArrowDownToLine className="h-2.5 w-2.5" />
+                  Update
+                </Badge>
+              )}
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-1.5">
-            Creates a new independent instance of this plugin with its own configuration.
-            Use alphanumeric characters, hyphens, or underscores (1-40 chars).
-          </p>
+        </td>
+
+        {/* Category column */}
+        <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap hidden sm:table-cell">
+          {categoryLabel}
+        </td>
+
+        {/* Status column */}
+        <td className="px-4 py-2.5 whitespace-nowrap hidden md:table-cell">
+          {plugin.enabled ? (
+            plugin.configured ? (
+              <Badge variant="default" className="text-[10px] gap-1 px-1.5 py-0 h-5">
+                <CheckCircle className="h-2.5 w-2.5" />
+                Configured
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 h-5">
+                <AlertCircle className="h-2.5 w-2.5" />
+                Setup Required
+              </Badge>
+            )
+          ) : (
+            <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 h-5">
+              <XCircle className="h-2.5 w-2.5" />
+              Disabled
+            </Badge>
+          )}
+        </td>
+
+        {/* Actions column: toggle + configure + overflow */}
+        <td className="px-4 py-2.5">
+          <div className="flex items-center justify-end gap-0.5">
+            <Switch
+              checked={plugin.enabled}
+              onCheckedChange={(checked) => onToggle(plugin.id, checked)}
+              disabled={isToggling}
+              aria-label={`Toggle ${plugin.name}`}
+            />
+            {configSheet}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="More options">
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsConfigOpen(true)}>
+                  <Settings className="h-3.5 w-3.5 mr-2" />
+                  Configure
+                </DropdownMenuItem>
+                {!isInstance && (
+                  <DropdownMenuItem onClick={() => setShowAddInstance(true)}>
+                    <CopyPlus className="h-3.5 w-3.5 mr-2" />
+                    Add Instance
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
+                  {plugin.enabled ? (
+                    <XCircle className="h-3.5 w-3.5 mr-2" />
+                  ) : (
+                    <CheckCircle className="h-3.5 w-3.5 mr-2" />
+                  )}
+                  {plugin.enabled ? "Disable" : "Enable"}
+                </DropdownMenuItem>
+                {hasUpdate && onUpdate && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onUpdate(plugin.id)} disabled={isUpdating}>
+                      <RefreshCw className={cn("h-3.5 w-3.5 mr-2", isUpdating && "animate-spin")} />
+                      {isUpdating ? "Updating..." : "Update"}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {isInstance && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {isExternal && onUninstall && !isInstance && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={isUninstalling}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />
+                      {isUninstalling ? "Uninstalling..." : "Delete"}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </td>
       </tr>
-    )}
+      {showAddInstance && (
+        <tr className="border-b last:border-b-0">
+          <td colSpan={4} className="px-4 py-3">
+            <div className="flex items-center gap-3 max-w-md">
+              <Label htmlFor={`instance-label-${plugin.id}`} className="text-sm whitespace-nowrap">
+                Instance name:
+              </Label>
+              <Input
+                id={`instance-label-${plugin.id}`}
+                placeholder="e.g. sf, prod, api-2"
+                value={instanceLabel}
+                onChange={(e) => setInstanceLabel(e.target.value)}
+                className="h-8 text-sm"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && instanceLabel.trim()) {
+                    handleCreateInstance();
+                  }
+                  if (e.key === "Escape") {
+                    setShowAddInstance(false);
+                    setInstanceLabel("");
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                className="h-8"
+                disabled={!instanceLabel.trim() || isCreatingInstance}
+                onClick={handleCreateInstance}
+              >
+                {isCreatingInstance ? "Creating..." : "Create"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8"
+                onClick={() => {
+                  setShowAddInstance(false);
+                  setInstanceLabel("");
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Creates a new independent instance of this plugin with its own configuration. Use alphanumeric characters,
+              hyphens, or underscores (1-40 chars).
+            </p>
+          </td>
+        </tr>
+      )}
     </>
   );
 
@@ -1504,7 +1508,14 @@ function PluginCard({
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={isInstance ? handleDeleteInstance : () => { setShowDeleteConfirm(false); onUninstall?.(plugin.id); }}
+            onClick={
+              isInstance
+                ? handleDeleteInstance
+                : () => {
+                    setShowDeleteConfirm(false);
+                    onUninstall?.(plugin.id);
+                  }
+            }
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             Delete
@@ -1561,7 +1572,11 @@ function RegistryPluginCard({
                   size="sm"
                   variant="outline"
                   className="h-8 text-xs shrink-0"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInstall(entry.id); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onInstall(entry.id);
+                  }}
                   disabled={isInstalling}
                 >
                   <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
@@ -1620,9 +1635,7 @@ function RegistryPluginRow({
       <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
         {CATEGORY_LABELS[entry.category || "utility"] || entry.category || "Utility"}
       </td>
-      <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
-        {entry.author}
-      </td>
+      <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{entry.author}</td>
       <td className="px-4 py-2.5 text-right">
         {!isInstalled && (
           <Button
@@ -1641,7 +1654,6 @@ function RegistryPluginRow({
   );
 }
 
-
 export default function IntegrationsPage() {
   const t = useTranslations("integrations");
   const tCommon = useTranslations("common");
@@ -1652,8 +1664,14 @@ export default function IntegrationsPage() {
     return tab === "marketplace" || tab === "installed" ? tab : "installed";
   });
   const [marketplaceView, setMarketplaceView] = useState<"card" | "list">("card");
-  const [marketplaceSort, setMarketplaceSort] = useState<{ key: "name" | "category" | "author"; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
-  const [installedSort, setInstalledSort] = useState<{ key: "name" | "category" | "status"; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
+  const [marketplaceSort, setMarketplaceSort] = useState<{ key: "name" | "category" | "author"; dir: "asc" | "desc" }>({
+    key: "name",
+    dir: "asc",
+  });
+  const [installedSort, setInstalledSort] = useState<{ key: "name" | "category" | "status"; dir: "asc" | "desc" }>({
+    key: "name",
+    dir: "asc",
+  });
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [uninstallingId, setUninstallingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -1695,12 +1713,8 @@ export default function IntegrationsPage() {
         if (!old) return old;
         return {
           ...old,
-          plugins: old.plugins.map((p: PluginInfo) =>
-            p.id === pluginId ? { ...p, enabled } : p
-          ),
-          enabled_count: enabled
-            ? old.enabled_count + 1
-            : old.enabled_count - 1,
+          plugins: old.plugins.map((p: PluginInfo) => (p.id === pluginId ? { ...p, enabled } : p)),
+          enabled_count: enabled ? old.enabled_count + 1 : old.enabled_count - 1,
         };
       });
       return { previousPlugins };
@@ -1710,13 +1724,18 @@ export default function IntegrationsPage() {
       toast.error(t("toastToggleFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }));
     },
     onSuccess: (_, { pluginId, enabled }) => {
-      toast.success(t("toastToggleSuccess", { pluginId, state: enabled ? tCommon("enabled").toLowerCase() : tCommon("disabled").toLowerCase() }));
+      toast.success(
+        t("toastToggleSuccess", {
+          pluginId,
+          state: enabled ? tCommon("enabled").toLowerCase() : tCommon("disabled").toLowerCase(),
+        }),
+      );
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["plugins"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["template-variables"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"], refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: ["pagePreview"], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ["plugins"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["template-variables"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"], refetchType: "active" });
     },
   });
 
@@ -1754,7 +1773,9 @@ export default function IntegrationsPage() {
       queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
     } catch (err) {
-      toast.error(t("toastUninstallFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }));
+      toast.error(
+        t("toastUninstallFailed", { pluginId, error: err instanceof Error ? err.message : tCommon("error") }),
+      );
     } finally {
       setUninstallingId(null);
     }
@@ -1856,7 +1877,7 @@ export default function IntegrationsPage() {
       !query ||
       p.name.toLowerCase().includes(query) ||
       p.description?.toLowerCase().includes(query) ||
-      p.id.toLowerCase().includes(query)
+      p.id.toLowerCase().includes(query),
   );
 
   const filteredRegistry = allRegistryEntries.filter(
@@ -1864,19 +1885,22 @@ export default function IntegrationsPage() {
       !query ||
       e.name.toLowerCase().includes(query) ||
       e.description?.toLowerCase().includes(query) ||
-      e.id.toLowerCase().includes(query)
+      e.id.toLowerCase().includes(query),
   );
 
   // Group all registry entries by category (for Marketplace tab card view)
-  const groupedRegistry = filteredRegistry.reduce((acc, entry) => {
-    const category = entry.category || "utility";
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(entry);
-    return acc;
-  }, {} as Record<string, RegistryEntry[]>);
+  const groupedRegistry = filteredRegistry.reduce(
+    (acc, entry) => {
+      const category = entry.category || "utility";
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(entry);
+      return acc;
+    },
+    {} as Record<string, RegistryEntry[]>,
+  );
 
-  const marketplaceCategories = Object.keys(groupedRegistry).sort(
-    (a, b) => (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b)
+  const marketplaceCategories = Object.keys(groupedRegistry).sort((a, b) =>
+    (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b),
   );
 
   const availableCount = allRegistryEntries.length;
@@ -1885,40 +1909,43 @@ export default function IntegrationsPage() {
   const sortedRegistry = [...filteredRegistry].sort((a, b) => {
     let valA = "";
     let valB = "";
-    if (marketplaceSort.key === "name") { valA = a.name; valB = b.name; }
-    else if (marketplaceSort.key === "category") { valA = CATEGORY_LABELS[a.category || "utility"] || a.category || ""; valB = CATEGORY_LABELS[b.category || "utility"] || b.category || ""; }
-    else if (marketplaceSort.key === "author") { valA = a.author || ""; valB = b.author || ""; }
+    if (marketplaceSort.key === "name") {
+      valA = a.name;
+      valB = b.name;
+    } else if (marketplaceSort.key === "category") {
+      valA = CATEGORY_LABELS[a.category || "utility"] || a.category || "";
+      valB = CATEGORY_LABELS[b.category || "utility"] || b.category || "";
+    } else if (marketplaceSort.key === "author") {
+      valA = a.author || "";
+      valB = b.author || "";
+    }
     return marketplaceSort.dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
   });
 
   const handleMarketplaceSort = (key: "name" | "category" | "author") => {
-    setMarketplaceSort(prev =>
-      prev.key === key
-        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: "asc" }
+    setMarketplaceSort((prev) =>
+      prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" },
     );
   };
 
   const handleInstalledSort = (key: "name" | "category" | "status") => {
-    setInstalledSort(prev =>
-      prev.key === key
-        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: "asc" }
+    setInstalledSort((prev) =>
+      prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" },
     );
   };
 
   const sortedInstalled = [...filteredInstalled].sort((a, b) => {
     let valA = "";
     let valB = "";
-    if (installedSort.key === "name") { valA = a.name; valB = b.name; }
-    else if (installedSort.key === "category") {
+    if (installedSort.key === "name") {
+      valA = a.name;
+      valB = b.name;
+    } else if (installedSort.key === "category") {
       valA = CATEGORY_LABELS[a.category || "utility"] || a.category || "";
       valB = CATEGORY_LABELS[b.category || "utility"] || b.category || "";
     } else if (installedSort.key === "status") {
-      const statusRank = (p: PluginInfo) => !p.enabled ? 2 : p.configured ? 0 : 1;
-      return installedSort.dir === "asc"
-        ? statusRank(a) - statusRank(b)
-        : statusRank(b) - statusRank(a);
+      const statusRank = (p: PluginInfo) => (!p.enabled ? 2 : p.configured ? 0 : 1);
+      return installedSort.dir === "asc" ? statusRank(a) - statusRank(b) : statusRank(b) - statusRank(a);
     }
     return installedSort.dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
   });
@@ -1931,16 +1958,12 @@ export default function IntegrationsPage() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("gitInstallTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("gitInstallDescription")}
-          </DialogDescription>
+          <DialogDescription>{t("gitInstallDescription")}</DialogDescription>
         </DialogHeader>
         <Alert className="border-yellow-600 text-yellow-700 [&>svg]:text-yellow-600 dark:border-yellow-500 dark:text-yellow-400 dark:[&>svg]:text-yellow-500">
           <ShieldAlert className="h-4 w-4" />
           <AlertTitle>{t("securityWarningTitle")}</AlertTitle>
-          <AlertDescription>
-            {t("securityWarning")}
-          </AlertDescription>
+          <AlertDescription>{t("securityWarning")}</AlertDescription>
         </Alert>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
@@ -2000,11 +2023,7 @@ export default function IntegrationsPage() {
 
   return (
     <PageLayout>
-      <PageHeader
-        icon={Puzzle}
-        title={t("title")}
-        description={t("description")}
-      >
+      <PageHeader icon={Puzzle} title={t("title")} description={t("description")}>
         <div className="mt-3 flex justify-start sm:justify-end">
           <Button
             variant="outline"
@@ -2049,7 +2068,9 @@ export default function IntegrationsPage() {
           <div className="relative min-w-0 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder={activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")}
+              placeholder={
+                activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
+              }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 w-full"
@@ -2092,9 +2113,15 @@ export default function IntegrationsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t("nameColumn")}</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden sm:table-cell">{t("categoryColumn")}</th>
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden md:table-cell">{t("statusColumn")}</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">
+                      {t("nameColumn")}
+                    </th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden sm:table-cell">
+                      {t("categoryColumn")}
+                    </th>
+                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden md:table-cell">
+                      {t("statusColumn")}
+                    </th>
                     <th className="px-4 py-2.5 w-32" />
                   </tr>
                 </thead>
@@ -2148,9 +2175,7 @@ export default function IntegrationsPage() {
                 <>
                   <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                   <p className="font-medium mb-1">{t("noPluginsInstalled")}</p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {t("headToMarketplace")}
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">{t("headToMarketplace")}</p>
                   <Button variant="outline" onClick={() => setActiveTab("marketplace")}>
                     {t("browseMarketplace")}
                   </Button>
@@ -2176,60 +2201,62 @@ export default function IntegrationsPage() {
                   </Button>
                 </div>
               )}
-            <Card className="overflow-hidden animate-card-fade-in">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40">
-                    {(["name", "category", "status"] as const).map((col) => {
-                      const labels: Record<string, string> = {
-                        name: t("nameColumn"),
-                        category: t("categoryColumn"),
-                        status: t("statusColumn"),
-                      };
-                      const active = installedSort.key === col;
-                      return (
-                        <th
-                          key={col}
-                          className={cn(
-                            "px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors",
-                            col === "category" && "hidden sm:table-cell",
-                            col === "status" && "hidden md:table-cell",
-                          )}
-                          onClick={() => handleInstalledSort(col)}
-                        >
-                          <span className="flex items-center gap-1">
-                            {labels[col]}
-                            {active ? (
-                              installedSort.dir === "asc"
-                                ? <ChevronUp className="h-3 w-3" />
-                                : <ChevronDown className="h-3 w-3" />
-                            ) : (
-                              <ChevronsUp className="h-3 w-3 opacity-30" />
+              <Card className="overflow-hidden animate-card-fade-in">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40">
+                      {(["name", "category", "status"] as const).map((col) => {
+                        const labels: Record<string, string> = {
+                          name: t("nameColumn"),
+                          category: t("categoryColumn"),
+                          status: t("statusColumn"),
+                        };
+                        const active = installedSort.key === col;
+                        return (
+                          <th
+                            key={col}
+                            className={cn(
+                              "px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors",
+                              col === "category" && "hidden sm:table-cell",
+                              col === "status" && "hidden md:table-cell",
                             )}
-                          </span>
-                        </th>
-                      );
-                    })}
-                    <th className="px-4 py-2.5 w-32" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedInstalled.map((plugin) => (
-                    <PluginCard
-                      key={plugin.id}
-                      plugin={plugin}
-                      onToggle={handleToggle}
-                      isToggling={toggleMutation.isPending}
-                      onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
-                      onUninstall={handleUninstall}
-                      onUpdate={handleUpdate}
-                      isUninstalling={uninstallingId === plugin.id}
-                      isUpdating={updatingId === plugin.id}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </Card>
+                            onClick={() => handleInstalledSort(col)}
+                          >
+                            <span className="flex items-center gap-1">
+                              {labels[col]}
+                              {active ? (
+                                installedSort.dir === "asc" ? (
+                                  <ChevronUp className="h-3 w-3" />
+                                ) : (
+                                  <ChevronDown className="h-3 w-3" />
+                                )
+                              ) : (
+                                <ChevronsUp className="h-3 w-3 opacity-30" />
+                              )}
+                            </span>
+                          </th>
+                        );
+                      })}
+                      <th className="px-4 py-2.5 w-32" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedInstalled.map((plugin) => (
+                      <PluginCard
+                        key={plugin.id}
+                        plugin={plugin}
+                        onToggle={handleToggle}
+                        isToggling={toggleMutation.isPending}
+                        onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
+                        onUninstall={handleUninstall}
+                        onUpdate={handleUpdate}
+                        isUninstalling={uninstallingId === plugin.id}
+                        isUpdating={updatingId === plugin.id}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
             </div>
           )}
         </TabsContent>
@@ -2247,9 +2274,7 @@ export default function IntegrationsPage() {
                 <>
                   <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                   <p className="font-medium mb-1">{t("noRegistryPluginsFound")}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {t("canInstallCustomGitDescription")}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t("canInstallCustomGitDescription")}</p>
                 </>
               )}
             </div>
@@ -2264,9 +2289,7 @@ export default function IntegrationsPage() {
                     <section key={category}>
                       <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
                         {CATEGORY_LABELS[category] || category}
-                        <span className="text-xs font-normal normal-case tracking-normal">
-                          ({entries.length})
-                        </span>
+                        <span className="text-xs font-normal normal-case tracking-normal">({entries.length})</span>
                       </h2>
                       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 items-stretch">
                         {entries.map((entry) => {
@@ -2310,9 +2333,11 @@ export default function IntegrationsPage() {
                           <span className="flex items-center gap-1">
                             {labels[col]}
                             {active ? (
-                              marketplaceSort.dir === "asc"
-                                ? <ChevronUp className="h-3 w-3" />
-                                : <ChevronDown className="h-3 w-3" />
+                              marketplaceSort.dir === "asc" ? (
+                                <ChevronUp className="h-3 w-3" />
+                              ) : (
+                                <ChevronDown className="h-3 w-3" />
+                              )
                             ) : (
                               <ChevronsUp className="h-3 w-3 opacity-30" />
                             )}
@@ -2344,4 +2369,3 @@ export default function IntegrationsPage() {
     </PageLayout>
   );
 }
-

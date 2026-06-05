@@ -1,9 +1,6 @@
-import { describe, it, expect } from "vitest";
-import {
-  addSnoozingIndicator,
-  parseLine,
-  tokensToString,
-} from "@/lib/snoozing-indicator";
+import { describe, expect, it } from "vitest";
+
+import { addSnoozingIndicator, parseLine, tokensToString } from "@/lib/snoozing-indicator";
 
 // Convenience: get the row at index `r` from the result, padded with spaces
 // to the requested column width.

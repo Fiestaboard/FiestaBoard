@@ -14,7 +14,7 @@
   cursor: zoom-in;
 }
 
-[data-theme='dark'] .image {
+[data-theme="dark"] .image {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
 }
 
@@ -32,7 +32,7 @@
   background: var(--ifm-color-emphasis-200);
 }
 
-[data-theme='dark'] .toggleBar {
+[data-theme="dark"] .toggleBar {
   background: var(--ifm-color-emphasis-200);
 }
 
@@ -48,7 +48,9 @@
   font-size: 0.75rem;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
   line-height: 1.4;
 }
 
@@ -63,7 +65,7 @@
   font-weight: 600;
 }
 
-[data-theme='dark'] .toggleButton.active {
+[data-theme="dark"] .toggleButton.active {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
@@ -145,11 +147,21 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes scaleIn {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }

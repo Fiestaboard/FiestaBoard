@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface DecryptedTextProps {
   text: string;
@@ -45,8 +45,7 @@ export default function DecryptedText({
         case "center": {
           const middle = Math.floor(textLength / 2);
           const offset = Math.floor(revealedSet.size / 2);
-          const nextIndex =
-            revealedSet.size % 2 === 0 ? middle + offset : middle - offset - 1;
+          const nextIndex = revealedSet.size % 2 === 0 ? middle + offset : middle - offset - 1;
           if (nextIndex >= 0 && nextIndex < textLength && !revealedSet.has(nextIndex)) {
             return nextIndex;
           }
@@ -59,7 +58,7 @@ export default function DecryptedText({
           return revealedSet.size;
       }
     },
-    [text.length, revealDirection]
+    [text.length, revealDirection],
   );
 
   useEffect(() => {
@@ -129,7 +128,7 @@ export default function DecryptedText({
           }
         });
       },
-      { root: null, rootMargin: "0px", threshold: 0.1 }
+      { root: null, rootMargin: "0px", threshold: 0.1 },
     );
 
     const currentRef = containerRef.current;
@@ -153,13 +152,9 @@ export default function DecryptedText({
       <span className="sr-only">{displayText}</span>
       <span aria-hidden className={className}>
         {displayText.split("").map((char, index) => {
-          const isRevealedOrDone =
-            revealedIndices.has(index) || !isScrambling || !isHovering;
+          const isRevealedOrDone = revealedIndices.has(index) || !isScrambling || !isHovering;
           return (
-            <span
-              key={index}
-              className={isRevealedOrDone ? className : encryptedClassName}
-            >
+            <span key={index} className={isRevealedOrDone ? className : encryptedClassName}>
               {char}
             </span>
           );

@@ -40,9 +40,7 @@ export function readLiveOutputMessage(): string | null {
  * Subscribe to live output message changes from other tabs.
  * Returns an unsubscribe function.
  */
-export function onLiveOutputMessageChange(
-  callback: (message: string | null) => void
-): () => void {
+export function onLiveOutputMessageChange(callback: (message: string | null) => void): () => void {
   const handler = (event: StorageEvent) => {
     if (event.key !== STORAGE_KEY) return;
     if (event.newValue === null) {

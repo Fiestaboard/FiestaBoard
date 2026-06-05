@@ -1,17 +1,18 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-  SheetClose,
-} from "./sheet";
+
 import { Button } from "./button";
 import { Input } from "./input";
 import { Label } from "./label";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "./sheet";
 
 const meta = {
   title: "UI/Sheet",
@@ -35,9 +36,7 @@ export const Default: Story = {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Edit Profile</SheetTitle>
-            <SheetDescription>
-              Make changes to your profile here. Click save when you're done.
-            </SheetDescription>
+            <SheetDescription>Make changes to your profile here. Click save when you&apos;re done.</SheetDescription>
           </SheetHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -76,9 +75,15 @@ export const LeftSide = () => (
       </SheetHeader>
       <div className="py-4">
         <nav className="space-y-2">
-          <Button variant="ghost" className="w-full justify-start">Dashboard</Button>
-          <Button variant="ghost" className="w-full justify-start">My Boards</Button>
-          <Button variant="ghost" className="w-full justify-start">Settings</Button>
+          <Button variant="ghost" className="w-full justify-start">
+            Dashboard
+          </Button>
+          <Button variant="ghost" className="w-full justify-start">
+            My Boards
+          </Button>
+          <Button variant="ghost" className="w-full justify-start">
+            Settings
+          </Button>
         </nav>
       </div>
     </SheetContent>

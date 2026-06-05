@@ -31,7 +31,7 @@ export function useViewTransition() {
         }
       }, 500);
     },
-    [router]
+    [router],
   );
 
   const replace = useCallback(
@@ -53,7 +53,7 @@ export function useViewTransition() {
         }
       }, 500);
     },
-    [router]
+    [router],
   );
 
   const back = useCallback(
@@ -75,7 +75,7 @@ export function useViewTransition() {
         }
       }, 500);
     },
-    [router]
+    [router],
   );
 
   return {
@@ -84,4 +84,3 @@ export function useViewTransition() {
     back,
   };
 }
-

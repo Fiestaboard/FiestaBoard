@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
+
+import type { Carousel, ScheduleEntry } from "@/lib/api";
+
 import { ScheduleEntryForm } from "./schedule-entry-form";
-import type { ScheduleEntry, Carousel } from "@/lib/api";
 
 const meta = {
   title: "Forms/ScheduleEntryForm",
@@ -26,7 +28,7 @@ export const CreateNew: Story = {
     pages: mockPages,
     onSubmit: async (data) => {
       console.log("Create schedule:", data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onCancel: () => console.log("Cancel"),
   },
@@ -46,7 +48,7 @@ export const EditExisting: Story = {
     pages: mockPages,
     onSubmit: async (data) => {
       console.log("Update schedule:", data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onCancel: () => console.log("Cancel"),
     onDelete: () => console.log("Delete"),
@@ -68,7 +70,7 @@ export const WithCustomDays: Story = {
     pages: mockPages,
     onSubmit: async (data) => {
       console.log("Update schedule:", data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onCancel: () => console.log("Cancel"),
     onDelete: () => console.log("Delete"),
@@ -89,7 +91,7 @@ export const OvernightSchedule: Story = {
     pages: mockPages,
     onSubmit: async (data) => {
       console.log("Update schedule:", data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onCancel: () => console.log("Cancel"),
     onDelete: () => console.log("Delete"),
@@ -110,7 +112,7 @@ export const DisabledSchedule: Story = {
     pages: mockPages,
     onSubmit: async (data) => {
       console.log("Update schedule:", data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onCancel: () => console.log("Cancel"),
     onDelete: () => console.log("Delete"),
@@ -126,7 +128,7 @@ export const WithPrefill: Story = {
     prefillCustomDays: ["tuesday", "thursday"],
     onSubmit: async (data) => {
       console.log("Create schedule:", data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onCancel: () => console.log("Cancel"),
   },
@@ -140,7 +142,7 @@ export const ManyPages: Story = {
     })),
     onSubmit: async (data) => {
       console.log("Create schedule:", data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onCancel: () => console.log("Cancel"),
   },
@@ -169,7 +171,7 @@ export const WithCarousels: Story = {
     carousels: mockCarousels,
     onSubmit: async (data) => {
       console.log("Create schedule:", data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onCancel: () => console.log("Cancel"),
   },
@@ -190,7 +192,7 @@ export const EditCarouselEntry: Story = {
     carousels: mockCarousels,
     onSubmit: async (data) => {
       console.log("Update schedule:", data);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onCancel: () => console.log("Cancel"),
     onDelete: () => console.log("Delete"),

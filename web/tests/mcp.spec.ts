@@ -12,7 +12,7 @@
  * Gated behind RUN_AI_TESTS in playwright.config.ts because it shares a
  * CI job with the AI e2e suite.
  */
-import { test, expect, type APIRequestContext } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:4420";
 // The FastMCP app is mounted at /mcp by api_server.py and exposed via
@@ -69,16 +69,12 @@ async function rpc(
   try {
     parsed = JSON.parse(text) as JsonRpcResponse;
   } catch {
-    throw new Error(
-      `MCP response was not JSON (status ${status}). First 200 chars: ${text.slice(0, 200)}`,
-    );
+    throw new Error(`MCP response was not JSON (status ${status}). First 200 chars: ${text.slice(0, 200)}`);
   }
   return { status, body: parsed, sessionId: responseSession };
 }
 
-async function initialize(
-  request: APIRequestContext,
-): Promise<{ sessionId?: string; protocolVersion?: string }> {
+async function initialize(request: APIRequestContext): Promise<{ sessionId?: string; protocolVersion?: string }> {
   const res = await rpc(request, {
     jsonrpc: "2.0",
     id: 1,
@@ -94,9 +90,7 @@ async function initialize(
   const result = res.body.result || {};
   return {
     sessionId: res.sessionId,
-    protocolVersion: typeof result.protocolVersion === "string"
-      ? result.protocolVersion
-      : undefined,
+    protocolVersion: typeof result.protocolVersion === "string" ? result.protocolVersion : undefined,
   };
 }
 
@@ -121,11 +115,7 @@ test.describe("MCP", () => {
   test("tools/list returns the FiestaBoard tool catalog", async ({ request }) => {
     const { sessionId } = await initialize(request);
 
-    const res = await rpc(
-      request,
-      { jsonrpc: "2.0", id: 2, method: "tools/list" },
-      sessionId,
-    );
+    const res = await rpc(request, { jsonrpc: "2.0", id: 2, method: "tools/list" }, sessionId);
     expect(res.status).toBeLessThan(400);
     expect(res.body.error).toBeUndefined();
 

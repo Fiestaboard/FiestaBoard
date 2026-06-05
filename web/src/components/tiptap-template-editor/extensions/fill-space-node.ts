@@ -2,9 +2,10 @@
  * FillSpaceNode - Inline node for {{fill_space}}
  * Visualizes expandable spacing that fills remaining line width
  */
-import { Node, mergeAttributes } from '@tiptap/core';
-import { ReactNodeViewRenderer } from '@tiptap/react';
-import { FillSpaceNodeView } from '../node-views/FillSpaceNodeView';
+import { mergeAttributes, Node } from "@tiptap/core";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+
+import { FillSpaceNodeView } from "../node-views/FillSpaceNodeView";
 
 export interface FillSpaceAttrs {
   id: string;
@@ -12,9 +13,9 @@ export interface FillSpaceAttrs {
 }
 
 export const FillSpaceNode = Node.create({
-  name: 'fillSpace',
+  name: "fillSpace",
 
-  group: 'inline',
+  group: "inline",
 
   inline: true,
 
@@ -27,18 +28,18 @@ export const FillSpaceNode = Node.create({
   addAttributes() {
     return {
       id: {
-        default: '',
-        parseHTML: element => element.getAttribute('data-id'),
-        renderHTML: attributes => ({
-          'data-id': attributes.id,
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-id"),
+        renderHTML: (attributes) => ({
+          "data-id": attributes.id,
         }),
       },
       repeatChar: {
         default: undefined,
-        parseHTML: element => element.getAttribute('data-repeat-char') || undefined,
-        renderHTML: attributes => {
+        parseHTML: (element) => element.getAttribute("data-repeat-char") || undefined,
+        renderHTML: (attributes) => {
           if (attributes.repeatChar) {
-            return { 'data-repeat-char': attributes.repeatChar };
+            return { "data-repeat-char": attributes.repeatChar };
           }
           return {};
         },
@@ -55,7 +56,7 @@ export const FillSpaceNode = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['span', mergeAttributes({ 'data-type': 'fill-space' }, HTMLAttributes)];
+    return ["span", mergeAttributes({ "data-type": "fill-space" }, HTMLAttributes)];
   },
 
   addNodeView() {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import { Cpu, ExternalLink, Info, Package } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,25 +50,18 @@ export function AboutCard() {
               ) : (
                 <div className="flex items-center gap-2">
                   <span
-                    className={cn(
-                      "h-2 w-2 rounded-full",
-                      isRunning ? "bg-board-green" : "bg-muted-foreground"
-                    )}
+                    className={cn("h-2 w-2 rounded-full", isRunning ? "bg-board-green" : "bg-muted-foreground")}
                     style={
                       isRunning
                         ? {
-                            boxShadow:
-                              "0 0 6px color-mix(in oklch, var(--color-board-green) 50%, transparent)",
+                            boxShadow: "0 0 6px color-mix(in oklch, var(--color-board-green) 50%, transparent)",
                           }
                         : undefined
                     }
                   />
                   <Badge
                     variant={isRunning ? "default" : "secondary"}
-                    className={cn(
-                      "text-xs",
-                      isRunning && "bg-brand/15 text-brand border-brand/25 hover:bg-brand/20"
-                    )}
+                    className={cn("text-xs", isRunning && "bg-brand/15 text-brand border-brand/25 hover:bg-brand/20")}
                   >
                     {isRunning ? t("statusRunning") : t("statusStopped")}
                   </Badge>
@@ -106,9 +99,7 @@ export function AboutCard() {
           {versionData?.build_version && (
             <div className="flex items-center justify-between gap-4">
               <dt className="text-muted-foreground">{t("buildVersion")}</dt>
-              <dd className="font-mono text-xs text-muted-foreground tabular-nums">
-                {versionData.build_version}
-              </dd>
+              <dd className="font-mono text-xs text-muted-foreground tabular-nums">{versionData.build_version}</dd>
             </div>
           )}
 

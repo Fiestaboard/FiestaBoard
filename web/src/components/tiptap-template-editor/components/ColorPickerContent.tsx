@@ -3,12 +3,13 @@
  */
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { Heart } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { DeviceType } from "@/lib/api";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Heart } from "lucide-react";
-import type { DeviceType } from "@/lib/api";
 
 interface ColorPickerContentProps {
   onInsert: (colorValue: string) => void;
@@ -26,7 +27,7 @@ const COLOR_MAP: Record<string, { bg: string; needsDarkText: boolean }> = {
   black: { bg: FIESTABOARD_COLORS.black, needsDarkText: false },
 };
 
-const COLOR_ORDER = ['red', 'orange', 'yellow', 'green', 'blue', 'violet', 'white', 'black'] as const;
+const COLOR_ORDER = ["red", "orange", "yellow", "green", "blue", "violet", "white", "black"] as const;
 
 export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentProps) {
   const isNote = deviceType === "note";
@@ -149,78 +150,78 @@ export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentP
 
   return (
     <TooltipProvider>
-    <div 
-      ref={containerRef}
-      className={cn("p-2", !isNote && "pb-1")}
-      tabIndex={0}
-      role="listbox"
-      aria-label="Color picker"
-    >
-      <div className="grid grid-cols-4 gap-2 w-64">
-        {COLOR_ORDER.map((colorName, index) => {
-          const colorInfo = COLOR_MAP[colorName];
-          if (!colorInfo) return null;
+      <div
+        ref={containerRef}
+        className={cn("p-2", !isNote && "pb-1")}
+        tabIndex={0}
+        role="listbox"
+        aria-label="Color picker"
+      >
+        <div className="grid grid-cols-4 gap-2 w-64">
+          {COLOR_ORDER.map((colorName, index) => {
+            const colorInfo = COLOR_MAP[colorName];
+            if (!colorInfo) return null;
 
-          const isHighlighted = highlightedIndex === index;
+            const isHighlighted = highlightedIndex === index;
 
-          return (
-            <Tooltip key={colorName}>
+            return (
+              <Tooltip key={colorName}>
+                <TooltipTrigger asChild>
+                  <button
+                    ref={(el) => {
+                      buttonRefs.current[index] = el;
+                    }}
+                    type="button"
+                    onClick={() => onInsert(`{{${colorName}}}`)}
+                    onFocus={() => setHighlightedIndex(index)}
+                    style={{ backgroundColor: colorInfo.bg }}
+                    className={cn(
+                      "h-10 rounded-md text-xs font-medium transition-all hover:scale-105 hover:shadow-md",
+                      "flex items-center justify-center focus:outline-none",
+                      isHighlighted && "ring-2 ring-offset-2 ring-primary scale-105 shadow-md",
+                      colorInfo.needsDarkText ? "text-black/80" : "text-white/90",
+                    )}
+                    aria-label={`${colorName} color`}
+                    role="option"
+                    aria-selected={isHighlighted}
+                  >
+                    {colorName}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{colorName}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+        {isNote && (
+          <div className="mt-2 pt-2 border-t border-border">
+            <Tooltip>
               <TooltipTrigger asChild>
-            <button
-              ref={(el) => {
-                buttonRefs.current[index] = el;
-              }}
-              type="button"
-              onClick={() => onInsert(`{{${colorName}}}`)}
-              onFocus={() => setHighlightedIndex(index)}
-              style={{ backgroundColor: colorInfo.bg }}
-              className={cn(
-                "h-10 rounded-md text-xs font-medium transition-all hover:scale-105 hover:shadow-md",
-                "flex items-center justify-center focus:outline-none",
-                isHighlighted && "ring-2 ring-offset-2 ring-primary scale-105 shadow-md",
-                colorInfo.needsDarkText ? "text-black/80" : "text-white/90"
-              )}
-              aria-label={`${colorName} color`}
-              role="option"
-              aria-selected={isHighlighted}
-            >
-              {colorName}
-            </button>
+                <button
+                  type="button"
+                  onClick={() => onInsert("°")} // Degree symbol (°) renders as heart (❤) on Note device (code 62)
+                  className={cn(
+                    "w-full h-10 rounded-md text-sm font-medium transition-all hover:scale-[1.02] hover:shadow-md",
+                    "flex items-center justify-center gap-1.5 focus:outline-none",
+                    "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20",
+                  )}
+                  aria-label="Heart character"
+                  role="option"
+                  aria-selected={false}
+                >
+                  <Heart className="w-4 h-4 fill-current" />
+                  <span>heart</span>
+                </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{colorName}</p>
+                <p>Insert heart character (Note only)</p>
               </TooltipContent>
             </Tooltip>
-          );
-        })}
+          </div>
+        )}
       </div>
-      {isNote && (
-        <div className="mt-2 pt-2 border-t border-border">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => onInsert("°")}  // Degree symbol (°) renders as heart (❤) on Note device (code 62)
-                className={cn(
-                  "w-full h-10 rounded-md text-sm font-medium transition-all hover:scale-[1.02] hover:shadow-md",
-                  "flex items-center justify-center gap-1.5 focus:outline-none",
-                  "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20"
-                )}
-                aria-label="Heart character"
-                role="option"
-                aria-selected={false}
-              >
-                <Heart className="w-4 h-4 fill-current" />
-                <span>heart</span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Insert heart character (Note only)</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      )}
-    </div>
     </TooltipProvider>
   );
 }

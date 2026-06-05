@@ -1,11 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AiSettings } from "@/components/settings/ai-settings";
+
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -24,16 +25,12 @@ describe("AiSettings", () => {
   it("renders the section title and the privacy notice", async () => {
     render(<AiSettings />, { wrapper: Wrapper });
     expect(await screen.findByText("AI Providers")).toBeInTheDocument();
-    expect(
-      screen.getByText(/sent directly to the provider you configure/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/sent directly to the provider you configure/i)).toBeInTheDocument();
   });
 
   it("shows an empty state when no providers are configured", async () => {
     render(<AiSettings />, { wrapper: Wrapper });
-    expect(
-      await screen.findByText(/no providers configured yet/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/no providers configured yet/i)).toBeInTheDocument();
   });
 
   it("can add a new provider row and reveal the model tag input", async () => {
@@ -97,9 +94,10 @@ describe("AiSettings", () => {
     });
     // The masked api_key MUST be sent back as-is so the backend
     // preserves the stored secret.
-    const providers = (receivedBody as Record<string, unknown>)[
-      "providers"
-    ] as Array<{ api_key: string; name: string }>;
+    const providers = (receivedBody as Record<string, unknown>)["providers"] as Array<{
+      api_key: string;
+      name: string;
+    }>;
     expect(providers).toHaveLength(1);
     expect(providers[0].api_key).toBe("***");
     expect(providers[0].name).toBe("My OpenRouter");
@@ -119,9 +117,7 @@ describe("AiSettings", () => {
 
     // The model badge appears; check via the remove-button label to avoid
     // ambiguous multi-element matches on the badge text node.
-    expect(
-      await screen.findByRole("button", { name: /remove model gpt-4o-mini/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /remove model gpt-4o-mini/i })).toBeInTheDocument();
   });
 
   it("can remove a provider", async () => {
@@ -153,9 +149,7 @@ describe("AiSettings", () => {
 
     // After removal the empty state message should appear.
     await waitFor(() => {
-      expect(
-        screen.getByText(/no providers configured yet/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/no providers configured yet/i)).toBeInTheDocument();
     });
   });
 
@@ -194,13 +188,9 @@ describe("AiSettings", () => {
 
     // After discarding, the draft is cleared → empty state returns.
     await waitFor(() => {
-      expect(
-        screen.getByText(/no providers configured yet/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/no providers configured yet/i)).toBeInTheDocument();
     });
-    expect(
-      screen.queryByRole("button", { name: /save changes/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /save changes/i })).not.toBeInTheDocument();
   });
 
   it("test connection button calls /settings/ai/test", async () => {
@@ -249,9 +239,7 @@ describe("AiSettings", () => {
     await waitFor(() => {
       expect(testCalled).toBe(true);
     });
-    expect(
-      await screen.findByText(/connected\. model replied/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/connected\. model replied/i)).toBeInTheDocument();
   });
 
   it("test connection shows failure state when the server returns ok=false", async () => {
@@ -291,9 +279,7 @@ describe("AiSettings", () => {
     });
     await user.click(testBtn);
 
-    expect(
-      await screen.findByText(/connection refused: provider unreachable/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/connection refused: provider unreachable/i)).toBeInTheDocument();
   });
 
   it("make default button sets the default provider", async () => {
@@ -336,8 +322,6 @@ describe("AiSettings", () => {
     await user.click(makeDefaultBtn);
 
     // Draft should now exist — Save/Discard appear.
-    expect(
-      await screen.findByRole("button", { name: /save changes/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /save changes/i })).toBeInTheDocument();
   });
 });

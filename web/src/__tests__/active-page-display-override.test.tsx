@@ -4,12 +4,14 @@
 // - Cancel (×) badge button calls DELETE endpoint
 // - Schedule mode + page selection opens ForceSetDialog (not immediate switch)
 // - Manual mode + page selection switches immediately (no dialog)
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, waitFor, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
-import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import { ThemeProvider } from "next-themes";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -84,80 +86,56 @@ describe("ActivePageDisplay - temporary override UX", () => {
       ),
     );
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /change page/i })).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByRole("button", { name: /change page/i })).toBeInTheDocument());
   });
 
   it("shows 'Change Page' button when schedule mode is ON", async () => {
     server.use(
       http.get(`${API_BASE}/schedules/active/page`, () =>
-        HttpResponse.json(
-          activeScheduleResponse({ schedule_enabled: true, source: "schedule" }),
-        ),
+        HttpResponse.json(activeScheduleResponse({ schedule_enabled: true, source: "schedule" })),
       ),
     );
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /change page/i })).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByRole("button", { name: /change page/i })).toBeInTheDocument());
   });
 
   it("does NOT show override badge when no override active", async () => {
-    server.use(
-      http.get(`${API_BASE}/schedules/active/page`, () =>
-        HttpResponse.json(activeScheduleResponse()),
-      ),
-    );
+    server.use(http.get(`${API_BASE}/schedules/active/page`, () => HttpResponse.json(activeScheduleResponse())));
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-    await waitFor(() =>
-      expect(screen.queryByText(/override:/i)).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByText(/override:/i)).not.toBeInTheDocument());
   });
 
   it("shows override badge with remaining minutes when override active", async () => {
     server.use(
       http.get(`${API_BASE}/schedules/active/page`, () =>
-        HttpResponse.json(
-          activeScheduleResponse({ temporary_override: activeOverride(300) }),
-        ),
+        HttpResponse.json(activeScheduleResponse({ temporary_override: activeOverride(300) })),
       ),
     );
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-    await waitFor(() =>
-      expect(screen.getByText(/override:/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/override:/i)).toBeInTheDocument());
   });
 
   it("shows <1m label when remaining_seconds < 60", async () => {
     server.use(
       http.get(`${API_BASE}/schedules/active/page`, () =>
-        HttpResponse.json(
-          activeScheduleResponse({ temporary_override: activeOverride(30) }),
-        ),
+        HttpResponse.json(activeScheduleResponse({ temporary_override: activeOverride(30) })),
       ),
     );
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
-    await waitFor(() =>
-      expect(screen.getByText(/<1m remaining/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/<1m remaining/i)).toBeInTheDocument());
   });
 
   it("cancel override button calls DELETE /settings/temporary-override", async () => {
     let deleteCalled = false;
     server.use(
       http.get(`${API_BASE}/schedules/active/page`, () =>
-        HttpResponse.json(
-          activeScheduleResponse({ temporary_override: activeOverride(300) }),
-        ),
+        HttpResponse.json(activeScheduleResponse({ temporary_override: activeOverride(300) })),
       ),
       http.delete(`${API_BASE}/settings/temporary-override`, () => {
         deleteCalled = true;
         return HttpResponse.json({ status: "cleared", revert_mode: "schedule" });
       }),
-      http.post(`${API_BASE}/force-refresh`, () =>
-        HttpResponse.json({ status: "ok", message: "Refreshed" }),
-      ),
+      http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ status: "ok", message: "Refreshed" })),
     );
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
     const cancelBtn = await screen.findByTitle(/cancel override/i);
@@ -198,8 +176,6 @@ describe("ActivePageDisplay - temporary override UX", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
     // The component should be in schedule mode: the Force Set dialog gate is active
     // Verify schedule mode badge is shown (not "Change Page" redirect)
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /change page/i })).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByRole("button", { name: /change page/i })).toBeInTheDocument());
   });
 });

@@ -1,28 +1,29 @@
 import { http, HttpResponse } from "msw";
+
 import type {
-  StatusResponse,
-  PreviewResponse,
   ConfigSummary,
-  DisplaysResponse,
-  DisplayResponse,
+  CurrentDisplayResponse,
   DisplayRawResponse,
-  TransitionSettings,
+  DisplayResponse,
+  DisplaysResponse,
+  GeneralConfig,
+  LogEntry,
+  LogsResponse,
   OutputSettings,
-  PagesResponse,
   Page,
   PageCreate,
-  CurrentDisplayResponse,
-  TemplateVariables,
-  TemplateRenderResponse,
-  RotationsResponse,
+  PagesResponse,
+  PluginDetailsResponse,
+  PreviewResponse,
   Rotation,
   RotationCreate,
+  RotationsResponse,
   RotationStateResponse,
-  LogsResponse,
-  LogEntry,
-  GeneralConfig,
   SilenceStatus,
-  PluginDetailsResponse,
+  StatusResponse,
+  TemplateRenderResponse,
+  TemplateVariables,
+  TransitionSettings,
 } from "@/lib/api";
 
 const API_BASE = "/api";
@@ -42,12 +43,7 @@ export const mockStatus: StatusResponse = {
 
 export const mockPreview: PreviewResponse = {
   message: "START WHERE YOU ARE\nUSE WHAT YOU HAVE\nDO WHAT YOU CAN\n-ARTHUR ASHE",
-  lines: [
-    "START WHERE YOU ARE",
-    "USE WHAT YOU HAVE",
-    "DO WHAT YOU CAN",
-    "-ARTHUR ASHE",
-  ],
+  lines: ["START WHERE YOU ARE", "USE WHAT YOU HAVE", "DO WHAT YOU CAN", "-ARTHUR ASHE"],
   display_type: "star_trek",
   line_count: 4,
   preview: true,
@@ -98,14 +94,7 @@ export const mockTransitionSettings: TransitionSettings = {
   strategy: "column",
   step_interval_ms: 500,
   step_size: 2,
-  available_strategies: [
-    "column",
-    "reverse-column",
-    "edges-to-center",
-    "row",
-    "diagonal",
-    "random",
-  ],
+  available_strategies: ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"],
 };
 
 export const mockOutputSettings: OutputSettings = {
@@ -153,7 +142,19 @@ export const mockCurrentDisplay: CurrentDisplayResponse = {
 
 export const mockTemplateVariables: TemplateVariables = {
   variables: {
-    weather: ["temperature", "condition", "location", "humidity", "wind_speed", "feels_like", "uv_index", "pressure", "visibility", "dew_point", "cloud_cover"],
+    weather: [
+      "temperature",
+      "condition",
+      "location",
+      "humidity",
+      "wind_speed",
+      "feels_like",
+      "uv_index",
+      "pressure",
+      "visibility",
+      "dew_point",
+      "cloud_cover",
+    ],
     datetime: ["time", "date", "day"],
   },
   max_lengths: {
@@ -166,7 +167,12 @@ export const mockTemplateVariables: TemplateVariables = {
   },
   variable_metadata: {
     weather: {
-      temperature: { description: "Current temperature in configured units", type: "number", group: "current", preview: "72" },
+      temperature: {
+        description: "Current temperature in configured units",
+        type: "number",
+        group: "current",
+        preview: "72",
+      },
       condition: { description: "Current weather condition text", type: "string", group: "current", preview: "Sunny" },
       location: { description: "Configured location name", type: "string", group: "current", preview: "San Francisco" },
       humidity: { description: "Relative humidity percentage", type: "number", group: "current" },
@@ -407,10 +413,10 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/displays/raw/batch`, async ({ request }) => {
-    const body = await request.json() as { display_types?: string[] };
+    const body = (await request.json()) as { display_types?: string[] };
     const displayTypes = body.display_types || [];
     const displays: Record<string, DisplayRawResponse> = {};
-    
+
     displayTypes.forEach((type: string) => {
       displays[type] = {
         display_type: type,
@@ -419,7 +425,7 @@ export const handlers = [
         error: null,
       };
     });
-    
+
     return HttpResponse.json({ displays });
   }),
 
@@ -454,7 +460,7 @@ export const handlers = [
   }),
 
   http.put(`${API_BASE}/settings/transitions`, async ({ request }) => {
-    const body = await request.json() as Partial<TransitionSettings>;
+    const body = (await request.json()) as Partial<TransitionSettings>;
     requestStore.lastTransitionUpdate = body;
     const response: TransitionSettings = {
       strategy: body.strategy ?? mockTransitionSettings.strategy,
@@ -473,7 +479,7 @@ export const handlers = [
   }),
 
   http.put(`${API_BASE}/settings/output`, async ({ request }) => {
-    const body = await request.json() as { target: string };
+    const body = (await request.json()) as { target: string };
     requestStore.lastOutputUpdate = body;
     return HttpResponse.json({
       status: "success",
@@ -489,7 +495,7 @@ export const handlers = [
   }),
 
   http.put(`${API_BASE}/settings/active-page`, async ({ request }) => {
-    const body = await request.json() as { page_id: string | null };
+    const body = (await request.json()) as { page_id: string | null };
     return HttpResponse.json({
       status: "success",
       page_id: body.page_id,
@@ -530,9 +536,9 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/pages`, async ({ request }) => {
-    const body = await request.json() as PageCreate;
+    const body = (await request.json()) as PageCreate;
     requestStore.lastPageCreate = body;
-    
+
     const newPage: Page = {
       id: "new-page-" + Date.now(),
       name: body.name,
@@ -551,7 +557,7 @@ export const handlers = [
   }),
 
   http.put(`${API_BASE}/pages/:id`, async ({ request, params }) => {
-    const body = await request.json() as Partial<Page>;
+    const body = (await request.json()) as Partial<Page>;
     const { id } = params;
     const updatedPage: Page = {
       ...mockPage,
@@ -581,7 +587,7 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/pages/preview/batch`, async ({ request }) => {
-    const body = await request.json() as { page_ids: string[] };
+    const body = (await request.json()) as { page_ids: string[] };
     const previews: Record<string, object> = {};
     for (const pid of body.page_ids || []) {
       previews[pid] = {
@@ -602,14 +608,50 @@ export const handlers = [
 
   http.get(`${API_BASE}/staff-picks`, () => {
     return HttpResponse.json([
-      { id: "weather-dashboard", name: "Weather Dashboard", description: "Full weather breakdown.", device_type: "flagship", tags: ["weather"], image: "/staff-picks/weather-dashboard.png", required_plugins: [{id:"weather",name:"Weather"},{id:"date_time",name:"Date & Time"}] },
-      { id: "pixel-phoenix", name: "Pixel Phoenix", description: "Generative AI pixel art.", device_type: "flagship", tags: ["art"], image: "/staff-picks/gen-ai-art.png", required_plugins: [{id:"generative_ai_art",name:"Generative AI Art"}] },
-      { id: "word-of-the-day", name: "Word of the Day", description: "Daily vocabulary word.", device_type: "flagship", tags: ["education"], image: "/staff-picks/word-of-the-day.png", required_plugins: [{id:"word_of_day",name:"Word of the Day"}] },
+      {
+        id: "weather-dashboard",
+        name: "Weather Dashboard",
+        description: "Full weather breakdown.",
+        device_type: "flagship",
+        tags: ["weather"],
+        image: "/staff-picks/weather-dashboard.png",
+        required_plugins: [
+          { id: "weather", name: "Weather" },
+          { id: "date_time", name: "Date & Time" },
+        ],
+      },
+      {
+        id: "pixel-phoenix",
+        name: "Pixel Phoenix",
+        description: "Generative AI pixel art.",
+        device_type: "flagship",
+        tags: ["art"],
+        image: "/staff-picks/gen-ai-art.png",
+        required_plugins: [{ id: "generative_ai_art", name: "Generative AI Art" }],
+      },
+      {
+        id: "word-of-the-day",
+        name: "Word of the Day",
+        description: "Daily vocabulary word.",
+        device_type: "flagship",
+        tags: ["education"],
+        image: "/staff-picks/word-of-the-day.png",
+        required_plugins: [{ id: "word_of_day", name: "Word of the Day" }],
+      },
     ]);
   }),
 
   http.get(`${API_BASE}/staff-picks/:pickId/share`, ({ params }) => {
-    const envelope = { v: 1, page: { name: "Weather Dashboard", type: "template", device_type: "flagship", template: ["Hello", "", "", "", "", ""], duration_seconds: 300 } };
+    const envelope = {
+      v: 1,
+      page: {
+        name: "Weather Dashboard",
+        type: "template",
+        device_type: "flagship",
+        template: ["Hello", "", "", "", "", ""],
+        duration_seconds: 300,
+      },
+    };
     const share_string = btoa(JSON.stringify(envelope)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
     return HttpResponse.json({ share_string, pick_id: params.pickId });
   }),
@@ -617,13 +659,22 @@ export const handlers = [
   http.get(`${API_BASE}/pages/:id/share`, ({ params }) => {
     const { id } = params;
     // Minimal valid share string for a template page (v1 envelope, base64url-encoded)
-    const envelope = { v: 1, page: { name: "Shared Page", type: "template", device_type: "flagship", template: ["Hello", "", "", "", "", ""], duration_seconds: 300 } };
+    const envelope = {
+      v: 1,
+      page: {
+        name: "Shared Page",
+        type: "template",
+        device_type: "flagship",
+        template: ["Hello", "", "", "", "", ""],
+        duration_seconds: 300,
+      },
+    };
     const share_string = btoa(JSON.stringify(envelope)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
     return HttpResponse.json({ share_string, page_id: id });
   }),
 
   http.post(`${API_BASE}/pages/import`, async ({ request }) => {
-    const body = await request.json() as { share_string: string };
+    const body = (await request.json()) as { share_string: string };
     if (!body.share_string || body.share_string === "invalid") {
       return HttpResponse.json({ detail: "Invalid share string — could not decode." }, { status: 422 });
     }
@@ -640,11 +691,17 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/pages/import/preview`, async ({ request }) => {
-    const body = await request.json() as { share_string: string };
+    const body = (await request.json()) as { share_string: string };
     if (!body.share_string || body.share_string === "invalid") {
       return HttpResponse.json({ detail: "Invalid share string — could not decode." }, { status: 422 });
     }
-    return HttpResponse.json({ name: "Shared Page", type: "template", device_type: "flagship", template: ["Hello", "", "", "", "", ""], duration_seconds: 300 });
+    return HttpResponse.json({
+      name: "Shared Page",
+      type: "template",
+      device_type: "flagship",
+      template: ["Hello", "", "", "", "", ""],
+      duration_seconds: 300,
+    });
   }),
 
   http.post(`${API_BASE}/pages/:id/send`, ({ params }) => {
@@ -671,7 +728,7 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/templates/render`, async ({ request }) => {
-    const body = await request.json() as { template: string | string[] };
+    const body = (await request.json()) as { template: string | string[] };
     const template = Array.isArray(body.template) ? body.template.join("\n") : body.template;
     const response: TemplateRenderResponse = {
       rendered: template || "Rendered template",
@@ -682,7 +739,7 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/templates/render/live`, async ({ request }) => {
-    const body = await request.json() as { template: string | string[]; board_id?: string };
+    const body = (await request.json()) as { template: string | string[]; board_id?: string };
     requestStore.lastLiveRender = body;
     requestStore.liveRenderCallCount++;
     const template = Array.isArray(body.template) ? body.template.join("\n") : body.template;
@@ -714,9 +771,9 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/rotations`, async ({ request }) => {
-    const body = await request.json() as RotationCreate;
+    const body = (await request.json()) as RotationCreate;
     requestStore.lastRotationCreate = body;
-    
+
     const newRotation: Rotation = {
       id: "new-rot-" + Date.now(),
       name: body.name,
@@ -732,7 +789,7 @@ export const handlers = [
   }),
 
   http.put(`${API_BASE}/rotations/:id`, async ({ request, params }) => {
-    const body = await request.json() as Partial<Rotation>;
+    const body = (await request.json()) as Partial<Rotation>;
     const { id } = params;
     const updatedRotation: Rotation = {
       ...mockRotation,
@@ -803,9 +860,7 @@ export const handlers = [
     // Filter by search
     if (search) {
       filteredLogs = filteredLogs.filter(
-        (log) =>
-          log.message.toLowerCase().includes(search) ||
-          log.logger.toLowerCase().includes(search)
+        (log) => log.message.toLowerCase().includes(search) || log.logger.toLowerCase().includes(search),
       );
     }
 
@@ -834,7 +889,7 @@ export const handlers = [
   }),
 
   http.put(`${API_BASE}/config/general`, async ({ request }) => {
-    const body = await request.json() as Partial<GeneralConfig>;
+    const body = (await request.json()) as Partial<GeneralConfig>;
     const updatedConfig = {
       ...mockGeneralConfig,
       ...body,
@@ -914,7 +969,7 @@ export const handlers = [
 
   http.post(`${API_BASE}/plugins/:pluginId/config`, async ({ request, params }) => {
     const { pluginId } = params;
-    const body = await request.json() as { config: Record<string, unknown> };
+    const body = (await request.json()) as { config: Record<string, unknown> };
     return HttpResponse.json({
       status: "success",
       plugin_id: pluginId,
@@ -924,7 +979,7 @@ export const handlers = [
 
   http.put(`${API_BASE}/plugins/:pluginId/config`, async ({ request, params }) => {
     const { pluginId } = params;
-    const body = await request.json() as { config: Record<string, unknown> };
+    const body = (await request.json()) as { config: Record<string, unknown> };
     return HttpResponse.json({
       status: "success",
       plugin_id: pluginId,
@@ -943,7 +998,7 @@ export const handlers = [
 
   http.post(`${API_BASE}/plugins/:pluginId/instances`, async ({ request, params }) => {
     const { pluginId } = params;
-    const body = await request.json() as { label: string };
+    const body = (await request.json()) as { label: string };
     const instanceKey = `${pluginId}:${body.label}`;
     return HttpResponse.json({
       status: "success",
@@ -973,7 +1028,7 @@ export const handlers = [
 
   // Silence schedule update endpoint (system feature, not a plugin)
   http.put(`${API_BASE}/settings/silence-schedule`, async ({ request }) => {
-    const body = await request.json() as {
+    const body = (await request.json()) as {
       enabled: boolean;
       start_time: string;
       end_time: string;
@@ -1206,16 +1261,16 @@ export const handlers = [
     return HttpResponse.json({
       interval_seconds: 300,
       board_read_interval_local: 30,
-      board_read_interval_cloud: 180
+      board_read_interval_cloud: 180,
     });
   }),
 
   http.put(`${API_BASE}/settings/polling`, async ({ request }) => {
-    const body = await request.json() as { interval_seconds: number };
+    const body = (await request.json()) as { interval_seconds: number };
     return HttpResponse.json({
       status: "success",
       settings: { interval_seconds: body.interval_seconds },
-      requires_restart: false
+      requires_restart: false,
     });
   }),
 
@@ -1224,34 +1279,43 @@ export const handlers = [
     return HttpResponse.json({
       board_type: "black",
       boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
-      devices: ["flagship"]
+      devices: ["flagship"],
     });
   }),
 
   http.put(`${API_BASE}/settings/board`, async ({ request }) => {
-    const body = await request.json() as { board_type?: "black" | "white" | null; devices?: string[]; boards?: object[] };
+    const body = (await request.json()) as {
+      board_type?: "black" | "white" | null;
+      devices?: string[];
+      boards?: object[];
+    };
     return HttpResponse.json({
       status: "success",
       settings: {
         board_type: body.board_type ?? "black",
         boards: body.boards ?? [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
-        devices: body.devices ?? ["flagship"]
-      }
+        devices: body.devices ?? ["flagship"],
+      },
     });
   }),
 
   http.post(`${API_BASE}/settings/board/add`, async ({ request }) => {
-    const body = await request.json() as { device_type: string; name?: string; board_color?: string };
+    const body = (await request.json()) as { device_type: string; name?: string; board_color?: string };
     return HttpResponse.json({
       status: "success",
       settings: {
         board_type: "black",
         boards: [
           { id: "default", name: "Flagship", device_type: "flagship", board_color: "black" },
-          { id: "new", name: body.name || (body.device_type === "note" ? "Note" : "Flagship"), device_type: body.device_type, board_color: body.board_color || "black" }
+          {
+            id: "new",
+            name: body.name || (body.device_type === "note" ? "Note" : "Flagship"),
+            device_type: body.device_type,
+            board_color: body.board_color || "black",
+          },
         ],
-        devices: ["flagship", body.device_type]
-      }
+        devices: ["flagship", body.device_type],
+      },
     });
   }),
 
@@ -1261,8 +1325,8 @@ export const handlers = [
       settings: {
         board_type: "black",
         boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
-        devices: ["flagship"]
-      }
+        devices: ["flagship"],
+      },
     });
   }),
 
@@ -1275,7 +1339,7 @@ export const handlers = [
   }),
 
   http.put(`${API_BASE}/settings/location`, async ({ request }) => {
-    const body = await request.json() as { latitude: number | null; longitude: number | null };
+    const body = (await request.json()) as { latitude: number | null; longitude: number | null };
     return HttpResponse.json({
       status: "success",
       settings: {
@@ -1303,4 +1367,3 @@ export const handlers = [
     return HttpResponse.json({ status: "ok" });
   }),
 ];
-

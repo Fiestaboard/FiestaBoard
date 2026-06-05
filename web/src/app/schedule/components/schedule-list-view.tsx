@@ -1,12 +1,13 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Calendar, GalleryHorizontalEnd } from "lucide-react";
-import type { ScheduleEntry, Page, Carousel } from "@/lib/api";
-import { isCarouselId } from "@/lib/api";
+import { Calendar, Edit, GalleryHorizontalEnd, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Carousel, Page, ScheduleEntry } from "@/lib/api";
+import { isCarouselId } from "@/lib/api";
 
 interface ScheduleListViewProps {
   schedules: ScheduleEntry[];
@@ -17,13 +18,20 @@ interface ScheduleListViewProps {
 }
 
 const DAY_KEYS: Record<string, "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday"> = {
-  monday: "monday", mon: "monday",
-  tuesday: "tuesday", tue: "tuesday",
-  wednesday: "wednesday", wed: "wednesday",
-  thursday: "thursday", thu: "thursday",
-  friday: "friday", fri: "friday",
-  saturday: "saturday", sat: "saturday",
-  sunday: "sunday", sun: "sunday",
+  monday: "monday",
+  mon: "monday",
+  tuesday: "tuesday",
+  tue: "tuesday",
+  wednesday: "wednesday",
+  wed: "wednesday",
+  thursday: "thursday",
+  thu: "thursday",
+  friday: "friday",
+  fri: "friday",
+  saturday: "saturday",
+  sat: "saturday",
+  sunday: "sunday",
+  sun: "sunday",
 };
 
 function useFormatters() {
@@ -47,29 +55,29 @@ function useFormatters() {
   }
 
   function formatTimeDisplay(schedule: ScheduleEntry): string {
-    const startLabel = schedule.start_type === "sunrise"
-      ? `☀↑${schedule.start_sun_offset ? ` ${schedule.start_sun_offset > 0 ? "+" : ""}${schedule.start_sun_offset}m` : ""}`
-      : schedule.start_type === "sunset"
-      ? `☀↓${schedule.start_sun_offset ? ` ${schedule.start_sun_offset > 0 ? "+" : ""}${schedule.start_sun_offset}m` : ""}`
-      : schedule.start_time;
+    const startLabel =
+      schedule.start_type === "sunrise"
+        ? `☀↑${schedule.start_sun_offset ? ` ${schedule.start_sun_offset > 0 ? "+" : ""}${schedule.start_sun_offset}m` : ""}`
+        : schedule.start_type === "sunset"
+          ? `☀↓${schedule.start_sun_offset ? ` ${schedule.start_sun_offset > 0 ? "+" : ""}${schedule.start_sun_offset}m` : ""}`
+          : schedule.start_time;
 
-    const resolvedStart = schedule.resolved_start_time && schedule.start_type !== "fixed"
-      ? ` (${schedule.resolved_start_time})`
-      : "";
+    const resolvedStart =
+      schedule.resolved_start_time && schedule.start_type !== "fixed" ? ` (${schedule.resolved_start_time})` : "";
 
     if (!schedule.end_time && schedule.end_type === "fixed") {
       return `${startLabel}${resolvedStart} - ${t("openLabel")}`;
     }
 
-    const endLabel = schedule.end_type === "sunrise"
-      ? `☀↑${schedule.end_sun_offset ? ` ${schedule.end_sun_offset > 0 ? "+" : ""}${schedule.end_sun_offset}m` : ""}`
-      : schedule.end_type === "sunset"
-      ? `☀↓${schedule.end_sun_offset ? ` ${schedule.end_sun_offset > 0 ? "+" : ""}${schedule.end_sun_offset}m` : ""}`
-      : schedule.end_time || t("openLabel");
+    const endLabel =
+      schedule.end_type === "sunrise"
+        ? `☀↑${schedule.end_sun_offset ? ` ${schedule.end_sun_offset > 0 ? "+" : ""}${schedule.end_sun_offset}m` : ""}`
+        : schedule.end_type === "sunset"
+          ? `☀↓${schedule.end_sun_offset ? ` ${schedule.end_sun_offset > 0 ? "+" : ""}${schedule.end_sun_offset}m` : ""}`
+          : schedule.end_time || t("openLabel");
 
-    const resolvedEnd = schedule.resolved_end_time && schedule.end_type !== "fixed"
-      ? ` (${schedule.resolved_end_time})`
-      : "";
+    const resolvedEnd =
+      schedule.resolved_end_time && schedule.end_type !== "fixed" ? ` (${schedule.resolved_end_time})` : "";
 
     return `${startLabel}${resolvedStart} - ${endLabel}${resolvedEnd}`;
   }
@@ -77,13 +85,7 @@ function useFormatters() {
   return { formatDays, formatTimeDisplay };
 }
 
-export function ScheduleListView({
-  schedules,
-  pages,
-  carousels = [],
-  onEdit,
-  onDelete,
-}: ScheduleListViewProps) {
+export function ScheduleListView({ schedules, pages, carousels = [], onEdit, onDelete }: ScheduleListViewProps) {
   const t = useTranslations("schedule");
   const tCommon = useTranslations("common");
   const { formatDays, formatTimeDisplay } = useFormatters();
@@ -113,19 +115,14 @@ export function ScheduleListView({
             {schedules.map((schedule) => {
               const pageName = getPageName(schedule.page_id);
               return (
-                <div
-                  key={schedule.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
+                <div key={schedule.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       {isCarouselId(schedule.page_id) && (
                         <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       )}
                       <span className="font-medium">{pageName}</span>
-                      {!schedule.enabled && (
-                        <Badge variant="secondary">{tCommon("disabled")}</Badge>
-                      )}
+                      {!schedule.enabled && <Badge variant="secondary">{tCommon("disabled")}</Badge>}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {formatTimeDisplay(schedule)} • {formatDays(schedule)}

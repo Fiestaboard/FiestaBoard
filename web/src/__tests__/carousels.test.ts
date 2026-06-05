@@ -1,10 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { isCarouselId, CAROUSEL_ID_PREFIX, api } from "@/lib/api";
-import type { Carousel, Page, ScheduleEntry } from "@/lib/api";
-import {
-  scheduleToCalendarEvents,
-} from "@/lib/schedule-calendar";
 import { startOfWeek } from "date-fns";
+import { describe, expect, it } from "vitest";
+
+import type { Carousel, Page, ScheduleEntry } from "@/lib/api";
+import { api, CAROUSEL_ID_PREFIX, isCarouselId } from "@/lib/api";
+import { scheduleToCalendarEvents } from "@/lib/schedule-calendar";
 
 // =============================================================================
 // isCarouselId utility
@@ -79,7 +78,14 @@ describe("Carousel type", () => {
 const WEEK_START = startOfWeek(new Date(2025, 0, 5), { weekStartsOn: 0 });
 
 const MOCK_PAGES: Page[] = [
-  { id: "page1", name: "Page One", type: "template", device_type: "flagship", duration_seconds: 30, created_at: "2025-01-01T00:00:00Z" },
+  {
+    id: "page1",
+    name: "Page One",
+    type: "template",
+    device_type: "flagship",
+    duration_seconds: 30,
+    created_at: "2025-01-01T00:00:00Z",
+  },
 ];
 
 const MOCK_CAROUSELS: Carousel[] = [

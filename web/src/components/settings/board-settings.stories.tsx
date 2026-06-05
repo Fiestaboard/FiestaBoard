@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { BoardSettings } from "./board-settings";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 import type { BoardConfig } from "@/lib/api";
+
+import { BoardSettings } from "./board-settings";
 
 const mockLocalConfig: BoardConfig = {
   api_mode: "local",

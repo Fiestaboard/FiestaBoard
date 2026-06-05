@@ -11,10 +11,10 @@
  *   2. Place the cursor at position 0 of the second <p>,
  *   3. Confuse the serializer (which reads only the first <p>).
  */
-import { Node } from '@tiptap/core';
+import { Node } from "@tiptap/core";
 
 export const SingleParagraphDoc = Node.create({
-  name: 'doc',
+  name: "doc",
   topNode: true,
-  content: 'paragraph',
+  content: "paragraph",
 });

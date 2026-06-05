@@ -1,10 +1,11 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Check, GalleryHorizontalEnd, LayoutTemplate, FileText } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { EmptyState } from "@/components/ui/empty-state";
+import { Check, FileText, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
 import { useTranslations } from "next-intl";
+
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Carousel } from "@/lib/api";
 import { isCarouselId } from "@/lib/api";
 
@@ -46,9 +47,7 @@ export function PagePickerDialog({
       }`}
     >
       <span className="text-sm font-medium">{t("noneNoDefault")}</span>
-      {selectedPageId === null && (
-        <Check className="h-4 w-4 text-brand" aria-hidden="true" />
-      )}
+      {selectedPageId === null && <Check className="h-4 w-4 text-brand" aria-hidden="true" />}
     </button>
   );
 
@@ -72,9 +71,7 @@ export function PagePickerDialog({
               </Badge>
             )}
           </div>
-          {selectedPageId === page.id && (
-            <Check className="h-4 w-4 text-brand" aria-hidden="true" />
-          )}
+          {selectedPageId === page.id && <Check className="h-4 w-4 text-brand" aria-hidden="true" />}
         </button>
       ))}
     </div>
@@ -99,9 +96,7 @@ export function PagePickerDialog({
               {t("pageCount", { count: carousel.page_ids.length })}
             </Badge>
           </div>
-          {selectedPageId === carousel.id && (
-            <Check className="h-4 w-4 text-brand" aria-hidden="true" />
-          )}
+          {selectedPageId === carousel.id && <Check className="h-4 w-4 text-brand" aria-hidden="true" />}
         </button>
       ))}
     </div>
@@ -112,11 +107,7 @@ export function PagePickerDialog({
       <div className="space-y-2">
         {noneOption}
         {pages.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title={t("noPagesTitle")}
-            description={t("noPagesDescription")}
-          />
+          <EmptyState icon={FileText} title={t("noPagesTitle")} description={t("noPagesDescription")} />
         ) : (
           pagesList
         )}
@@ -140,18 +131,12 @@ export function PagePickerDialog({
         </TabsList>
         <TabsContent value="pages">
           {pages.length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title={t("noPagesTitle")}
-              description={t("noPagesDescription")}
-            />
+            <EmptyState icon={FileText} title={t("noPagesTitle")} description={t("noPagesDescription")} />
           ) : (
             pagesList
           )}
         </TabsContent>
-        <TabsContent value="carousels">
-          {carouselsList}
-        </TabsContent>
+        <TabsContent value="carousels">{carouselsList}</TabsContent>
       </Tabs>
     </div>
   );

@@ -6,15 +6,7 @@
  *
  * Issue: #500 — E2E: add Playwright tests for critical user flows
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  suppressWizard,
-  createPage,
-  deleteAllPages,
-  API_URL,
-} from "./helpers";
+import { API_URL, configureBoard, createPage, deleteAllPages, expect, suppressWizard, test } from "./helpers";
 
 const MOBILE_VIEWPORT = { width: 375, height: 812 };
 
@@ -53,7 +45,12 @@ test.describe("Mobile — Navigation", () => {
 
       let visibleCount = 0;
       for (const link of navLinks) {
-        if (await link.first().isVisible({ timeout: 3_000 }).catch(() => false)) {
+        if (
+          await link
+            .first()
+            .isVisible({ timeout: 3_000 })
+            .catch(() => false)
+        ) {
           visibleCount++;
         }
       }
@@ -67,23 +64,17 @@ test.describe("Mobile — Navigation", () => {
 
   test("can navigate to Pages on mobile", async ({ page }) => {
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
   test("can navigate to Schedule on mobile", async ({ page }) => {
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
   test("can navigate to Settings on mobile", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
   });
 });
 
@@ -93,9 +84,7 @@ test.describe("Mobile — Dashboard", () => {
     await page.waitForLoadState("networkidle");
 
     // Dashboard heading should be visible
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // No horizontal overflow (basic check: viewport width matches page width)
     const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -108,9 +97,7 @@ test.describe("Mobile — Dashboard", () => {
 
     // Dashboard should render without errors — board display may be a grid, canvas,
     // or an empty-state message depending on app state
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // No error state visible
     await expect(page.getByText(/crash|unhandled exception/i)).not.toBeVisible();
@@ -122,9 +109,7 @@ test.describe("Mobile — Pages", () => {
     await createPage("Mobile Test Page", ["MOBILE", "", "", "", "", ""]);
 
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // The page we created should be listed
     await expect(page.getByText("Mobile Test Page")).toBeVisible({
@@ -134,9 +119,7 @@ test.describe("Mobile — Pages", () => {
 
   test("create page button is accessible on mobile", async ({ page }) => {
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // New Page / Create Page button should be reachable
     const createBtn = page
@@ -163,16 +146,12 @@ test.describe("Mobile — Pages", () => {
 test.describe("Mobile — Integrations", () => {
   test("integrations page loads on mobile", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
   });
 
   test("installed and marketplace tabs are reachable on mobile", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     const installedTab = page.getByRole("tab", { name: /installed/i });
     const marketplaceTab = page.getByRole("tab", { name: /marketplace/i });

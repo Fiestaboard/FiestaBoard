@@ -119,12 +119,12 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.52 0.16 60);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.960 0 0);
+  --secondary: oklch(0.96 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.955 0 0);
   /* Muted text needs >=4.5:1 contrast vs --background to meet WCAG AA. */
-  --muted-foreground: oklch(0.40 0 0);
-  --accent: oklch(0.950 0 0);
+  --muted-foreground: oklch(0.4 0 0);
+  --accent: oklch(0.95 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.43 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
@@ -146,7 +146,7 @@
   --sidebar-ring: oklch(0.52 0.16 60);
   --info: oklch(0.45 0.15 250);
   --info-foreground: oklch(0.985 0 0);
-  --success: oklch(0.40 0.16 150);
+  --success: oklch(0.4 0.16 150);
   --success-foreground: oklch(0.985 0 0);
   --warning: oklch(0.45 0.16 70);
   --warning-foreground: oklch(0.985 0 0);
@@ -160,9 +160,9 @@
   --brand-emphasis: oklch(0.52 0.16 60);
   --brand-foreground: oklch(1 0 0);
   /* Navigation active state — indigo palette */
-  --nav-active: oklch(0.44 0.19 265);            /* indigo-600 */
-  --nav-active-foreground: oklch(1 0 0);          /* white */
-  --nav-active-hover: oklch(0.50 0.17 265 / 15%); /* indigo tint hover */
+  --nav-active: oklch(0.44 0.19 265); /* indigo-600 */
+  --nav-active-foreground: oklch(1 0 0); /* white */
+  --nav-active-hover: oklch(0.5 0.17 265 / 15%); /* indigo tint hover */
   /* Fiesta gradient palette — used by sidebar and page icon gradient */
   --fiesta-red: #c97a72;
   --fiesta-orange: #c99662;
@@ -181,21 +181,21 @@
 }
 
 .dark {
-  --background: oklch(0.130 0 0);
+  --background: oklch(0.13 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.160 0 0);
+  --card: oklch(0.16 0 0);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.160 0 0);
+  --popover: oklch(0.16 0 0);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.215 0 0);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.200 0 0);
+  --muted: oklch(0.2 0 0);
   --muted-foreground: oklch(0.83 0 0);
-  --accent: oklch(0.190 0 0);
+  --accent: oklch(0.19 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.80 0.191 22.216);
+  --destructive: oklch(0.8 0.191 22.216);
   --destructive-foreground: oklch(0.15 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 14%);
@@ -228,30 +228,30 @@
   --brand-emphasis: oklch(0.55 0.16 60);
   --brand-foreground: oklch(1 0 0);
   /* Navigation active state — indigo palette (lighter for dark mode) */
-  --nav-active: oklch(0.59 0.19 265);            /* indigo-500 */
-  --nav-active-foreground: oklch(1 0 0);          /* white */
+  --nav-active: oklch(0.59 0.19 265); /* indigo-500 */
+  --nav-active-foreground: oklch(1 0 0); /* white */
   --nav-active-hover: oklch(0.59 0.19 265 / 20%); /* indigo tint hover */
   /* Fiesta gradient palette — lighter for visibility on dark card backgrounds */
   --fiesta-red: #e08a82;
   --fiesta-orange: #d4a870;
   --fiesta-purple: #b08ec8;
-  --elevation-card: 0 1px 3px 0 rgb(0 0 0 / 0.20), 0 0 0 1px oklch(1 0 0 / 6%);
-  --elevation-card-hover: 0 2px 8px -2px rgb(0 0 0 / 0.30), 0 0 0 1px oklch(1 0 0 / 10%);
+  --elevation-card: 0 1px 3px 0 rgb(0 0 0 / 0.2), 0 0 0 1px oklch(1 0 0 / 6%);
+  --elevation-card-hover: 0 2px 8px -2px rgb(0 0 0 / 0.3), 0 0 0 1px oklch(1 0 0 / 10%);
   --elevation-modal: 0 8px 24px -4px rgb(0 0 0 / 0.25), 0 4px 8px -4px rgb(0 0 0 / 0.15);
 }
 
 /* Pride month (June) — rainbow page icon gradient + logo text + sidebar */
 .pride-month {
-  --icon-g1: #E40303;
-  --icon-g2: #FF8C00;
-  --icon-g3: #FFED00;
+  --icon-g1: #e40303;
+  --icon-g2: #ff8c00;
+  --icon-g3: #ffed00;
   --icon-g4: #008026;
-  --icon-g5: #004DFF;
+  --icon-g5: #004dff;
   --icon-g6: #750787;
 }
 
 .pride-month .logo-fiesta-text {
-  background: linear-gradient(90deg, #E40303, #FF8C00, #FFED00, #008026, #004DFF, #750787);
+  background: linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -260,8 +260,8 @@
 /* Sidebar gradient: 3 pride colors spread wide across the spectrum */
 .pride-month .sidebar-gradient,
 .pride-month .sidebar-gradient-horizontal {
-  --sidebar-fiesta-red: #E40303;
-  --sidebar-fiesta-orange: #FFED00;
+  --sidebar-fiesta-red: #e40303;
+  --sidebar-fiesta-orange: #ffed00;
   --sidebar-fiesta-purple: #750787;
 }
 
@@ -283,7 +283,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: 'ss01';
+    font-feature-settings: "ss01";
     /* Clip horizontal overflow at the document root so the body itself stays the
      * vertical scroll container. Applying overflow-x to <main> would force its
      * computed overflow-y to `auto`, recreating a nested scrollbar. */
@@ -564,24 +564,36 @@
   }
 }
 
-
 /* Sidebar & mobile header: Fiesta-brand gradient (red, orange, purple).
    Repeating gradient for seamless loop (no flash).
    Static when prefers-reduced-motion. */
 @keyframes sidebar-gradient-flow {
   /* Scroll exactly one repeat period (300%) for seamless loop—no flash at end. */
-  0%   { background-position: 50% 0%; }
-  100% { background-position: 50% 150%; }
+  0% {
+    background-position: 50% 0%;
+  }
+  100% {
+    background-position: 50% 150%;
+  }
 }
 
 /* AI sparkle icon — big star gets the sweeping gradient, small elements pulse independently */
 @keyframes ai-sparkle-flow {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 100% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
 }
 @keyframes sparkle-small-pulse {
-  0%, 100% { transform: scale(1); }
-  50%       { transform: scale(1.55); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.55);
+  }
 }
 
 /* Mask contains only the big central star — small elements rendered separately */
@@ -708,8 +720,12 @@
 }
 @keyframes sidebar-gradient-flow-h {
   /* Scroll exactly one period (400% width → 33.33% position) for seamless loop */
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 33.33% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 33.33% 50%;
+  }
 }
 .dark .sidebar-gradient-horizontal {
   --sidebar-fiesta-red: #7a2a24;
@@ -727,28 +743,43 @@
 
 /* Navigation entrance animations */
 @keyframes nav-slide-in-left {
-  from { opacity: 0; transform: translateX(-8px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 @keyframes nav-slide-in-top {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 /* Desktop: entrance then gradient flow (both run; gradient starts after 400ms) */
 @media (min-width: 1024px) {
   .sidebar-gradient {
-    animation: nav-slide-in-left 400ms ease-out both,
-               sidebar-gradient-flow 117s linear 0.4s infinite;
+    animation:
+      nav-slide-in-left 400ms ease-out both,
+      sidebar-gradient-flow 117s linear 0.4s infinite;
   }
 }
 .sidebar-gradient-horizontal {
-  animation: nav-slide-in-top 350ms ease-out both,
-             sidebar-gradient-flow-h 117s linear 0.35s infinite;
+  animation:
+    nav-slide-in-top 350ms ease-out both,
+    sidebar-gradient-flow-h 117s linear 0.35s infinite;
 }
 @media (min-width: 1024px) {
   .sidebar-gradient-horizontal {
-    animation: nav-slide-in-top 350ms ease-out both,
-               sidebar-gradient-flow-h 117s linear 0.35s infinite;
+    animation:
+      nav-slide-in-top 350ms ease-out both,
+      sidebar-gradient-flow-h 117s linear 0.35s infinite;
   }
 }
 
@@ -756,7 +787,8 @@
    Sidebar animates width; main animates padding-left and padding-right.
    All use the same 300ms easing so they move in sync and never collide. */
 .sidebar-transition {
-  transition: width 300ms cubic-bezier(0.33, 1, 0.68, 1),
+  transition:
+    width 300ms cubic-bezier(0.33, 1, 0.68, 1),
     padding-left 300ms cubic-bezier(0.33, 1, 0.68, 1),
     padding-right 300ms cubic-bezier(0.33, 1, 0.68, 1);
   contain: layout style;
@@ -765,13 +797,35 @@
   will-change: width, padding-left, padding-right;
 }
 @media (prefers-reduced-motion: reduce) {
-  .sidebar-transition { transition: none; }
-  .sidebar-gradient { animation: none; background-position: 0 0, 0 0, 50% 25%; }
-  .sidebar-gradient-horizontal { animation: none; background-position: 25% 50%; }
+  .sidebar-transition {
+    transition: none;
+  }
+  .sidebar-gradient {
+    animation: none;
+    background-position:
+      0 0,
+      0 0,
+      50% 25%;
+  }
+  .sidebar-gradient-horizontal {
+    animation: none;
+    background-position: 25% 50%;
+  }
 }
-.reduce-motion .sidebar-transition { transition: none; }
-.reduce-motion .sidebar-gradient { animation: none; background-position: 0 0, 0 0, 50% 25%; }
-.reduce-motion .sidebar-gradient-horizontal { animation: none; background-position: 25% 50%; }
+.reduce-motion .sidebar-transition {
+  transition: none;
+}
+.reduce-motion .sidebar-gradient {
+  animation: none;
+  background-position:
+    0 0,
+    0 0,
+    50% 25%;
+}
+.reduce-motion .sidebar-gradient-horizontal {
+  animation: none;
+  background-position: 25% 50%;
+}
 
 /* Navigation active state — solid fallback (non-gradient surfaces, no backdrop support) */
 .nav-active {
@@ -876,7 +930,7 @@
 @media (hover: hover) {
   .card-interactive:hover {
     box-shadow: var(--elevation-card-hover);
-    border-color: oklch(0.80 0 0);
+    border-color: oklch(0.8 0 0);
   }
   .dark .card-interactive:hover {
     border-color: oklch(0.35 0 0);
@@ -896,35 +950,37 @@
   .hover-optimized {
     contain: layout style paint;
   }
-  
+
   .transition-optimized {
     transition-property: border-color, background-color, color;
     transition-timing-function: ease-out;
   }
-  
+
   .page-button-container {
     contain: layout style paint;
     transition: none !important;
     content-visibility: auto;
     contain-intrinsic-size: auto 240px;
   }
-  
+
   .hover-fast {
-    transition: border-color 75ms cubic-bezier(0.4, 0, 0.2, 1), 
-                background-color 75ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition:
+      border-color 75ms cubic-bezier(0.4, 0, 0.2, 1),
+      background-color 75ms cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
+
   .hover-instant {
     /* No transition - instant color change */
   }
-  
+
   .hover-stable {
     contain: layout style paint;
   }
-  
+
   .hover-smooth {
-    transition: opacity 100ms cubic-bezier(0.4, 0, 0.2, 1),
-                transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition:
+      opacity 100ms cubic-bezier(0.4, 0, 0.2, 1),
+      transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
@@ -1111,7 +1167,6 @@
 .reduce-motion .btn-lift:active {
   transform: none;
 }
-
 
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {

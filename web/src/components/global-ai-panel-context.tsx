@@ -8,15 +8,9 @@ interface GlobalAiPanelContextValue {
   close: () => void;
 }
 
-const GlobalAiPanelContext = createContext<GlobalAiPanelContextValue | null>(
-  null,
-);
+const GlobalAiPanelContext = createContext<GlobalAiPanelContextValue | null>(null);
 
-export function GlobalAiPanelProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function GlobalAiPanelProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -35,9 +29,7 @@ export function GlobalAiPanelProvider({
 export function useGlobalAiPanel(): GlobalAiPanelContextValue {
   const ctx = useContext(GlobalAiPanelContext);
   if (!ctx) {
-    throw new Error(
-      "useGlobalAiPanel must be used within GlobalAiPanelProvider",
-    );
+    throw new Error("useGlobalAiPanel must be used within GlobalAiPanelProvider");
   }
   return ctx;
 }

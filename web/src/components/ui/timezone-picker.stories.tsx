@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { TimezonePicker } from "./timezone-picker";
 import { useState } from "react";
+
 import { Label } from "./label";
+import { TimezonePicker } from "./timezone-picker";
 
 const meta = {
   title: "UI/TimezonePicker",

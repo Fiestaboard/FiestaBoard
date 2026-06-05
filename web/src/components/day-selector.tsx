@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, type KeyboardEvent } from "react";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
 import type { DayPattern } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 const PATTERNS: DayPattern[] = ["all", "weekdays", "weekends", "custom"];
 
@@ -68,7 +69,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
     const newCustomDays = selectedCustomDays.includes(day)
       ? selectedCustomDays.filter((d) => d !== day)
       : [...selectedCustomDays, day];
-    
+
     // Ensure at least one day is selected
     if (newCustomDays.length > 0) {
       setSelectedCustomDays(newCustomDays);
@@ -79,7 +80,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
   return (
     <fieldset className={cn("space-y-3 border-none p-0 m-0", className)}>
       <legend className="text-sm font-medium leading-none">{t("daysLegend")}</legend>
-      
+
       {/* Pattern Radio Buttons */}
       <div
         className="flex flex-col gap-2"
@@ -92,35 +93,27 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
           role="radio"
           aria-checked={value === "all"}
           tabIndex={value === "all" ? 0 : -1}
-          ref={(el) => { radioRefs.current.all = el; }}
+          ref={(el) => {
+            radioRefs.current.all = el;
+          }}
           onClick={() => handlePatternChange("all")}
           className={cn(
             "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
-            value === "all"
-              ? "border-primary bg-primary/5 text-primary"
-              : "border-border hover:bg-accent"
+            value === "all" ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent",
           )}
         >
           <div
             className={cn(
               "h-4 w-4 rounded-full border-2 flex items-center justify-center",
-              value === "all"
-                ? "border-primary"
-                : "border-muted-foreground"
+              value === "all" ? "border-primary" : "border-muted-foreground",
             )}
           >
-            {value === "all" && (
-              <div className="h-2 w-2 rounded-full bg-primary" />
-            )}
+            {value === "all" && <div className="h-2 w-2 rounded-full bg-primary" />}
           </div>
           <span className="text-sm font-medium">{t("allDays")}</span>
           <div className="ml-auto flex gap-1">
             {ALL_DAYS.map((day) => (
-              <Badge
-                key={day}
-                variant="secondary"
-                className="text-xs"
-              >
+              <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}
               </Badge>
             ))}
@@ -132,35 +125,27 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
           role="radio"
           aria-checked={value === "weekdays"}
           tabIndex={value === "weekdays" ? 0 : -1}
-          ref={(el) => { radioRefs.current.weekdays = el; }}
+          ref={(el) => {
+            radioRefs.current.weekdays = el;
+          }}
           onClick={() => handlePatternChange("weekdays")}
           className={cn(
             "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
-            value === "weekdays"
-              ? "border-primary bg-primary/5 text-primary"
-              : "border-border hover:bg-accent"
+            value === "weekdays" ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent",
           )}
         >
           <div
             className={cn(
               "h-4 w-4 rounded-full border-2 flex items-center justify-center",
-              value === "weekdays"
-                ? "border-primary"
-                : "border-muted-foreground"
+              value === "weekdays" ? "border-primary" : "border-muted-foreground",
             )}
           >
-            {value === "weekdays" && (
-              <div className="h-2 w-2 rounded-full bg-primary" />
-            )}
+            {value === "weekdays" && <div className="h-2 w-2 rounded-full bg-primary" />}
           </div>
           <span className="text-sm font-medium">{t("weekdays")}</span>
           <div className="ml-auto flex gap-1">
             {WEEKDAYS.map((day) => (
-              <Badge
-                key={day}
-                variant="secondary"
-                className="text-xs"
-              >
+              <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}
               </Badge>
             ))}
@@ -172,35 +157,27 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
           role="radio"
           aria-checked={value === "weekends"}
           tabIndex={value === "weekends" ? 0 : -1}
-          ref={(el) => { radioRefs.current.weekends = el; }}
+          ref={(el) => {
+            radioRefs.current.weekends = el;
+          }}
           onClick={() => handlePatternChange("weekends")}
           className={cn(
             "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
-            value === "weekends"
-              ? "border-primary bg-primary/5 text-primary"
-              : "border-border hover:bg-accent"
+            value === "weekends" ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent",
           )}
         >
           <div
             className={cn(
               "h-4 w-4 rounded-full border-2 flex items-center justify-center",
-              value === "weekends"
-                ? "border-primary"
-                : "border-muted-foreground"
+              value === "weekends" ? "border-primary" : "border-muted-foreground",
             )}
           >
-            {value === "weekends" && (
-              <div className="h-2 w-2 rounded-full bg-primary" />
-            )}
+            {value === "weekends" && <div className="h-2 w-2 rounded-full bg-primary" />}
           </div>
           <span className="text-sm font-medium">{t("weekends")}</span>
           <div className="ml-auto flex gap-1">
             {WEEKENDS.map((day) => (
-              <Badge
-                key={day}
-                variant="secondary"
-                className="text-xs"
-              >
+              <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}
               </Badge>
             ))}
@@ -212,27 +189,23 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
           role="radio"
           aria-checked={value === "custom"}
           tabIndex={value === "custom" ? 0 : -1}
-          ref={(el) => { radioRefs.current.custom = el; }}
+          ref={(el) => {
+            radioRefs.current.custom = el;
+          }}
           onClick={() => handlePatternChange("custom")}
           className={cn(
             "flex items-center gap-2 rounded-lg border px-4 py-3 text-left transition-colors",
-            value === "custom"
-              ? "border-primary bg-primary/5 text-primary"
-              : "border-border hover:bg-accent",
-            value === "custom" && "rounded-b-none border-b-0"
+            value === "custom" ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent",
+            value === "custom" && "rounded-b-none border-b-0",
           )}
         >
           <div
             className={cn(
               "h-4 w-4 rounded-full border-2 flex items-center justify-center",
-              value === "custom"
-                ? "border-primary"
-                : "border-muted-foreground"
+              value === "custom" ? "border-primary" : "border-muted-foreground",
             )}
           >
-            {value === "custom" && (
-              <div className="h-2 w-2 rounded-full bg-primary" />
-            )}
+            {value === "custom" && <div className="h-2 w-2 rounded-full bg-primary" />}
           </div>
           <span className="text-sm font-medium">{t("customDays")}</span>
         </button>
@@ -250,7 +223,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
                   "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer inline-flex items-center gap-1.5",
                   selectedCustomDays.includes(day)
                     ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background hover:bg-accent"
+                    : "border-border bg-background hover:bg-accent",
                 )}
               >
                 <input

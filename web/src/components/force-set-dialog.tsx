@@ -1,23 +1,24 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import { toast } from "sonner";
 import { Timer } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { api } from "@/lib/api";
 import type { SetTemporaryOverrideRequest } from "@/lib/api";
+import { api } from "@/lib/api";
 
 const DURATION_PRESETS = [
   { label: "5 min", minutes: 5 },
@@ -33,12 +34,7 @@ interface ForceSetDialogProps {
   pageName: string;
 }
 
-export function ForceSetDialog({
-  open,
-  onOpenChange,
-  pageId,
-  pageName,
-}: ForceSetDialogProps) {
+export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSetDialogProps) {
   const t = useTranslations("forceSetDialog");
   const queryClient = useQueryClient();
 
@@ -54,13 +50,10 @@ export function ForceSetDialog({
     }
   }, [open]);
 
-  const effectiveDuration = isCustom
-    ? Math.max(1, Math.min(480, parseInt(customMinutes, 10) || 1))
-    : durationMinutes;
+  const effectiveDuration = isCustom ? Math.max(1, Math.min(480, parseInt(customMinutes, 10) || 1)) : durationMinutes;
 
   const setOverrideMutation = useMutation({
-    mutationFn: (req: SetTemporaryOverrideRequest) =>
-      api.setTemporaryOverride(req),
+    mutationFn: (req: SetTemporaryOverrideRequest) => api.setTemporaryOverride(req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
       queryClient.invalidateQueries({ queryKey: ["temporaryOverride"] });
@@ -97,9 +90,7 @@ export function ForceSetDialog({
             <Timer className="h-5 w-5" />
             {t("title")}
           </DialogTitle>
-          <DialogDescription>
-            {t("description", { pageName })}
-          </DialogDescription>
+          <DialogDescription>{t("description", { pageName })}</DialogDescription>
         </DialogHeader>
 
         <div className="py-2">
@@ -147,26 +138,17 @@ export function ForceSetDialog({
                   className="w-24"
                   autoFocus
                 />
-                <span className="text-sm text-muted-foreground">
-                  {t("minutes")}
-                </span>
+                <span className="text-sm text-muted-foreground">{t("minutes")}</span>
               </div>
             )}
           </div>
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={setOverrideMutation.isPending}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={setOverrideMutation.isPending}>
             {t("cancel")}
           </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={!isValid || setOverrideMutation.isPending}
-          >
+          <Button onClick={handleConfirm} disabled={!isValid || setOverrideMutation.isPending}>
             <Timer className="mr-1.5 h-4 w-4" />
             {setOverrideMutation.isPending ? t("setting") : t("confirm")}
           </Button>

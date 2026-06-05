@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+
 import FadeContent from "@/components/ui/react-bits/fade-content";
 
 export function PageFadeWrapper({ children }: { children: React.ReactNode }) {

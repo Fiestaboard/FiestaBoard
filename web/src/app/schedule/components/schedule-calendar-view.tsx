@@ -1,33 +1,24 @@
 "use client";
 
-import { useMemo, useCallback, useState, useEffect, useRef } from "react";
-import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
-import withDragAndDrop, {
-  type EventInteractionArgs,
-} from "react-big-calendar/lib/addons/dragAndDrop";
-import {
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  addDays,
-} from "date-fns";
-import { enUS } from "date-fns/locale/en-US";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { api } from "@/lib/api";
-import type { ScheduleEntry, Page, Overlap, Carousel } from "@/lib/api";
-import {
-  schedulesToCalendarEvents,
-  extractTimeFromDate,
-  type CalendarEvent,
-} from "@/lib/schedule-calendar";
-import { ScheduleEvent } from "./schedule-event";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import "@/styles/calendar.css";
+
+import { addDays, format, getDay, parse, startOfWeek } from "date-fns";
+import { enUS } from "date-fns/locale/en-US";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
+import withDragAndDrop, { type EventInteractionArgs } from "react-big-calendar/lib/addons/dragAndDrop";
+
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { Carousel, Overlap, Page, ScheduleEntry } from "@/lib/api";
+import { api } from "@/lib/api";
+import { type CalendarEvent, extractTimeFromDate, schedulesToCalendarEvents } from "@/lib/schedule-calendar";
+
+import { ScheduleEvent } from "./schedule-event";
 
 // Setup the localizer with date-fns
 const locales = {
@@ -54,15 +45,15 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // DOM nodes. Only the highest levels drop to step=5 or step=1 where the grid
 // is expanded enough to justify per-minute resolution.
 const ZOOM_PRESETS: [string, number, number, number][] = [
-  ["1×",  28,  15, 4],   // compact — 7 px / slot
-  ["2×",  48,  15, 4],
-  ["3×",  72,  15, 4],
-  ["4×",  100, 15, 4],
-  ["6×",  150, 5,  3],   // switch to 5-min grid
-  ["8×",  240, 5,  3],
-  ["12×", 360, 5,  3],
-  ["16×", 480, 1,  1],   // minute-level
-  ["24×", 720, 1,  1],
+  ["1×", 28, 15, 4], // compact — 7 px / slot
+  ["2×", 48, 15, 4],
+  ["3×", 72, 15, 4],
+  ["4×", 100, 15, 4],
+  ["6×", 150, 5, 3], // switch to 5-min grid
+  ["8×", 240, 5, 3],
+  ["12×", 360, 5, 3],
+  ["16×", 480, 1, 1], // minute-level
+  ["24×", 720, 1, 1],
 ];
 const DEFAULT_ZOOM = 0;
 const MAX_ZOOM = ZOOM_PRESETS.length - 1;
@@ -109,18 +100,9 @@ export function ScheduleCalendarView({
   const [, hourHeight, zoomStep, zoomTimeslots] = ZOOM_PRESETS[zoomIndex];
   const slotHeight = Math.round(hourHeight / zoomTimeslots);
 
-  const handleZoomIn = useCallback(
-    () => setZoomIndex((i) => Math.min(i + 1, MAX_ZOOM)),
-    []
-  );
-  const handleZoomOut = useCallback(
-    () => setZoomIndex((i) => Math.max(i - 1, 0)),
-    []
-  );
-  const handleSliderChange = useCallback(
-    (values: number[]) => setZoomIndex(values[0]),
-    []
-  );
+  const handleZoomIn = useCallback(() => setZoomIndex((i) => Math.min(i + 1, MAX_ZOOM)), []);
+  const handleZoomOut = useCallback(() => setZoomIndex((i) => Math.max(i - 1, 0)), []);
+  const handleSliderChange = useCallback((values: number[]) => setZoomIndex(values[0]), []);
 
   // Check for mobile viewport
   useEffect(() => {
@@ -133,10 +115,7 @@ export function ScheduleCalendarView({
   }, []);
 
   // Use current week as reference (doesn't matter which week since this is a template)
-  const weekStart = useMemo(
-    () => startOfWeek(new Date(), { weekStartsOn: 0 }),
-    []
-  );
+  const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 0 }), []);
 
   // Calculate the date to show based on mobile navigation
   const displayDate = useMemo(() => {
@@ -147,27 +126,38 @@ export function ScheduleCalendarView({
   // Fetch sunrise/sunset times for today (used for slot markers)
   const [sunTimes, setSunTimes] = useState<{ sunrise: string | null; sunset: string | null } | null>(null);
   // Per-day sun times for the visible week (used for correct event positioning)
-  const [sunTimesMap, setSunTimesMap] = useState<Record<string, { sunrise: string; sunset: string }> | undefined>(undefined);
+  const [sunTimesMap, setSunTimesMap] = useState<Record<string, { sunrise: string; sunset: string }> | undefined>(
+    undefined,
+  );
   useEffect(() => {
     const weekStartStr = format(weekStart, "yyyy-MM-dd");
-    api.getSunTimes().then((data) => {
-      if (data.location_configured) {
-        setSunTimes({ sunrise: data.sunrise, sunset: data.sunset });
-      }
-    }).catch(() => { /* ignore */ });
-    api.getSunTimesWeek(weekStartStr).then((data) => {
-      if (data.location_configured) {
-        setSunTimesMap(data.dates);
-      }
-    }).catch(() => { /* ignore if location not configured or API unavailable */ });
+    api
+      .getSunTimes()
+      .then((data) => {
+        if (data.location_configured) {
+          setSunTimes({ sunrise: data.sunrise, sunset: data.sunset });
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      });
+    api
+      .getSunTimesWeek(weekStartStr)
+      .then((data) => {
+        if (data.location_configured) {
+          setSunTimesMap(data.dates);
+        }
+      })
+      .catch(() => {
+        /* ignore if location not configured or API unavailable */
+      });
   }, [weekStart]);
 
   // Transform schedules to calendar events
   const events = useMemo(
     () => schedulesToCalendarEvents(schedules, weekStart, pages, carousels, sunTimesMap),
-    [schedules, weekStart, pages, carousels, sunTimesMap]
+    [schedules, weekStart, pages, carousels, sunTimesMap],
   );
-
 
   // Get IDs of schedules that have overlaps
   const overlappingScheduleIds = useMemo(() => {
@@ -184,7 +174,7 @@ export function ScheduleCalendarView({
     (event: CalendarEvent) => {
       onEventClick(event.resource.originalSchedule);
     },
-    [onEventClick]
+    [onEventClick],
   );
 
   // Handle slot selection (clicking empty time)
@@ -192,7 +182,7 @@ export function ScheduleCalendarView({
     ({ start, end }: { start: Date; end: Date }) => {
       onSlotSelect(start, end);
     },
-    [onSlotSelect]
+    [onSlotSelect],
   );
 
   // Handle event drag (move) or resize
@@ -218,7 +208,7 @@ export function ScheduleCalendarView({
         onEventTimeChange(event.resource.scheduleId, startTime, endTime);
       }
     },
-    [onEventTimeChange]
+    [onEventTimeChange],
   );
 
   // Mobile navigation handlers
@@ -233,39 +223,40 @@ export function ScheduleCalendarView({
   // Custom event prop getter for styling
   const eventPropGetter = useCallback(
     (event: CalendarEvent) => {
-      const isOverlapping = overlappingScheduleIds.has(
-        event.resource.scheduleId
-      );
+      const isOverlapping = overlappingScheduleIds.has(event.resource.scheduleId);
       const isDisabled = !event.resource.enabled;
 
       return {
         className: `schedule-event ${isOverlapping ? "schedule-event-conflict" : ""} ${isDisabled ? "schedule-event-disabled" : ""}`,
       };
     },
-    [overlappingScheduleIds]
+    [overlappingScheduleIds],
   );
 
   // Custom slot prop getter: hover styling + sun time markers
-  const slotPropGetter = useCallback((slotDate: Date) => {
-    const classes = ["schedule-slot"];
-    if (sunTimes) {
-      const slotH = slotDate.getHours();
-      const slotM = slotDate.getMinutes();
-      if (sunTimes.sunrise) {
-        const [sunH, sunM] = sunTimes.sunrise.split(":").map(Number);
-        if (slotH === sunH && Math.floor(slotM / zoomStep) * zoomStep === Math.floor(sunM / zoomStep) * zoomStep) {
-          classes.push("sun-slot-sunrise");
+  const slotPropGetter = useCallback(
+    (slotDate: Date) => {
+      const classes = ["schedule-slot"];
+      if (sunTimes) {
+        const slotH = slotDate.getHours();
+        const slotM = slotDate.getMinutes();
+        if (sunTimes.sunrise) {
+          const [sunH, sunM] = sunTimes.sunrise.split(":").map(Number);
+          if (slotH === sunH && Math.floor(slotM / zoomStep) * zoomStep === Math.floor(sunM / zoomStep) * zoomStep) {
+            classes.push("sun-slot-sunrise");
+          }
+        }
+        if (sunTimes.sunset) {
+          const [sunH, sunM] = sunTimes.sunset.split(":").map(Number);
+          if (slotH === sunH && Math.floor(slotM / zoomStep) * zoomStep === Math.floor(sunM / zoomStep) * zoomStep) {
+            classes.push("sun-slot-sunset");
+          }
         }
       }
-      if (sunTimes.sunset) {
-        const [sunH, sunM] = sunTimes.sunset.split(":").map(Number);
-        if (slotH === sunH && Math.floor(slotM / zoomStep) * zoomStep === Math.floor(sunM / zoomStep) * zoomStep) {
-          classes.push("sun-slot-sunset");
-        }
-      }
-    }
-    return { className: classes.join(" ") };
-  }, [sunTimes, zoomStep]);
+      return { className: classes.join(" ") };
+    },
+    [sunTimes, zoomStep],
+  );
 
   // Custom components - just the event renderer, no toolbar needed for template
   const components = useMemo(
@@ -273,7 +264,7 @@ export function ScheduleCalendarView({
       event: ScheduleEvent,
       toolbar: () => null,
     }),
-    []
+    [],
   );
 
   // Full 24 hours
@@ -290,10 +281,14 @@ export function ScheduleCalendarView({
   }, []);
 
   // CSS variable overrides derived from current zoom level
-  const calendarStyle = useMemo<React.CSSProperties>(() => ({
-    "--rbc-hour-height": `${hourHeight}px`,
-    "--rbc-slot-height": `${slotHeight}px`,
-  } as React.CSSProperties), [hourHeight, slotHeight]);
+  const calendarStyle = useMemo<React.CSSProperties>(
+    () =>
+      ({
+        "--rbc-hour-height": `${hourHeight}px`,
+        "--rbc-slot-height": `${slotHeight}px`,
+      }) as React.CSSProperties,
+    [hourHeight, slotHeight],
+  );
 
   // Get visible days label for mobile
   const _visibleDaysLabel = useMemo(() => {
@@ -303,138 +298,136 @@ export function ScheduleCalendarView({
 
   return (
     <TooltipProvider>
-    <div className="schedule-calendar-wrapper h-full flex flex-col">
-      {/* Top bar: mobile day navigation (left) + zoom slider (right) */}
-      <div className="flex items-center justify-between mb-2 px-1">
-        {/* Mobile day navigation */}
-        {isMobile ? (
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handlePrevDays}
-              disabled={mobileStartDay === 0}
-              className="h-8 px-2"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex gap-1">
-              {DAY_NAMES.map((day, idx) => (
-                <button
-                  key={day}
-                  onClick={() => setMobileStartDay(Math.min(idx, 4))}
-                  className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${
-                    idx >= mobileStartDay && idx < mobileStartDay + 3
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted"
-                  }`}
+      <div className="schedule-calendar-wrapper h-full flex flex-col">
+        {/* Top bar: mobile day navigation (left) + zoom slider (right) */}
+        <div className="flex items-center justify-between mb-2 px-1">
+          {/* Mobile day navigation */}
+          {isMobile ? (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handlePrevDays}
+                disabled={mobileStartDay === 0}
+                className="h-8 px-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex gap-1">
+                {DAY_NAMES.map((day, idx) => (
+                  <button
+                    key={day}
+                    onClick={() => setMobileStartDay(Math.min(idx, 4))}
+                    className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${
+                      idx >= mobileStartDay && idx < mobileStartDay + 3
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {day[0]}
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleNextDays}
+                disabled={mobileStartDay >= 4}
+                className="h-8 px-2"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div />
+          )}
+
+          {/* Zoom slider */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleZoomOut}
+                  disabled={zoomIndex === 0}
+                  className="h-7 w-7 p-0"
                 >
-                  {day[0]}
-                </button>
-              ))}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleNextDays}
-              disabled={mobileStartDay >= 4}
-              className="h-8 px-2"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : (
-          <div />
-        )}
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </Button>
+                <Slider
+                  value={[zoomIndex]}
+                  min={0}
+                  max={MAX_ZOOM}
+                  step={1}
+                  onValueChange={handleSliderChange}
+                  className="w-24"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleZoomIn}
+                  disabled={zoomIndex === MAX_ZOOM}
+                  className="h-7 w-7 p-0"
+                >
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-[10px] font-medium text-muted-foreground w-8 tabular-nums">
+                  {ZOOM_PRESETS[zoomIndex][0]}
+                </span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {zoomStep === 1 ? "1-minute grid" : `${zoomStep}-minute grid`}
+            </TooltipContent>
+          </Tooltip>
+        </div>
 
-        {/* Zoom slider */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleZoomOut}
-                disabled={zoomIndex === 0}
-                className="h-7 w-7 p-0"
-              >
-                <ZoomOut className="h-3.5 w-3.5" />
-              </Button>
-              <Slider
-                value={[zoomIndex]}
-                min={0}
-                max={MAX_ZOOM}
-                step={1}
-                onValueChange={handleSliderChange}
-                className="w-24"
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleZoomIn}
-                disabled={zoomIndex === MAX_ZOOM}
-                className="h-7 w-7 p-0"
-              >
-                <ZoomIn className="h-3.5 w-3.5" />
-              </Button>
-              <span className="text-[10px] font-medium text-muted-foreground w-8 tabular-nums">
-                {ZOOM_PRESETS[zoomIndex][0]}
-              </span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            {zoomStep === 1 ? "1-minute grid" : `${zoomStep}-minute grid`}
-          </TooltipContent>
-        </Tooltip>
+        <div
+          ref={containerRef}
+          className={`schedule-calendar-container flex-1 min-h-0 ${isMobile ? "schedule-calendar-mobile" : ""}`}
+          data-start-day={mobileStartDay}
+          style={calendarStyle}
+        >
+          <DnDCalendar
+            localizer={localizer}
+            events={events}
+            startAccessor="start"
+            endAccessor="end"
+            date={displayDate}
+            view={Views.WEEK}
+            views={[Views.WEEK]}
+            defaultView={Views.WEEK}
+            onSelectEvent={handleSelectEvent}
+            onSelectSlot={handleSelectSlot}
+            onEventDrop={handleEventDropOrResize}
+            onEventResize={handleEventDropOrResize}
+            selectable
+            resizable
+            step={zoomStep}
+            timeslots={zoomTimeslots}
+            min={minTime}
+            max={maxTime}
+            eventPropGetter={eventPropGetter}
+            slotPropGetter={slotPropGetter}
+            components={components}
+            toolbar={false}
+            formats={{
+              timeGutterFormat: (date: Date) =>
+                zoomStep <= 5 ? format(date, "h:mma").toLowerCase() : format(date, "ha").toLowerCase(),
+              eventTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
+                `${format(start, "h:mm a")} - ${format(end, "h:mm a")}`,
+              dayHeaderFormat: (date: Date) => format(date, "EEE"),
+            }}
+            tooltipAccessor={(event: CalendarEvent) =>
+              `${event.title}\n${format(event.start, "h:mm a")} - ${format(event.end, "h:mm a")}`
+            }
+            draggableAccessor={(event: CalendarEvent) => !event.resource.isMidnightSplit}
+            resizableAccessor={() => true}
+            longPressThreshold={150}
+          />
+        </div>
       </div>
-
-      <div 
-        ref={containerRef}
-        className={`schedule-calendar-container flex-1 min-h-0 ${isMobile ? "schedule-calendar-mobile" : ""}`}
-        data-start-day={mobileStartDay}
-        style={calendarStyle}
-      >
-        <DnDCalendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          date={displayDate}
-          view={Views.WEEK}
-          views={[Views.WEEK]}
-          defaultView={Views.WEEK}
-          onSelectEvent={handleSelectEvent}
-          onSelectSlot={handleSelectSlot}
-          onEventDrop={handleEventDropOrResize}
-          onEventResize={handleEventDropOrResize}
-          selectable
-          resizable
-          step={zoomStep}
-          timeslots={zoomTimeslots}
-          min={minTime}
-          max={maxTime}
-          eventPropGetter={eventPropGetter}
-          slotPropGetter={slotPropGetter}
-          components={components}
-          toolbar={false}
-          formats={{
-            timeGutterFormat: (date: Date) =>
-              zoomStep <= 5
-                ? format(date, "h:mma").toLowerCase()
-                : format(date, "ha").toLowerCase(),
-            eventTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
-              `${format(start, "h:mm a")} - ${format(end, "h:mm a")}`,
-            dayHeaderFormat: (date: Date) => format(date, "EEE"),
-          }}
-          tooltipAccessor={(event: CalendarEvent) =>
-            `${event.title}\n${format(event.start, "h:mm a")} - ${format(event.end, "h:mm a")}`
-          }
-          draggableAccessor={(event: CalendarEvent) => !event.resource.isMidnightSplit}
-          resizableAccessor={() => true}
-          longPressThreshold={150}
-        />
-      </div>
-    </div>
     </TooltipProvider>
   );
 }

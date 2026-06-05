@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { locales, defaultLocale, localeNames } from "@/i18n/config";
 import fs from "fs";
 import path from "path";
+import { describe, expect, it } from "vitest";
+
+import { defaultLocale, localeNames, locales } from "@/i18n/config";
 
 describe("i18n config", () => {
   it("exports 14 locales", () => {
@@ -27,9 +28,7 @@ describe("i18n config", () => {
 
 describe("translation files", () => {
   const messagesDir = path.resolve(__dirname, "../../messages");
-  const enMessages = JSON.parse(
-    fs.readFileSync(path.join(messagesDir, "en.json"), "utf-8")
-  );
+  const enMessages = JSON.parse(fs.readFileSync(path.join(messagesDir, "en.json"), "utf-8"));
   const enNamespaces = Object.keys(enMessages).sort();
   const enKeyCount = countKeys(enMessages);
 
@@ -75,9 +74,7 @@ describe("translation files", () => {
   it("every locale has the same top-level namespaces as English", () => {
     for (const locale of locales) {
       if (locale === "en") continue;
-      const messages = JSON.parse(
-        fs.readFileSync(path.join(messagesDir, `${locale}.json`), "utf-8")
-      );
+      const messages = JSON.parse(fs.readFileSync(path.join(messagesDir, `${locale}.json`), "utf-8"));
       const namespaces = Object.keys(messages).sort();
       expect(namespaces, `${locale} namespace mismatch`).toEqual(enNamespaces);
     }
@@ -86,14 +83,9 @@ describe("translation files", () => {
   it("every locale has the same number of leaf keys as English", () => {
     for (const locale of locales) {
       if (locale === "en") continue;
-      const messages = JSON.parse(
-        fs.readFileSync(path.join(messagesDir, `${locale}.json`), "utf-8")
-      );
+      const messages = JSON.parse(fs.readFileSync(path.join(messagesDir, `${locale}.json`), "utf-8"));
       const localKeyCount = countKeys(messages);
-      expect(
-        localKeyCount,
-        `${locale} has ${localKeyCount} keys, English has ${enKeyCount}`
-      ).toBe(enKeyCount);
+      expect(localKeyCount, `${locale} has ${localKeyCount} keys, English has ${enKeyCount}`).toBe(enKeyCount);
     }
   });
 
@@ -102,30 +94,20 @@ describe("translation files", () => {
 
     for (const locale of locales) {
       if (locale === "en") continue;
-      const messages = JSON.parse(
-        fs.readFileSync(path.join(messagesDir, `${locale}.json`), "utf-8")
-      );
+      const messages = JSON.parse(fs.readFileSync(path.join(messagesDir, `${locale}.json`), "utf-8"));
       const localeKeys = getLeafKeys(messages);
 
       const missingInLocale = enKeys.filter((k) => !localeKeys.includes(k));
       const extraInLocale = localeKeys.filter((k) => !enKeys.includes(k));
 
-      expect(
-        missingInLocale,
-        `${locale} is missing keys: ${missingInLocale.join(", ")}`
-      ).toEqual([]);
-      expect(
-        extraInLocale,
-        `${locale} has extra keys: ${extraInLocale.join(", ")}`
-      ).toEqual([]);
+      expect(missingInLocale, `${locale} is missing keys: ${missingInLocale.join(", ")}`).toEqual([]);
+      expect(extraInLocale, `${locale} has extra keys: ${extraInLocale.join(", ")}`).toEqual([]);
     }
   });
 
   it("no translation value is empty string", () => {
     for (const locale of locales) {
-      const messages = JSON.parse(
-        fs.readFileSync(path.join(messagesDir, `${locale}.json`), "utf-8")
-      );
+      const messages = JSON.parse(fs.readFileSync(path.join(messagesDir, `${locale}.json`), "utf-8"));
       const keys = getLeafKeys(messages);
       for (const key of keys) {
         const parts = key.split(".");
@@ -133,10 +115,7 @@ describe("translation files", () => {
         for (const part of parts) {
           current = (current as Record<string, unknown>)[part];
         }
-        expect(
-          current,
-          `${locale}: key "${key}" is empty`
-        ).not.toBe("");
+        expect(current, `${locale}: key "${key}" is empty`).not.toBe("");
       }
     }
   });

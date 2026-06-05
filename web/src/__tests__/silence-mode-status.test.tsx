@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
+
 import { SilenceModeStatus, SilenceModeStatusCompact } from "@/components/silence-mode-status";
 
 // Test wrapper with providers
@@ -12,11 +13,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     },
   });
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 describe("SilenceModeStatus", () => {
@@ -33,7 +30,7 @@ describe("SilenceModeStatus", () => {
 
   it("shows loading state initially", () => {
     render(<SilenceModeStatus />, { wrapper: TestWrapper });
-    
+
     expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
@@ -61,7 +58,7 @@ describe("SilenceModeStatus", () => {
 
     await waitFor(() => {
       // Either active, inactive, or disabled should be shown
-      const hasStatus = 
+      const hasStatus =
         screen.queryByText(/Silence Mode: Active/i) ||
         screen.queryByText(/Silence Mode: Inactive/i) ||
         screen.queryByText(/Silence Mode: Disabled/i);
@@ -88,10 +85,7 @@ describe("SilenceModeStatus", () => {
   });
 
   it("applies custom className", () => {
-    const { container } = render(
-      <SilenceModeStatus className="custom-status" />,
-      { wrapper: TestWrapper }
-    );
+    const { container } = render(<SilenceModeStatus className="custom-status" />, { wrapper: TestWrapper });
 
     const element = container.querySelector(".custom-status");
     expect(element).toBeInTheDocument();
@@ -100,10 +94,7 @@ describe("SilenceModeStatus", () => {
 
 describe("SilenceModeStatusCompact", () => {
   it("renders nothing when silence mode is disabled", async () => {
-    const { container } = render(
-      <SilenceModeStatusCompact />,
-      { wrapper: TestWrapper }
-    );
+    const { container } = render(<SilenceModeStatusCompact />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       // Component should either be empty or show a badge
@@ -134,15 +125,9 @@ describe("SilenceModeStatusCompact", () => {
   });
 
   it("applies custom className", () => {
-    const { container } = render(
-      <SilenceModeStatusCompact className="custom-compact" />,
-      { wrapper: TestWrapper }
-    );
+    const { container } = render(<SilenceModeStatusCompact className="custom-compact" />, { wrapper: TestWrapper });
 
     // Component should render even if empty
     expect(container).toBeInTheDocument();
   });
 });
-
-
-

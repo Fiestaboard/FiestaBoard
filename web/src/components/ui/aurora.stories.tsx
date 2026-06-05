@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+
 import { Aurora } from "./aurora";
 
 const meta = {
@@ -132,11 +133,7 @@ export const SlowAnimation: Story = {
 export const FireTheme: Story = {
   render: () => (
     <div className="relative h-screen w-full bg-red-950">
-      <Aurora
-        colorStops={["#dc2626", "#f97316", "#dc2626"]}
-        amplitude={1.8}
-        speed={2}
-      />
+      <Aurora colorStops={["#dc2626", "#f97316", "#dc2626"]} amplitude={1.8} speed={2} />
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center text-white">
           <h1 className="text-6xl font-bold mb-4">Fire Aurora</h1>
@@ -150,12 +147,7 @@ export const FireTheme: Story = {
 export const OceanTheme: Story = {
   render: () => (
     <div className="relative h-screen w-full bg-blue-950">
-      <Aurora
-        colorStops={["#0ea5e9", "#06b6d4", "#0ea5e9"]}
-        amplitude={1.2}
-        speed={0.8}
-        blend={0.6}
-      />
+      <Aurora colorStops={["#0ea5e9", "#06b6d4", "#0ea5e9"]} amplitude={1.2} speed={0.8} blend={0.6} />
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center text-white">
           <h1 className="text-6xl font-bold mb-4">Ocean Waves</h1>

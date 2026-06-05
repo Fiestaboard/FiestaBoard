@@ -5,16 +5,16 @@
  * multiple boards are configured (per-board schedule support).
  */
 import {
-  test,
-  expect,
+  API_URL,
   configureBoard,
-  suppressWizard,
-  ensureTwoBoards,
-  resetToSingleBoard,
   createPage,
   createSchedule,
   deleteAllSchedules,
-  API_URL,
+  ensureTwoBoards,
+  expect,
+  resetToSingleBoard,
+  suppressWizard,
+  test,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
@@ -29,28 +29,20 @@ test.afterEach(async () => {
 });
 
 test.describe("Multi-Board and Schedule", () => {
-  test("schedule page works with single board (no multi-board selector)", async ({
-    page,
-  }) => {
+  test("schedule page works with single board (no multi-board selector)", async ({ page }) => {
     // beforeEach already did resetToSingleBoard() – one board only
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
     // Schedule toggle is always visible (replaces the old Schedule Mode card)
     await expect(page.getByTestId("schedule-enabled-toggle")).toBeVisible({
       timeout: 5_000,
     });
   });
 
-  test("schedule page loads with two boards and shows board selector", async ({
-    page,
-  }) => {
+  test("schedule page loads with two boards and shows board selector", async ({ page }) => {
     await ensureTwoBoards();
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
     // The board selector dropdown should appear in the toolbar
     await expect(page.getByTestId("board-selector")).toBeVisible({
       timeout: 10_000,
@@ -64,24 +56,14 @@ test.describe("Multi-Board and Schedule", () => {
   test("schedule mode toggle works with two boards", async ({ page }) => {
     await ensureTwoBoards();
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    const switchEl = page
-      .locator("section, div")
-      .filter({ hasText: "Schedule Mode" })
-      .getByRole("switch")
-      .first();
+    const switchEl = page.locator("section, div").filter({ hasText: "Schedule Mode" }).getByRole("switch").first();
     if (await switchEl.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      const apiResponse = page.waitForResponse(
-        (r) => r.url().includes("/schedules/enabled") && r.status() === 200
-      );
+      const apiResponse = page.waitForResponse((r) => r.url().includes("/schedules/enabled") && r.status() === 200);
       await switchEl.click();
       await apiResponse;
-      const revertResponse = page.waitForResponse(
-        (r) => r.url().includes("/schedules/enabled") && r.status() === 200
-      );
+      const revertResponse = page.waitForResponse((r) => r.url().includes("/schedules/enabled") && r.status() === 200);
       await switchEl.click();
       await revertResponse;
     }
@@ -91,17 +73,13 @@ test.describe("Multi-Board and Schedule", () => {
     expect(typeof data.enabled).toBe("boolean");
   });
 
-  test("schedule CRUD with two boards: create and list", async ({
-    page,
-  }) => {
+  test("schedule CRUD with two boards: create and list", async ({ page }) => {
     const { board1Id } = await ensureTwoBoards();
     const pageId = await createPage("Schedule Multi-Board Page");
     await createSchedule(pageId, "09:00", "12:00", "weekdays", board1Id);
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("09:00").first()).toBeVisible({
       timeout: 10_000,
     });
@@ -151,9 +129,7 @@ test.describe("Multi-Board and Schedule", () => {
     expect(data2.schedules[0].end_time).toBe("18:00");
   });
 
-  test("switching boards in UI shows each board's schedules only", async ({
-    page,
-  }) => {
+  test("switching boards in UI shows each board's schedules only", async ({ page }) => {
     const { board1Id, board2Id } = await ensureTwoBoards();
     const pageA = await createPage("Board One Page");
     const pageB = await createPage("Board Two Page");
@@ -161,9 +137,7 @@ test.describe("Multi-Board and Schedule", () => {
     await createSchedule(pageB, "14:00", "18:00", "weekdays", board2Id);
 
     await page.goto("/schedule");
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
     // First board selected: should show 09:00–12:00
     await expect(page.getByText("09:00").first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("12:00").first()).toBeVisible({ timeout: 5_000 });

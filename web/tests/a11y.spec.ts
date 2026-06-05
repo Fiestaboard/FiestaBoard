@@ -14,16 +14,18 @@
  *   - /settings  Settings (default tab)
  *   - /login     Login (auth disabled in this env, so navigated directly)
  */
-import { injectAxe, getViolations } from "axe-playwright";
+import type { Page } from "@playwright/test";
+import { getViolations, injectAxe } from "axe-playwright";
+
 import {
-  test,
-  expect,
   configureBoard,
-  suppressWizard,
   createPage,
   deleteAllPages,
   deleteAllSchedules,
+  expect,
   resetToSingleBoard,
+  suppressWizard,
+  test,
 } from "./helpers";
 
 const FAIL_IMPACTS = new Set(["critical", "serious"]);
@@ -34,11 +36,7 @@ const FAIL_IMPACTS = new Set(["critical", "serious"]);
 // still guards against regressions in semantic / labelling rules.
 const RULES_TO_SKIP = ["color-contrast"];
 
-async function auditPage(
-  page: import("@playwright/test").Page,
-  path: string,
-  waitForSelector?: string,
-) {
+async function auditPage(page: Page, path: string, waitForSelector?: string) {
   await page.goto(path);
   if (waitForSelector) {
     await page.waitForSelector(waitForSelector, { timeout: 15_000 });
@@ -55,9 +53,7 @@ async function auditPage(
       type: "tag" as const,
       values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"],
     },
-    rules: Object.fromEntries(
-      RULES_TO_SKIP.map((id) => [id, { enabled: false }]),
-    ),
+    rules: Object.fromEntries(RULES_TO_SKIP.map((id) => [id, { enabled: false }])),
   };
   const violations = await getViolations(page, undefined, axeOptions);
 
@@ -90,10 +86,7 @@ test.describe("Accessibility (axe)", () => {
 
   test("dashboard (empty) has no critical or serious a11y violations", async ({ page }) => {
     const { failing } = await auditPage(page, "/", "h1");
-    expect(
-      failing,
-      `Dashboard a11y violations:\n${JSON.stringify(failing, null, 2)}`,
-    ).toEqual([]);
+    expect(failing, `Dashboard a11y violations:\n${JSON.stringify(failing, null, 2)}`).toEqual([]);
   });
 
   test("dashboard (with active page) has no critical or serious a11y violations", async ({ page }) => {
@@ -137,9 +130,7 @@ test.describe("Accessibility (axe)", () => {
         type: "tag" as const,
         values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"],
       },
-      rules: Object.fromEntries(
-        RULES_TO_SKIP.map((id) => [id, { enabled: false }]),
-      ),
+      rules: Object.fromEntries(RULES_TO_SKIP.map((id) => [id, { enabled: false }])),
     });
     const failing = violations.filter((v) => FAIL_IMPACTS.has(v.impact || ""));
     expect(failing).toEqual([]);

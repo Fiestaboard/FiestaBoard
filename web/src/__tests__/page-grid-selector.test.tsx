@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { PageGridSelector } from "@/components/page-grid-selector";
+import type { Page, PagePreviewBatchResponse } from "@/lib/api";
 import { api } from "@/lib/api";
-import type { PagePreviewBatchResponse, Page } from "@/lib/api";
 
 // Mock the API
 vi.mock("@/lib/api", () => ({
@@ -49,11 +50,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     },
   });
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 // Mock data
@@ -134,13 +131,7 @@ describe("PageGridSelector", () => {
   });
 
   it("renders page buttons for all pages", async () => {
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={vi.fn()}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText("Page 1")).toBeInTheDocument();
@@ -150,36 +141,20 @@ describe("PageGridSelector", () => {
   });
 
   it("calls previewPagesBatch with all page IDs", async () => {
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={vi.fn()}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(api.previewPagesBatch).toHaveBeenCalledWith([
-        "page-1",
-        "page-2",
-        "page-3",
-      ]);
+      expect(api.previewPagesBatch).toHaveBeenCalledWith(["page-1", "page-2", "page-3"]);
     });
   });
 
   it("caches preview data in localStorage", async () => {
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={vi.fn()}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const cached = localStorageMock.getItem("fiestaboard_previews_batch");
       expect(cached).toBeTruthy();
-      
+
       if (cached) {
         const parsedCache = JSON.parse(cached);
         expect(parsedCache["page-1"]).toBeDefined();
@@ -210,13 +185,7 @@ describe("PageGridSelector", () => {
     };
     localStorageMock.setItem("fiestaboard_previews_batch", JSON.stringify(cachedData));
 
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={vi.fn()}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
 
     // Wait for pages to load
     await waitFor(() => {
@@ -238,13 +207,7 @@ describe("PageGridSelector", () => {
     };
     localStorageMock.setItem("fiestaboard_previews_batch", JSON.stringify(cachedData));
 
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={vi.fn()}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
 
     // previewPagesBatch should be called for page-1 since cache is stale
     await waitFor(() => {
@@ -255,20 +218,12 @@ describe("PageGridSelector", () => {
   });
 
   it("handles batch preview errors gracefully", async () => {
-    vi.mocked(api.previewPagesBatch).mockRejectedValue(
-      new Error("Network error")
-    );
+    vi.mocked(api.previewPagesBatch).mockRejectedValue(new Error("Network error"));
 
     // Spy on console.error to suppress error output in tests
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={vi.fn()}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
 
     // Should still render page buttons even if preview fails
     await waitFor(() => {
@@ -277,10 +232,7 @@ describe("PageGridSelector", () => {
       expect(screen.getByText("Page 3")).toBeInTheDocument();
     });
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Failed to fetch batch previews:",
-      expect.any(Error)
-    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to fetch batch previews:", expect.any(Error));
 
     consoleErrorSpy.mockRestore();
   });
@@ -314,13 +266,7 @@ describe("PageGridSelector", () => {
 
     vi.mocked(api.previewPagesBatch).mockResolvedValue(partialResponse);
 
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={vi.fn()}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
 
     // Should still render all pages
     await waitFor(() => {
@@ -348,13 +294,7 @@ describe("PageGridSelector", () => {
       total: 0,
     });
 
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={vi.fn()}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText("No pages created yet.")).toBeInTheDocument();
@@ -366,13 +306,7 @@ describe("PageGridSelector", () => {
   });
 
   it("highlights active page", async () => {
-    render(
-      <PageGridSelector
-        activePageId="page-2"
-        onSelectPage={vi.fn()}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId="page-2" onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const button = screen.getByText("Page 2").closest("button");
@@ -383,13 +317,7 @@ describe("PageGridSelector", () => {
   it("calls onSelectPage when a page is clicked", async () => {
     const onSelectPage = vi.fn();
 
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={onSelectPage}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={onSelectPage} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       screen.getByText("Page 1").click();
@@ -399,14 +327,7 @@ describe("PageGridSelector", () => {
   });
 
   it("disables page buttons when isPending is true", async () => {
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={vi.fn()}
-        isPending={true}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} isPending={true} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const button1 = screen.getByText("Page 1").closest("button");
@@ -417,14 +338,9 @@ describe("PageGridSelector", () => {
   });
 
   it("shows custom label when provided", async () => {
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={vi.fn()}
-        label="CHOOSE A PAGE"
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} label="CHOOSE A PAGE" />, {
+      wrapper: TestWrapper,
+    });
 
     await waitFor(() => {
       expect(screen.getByText("CHOOSE A PAGE")).toBeInTheDocument();
@@ -432,14 +348,9 @@ describe("PageGridSelector", () => {
   });
 
   it("accepts showCarousels prop", async () => {
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={vi.fn()}
-        showCarousels={false}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} showCarousels={false} />, {
+      wrapper: TestWrapper,
+    });
 
     await waitFor(() => {
       expect(screen.getByText("Page 1")).toBeInTheDocument();
@@ -471,13 +382,7 @@ describe("PageGridSelector", () => {
 
     const onSelectPage = vi.fn();
 
-    render(
-      <PageGridSelector
-        activePageId={null}
-        onSelectPage={onSelectPage}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId={null} onSelectPage={onSelectPage} />, { wrapper: TestWrapper });
 
     // Wait for tabs to appear then switch to Carousels tab
     await waitFor(() => {
@@ -507,13 +412,7 @@ describe("PageGridSelector", () => {
 
     const onSelectPage = vi.fn();
 
-    render(
-      <PageGridSelector
-        activePageId="carousel:c1"
-        onSelectPage={onSelectPage}
-      />,
-      { wrapper: TestWrapper }
-    );
+    render(<PageGridSelector activePageId="carousel:c1" onSelectPage={onSelectPage} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       const button = screen.getByText("Active Carousel").closest("button");
@@ -526,14 +425,7 @@ describe("PageGridSelector", () => {
 
   describe("list view mode", () => {
     it("renders page names in list view without calling previewPagesBatch", async () => {
-      render(
-        <PageGridSelector
-          activePageId={null}
-          onSelectPage={vi.fn()}
-          viewMode="list"
-        />,
-        { wrapper: TestWrapper }
-      );
+      render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} viewMode="list" />, { wrapper: TestWrapper });
 
       await waitFor(() => {
         expect(screen.getByText("Page 1")).toBeInTheDocument();
@@ -548,14 +440,9 @@ describe("PageGridSelector", () => {
     it("calls onSelectPage when a list item is clicked", async () => {
       const onSelectPage = vi.fn();
 
-      render(
-        <PageGridSelector
-          activePageId={null}
-          onSelectPage={onSelectPage}
-          viewMode="list"
-        />,
-        { wrapper: TestWrapper }
-      );
+      render(<PageGridSelector activePageId={null} onSelectPage={onSelectPage} viewMode="list" />, {
+        wrapper: TestWrapper,
+      });
 
       await waitFor(() => {
         screen.getByText("Page 1").click();
@@ -565,14 +452,9 @@ describe("PageGridSelector", () => {
     });
 
     it("highlights active page in list view", async () => {
-      render(
-        <PageGridSelector
-          activePageId="page-2"
-          onSelectPage={vi.fn()}
-          viewMode="list"
-        />,
-        { wrapper: TestWrapper }
-      );
+      render(<PageGridSelector activePageId="page-2" onSelectPage={vi.fn()} viewMode="list" />, {
+        wrapper: TestWrapper,
+      });
 
       await waitFor(() => {
         const button = screen.getByText("Page 2").closest("button");
@@ -583,14 +465,9 @@ describe("PageGridSelector", () => {
     it("shows list skeleton when loading in list mode", async () => {
       vi.mocked(api.getPages).mockReturnValue(new Promise(() => {}));
 
-      const { container } = render(
-        <PageGridSelector
-          activePageId={null}
-          onSelectPage={vi.fn()}
-          viewMode="list"
-        />,
-        { wrapper: TestWrapper }
-      );
+      const { container } = render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} viewMode="list" />, {
+        wrapper: TestWrapper,
+      });
 
       await waitFor(() => {
         const busyElement = container.querySelector('[aria-busy="true"]');
@@ -599,15 +476,9 @@ describe("PageGridSelector", () => {
     });
 
     it("disables list items when isPending is true", async () => {
-      render(
-        <PageGridSelector
-          activePageId={null}
-          onSelectPage={vi.fn()}
-          isPending={true}
-          viewMode="list"
-        />,
-        { wrapper: TestWrapper }
-      );
+      render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} isPending={true} viewMode="list" />, {
+        wrapper: TestWrapper,
+      });
 
       await waitFor(() => {
         const button1 = screen.getByText("Page 1").closest("button");

@@ -2,13 +2,8 @@ import type { StorybookConfig } from "@storybook/nextjs";
 import type { Configuration } from "webpack";
 
 const config: StorybookConfig = {
-  stories: [
-    "../src/**/*.mdx",
-    "../src/**/*.stories.@(js|jsx|mjs|ts|tsx)"
-  ],
-  addons: [
-    "@storybook/addon-a11y",
-  ],
+  stories: ["../src/**/*.mdx", "../src/**/*.stories.@(js|jsx|mjs|ts|tsx)"],
+  addons: ["@storybook/addon-a11y"],
   framework: {
     name: "@storybook/nextjs",
     options: {},
@@ -33,4 +28,3 @@ const config: StorybookConfig = {
 };
 
 export default config;
-

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { useEffect, useState } from "react";
+
 import { BoardDisplay } from "./board-display";
-import { useState, useEffect } from "react";
 
 const meta = {
   title: "Components/BoardDisplay",
@@ -179,14 +180,14 @@ FIESTABOARD
       setMessage(testMessage);
       setIsLoading(false);
     }, 3000);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
   const handleReset = () => {
     setIsLoading(true);
     setMessage(null);
-    
+
     // After 3 seconds of loading, show the message again
     setTimeout(() => {
       setMessage(testMessage);
@@ -196,29 +197,24 @@ FIESTABOARD
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <BoardDisplay
-        message={message}
-        isLoading={isLoading}
-        size="md"
-        boardType="black"
-      />
-      
+      <BoardDisplay message={message} isLoading={isLoading} size="md" boardType="black" />
+
       <button
         onClick={handleReset}
         disabled={isLoading}
         className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
           isLoading
-            ? 'bg-muted text-muted-foreground cursor-not-allowed'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            ? "bg-muted text-muted-foreground cursor-not-allowed"
+            : "bg-primary text-primary-foreground hover:bg-primary/90"
         }`}
       >
-        {isLoading ? 'Loading...' : 'Reset'}
+        {isLoading ? "Loading..." : "Reset"}
       </button>
-      
+
       <div className="text-sm text-muted-foreground text-center max-w-md">
         <p className="font-semibold mb-2">Loading Transition Demo</p>
         <p>Watch the tiles flip continuously in loading state, then continue cycling until each lands on its target.</p>
-        <p className="mt-2 text-info">Click "Reset" to replay the animation</p>
+        <p className="mt-2 text-info">Click &quot;Reset&quot; to replay the animation</p>
       </div>
     </div>
   );
@@ -241,7 +237,7 @@ HAVE A GREAT DAY!`;
     // Put into loading state
     // Keep the current message visible so we see actual CharTiles cycling (not FlipTiles)
     setIsLoading(true);
-    
+
     // After 6 seconds, set new message and turn off loading
     // Tiles will continue rotating until they reach their target characters
     setTimeout(() => {
@@ -252,29 +248,29 @@ HAVE A GREAT DAY!`;
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <BoardDisplay
-        message={message}
-        isLoading={isLoading}
-        size="md"
-        boardType="black"
-      />
-      
+      <BoardDisplay message={message} isLoading={isLoading} size="md" boardType="black" />
+
       <button
         onClick={handleTransition}
         disabled={isLoading}
         className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
           isLoading
-            ? 'bg-muted text-muted-foreground cursor-not-allowed'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            ? "bg-muted text-muted-foreground cursor-not-allowed"
+            : "bg-primary text-primary-foreground hover:bg-primary/90"
         }`}
       >
-        {isLoading ? 'Loading...' : 'Change Message'}
+        {isLoading ? "Loading..." : "Change Message"}
       </button>
-      
+
       <div className="text-sm text-muted-foreground text-center max-w-md">
         <p className="font-semibold mb-2">Message Transition Demo</p>
-        <p>Click the button to start loading. During loading, actual tiles cycle through characters (like real FiestaBoard).</p>
-        <p className="mt-2">After 6 seconds, the message changes and tiles continue rotating until each reaches its target character.</p>
+        <p>
+          Click the button to start loading. During loading, actual tiles cycle through characters (like real
+          FiestaBoard).
+        </p>
+        <p className="mt-2">
+          After 6 seconds, the message changes and tiles continue rotating until each reaches its target character.
+        </p>
         <p className="mt-2 text-info">Uses real CharTiles, not legacy FlipTiles</p>
       </div>
     </div>
@@ -298,14 +294,14 @@ export const LoadingToLoadedTransition = () => {
       setMessage(testMessage);
       setIsLoading(false);
     }, 3000);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
   const handleReset = () => {
     setIsLoading(true);
     setMessage(null);
-    
+
     setTimeout(() => {
       setMessage(testMessage);
       setIsLoading(false);
@@ -314,25 +310,20 @@ export const LoadingToLoadedTransition = () => {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <BoardDisplay
-        message={message}
-        isLoading={isLoading}
-        size="md"
-        boardType="black"
-      />
-      
+      <BoardDisplay message={message} isLoading={isLoading} size="md" boardType="black" />
+
       <button
         onClick={handleReset}
         disabled={isLoading}
         className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
           isLoading
-            ? 'bg-muted text-muted-foreground cursor-not-allowed'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            ? "bg-muted text-muted-foreground cursor-not-allowed"
+            : "bg-primary text-primary-foreground hover:bg-primary/90"
         }`}
       >
-        {isLoading ? 'Loading...' : 'Reset'}
+        {isLoading ? "Loading..." : "Reset"}
       </button>
-      
+
       <div className="text-sm text-muted-foreground text-center max-w-md">
         <p className="font-semibold mb-2">Loading → Loaded Transition</p>
         <p>Watch tiles cycle during loading, then continue cycling until each individually reaches its target.</p>
@@ -375,12 +366,7 @@ THE TIME IS 9:45 AM
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <BoardDisplay
-        message={message}
-        isLoading={isLoading}
-        size="lg"
-        boardType={boardType}
-      />
+      <BoardDisplay message={message} isLoading={isLoading} size="lg" boardType={boardType} />
 
       <div className="flex gap-3">
         <button
@@ -388,11 +374,11 @@ THE TIME IS 9:45 AM
           disabled={isLoading}
           className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
             isLoading
-              ? 'bg-muted text-muted-foreground cursor-not-allowed'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              ? "bg-muted text-muted-foreground cursor-not-allowed"
+              : "bg-primary text-primary-foreground hover:bg-primary/90"
           }`}
         >
-          {isLoading ? 'Flipping...' : 'Flip to Next Message'}
+          {isLoading ? "Flipping..." : "Flip to Next Message"}
         </button>
         <button
           onClick={() => setBoardType(boardType === "black" ? "white" : "black")}
@@ -404,14 +390,15 @@ THE TIME IS 9:45 AM
 
       <div className="text-sm text-muted-foreground text-center max-w-lg">
         <p className="font-semibold mb-2">Split-Flap Animation Demo</p>
-        <p>Each tile uses a 4-layer 3D structure: the old character&apos;s top half folds
-           down past the midpoint while the new character&apos;s bottom half unfolds into
-           place — just like a real Solari board.</p>
-        <p className="mt-2">During loading, all tiles cycle through the full character set.
-           When the new message arrives, each tile continues flipping until it reaches
-           its target character and stops.</p>
+        <p>
+          Each tile uses a 4-layer 3D structure: the old character&apos;s top half folds down past the midpoint while
+          the new character&apos;s bottom half unfolds into place — just like a real Solari board.
+        </p>
+        <p className="mt-2">
+          During loading, all tiles cycle through the full character set. When the new message arrives, each tile
+          continues flipping until it reaches its target character and stops.
+        </p>
       </div>
     </div>
   );
 };
-

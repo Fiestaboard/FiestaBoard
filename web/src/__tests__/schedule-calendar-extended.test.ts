@@ -1,19 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { getDay } from "date-fns";
+import { describe, expect, it } from "vitest";
+
+import type { Page, ScheduleEntry } from "@/lib/api";
 import {
-  scheduleToCalendarEvents,
-  schedulesToCalendarEvents,
-  getCurrentWeekStart,
-  formatWeekRange,
+  type CalendarEvent,
+  extractTimeFromDate,
   formatDayPattern,
+  formatWeekRange,
+  getCurrentWeekStart,
+  getDayNameFromDate,
   getPageColor,
   getPageColorLight,
   isEventOnDay,
-  extractTimeFromDate,
-  getDayNameFromDate,
-  type CalendarEvent,
+  schedulesToCalendarEvents,
+  scheduleToCalendarEvents,
 } from "@/lib/schedule-calendar";
-import type { ScheduleEntry, Page } from "@/lib/api";
-import { getDay } from "date-fns";
 
 const mockPages: Page[] = [
   {
@@ -261,8 +262,12 @@ describe("schedule-calendar extended", () => {
 
     it("returns different colors for different IDs (most of the time)", () => {
       const colors = new Set([
-        getPageColor("a"), getPageColor("b"), getPageColor("c"),
-        getPageColor("d"), getPageColor("e"), getPageColor("f"),
+        getPageColor("a"),
+        getPageColor("b"),
+        getPageColor("c"),
+        getPageColor("d"),
+        getPageColor("e"),
+        getPageColor("f"),
       ]);
       expect(colors.size).toBeGreaterThan(1);
     });

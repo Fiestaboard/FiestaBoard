@@ -1,31 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Loader2, Lock, RefreshCw, Trash2, Unlink, Wifi, WifiOff, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import {
-  Check,
-  Loader2,
-  Lock,
-  RefreshCw,
-  Trash2,
-  Unlink,
-  Wifi,
-  WifiOff,
-  X,
-} from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
-import { api, WifiNetwork, SavedWifiNetwork } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +19,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { SavedWifiNetwork, WifiNetwork } from "@/lib/api";
+import { api } from "@/lib/api";
 
 /**
  * Settings → Network tab. Only mounted when the backend reports
@@ -67,8 +52,7 @@ export function NetworkSettings() {
 
   const scanMutation = useMutation({
     mutationFn: api.scanWifi,
-    onError: (err: Error) =>
-      toast.error(t("toastScanFailed", { error: err.message })),
+    onError: (err: Error) => toast.error(t("toastScanFailed", { error: err.message })),
   });
 
   // Auto-fire one scan when the tab mounts; users can manually re-trigger.
@@ -79,8 +63,7 @@ export function NetworkSettings() {
     retry: false,
   });
 
-  const networks: WifiNetwork[] =
-    scanMutation.data ?? scanQuery.data ?? [];
+  const networks: WifiNetwork[] = scanMutation.data ?? scanQuery.data ?? [];
   const scanning = scanMutation.isPending || scanQuery.isFetching;
 
   const connectMutation = useMutation({
@@ -105,8 +88,7 @@ export function NetworkSettings() {
         toast.success(t("toastConnectedNoIp", { ssid }));
       }
     },
-    onError: (err: Error) =>
-      toast.error(t("toastConnectFailed", { error: err.message })),
+    onError: (err: Error) => toast.error(t("toastConnectFailed", { error: err.message })),
   });
 
   const disconnectMutation = useMutation({
@@ -116,8 +98,7 @@ export function NetworkSettings() {
       queryClient.invalidateQueries({ queryKey: ["wifi"] });
       toast.success(t("toastDisconnected"));
     },
-    onError: (err: Error) =>
-      toast.error(t("toastDisconnectFailed", { error: err.message })),
+    onError: (err: Error) => toast.error(t("toastDisconnectFailed", { error: err.message })),
   });
 
   const forgetMutation = useMutation({
@@ -127,8 +108,7 @@ export function NetworkSettings() {
       queryClient.invalidateQueries({ queryKey: ["wifi"] });
       toast.success(t("toastForgotten", { name }));
     },
-    onError: (err: Error) =>
-      toast.error(t("toastForgetFailed", { error: err.message })),
+    onError: (err: Error) => toast.error(t("toastForgetFailed", { error: err.message })),
   });
 
   const status = statusQuery.data;
@@ -195,9 +175,7 @@ export function NetworkSettings() {
                 </>
               )}
               <dt className="text-muted-foreground">
-                {status?.internet_reachable
-                  ? t("internetReachable")
-                  : t("internetUnreachable")}
+                {status?.internet_reachable ? t("internetReachable") : t("internetUnreachable")}
               </dt>
               <dd>
                 {status?.internet_reachable ? (
@@ -212,9 +190,7 @@ export function NetworkSettings() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() =>
-                queryClient.invalidateQueries({ queryKey: ["wifi", "status"] })
-              }
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["wifi", "status"] })}
               disabled={statusQuery.isFetching}
             >
               {statusQuery.isFetching ? (
@@ -248,11 +224,7 @@ export function NetworkSettings() {
               {t("availableNetworks")}
             </CardTitle>
             <Button size="sm" variant="ghost" onClick={handleScan} disabled={scanning}>
-              {scanning ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
+              {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
               {scanning ? t("scanning") : t("rescan")}
             </Button>
           </div>
@@ -263,25 +235,20 @@ export function NetworkSettings() {
           ) : (
             <ul className="divide-y divide-border">
               {networks.map((n) => (
-                <li
-                  key={`${n.ssid}-${n.signal}`}
-                  className="flex items-center justify-between py-2 gap-3"
-                >
+                <li key={`${n.ssid}-${n.signal}`} className="flex items-center justify-between py-2 gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <SignalIcon strength={n.signal} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium truncate">{n.ssid}</span>
-                        {needsPassword(n) && (
-                          <Lock className="h-3 w-3 text-muted-foreground" />
-                        )}
+                        {needsPassword(n) && <Lock className="h-3 w-3 text-muted-foreground" />}
                         {n.in_use && (
                           <Badge variant="secondary" className="text-xs">
                             {t("currentConnection")}
                           </Badge>
                         )}
                       </div>
-                      {/* eslint-disable-next-line i18next/no-literal-string */}
+                      {}
                       <div className="text-xs text-muted-foreground">
                         {n.signal}% · {needsPassword(n) ? t("secured") : t("open")}
                       </div>
@@ -315,10 +282,7 @@ export function NetworkSettings() {
           ) : (
             <ul className="divide-y divide-border">
               {savedQuery.data.map((s) => (
-                <li
-                  key={s.name}
-                  className="flex items-center justify-between py-2 gap-3"
-                >
+                <li key={s.name} className="flex items-center justify-between py-2 gap-3">
                   <span className="font-medium truncate">{s.name}</span>
                   <Button
                     size="sm"
@@ -349,11 +313,7 @@ export function NetworkSettings() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {connectTarget
-                ? t("connectDialogTitle", { ssid: connectTarget.ssid })
-                : ""}
-            </DialogTitle>
+            <DialogTitle>{connectTarget ? t("connectDialogTitle", { ssid: connectTarget.ssid }) : ""}</DialogTitle>
             <DialogDescription>{t("connectDialogDescription")}</DialogDescription>
           </DialogHeader>
           {connectTarget && needsPassword(connectTarget) && (
@@ -370,12 +330,7 @@ export function NetworkSettings() {
                     if (e.key === "Enter" && password) handleSubmitConnect();
                   }}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPassword((v) => !v)}
-                >
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowPassword((v) => !v)}>
                   {showPassword ? tCommon("off") : tCommon("on")}
                 </Button>
               </div>
@@ -388,10 +343,7 @@ export function NetworkSettings() {
             <Button
               onClick={handleSubmitConnect}
               disabled={
-                connectMutation.isPending ||
-                (connectTarget !== null &&
-                  needsPassword(connectTarget) &&
-                  !password)
+                connectMutation.isPending || (connectTarget !== null && needsPassword(connectTarget) && !password)
               }
             >
               {connectMutation.isPending ? (
@@ -411,12 +363,8 @@ export function NetworkSettings() {
       <Dialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {t("disconnectConfirmTitle", { ssid: status?.ssid ?? "" })}
-            </DialogTitle>
-            <DialogDescription>
-              {t("disconnectConfirmDescription")}
-            </DialogDescription>
+            <DialogTitle>{t("disconnectConfirmTitle", { ssid: status?.ssid ?? "" })}</DialogTitle>
+            <DialogDescription>{t("disconnectConfirmDescription")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDisconnectOpen(false)}>
@@ -440,17 +388,10 @@ export function NetworkSettings() {
       </Dialog>
 
       {/* ── Forget confirm ─────────────────────────────────────────────── */}
-      <Dialog
-        open={forgetTarget !== null}
-        onOpenChange={(o) => !o && setForgetTarget(null)}
-      >
+      <Dialog open={forgetTarget !== null} onOpenChange={(o) => !o && setForgetTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {forgetTarget
-                ? t("forgetConfirmTitle", { name: forgetTarget.name })
-                : ""}
-            </DialogTitle>
+            <DialogTitle>{forgetTarget ? t("forgetConfirmTitle", { name: forgetTarget.name }) : ""}</DialogTitle>
             <DialogDescription>{t("forgetConfirmDescription")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -460,9 +401,7 @@ export function NetworkSettings() {
             <Button
               variant="outline"
               className="text-destructive hover:text-destructive"
-              onClick={() =>
-                forgetTarget && forgetMutation.mutate(forgetTarget.name)
-              }
+              onClick={() => forgetTarget && forgetMutation.mutate(forgetTarget.name)}
               disabled={forgetMutation.isPending}
             >
               {forgetMutation.isPending ? (
@@ -490,11 +429,6 @@ function SignalIcon({ strength }: { strength: number }) {
   // Map 0..100 to a single-glyph indicator. The lucide Wifi icon doesn't
   // come in tiered strengths, so we colour-code instead — green for
   // strong, amber for weak, red for very weak.
-  const color =
-    strength >= 60
-      ? "text-emerald-600"
-      : strength >= 30
-        ? "text-amber-500"
-        : "text-destructive";
+  const color = strength >= 60 ? "text-emerald-600" : strength >= 30 ? "text-amber-500" : "text-destructive";
   return <Wifi className={`h-4 w-4 ${color}`} aria-hidden />;
 }

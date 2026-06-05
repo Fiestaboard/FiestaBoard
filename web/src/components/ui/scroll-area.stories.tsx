@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+
 import { ScrollArea, ScrollBar } from "./scroll-area";
 
 const meta = {
@@ -33,10 +34,7 @@ export const Horizontal = () => (
   <ScrollArea className="w-96 whitespace-nowrap rounded-md border">
     <div className="flex w-max space-x-4 p-4">
       {Array.from({ length: 20 }).map((_, i) => (
-        <div
-          key={i}
-          className="shrink-0 rounded-md border p-4 w-[150px] text-center"
-        >
+        <div key={i} className="shrink-0 rounded-md border p-4 w-[150px] text-center">
           Item {i + 1}
         </div>
       ))}
@@ -51,8 +49,8 @@ export const LongContent = () => (
       <h4 className="text-sm font-medium">Long Form Content</h4>
       {Array.from({ length: 10 }).map((_, i) => (
         <p key={i} className="text-sm text-muted-foreground">
-          Paragraph {i + 1}: Lorem ipsum dolor sit amet, consectetur adipiscing
-          elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+          Paragraph {i + 1}: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt
+          ut labore et dolore magna aliqua.
         </p>
       ))}
     </div>

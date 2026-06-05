@@ -4,11 +4,12 @@
  */
 "use client";
 
-import { Editor } from '@tiptap/react';
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import type { Editor } from "@tiptap/react";
 import { AlertCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
+
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface FilterPickerContentProps {
   filters: string[];
@@ -19,11 +20,7 @@ interface FilterPickerContentProps {
 export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerContentProps) {
   const t = useTranslations("filterPicker");
   if (filters.length === 0) {
-    return (
-      <div className="p-3 text-sm text-muted-foreground">
-        {t("noFiltersAvailable")}
-      </div>
-    );
+    return <div className="p-3 text-sm text-muted-foreground">{t("noFiltersAvailable")}</div>;
   }
 
   const handleFilterClick = (filterName: string) => {
@@ -44,7 +41,7 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
     let depth = $from.depth;
     while (depth > 0) {
       const node = $from.node(depth);
-      if (node.type.name === 'variable') {
+      if (node.type.name === "variable") {
         variableNode = node;
         variablePos = $from.before(depth);
         break;
@@ -55,7 +52,7 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
     // Also check if selection spans a variable node
     if (!variableNode) {
       state.doc.nodesBetween(selection.from, selection.to, (node, pos) => {
-        if (node.type.name === 'variable') {
+        if (node.type.name === "variable") {
           variableNode = node;
           variablePos = pos;
           return false; // Stop searching
@@ -66,21 +63,21 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
     if (variableNode && variablePos !== null) {
       // Apply filter to the selected variable
       const currentFilters = variableNode.attrs.filters || [];
-      const filterNameOnly = filterName.split(':')[0]; // Extract name from "pad:3"
-      
+      const filterNameOnly = filterName.split(":")[0]; // Extract name from "pad:3"
+
       // Check if filter already exists
       const filterExists = currentFilters.some((f: { name: string }) => f.name === filterNameOnly);
-      
+
       if (!filterExists) {
         // Parse filter (handle pad:3, truncate:5, etc.)
-        const filterParts = filterName.split(':');
+        const filterParts = filterName.split(":");
         const newFilter = {
           name: filterParts[0],
           arg: filterParts[1] || undefined,
         };
-        
+
         const updatedFilters = [...currentFilters, newFilter];
-        
+
         // Update the variable node with the new filter
         const tr = state.tr;
         tr.setNodeMarkup(variablePos, undefined, {
@@ -90,30 +87,31 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
         editor.view.dispatch(tr);
         editor.chain().focus().run();
       }
-    } else if (filterName === 'wrap' && selection.from !== selection.to) {
+    } else if (filterName === "wrap" && selection.from !== selection.to) {
       // For wrap filter, if text is selected, wrap it in a wrappedText node
       const selectedText = state.doc.textBetween(selection.from, selection.to);
-      
+
       if (selectedText.trim().length > 0) {
         // Check if selection is already inside a wrappedText node
         let isInWrappedText = false;
         depth = $from.depth;
         while (depth > 0) {
           const node = $from.node(depth);
-          if (node.type.name === 'wrappedText') {
+          if (node.type.name === "wrappedText") {
             isInWrappedText = true;
             break;
           }
           depth--;
         }
-        
+
         if (!isInWrappedText) {
           // Replace selection with wrappedText node
-          editor.chain()
+          editor
+            .chain()
             .focus()
             .deleteSelection()
             .insertContent({
-              type: 'wrappedText',
+              type: "wrappedText",
               attrs: {
                 text: selectedText,
               },
@@ -130,31 +128,33 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
   };
 
   // Check if a variable is currently selected or cursor is on a variable
-  const hasVariableSelected = editor ? (() => {
-    const { state } = editor;
-    const { selection } = state;
-    const { $from } = selection;
-    
-    // Walk up the node tree to find if we're inside a variable node
-    let depth = $from.depth;
-    while (depth > 0) {
-      const node = $from.node(depth);
-      if (node.type.name === 'variable') {
-        return true;
-      }
-      depth--;
-    }
-    
-    // Check if selection spans a variable node
-    let found = false;
-    state.doc.nodesBetween(selection.from, selection.to, (node) => {
-      if (node.type.name === 'variable') {
-        found = true;
-        return false;
-      }
-    });
-    return found;
-  })() : false;
+  const hasVariableSelected = editor
+    ? (() => {
+        const { state } = editor;
+        const { selection } = state;
+        const { $from } = selection;
+
+        // Walk up the node tree to find if we're inside a variable node
+        let depth = $from.depth;
+        while (depth > 0) {
+          const node = $from.node(depth);
+          if (node.type.name === "variable") {
+            return true;
+          }
+          depth--;
+        }
+
+        // Check if selection spans a variable node
+        let found = false;
+        state.doc.nodesBetween(selection.from, selection.to, (node) => {
+          if (node.type.name === "variable") {
+            found = true;
+            return false;
+          }
+        });
+        return found;
+      })()
+    : false;
 
   return (
     <div className="p-2 min-w-[250px]">
@@ -166,7 +166,7 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
       )}
       <div className="space-y-2">
         {filters.map((filter) => {
-          const filterName = filter.split(':')[0];
+          const filterName = filter.split(":")[0];
           return (
             <button
               key={filter}
@@ -175,16 +175,16 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
               className={cn(
                 "w-full text-left px-3 py-2 rounded-md text-sm",
                 "hover:bg-accent hover:text-accent-foreground transition-colors",
-                "flex items-center gap-2"
+                "flex items-center gap-2",
               )}
             >
               <Badge variant="secondary" className="font-mono text-xs">
                 |{filter}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                {filterName === 'wrap' && t("filterDescWrap")}
-                {filterName === 'pad' && t("filterDescPad")}
-                {filterName === 'truncate' && t("filterDescTruncate")}
+                {filterName === "wrap" && t("filterDescWrap")}
+                {filterName === "pad" && t("filterDescPad")}
+                {filterName === "truncate" && t("filterDescTruncate")}
               </span>
             </button>
           );

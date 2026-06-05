@@ -8,9 +8,10 @@
  * 4. Shows delete button only when editing with onDelete provided
  */
 
-import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 
 // Mock pages for the form
@@ -32,7 +33,7 @@ describe("ScheduleEntryForm - Midnight Rollover Validation", () => {
         prefillStartTime="23:00"
         prefillEndTime="03:00"
         prefillDayPattern="all"
-      />
+      />,
     );
 
     // Wait for validation to run
@@ -55,7 +56,7 @@ describe("ScheduleEntryForm - Midnight Rollover Validation", () => {
         prefillStartTime="23:00"
         prefillEndTime="00:00"
         prefillDayPattern="all"
-      />
+      />,
     );
 
     await waitFor(() => {
@@ -76,7 +77,7 @@ describe("ScheduleEntryForm - Midnight Rollover Validation", () => {
         prefillStartTime="12:00"
         prefillEndTime="12:00"
         prefillDayPattern="all"
-      />
+      />,
     );
 
     await waitFor(() => {
@@ -97,7 +98,7 @@ describe("ScheduleEntryForm - Midnight Rollover Validation", () => {
         prefillStartTime="09:00"
         prefillEndTime="17:00"
         prefillDayPattern="all"
-      />
+      />,
     );
 
     await waitFor(() => {
@@ -128,34 +129,20 @@ describe("ScheduleEntryForm - Delete Button", () => {
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
         onDelete={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
   });
 
   it("should NOT show delete button when creating a new schedule", () => {
-    render(
-      <ScheduleEntryForm
-        pages={mockPages}
-        onSubmit={vi.fn()}
-        onCancel={vi.fn()}
-        onDelete={vi.fn()}
-      />
-    );
+    render(<ScheduleEntryForm pages={mockPages} onSubmit={vi.fn()} onCancel={vi.fn()} onDelete={vi.fn()} />);
 
     expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
   });
 
   it("should NOT show delete button when onDelete is not provided", () => {
-    render(
-      <ScheduleEntryForm
-        schedule={mockSchedule}
-        pages={mockPages}
-        onSubmit={vi.fn()}
-        onCancel={vi.fn()}
-      />
-    );
+    render(<ScheduleEntryForm schedule={mockSchedule} pages={mockPages} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
   });
@@ -170,7 +157,7 @@ describe("ScheduleEntryForm - Delete Button", () => {
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
         onDelete={onDelete}
-      />
+      />,
     );
 
     await userEvent.click(screen.getByRole("button", { name: /delete/i }));

@@ -15,17 +15,12 @@
  * interactions work correctly.
  */
 
-import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const mockPages = [
   { id: "page-1", name: "Morning Dashboard" },
@@ -43,7 +38,7 @@ function renderInSheet(props: Parameters<typeof ScheduleEntryForm>[0]) {
         </SheetHeader>
         <ScheduleEntryForm {...props} />
       </SheetContent>
-    </Sheet>
+    </Sheet>,
   );
 }
 

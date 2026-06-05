@@ -1,23 +1,25 @@
+import "./globals.css";
+
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
-import { Providers } from "@/components/providers";
-import { Toaster } from "@/components/ui/sonner";
-import { NavigationSidebar } from "@/components/navigation-sidebar";
-import { WizardProvider } from "@/components/wizard-provider";
+
+import { BootGate } from "@/components/boot-gate";
+import { GlobalAiChatDrawer } from "@/components/global-ai-chat-drawer";
+import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
 import { InstallPrompt } from "@/components/install-prompt";
-import { PageFadeWrapper } from "@/components/page-fade-wrapper";
 import { MainContent } from "@/components/main-content";
+import { NavigationSidebar } from "@/components/navigation-sidebar";
+import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
+import { PageFadeWrapper } from "@/components/page-fade-wrapper";
+import { Providers } from "@/components/providers";
+import { ReduceMotionApplier } from "@/components/reduce-motion-applier";
+import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridge-context";
 import { SkipToContent } from "@/components/skip-to-content";
 import { ThemeColorMeta } from "@/components/theme-color-meta";
-import { ReduceMotionApplier } from "@/components/reduce-motion-applier";
-import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
-import { GlobalAiChatDrawer } from "@/components/global-ai-chat-drawer";
-import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
-import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridge-context";
-import { BootGate } from "@/components/boot-gate";
-import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
+import { WizardProvider } from "@/components/wizard-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,9 +57,7 @@ export async function generateMetadata(): Promise<Metadata> {
         { url: "/icons/favicon-48x48.png", sizes: "48x48", type: "image/png" },
         { url: "/favicon.ico", sizes: "any" },
       ],
-      apple: [
-        { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-      ],
+      apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     },
     manifest: "/manifest.json",
   };
@@ -81,17 +81,15 @@ export default async function RootLayout({
         <link rel="icon" href="/icons/favicon-32x32.png" type="image/png" sizes="32x32" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <svg width="0" height="0" aria-hidden="true" style={{ position: 'absolute' }}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
           <defs>
             <linearGradient id="page-icon-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="24" y2="24">
-              <stop offset="0%"   stopColor="var(--icon-g1)" />
-              <stop offset="20%"  stopColor="var(--icon-g2)" />
-              <stop offset="40%"  stopColor="var(--icon-g3)" />
-              <stop offset="60%"  stopColor="var(--icon-g4)" />
-              <stop offset="80%"  stopColor="var(--icon-g5)" />
+              <stop offset="0%" stopColor="var(--icon-g1)" />
+              <stop offset="20%" stopColor="var(--icon-g2)" />
+              <stop offset="40%" stopColor="var(--icon-g3)" />
+              <stop offset="60%" stopColor="var(--icon-g4)" />
+              <stop offset="80%" stopColor="var(--icon-g5)" />
               <stop offset="100%" stopColor="var(--icon-g6)" />
             </linearGradient>
           </defs>
@@ -102,22 +100,20 @@ export default async function RootLayout({
             <ReduceMotionApplier />
             <BootGate>
               <ScheduleEditorBridgeProvider>
-              <PageEditorBridgeProvider>
-              <GlobalAiPanelProvider>
-                <WizardProvider>
-                  <SkipToContent />
-                  <NavigationSidebar />
-                  <GlobalAiChatDrawer />
-                  <MainContent>
-                    <PageFadeWrapper>
-                      {children}
-                    </PageFadeWrapper>
-                  </MainContent>
-                  <Toaster />
-                  <InstallPrompt />
-                </WizardProvider>
-              </GlobalAiPanelProvider>
-              </PageEditorBridgeProvider>
+                <PageEditorBridgeProvider>
+                  <GlobalAiPanelProvider>
+                    <WizardProvider>
+                      <SkipToContent />
+                      <NavigationSidebar />
+                      <GlobalAiChatDrawer />
+                      <MainContent>
+                        <PageFadeWrapper>{children}</PageFadeWrapper>
+                      </MainContent>
+                      <Toaster />
+                      <InstallPrompt />
+                    </WizardProvider>
+                  </GlobalAiPanelProvider>
+                </PageEditorBridgeProvider>
               </ScheduleEditorBridgeProvider>
             </BootGate>
           </Providers>

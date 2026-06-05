@@ -14,12 +14,5 @@ export default function NewPage() {
 
   const back = () => push("/pages", { transitionType: "slide-down" });
 
-  return (
-    <PageEditorShell
-      deviceType={deviceType}
-      skipDraft={skipDraft}
-      onClose={back}
-      onSave={back}
-    />
-  );
+  return <PageEditorShell deviceType={deviceType} skipDraft={skipDraft} onClose={back} onSave={back} />;
 }

@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { GeneralSettings } from "./general-settings";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 import type { AllSettingsResponse } from "@/lib/api";
+
+import { GeneralSettings } from "./general-settings";
 
 const mockAllSettings: AllSettingsResponse = {
   general: {

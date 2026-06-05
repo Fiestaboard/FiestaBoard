@@ -15,15 +15,17 @@
  *
  * Issue: #503
  */
+import type { Page } from "@playwright/test";
+
 import {
-  test,
-  expect,
   configureBoard,
-  suppressWizard,
   createPage,
   createSchedule,
   deleteAllPages,
   deleteAllSchedules,
+  expect,
+  suppressWizard,
+  test,
 } from "./helpers";
 
 /**
@@ -44,7 +46,7 @@ const snap = (name: string) => `${name}.png`;
  * Hide blinking cursors, selection highlights, and caret indicators
  * that would cause non-deterministic screenshots in the WYSIWYG editor.
  */
-async function maskEditorCursor(page: import("@playwright/test").Page) {
+async function maskEditorCursor(page: Page) {
   await page.addStyleTag({
     content: `
       /* Hide blinking text cursor */
@@ -62,7 +64,7 @@ async function maskEditorCursor(page: import("@playwright/test").Page) {
  * Hide current-date highlighting in the schedule calendar.
  * Calendar components typically highlight "today" which changes daily.
  */
-async function maskCalendarToday(page: import("@playwright/test").Page) {
+async function maskCalendarToday(page: Page) {
   await page.addStyleTag({
     content: `
       /* Neutralise today-highlighting in calendar views */
@@ -106,16 +108,15 @@ test.describe("Visual — Dashboard", () => {
     await page.waitForLoadState("networkidle");
 
     // Toggle to dark mode via the theme button (next-themes)
-    const themeToggle = page
-      .getByRole("button", { name: /theme|dark|light|toggle/i })
-      .first();
+    const themeToggle = page.getByRole("button", { name: /theme|dark|light|toggle/i }).first();
 
     if (await themeToggle.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await themeToggle.click();
       // Wait for dark mode class to be applied
       await page.waitForFunction(
-        () => document.documentElement.classList.contains("dark")
-          || document.documentElement.getAttribute("data-theme") === "dark",
+        () =>
+          document.documentElement.classList.contains("dark") ||
+          document.documentElement.getAttribute("data-theme") === "dark",
         { timeout: 5_000 },
       );
     } else {
@@ -143,10 +144,7 @@ test.describe("Visual — Dashboard", () => {
       localStorage.setItem("theme", "light");
     });
     // Wait for light mode to take effect
-    await page.waitForFunction(
-      () => !document.documentElement.classList.contains("dark"),
-      { timeout: 5_000 },
-    );
+    await page.waitForFunction(() => !document.documentElement.classList.contains("dark"), { timeout: 5_000 });
 
     await expect(page).toHaveScreenshot(snap("dashboard-light"), {
       ...SCREENSHOT_OPTIONS,
@@ -170,9 +168,7 @@ test.describe("Visual — Page Editor", () => {
     await maskEditorCursor(page);
 
     // Wait for the editor to be ready
-    await expect(
-      page.getByText(/create page/i).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/create page/i).first()).toBeVisible({ timeout: 15_000 });
 
     await expect(page).toHaveScreenshot(snap("page-editor-empty"), {
       ...SCREENSHOT_OPTIONS,
@@ -184,9 +180,7 @@ test.describe("Visual — Page Editor", () => {
     await page.waitForLoadState("networkidle");
     await maskEditorCursor(page);
 
-    await expect(
-      page.getByText(/create page/i).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/create page/i).first()).toBeVisible({ timeout: 15_000 });
 
     // Fill page name
     const nameInput = page.getByPlaceholder("My Custom Page");
@@ -214,9 +208,7 @@ test.describe("Visual — Page Editor", () => {
     await page.waitForLoadState("networkidle");
     await maskEditorCursor(page);
 
-    await expect(
-      page.getByText(/create page/i).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/create page/i).first()).toBeVisible({ timeout: 15_000 });
 
     const nameInput = page.getByPlaceholder("My Custom Page");
     if (await nameInput.isVisible({ timeout: 5_000 }).catch(() => false)) {
@@ -255,9 +247,7 @@ test.describe("Visual — Schedule Calendar", () => {
     // freezes them and prevents React from rendering).
     await page.clock.setFixedTime(new Date("2025-06-15T10:00:00Z"));
     await maskCalendarToday(page);
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await expect(page).toHaveScreenshot(snap("schedule-empty"), {
       ...SCREENSHOT_OPTIONS,
@@ -266,22 +256,8 @@ test.describe("Visual — Schedule Calendar", () => {
 
   test("schedule page with entries", async ({ page }) => {
     await deleteAllSchedules();
-    const pageId1 = await createPage("Morning News", [
-      "GOOD MORNING",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
-    const pageId2 = await createPage("Afternoon Update", [
-      "AFTERNOON",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
+    const pageId1 = await createPage("Morning News", ["GOOD MORNING", "", "", "", "", ""]);
+    const pageId2 = await createPage("Afternoon Update", ["AFTERNOON", "", "", "", "", ""]);
     await createSchedule(pageId1, "07:00", "12:00", "weekdays");
     await createSchedule(pageId2, "13:00", "18:00", "weekdays");
 
@@ -289,15 +265,13 @@ test.describe("Visual — Schedule Calendar", () => {
     // Fix Date.now() after navigation so calendar renders a consistent date.
     await page.clock.setFixedTime(new Date("2025-06-15T10:00:00Z"));
     await maskCalendarToday(page);
-    await expect(
-      page.getByRole("heading", { name: "Schedule", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
     // Wait for schedule data to render (look for page names in the list)
-    await expect(
-      page.getByText("Morning News").first(),
-    ).toBeVisible({ timeout: 10_000 }).catch(() => {
-      // Schedule might render differently; fall back to networkidle
-    });
+    await expect(page.getByText("Morning News").first())
+      .toBeVisible({ timeout: 10_000 })
+      .catch(() => {
+        // Schedule might render differently; fall back to networkidle
+      });
     await page.waitForLoadState("networkidle");
 
     await expect(page).toHaveScreenshot(snap("schedule-with-entries"), {
@@ -313,9 +287,7 @@ test.describe("Visual — Schedule Calendar", () => {
 test.describe("Visual — Settings", () => {
   test("settings general section", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await expect(page).toHaveScreenshot(snap("settings-general"), {
       ...SCREENSHOT_OPTIONS,
@@ -330,14 +302,10 @@ test.describe("Visual — Settings", () => {
 
   test("settings board configuration", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Scroll to board config section if it exists
-    const boardSection = page
-      .getByText(/board configuration|board type|board settings|boards/i)
-      .first();
+    const boardSection = page.getByText(/board configuration|board type|board settings|boards/i).first();
     if (await boardSection.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await boardSection.scrollIntoViewIfNeeded();
       // Wait for the element to be in view
@@ -361,9 +329,7 @@ test.describe("Visual — Settings", () => {
 test.describe("Visual — Plugin Integrations", () => {
   test("integrations page installed tab", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: "Integrations", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Integrations", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Ensure Installed tab is active
     const installedTab = page.getByRole("tab", { name: /installed/i });
@@ -379,14 +345,10 @@ test.describe("Visual — Plugin Integrations", () => {
 
   test("integrations page marketplace tab", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: "Integrations", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Integrations", exact: true })).toBeVisible({ timeout: 15_000 });
 
     const marketplaceTab = page.getByRole("tab", { name: /marketplace/i });
-    if (
-      await marketplaceTab.isVisible({ timeout: 5_000 }).catch(() => false)
-    ) {
+    if (await marketplaceTab.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await marketplaceTab.click();
       await page.waitForLoadState("networkidle");
     }
@@ -409,9 +371,7 @@ test.describe("Visual — Pages List", () => {
   test("pages list empty state", async ({ page }) => {
     await deleteAllPages();
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState("networkidle");
 
     await expect(page).toHaveScreenshot(snap("pages-list-empty"), {
@@ -425,13 +385,9 @@ test.describe("Visual — Pages List", () => {
     await createPage("Evening Update", ["EVENING", "", "", "", "", ""]);
 
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
     // Wait for page cards to render
-    await expect(
-      page.getByText("Morning Dashboard").first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Morning Dashboard").first()).toBeVisible({ timeout: 10_000 });
 
     await expect(page).toHaveScreenshot(snap("pages-list-with-pages"), {
       ...SCREENSHOT_OPTIONS,
@@ -451,9 +407,7 @@ test.describe("Visual — Navigation", () => {
     await page.waitForLoadState("networkidle");
 
     // Capture just the sidebar if identifiable
-    const sidebar = page
-      .locator("[data-testid='sidebar'], nav, aside")
-      .first();
+    const sidebar = page.locator("[data-testid='sidebar'], nav, aside").first();
 
     if (await sidebar.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await expect(sidebar).toHaveScreenshot(snap("sidebar-default"), {

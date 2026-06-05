@@ -18,7 +18,7 @@
  * Note: These tests mutate live FiestaBoard state. They restore their changes
  * where possible but may leave transient state if interrupted.
  */
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 const HA_URL = (process.env.HA_URL || "").replace(/\/$/, "");
 const HA_ACCESS_TOKEN = process.env.HA_ACCESS_TOKEN || "";
@@ -56,12 +56,7 @@ async function haState(request: any, entityId: string): Promise<string> {
 }
 
 /** Call a HA service. */
-async function haService(
-  request: any,
-  domain: string,
-  service: string,
-  data: Record<string, unknown>
-): Promise<void> {
+async function haService(request: any, domain: string, service: string, data: Record<string, unknown>): Promise<void> {
   const res = await request.post(`${HA_URL}/api/services/${domain}/${service}`, {
     headers: { ...haHeaders(), "Content-Type": "application/json" },
     data,
@@ -70,11 +65,7 @@ async function haService(
 }
 
 /** Wait for MQTT to settle then poll for a condition. */
-async function waitFor(
-  check: () => Promise<boolean>,
-  timeoutMs = 8000,
-  intervalMs = 500
-): Promise<boolean> {
+async function waitFor(check: () => Promise<boolean>, timeoutMs = 8000, intervalMs = 500): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await check()) return true;
@@ -87,10 +78,7 @@ async function waitFor(
 
 test.describe("Home Assistant controls", () => {
   test.beforeEach(async () => {
-    test.skip(
-      !HA_URL || !HA_ACCESS_TOKEN,
-      "HA_URL and HA_ACCESS_TOKEN must be set"
-    );
+    test.skip(!HA_URL || !HA_ACCESS_TOKEN, "HA_URL and HA_ACCESS_TOKEN must be set");
   });
 
   /**
@@ -137,11 +125,12 @@ test.describe("Home Assistant controls", () => {
   // --------------------------------------------------------------------------
   // 1. Schedule switch
   // --------------------------------------------------------------------------
-  test("Schedule switch toggles FiestaBoard schedule on/off", async ({
-    request,
-  }) => {
+  test("Schedule switch toggles FiestaBoard schedule on/off", async ({ request }) => {
     const mqttLive = await isFiestaboardMqttConnected(request);
-    test.skip(!mqttLive, "FiestaBoard MQTT client is not connected — state feedback tests require MQTT_ENABLED=true in the FiestaBoard container");
+    test.skip(
+      !mqttLive,
+      "FiestaBoard MQTT client is not connected — state feedback tests require MQTT_ENABLED=true in the FiestaBoard container",
+    );
 
     const entityId = "switch.fiestaboard_schedule";
 
@@ -175,11 +164,12 @@ test.describe("Home Assistant controls", () => {
   // --------------------------------------------------------------------------
   // 2. Active Page select
   // --------------------------------------------------------------------------
-  test("Active Page select changes the active page in FiestaBoard", async ({
-    request,
-  }) => {
+  test("Active Page select changes the active page in FiestaBoard", async ({ request }) => {
     const mqttLive = await isFiestaboardMqttConnected(request);
-    test.skip(!mqttLive, "FiestaBoard MQTT client is not connected — state feedback tests require MQTT_ENABLED=true in the FiestaBoard container");
+    test.skip(
+      !mqttLive,
+      "FiestaBoard MQTT client is not connected — state feedback tests require MQTT_ENABLED=true in the FiestaBoard container",
+    );
 
     // Get available page options from HA
     const statesRes = await request.get(`${HA_URL}/api/states`, {
@@ -187,10 +177,7 @@ test.describe("Home Assistant controls", () => {
     });
     expect(statesRes.ok()).toBe(true);
     const states = await statesRes.json();
-    const selectEntity = states.find(
-      (e: { entity_id: string }) =>
-        e.entity_id === "select.fiestaboard_active_page"
-    );
+    const selectEntity = states.find((e: { entity_id: string }) => e.entity_id === "select.fiestaboard_active_page");
     if (!selectEntity) {
       test.skip(true, "select.fiestaboard_active_page not found in HA");
     }
@@ -238,16 +225,11 @@ test.describe("Home Assistant controls", () => {
   // --------------------------------------------------------------------------
   // 3. Refresh Display button
   // --------------------------------------------------------------------------
-  test("Refresh Display button can be pressed without error", async ({
-    request,
-  }) => {
-    const res = await request.post(
-      `${HA_URL}/api/services/button/press`,
-      {
-        headers: { ...haHeaders(), "Content-Type": "application/json" },
-        data: { entity_id: "button.fiestaboard_refresh_display" },
-      }
-    );
+  test("Refresh Display button can be pressed without error", async ({ request }) => {
+    const res = await request.post(`${HA_URL}/api/services/button/press`, {
+      headers: { ...haHeaders(), "Content-Type": "application/json" },
+      data: { entity_id: "button.fiestaboard_refresh_display" },
+    });
     // HA returns 200 with an array of changed states
     expect(res.ok(), "Pressing Refresh Display button failed in HA").toBe(true);
   });
@@ -255,46 +237,37 @@ test.describe("Home Assistant controls", () => {
   // --------------------------------------------------------------------------
   // 4. Blank Board button
   // --------------------------------------------------------------------------
-  test("Blank Board button can be pressed without error", async ({
-    request,
-  }) => {
-    const res = await request.post(
-      `${HA_URL}/api/services/button/press`,
-      {
-        headers: { ...haHeaders(), "Content-Type": "application/json" },
-        data: { entity_id: "button.fiestaboard_blank_board" },
-      }
-    );
+  test("Blank Board button can be pressed without error", async ({ request }) => {
+    const res = await request.post(`${HA_URL}/api/services/button/press`, {
+      headers: { ...haHeaders(), "Content-Type": "application/json" },
+      data: { entity_id: "button.fiestaboard_blank_board" },
+    });
     expect(res.ok(), "Pressing Blank Board button failed in HA").toBe(true);
   });
 
   // --------------------------------------------------------------------------
   // 5. Send Message text entity
   // --------------------------------------------------------------------------
-  test("Send Message text entity delivers a message via HA", async ({
-    request,
-  }) => {
-    const res = await request.post(
-      `${HA_URL}/api/services/text/set_value`,
-      {
-        headers: { ...haHeaders(), "Content-Type": "application/json" },
-        data: {
-          entity_id: "text.fiestaboard_send_message",
-          value: "HELLO HA TEST",
-        },
-      }
-    );
+  test("Send Message text entity delivers a message via HA", async ({ request }) => {
+    const res = await request.post(`${HA_URL}/api/services/text/set_value`, {
+      headers: { ...haHeaders(), "Content-Type": "application/json" },
+      data: {
+        entity_id: "text.fiestaboard_send_message",
+        value: "HELLO HA TEST",
+      },
+    });
     expect(res.ok(), "text.set_value for send_message failed in HA").toBe(true);
   });
 
   // --------------------------------------------------------------------------
   // 6. Refresh Interval number entity
   // --------------------------------------------------------------------------
-  test("Refresh Interval number entity updates interval in FiestaBoard", async ({
-    request,
-  }) => {
+  test("Refresh Interval number entity updates interval in FiestaBoard", async ({ request }) => {
     const mqttLive = await isFiestaboardMqttConnected(request);
-    test.skip(!mqttLive, "FiestaBoard MQTT client is not connected — state feedback tests require MQTT_ENABLED=true in the FiestaBoard container");
+    test.skip(
+      !mqttLive,
+      "FiestaBoard MQTT client is not connected — state feedback tests require MQTT_ENABLED=true in the FiestaBoard container",
+    );
 
     const entityId = "number.fiestaboard_refresh_interval";
 
@@ -326,9 +299,7 @@ test.describe("Home Assistant controls", () => {
   // --------------------------------------------------------------------------
   // 7. Sensor states are readable (status, version, page_count)
   // --------------------------------------------------------------------------
-  test("FiestaBoard sensors report valid read-only state in HA", async ({
-    request,
-  }) => {
+  test("FiestaBoard sensors report valid read-only state in HA", async ({ request }) => {
     const checks: Array<{ id: string; validate: (s: string) => boolean; desc: string }> = [
       {
         id: "binary_sensor.fiestaboard_service_status",
@@ -361,11 +332,12 @@ test.describe("Home Assistant controls", () => {
   // --------------------------------------------------------------------------
   // 8. Transition Style select
   // --------------------------------------------------------------------------
-  test("Transition Style select updates in HA after command", async ({
-    request,
-  }) => {
+  test("Transition Style select updates in HA after command", async ({ request }) => {
     const mqttLive = await isFiestaboardMqttConnected(request);
-    test.skip(!mqttLive, "FiestaBoard MQTT client is not connected — state feedback tests require MQTT_ENABLED=true in the FiestaBoard container");
+    test.skip(
+      !mqttLive,
+      "FiestaBoard MQTT client is not connected — state feedback tests require MQTT_ENABLED=true in the FiestaBoard container",
+    );
 
     const entityId = "select.fiestaboard_transition_style";
     const statesRes = await request.get(`${HA_URL}/api/states/${entityId}`, {

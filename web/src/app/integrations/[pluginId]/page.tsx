@@ -1,21 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowDownToLine, ArrowLeft, CopyPlus, ExternalLink, Puzzle } from "lucide-react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import Link from "next/link";
-import { api } from "@/lib/api";
-import {
-  fetchPluginReadme,
-  rewriteMarkdownImageUrls,
-  rewriteMarkdownRepoLinks,
-} from "@/lib/github";
+import { toast } from "sonner";
+
 import { PageLayout } from "@/components/page-layout";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -26,10 +23,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { ArrowLeft, ArrowDownToLine, CopyPlus, ExternalLink, Puzzle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { api } from "@/lib/api";
+import { fetchPluginReadme, rewriteMarkdownImageUrls, rewriteMarkdownRepoLinks } from "@/lib/github";
 import { cn } from "@/lib/utils";
-import { useTranslations } from "next-intl";
 
 export default function PluginDetailPage() {
   const t = useTranslations("pluginDetail");
@@ -76,11 +73,10 @@ export default function PluginDetailPage() {
     ? rewriteMarkdownRepoLinks(
         rewriteMarkdownImageUrls(readmeRaw.markdown, repoUrl, readmeRaw.resolvedBranch),
         repoUrl,
-        readmeRaw.resolvedBranch
+        readmeRaw.resolvedBranch,
       )
     : null;
-  const categoryLabel =
-    CATEGORY_LABELS[entry?.category ?? "utility"] ?? entry?.category ?? t("categories.utility");
+  const categoryLabel = CATEGORY_LABELS[entry?.category ?? "utility"] ?? entry?.category ?? t("categories.utility");
 
   // Install mutation
   const installMutation = useMutation({
@@ -115,7 +111,9 @@ export default function PluginDetailPage() {
       setAddInstanceOpen(false);
       setInstanceLabel("");
     } catch (err) {
-      toast.error(t("toastCreateInstanceFailed", { error: err instanceof Error ? err.message : tCommon("unknownError") }));
+      toast.error(
+        t("toastCreateInstanceFailed", { error: err instanceof Error ? err.message : tCommon("unknownError") }),
+      );
     } finally {
       setIsCreatingInstance(false);
     }
@@ -158,7 +156,9 @@ export default function PluginDetailPage() {
                     <p className="text-sm text-muted-foreground">
                       {entry?.author && <span className="mr-3">{t("byAuthor", { author: entry.author })}</span>}
                       {entry?.fiestaboard_version && (
-                        <span className="text-xs">{t("requiresFiestaboard", { version: entry.fiestaboard_version })}</span>
+                        <span className="text-xs">
+                          {t("requiresFiestaboard", { version: entry.fiestaboard_version })}
+                        </span>
                       )}
                     </p>
                   </>
@@ -176,33 +176,26 @@ export default function PluginDetailPage() {
                   </a>
                 </Button>
               )}
-              {!isLoading && (
-                isInstalled ? (
+              {!isLoading &&
+                (isInstalled ? (
                   <Button size="sm" variant="outline" onClick={() => setAddInstanceOpen(true)}>
                     <CopyPlus className="h-3.5 w-3.5 mr-1.5" />
                     {t("addInstance")}
                   </Button>
                 ) : (
-                  <Button
-                    size="sm"
-                    onClick={() => installMutation.mutate()}
-                    disabled={installMutation.isPending}
-                  >
+                  <Button size="sm" onClick={() => installMutation.mutate()} disabled={installMutation.isPending}>
                     <ArrowDownToLine
                       className={cn("h-3.5 w-3.5 mr-1.5", installMutation.isPending && "animate-bounce")}
                     />
                     {installMutation.isPending ? t("installing") : t("install")}
                   </Button>
-                )
-              )}
+                ))}
             </div>
           </div>
 
           {/* Description */}
           {entry?.description && (
-            <p className="mt-4 text-sm text-muted-foreground leading-relaxed border-t pt-4">
-              {entry.description}
-            </p>
+            <p className="mt-4 text-sm text-muted-foreground leading-relaxed border-t pt-4">{entry.description}</p>
           )}
         </div>
 
@@ -231,12 +224,7 @@ export default function PluginDetailPage() {
                   ),
                   img: ({ src, alt, ...props }) => (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={src}
-                      alt={alt ?? ""}
-                      className="rounded-lg max-h-64 w-auto my-3"
-                      {...props}
-                    />
+                    <img src={src} alt={alt ?? ""} className="rounded-lg max-h-64 w-auto my-3" {...props} />
                   ),
                   pre: ({ children, ...props }) => (
                     <pre className="bg-muted rounded-lg p-4 overflow-x-auto text-xs my-4" {...props}>
@@ -246,7 +234,9 @@ export default function PluginDetailPage() {
                   code: ({ children, className, ...props }) => {
                     const isBlock = className?.startsWith("language-");
                     return isBlock ? (
-                      <code className={className} {...props}>{children}</code>
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
                     ) : (
                       <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
                         {children}
@@ -261,7 +251,9 @@ export default function PluginDetailPage() {
                     </div>
                   ),
                   thead: ({ children, ...props }) => (
-                    <thead className="bg-muted/50" {...props}>{children}</thead>
+                    <thead className="bg-muted/50" {...props}>
+                      {children}
+                    </thead>
                   ),
                   th: ({ children, ...props }) => (
                     <th className="border border-border px-3 py-2 text-left font-medium" {...props}>
@@ -269,7 +261,9 @@ export default function PluginDetailPage() {
                     </th>
                   ),
                   td: ({ children, ...props }) => (
-                    <td className="border border-border px-3 py-2" {...props}>{children}</td>
+                    <td className="border border-border px-3 py-2" {...props}>
+                      {children}
+                    </td>
                   ),
                   h1: ({ children, ...props }) => (
                     <h1 className="text-xl font-bold mt-0 mb-4 pb-2 border-b" {...props}>
@@ -302,13 +296,18 @@ export default function PluginDetailPage() {
                     </ol>
                   ),
                   blockquote: ({ children, ...props }) => (
-                    <blockquote className="border-l-2 border-border pl-4 italic text-muted-foreground text-sm my-3" {...props}>
+                    <blockquote
+                      className="border-l-2 border-border pl-4 italic text-muted-foreground text-sm my-3"
+                      {...props}
+                    >
                       {children}
                     </blockquote>
                   ),
                   hr: () => <hr className="border-border my-5" />,
                   strong: ({ children, ...props }) => (
-                    <strong className="font-semibold text-foreground" {...props}>{children}</strong>
+                    <strong className="font-semibold text-foreground" {...props}>
+                      {children}
+                    </strong>
                   ),
                 }}
               >
@@ -324,10 +323,10 @@ export default function PluginDetailPage() {
       <Dialog open={addInstanceOpen} onOpenChange={setAddInstanceOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("addInstance")} of {entry?.name ?? pluginId}</DialogTitle>
-            <DialogDescription>
-              {t("addInstanceDescription")}
-            </DialogDescription>
+            <DialogTitle>
+              {t("addInstance")} of {entry?.name ?? pluginId}
+            </DialogTitle>
+            <DialogDescription>{t("addInstanceDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
             <Label htmlFor="detail-instance-label">{t("instanceNameLabel")}</Label>
@@ -342,9 +341,7 @@ export default function PluginDetailPage() {
               }}
               autoFocus
             />
-            <p className="text-xs text-muted-foreground">
-              {t("instanceNameHelp")}
-            </p>
+            <p className="text-xs text-muted-foreground">{t("instanceNameHelp")}</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddInstanceOpen(false)} disabled={isCreatingInstance}>

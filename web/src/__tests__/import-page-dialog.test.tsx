@@ -1,10 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { ImportPageDialog } from "@/app/pages/page";
+
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -41,10 +43,7 @@ const VALID_SHARE_STRING = (() => {
       duration_seconds: 300,
     },
   };
-  return btoa(JSON.stringify(envelope))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
+  return btoa(JSON.stringify(envelope)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 })();
 
 function renderDialog(props: { open?: boolean; onOpenChange?: (v: boolean) => void } = {}) {
@@ -56,7 +55,7 @@ function renderDialog(props: { open?: boolean; onOpenChange?: (v: boolean) => vo
   render(
     <QueryClientProvider client={queryClient}>
       <ImportPageDialog open={props.open ?? true} onOpenChange={onOpenChange} />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 
   return { onOpenChange };
@@ -132,7 +131,7 @@ describe("ImportPageDialog", () => {
     let capturedBody: Record<string, unknown> | null = null;
     server.use(
       http.post(`${API_BASE}/pages/import`, async ({ request }) => {
-        capturedBody = await request.json() as Record<string, unknown>;
+        capturedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({
           status: "success",
           page: {
@@ -145,7 +144,7 @@ describe("ImportPageDialog", () => {
             created_at: new Date().toISOString(),
           },
         });
-      })
+      }),
     );
 
     renderDialog();
@@ -163,9 +162,7 @@ describe("ImportPageDialog", () => {
     await user.click(screen.getByRole("button", { name: /^import$/i }));
 
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
-    expect(mockToastSuccess).toHaveBeenCalledWith(
-      expect.stringContaining("Shared Page")
-    );
+    expect(mockToastSuccess).toHaveBeenCalledWith(expect.stringContaining("Shared Page"));
   });
 
   it("closes the dialog on successful import", async () => {
@@ -185,8 +182,8 @@ describe("ImportPageDialog", () => {
     const user = userEvent.setup();
     server.use(
       http.post(`${API_BASE}/pages/import`, () =>
-        HttpResponse.json({ detail: "Invalid share string — could not decode." }, { status: 422 })
-      )
+        HttpResponse.json({ detail: "Invalid share string — could not decode." }, { status: 422 }),
+      ),
     );
 
     renderDialog();
@@ -201,8 +198,8 @@ describe("ImportPageDialog", () => {
     const user = userEvent.setup();
     server.use(
       http.post(`${API_BASE}/pages/import`, () =>
-        HttpResponse.json({ detail: "Invalid share string." }, { status: 422 })
-      )
+        HttpResponse.json({ detail: "Invalid share string." }, { status: 422 }),
+      ),
     );
 
     const { onOpenChange } = renderDialog();
@@ -227,7 +224,7 @@ describe("ImportPageDialog", () => {
     const { rerender } = render(
       <QueryClientProvider client={queryClient}>
         <ImportPageDialog open={true} onOpenChange={onOpenChange} />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     await user.type(screen.getByRole("textbox"), "some-string");
@@ -237,12 +234,12 @@ describe("ImportPageDialog", () => {
     rerender(
       <QueryClientProvider client={queryClient}>
         <ImportPageDialog open={false} onOpenChange={onOpenChange} />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
     rerender(
       <QueryClientProvider client={queryClient}>
         <ImportPageDialog open={true} onOpenChange={onOpenChange} />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     expect(screen.getByRole("textbox")).toHaveValue("");

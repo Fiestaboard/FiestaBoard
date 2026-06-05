@@ -1,113 +1,141 @@
-import {useState, useEffect, type ReactNode} from 'react';
-import clsx from 'clsx';
-import Link from '@docusaurus/Link';
-import Layout from '@theme/Layout';
-import Heading from '@theme/Heading';
-import BrowserOnly from '@docusaurus/BrowserOnly';
-import {plugins, CATEGORY_LABELS, pluginBoardImagePath} from '@site/src/plugin-data';
-import type {PluginEntry} from '@site/src/plugin-data';
-import {
-  fetchPluginReadme,
-  rewriteMarkdownImageUrls,
-  rewriteMarkdownRepoLinks,
-} from '@site/src/lib/github-readme';
+import BrowserOnly from "@docusaurus/BrowserOnly";
+import Link from "@docusaurus/Link";
+import { fetchPluginReadme, rewriteMarkdownImageUrls, rewriteMarkdownRepoLinks } from "@site/src/lib/github-readme";
+import type { PluginEntry } from "@site/src/plugin-data";
+import { CATEGORY_LABELS, pluginBoardImagePath, plugins } from "@site/src/plugin-data";
+import Heading from "@theme/Heading";
+import Layout from "@theme/Layout";
+import clsx from "clsx";
+import { type ReactNode, useEffect, useState } from "react";
 
-import styles from './detail.module.css';
+import styles from "./detail.module.css";
 
 /* ── README renderer (client-only) ── */
 
-function ReadmeContent({markdown}: {markdown: string}) {
-  const [Markdown, setMarkdown] = useState<React.ComponentType<{children: string}> | null>(null);
+function ReadmeContent({ markdown }: { markdown: string }) {
+  const [Markdown, setMarkdown] = useState<React.ComponentType<{ children: string }> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([import('react-markdown'), import('remark-gfm')]).then(([rm, rgfm]) => {
+    Promise.all([import("react-markdown"), import("remark-gfm")]).then(([rm, rgfm]) => {
       if (cancelled) return;
       const ReactMarkdown = rm.default;
       const remarkGfm = rgfm.default;
 
       // Create a wrapper component that applies remark-gfm and custom renderers
-      const Wrapper = ({children}: {children: string}) => (
+      const Wrapper = ({ children }: { children: string }) => (
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
-            a: ({href, children: kids, ...props}) => (
+            a: ({ href, children: kids, ...props }) => (
               <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
                 {kids}
               </a>
             ),
-            img: ({src, alt, ...props}) => (
-              <img
-                src={src}
-                alt={alt ?? ''}
-                className={styles.readmeImage}
-                loading="lazy"
-                {...props}
-              />
+            img: ({ src, alt, ...props }) => (
+              <img src={src} alt={alt ?? ""} className={styles.readmeImage} loading="lazy" {...props} />
             ),
-            pre: ({children: kids, ...props}) => (
+            pre: ({ children: kids, ...props }) => (
               <pre className={styles.readmePre} {...props}>
                 {kids}
               </pre>
             ),
-            code: ({children: kids, className, ...props}) => {
-              const isBlock = className?.startsWith('language-');
+            code: ({ children: kids, className, ...props }) => {
+              const isBlock = className?.startsWith("language-");
               return isBlock ? (
-                <code className={className} {...props}>{kids}</code>
+                <code className={className} {...props}>
+                  {kids}
+                </code>
               ) : (
-                <code className={styles.readmeInlineCode} {...props}>{kids}</code>
+                <code className={styles.readmeInlineCode} {...props}>
+                  {kids}
+                </code>
               );
             },
-            table: ({children: kids, ...props}) => (
+            table: ({ children: kids, ...props }) => (
               <div className={styles.readmeTableWrap}>
-                <table className={styles.readmeTable} {...props}>{kids}</table>
+                <table className={styles.readmeTable} {...props}>
+                  {kids}
+                </table>
               </div>
             ),
-            thead: ({children: kids, ...props}) => (
-              <thead className={styles.readmeThead} {...props}>{kids}</thead>
+            thead: ({ children: kids, ...props }) => (
+              <thead className={styles.readmeThead} {...props}>
+                {kids}
+              </thead>
             ),
-            th: ({children: kids, ...props}) => (
-              <th className={styles.readmeTh} {...props}>{kids}</th>
+            th: ({ children: kids, ...props }) => (
+              <th className={styles.readmeTh} {...props}>
+                {kids}
+              </th>
             ),
-            td: ({children: kids, ...props}) => (
-              <td className={styles.readmeTd} {...props}>{kids}</td>
+            td: ({ children: kids, ...props }) => (
+              <td className={styles.readmeTd} {...props}>
+                {kids}
+              </td>
             ),
-            h1: ({children: kids, ...props}) => (
-              <h1 className={styles.readmeH1} {...props}>{kids}</h1>
+            h1: ({ children: kids, ...props }) => (
+              <h1 className={styles.readmeH1} {...props}>
+                {kids}
+              </h1>
             ),
-            h2: ({children: kids, ...props}) => (
-              <h2 className={styles.readmeH2} {...props}>{kids}</h2>
+            h2: ({ children: kids, ...props }) => (
+              <h2 className={styles.readmeH2} {...props}>
+                {kids}
+              </h2>
             ),
-            h3: ({children: kids, ...props}) => (
-              <h3 className={styles.readmeH3} {...props}>{kids}</h3>
+            h3: ({ children: kids, ...props }) => (
+              <h3 className={styles.readmeH3} {...props}>
+                {kids}
+              </h3>
             ),
-            p: ({children: kids, ...props}) => (
-              <p className={styles.readmeP} {...props}>{kids}</p>
+            p: ({ children: kids, ...props }) => (
+              <p className={styles.readmeP} {...props}>
+                {kids}
+              </p>
             ),
-            ul: ({children: kids, ...props}) => (
-              <ul className={styles.readmeUl} {...props}>{kids}</ul>
+            ul: ({ children: kids, ...props }) => (
+              <ul className={styles.readmeUl} {...props}>
+                {kids}
+              </ul>
             ),
-            ol: ({children: kids, ...props}) => (
-              <ol className={styles.readmeOl} {...props}>{kids}</ol>
+            ol: ({ children: kids, ...props }) => (
+              <ol className={styles.readmeOl} {...props}>
+                {kids}
+              </ol>
             ),
-            blockquote: ({children: kids, ...props}) => (
-              <blockquote className={styles.readmeBlockquote} {...props}>{kids}</blockquote>
+            blockquote: ({ children: kids, ...props }) => (
+              <blockquote className={styles.readmeBlockquote} {...props}>
+                {kids}
+              </blockquote>
             ),
             hr: () => <hr className={styles.readmeHr} />,
-            strong: ({children: kids, ...props}) => (
-              <strong className={styles.readmeStrong} {...props}>{kids}</strong>
+            strong: ({ children: kids, ...props }) => (
+              <strong className={styles.readmeStrong} {...props}>
+                {kids}
+              </strong>
             ),
-          }}>
+          }}
+        >
           {children}
         </ReactMarkdown>
       );
       setMarkdown(() => Wrapper);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!Markdown) {
-    return <div className={styles.skeleton}><div /><div /><div /><div /></div>;
+    return (
+      <div className={styles.skeleton}>
+        <div />
+        <div />
+        <div />
+        <div />
+      </div>
+    );
   }
 
   return <Markdown>{markdown}</Markdown>;
@@ -116,13 +144,13 @@ function ReadmeContent({markdown}: {markdown: string}) {
 /* ── Detail page content (uses browser APIs) ── */
 
 function DetailContent() {
-  const [boardColor, setBoardColor] = useState<'black' | 'white'>('black');
+  const [boardColor, setBoardColor] = useState<"black" | "white">("black");
   const [readme, setReadme] = useState<string | null>(null);
   const [loadingReadme, setLoadingReadme] = useState(true);
 
   // Read plugin ID from query string
   const params = new URLSearchParams(window.location.search);
-  const pluginId = params.get('id') ?? '';
+  const pluginId = params.get("id") ?? "";
   const plugin: PluginEntry | undefined = plugins.find((p) => p.id === pluginId);
 
   useEffect(() => {
@@ -131,7 +159,7 @@ function DetailContent() {
       return;
     }
     let cancelled = false;
-    fetchPluginReadme(plugin.repository, plugin.branch ?? '')
+    fetchPluginReadme(plugin.repository, plugin.branch ?? "")
       .then((result) => {
         if (cancelled) return;
         if (!result) {
@@ -151,7 +179,9 @@ function DetailContent() {
       .finally(() => {
         if (!cancelled) setLoadingReadme(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [plugin?.repository, plugin?.branch]);
 
   if (!plugin) {
@@ -167,7 +197,7 @@ function DetailContent() {
   }
 
   const categoryLabel = CATEGORY_LABELS[plugin.category] ?? plugin.category;
-  const heroImage = pluginBoardImagePath(plugin, boardColor === 'white' ? 'light' : 'dark');
+  const heroImage = pluginBoardImagePath(plugin, boardColor === "white" ? "light" : "dark");
 
   return (
     <>
@@ -184,7 +214,7 @@ function DetailContent() {
           src={heroImage}
           alt={`${plugin.name} displayed on a split-flap board`}
           onError={(e) => {
-            (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+            (e.target as HTMLImageElement).parentElement!.style.display = "none";
           }}
         />
       </div>
@@ -194,23 +224,19 @@ function DetailContent() {
         <button
           type="button"
           role="radio"
-          className={clsx(
-            styles.boardColorOption,
-            boardColor === 'black' && styles.boardColorOptionActive,
-          )}
-          onClick={() => setBoardColor('black')}
-          aria-checked={boardColor === 'black'}>
+          className={clsx(styles.boardColorOption, boardColor === "black" && styles.boardColorOptionActive)}
+          onClick={() => setBoardColor("black")}
+          aria-checked={boardColor === "black"}
+        >
           Black Board
         </button>
         <button
           type="button"
           role="radio"
-          className={clsx(
-            styles.boardColorOption,
-            boardColor === 'white' && styles.boardColorOptionActive,
-          )}
-          onClick={() => setBoardColor('white')}
-          aria-checked={boardColor === 'white'}>
+          className={clsx(styles.boardColorOption, boardColor === "white" && styles.boardColorOptionActive)}
+          onClick={() => setBoardColor("white")}
+          aria-checked={boardColor === "white"}
+        >
           White Board
         </button>
       </div>
@@ -222,9 +248,7 @@ function DetailContent() {
             <Heading as="h1" className={styles.pluginName}>
               {plugin.name}
             </Heading>
-            <span className={clsx(styles.categoryBadge, styles[`category_${plugin.category}`])}>
-              {categoryLabel}
-            </span>
+            <span className={clsx(styles.categoryBadge, styles[`category_${plugin.category}`])}>{categoryLabel}</span>
           </div>
           <p className={styles.pluginDescription}>{plugin.description}</p>
           <div className={styles.pluginDetails}>
@@ -240,7 +264,8 @@ function DetailContent() {
               href={plugin.repository}
               target="_blank"
               rel="noopener noreferrer"
-              className="button button--outline button--primary button--sm">
+              className="button button--outline button--primary button--sm"
+            >
               View on GitHub ↗
             </a>
           )}
@@ -254,7 +279,10 @@ function DetailContent() {
         </Heading>
         {loadingReadme ? (
           <div className={styles.skeleton}>
-            <div /><div /><div /><div />
+            <div />
+            <div />
+            <div />
+            <div />
           </div>
         ) : readme ? (
           <div className={styles.readmeBody}>
@@ -262,7 +290,7 @@ function DetailContent() {
           </div>
         ) : (
           <p className={styles.readmeEmpty}>
-            Documentation not available.{' '}
+            Documentation not available.{" "}
             {plugin.repository && (
               <a href={plugin.repository} target="_blank" rel="noopener noreferrer">
                 View the source on GitHub
@@ -282,7 +310,15 @@ export default function PluginDetailPage(): ReactNode {
     <Layout title="Plugin Details" description="View plugin details, documentation, and screenshots.">
       <main className={styles.detailPage}>
         <div className="container">
-          <BrowserOnly fallback={<div className={styles.skeleton}><div /><div /><div /></div>}>
+          <BrowserOnly
+            fallback={
+              <div className={styles.skeleton}>
+                <div />
+                <div />
+                <div />
+              </div>
+            }
+          >
             {() => <DetailContent />}
           </BrowserOnly>
         </div>

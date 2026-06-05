@@ -8,7 +8,7 @@
  * NOTE: Tests run sequentially. The wizard must have completed and
  * pages must be accessible.
  */
-import { test, expect, configureBoard, API_URL } from "./helpers";
+import { API_URL, configureBoard, expect, test } from "./helpers";
 
 // Suppress the setup wizard for all tests in this file
 test.beforeEach(async ({ page }) => {
@@ -40,9 +40,7 @@ test.describe("Pages CRUD", () => {
 
     // Navigate to pages
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Verify the page name appears
     await expect(page.getByText(pageName).first()).toBeVisible({
@@ -69,9 +67,7 @@ test.describe("Pages CRUD", () => {
 
     // Navigate to pages
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Verify page exists
     await expect(page.getByText(pageName).first()).toBeVisible({
@@ -87,9 +83,7 @@ test.describe("Pages CRUD", () => {
 
     // Reload and verify page is gone
     await page.reload();
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // The deleted page name should no longer appear
     await expect(page.getByText(pageName)).toHaveCount(0, {
@@ -115,9 +109,7 @@ test.describe("Pages CRUD", () => {
     // List endpoint also returns device_type
     const listRes = await fetch(`${API_URL}/pages`);
     const listData = await listRes.json();
-    const found = listData.pages.find(
-      (p: { id: string }) => p.id === created.page.id,
-    );
+    const found = listData.pages.find((p: { id: string }) => p.id === created.page.id);
     expect(found).toBeDefined();
     expect(found.device_type).toBe("flagship");
 

@@ -2,14 +2,15 @@
 // - TimePicker onChange (handleSilenceTimeChange start + end branches)
 // - mode Select onValueChange (handleSilenceModeChange)
 // - page mode rendering (availablePages.map with real pages)
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
 import { http, HttpResponse } from "msw";
+import { ThemeProvider } from "next-themes";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { mockOutputSettings, mockPages, mockTransitionSettings } from "./mocks/handlers";
 import { server } from "./mocks/server";
-import { mockTransitionSettings, mockOutputSettings, mockPages } from "./mocks/handlers";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -85,9 +86,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 describe("GeneralSettings - silence interaction handlers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    server.use(
-      http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettings())),
-    );
+    server.use(http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettings())));
   });
 
   afterEach(() => server.resetHandlers());
@@ -127,16 +126,12 @@ describe("GeneralSettings - silence interaction handlers", () => {
     await user.click(freezeOption);
 
     // After switching to freeze, the indicator text/position controls disappear
-    await waitFor(() =>
-      expect(screen.queryByLabelText(/message text/i)).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByLabelText(/message text/i)).not.toBeInTheDocument());
   });
 
   it("renders available pages in page mode selector", async () => {
     server.use(
-      http.get(`${API_BASE}/settings/all`, () =>
-        HttpResponse.json(allSettings({ mode: "page" })),
-      ),
+      http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettings({ mode: "page" }))),
       http.get(`${API_BASE}/pages`, () => HttpResponse.json(mockPages)),
     );
 

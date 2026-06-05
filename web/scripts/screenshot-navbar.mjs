@@ -5,9 +5,9 @@
  * Requires: docs site running on port 3001
  */
 
-import { chromium } from '@playwright/test';
-import { fileURLToPath } from 'url';
-import path from 'path';
+import { chromium } from "@playwright/test";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = process.env.PORT || 3001;
@@ -18,12 +18,12 @@ async function main() {
   const page = await browser.newPage();
 
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.goto(url, { waitUntil: "networkidle" });
 
-  const navbar = await page.$('.navbar');
-  const outPath = path.join(__dirname, '..', '..', 'docs-site', 'static', 'img', 'navbar-screenshot.png');
+  const navbar = await page.$(".navbar");
+  const outPath = path.join(__dirname, "..", "..", "docs-site", "static", "img", "navbar-screenshot.png");
   await navbar.screenshot({ path: outPath });
-  console.log('Screenshot saved to', outPath);
+  console.log("Screenshot saved to", outPath);
 
   await browser.close();
 }

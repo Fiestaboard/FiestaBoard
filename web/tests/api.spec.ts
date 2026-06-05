@@ -7,9 +7,11 @@
  *
  * Extended endpoint tests live in api-extended.spec.ts.
  */
-import { test, expect, configureBoard, API_URL } from "./helpers";
+import { API_URL, configureBoard, expect, test } from "./helpers";
 
-function API() { return API_URL; }
+function API() {
+  return API_URL;
+}
 
 // Ensure the board is configured before each API test
 test.beforeEach(async () => {
@@ -315,4 +317,3 @@ test.describe("API – Debug", () => {
     expect(data).toHaveProperty("status");
   });
 });
-

@@ -5,12 +5,7 @@
  * verifying that UI text updates correctly across navigation items,
  * page headings, and that the selected locale persists.
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  suppressWizard,
-} from "./helpers";
+import { configureBoard, expect, suppressWizard, test } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
@@ -20,9 +15,7 @@ test.beforeEach(async ({ page }) => {
 test.describe("Localization", () => {
   test("default language is English", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const html = page.locator("html");
     await expect(html).toHaveAttribute("lang", "en");
@@ -33,14 +26,10 @@ test.describe("Localization", () => {
 
   test("language selector is visible and shows English by default", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
-    const selectorVisible = await langSelector
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (selectorVisible) {
       await expect(langSelector).toContainText("English");
@@ -49,14 +38,10 @@ test.describe("Localization", () => {
 
   test("switching to Spanish updates navigation and page text", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
-    const selectorVisible = await langSelector
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (!selectorVisible) {
       test.skip();
@@ -68,9 +53,7 @@ test.describe("Localization", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator("html")).toHaveAttribute("lang", "es");
-    await expect(
-      page.getByRole("heading", { name: "Panel" }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Panel" })).toBeVisible({ timeout: 10_000 });
 
     await expect(page.getByRole("link", { name: "Páginas" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Configuración" }).first()).toBeVisible();
@@ -78,14 +61,10 @@ test.describe("Localization", () => {
 
   test("switching to French updates navigation", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
-    const selectorVisible = await langSelector
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (!selectorVisible) {
       test.skip();
@@ -97,21 +76,15 @@ test.describe("Localization", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
-    await expect(
-      page.getByRole("heading", { name: "Tableau de bord" }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Tableau de bord" })).toBeVisible({ timeout: 10_000 });
   });
 
   test("switching to German updates navigation", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
-    const selectorVisible = await langSelector
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (!selectorVisible) {
       test.skip();
@@ -123,23 +96,17 @@ test.describe("Localization", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("link", { name: "Seiten" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Einstellungen" }).first()).toBeVisible();
   });
 
   test("switching to Japanese updates navigation", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
-    const selectorVisible = await langSelector
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (!selectorVisible) {
       test.skip();
@@ -155,14 +122,10 @@ test.describe("Localization", () => {
 
   test("locale persists across page navigation", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
-    const selectorVisible = await langSelector
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (!selectorVisible) {
       test.skip();
@@ -175,23 +138,17 @@ test.describe("Localization", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "es");
 
     await page.getByRole("link", { name: "Páginas" }).first().click();
-    await expect(
-      page.getByRole("heading", { name: "Páginas", exact: true }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Páginas", exact: true })).toBeVisible({ timeout: 10_000 });
 
     await expect(page.locator("html")).toHaveAttribute("lang", "es");
   });
 
   test("locale persists after full page reload via cookie", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
-    const selectorVisible = await langSelector
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (!selectorVisible) {
       test.skip();
@@ -207,21 +164,15 @@ test.describe("Localization", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator("html")).toHaveAttribute("lang", "es");
-    await expect(
-      page.getByRole("heading", { name: "Panel" }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Panel" })).toBeVisible({ timeout: 10_000 });
   });
 
   test("switching back to English restores original text", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const langSelector = page.getByRole("combobox", { name: /language/i }).first();
-    const selectorVisible = await langSelector
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+    const selectorVisible = await langSelector.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (!selectorVisible) {
       test.skip();
@@ -241,18 +192,14 @@ test.describe("Localization", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("link", { name: "Pages" }).first()).toBeVisible();
   });
 
   test("mobile menu language text updates with locale change", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // Set cookie directly and reload for mobile
     await page.evaluate(() => {
@@ -264,9 +211,7 @@ test.describe("Localization", () => {
     await page.waitForLoadState("load");
 
     // Open the mobile menu
-    const menuBtn = page
-      .getByRole("button", { name: /menú|menu/i })
-      .first();
+    const menuBtn = page.getByRole("button", { name: /menú|menu/i }).first();
 
     const menuVisible = await menuBtn.isVisible({ timeout: 5_000 }).catch(() => false);
     if (menuVisible) {

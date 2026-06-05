@@ -6,13 +6,7 @@
  * service control, silence schedule, wizard rerun, debug tools,
  * and system info.
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  suppressWizard,
-  API_URL,
-} from "./helpers";
+import { API_URL, configureBoard, expect, suppressWizard, test } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
@@ -75,9 +69,7 @@ test.describe("Settings – Full Coverage", () => {
 
   test("can change output target", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Test via API since the UI control varies
     for (const target of ["ui", "board", "both"]) {
@@ -101,9 +93,7 @@ test.describe("Settings – Full Coverage", () => {
 
   test("can update board type", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Test via API
     const res = await fetch(`${API_URL}/settings/board`, {
@@ -125,16 +115,12 @@ test.describe("Settings – Full Coverage", () => {
 
   test("can start and stop the service", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Status badge lives in About (System tab) or System Controls (also System)
     await page.getByRole("tab", { name: "System", exact: true }).click();
 
-    const statusBadge = page
-      .getByText(/running|stopped/i)
-      .first();
+    const statusBadge = page.getByText(/running|stopped/i).first();
     await expect(statusBadge).toBeVisible({ timeout: 10_000 });
 
     // Service start may fail in Docker (no display loop available).
@@ -151,9 +137,7 @@ test.describe("Settings – Full Coverage", () => {
 
   test("silence schedule section is visible in settings", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Silence Schedule lives under the Behavior tab
     await page.getByRole("tab", { name: "Behavior", exact: true }).click();
@@ -171,18 +155,14 @@ test.describe("Settings – Full Coverage", () => {
     expect(data).toHaveProperty("end_time_utc");
   });
 
-  test("toggling silence schedule saves without 404 (regression: #597)", async ({
-    page,
-  }) => {
+  test("toggling silence schedule saves without 404 (regression: #597)", async ({ page }) => {
     // Snapshot original state so we can restore it at the end
     const originalRes = await fetch(`${API_URL}/silence-status`);
     const original = await originalRes.json();
     const originalEnabled: boolean = original.enabled;
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Silence toggle lives under the Behavior tab
     await page.getByRole("tab", { name: "Behavior", exact: true }).click();
@@ -194,9 +174,7 @@ test.describe("Settings – Full Coverage", () => {
     // (#597) was that this request 404'd because the UI was calling the
     // plugin config endpoint instead of the dedicated feature endpoint.
     const savePromise = page.waitForResponse(
-      (resp) =>
-        resp.url().includes("/settings/silence-schedule") &&
-        resp.request().method() === "PUT",
+      (resp) => resp.url().includes("/settings/silence-schedule") && resp.request().method() === "PUT",
       { timeout: 10_000 },
     );
 
@@ -241,9 +219,7 @@ test.describe("Settings – Full Coverage", () => {
 
   test("can navigate to run setup wizard from settings", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Setup Wizard lives under the System tab
     await page.getByRole("tab", { name: "System", exact: true }).click();
@@ -258,9 +234,7 @@ test.describe("Settings – Full Coverage", () => {
 
   test("debug section shows system info", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Debug Tools lives under the Advanced tab and is a collapsible
     await page.getByRole("tab", { name: "Advanced", exact: true }).click();
@@ -280,27 +254,18 @@ test.describe("Settings – Full Coverage", () => {
 
   test("can clear board cache from debug tools", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Debug Tools lives under the Advanced tab and is a collapsible
     await page.getByRole("tab", { name: "Advanced", exact: true }).click();
     await page.getByText("Debug Tools").first().click();
 
     // Find "Clear Message Cache" button
-    const clearBtn = page
-      .getByRole("button", { name: /clear.*cache/i })
-      .first();
+    const clearBtn = page.getByRole("button", { name: /clear.*cache/i }).first();
 
-    if (
-      await clearBtn.isVisible({ timeout: 5_000 }).catch(() => false)
-    ) {
+    if (await clearBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
       const apiResponse = page.waitForResponse(
-        (r) =>
-          (r.url().includes("/debug/clear-cache") ||
-            r.url().includes("/clear-cache")) &&
-          r.status() === 200,
+        (r) => (r.url().includes("/debug/clear-cache") || r.url().includes("/clear-cache")) && r.status() === 200,
       );
       await clearBtn.click();
       await apiResponse;

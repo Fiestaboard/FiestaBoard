@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Alert, AlertTitle, AlertDescription } from "./alert";
 import { AlertCircle, CheckCircle2, Info, TriangleAlert } from "lucide-react";
+
+import { Alert, AlertDescription, AlertTitle } from "./alert";
 
 const meta = {
   title: "UI/Alert",
@@ -27,9 +28,7 @@ export const Default: Story = {
     children: (
       <>
         <AlertTitle>Heads up!</AlertTitle>
-        <AlertDescription>
-          You can add components to your app using the CLI.
-        </AlertDescription>
+        <AlertDescription>You can add components to your app using the CLI.</AlertDescription>
       </>
     ),
   },
@@ -43,9 +42,7 @@ export const Destructive: Story = {
       <>
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Error</AlertTitle>
-        <AlertDescription>
-          Your session has expired. Please log in again.
-        </AlertDescription>
+        <AlertDescription>Your session has expired. Please log in again.</AlertDescription>
       </>
     ),
   },
@@ -55,9 +52,7 @@ export const WithIcon = () => (
   <Alert className="w-[450px]">
     <Info className="h-4 w-4" />
     <AlertTitle>Information</AlertTitle>
-    <AlertDescription>
-      This is an informational alert with an icon.
-    </AlertDescription>
+    <AlertDescription>This is an informational alert with an icon.</AlertDescription>
   </Alert>
 );
 
@@ -65,9 +60,7 @@ export const Success = () => (
   <Alert className="w-[450px]">
     <CheckCircle2 className="h-4 w-4" />
     <AlertTitle>Success</AlertTitle>
-    <AlertDescription>
-      Your changes have been saved successfully.
-    </AlertDescription>
+    <AlertDescription>Your changes have been saved successfully.</AlertDescription>
   </Alert>
 );
 
@@ -75,9 +68,7 @@ export const Warning = () => (
   <Alert className="w-[450px]">
     <TriangleAlert className="h-4 w-4" />
     <AlertTitle>Warning</AlertTitle>
-    <AlertDescription>
-      Your account is about to reach its usage limit.
-    </AlertDescription>
+    <AlertDescription>Your account is about to reach its usage limit.</AlertDescription>
   </Alert>
 );
 

@@ -155,11 +155,14 @@ export interface DisplayRawResponse {
 }
 
 export interface DisplayRawBatchResponse {
-  displays: Record<string, {
-    data: Record<string, unknown>;
-    available: boolean;
-    error: string | null;
-  }>;
+  displays: Record<
+    string,
+    {
+      data: Record<string, unknown>;
+      available: boolean;
+      error: string | null;
+    }
+  >;
   total: number;
   successful: number;
 }
@@ -339,7 +342,7 @@ export interface TemplateVariables {
 export interface HomeAssistantEntity {
   entity_id: string;
   state: string;
-  attributes: Record<string, any>;
+  attributes: Record<string, unknown>;
   friendly_name: string;
 }
 
@@ -408,34 +411,34 @@ export type FiestaboardConfig = BoardConfig;
 
 // Utility types for API helper endpoints (station finder, stop finder, etc.)
 export interface MuniStop {
-    stop_code: string;
-    stop_id: string;
-    name: string;
-    lat: number | null;
-    lon: number | null;
-    distance_km?: number;
-    routes?: string[];
+  stop_code: string;
+  stop_id: string;
+  name: string;
+  lat: number | null;
+  lon: number | null;
+  distance_km?: number;
+  routes?: string[];
 }
 
 export interface BayWheelsStation {
-    station_id: string;
-    name: string;
-    lat?: number;
-    lon?: number;
-    address?: string;
-    capacity?: number;
-    distance_km?: number;
-    num_bikes_available?: number;
-    electric_bikes?: number;
-    classic_bikes?: number;
-    num_docks_available?: number;
-    is_renting?: boolean;
+  station_id: string;
+  name: string;
+  lat?: number;
+  lon?: number;
+  address?: string;
+  capacity?: number;
+  distance_km?: number;
+  num_bikes_available?: number;
+  electric_bikes?: number;
+  classic_bikes?: number;
+  num_docks_available?: number;
+  is_renting?: boolean;
 }
 
 export interface TrafficRoute {
-    origin: string;
-    destination: string;
-    destination_name: string;
+  origin: string;
+  destination: string;
+  destination_name: string;
 }
 
 export interface StockSymbol {
@@ -505,7 +508,7 @@ export interface ScheduleEntry {
   board_id?: string; // Optional; "" or omitted = default board
   page_id: string;
   start_time: string; // HH:MM format
-  end_time?: string | null;  // HH:MM format or null (open-ended)
+  end_time?: string | null; // HH:MM format or null (open-ended)
   day_pattern: DayPattern;
   custom_days?: string[]; // Only used when day_pattern is "custom"
   enabled: boolean;
@@ -881,16 +884,22 @@ export interface PluginManifest {
     auto_discover?: boolean;
     groups?: Record<string, VariableGroup>;
     simple?: string[] | Record<string, VariableMetadataEntry>;
-    arrays?: Record<string, {
-      label_field: string;
-      item_fields: string[];
-      sub_arrays?: Record<string, {
-        key_type?: "index" | "dynamic";
-        key_field?: string;
-        label_field?: string;
+    arrays?: Record<
+      string,
+      {
+        label_field: string;
         item_fields: string[];
-      }>;
-    }>;
+        sub_arrays?: Record<
+          string,
+          {
+            key_type?: "index" | "dynamic";
+            key_field?: string;
+            label_field?: string;
+            item_fields: string[];
+          }
+        >;
+      }
+    >;
     nested?: Record<string, unknown>;
     dynamic?: boolean;
   };
@@ -1081,12 +1090,7 @@ export interface UpdateStatusResponse {
 
 export type AutoUpdateInterval = "daily" | "weekly" | "monthly" | "manual";
 
-export const AUTO_UPDATE_INTERVALS: AutoUpdateInterval[] = [
-  "daily",
-  "weekly",
-  "monthly",
-  "manual",
-];
+export const AUTO_UPDATE_INTERVALS: AutoUpdateInterval[] = ["daily", "weekly", "monthly", "manual"];
 
 export interface UpdateApplyResponse {
   status: "queued" | "manual";
@@ -1099,8 +1103,6 @@ export interface SystemActionResponse {
   status: "queued";
   action: "restart" | "shutdown";
 }
-
-
 
 // API client with typed methods
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -1128,21 +1130,20 @@ function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
       if (!ct.includes("application/json")) return false;
       // Peek at the body without consuming it for the caller.
       const cloned = res.clone();
-      cloned.json().then((body) => {
-        if (body?.setup_required) {
-          const target = encodeURIComponent(
-            window.location.pathname + window.location.search,
-          );
-          window.location.assign(`/login?redirect=${target}`);
-        }
-      }).catch(() => {
-        // Not JSON or malformed — leave the caller to surface the error.
-      });
+      cloned
+        .json()
+        .then((body) => {
+          if (body?.setup_required) {
+            const target = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.assign(`/login?redirect=${target}`);
+          }
+        })
+        .catch(() => {
+          // Not JSON or malformed — leave the caller to surface the error.
+        });
       return false;
     }
-    const target = encodeURIComponent(
-      window.location.pathname + window.location.search,
-    );
+    const target = encodeURIComponent(window.location.pathname + window.location.search);
     window.location.assign(`/login?redirect=${target}`);
     return true;
   }
@@ -1152,9 +1153,7 @@ function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
 async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: number }): Promise<T> {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchOptions } = options ?? {};
   const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  const signal = fetchOptions.signal
-    ? AbortSignal.any([fetchOptions.signal, timeoutSignal])
-    : timeoutSignal;
+  const signal = fetchOptions.signal ? AbortSignal.any([fetchOptions.signal, timeoutSignal]) : timeoutSignal;
 
   let res: globalThis.Response;
   try {
@@ -1260,10 +1259,8 @@ export const api = {
   getBoardCurrentMessage: () => fetchApi<BoardCurrentMessageResponse>("/board/current-message"),
 
   // Mutations (actions)
-  startService: () =>
-    fetchApi<ActionResponse>("/start", { method: "POST" }),
-  stopService: () =>
-    fetchApi<ActionResponse>("/stop", { method: "POST" }),
+  startService: () => fetchApi<ActionResponse>("/start", { method: "POST" }),
+  stopService: () => fetchApi<ActionResponse>("/stop", { method: "POST" }),
   // Display endpoints
   getDisplays: () => fetchApi<DisplaysResponse>("/displays"),
   getDisplay: (type: string) => fetchApi<DisplayResponse>(`/displays/${type}`),
@@ -1273,7 +1270,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({
         display_types: displayTypes,
-        enabled_only: enabledOnly ?? true
+        enabled_only: enabledOnly ?? true,
       }),
     }),
   sendDisplay: (type: string, target?: "ui" | "board" | "both") => {
@@ -1304,8 +1301,7 @@ export const api = {
     }),
 
   // Temporary override endpoints
-  getTemporaryOverride: () =>
-    fetchApi<TemporaryOverrideStatus>("/settings/temporary-override"),
+  getTemporaryOverride: () => fetchApi<TemporaryOverrideStatus>("/settings/temporary-override"),
   setTemporaryOverride: (request: SetTemporaryOverrideRequest) =>
     fetchApi<TemporaryOverrideStatus>("/settings/temporary-override", {
       method: "POST",
@@ -1330,10 +1326,8 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(page),
     }),
-  deletePage: (pageId: string) =>
-    fetchApi<PageDeleteResponse>(`/pages/${pageId}`, { method: "DELETE" }),
-  previewPage: (pageId: string) =>
-    fetchApi<PagePreviewResponse>(`/pages/${pageId}/preview`, { method: "POST" }),
+  deletePage: (pageId: string) => fetchApi<PageDeleteResponse>(`/pages/${pageId}`, { method: "DELETE" }),
+  previewPage: (pageId: string) => fetchApi<PagePreviewResponse>(`/pages/${pageId}/preview`, { method: "POST" }),
   previewPagesBatch: (pageIds: string[]) =>
     fetchApi<PagePreviewBatchResponse>("/pages/preview/batch", {
       method: "POST",
@@ -1343,16 +1337,14 @@ export const api = {
     const params = target ? `?target=${target}` : "";
     return fetchApi<PageSendResponse>(`/pages/${pageId}/send${params}`, { method: "POST" });
   },
-  getPageShareString: (pageId: string) =>
-    fetchApi<{ share_string: string }>(`/pages/${pageId}/share`),
+  getPageShareString: (pageId: string) => fetchApi<{ share_string: string }>(`/pages/${pageId}/share`),
   importPage: (shareString: string) =>
     fetchApi<{ status: string; page: Page }>("/pages/import", {
       method: "POST",
       body: JSON.stringify({ share_string: shareString }),
     }),
   getStaffPicks: () => fetchApi<StaffPick[]>("/staff-picks"),
-  getStaffPickShareString: (pickId: string) =>
-    fetchApi<{ share_string: string }>(`/staff-picks/${pickId}/share`),
+  getStaffPickShareString: (pickId: string) => fetchApi<{ share_string: string }>(`/staff-picks/${pickId}/share`),
 
   // Templates endpoints
   getTemplateVariables: () => fetchApi<TemplateVariables>("/templates/variables"),
@@ -1365,12 +1357,27 @@ export const api = {
   renderTemplate: (template: string | string[], lineMetadata?: LineMetadata[], deviceType?: string) =>
     fetchApi<TemplateRenderResponse>("/templates/render", {
       method: "POST",
-      body: JSON.stringify({ template, ...(lineMetadata && { line_metadata: lineMetadata }), ...(deviceType && { device_type: deviceType }) }),
+      body: JSON.stringify({
+        template,
+        ...(lineMetadata && { line_metadata: lineMetadata }),
+        ...(deviceType && { device_type: deviceType }),
+      }),
     }),
-  renderTemplateLive: (template: string | string[], boardId?: string, lineMetadata?: LineMetadata[], deviceType?: string, signal?: AbortSignal) =>
+  renderTemplateLive: (
+    template: string | string[],
+    boardId?: string,
+    lineMetadata?: LineMetadata[],
+    deviceType?: string,
+    signal?: AbortSignal,
+  ) =>
     fetchApi<TemplateRenderLiveResponse>("/templates/render/live", {
       method: "POST",
-      body: JSON.stringify({ template, ...(boardId && { board_id: boardId }), ...(lineMetadata && { line_metadata: lineMetadata }), ...(deviceType && { device_type: deviceType }) }),
+      body: JSON.stringify({
+        template,
+        ...(boardId && { board_id: boardId }),
+        ...(lineMetadata && { line_metadata: lineMetadata }),
+        ...(deviceType && { device_type: deviceType }),
+      }),
       signal,
     }),
   forceRefresh: () =>
@@ -1380,9 +1387,7 @@ export const api = {
 
   // Schedule endpoints (optional boardId for per-board schedules)
   getSchedules: (boardId?: string) =>
-    fetchApi<SchedulesResponse>(
-      boardId ? `/schedules?board_id=${encodeURIComponent(boardId)}` : "/schedules"
-    ),
+    fetchApi<SchedulesResponse>(boardId ? `/schedules?board_id=${encodeURIComponent(boardId)}` : "/schedules"),
 
   createSchedule: (data: ScheduleCreate) =>
     fetchApi<ScheduleEntry>("/schedules", {
@@ -1390,8 +1395,7 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  getSchedule: (scheduleId: string) =>
-    fetchApi<ScheduleEntry>(`/schedules/${scheduleId}`),
+  getSchedule: (scheduleId: string) => fetchApi<ScheduleEntry>(`/schedules/${scheduleId}`),
 
   updateSchedule: (scheduleId: string, data: ScheduleUpdate) =>
     fetchApi<ScheduleEntry>(`/schedules/${scheduleId}`, {
@@ -1406,7 +1410,7 @@ export const api = {
 
   getActiveSchedule: (boardId?: string) =>
     fetchApi<ActiveScheduleResponse>(
-      boardId ? `/schedules/active/page?board_id=${encodeURIComponent(boardId)}` : "/schedules/active/page"
+      boardId ? `/schedules/active/page?board_id=${encodeURIComponent(boardId)}` : "/schedules/active/page",
     ),
 
   validateSchedules: (boardId?: string) =>
@@ -1417,35 +1421,28 @@ export const api = {
 
   getDefaultPage: (boardId?: string) =>
     fetchApi<DefaultPageResponse>(
-      boardId ? `/schedules/default-page?board_id=${encodeURIComponent(boardId)}` : "/schedules/default-page"
+      boardId ? `/schedules/default-page?board_id=${encodeURIComponent(boardId)}` : "/schedules/default-page",
     ),
 
   setDefaultPage: (pageId: string | null, boardId?: string) =>
-    fetchApi<{ status: string; default_page_id: string | null }>(
-      "/schedules/default-page",
-      {
-        method: "PUT",
-        body: JSON.stringify({ page_id: pageId, ...(boardId != null && { board_id: boardId }) }),
-      }
-    ),
+    fetchApi<{ status: string; default_page_id: string | null }>("/schedules/default-page", {
+      method: "PUT",
+      body: JSON.stringify({ page_id: pageId, ...(boardId != null && { board_id: boardId }) }),
+    }),
 
   getScheduleEnabled: (boardId?: string) =>
     fetchApi<ScheduleEnabledResponse>(
-      boardId ? `/schedules/enabled?board_id=${encodeURIComponent(boardId)}` : "/schedules/enabled"
+      boardId ? `/schedules/enabled?board_id=${encodeURIComponent(boardId)}` : "/schedules/enabled",
     ),
 
   setScheduleEnabled: (enabled: boolean, boardId?: string) =>
-    fetchApi<{ status: string; enabled: boolean; message: string }>(
-      "/schedules/enabled",
-      {
-        method: "PUT",
-        body: JSON.stringify({ enabled, ...(boardId != null && { board_id: boardId }) }),
-      }
-    ),
+    fetchApi<{ status: string; enabled: boolean; message: string }>("/schedules/enabled", {
+      method: "PUT",
+      body: JSON.stringify({ enabled, ...(boardId != null && { board_id: boardId }) }),
+    }),
 
   // Carousel endpoints
-  getCarousels: () =>
-    fetchApi<CarouselsResponse>("/carousels"),
+  getCarousels: () => fetchApi<CarouselsResponse>("/carousels"),
 
   createCarousel: (data: CarouselCreate) =>
     fetchApi<{ status: string; carousel: Carousel }>("/carousels", {
@@ -1453,8 +1450,7 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  getCarousel: (carouselId: string) =>
-    fetchApi<Carousel>(`/carousels/${carouselId}`),
+  getCarousel: (carouselId: string) => fetchApi<Carousel>(`/carousels/${carouselId}`),
 
   updateCarousel: (carouselId: string, data: CarouselUpdate) =>
     fetchApi<{ status: string; carousel: Carousel }>(`/carousels/${carouselId}`, {
@@ -1469,16 +1465,14 @@ export const api = {
 
   // Configuration endpoints
   getFullConfig: () => fetchApi<FullConfig>("/config/full"),
-  getBoardConfig: () =>
-    fetchApi<{ config: BoardConfig; api_modes: string[] }>("/config/board"),
+  getBoardConfig: () => fetchApi<{ config: BoardConfig; api_modes: string[] }>("/config/board"),
   updateBoardConfig: (config: Partial<BoardConfig>) =>
     fetchApi<{ status: string; config: BoardConfig }>("/config/board", {
       method: "PUT",
       body: JSON.stringify(config),
     }),
   // Backward compatibility aliases
-  getFiestaboardConfig: () =>
-    fetchApi<{ config: BoardConfig; api_modes: string[] }>("/config/board"),
+  getFiestaboardConfig: () => fetchApi<{ config: BoardConfig; api_modes: string[] }>("/config/board"),
   updateFiestaboardConfig: (config: Partial<BoardConfig>) =>
     fetchApi<{ status: string; config: BoardConfig }>("/config/board", {
       method: "PUT",
@@ -1487,8 +1481,7 @@ export const api = {
   validateConfig: () => fetchApi<ConfigValidationResponse>("/config/validate"),
 
   // Bay Wheels station search endpoints
-  listBayWheelsStations: () =>
-    fetchApi<{ stations: BayWheelsStation[]; total: number }>("/baywheels/stations"),
+  listBayWheelsStations: () => fetchApi<{ stations: BayWheelsStation[]; total: number }>("/baywheels/stations"),
   findNearbyBayWheelsStations: (lat: number, lng: number, radius?: number, limit?: number) => {
     const params = new URLSearchParams({
       lat: lat.toString(),
@@ -1519,8 +1512,7 @@ export const api = {
   },
 
   // MUNI stop search endpoints
-  listMuniStops: () =>
-    fetchApi<{ stops: MuniStop[]; total: number }>("/muni/stops"),
+  listMuniStops: () => fetchApi<{ stops: MuniStop[]; total: number }>("/muni/stops"),
   findNearbyMuniStops: (lat: number, lng: number, radius?: number, limit?: number) => {
     const params = new URLSearchParams({
       lat: lat.toString(),
@@ -1556,7 +1548,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ address }),
     }),
-  validateTrafficRoute: (origin: string, destination: string, destination_name: string, travel_mode: string = "DRIVE") =>
+  validateTrafficRoute: (
+    origin: string,
+    destination: string,
+    destination_name: string,
+    travel_mode: string = "DRIVE",
+  ) =>
     fetchApi<{
       valid: boolean;
       distance_km?: number;
@@ -1566,7 +1563,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ origin, destination, destination_name, travel_mode }),
     }),
-  
+
   // Stocks endpoints
   searchStockSymbols: (query: string, limit?: number) => {
     const params = new URLSearchParams({
@@ -1584,7 +1581,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ symbol }),
     }),
-  
+
   // General configuration
   getGeneralConfig: () => fetchApi<GeneralConfig>("/config/general"),
   updateGeneralConfig: (config: Partial<GeneralConfig>) =>
@@ -1593,7 +1590,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
     }),
-  
+
   // Silence mode status
   getSilenceStatus: () => fetchApi<SilenceStatus>("/silence-status"),
 
@@ -1624,7 +1621,11 @@ export const api = {
 
   // Board settings
   getBoardSettings: () => fetchApi<BoardSettings>("/settings/board"),
-  updateBoardSettings: (updates: { board_type?: "black" | "white" | null; devices?: DeviceType[]; boards?: BoardInstance[] }) =>
+  updateBoardSettings: (updates: {
+    board_type?: "black" | "white" | null;
+    devices?: DeviceType[];
+    boards?: BoardInstance[];
+  }) =>
     fetchApi<{ status: string; settings: BoardSettings }>("/settings/board", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -1682,29 +1683,22 @@ export const api = {
     }),
 
   // Home Assistant endpoints
-  getHomeAssistantEntities: () =>
-    fetchApi<HomeAssistantEntitiesResponse>("/home-assistant/entities"),
+  getHomeAssistantEntities: () => fetchApi<HomeAssistantEntitiesResponse>("/home-assistant/entities"),
 
   // Queue-Times (Disney parks) picker
-  getQueueTimesParks: () =>
-    fetchApi<QueueTimesPark[]>("/queue-times/parks"),
-  getQueueTimesRides: (parkId: number) =>
-    fetchApi<QueueTimesRide[]>(`/queue-times/parks/${parkId}/rides`),
+  getQueueTimesParks: () => fetchApi<QueueTimesPark[]>("/queue-times/parks"),
+  getQueueTimesRides: (parkId: number) => fetchApi<QueueTimesRide[]>(`/queue-times/parks/${parkId}/rides`),
 
   // Version endpoint
-  getVersion: () =>
-    fetchApi<VersionResponse>("/version"),
+  getVersion: () => fetchApi<VersionResponse>("/version"),
 
   // System management endpoints
-  checkForUpdate: () =>
-    fetchApi<UpdateCheckResponse>("/system/update-check"),
+  checkForUpdate: () => fetchApi<UpdateCheckResponse>("/system/update-check"),
 
   // Self-update sidecar endpoints (5.0+)
-  getUpdateStatus: () =>
-    fetchApi<UpdateStatusResponse>("/system/update/status"),
+  getUpdateStatus: () => fetchApi<UpdateStatusResponse>("/system/update/status"),
 
-  applyUpdate: () =>
-    fetchApi<UpdateApplyResponse>("/system/update", { method: "POST" }),
+  applyUpdate: () => fetchApi<UpdateApplyResponse>("/system/update", { method: "POST" }),
 
   setAutoUpdate: (enabled: boolean) =>
     fetchApi<{ enabled: boolean; interval: AutoUpdateInterval }>("/system/update/auto", {
@@ -1718,61 +1712,50 @@ export const api = {
       body: JSON.stringify({ interval }),
     }),
 
-  restartSystem: () =>
-    fetchApi<SystemActionResponse>("/system/restart", { method: "POST" }),
+  restartSystem: () => fetchApi<SystemActionResponse>("/system/restart", { method: "POST" }),
 
-  shutdownSystem: () =>
-    fetchApi<SystemActionResponse>("/system/shutdown", { method: "POST" }),
+  shutdownSystem: () => fetchApi<SystemActionResponse>("/system/shutdown", { method: "POST" }),
 
   // Plugin system endpoints
-  listPlugins: () =>
-    fetchApi<PluginsListResponse>("/plugins"),
-  
-  getPlugin: (pluginId: string) =>
-    fetchApi<PluginDetailResponse>(`/plugins/${pluginId}`),
-  
-  getPluginManifest: (pluginId: string) =>
-    fetchApi<PluginManifest>(`/plugins/${pluginId}/manifest`),
-  
+  listPlugins: () => fetchApi<PluginsListResponse>("/plugins"),
+
+  getPlugin: (pluginId: string) => fetchApi<PluginDetailResponse>(`/plugins/${pluginId}`),
+
+  getPluginManifest: (pluginId: string) => fetchApi<PluginManifest>(`/plugins/${pluginId}/manifest`),
+
   updatePluginConfig: (pluginId: string, config: Record<string, unknown>) =>
     fetchApi<PluginConfigUpdateResponse>(`/plugins/${pluginId}/config`, {
       method: "PUT",
       body: JSON.stringify({ config }),
     }),
-  
+
   enablePlugin: (pluginId: string) =>
     fetchApi<PluginEnableResponse>(`/plugins/${pluginId}/enable`, {
       method: "POST",
     }),
-  
+
   disablePlugin: (pluginId: string) =>
     fetchApi<PluginEnableResponse>(`/plugins/${pluginId}/disable`, {
       method: "POST",
     }),
-  
-  getPluginData: (pluginId: string) =>
-    fetchApi<PluginDataResponse>(`/plugins/${pluginId}/data`),
-  
-  getPluginVariables: (pluginId: string) =>
-    fetchApi<PluginVariablesResponse>(`/plugins/${pluginId}/variables`),
 
-  getPluginDemoPage: (pluginId: string) =>
-    fetchApi<PluginDemoPageResponse>(`/plugins/${pluginId}/demo-page`),
+  getPluginData: (pluginId: string) => fetchApi<PluginDataResponse>(`/plugins/${pluginId}/data`),
+
+  getPluginVariables: (pluginId: string) => fetchApi<PluginVariablesResponse>(`/plugins/${pluginId}/variables`),
+
+  getPluginDemoPage: (pluginId: string) => fetchApi<PluginDemoPageResponse>(`/plugins/${pluginId}/demo-page`),
 
   createPluginDemoPage: (pluginId: string) =>
     fetchApi<PluginDemoPageCreateResponse>(`/plugins/${pluginId}/demo-page`, {
       method: "POST",
     }),
 
-  getAllPluginVariables: () =>
-    fetchApi<AllPluginVariablesResponse>("/plugins/variables/all"),
-  
-  getPluginErrors: () =>
-    fetchApi<PluginErrorsResponse>("/plugins/errors"),
+  getAllPluginVariables: () => fetchApi<AllPluginVariablesResponse>("/plugins/variables/all"),
+
+  getPluginErrors: () => fetchApi<PluginErrorsResponse>("/plugins/errors"),
 
   // Plugin instance endpoints
-  listPluginInstances: (pluginId: string) =>
-    fetchApi<PluginInstancesResponse>(`/plugins/${pluginId}/instances`),
+  listPluginInstances: (pluginId: string) => fetchApi<PluginInstancesResponse>(`/plugins/${pluginId}/instances`),
 
   createPluginInstance: (pluginId: string, label: string) =>
     fetchApi<PluginInstanceCreateResponse>(`/plugins/${pluginId}/instances`, {
@@ -1786,8 +1769,7 @@ export const api = {
     }),
 
   // Plugin registry endpoints
-  listRegistryPlugins: () =>
-    fetchApi<RegistryListResponse>("/plugins/registry"),
+  listRegistryPlugins: () => fetchApi<RegistryListResponse>("/plugins/registry"),
 
   installRegistryPlugin: (pluginId: string) =>
     fetchApi<PluginInstallResponse>(`/plugins/registry/${pluginId}/install`, {
@@ -1810,8 +1792,7 @@ export const api = {
       method: "POST",
     }),
 
-  getPluginUpdates: () =>
-    fetchApi<PluginUpdatesResponse>("/plugins/updates"),
+  getPluginUpdates: () => fetchApi<PluginUpdatesResponse>("/plugins/updates"),
 
   triggerPluginUpdateCheck: () =>
     fetchApi<PluginUpdateCheckResponse>("/plugins/updates/check", {
@@ -1839,18 +1820,18 @@ export const api = {
 
   // Setup wizard endpoints
   validateSetup: () => fetchApi<ConfigValidationResponse>("/config/validate"),
-  
+
   testBoardConnection: (request: BoardTestRequest) =>
     fetchApi<BoardTestResponse>("/config/board/test", {
       method: "POST",
       body: JSON.stringify(request),
     }),
-  
+
   sendWelcomeMessage: () =>
     fetchApi<WelcomeMessageResponse>("/send-welcome-message", {
       method: "POST",
     }),
-  
+
   enableLocalApi: (request: EnableLocalApiRequest) =>
     fetchApi<EnableLocalApiResponse>("/config/board/enable-local-api", {
       method: "POST",
@@ -1864,32 +1845,25 @@ export const api = {
     }),
 
   // Debug endpoints
-  blankBoard: () => 
-    fetchApi<ActionResponse>("/debug/blank", { method: "POST" }),
-  
+  blankBoard: () => fetchApi<ActionResponse>("/debug/blank", { method: "POST" }),
+
   fillBoard: (characterCode: number) =>
     fetchApi<ActionResponse>("/debug/fill", {
       method: "POST",
       body: JSON.stringify({ character_code: characterCode }),
     }),
-  
-  showDebugInfo: () =>
-    fetchApi<ActionResponse>("/debug/info", { method: "POST" }),
-  
-  testDebugConnection: () =>
-    fetchApi<DebugTestResponse>("/debug/test-connection", { method: "POST" }),
-  
-  clearBoardCache: () =>
-    fetchApi<ActionResponse>("/debug/clear-cache", { method: "POST" }),
-  
-  getBoardCacheStatus: () =>
-    fetchApi<DebugCacheStatus>("/debug/cache-status"),
-  
-  getDebugSystemInfo: () =>
-    fetchApi<DebugSystemInfo>("/debug/system-info"),
 
-  getNetworkDiagnostics: () =>
-    fetchApi<NetworkDiagnosticsResponse>("/debug/network-diagnostics"),
+  showDebugInfo: () => fetchApi<ActionResponse>("/debug/info", { method: "POST" }),
+
+  testDebugConnection: () => fetchApi<DebugTestResponse>("/debug/test-connection", { method: "POST" }),
+
+  clearBoardCache: () => fetchApi<ActionResponse>("/debug/clear-cache", { method: "POST" }),
+
+  getBoardCacheStatus: () => fetchApi<DebugCacheStatus>("/debug/cache-status"),
+
+  getDebugSystemInfo: () => fetchApi<DebugSystemInfo>("/debug/system-info"),
+
+  getNetworkDiagnostics: () => fetchApi<NetworkDiagnosticsResponse>("/debug/network-diagnostics"),
 
   getMqttSettings: () => fetchApi<MqttSettings>("/settings/mqtt"),
 
@@ -1899,8 +1873,7 @@ export const api = {
       body: JSON.stringify(updates),
     }),
 
-  getMqttStatus: () =>
-    fetchApi<{ enabled: boolean; connected: boolean; running: boolean }>("/mqtt/status"),
+  getMqttStatus: () => fetchApi<{ enabled: boolean; connected: boolean; running: boolean }>("/mqtt/status"),
 
   // Backup & Restore — return URL/raw content directly so the browser can
   // trigger a file download or upload arbitrary JSON.
@@ -1940,11 +1913,7 @@ export const api = {
       body: JSON.stringify(updates),
     }),
 
-  testAiProvider: (params: {
-    provider_id?: string;
-    model?: string;
-    provider?: AIProvider;
-  }) =>
+  testAiProvider: (params: { provider_id?: string; model?: string; provider?: AIProvider }) =>
     fetchApi<AITestResult>("/settings/ai/test", {
       method: "POST",
       body: JSON.stringify(params),
@@ -1987,8 +1956,7 @@ export const api = {
 
   getAuthStatus: () => fetchApi<AuthStatusResponse>("/auth/status"),
 
-  logout: () =>
-    fetchApi<{ status: string }>("/auth/logout", { method: "POST" }),
+  logout: () => fetchApi<{ status: string }>("/auth/logout", { method: "POST" }),
 
   /**
    * Change the signed-in user's password. Uses a bespoke fetch (rather than
@@ -2116,11 +2084,9 @@ export const api = {
    * plaintext value ONCE. The caller is responsible for showing it to
    * the user immediately — it can't be read back after this response.
    */
-  rotateMcpToken: () =>
-    fetchApi<{ token: string }>("/auth/mcp-token", { method: "POST" }),
+  rotateMcpToken: () => fetchApi<{ token: string }>("/auth/mcp-token", { method: "POST" }),
 
-  clearMcpToken: () =>
-    fetchApi<{ status: string }>("/auth/mcp-token", { method: "DELETE" }),
+  clearMcpToken: () => fetchApi<{ status: string }>("/auth/mcp-token", { method: "DELETE" }),
 
   // ── WiFi (FiestaPi only) ────────────────────────────────────────────────
   getWifiCapability: () => fetchApi<WifiCapability>("/network/wifi/capability"),
@@ -2139,11 +2105,7 @@ export const api = {
       // connect = nmcli add + up + nm-online (up to ~30s wait).
       timeoutMs: 90_000,
     }),
-  disconnectWifi: () =>
-    fetchApi<WifiStatus>("/network/wifi/disconnect", { method: "POST" }),
+  disconnectWifi: () => fetchApi<WifiStatus>("/network/wifi/disconnect", { method: "POST" }),
   forgetWifi: (conName: string) =>
-    fetchApi<{ status: string }>(
-      `/network/wifi/saved/${encodeURIComponent(conName)}`,
-      { method: "DELETE" },
-    ),
+    fetchApi<{ status: string }>(`/network/wifi/saved/${encodeURIComponent(conName)}`, { method: "DELETE" }),
 };

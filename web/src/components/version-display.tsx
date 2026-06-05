@@ -1,15 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import { Package, ArrowUpCircle } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { ArrowUpCircle, Package } from "lucide-react";
 import { useTranslations } from "next-intl";
+
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { api } from "@/lib/api";
 
 export function VersionDisplay() {
   const t = useTranslations("versionDisplay");
@@ -57,4 +53,3 @@ export function VersionDisplay() {
     </div>
   );
 }
-

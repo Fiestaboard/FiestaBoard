@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { WifiOff, RefreshCw } from "lucide-react";
+import { RefreshCw, WifiOff } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 
 export default function OfflinePage() {
   const [isOnline, setIsOnline] = useState(false);
@@ -50,14 +50,8 @@ export default function OfflinePage() {
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {isOnline ? t("reconnecting") : t("youreOffline")}
-          </h1>
-          <p className="text-muted-foreground">
-            {isOnline
-              ? t("connectionRestored")
-              : t("offlineDescription")}
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">{isOnline ? t("reconnecting") : t("youreOffline")}</h1>
+          <p className="text-muted-foreground">{isOnline ? t("connectionRestored") : t("offlineDescription")}</p>
         </div>
 
         {!isOnline && (
@@ -90,4 +84,3 @@ export default function OfflinePage() {
     </div>
   );
 }
-

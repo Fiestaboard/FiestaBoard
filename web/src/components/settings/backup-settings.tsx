@@ -1,11 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { AlertTriangle, Database, Download, Loader2, Upload } from "lucide-react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,8 +15,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
-import { Download, Upload, Loader2, Database, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
 
 interface PendingImport {
@@ -99,11 +100,7 @@ export function BackupSettings() {
       return;
     }
 
-    if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !(parsed as Record<string, unknown>).fiestaboard_backup
-    ) {
+    if (!parsed || typeof parsed !== "object" || !(parsed as Record<string, unknown>).fiestaboard_backup) {
       toast.error("This does not look like a FiestaBoard backup file.");
       return;
     }
@@ -130,20 +127,14 @@ export function BackupSettings() {
             Backup &amp; Restore
           </CardTitle>
           <CardDescription>
-            Export all of your FiestaBoard configuration — board settings,
-            pages, carousels, schedules and plugin configuration — as a single
-            JSON file. Re-upload that file on a new instance to migrate or
-            recover after an upgrade.
+            Export all of your FiestaBoard configuration — board settings, pages, carousels, schedules and plugin
+            configuration — as a single JSON file. Re-upload that file on a new instance to migrate or recover after an
+            upgrade.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              variant="default"
-              className="gap-2"
-              onClick={handleExport}
-              disabled={importMutation.isPending}
-            >
+            <Button variant="default" className="gap-2" onClick={handleExport} disabled={importMutation.isPending}>
               <Download className="h-4 w-4" />
               Export backup
             </Button>
@@ -153,11 +144,7 @@ export function BackupSettings() {
               onClick={() => fileInputRef.current?.click()}
               disabled={importMutation.isPending}
             >
-              {importMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4" />
-              )}
+              {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
               Import backup…
             </Button>
             <input
@@ -170,33 +157,31 @@ export function BackupSettings() {
           </div>
 
           <div className="flex items-start gap-3 rounded-md border border-border/60 bg-muted/40 p-3">
-            <Switch
-              id="backup-reinstall-plugins"
-              checked={reinstallPlugins}
-              onCheckedChange={setReinstallPlugins}
-            />
+            <Switch id="backup-reinstall-plugins" checked={reinstallPlugins} onCheckedChange={setReinstallPlugins} />
             <div className="space-y-1">
               <Label htmlFor="backup-reinstall-plugins" className="cursor-pointer">
                 Reinstall external plugins after import
               </Label>
               <p className="text-xs text-muted-foreground">
-                When enabled, FiestaBoard will attempt to clone any external
-                plugins recorded in the backup that are not yet installed on
-                this instance. Their configuration is restored from the
-                backup either way.
+                When enabled, FiestaBoard will attempt to clone any external plugins recorded in the backup that are not
+                yet installed on this instance. Their configuration is restored from the backup either way.
               </p>
             </div>
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Note: backups contain sensitive values such as API keys and board
-            credentials in plain text. Store the file securely and do not
-            share it publicly.
+            Note: backups contain sensitive values such as API keys and board credentials in plain text. Store the file
+            securely and do not share it publicly.
           </p>
         </CardContent>
       </Card>
 
-      <AlertDialog open={pending !== null} onOpenChange={(open) => { if (!open) setPending(null); }}>
+      <AlertDialog
+        open={pending !== null}
+        onOpenChange={(open) => {
+          if (!open) setPending(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -204,20 +189,14 @@ export function BackupSettings() {
               Replace current configuration?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to restore <span className="font-medium">{pending?.fileName}</span>.
-              Your existing pages, carousels, schedules and configuration will
-              be overwritten. A timestamped copy of each existing file is kept
-              alongside the new one so you can roll back manually if needed.
+              You are about to restore <span className="font-medium">{pending?.fileName}</span>. Your existing pages,
+              carousels, schedules and configuration will be overwritten. A timestamped copy of each existing file is
+              kept alongside the new one so you can roll back manually if needed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={importMutation.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmImport}
-              disabled={importMutation.isPending}
-            >
+            <AlertDialogCancel disabled={importMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmImport} disabled={importMutation.isPending}>
               {importMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />

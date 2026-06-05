@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect, CSSProperties } from "react";
-import { createPortal } from "react-dom";
-import { cn } from "@/lib/utils";
-import { ALL_TIMEZONES } from "@/lib/timezone-utils";
-import { Input } from "@/components/ui/input";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
+import type { CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ALL_TIMEZONES } from "@/lib/timezone-utils";
+import { cn } from "@/lib/utils";
 
 interface TimezonePickerProps {
   value: string;
@@ -18,14 +20,7 @@ interface TimezonePickerProps {
   id?: string;
 }
 
-export function TimezonePicker({ 
-  value, 
-  onChange, 
-  className, 
-  disabled,
-  onValidationChange,
-  id,
-}: TimezonePickerProps) {
+export function TimezonePicker({ value, onChange, className, disabled, onValidationChange, id }: TimezonePickerProps) {
   const t = useTranslations("timezonePicker");
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -46,12 +41,13 @@ export function TimezonePicker({
     if (!searchQuery.trim()) {
       return ALL_TIMEZONES;
     }
-    
+
     const query = searchQuery.toLowerCase();
-    return ALL_TIMEZONES.filter((tz) => 
-      tz.value.toLowerCase().includes(query) ||
-      tz.label.toLowerCase().includes(query) ||
-      tz.offset.toLowerCase().includes(query)
+    return ALL_TIMEZONES.filter(
+      (tz) =>
+        tz.value.toLowerCase().includes(query) ||
+        tz.label.toLowerCase().includes(query) ||
+        tz.offset.toLowerCase().includes(query),
     );
   }, [searchQuery]);
 
@@ -107,9 +103,10 @@ export function TimezonePicker({
         const rect = containerRef.current.getBoundingClientRect();
         const dropdownMaxHeight = 240;
         const spaceBelow = window.innerHeight - rect.bottom;
-        const top = spaceBelow >= dropdownMaxHeight || spaceBelow >= rect.top
-          ? rect.bottom + 4
-          : rect.top - dropdownMaxHeight - 4;
+        const top =
+          spaceBelow >= dropdownMaxHeight || spaceBelow >= rect.top
+            ? rect.bottom + 4
+            : rect.top - dropdownMaxHeight - 4;
         setDropdownStyle({
           position: "fixed",
           top,
@@ -159,14 +156,12 @@ export function TimezonePicker({
     setSearchQuery(newValue);
     setIsOpen(true);
     setHighlightedIndex(-1); // Reset highlight when typing
-    
+
     // Only propagate changes when the user types an exact IANA timezone match.
     // Do NOT call onChange with partial search text — that would store an
     // invalid timezone in the parent's config state and cause a 400 when saving.
     // The value is committed via handleSelect when the user picks from the list.
-    const exactMatch = ALL_TIMEZONES.find(
-      (tz) => tz.value.toLowerCase() === newValue.toLowerCase()
-    );
+    const exactMatch = ALL_TIMEZONES.find((tz) => tz.value.toLowerCase() === newValue.toLowerCase());
     if (exactMatch) {
       onChange(exactMatch.value);
     }
@@ -177,9 +172,8 @@ export function TimezonePicker({
       const rect = containerRef.current.getBoundingClientRect();
       const dropdownMaxHeight = 240; // max-h-60 = 15rem = 240px
       const spaceBelow = window.innerHeight - rect.bottom;
-      const top = spaceBelow >= dropdownMaxHeight || spaceBelow >= rect.top
-        ? rect.bottom + 4
-        : rect.top - dropdownMaxHeight - 4;
+      const top =
+        spaceBelow >= dropdownMaxHeight || spaceBelow >= rect.top ? rect.bottom + 4 : rect.top - dropdownMaxHeight - 4;
       setDropdownStyle({
         position: "fixed",
         top,
@@ -265,10 +259,7 @@ export function TimezonePicker({
           onKeyDown={handleInputKeyDown}
           disabled={disabled}
           placeholder={t("placeholder")}
-          className={cn(
-            "pr-10",
-            !isValid && value && "border-destructive focus-visible:ring-destructive"
-          )}
+          className={cn("pr-10", !isValid && value && "border-destructive focus-visible:ring-destructive")}
         />
         <Button
           type="button"
@@ -286,10 +277,10 @@ export function TimezonePicker({
           <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
         </Button>
       </div>
-      
+
       {typeof window !== "undefined" && isOpen && filteredTimezones.length > 0
         ? createPortal(
-            <div 
+            <div
               ref={listRef}
               role="listbox"
               aria-label={t("optionsAriaLabel")}
@@ -309,17 +300,13 @@ export function TimezonePicker({
                       "hover:bg-accent hover:text-accent-foreground",
                       "focus:bg-accent focus:text-accent-foreground",
                       isHighlighted && "bg-accent text-accent-foreground",
-                      isSelected && "bg-accent/50"
+                      isSelected && "bg-accent/50",
                     )}
                     onClick={() => handleSelect(timezone.value)}
                     onMouseEnter={() => setHighlightedIndex(index)}
                   >
-                    {isSelected && (
-                      <Check className="mr-2 h-4 w-4" />
-                    )}
-                    <span className={isSelected ? "" : "ml-6"}>
-                      {timezone.label}
-                    </span>
+                    {isSelected && <Check className="mr-2 h-4 w-4" />}
+                    <span className={isSelected ? "" : "ml-6"}>{timezone.label}</span>
                   </button>
                 );
               })}
@@ -329,15 +316,11 @@ export function TimezonePicker({
                 </div>
               )}
             </div>,
-            document.body
+            document.body,
           )
         : null}
-      
-      {!isValid && value && (
-        <p className="mt-1 text-xs text-destructive">
-          {t("invalidTimezone")}
-        </p>
-      )}
+
+      {!isValid && value && <p className="mt-1 text-xs text-destructive">{t("invalidTimezone")}</p>}
     </div>
   );
 }

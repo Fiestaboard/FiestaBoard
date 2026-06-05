@@ -1,11 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AiChatPanel } from "@/components/ai-chat-panel";
+
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -88,17 +89,13 @@ describe("AiChatPanel", () => {
       wrapper: Wrapper,
     });
     const user = userEvent.setup();
-    await user.click(
-      await screen.findByRole("button", { name: /close fiestabot/i }),
-    );
+    await user.click(await screen.findByRole("button", { name: /close fiestabot/i }));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("shows AI-disabled warning when ai is disabled", async () => {
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
-    expect(
-      await screen.findByText(/ai is disabled/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/ai is disabled/i)).toBeInTheDocument();
   });
 
   it("shows configure-provider warning when ai enabled but no providers", async () => {
@@ -112,9 +109,7 @@ describe("AiChatPanel", () => {
       ),
     );
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
-    expect(
-      await screen.findByText(/configure an ai provider/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/configure an ai provider/i)).toBeInTheDocument();
   });
 
   it("textarea is disabled when no providers are configured", async () => {
@@ -196,12 +191,8 @@ describe("AiChatPanel", () => {
 
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
 
-    expect(
-      await screen.findByRole("button", { name: /stop/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /^send$/i }),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /stop/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^send$/i })).not.toBeInTheDocument();
   });
 
   it("stop button calls cancel()", async () => {
@@ -235,9 +226,7 @@ describe("AiChatPanel", () => {
     );
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
     await screen.findByText("FiestaBot (Beta)");
-    expect(
-      screen.queryByRole("button", { name: /clear conversation/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /clear conversation/i })).not.toBeInTheDocument();
   });
 
   it("clear conversation button is visible with messages and calls reset()", async () => {
@@ -258,9 +247,7 @@ describe("AiChatPanel", () => {
     const user = userEvent.setup();
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
 
-    await user.click(
-      await screen.findByRole("button", { name: /clear conversation/i }),
-    );
+    await user.click(await screen.findByRole("button", { name: /clear conversation/i }));
     expect(mockReset).toHaveBeenCalledOnce();
   });
 
@@ -281,9 +268,7 @@ describe("AiChatPanel", () => {
     };
 
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
-    expect(
-      await screen.findByText(/provider timeout after 30s/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/provider timeout after 30s/i)).toBeInTheDocument();
   });
 
   it("renders tool-result messages as compact pills, not user bubbles", async () => {
@@ -301,7 +286,7 @@ describe("AiChatPanel", () => {
       messages: [
         {
           role: "user",
-          content: "[Tool result: install_plugin for \"openweather\" → Success.]",
+          content: '[Tool result: install_plugin for "openweather" → Success.]',
           isToolResult: true,
         },
       ],
@@ -309,9 +294,7 @@ describe("AiChatPanel", () => {
 
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
     // The pill strips the "[Tool result: " prefix when displaying
-    expect(
-      await screen.findByText(/install_plugin for "openweather" → Success/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/install_plugin for "openweather" → Success/)).toBeInTheDocument();
   });
 
   it("shows ChainingModePicker when onChainingModeChange is provided", async () => {
@@ -325,14 +308,9 @@ describe("AiChatPanel", () => {
       ),
     );
     const onModeChange = vi.fn();
-    render(
-      <AiChatPanel
-        {...defaultProps}
-        chainingMode="manual"
-        onChainingModeChange={onModeChange}
-      />,
-      { wrapper: Wrapper },
-    );
+    render(<AiChatPanel {...defaultProps} chainingMode="manual" onChainingModeChange={onModeChange} />, {
+      wrapper: Wrapper,
+    });
     // ChainingModePicker renders a button with the mode name
     expect(await screen.findByTitle(/ai mode: manual/i)).toBeInTheDocument();
   });

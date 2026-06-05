@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, CSSProperties } from "react";
-import { createPortal } from "react-dom";
 import { Clock } from "lucide-react";
+import { useTranslations } from "next-intl";
+import type { CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useTranslations } from "next-intl";
 
 interface TimePickerProps {
   value: string; // HH:MM format
@@ -17,7 +19,15 @@ interface TimePickerProps {
   "aria-label"?: string;
 }
 
-export function TimePicker({ value, onChange, placeholder = "00:00", className, disabled, id, "aria-label": ariaLabel }: TimePickerProps) {
+export function TimePicker({
+  value,
+  onChange,
+  placeholder = "00:00",
+  className,
+  disabled,
+  id,
+  "aria-label": ariaLabel,
+}: TimePickerProps) {
   const t = useTranslations("timePicker");
   const [isOpen, setIsOpen] = useState(false);
   const [hours, setHours] = useState("00");
@@ -97,9 +107,8 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className, 
       const rect = containerRef.current.getBoundingClientRect();
       const dropdownHeight = 320; // approximate max height of the dropdown
       const spaceBelow = window.innerHeight - rect.bottom;
-      const top = spaceBelow >= dropdownHeight || spaceBelow >= rect.top
-        ? rect.bottom + 4
-        : rect.top - dropdownHeight - 4;
+      const top =
+        spaceBelow >= dropdownHeight || spaceBelow >= rect.top ? rect.bottom + 4 : rect.top - dropdownHeight - 4;
       setDropdownStyle({
         position: "fixed",
         top,
@@ -112,17 +121,11 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className, 
   };
 
   const dropdown = isOpen ? (
-    <div
-      ref={dropdownRef}
-      style={dropdownStyle}
-      className="rounded-md border bg-background p-4 shadow-md"
-    >
+    <div ref={dropdownRef} style={dropdownStyle} className="rounded-md border bg-background p-4 shadow-md">
       <div className="flex gap-4">
         {/* Hours */}
         <div className="flex-1">
-          <label className="text-xs font-medium text-muted-foreground mb-2 block">
-            {t("hour")}
-          </label>
+          <label className="text-xs font-medium text-muted-foreground mb-2 block">{t("hour")}</label>
           <div className="max-h-48 overflow-y-auto rounded-md border bg-background">
             {hourOptions.map((option) => (
               <button
@@ -131,7 +134,7 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className, 
                 onClick={() => handleHourChange(option.value)}
                 className={cn(
                   "w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors",
-                  hours === option.value && "bg-accent text-accent-foreground font-medium"
+                  hours === option.value && "bg-accent text-accent-foreground font-medium",
                 )}
               >
                 {option.label}
@@ -142,9 +145,7 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className, 
 
         {/* Minutes */}
         <div className="flex-1">
-          <label className="text-xs font-medium text-muted-foreground mb-2 block">
-            {t("minute")}
-          </label>
+          <label className="text-xs font-medium text-muted-foreground mb-2 block">{t("minute")}</label>
           <div className="max-h-48 overflow-y-auto rounded-md border bg-background">
             {minuteOptions.map((option) => (
               <button
@@ -153,7 +154,7 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className, 
                 onClick={() => handleMinuteChange(option.value)}
                 className={cn(
                   "w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors",
-                  minutes === option.value && "bg-accent text-accent-foreground font-medium"
+                  minutes === option.value && "bg-accent text-accent-foreground font-medium",
                 )}
               >
                 {option.label}
@@ -204,19 +205,13 @@ export function TimePicker({ value, onChange, placeholder = "00:00", className, 
         aria-label={ariaLabel}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
-        className={cn(
-          "w-full h-9 px-3 text-sm justify-start font-normal",
-          !value && "text-muted-foreground"
-        )}
+        className={cn("w-full h-9 px-3 text-sm justify-start font-normal", !value && "text-muted-foreground")}
       >
         <Clock className="mr-2 h-4 w-4" />
         <span>{value ? formatDisplayValue() : placeholder}</span>
       </Button>
 
-      {typeof window !== "undefined" && dropdown
-        ? createPortal(dropdown, document.body)
-        : null}
+      {typeof window !== "undefined" && dropdown ? createPortal(dropdown, document.body) : null}
     </div>
   );
 }
-

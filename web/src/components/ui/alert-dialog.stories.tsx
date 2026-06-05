@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,8 +36,8 @@ export const Default: Story = {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your
-              account and remove your data from our servers.
+              This action cannot be undone. This will permanently delete your account and remove your data from our
+              servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -58,9 +59,8 @@ export const DestructiveAction = () => (
       <AlertDialogHeader>
         <AlertDialogTitle>Delete Board</AlertDialogTitle>
         <AlertDialogDescription>
-          Are you sure you want to delete this board? All schedules and
-          configurations will be permanently removed. This action cannot be
-          undone.
+          Are you sure you want to delete this board? All schedules and configurations will be permanently removed. This
+          action cannot be undone.
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>

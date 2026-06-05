@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
 import { ServiceControls } from "@/components/service-controls";
 import { ServiceStatus } from "@/components/service-status";
 
@@ -11,9 +12,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
       mutations: { retry: false },
     },
   });
-  return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 // ---------------------------------------------------------------------------
@@ -41,9 +40,7 @@ describe("ServiceControls", () => {
   });
 
   it("renders without crashing when status is loading", () => {
-    expect(() =>
-      render(<ServiceControls />, { wrapper: TestWrapper })
-    ).not.toThrow();
+    expect(() => render(<ServiceControls />, { wrapper: TestWrapper })).not.toThrow();
   });
 
   it("renders the service controls card structure after load", async () => {
@@ -63,9 +60,7 @@ describe("ServiceControls", () => {
 
 describe("ServiceStatus", () => {
   it("renders without crashing", () => {
-    expect(() =>
-      render(<ServiceStatus />, { wrapper: TestWrapper })
-    ).not.toThrow();
+    expect(() => render(<ServiceStatus />, { wrapper: TestWrapper })).not.toThrow();
   });
 
   it("renders a button element with an aria-label", async () => {

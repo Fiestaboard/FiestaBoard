@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 
 // Service keys that can be toggled
 export type ServiceKey =
@@ -59,14 +60,14 @@ export function ConfigOverridesProvider({ children }: { children: ReactNode }) {
       const override = overrides[key];
       return override !== null ? override : backendValue;
     },
-    [overrides]
+    [overrides],
   );
 
   const isOverridden = useCallback(
     (key: ServiceKey): boolean => {
       return overrides[key] !== null;
     },
-    [overrides]
+    [overrides],
   );
 
   const getActiveOverrides = useCallback((): Partial<Record<ServiceKey, boolean>> => {
@@ -102,5 +103,3 @@ export function useConfigOverrides() {
   }
   return context;
 }
-
-

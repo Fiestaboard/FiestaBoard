@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { server } from "./mocks/server";
 
 const replaceMock = vi.fn();
@@ -21,14 +22,16 @@ vi.mock("next/navigation", () => ({
 
 import LoginPage from "@/app/login/page";
 
-function makeStatus(overrides: Partial<{
-  enabled: boolean;
-  setup_required: boolean;
-  authenticated: boolean;
-  username: string | null;
-  mode: "enabled" | "disabled" | "undecided";
-  first_run: boolean;
-}>) {
+function makeStatus(
+  overrides: Partial<{
+    enabled: boolean;
+    setup_required: boolean;
+    authenticated: boolean;
+    username: string | null;
+    mode: "enabled" | "disabled" | "undecided";
+    first_run: boolean;
+  }>,
+) {
   return {
     enabled: true,
     setup_required: true,
@@ -48,28 +51,20 @@ describe("LoginPage first-run picker", () => {
   it("renders the picker when the server reports first_run=true", async () => {
     server.use(
       http.get("/api/auth/status", () =>
-        HttpResponse.json(
-          makeStatus({ mode: "undecided", first_run: true, setup_required: true }),
-        ),
+        HttpResponse.json(makeStatus({ mode: "undecided", first_run: true, setup_required: true })),
       ),
     );
     render(<LoginPage />);
 
     await screen.findByText(/Protect this FiestaBoard\?/i);
-    expect(
-      screen.getByRole("button", { name: /Set up a username/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Skip — anyone on my network/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Set up a username/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Skip — anyone on my network/i })).toBeInTheDocument();
   });
 
   it("clicking 'Set up a username & password' switches to the setup form", async () => {
     server.use(
       http.get("/api/auth/status", () =>
-        HttpResponse.json(
-          makeStatus({ mode: "undecided", first_run: true, setup_required: true }),
-        ),
+        HttpResponse.json(makeStatus({ mode: "undecided", first_run: true, setup_required: true })),
       ),
     );
     render(<LoginPage />);
@@ -85,9 +80,7 @@ describe("LoginPage first-run picker", () => {
     let body: { enabled?: boolean } | null = null;
     server.use(
       http.get("/api/auth/status", () =>
-        HttpResponse.json(
-          makeStatus({ mode: "undecided", first_run: true, setup_required: true }),
-        ),
+        HttpResponse.json(makeStatus({ mode: "undecided", first_run: true, setup_required: true })),
       ),
       http.post("/api/auth/preference", async ({ request }) => {
         body = (await request.json()) as { enabled?: boolean };
@@ -109,17 +102,13 @@ describe("LoginPage first-run picker", () => {
   it("renders the sign-in form for an existing user (no first_run)", async () => {
     server.use(
       http.get("/api/auth/status", () =>
-        HttpResponse.json(
-          makeStatus({ mode: "enabled", first_run: false, setup_required: false }),
-        ),
+        HttpResponse.json(makeStatus({ mode: "enabled", first_run: false, setup_required: false })),
       ),
     );
     render(<LoginPage />);
 
     await screen.findByText(/Sign in to FiestaBoard/i);
-    expect(
-      screen.queryByText(/Protect this FiestaBoard\?/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Protect this FiestaBoard\?/i)).not.toBeInTheDocument();
   });
 });
 
@@ -131,9 +120,7 @@ describe("LoginPage 'Keep me logged in'", () => {
   function mockSignInStatus() {
     server.use(
       http.get("/api/auth/status", () =>
-        HttpResponse.json(
-          makeStatus({ mode: "enabled", first_run: false, setup_required: false }),
-        ),
+        HttpResponse.json(makeStatus({ mode: "enabled", first_run: false, setup_required: false })),
       ),
     );
   }

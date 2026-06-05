@@ -1,10 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { shouldShowWizard, clearWizardCompletion } from "@/lib/setup-detection";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+
+import { clearWizardCompletion, shouldShowWizard } from "@/lib/setup-detection";
 
 function WizardLoadingFallback() {
   const t = useTranslations("wizardProvider");
@@ -19,13 +21,10 @@ function WizardLoadingFallback() {
 }
 
 // Lazy load SetupWizard since it's only needed on first visit or when manually triggered
-const SetupWizard = dynamic(
-  () => import("@/components/wizard").then(mod => ({ default: mod.SetupWizard })),
-  {
-    ssr: false,
-    loading: () => <WizardLoadingFallback />,
-  }
-);
+const SetupWizard = dynamic(() => import("@/components/wizard").then((mod) => ({ default: mod.SetupWizard })), {
+  ssr: false,
+  loading: () => <WizardLoadingFallback />,
+});
 
 interface WizardContextType {
   isWizardActive: boolean;
@@ -100,11 +99,7 @@ export function WizardProvider({ children }: WizardProviderProps) {
   // wizard's API probe isn't authorized there yet. Hand control back to the
   // children (the login page) immediately — no loading screen, no wizard.
   if (isOnAuthScreen) {
-    return (
-      <WizardContext.Provider value={{ isWizardActive: false, triggerWizard }}>
-        {children}
-      </WizardContext.Provider>
-    );
+    return <WizardContext.Provider value={{ isWizardActive: false, triggerWizard }}>{children}</WizardContext.Provider>;
   }
 
   // Show loading state while checking
@@ -129,10 +124,5 @@ export function WizardProvider({ children }: WizardProviderProps) {
   }
 
   // Show normal app content
-  return (
-    <WizardContext.Provider value={{ isWizardActive, triggerWizard }}>
-      {children}
-    </WizardContext.Provider>
-  );
+  return <WizardContext.Provider value={{ isWizardActive, triggerWizard }}>{children}</WizardContext.Provider>;
 }
-

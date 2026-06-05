@@ -11,14 +11,8 @@
 
 import { useCallback, useRef, useState } from "react";
 
+import type { ChatMessage, ChatTurnContext, CurrentPageSnapshot, ToolCall, ToolCallDisplay } from "./ai-chat-types";
 import { streamChat } from "./api-stream";
-import type {
-  ChatMessage,
-  ChatTurnContext,
-  CurrentPageSnapshot,
-  ToolCall,
-  ToolCallDisplay,
-} from "./ai-chat-types";
 import { applyPatchToSnapshot } from "./line-ops";
 
 export interface UseAiChatOptions {
@@ -52,17 +46,10 @@ export interface UseAiChatResult {
 }
 
 export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
-  const {
-    getTurnContext,
-    onToolCall,
-    providerId,
-    model,
-  } = opts;
+  const { getTurnContext, onToolCall, providerId, model } = opts;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [status, setStatus] = useState<"idle" | "streaming" | "error">(
-    "idle",
-  );
+  const [status, setStatus] = useState<"idle" | "streaming" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
   // We keep the abort controller in a ref so cancel() works without
@@ -73,10 +60,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
     async (history: ChatMessage[]) => {
       // Append a placeholder assistant message that we'll mutate as
       // tokens arrive.
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "", pending: true },
-      ]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "", pending: true }]);
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -104,9 +88,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
         });
       };
 
-      const attachToAssistant = (
-        update: (m: ChatMessage) => ChatMessage,
-      ) => {
+      const attachToAssistant = (update: (m: ChatMessage) => ChatMessage) => {
         setMessages((prev) => {
           const next = [...prev];
           const last = next[next.length - 1];
@@ -257,11 +239,7 @@ function computeAppliedSnapshot(
   }
   if (call.op === "apply_patch") {
     if (!base) return undefined;
-    const result = applyPatchToSnapshot(
-      call.args.changes,
-      base.template,
-      base.line_metadata,
-    );
+    const result = applyPatchToSnapshot(call.args.changes, base.template, base.line_metadata);
     return {
       name: call.args.rename ?? base.name,
       template: result.template,

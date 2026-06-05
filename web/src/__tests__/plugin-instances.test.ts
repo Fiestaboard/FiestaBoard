@@ -4,10 +4,12 @@
  * Covers: listPluginInstances, createPluginInstance, deletePluginInstance
  * and verifies the MSW handlers respond correctly.
  */
-import { describe, it, expect } from "vitest";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { describe, expect, it } from "vitest";
+
 import { api } from "@/lib/api";
+
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -32,7 +34,7 @@ describe("Plugin Instance API", () => {
               { id: "weather:nyc", instance_label: "nyc", enabled: true },
             ],
           });
-        })
+        }),
       );
       const result = await api.listPluginInstances("weather");
       expect(result.instances).toHaveLength(2);
@@ -42,9 +44,10 @@ describe("Plugin Instance API", () => {
 
     it("throws on error response", async () => {
       server.use(
-        http.get(`${API_BASE}/plugins/:pluginId/instances`, () =>
-          new HttpResponse(null, { status: 503, statusText: "Service Unavailable" })
-        )
+        http.get(
+          `${API_BASE}/plugins/:pluginId/instances`,
+          () => new HttpResponse(null, { status: 503, statusText: "Service Unavailable" }),
+        ),
       );
       await expect(api.listPluginInstances("weather")).rejects.toThrow("503");
     });
@@ -74,7 +77,7 @@ describe("Plugin Instance API", () => {
             instance_key: `${params.pluginId}:${body.label}`,
             message: "created",
           });
-        })
+        }),
       );
       await api.createPluginInstance("weather", "prod");
       expect(capturedBody).toEqual({ label: "prod" });
@@ -82,21 +85,24 @@ describe("Plugin Instance API", () => {
 
     it("throws on validation error (400)", async () => {
       server.use(
-        http.post(`${API_BASE}/plugins/:pluginId/instances`, () =>
-          new HttpResponse(JSON.stringify({ detail: "Label already exists" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          })
-        )
+        http.post(
+          `${API_BASE}/plugins/:pluginId/instances`,
+          () =>
+            new HttpResponse(JSON.stringify({ detail: "Label already exists" }), {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            }),
+        ),
       );
       await expect(api.createPluginInstance("weather", "sf")).rejects.toThrow("Label already exists");
     });
 
     it("throws when plugin system unavailable (503)", async () => {
       server.use(
-        http.post(`${API_BASE}/plugins/:pluginId/instances`, () =>
-          new HttpResponse(null, { status: 503, statusText: "Service Unavailable" })
-        )
+        http.post(
+          `${API_BASE}/plugins/:pluginId/instances`,
+          () => new HttpResponse(null, { status: 503, statusText: "Service Unavailable" }),
+        ),
       );
       await expect(api.createPluginInstance("weather", "sf")).rejects.toThrow("503");
     });
@@ -125,7 +131,7 @@ describe("Plugin Instance API", () => {
             instance_key: `${params.pluginId}:${params.instanceLabel}`,
             message: "deleted",
           });
-        })
+        }),
       );
       await api.deletePluginInstance("weather", "nyc");
       expect(capturedLabel).toBe("nyc");
@@ -133,21 +139,24 @@ describe("Plugin Instance API", () => {
 
     it("throws on not-found error (400)", async () => {
       server.use(
-        http.delete(`${API_BASE}/plugins/:pluginId/instances/:instanceLabel`, () =>
-          new HttpResponse(JSON.stringify({ detail: "Instance not found" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          })
-        )
+        http.delete(
+          `${API_BASE}/plugins/:pluginId/instances/:instanceLabel`,
+          () =>
+            new HttpResponse(JSON.stringify({ detail: "Instance not found" }), {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            }),
+        ),
       );
       await expect(api.deletePluginInstance("weather", "sf")).rejects.toThrow("Instance not found");
     });
 
     it("throws when plugin system unavailable (503)", async () => {
       server.use(
-        http.delete(`${API_BASE}/plugins/:pluginId/instances/:instanceLabel`, () =>
-          new HttpResponse(null, { status: 503, statusText: "Service Unavailable" })
-        )
+        http.delete(
+          `${API_BASE}/plugins/:pluginId/instances/:instanceLabel`,
+          () => new HttpResponse(null, { status: 503, statusText: "Service Unavailable" }),
+        ),
       );
       await expect(api.deletePluginInstance("weather", "sf")).rejects.toThrow("503");
     });

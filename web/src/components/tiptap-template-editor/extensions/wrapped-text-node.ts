@@ -2,18 +2,19 @@
  * WrappedTextNode - Inline node for text that will be wrapped
  * Created when user selects text and applies wrap filter
  */
-import { Node, mergeAttributes } from '@tiptap/core';
-import { ReactNodeViewRenderer } from '@tiptap/react';
-import { WrappedTextView } from '../node-views/WrappedTextView';
+import { mergeAttributes, Node } from "@tiptap/core";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+
+import { WrappedTextView } from "../node-views/WrappedTextView";
 
 export interface WrappedTextAttrs {
   text: string;
 }
 
 export const WrappedTextNode = Node.create({
-  name: 'wrappedText',
+  name: "wrappedText",
 
-  group: 'inline',
+  group: "inline",
 
   inline: true,
 
@@ -22,10 +23,10 @@ export const WrappedTextNode = Node.create({
   addAttributes() {
     return {
       text: {
-        default: '',
-        parseHTML: element => element.getAttribute('data-text') || element.textContent || '',
-        renderHTML: attributes => ({
-          'data-text': attributes.text,
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-text") || element.textContent || "",
+        renderHTML: (attributes) => ({
+          "data-text": attributes.text,
         }),
       },
     };
@@ -40,7 +41,7 @@ export const WrappedTextNode = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['span', mergeAttributes({ 'data-type': 'wrapped-text' }, HTMLAttributes)];
+    return ["span", mergeAttributes({ "data-type": "wrapped-text" }, HTMLAttributes)];
   },
 
   addNodeView() {

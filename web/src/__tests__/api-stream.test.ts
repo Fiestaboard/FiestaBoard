@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { streamChat } from "@/lib/api-stream";
 
 // Mock the SSE library — the real one opens a persistent HTTP connection
@@ -45,7 +46,11 @@ describe("streamChat", () => {
   });
 
   it("fires onToolCall handler for 'tool_call' events", async () => {
-    const payload = { id: "tc1", op: "replace_page", args: { name: "p", template: [], line_metadata: [], duration_seconds: 300 } };
+    const payload = {
+      id: "tc1",
+      op: "replace_page",
+      args: { name: "p", template: [], line_metadata: [], duration_seconds: 300 },
+    };
     mockFES.mockImplementation(async (_url: string, opts: any) => {
       opts.onmessage?.({ event: "tool_call", data: JSON.stringify(payload), id: "", retry: undefined });
     });
@@ -73,7 +78,11 @@ describe("streamChat", () => {
   });
 
   it("fires onDone for 'done' events", async () => {
-    const done = { model_used: "m", provider_id: "p", usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 } };
+    const done = {
+      model_used: "m",
+      provider_id: "p",
+      usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+    };
     mockFES.mockImplementation(async (_url: string, opts: any) => {
       opts.onmessage?.({ event: "done", data: JSON.stringify(done), id: "", retry: undefined });
     });
@@ -102,7 +111,12 @@ describe("streamChat", () => {
 
   it("surfaces non-2xx response via onError", async () => {
     mockFES.mockImplementation(async (_url: string, opts: any) => {
-      const response = { ok: false, status: 500, headers: { get: () => null }, json: async () => ({ detail: "internal error" }) };
+      const response = {
+        ok: false,
+        status: 500,
+        headers: { get: () => null },
+        json: async () => ({ detail: "internal error" }),
+      };
       await opts.onopen?.(response);
     });
     const onError = vi.fn();
@@ -182,7 +196,9 @@ describe("streamChat", () => {
         ok: false,
         status: 502,
         headers: { get: () => null },
-        json: async () => { throw new SyntaxError("bad json"); },
+        json: async () => {
+          throw new SyntaxError("bad json");
+        },
       };
       await opts.onopen?.(response);
     });

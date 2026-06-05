@@ -1,10 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
+import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { ThemeProvider } from "next-themes";
+import { describe, expect, it } from "vitest";
+
 import { SystemUpdate } from "@/components/settings/system-update";
+
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -37,7 +39,7 @@ describe("SystemUpdate", () => {
           error: null,
           is_production: true,
         });
-      })
+      }),
     );
 
     render(<SystemUpdate />, { wrapper: TestWrapper });
@@ -60,7 +62,7 @@ describe("SystemUpdate", () => {
           error: null,
           is_production: true,
         });
-      })
+      }),
     );
 
     render(<SystemUpdate />, { wrapper: TestWrapper });
@@ -83,7 +85,7 @@ describe("SystemUpdate", () => {
     server.use(
       http.get(`${API_BASE}/system/update-check`, () => {
         return HttpResponse.error();
-      })
+      }),
     );
 
     render(<SystemUpdate />, { wrapper: TestWrapper });
@@ -106,7 +108,7 @@ describe("SystemUpdate", () => {
           error: null,
           is_production: false,
         });
-      })
+      }),
     );
 
     render(<SystemUpdate />, { wrapper: TestWrapper });

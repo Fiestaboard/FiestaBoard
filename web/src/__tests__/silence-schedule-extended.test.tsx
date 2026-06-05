@@ -1,12 +1,13 @@
 // Branch coverage for SilenceSchedule page-mode and indicator-position handlers.
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
 import { http, HttpResponse } from "msw";
+import { ThemeProvider } from "next-themes";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { mockOutputSettings, mockPages, mockTransitionSettings } from "./mocks/handlers";
 import { server } from "./mocks/server";
-import { mockTransitionSettings, mockOutputSettings, mockPages } from "./mocks/handlers";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -75,9 +76,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 describe("SilenceSchedule — indicator position handler", () => {
   beforeEach(() => {
     server.use(
-      http.get(`${API_BASE}/settings/all`, () =>
-        HttpResponse.json(allSettings({ mode: "indicator" })),
-      ),
+      http.get(`${API_BASE}/settings/all`, () => HttpResponse.json(allSettings({ mode: "indicator" }))),
       http.get(`${API_BASE}/pages`, () => HttpResponse.json({ pages: mockPages })),
     );
   });

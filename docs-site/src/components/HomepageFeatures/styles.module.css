@@ -59,7 +59,7 @@
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 
-[data-theme='dark'] .showcaseImage img {
+[data-theme="dark"] .showcaseImage img {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }
 
@@ -77,7 +77,6 @@
   color: var(--ifm-color-emphasis-700);
   margin-bottom: 1rem;
 }
-
 
 .showcaseToggle {
   display: flex;
@@ -104,7 +103,9 @@
   font-size: 0.75rem;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
   line-height: 1.4;
 }
 
@@ -124,7 +125,7 @@
   font-weight: 600;
 }
 
-[data-theme='dark'] .showcaseToggleBtnActive {
+[data-theme="dark"] .showcaseToggleBtnActive {
   color: var(--ifm-color-primary);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
@@ -204,7 +205,9 @@
   font-size: 0.75rem;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
   line-height: 1.4;
 }
 
@@ -220,13 +223,23 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes scaleIn {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 @media screen and (max-width: 768px) {
@@ -265,7 +278,9 @@
   border-radius: 12px;
   overflow: hidden;
   background: var(--ifm-color-emphasis-100);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   text-decoration: none;
   color: inherit;
 }
@@ -277,7 +292,7 @@
   color: inherit;
 }
 
-[data-theme='dark'] .pluginCard:hover {
+[data-theme="dark"] .pluginCard:hover {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
 }
 
@@ -337,11 +352,7 @@
 /* "What's New" highlights — paired feature cards */
 .highlights {
   padding: 4rem 0;
-  background: linear-gradient(
-    180deg,
-    var(--ifm-background-color) 0%,
-    var(--ifm-color-emphasis-100) 100%
-  );
+  background: linear-gradient(180deg, var(--ifm-background-color) 0%, var(--ifm-color-emphasis-100) 100%);
 }
 
 .highlightsGrid {
@@ -365,7 +376,9 @@
   background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
   border: 1px solid var(--ifm-color-emphasis-200);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .highlightCard:hover {
@@ -373,7 +386,7 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
-[data-theme='dark'] .highlightCard {
+[data-theme="dark"] .highlightCard {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
@@ -397,7 +410,7 @@
   margin-bottom: 1rem;
 }
 
-[data-theme='dark'] .highlightBadge {
+[data-theme="dark"] .highlightBadge {
   background: var(--ifm-color-primary);
   color: #1b1b1d;
 }

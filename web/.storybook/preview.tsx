@@ -1,25 +1,26 @@
-import type { Preview } from "@storybook/nextjs";
-import { ThemeProvider, useTheme } from "next-themes";
-import { NextIntlClientProvider } from "next-intl";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { locales, localeNames, type Locale } from "../src/i18n/config";
 import "../src/app/globals.css";
 
+import type { Preview } from "@storybook/nextjs";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { NextIntlClientProvider } from "next-intl";
+import { ThemeProvider, useTheme } from "next-themes";
+import { useEffect } from "react";
+
+import de from "../messages/de.json";
 import en from "../messages/en.json";
 import es from "../messages/es.json";
 import fr from "../messages/fr.json";
-import de from "../messages/de.json";
 import it from "../messages/it.json";
-import pt from "../messages/pt.json";
+import ja from "../messages/ja.json";
+import ko from "../messages/ko.json";
 import nl from "../messages/nl.json";
 import pl from "../messages/pl.json";
+import pt from "../messages/pt.json";
 import ru from "../messages/ru.json";
 import sv from "../messages/sv.json";
 import tr from "../messages/tr.json";
-import ja from "../messages/ja.json";
-import ko from "../messages/ko.json";
 import zh from "../messages/zh.json";
+import { type Locale, localeNames, locales } from "../src/i18n/config";
 
 const messages: Record<Locale, typeof en> = { en, es, fr, de, it, pt, nl, pl, ru, sv, tr, ja, ko, zh };
 

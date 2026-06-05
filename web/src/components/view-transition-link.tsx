@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MouseEvent, ReactNode, AnchorHTMLAttributes } from "react";
+import type { AnchorHTMLAttributes, MouseEvent, ReactNode } from "react";
 
 type TransitionType = "default" | "slide-up" | "slide-down" | "scale-fade";
 
@@ -30,7 +30,7 @@ export function ViewTransitionLink({
     // Apply transition class for CSS animations
     if (transitionType !== "default" && document.documentElement) {
       document.documentElement.dataset.transition = transitionType;
-      
+
       // Clean up after navigation
       setTimeout(() => {
         if (document.documentElement) {
@@ -41,15 +41,8 @@ export function ViewTransitionLink({
   };
 
   return (
-    <Link 
-      href={href} 
-      onClick={handleClick} 
-      className={className}
-      prefetch={false}
-      {...props}
-    >
+    <Link href={href} onClick={handleClick} className={className} prefetch={false} {...props}>
       {children}
     </Link>
   );
 }
-

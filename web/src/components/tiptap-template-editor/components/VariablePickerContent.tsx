@@ -5,18 +5,20 @@
  */
 "use client";
 
-import { useQuery, useQueries } from "@tanstack/react-query";
-import { useMemo, useDeferredValue, useState } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import type { LucideIcon } from "lucide-react";
+import { icons as lucideIcons, Search } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useDeferredValue, useMemo, useState } from "react";
+
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { api, PluginManifest } from "@/lib/api";
-import { Search, icons as lucideIcons } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
+import type { PluginManifest } from "@/lib/api";
+import { api } from "@/lib/api";
 
 interface VariablePickerContentProps {
   onInsert: (variable: string) => void;
@@ -48,11 +50,7 @@ function VariablePill({
   onInsert: () => void;
 }) {
   const pill = (
-    <Badge
-      variant="variable"
-      asChild
-      className="px-2.5 py-1 cursor-pointer hover:bg-tag-variable/25"
-    >
+    <Badge variant="variable" asChild className="px-2.5 py-1 cursor-pointer hover:bg-tag-variable/25">
       <button type="button" onClick={onInsert}>
         {label}
         {preview && (
@@ -112,7 +110,7 @@ function renderSubArraySection(
   parentIndex: number,
   parentArrayName: string,
   subArrayName: string,
-  subArrayData: Record<string, any> | undefined,
+  subArrayData: Record<string, Record<string, unknown>> | undefined,
   manifest: PluginManifest,
   onInsert: (variable: string) => void,
   searchQuery: string,
@@ -129,14 +127,14 @@ function renderSubArraySection(
   const keyField = subArraySchema.key_field;
   const labelField = subArraySchema.label_field;
 
-  const getItemLabel = (itemData: any) =>
+  const getItemLabel = (itemData: Record<string, unknown>) =>
     (labelField && itemData[labelField]) || (keyField && itemData[keyField]) || itemData[itemFields[0]];
 
   const filteredEntries = showAll
     ? Object.entries(subArrayData)
-    : Object.entries(subArrayData).filter(([key, itemData]: [string, any]) => {
+    : Object.entries(subArrayData).filter(([key, itemData]) => {
         if (!searchQuery.trim()) return true;
-        const displayKey = keyType === "dynamic" && keyField ? (itemData[keyField] || key) : key;
+        const displayKey = keyType === "dynamic" && keyField ? String(itemData[keyField] ?? key) : key;
         const displayValue = getItemLabel(itemData) ?? displayKey;
         return (
           matchesSearch(subArrayName, searchQuery) ||
@@ -155,8 +153,8 @@ function renderSubArraySection(
         {subArrayName.charAt(0).toUpperCase() + subArrayName.slice(1)} ({filteredEntries.length})
       </p>
       <Accordion type="single" collapsible className="w-full">
-        {filteredEntries.map(([key, itemData]: [string, any]) => {
-          const displayKey = keyType === "dynamic" && keyField ? (itemData[keyField] || key) : key;
+        {filteredEntries.map(([key, itemData]) => {
+          const displayKey = keyType === "dynamic" && keyField ? String(itemData[keyField] ?? key) : key;
           const itemLabel = getItemLabel(itemData) ?? displayKey;
           const filteredFields = showAll
             ? itemFields
@@ -165,7 +163,11 @@ function renderSubArraySection(
           if (filteredFields.length === 0) return null;
 
           return (
-            <AccordionItem key={key} value={`${parentArrayName}-${parentIndex}-${subArrayName}-${key}`} className="border-b-0">
+            <AccordionItem
+              key={key}
+              value={`${parentArrayName}-${parentIndex}-${subArrayName}-${key}`}
+              className="border-b-0"
+            >
               <AccordionTrigger className="py-1.5 hover:no-underline text-xs">
                 <div className="flex items-center gap-2">
                   {keyType === "dynamic" && (
@@ -187,7 +189,9 @@ function renderSubArraySection(
                     })}
                   </div>
                   <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                    <code className="text-xs">{parentArrayName}.{parentIndex}.{subArrayName}.{key}.*</code>
+                    <code className="text-xs">
+                      {parentArrayName}.{parentIndex}.{subArrayName}.{key}.*
+                    </code>
                   </div>
                 </div>
               </AccordionContent>
@@ -202,7 +206,7 @@ function renderSubArraySection(
 function renderArraySection(
   pluginId: string,
   arrayName: string,
-  arrayData: any[] | undefined,
+  arrayData: Record<string, unknown>[] | undefined,
   manifest: PluginManifest,
   onInsert: (variable: string) => void,
   searchQuery: string,
@@ -213,7 +217,9 @@ function renderArraySection(
   if (!arrayData || arrayData.length === 0) {
     return (
       <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
-        <p className="mb-2">{t ? t("configureHint", { arrayName }) : `Configure ${arrayName} in Settings to see indexed variables here.`}</p>
+        <p className="mb-2">
+          {t ? t("configureHint", { arrayName }) : `Configure ${arrayName} in Settings to see indexed variables here.`}
+        </p>
         <p className="font-mono text-[10px]">
           {t ? t("configureExample") : "Example:"} <code className="bg-background px-1 rounded">{arrayName}.0.*</code>
         </p>
@@ -229,20 +235,23 @@ function renderArraySection(
   const subArrays = arraySchema.sub_arrays || {};
 
   const filteredArrayData = showAll
-    ? arrayData.map((item: any, index: number) => ({ item, index }))
+    ? arrayData.map((item, index) => ({ item, index }))
     : arrayData
-        .map((item: any, index: number) => ({ item, index }))
+        .map((item, index) => ({ item, index }))
         .filter(({ item, index }) => {
           if (!searchQuery.trim()) return true;
-          const itemLabel = item[labelField] || item.name || `Item ${index}`;
+          const itemLabel = String(item[labelField] || item.name || `Item ${index}`);
           return (
             matchesSearch(arrayName, searchQuery) ||
             matchesSearch(itemLabel, searchQuery) ||
             itemFields.some((field: string) => matchesSearch(field, searchQuery)) ||
             Object.keys(subArrays).some((subArrayName) => {
-              const subArrayData = item[subArrayName];
+              const subArrayData = item[subArrayName] as Record<string, unknown> | undefined;
               if (!subArrayData) return false;
-              return matchesSearch(subArrayName, searchQuery) || Object.keys(subArrayData).some((key) => matchesSearch(key, searchQuery));
+              return (
+                matchesSearch(subArrayName, searchQuery) ||
+                Object.keys(subArrayData).some((key) => matchesSearch(key, searchQuery))
+              );
             })
           );
         });
@@ -271,7 +280,10 @@ function renderArraySection(
             const subArrayData = item[subArrayName];
             if (!subArrayData) return false;
             if (showAll || !searchQuery.trim()) return true;
-            return matchesSearch(subArrayName, searchQuery) || Object.keys(subArrayData).some((key) => matchesSearch(key, searchQuery));
+            return (
+              matchesSearch(subArrayName, searchQuery) ||
+              Object.keys(subArrayData).some((key) => matchesSearch(key, searchQuery))
+            );
           });
 
           const hasMatchingContent = filteredItemFields.length > 0 || filteredSubArrays.length > 0;
@@ -284,7 +296,9 @@ function renderArraySection(
                   {IconComp && <IconComp className="h-3 w-3" />}
                   <div className="text-left">
                     <div className="font-medium">{itemLabel}</div>
-                    <div className="text-muted-foreground text-xs">{t ? t("indexLabel", { index }) : `Index: ${index}`}</div>
+                    <div className="text-muted-foreground text-xs">
+                      {t ? t("indexLabel", { index }) : `Index: ${index}`}
+                    </div>
                   </div>
                 </div>
               </AccordionTrigger>
@@ -296,7 +310,14 @@ function renderArraySection(
                       <div className="flex flex-wrap gap-1.5">
                         {filteredItemFields.map((field: string) => {
                           const varValue = `{{${pluginId}.${arrayName}.${index}.${field}}}`;
-                          return <VariablePill key={field} label={field} value={varValue} onInsert={() => onInsert(varValue)} />;
+                          return (
+                            <VariablePill
+                              key={field}
+                              label={field}
+                              value={varValue}
+                              onInsert={() => onInsert(varValue)}
+                            />
+                          );
                         })}
                       </div>
                     </div>
@@ -307,7 +328,18 @@ function renderArraySection(
                     if (!subArrayData) return null;
                     return (
                       <div key={subArrayName}>
-                        {renderSubArraySection(pluginId, index, arrayName, subArrayName, subArrayData, manifest, onInsert, searchQuery, showAll, IconComp)}
+                        {renderSubArraySection(
+                          pluginId,
+                          index,
+                          arrayName,
+                          subArrayName,
+                          subArrayData,
+                          manifest,
+                          onInsert,
+                          searchQuery,
+                          showAll,
+                          IconComp,
+                        )}
                       </div>
                     );
                   })}
@@ -321,7 +353,12 @@ function renderArraySection(
   );
 }
 
-export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocusSearch = true, className }: VariablePickerContentProps) {
+export function VariablePickerContent({
+  onInsert,
+  maxHeight = "400px",
+  autoFocusSearch = true,
+  className,
+}: VariablePickerContentProps) {
   const t = useTranslations("variablePicker");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -368,7 +405,7 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
   });
 
   const pluginData = useMemo(() => {
-    const data: Record<string, any> = {};
+    const data: Record<string, Record<string, unknown>> = {};
     if (pluginDisplayData?.displays) {
       pluginsWithArrays.forEach((pluginId) => {
         const display = pluginDisplayData.displays[pluginId];
@@ -397,11 +434,7 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
   }
 
   if (!templateVars?.variables) {
-    return (
-      <div className="p-3 text-sm text-muted-foreground min-w-[300px]">
-        {t("noVariablesAvailable")}
-      </div>
-    );
+    return <div className="p-3 text-sm text-muted-foreground min-w-[300px]">{t("noVariablesAvailable")}</div>;
   }
 
   const categories = Object.entries(templateVars.variables);
@@ -412,14 +445,21 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
     const q = searchQuery.toLowerCase();
     const cLower = category.toLowerCase();
 
-    if (matchesSearch(category, searchQuery) || cLower.replace(/_/g, " ").split(/\s+/).some((w) => w.includes(q))) {
+    if (
+      matchesSearch(category, searchQuery) ||
+      cLower
+        .replace(/_/g, " ")
+        .split(/\s+/)
+        .some((w) => w.includes(q))
+    ) {
       return true;
     }
 
     const manifest = manifests[category];
     const arrayNames = getArrayNames(manifest);
-    const simpleVars = vars.filter((v) => !v.includes(".") || (!v.includes(".*.")));
-    const generalVars = arrayNames.length > 0 ? simpleVars.filter((v) => !arrayNames.some((a) => v.startsWith(a + "."))) : simpleVars;
+    const simpleVars = vars.filter((v) => !v.includes(".") || !v.includes(".*."));
+    const generalVars =
+      arrayNames.length > 0 ? simpleVars.filter((v) => !arrayNames.some((a) => v.startsWith(a + "."))) : simpleVars;
 
     if (generalVars.some((v) => matchesVariablePath(category, v, searchQuery))) return true;
     if (arrayNames.some((a) => matchesSearch(a, searchQuery))) return true;
@@ -429,9 +469,12 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
       if (arrayData && arrayData.length > 0) {
         const arraySchema = manifest?.variables?.arrays?.[arrayName];
         if (arraySchema) {
-          const hasMatch = arrayData.some((item: any) => {
-            const itemLabel = item[arraySchema.label_field || "name"] || "";
-            return matchesSearch(itemLabel, searchQuery) || arraySchema.item_fields.some((f: string) => matchesSearch(f, searchQuery));
+          const hasMatch = (arrayData as Record<string, unknown>[]).some((item) => {
+            const itemLabel = String(item[arraySchema.label_field || "name"] || "");
+            return (
+              matchesSearch(itemLabel, searchQuery) ||
+              arraySchema.item_fields.some((f: string) => matchesSearch(f, searchQuery))
+            );
           });
           if (hasMatch) return true;
         }
@@ -476,31 +519,41 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
                 const IconComp = resolveIcon(manifest?.icon);
 
                 const simpleVars = vars.filter((v) => !v.includes(".*."));
-                const generalVars = arrayNames.length > 0
-                  ? simpleVars.filter((v) => !arrayNames.some((a) => v === a || v.startsWith(a + ".")))
-                  : simpleVars;
+                const generalVars =
+                  arrayNames.length > 0
+                    ? simpleVars.filter((v) => !arrayNames.some((a) => v === a || v.startsWith(a + ".")))
+                    : simpleVars;
 
-                const categoryMatches = searchQuery.trim() && (
-                  matchesSearch(category, searchQuery) ||
-                  category.toLowerCase().replace(/_/g, " ").split(/\s+/).some((w) => w.includes(searchQuery.toLowerCase()))
-                );
+                const categoryMatches =
+                  searchQuery.trim() &&
+                  (matchesSearch(category, searchQuery) ||
+                    category
+                      .toLowerCase()
+                      .replace(/_/g, " ")
+                      .split(/\s+/)
+                      .some((w) => w.includes(searchQuery.toLowerCase())));
 
                 const filteredGeneralVars = categoryMatches
                   ? generalVars
                   : generalVars.filter((v) => !searchQuery.trim() || matchesVariablePath(category, v, searchQuery));
 
-                const hasArrayMatches = arrayNames.length > 0 && arrayNames.some((arrayName) => {
-                  if (!searchQuery.trim() || categoryMatches) return true;
-                  if (matchesSearch(arrayName, searchQuery)) return true;
-                  const arrayData = deferredPluginData[category]?.[arrayName];
-                  if (!arrayData || arrayData.length === 0) return false;
-                  const arraySchema = manifest?.variables?.arrays?.[arrayName];
-                  if (!arraySchema) return false;
-                  return arrayData.some((item: any) => {
-                    const label = item[arraySchema.label_field || "name"] || "";
-                    return matchesSearch(label, searchQuery) || arraySchema.item_fields.some((f: string) => matchesSearch(f, searchQuery));
+                const hasArrayMatches =
+                  arrayNames.length > 0 &&
+                  arrayNames.some((arrayName) => {
+                    if (!searchQuery.trim() || categoryMatches) return true;
+                    if (matchesSearch(arrayName, searchQuery)) return true;
+                    const arrayData = deferredPluginData[category]?.[arrayName];
+                    if (!arrayData || arrayData.length === 0) return false;
+                    const arraySchema = manifest?.variables?.arrays?.[arrayName];
+                    if (!arraySchema) return false;
+                    return (arrayData as Record<string, unknown>[]).some((item) => {
+                      const label = String(item[arraySchema.label_field || "name"] || "");
+                      return (
+                        matchesSearch(label, searchQuery) ||
+                        arraySchema.item_fields.some((f: string) => matchesSearch(f, searchQuery))
+                      );
+                    });
                   });
-                });
 
                 if (filteredGeneralVars.length === 0 && !hasArrayMatches) return null;
 
@@ -533,7 +586,9 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
                   <div key={category} className="space-y-1.5">
                     <div className="flex items-center gap-2 bg-muted/30 rounded px-2 py-1.5 -mx-1">
                       {IconComp && <IconComp className="h-3 w-3 text-muted-foreground" />}
-                      <span className="text-xs font-semibold text-foreground">{category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
+                      <span className="text-xs font-semibold text-foreground">
+                        {category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                      </span>
                     </div>
 
                     {/* Grouped variables */}
@@ -544,22 +599,30 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
                           if (!groupVars || groupVars.length === 0) return null;
                           return (
                             <div key={groupId}>
-                              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">{groupDef.label}</p>
+                              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
+                                {groupDef.label}
+                              </p>
                               <div className="flex flex-wrap gap-1.5">{groupVars.map(renderVarPill)}</div>
                             </div>
                           );
                         })}
                         {groupedVars["__ungrouped__"] && groupedVars["__ungrouped__"].length > 0 && (
                           <div>
-                            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">{t("general")}</p>
-                            <div className="flex flex-wrap gap-1.5">{groupedVars["__ungrouped__"].map(renderVarPill)}</div>
+                            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
+                              {t("general")}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {groupedVars["__ungrouped__"].map(renderVarPill)}
+                            </div>
                           </div>
                         )}
                       </>
                     ) : (
                       filteredGeneralVars.length > 0 && (
                         <div>
-                          <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">{t("general")}</p>
+                          <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
+                            {t("general")}
+                          </p>
                           <div className="flex flex-wrap gap-1.5">{filteredGeneralVars.map(renderVarPill)}</div>
                         </div>
                       )
@@ -568,16 +631,31 @@ export function VariablePickerContent({ onInsert, maxHeight = "400px", autoFocus
                     {/* Array Sections -- iterate all arrays */}
                     {arrayNames.map((arrayName) => {
                       const arrayData = deferredPluginData[category]?.[arrayName];
-                      const shouldShow = !searchQuery.trim() || categoryMatches || matchesSearch(arrayName, searchQuery) || (arrayData && arrayData.length > 0);
+                      const shouldShow =
+                        !searchQuery.trim() ||
+                        categoryMatches ||
+                        matchesSearch(arrayName, searchQuery) ||
+                        (arrayData && arrayData.length > 0);
                       if (!shouldShow) return null;
 
                       return (
                         <div key={arrayName} className="space-y-1.5">
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
                             {IconComp && <IconComp className="h-3 w-3" />}
-                            {arrayName.charAt(0).toUpperCase() + arrayName.slice(1)} {arrayData ? `(${arrayData.length})` : "(None configured)"}
+                            {arrayName.charAt(0).toUpperCase() + arrayName.slice(1)}{" "}
+                            {arrayData ? `(${arrayData.length})` : "(None configured)"}
                           </p>
-                          {renderArraySection(category, arrayName, arrayData, manifest!, onInsert, searchQuery, !!categoryMatches, IconComp, t)}
+                          {renderArraySection(
+                            category,
+                            arrayName,
+                            arrayData,
+                            manifest!,
+                            onInsert,
+                            searchQuery,
+                            !!categoryMatches,
+                            IconComp,
+                            t,
+                          )}
                         </div>
                       );
                     })}

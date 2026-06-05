@@ -1,32 +1,24 @@
 "use client";
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowUpCircle, ExternalLink, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import { useUpdate } from "@/components/update-context";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ArrowUpCircle,
-  ExternalLink,
-  RefreshCw,
-} from "lucide-react";
-import { useTranslations } from "next-intl";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useUpdate } from "@/components/update-context";
+import { api } from "@/lib/api";
 
 /**
  * Settings → System → Update banner.
@@ -48,7 +40,11 @@ export function SystemUpdate() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const { startUpdate } = useUpdate();
 
-  const { data: updateCheck, isLoading, isError } = useQuery({
+  const {
+    data: updateCheck,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["update-check"],
     queryFn: () => api.checkForUpdate(),
     staleTime: 1000 * 60 * 60,
@@ -89,21 +85,13 @@ export function SystemUpdate() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
-              <a
-                href={updateCheck.package_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a href={updateCheck.package_url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-4 w-4 mr-2" />
                 {t("viewRelease")}
               </a>
             </Button>
             {sidecarReady && (
-              <Button
-                size="sm"
-                onClick={() => setConfirmOpen(true)}
-                disabled={applyMutation.isPending}
-              >
+              <Button size="sm" onClick={() => setConfirmOpen(true)} disabled={applyMutation.isPending}>
                 <ArrowUpCircle className="h-4 w-4 mr-2" />
                 {t("updateNow")}
               </Button>

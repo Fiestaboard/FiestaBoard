@@ -11,21 +11,34 @@
  */
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { EditorView, keymap } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
-import { StreamLanguage, HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { HighlightStyle, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
+import { EditorState } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
+import { useQuery } from "@tanstack/react-query";
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowLeftRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  GitBranch,
+  Hash,
+  Loader2,
+  Palette,
+  Type as TypeIcon,
+  XCircle,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle, ChevronDown, ChevronRight, Loader2, GitBranch, Hash, Type as TypeIcon, ArrowLeftRight, Palette } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 import { VariablePickerContent } from "./VariablePickerContent";
-import { useTranslations } from "next-intl";
 
 // ─── Formula pretty-printer ────────────────────────────────────────────────────
 
@@ -120,22 +133,22 @@ const formulaStreamLang = StreamLanguage.define({
     return null;
   },
   tokenTable: {
-    string:      tags.string,
-    number:      tags.number,
-    variable:    tags.variableName,
-    function:    tags.keyword,
-    operator:    tags.operator,
+    string: tags.string,
+    number: tags.number,
+    variable: tags.variableName,
+    function: tags.keyword,
+    operator: tags.operator,
     punctuation: tags.punctuation,
   },
 });
 
 const formulaHighlighter = HighlightStyle.define([
-  { tag: tags.keyword,      color: "#8b5cf6", fontWeight: "600" }, // functions — violet
-  { tag: tags.string,       color: "#16a34a" },                    // strings   — green
-  { tag: tags.number,       color: "#ea580c" },                    // numbers   — orange
-  { tag: tags.variableName, color: "#0284c7" },                    // variables — sky
-  { tag: tags.operator,     color: "hsl(var(--muted-foreground))" },
-  { tag: tags.punctuation,  color: "hsl(var(--muted-foreground))" },
+  { tag: tags.keyword, color: "#8b5cf6", fontWeight: "600" }, // functions — violet
+  { tag: tags.string, color: "#16a34a" }, // strings   — green
+  { tag: tags.number, color: "#ea580c" }, // numbers   — orange
+  { tag: tags.variableName, color: "#0284c7" }, // variables — sky
+  { tag: tags.operator, color: "hsl(var(--muted-foreground))" },
+  { tag: tags.punctuation, color: "hsl(var(--muted-foreground))" },
 ]);
 
 const formulaBaseTheme = EditorView.theme({
@@ -153,7 +166,7 @@ const formulaBaseTheme = EditorView.theme({
     minHeight: "5rem",
   },
   ".cm-focused": { outline: "none" },
-  ".cm-line":    { padding: "0" },
+  ".cm-line": { padding: "0" },
   ".cm-cursor, .cm-dropCursor": {
     borderLeftColor: "hsl(var(--foreground))",
   },
@@ -172,11 +185,11 @@ const formulaBaseTheme = EditorView.theme({
 const CATEGORY_ORDER = ["logic", "math", "text", "convert", "color"];
 
 const CATEGORY_META: Record<string, { icon: LucideIcon; text: string; border: string }> = {
-  logic:   { icon: GitBranch,      text: "text-violet-400", border: "border-l-violet-400/60" },
-  math:    { icon: Hash,           text: "text-emerald-400", border: "border-l-emerald-400/60" },
-  text:    { icon: TypeIcon,       text: "text-sky-400",    border: "border-l-sky-400/60" },
-  convert: { icon: ArrowLeftRight, text: "text-amber-400",  border: "border-l-amber-400/60" },
-  color:   { icon: Palette,        text: "text-pink-400",   border: "border-l-pink-400/60" },
+  logic: { icon: GitBranch, text: "text-violet-400", border: "border-l-violet-400/60" },
+  math: { icon: Hash, text: "text-emerald-400", border: "border-l-emerald-400/60" },
+  text: { icon: TypeIcon, text: "text-sky-400", border: "border-l-sky-400/60" },
+  convert: { icon: ArrowLeftRight, text: "text-amber-400", border: "border-l-amber-400/60" },
+  color: { icon: Palette, text: "text-pink-400", border: "border-l-pink-400/60" },
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -194,12 +207,7 @@ interface FormulaEditorPanelProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function FormulaEditorPanel({
-  initialExpr = "",
-  mode,
-  onConfirm,
-  onCancel,
-}: FormulaEditorPanelProps) {
+export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel }: FormulaEditorPanelProps) {
   const t = useTranslations("formulaEditor");
   const categoryLabels: Record<string, string> = {
     logic: t("categoryLogic"),
@@ -209,9 +217,9 @@ export function FormulaEditorPanel({
     color: t("categoryColor"),
   };
   const [expr, setExpr] = useState(initialExpr);
-  const [validationState, setValidationState] = useState<
-    "idle" | "validating" | "valid" | "invalid"
-  >(initialExpr ? "validating" : "idle");
+  const [validationState, setValidationState] = useState<"idle" | "validating" | "valid" | "invalid">(
+    initialExpr ? "validating" : "idle",
+  );
   const [errors, setErrors] = useState<string[]>([]);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
@@ -406,17 +414,11 @@ export function FormulaEditorPanel({
     });
   };
 
-  const isConfirmDisabled =
-    !expr.trim() ||
-    validationState !== "valid" ||
-    lastValidExprRef.current !== expr.trim();
+  const isConfirmDisabled = !expr.trim() || validationState !== "valid" || lastValidExprRef.current !== expr.trim();
 
   // ─── Group functions by category ─────────────────────────────────────────
 
-  const grouped: Record<
-    string,
-    Array<{ name: string; signature: string; summary: string }>
-  > = {};
+  const grouped: Record<string, Array<{ name: string; signature: string; summary: string }>> = {};
   if (fnData?.functions) {
     for (const [name, info] of Object.entries(fnData.functions)) {
       const cat = info.category;
@@ -434,14 +436,15 @@ export function FormulaEditorPanel({
     <TooltipProvider>
       {/* Root: stacked on mobile, side-by-side on desktop */}
       <div className="flex flex-col sm:flex-row w-full sm:h-[560px]">
-
         {/* ── LEFT COLUMN (desktop) / BOTTOM (mobile): Functions + Variables selector ── */}
-        <div className={cn(
-          "order-2 sm:order-1",
-          "sm:w-[260px] sm:flex-shrink-0",
-          "border-t sm:border-t-0 sm:border-r border-border",
-          "sm:overflow-y-auto"
-        )}>
+        <div
+          className={cn(
+            "order-2 sm:order-1",
+            "sm:w-[260px] sm:flex-shrink-0",
+            "border-t sm:border-t-0 sm:border-r border-border",
+            "sm:overflow-y-auto",
+          )}
+        >
           <Tabs defaultValue="functions">
             {/* Tab switcher — sticky on desktop so it stays visible while scrolling the list */}
             <div className="px-3 pt-2 pb-1 sm:sticky sm:top-0 sm:bg-popover sm:z-10 sm:border-b sm:border-border/50">
@@ -463,9 +466,7 @@ export function FormulaEditorPanel({
 
             {/* ── Functions tab ── */}
             <TabsContent value="functions" className="mt-0">
-              {loadingFns && (
-                <p className="text-xs text-muted-foreground px-3 py-2">{t("loading") ?? "Loading…"}</p>
-              )}
+              {loadingFns && <p className="text-xs text-muted-foreground px-3 py-2">{t("loading") ?? "Loading…"}</p>}
               {/* Parent column (desktop) or modal (mobile) scrolls — don't nest a scroll here. */}
               <div className="px-2 pb-2 space-y-1">
                 {CATEGORY_ORDER.filter((cat) => grouped[cat]?.length).map((cat) => {
@@ -481,7 +482,7 @@ export function FormulaEditorPanel({
                         className={cn(
                           "flex items-center justify-between w-full px-2 py-1.5 text-[11px] font-semibold transition-colors",
                           "bg-muted/40 hover:bg-muted/70",
-                          meta?.text ?? "text-muted-foreground"
+                          meta?.text ?? "text-muted-foreground",
                         )}
                       >
                         <span className="flex items-center gap-1.5">
@@ -505,21 +506,15 @@ export function FormulaEditorPanel({
                                   onClick={() => handleFunctionClick(fn.name)}
                                   className="w-full text-left px-3 py-1 text-xs hover:bg-accent hover:text-accent-foreground transition-colors flex items-baseline gap-2 group"
                                 >
-                                  <span className="font-mono font-semibold flex-shrink-0">
-                                    {fn.name}
-                                  </span>
+                                  <span className="font-mono font-semibold flex-shrink-0">{fn.name}</span>
                                   <span className="font-mono text-[10px] text-muted-foreground truncate group-hover:text-accent-foreground/70">
                                     {fn.signature}
                                   </span>
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-[220px]">
-                                <p className="font-mono text-xs font-semibold">
-                                  {fn.signature}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {fn.summary}
-                                </p>
+                                <p className="font-mono text-xs font-semibold">{fn.signature}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{fn.summary}</p>
                               </TooltipContent>
                             </Tooltip>
                           ))}
@@ -546,7 +541,6 @@ export function FormulaEditorPanel({
 
         {/* ── RIGHT COLUMN (desktop) / TOP (mobile): Expression editor + action buttons ── */}
         <div className="order-1 sm:order-2 flex flex-col flex-1 min-w-0 sm:overflow-hidden">
-
           {/* Desktop: flex column fills, editor sizes within. Mobile: parent modal scrolls — no nested scroll. */}
           <div className="px-3 pt-3 pb-2.5 space-y-1.5 sm:flex-1 sm:flex sm:flex-col sm:overflow-hidden">
             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
@@ -558,8 +552,8 @@ export function FormulaEditorPanel({
               className={cn(
                 "rounded-md border overflow-hidden sm:flex-1 sm:flex sm:flex-col sm:min-h-0",
                 validationState === "invalid" && "border-destructive",
-                validationState === "valid"   && "border-green-500",
-                validationState !== "invalid" && validationState !== "valid" && "border-border"
+                validationState === "valid" && "border-green-500",
+                validationState !== "invalid" && validationState !== "valid" && "border-border",
               )}
             >
               {/* Top chrome: {{= prefix + validation icon */}
@@ -568,8 +562,8 @@ export function FormulaEditorPanel({
                   "flex items-center justify-between px-2.5 py-1 border-b sm:flex-shrink-0",
                   "bg-muted/20 select-none",
                   validationState === "invalid" && "border-destructive/40",
-                  validationState === "valid"   && "border-green-500/40",
-                  validationState !== "invalid" && validationState !== "valid" && "border-border"
+                  validationState === "valid" && "border-green-500/40",
+                  validationState !== "invalid" && validationState !== "valid" && "border-border",
                 )}
               >
                 <span className="text-[10px] text-muted-foreground/50 font-mono">{"{{="}</span>
@@ -592,8 +586,8 @@ export function FormulaEditorPanel({
                 className={cn(
                   "px-2.5 py-1 border-t bg-muted/20 select-none sm:flex-shrink-0",
                   validationState === "invalid" && "border-destructive/40",
-                  validationState === "valid"   && "border-green-500/40",
-                  validationState !== "invalid" && validationState !== "valid" && "border-border"
+                  validationState === "valid" && "border-green-500/40",
+                  validationState !== "invalid" && validationState !== "valid" && "border-border",
                 )}
               >
                 <span className="text-[10px] text-muted-foreground/50 font-mono">{"}}"}</span>
@@ -632,7 +626,7 @@ export function FormulaEditorPanel({
                 "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                 "bg-primary text-primary-foreground hover:bg-primary/90",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
-                "flex items-center gap-1.5"
+                "flex items-center gap-1.5",
               )}
             >
               {mode === "create" ? t("insert") : t("done")}
@@ -641,9 +635,7 @@ export function FormulaEditorPanel({
               </kbd>
             </button>
           </div>
-
         </div>
-
       </div>
     </TooltipProvider>
   );

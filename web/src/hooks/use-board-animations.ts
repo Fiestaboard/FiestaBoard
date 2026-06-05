@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+
 import { api } from "@/lib/api";
 
 const DESKTOP_QUERY = "(min-width: 768px)";

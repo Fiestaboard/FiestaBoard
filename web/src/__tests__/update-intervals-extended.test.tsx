@@ -1,12 +1,13 @@
 // Branch coverage for UpdateIntervals onBlur + mutation onSuccess paths.
 // The existing general-settings tests cover onChange and board-read blur,
 // but not the polling-interval blur or the requires_restart branch.
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act } from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import { ThemeProvider } from "next-themes";
+import { act } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { server } from "./mocks/server";
 
 vi.mock("next/navigation", () => ({

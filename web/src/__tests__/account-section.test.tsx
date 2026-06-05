@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { server } from "./mocks/server";
 
 const replaceMock = vi.fn();
@@ -57,9 +58,7 @@ const authStatusDisabled = {
 };
 
 function mockAuthStatus(payload: typeof authStatusAuthenticated | typeof authStatusDisabled) {
-  server.use(
-    http.get("/api/auth/status", () => HttpResponse.json(payload)),
-  );
+  server.use(http.get("/api/auth/status", () => HttpResponse.json(payload)));
 }
 
 describe("AccountSection", () => {
@@ -226,9 +225,7 @@ describe("AccountSection", () => {
     mockAuthStatus(authStatusDisabled);
     render(<AccountSection />, { wrapper: TestWrapper });
     await screen.findByText("Turn on login");
-    expect(
-      screen.getByRole("button", { name: /Set up a username/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Set up a username/i })).toBeInTheDocument();
   });
 
   it("'Turn on login' button POSTs preference and routes to /login", async () => {
@@ -270,15 +267,11 @@ describe("AccountSection", () => {
     await screen.findByRole("button", { name: /^Disable login$/i });
 
     const user = userEvent.setup();
-    await user.click(
-      screen.getByRole("button", { name: /^Disable login$/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /^Disable login$/i }));
 
     // Modal opens and asks for current password.
     await screen.findByText(/Disable login for this FiestaBoard\?/i);
-    expect(
-      screen.getByLabelText(/Confirm your current password/i),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Confirm your current password/i)).toBeInTheDocument();
   });
 
   it("'Disable login' POSTs the current password and clears auth", async () => {
@@ -294,18 +287,11 @@ describe("AccountSection", () => {
     render(<AccountSection />, { wrapper: TestWrapper });
     await screen.findByRole("button", { name: /^Disable login$/i });
     const user = userEvent.setup();
-    await user.click(
-      screen.getByRole("button", { name: /^Disable login$/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /^Disable login$/i }));
     await screen.findByText(/Disable login for this FiestaBoard\?/i);
 
-    await user.type(
-      screen.getByLabelText(/Confirm your current password/i),
-      "supersecret",
-    );
-    await user.click(
-      screen.getByRole("button", { name: /Yes, disable login/i }),
-    );
+    await user.type(screen.getByLabelText(/Confirm your current password/i), "supersecret");
+    await user.click(screen.getByRole("button", { name: /Yes, disable login/i }));
 
     await waitFor(() => {
       expect(body).toEqual({ current_password: "supersecret" });

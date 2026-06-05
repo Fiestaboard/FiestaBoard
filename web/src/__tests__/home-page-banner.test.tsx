@@ -1,10 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
-import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { http, HttpResponse } from "msw";
+import { ThemeProvider } from "next-themes";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -62,17 +64,15 @@ describe("Home page - board not configured banner", () => {
           is_first_run: true,
           errors: ["missing api key"],
           missing_fields: ["api_key"],
-        })
-      )
+        }),
+      ),
     );
 
     render(<Home />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText("No board configured")).toBeInTheDocument();
-      expect(
-        screen.getByText(/Your board is not set up yet/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Your board is not set up yet/)).toBeInTheDocument();
     });
   });
 
@@ -84,8 +84,8 @@ describe("Home page - board not configured banner", () => {
           is_first_run: false,
           errors: [],
           missing_fields: [],
-        })
-      )
+        }),
+      ),
     );
 
     render(<Home />, { wrapper: TestWrapper });
@@ -105,8 +105,8 @@ describe("Home page - board not configured banner", () => {
           is_first_run: false,
           errors: ["missing api key"],
           missing_fields: ["api_key"],
-        })
-      )
+        }),
+      ),
     );
 
     const user = userEvent.setup();
@@ -125,15 +125,9 @@ describe("Home page - board not configured banner", () => {
   });
 
   it("does not show banner when API call fails", async () => {
-    server.use(
-      http.get(`${API_BASE}/config/validate`, () =>
-        new HttpResponse(null, { status: 500 })
-      )
-    );
+    server.use(http.get(`${API_BASE}/config/validate`, () => new HttpResponse(null, { status: 500 })));
 
-    const consoleSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     render(<Home />, { wrapper: TestWrapper });
 
     await waitFor(() => {

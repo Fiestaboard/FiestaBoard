@@ -14,7 +14,7 @@
  * NOTE: These tests require the Marketplace to have at least one registry entry.
  * Registry entries are loaded from plugin-registry.json via the API.
  */
-import { test, expect, configureBoard, suppressWizard, API_URL } from "./helpers";
+import { API_URL, configureBoard, expect, suppressWizard, test } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
   await configureBoard();
@@ -24,16 +24,14 @@ test.beforeEach(async ({ page }) => {
 test.describe("Plugin Detail Page", () => {
   test("navigates to plugin detail page from Marketplace tab", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(
-      page.getByRole("heading", { name: /integrations/i })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible({ timeout: 15_000 });
 
     // Switch to the Marketplace tab
     await page.getByRole("tab", { name: /marketplace/i }).click();
 
     // Wait for registry entries to load
     const firstPluginCard = page.locator("[data-testid='registry-plugin-card'], .plugin-card, [class*='card']").first();
-    
+
     // Try to find a clickable card that links to a plugin detail page
     const detailLinks = page.locator("a[href*='/integrations/']").first();
     const linkCount = await detailLinks.count();
@@ -41,21 +39,19 @@ test.describe("Plugin Detail Page", () => {
     if (linkCount > 0) {
       const href = await detailLinks.getAttribute("href");
       expect(href).toMatch(/\/integrations\/\w+/);
-      
+
       await detailLinks.click();
       await expect(page).toHaveURL(/\/integrations\/[^?]+/, { timeout: 10_000 });
     } else {
       // If no direct links, verify the marketplace tab is at least visible with content
-      await expect(
-        page.getByRole("button", { name: /add from git/i }).first()
-      ).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByRole("button", { name: /add from git/i }).first()).toBeVisible({ timeout: 5_000 });
     }
   });
 
   test("plugin detail page shows Back to Marketplace link", async ({ page }) => {
     // Get the registry to find a real plugin ID
     const registryRes = await fetch(`${API_URL}/plugins/registry`);
-    
+
     if (!registryRes.ok) {
       test.skip();
       return;
@@ -63,7 +59,7 @@ test.describe("Plugin Detail Page", () => {
 
     const registry = await registryRes.json();
     const entries: Array<{ id: string }> = registry.entries ?? [];
-    
+
     if (entries.length === 0) {
       test.skip();
       return;
@@ -73,9 +69,7 @@ test.describe("Plugin Detail Page", () => {
     await page.goto(`/integrations/${pluginId}`);
 
     // Back link must be present
-    await expect(
-      page.getByRole("link", { name: /back to marketplace/i })
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("link", { name: /back to marketplace/i })).toBeVisible({ timeout: 15_000 });
   });
 
   test("plugin detail page shows plugin name and category badge", async ({ page }) => {
@@ -104,10 +98,10 @@ test.describe("Plugin Detail Page", () => {
     const nameText = entry.name ?? entry.id;
     const headingEl = page.getByRole("heading", { name: new RegExp(nameText, "i") }).first();
     const nameEl = page.getByText(nameText, { exact: false }).first();
-    
+
     const hasHeading = await headingEl.isVisible({ timeout: 5_000 }).catch(() => false);
     const hasText = await nameEl.isVisible({ timeout: 5_000 }).catch(() => false);
-    
+
     expect(hasHeading || hasText).toBe(true);
   });
 
@@ -237,7 +231,7 @@ test.describe("Plugin Detail Page", () => {
 
     const githubLink = page.getByRole("link", { name: /github/i }).first();
     const isVisible = await githubLink.isVisible({ timeout: 10_000 }).catch(() => false);
-    
+
     if (isVisible) {
       const href = await githubLink.getAttribute("href");
       expect(href).toContain("github.com");

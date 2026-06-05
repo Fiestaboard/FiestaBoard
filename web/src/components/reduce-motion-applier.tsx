@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+
 import { api } from "@/lib/api";
 
 /**
@@ -31,18 +32,9 @@ export function ReduceMotionApplier() {
     const html = document.documentElement;
     html.classList.toggle("reduce-motion", reduceMotion);
     // reduce_motion is the master kill switch — it implies site + board off
-    html.classList.toggle(
-      "site-animations-off",
-      reduceMotion || siteAnimations === "off",
-    );
-    html.classList.toggle(
-      "board-animations-off",
-      reduceMotion || boardAnimations === "off",
-    );
-    html.classList.toggle(
-      "board-animations-desktop-only",
-      !reduceMotion && boardAnimations === "desktop",
-    );
+    html.classList.toggle("site-animations-off", reduceMotion || siteAnimations === "off");
+    html.classList.toggle("board-animations-off", reduceMotion || boardAnimations === "off");
+    html.classList.toggle("board-animations-desktop-only", !reduceMotion && boardAnimations === "desktop");
   }, [reduceMotion, boardAnimations, siteAnimations]);
 
   return null;

@@ -1,20 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, ChevronDown, Eye, EyeOff, Loader2, Radio, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { toast } from "sonner";
-import { Radio, ChevronDown, Eye, EyeOff, Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { api } from "@/lib/api";
+import { Switch } from "@/components/ui/switch";
 import type { MqttSettings } from "@/lib/api";
+import { api } from "@/lib/api";
 
 export function MqttSettingsCard() {
   const t = useTranslations("mqttSettings");
@@ -92,8 +93,8 @@ export function MqttSettingsCard() {
             <CardTitle className="text-base">{t("title")}</CardTitle>
           </div>
           <div className="flex items-center gap-3">
-            {isEnabled && (
-              isConnected ? (
+            {isEnabled &&
+              (isConnected ? (
                 <Badge variant="default" className="text-[10px] h-5 bg-board-green flex items-center gap-1">
                   <CheckCircle2 className="h-2.5 w-2.5" />
                   {t("connected")}
@@ -103,18 +104,11 @@ export function MqttSettingsCard() {
                   <XCircle className="h-2.5 w-2.5" />
                   {t("disconnected")}
                 </Badge>
-              )
-            )}
-            <Switch
-              checked={isEnabled}
-              onCheckedChange={handleToggleEnabled}
-              disabled={saveMutation.isPending}
-            />
+              ))}
+            <Switch checked={isEnabled} onCheckedChange={handleToggleEnabled} disabled={saveMutation.isPending} />
           </div>
         </div>
-        <CardDescription>
-          {t("description")}
-        </CardDescription>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
 
       <Collapsible open={expanded} onOpenChange={setExpanded}>
@@ -127,7 +121,9 @@ export function MqttSettingsCard() {
           <CardContent className="pt-2 space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2 space-y-1">
-                <Label htmlFor="mqtt-broker-host" className="text-xs">{t("brokerHost")}</Label>
+                <Label htmlFor="mqtt-broker-host" className="text-xs">
+                  {t("brokerHost")}
+                </Label>
                 <Input
                   id="mqtt-broker-host"
                   value={merged.broker_host}
@@ -137,7 +133,9 @@ export function MqttSettingsCard() {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="mqtt-broker-port" className="text-xs">{t("port")}</Label>
+                <Label htmlFor="mqtt-broker-port" className="text-xs">
+                  {t("port")}
+                </Label>
                 <Input
                   id="mqtt-broker-port"
                   type="number"
@@ -151,7 +149,9 @@ export function MqttSettingsCard() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="mqtt-username" className="text-xs">{t("username")}</Label>
+                <Label htmlFor="mqtt-username" className="text-xs">
+                  {t("username")}
+                </Label>
                 <Input
                   id="mqtt-username"
                   value={merged.username}
@@ -161,7 +161,9 @@ export function MqttSettingsCard() {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="mqtt-password" className="text-xs">{t("password")}</Label>
+                <Label htmlFor="mqtt-password" className="text-xs">
+                  {t("password")}
+                </Label>
                 <div className="flex gap-1.5">
                   <Input
                     id="mqtt-password"
@@ -186,7 +188,9 @@ export function MqttSettingsCard() {
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="mqtt-external-url" className="text-xs">{t("externalUrl")}</Label>
+              <Label htmlFor="mqtt-external-url" className="text-xs">
+                {t("externalUrl")}
+              </Label>
               <Input
                 id="mqtt-external-url"
                 value={merged.external_url}
@@ -194,9 +198,7 @@ export function MqttSettingsCard() {
                 placeholder={t("externalUrlPlaceholder")}
                 className="h-8 text-xs font-mono"
               />
-              <p className="text-[10px] text-muted-foreground">
-                {t("externalUrlHint")}
-              </p>
+              <p className="text-[10px] text-muted-foreground">{t("externalUrlHint")}</p>
             </div>
 
             {hasDraft && (

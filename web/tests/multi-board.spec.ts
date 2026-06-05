@@ -8,17 +8,17 @@
  *  - Cross-feature: board config changes affect pages list tabs
  */
 import {
-  test,
-  expect,
-  configureBoard,
-  clearBoardConfig,
-  suppressWizard,
-  deleteAllPages,
-  resetToSingleBoard,
-  openSettingsTab,
-  waitForFirstRun,
   API_URL,
   BOARD_HOST,
+  clearBoardConfig,
+  configureBoard,
+  deleteAllPages,
+  expect,
+  openSettingsTab,
+  resetToSingleBoard,
+  suppressWizard,
+  test,
+  waitForFirstRun,
 } from "./helpers";
 
 // ---------------------------------------------------------------------------
@@ -36,13 +36,9 @@ test.describe("Settings – Board Card Display", () => {
     await resetToSingleBoard();
   });
 
-  test("board card header shows name, device type, and dimensions", async ({
-    page,
-  }) => {
+  test("board card header shows name, device type, and dimensions", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -52,13 +48,9 @@ test.describe("Settings – Board Card Display", () => {
     await expect(page.getByText("22×6").first()).toBeVisible();
   });
 
-  test("board card shows Connected badge when credentials are set", async ({
-    page,
-  }) => {
+  test("board card shows Connected badge when credentials are set", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -67,9 +59,7 @@ test.describe("Settings – Board Card Display", () => {
     });
   });
 
-  test("board card shows Not configured badge when credentials are missing", async ({
-    page,
-  }) => {
+  test("board card shows Not configured badge when credentials are missing", async ({ page }) => {
     // Add a second board with no connection credentials
     await fetch(`${API_URL}/settings/board/add`, {
       method: "POST",
@@ -78,9 +68,7 @@ test.describe("Settings – Board Card Display", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -89,9 +77,7 @@ test.describe("Settings – Board Card Display", () => {
     });
   });
 
-  test("Flagship and Note boards show correct dimensions", async ({
-    page,
-  }) => {
+  test("Flagship and Note boards show correct dimensions", async ({ page }) => {
     await fetch(`${API_URL}/settings/board/add`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -99,9 +85,7 @@ test.describe("Settings – Board Card Display", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -129,9 +113,7 @@ test.describe("Settings – Board Instance CRUD", () => {
 
   test("can add a Note board via the Add Board picker", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -153,20 +135,12 @@ test.describe("Settings – Board Instance CRUD", () => {
     const res = await fetch(`${API_URL}/settings/board`);
     const data = await res.json();
     expect(data.boards.length).toBe(2);
-    expect(
-      data.boards.some(
-        (b: { device_type: string }) => b.device_type === "note",
-      ),
-    ).toBe(true);
+    expect(data.boards.some((b: { device_type: string }) => b.device_type === "note")).toBe(true);
   });
 
-  test("can add a Flagship board via the Add Board picker", async ({
-    page,
-  }) => {
+  test("can add a Flagship board via the Add Board picker", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -178,23 +152,21 @@ test.describe("Settings – Board Instance CRUD", () => {
     // Click the Flagship option in the type picker
     await page.getByRole("button", { name: "Flagship", exact: true }).click();
 
-    await expect(page.getByText("Board added")).toBeVisible({ timeout: 5_000 }).catch(() => {});
+    await expect(page.getByText("Board added"))
+      .toBeVisible({ timeout: 5_000 })
+      .catch(() => {});
     await page.waitForTimeout(1_000);
 
     const res = await fetch(`${API_URL}/settings/board`);
     const data = await res.json();
     expect(data.boards.length).toBe(2);
-    const types = data.boards.map(
-      (b: { device_type: string }) => b.device_type,
-    );
+    const types = data.boards.map((b: { device_type: string }) => b.device_type);
     expect(types.filter((t: string) => t === "flagship").length).toBe(2);
   });
 
   test("can rename a board instance", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -209,18 +181,12 @@ test.describe("Settings – Board Instance CRUD", () => {
 
     const res = await fetch(`${API_URL}/settings/board`);
     const data = await res.json();
-    expect(
-      data.boards.some(
-        (b: { name: string }) => b.name === "Living Room Board",
-      ),
-    ).toBe(true);
+    expect(data.boards.some((b: { name: string }) => b.name === "Living Room Board")).toBe(true);
   });
 
   test("can change device type via type pills", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -231,10 +197,7 @@ test.describe("Settings – Board Instance CRUD", () => {
     });
 
     // Click Note pill (the small pill button, not the header text)
-    await page
-      .getByRole("button", { name: "Note", exact: true })
-      .first()
-      .click();
+    await page.getByRole("button", { name: "Note", exact: true }).first().click();
     await page.waitForTimeout(1_500);
 
     // Header should now show 15×3 dimensions
@@ -249,9 +212,7 @@ test.describe("Settings – Board Instance CRUD", () => {
 
   test("can change board color via swatches", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -262,10 +223,7 @@ test.describe("Settings – Board Instance CRUD", () => {
     });
 
     // Click the White swatch
-    await page
-      .getByRole("button", { name: "White", exact: true })
-      .first()
-      .click();
+    await page.getByRole("button", { name: "White", exact: true }).first().click();
     await page.waitForTimeout(1_500);
 
     const res = await fetch(`${API_URL}/settings/board`);
@@ -273,10 +231,7 @@ test.describe("Settings – Board Instance CRUD", () => {
     expect(data.boards[0].board_color).toBe("white");
 
     // Click Black swatch to revert
-    await page
-      .getByRole("button", { name: "Black", exact: true })
-      .first()
-      .click();
+    await page.getByRole("button", { name: "Black", exact: true }).first().click();
     await page.waitForTimeout(1_500);
 
     const res2 = await fetch(`${API_URL}/settings/board`);
@@ -286,9 +241,7 @@ test.describe("Settings – Board Instance CRUD", () => {
 
   test("can toggle board enabled/disabled", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -324,9 +277,7 @@ test.describe("Settings – Board Instance CRUD", () => {
     });
 
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -354,9 +305,7 @@ test.describe("Settings – Board Instance CRUD", () => {
 
   test("cannot delete the last remaining board", async ({ page }) => {
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -419,17 +368,13 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await resetToSingleBoard();
   });
 
-  test("wizard shows Board Type picker with Flagship and Note pills", async ({
-    page,
-  }) => {
+  test("wizard shows Board Type picker with Flagship and Note pills", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
     });
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Welcome to FiestaBoard" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
 
     await expect(page.getByText("Board Type")).toBeVisible({ timeout: 5_000 });
     await expect(page.getByText("Flagship")).toBeVisible();
@@ -438,40 +383,28 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await expect(page.getByText("15 × 3 characters")).toBeVisible();
   });
 
-  test("wizard shows Board Color swatches with Black and White options", async ({
-    page,
-  }) => {
+  test("wizard shows Board Color swatches with Black and White options", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
     });
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Welcome to FiestaBoard" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
 
     await expect(page.getByText("Board Color")).toBeVisible({
       timeout: 5_000,
     });
-    await expect(
-      page.getByRole("button", { name: "Black" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "White" }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Black" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "White" })).toBeVisible();
   });
 
-  test("wizard creates BoardInstance with correct name, type, color, and credentials", async ({
-    page,
-  }) => {
+  test("wizard creates BoardInstance with correct name, type, color, and credentials", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
     });
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Connect Your Board" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     // Fill Local API credentials first
     await page.getByText("Local API").click();
@@ -521,17 +454,13 @@ test.describe("Setup Wizard – Board Configuration", () => {
     expect(board.enabled).toBe(true);
   });
 
-  test("wizard defaults to Flagship and Black when no selection is made", async ({
-    page,
-  }) => {
+  test("wizard defaults to Flagship and Black when no selection is made", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
     });
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Connect Your Board" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     // Don't change type or color — use defaults
     await page.getByText("Local API").click();
@@ -549,17 +478,13 @@ test.describe("Setup Wizard – Board Configuration", () => {
     expect(data.boards[0].board_color).toBe("black");
   });
 
-  test("wizard-created board shows correctly on settings page", async ({
-    page,
-  }) => {
+  test("wizard-created board shows correctly on settings page", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem("fiestaboard_wizard_complete");
     });
 
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Connect Your Board" }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     // Select Note type first — scroll to Board Type section
     const noteTypeBtn = page.locator("button", {
@@ -590,21 +515,15 @@ test.describe("Setup Wizard – Board Configuration", () => {
 
     // Proceed through wizard steps
     await page.getByRole("button", { name: "Next", exact: true }).click();
-    await expect(
-      page.getByRole("heading", { name: "Add Data Sources" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Add Data Sources" })).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Setup Complete!" })).toBeVisible();
 
-    await page
-      .getByRole("button", { name: /Go to Dashboard|Skip/ })
-      .click();
+    await page.getByRole("button", { name: /Go to Dashboard|Skip/ }).click();
 
     // Navigate to settings page
     await page.goto("/settings");
-    await expect(
-      page.getByRole("heading", { name: "Settings", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await openSettingsTab(page, "Hardware");
 
@@ -634,13 +553,9 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await resetToSingleBoard();
   });
 
-  test("adding Note board enables Note tab in pages list", async ({
-    page,
-  }) => {
+  test("adding Note board enables Note tab in pages list", async ({ page }) => {
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Note tab should NOT be visible with only Flagship
     await expect(page.getByRole("tab", { name: "Note" })).toHaveCount(0, {
@@ -655,21 +570,15 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     });
 
     await page.reload();
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByRole("tab", { name: "Note" })).toBeVisible({
       timeout: 5_000,
     });
-    await expect(
-      page.getByRole("tab", { name: "Flagship" }),
-    ).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Flagship" })).toBeVisible();
   });
 
-  test("removing Note board hides Note tab in pages list", async ({
-    page,
-  }) => {
+  test("removing Note board hides Note tab in pages list", async ({ page }) => {
     // Start with both device types
     await fetch(`${API_URL}/settings/board/add`, {
       method: "POST",
@@ -678,9 +587,7 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     });
 
     await page.goto("/pages");
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByRole("tab", { name: "Note" })).toBeVisible({
       timeout: 5_000,
@@ -690,18 +597,14 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await resetToSingleBoard();
 
     await page.reload();
-    await expect(
-      page.getByRole("heading", { name: "Pages", exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByRole("tab", { name: "Note" })).toHaveCount(0, {
       timeout: 3_000,
     });
   });
 
-  test("Note page editor loads 3-line layout when Note device exists", async ({
-    page,
-  }) => {
+  test("Note page editor loads 3-line layout when Note device exists", async ({ page }) => {
     // Add a Note board
     await fetch(`${API_URL}/settings/board/add`, {
       method: "POST",

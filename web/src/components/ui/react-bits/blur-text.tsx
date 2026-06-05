@@ -40,7 +40,7 @@ export default function BlurText({
           observer.unobserve(el);
         }
       },
-      { threshold, rootMargin }
+      { threshold, rootMargin },
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -55,11 +55,7 @@ export default function BlurText({
             display: "inline-block",
             opacity: inView ? 1 : 0,
             filter: inView ? "blur(0px)" : "blur(10px)",
-            transform: inView
-              ? "translateY(0)"
-              : direction === "top"
-                ? "translateY(-30px)"
-                : "translateY(30px)",
+            transform: inView ? "translateY(0)" : direction === "top" ? "translateY(-30px)" : "translateY(30px)",
             transition: `opacity ${stepDuration}s ease, filter ${stepDuration}s ease, transform ${stepDuration}s ease`,
             transitionDelay: `${(index * delay) / 1000}s`,
           }}

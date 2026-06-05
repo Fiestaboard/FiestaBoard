@@ -1,11 +1,13 @@
 // Tests for ForceSetDialog component
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, waitFor, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { ThemeProvider } from "next-themes";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { ForceSetDialog } from "@/components/force-set-dialog";
+
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -27,13 +29,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
 function renderDialog(props: Partial<React.ComponentProps<typeof ForceSetDialog>> = {}) {
   return render(
-    <ForceSetDialog
-      open={true}
-      onOpenChange={vi.fn()}
-      pageId="page-1"
-      pageName="Weather Page"
-      {...props}
-    />,
+    <ForceSetDialog open={true} onOpenChange={vi.fn()} pageId="page-1" pageName="Weather Page" {...props} />,
     { wrapper: TestWrapper },
   );
 }
@@ -71,9 +67,7 @@ describe("ForceSetDialog", () => {
   it("shows custom input when Custom is selected", async () => {
     renderDialog();
     fireEvent.click(screen.getByRole("button", { name: /custom/i }));
-    await waitFor(() =>
-      expect(screen.getByPlaceholderText(/1.?480/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByPlaceholderText(/1.?480/i)).toBeInTheDocument());
   });
 
   it("does not show revert mode options", () => {
@@ -85,15 +79,9 @@ describe("ForceSetDialog", () => {
 
   it("clicking Cancel calls onOpenChange(false)", () => {
     const onOpenChange = vi.fn();
-    render(
-      <ForceSetDialog
-        open={true}
-        onOpenChange={onOpenChange}
-        pageId="page-1"
-        pageName="Weather"
-      />,
-      { wrapper: TestWrapper },
-    );
+    render(<ForceSetDialog open={true} onOpenChange={onOpenChange} pageId="page-1" pageName="Weather" />, {
+      wrapper: TestWrapper,
+    });
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
@@ -112,9 +100,7 @@ describe("ForceSetDialog", () => {
           revert_page_id: null,
         });
       }),
-      http.post(`${API_BASE}/force-refresh`, () =>
-        HttpResponse.json({ status: "ok", message: "Refreshed" }),
-      ),
+      http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ status: "ok", message: "Refreshed" })),
     );
     renderDialog();
     fireEvent.click(screen.getByRole("button", { name: /force set/i }));
@@ -135,9 +121,7 @@ describe("ForceSetDialog", () => {
     );
     renderDialog();
     fireEvent.click(screen.getByRole("button", { name: /force set/i }));
-    await waitFor(() =>
-      expect(screen.queryByText(/setting…/i)).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByText(/setting…/i)).not.toBeInTheDocument());
   });
 
   it("Force Set button is disabled while submitting", async () => {
@@ -153,15 +137,11 @@ describe("ForceSetDialog", () => {
           revert_page_id: null,
         });
       }),
-      http.post(`${API_BASE}/force-refresh`, () =>
-        HttpResponse.json({ status: "ok", message: "Refreshed" }),
-      ),
+      http.post(`${API_BASE}/force-refresh`, () => HttpResponse.json({ status: "ok", message: "Refreshed" })),
     );
     renderDialog();
     const btn = screen.getByRole("button", { name: /force set/i });
     fireEvent.click(btn);
-    await waitFor(() =>
-      expect(screen.queryByText(/setting…/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByText(/setting…/i)).toBeInTheDocument());
   });
 });

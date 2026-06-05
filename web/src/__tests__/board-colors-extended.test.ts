@@ -1,16 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+
 import {
-  BOARD_COLORS,
-  FIESTABOARD_COLORS,
-  COLOR_CODE_MAP,
   ALL_COLOR_CODES,
   AVAILABLE_COLORS,
+  BOARD_COLORS,
+  type BoardColorName,
+  COLOR_CODE_MAP,
   COLOR_DISPLAY,
+  FIESTABOARD_COLORS,
   getBoardColor,
   getFiestaboardColor,
   isValidBoardColor,
   isValidFiestaboardColor,
-  type BoardColorName,
 } from "@/lib/board-colors";
 
 describe("board-colors extended", () => {

@@ -10,7 +10,8 @@
  * gets its own FiestaBoard + mock board container so tests in different
  * files can run in parallel without state interference.
  */
-import { test as base, expect } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test as base } from "@playwright/test";
 
 const _workerUrls = (process.env.WORKER_URLS || "").split(",").filter(Boolean);
 const _workerMockUrls = (process.env.WORKER_MOCK_URLS || "").split(",").filter(Boolean);
@@ -25,11 +26,10 @@ const DEFAULT_MOCK_BOARD_PORT = parseInt(process.env.MOCK_BOARD_PORT || "17000",
 const DEFAULT_MOCK_BOARD_URL = process.env.MOCK_BOARD_URL || `http://localhost:${DEFAULT_MOCK_BOARD_PORT}`;
 const DEFAULT_BOARD_HOST = process.env.MOCK_BOARD_HOST || "localhost";
 
-// eslint-disable-next-line import/no-mutable-exports
 export let API_URL = DEFAULT_API_URL;
-// eslint-disable-next-line import/no-mutable-exports
+
 export let MOCK_BOARD_URL = DEFAULT_MOCK_BOARD_URL;
-// eslint-disable-next-line import/no-mutable-exports
+
 export let BOARD_HOST = DEFAULT_BOARD_HOST;
 export const MOCK_BOARD_PORT = DEFAULT_MOCK_BOARD_PORT;
 /** Second mock board host port (docker-compose.dev.yml maps 17001:7001). */
@@ -47,25 +47,32 @@ function _configureWorker(workerIndex: number) {
 
 /** Extend Playwright's base test with per-worker isolation and per-test cleanup. */
 export const test = base.extend<{ resetBackend: void }, { workerBackend: void }>({
-  workerBackend: [async ({}, use, workerInfo) => {
-    _configureWorker(workerInfo.workerIndex);
-    await use();
-  }, { scope: "worker", auto: true }],
+  workerBackend: [
+    async ({}, use, workerInfo) => {
+      _configureWorker(workerInfo.workerIndex);
+      await use();
+    },
+    { scope: "worker", auto: true },
+  ],
 
   baseURL: async ({}, use, workerInfo) => {
     if (_workerUrls.length > 0) {
       const idx = workerInfo.workerIndex % _workerUrls.length;
+      // eslint-disable-next-line react-hooks/rules-of-hooks -- Playwright fixture `use` callback, not a React hook
       await use(_workerUrls[idx]);
     } else {
+      // eslint-disable-next-line react-hooks/rules-of-hooks -- Playwright fixture `use` callback, not a React hook
       await use(process.env.BASE_URL || "http://localhost:4420");
     }
   },
 
-  // eslint-disable-next-line no-empty-pattern
-  resetBackend: [async ({}, use) => {
-    await resetMockBoard();
-    await use();
-  }, { auto: true }],
+  resetBackend: [
+    async ({}, use) => {
+      await resetMockBoard();
+      await use();
+    },
+    { auto: true },
+  ],
 });
 
 export { expect };
@@ -168,13 +175,9 @@ export async function createPage(
 }
 
 /** Create a Note page (3 lines, 15 cols) and return its ID. */
-export async function createNotePage(
-  name: string,
-  template: string[] = ["NOTE TEST", "", ""],
-): Promise<string> {
+export async function createNotePage(name: string, template: string[] = ["NOTE TEST", "", ""]): Promise<string> {
   return createPage(name, template, "note");
 }
-
 
 /** Delete a page via the API. */
 export async function deletePage(id: string): Promise<void> {
@@ -246,10 +249,7 @@ export async function disablePlugin(id: string): Promise<void> {
 }
 
 /** Update plugin configuration via the API. */
-export async function updatePluginConfig(
-  id: string,
-  config: Record<string, unknown>,
-): Promise<void> {
+export async function updatePluginConfig(id: string, config: Record<string, unknown>): Promise<void> {
   const res = await fetch(`${API_URL}/plugins/${id}/config`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -316,21 +316,23 @@ export async function resetToSingleBoard() {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      boards: [{
-        name: "My Board",
-        device_type: "flagship",
-        board_color: "black",
-        enabled: true,
-        api_mode: "local",
-        host: BOARD_HOST,
-        local_api_key: "test-key",
-      }],
+      boards: [
+        {
+          name: "My Board",
+          device_type: "flagship",
+          board_color: "black",
+          enabled: true,
+          api_mode: "local",
+          host: BOARD_HOST,
+          local_api_key: "test-key",
+        },
+      ],
     }),
   });
 }
 
 /** Suppress the setup wizard by injecting localStorage before navigation. */
-export function suppressWizard(page: import("@playwright/test").Page) {
+export function suppressWizard(page: Page) {
   return page.addInitScript(() => {
     localStorage.setItem("fiestaboard_wizard_complete", "true");
   });
@@ -342,7 +344,7 @@ export function suppressWizard(page: import("@playwright/test").Page) {
  * so tests that look for tab-scoped content must click the right tab first.
  */
 export async function openSettingsTab(
-  page: import("@playwright/test").Page,
+  page: Page,
   tab: "General" | "Hardware" | "Behavior" | "Integrations" | "System" | "Advanced",
 ) {
   await page.getByRole("tab", { name: tab, exact: true }).click();

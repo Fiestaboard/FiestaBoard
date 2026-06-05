@@ -1,5 +1,8 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { api, RotationCreate, PageCreate, RowConfig } from "@/lib/api";
+import { beforeEach, describe, expect, it } from "vitest";
+
+import type { PageCreate, RotationCreate, RowConfig } from "@/lib/api";
+import { api } from "@/lib/api";
+
 import { requestStore } from "./mocks/handlers";
 
 // Reset request store before each test
@@ -15,10 +18,7 @@ describe("API Contract Tests", () => {
     it("createRotation sends correct payload structure", async () => {
       const rotation: RotationCreate = {
         name: "Test Rotation",
-        pages: [
-          { page_id: "page-1" },
-          { page_id: "page-2", duration_override: 120 },
-        ],
+        pages: [{ page_id: "page-1" }, { page_id: "page-2", duration_override: 120 }],
         default_duration: 300,
         enabled: true,
       };
@@ -28,7 +28,7 @@ describe("API Contract Tests", () => {
       expect(result.status).toBe("success");
       expect(result.rotation).toBeDefined();
       expect(result.rotation.name).toBe("Test Rotation");
-      
+
       // Verify request was sent correctly
       expect(requestStore.lastRotationCreate).toEqual(rotation);
       expect(requestStore.lastRotationCreate?.pages).toHaveLength(2);
@@ -122,7 +122,7 @@ describe("API Contract Tests", () => {
       expect(requestStore.lastPageCreate).toEqual(page);
       expect(requestStore.lastPageCreate?.type).toBe("composite");
       expect(requestStore.lastPageCreate?.rows).toHaveLength(3);
-      
+
       // Verify row structure
       const firstRow = requestStore.lastPageCreate?.rows?.[0];
       expect(firstRow?.source).toBe("weather");
@@ -134,14 +134,7 @@ describe("API Contract Tests", () => {
       const page: PageCreate = {
         name: "Custom Template",
         type: "template",
-        template: [
-          "{{weather.temperature}}",
-          "{{datetime.time}}",
-          "{{red}}Alert{{/}}",
-          "",
-          "",
-          "Line 6",
-        ],
+        template: ["{{weather.temperature}}", "{{datetime.time}}", "{{red}}Alert{{/}}", "", "", "Line 6"],
         duration_seconds: 60,
       };
 
@@ -159,7 +152,7 @@ describe("API Contract Tests", () => {
       expect(result.pages).toBeDefined();
       expect(Array.isArray(result.pages)).toBe(true);
       expect(result.total).toBeGreaterThanOrEqual(0);
-      
+
       // Check page structure
       if (result.pages.length > 0) {
         const page = result.pages[0];
@@ -317,4 +310,3 @@ describe("API Contract Tests", () => {
     });
   });
 });
-

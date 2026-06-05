@@ -1,47 +1,18 @@
 "use client";
 
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { BoardDisplay } from "@/components/board-display";
-import { ScaledBoardDisplay } from "@/components/scaled-board-display";
-import { PlainTextEditor } from "@/components/plain-text-editor";
+import { ArrowLeft, Check, Copy, Radio, Save, Trash2, Upload } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
+import { PlainTextEditor } from "@/components/plain-text-editor";
+import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 // Direct import – bypasses next/dynamic chunk caching issues in dev mode.
 // TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
 import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
-import { queryKeys } from "@/hooks/use-board";
-import {
-  ArrowLeft,
-  Save,
-  Trash2,
-  Radio,
-  Upload,
-  Copy,
-  Check,
-} from "lucide-react";
+import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,25 +24,30 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { api, PageCreate, PageUpdate, PageType, DeviceType, BoardInstance, LineAlignment, LineMetadata } from "@/lib/api";
-import type {
-  CurrentPageSnapshot,
-  ToolCall,
-} from "@/lib/ai-chat-types";
-import { applyLineOpInPlace } from "@/lib/line-ops";
-import { useBoardSettings, getEffectiveBoardColor } from "@/hooks/use-board";
-import { clearPreviewCacheForPage } from "@/lib/preview-cache";
-import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
-import { writeLiveOutputMessage, onLiveOutputMessageChange } from "@/lib/live-output-channel";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
+import { queryKeys } from "@/hooks/use-board";
+import { getEffectiveBoardColor, useBoardSettings } from "@/hooks/use-board";
+import type { CurrentPageSnapshot, ToolCall } from "@/lib/ai-chat-types";
+import type {
+  BoardInstance,
+  DeviceType,
+  LineAlignment,
+  LineMetadata,
+  PageCreate,
+  PageType,
+  PageUpdate,
+} from "@/lib/api";
+import { api } from "@/lib/api";
+import { applyLineOpInPlace } from "@/lib/line-ops";
+import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
+import { clearPreviewCacheForPage } from "@/lib/preview-cache";
 
 interface PageBuilderProps {
   pageId?: string; // If provided, edit existing page
@@ -110,7 +86,7 @@ const UNDO_STACK_LIMIT = 5;
 
 // Draft storage key helper
 function getDraftKey(pageId?: string): string {
-  return `fiestaboard-page-draft-${pageId || 'new'}`;
+  return `fiestaboard-page-draft-${pageId || "new"}`;
 }
 
 const EDITOR_MODE_KEY = "fiestaboard_editor_mode";
@@ -202,11 +178,21 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const lineAlignmentsRef = useRef(lineAlignments);
   const lineWrapEnabledRef = useRef(lineWrapEnabled);
   const deviceTypeRef = useRef(deviceType);
-  useEffect(() => { nameRef.current = name; }, [name]);
-  useEffect(() => { templateLinesRef.current = templateLines; }, [templateLines]);
-  useEffect(() => { lineAlignmentsRef.current = lineAlignments; }, [lineAlignments]);
-  useEffect(() => { lineWrapEnabledRef.current = lineWrapEnabled; }, [lineWrapEnabled]);
-  useEffect(() => { deviceTypeRef.current = deviceType; }, [deviceType]);
+  useEffect(() => {
+    nameRef.current = name;
+  }, [name]);
+  useEffect(() => {
+    templateLinesRef.current = templateLines;
+  }, [templateLines]);
+  useEffect(() => {
+    lineAlignmentsRef.current = lineAlignments;
+  }, [lineAlignments]);
+  useEffect(() => {
+    lineWrapEnabledRef.current = lineWrapEnabled;
+  }, [lineWrapEnabled]);
+  useEffect(() => {
+    deviceTypeRef.current = deviceType;
+  }, [deviceType]);
 
   const hasUnsavedChanges = useMemo(() => {
     if (!savedSnapshot) return true;
@@ -244,53 +230,52 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   }, []);
 
   /** Apply one structured AI tool call to the editor state. */
-  const applyToolCall = useCallback((call: ToolCall) => {
-    if (call.op === "suggest_variables") {
-      // Read-only — surfaced in the chat UI, no editor mutation.
-      return;
-    }
-    pushUndoSnapshot();
-    // Skip the 200ms preview debounce for the next render — the user
-    // expects an AI mutation to show on the board immediately, not
-    // after a typing-debounce window.
-    skipNextPreviewDebounceRef.current = true;
-    if (call.op === "replace_page") {
-      const { name: newName, template, line_metadata } = call.args;
-      setName(newName);
-      const lines = template;
-      const alignments = lines.map(
-        (_, i) => (line_metadata[i]?.alignment as LineAlignment) ?? "left",
-      );
-      const wraps = lines.map((_, i) => Boolean(line_metadata[i]?.wrap));
+  const applyToolCall = useCallback(
+    (call: ToolCall) => {
+      if (call.op === "suggest_variables") {
+        // Read-only — surfaced in the chat UI, no editor mutation.
+        return;
+      }
+      pushUndoSnapshot();
+      // Skip the 200ms preview debounce for the next render — the user
+      // expects an AI mutation to show on the board immediately, not
+      // after a typing-debounce window.
+      skipNextPreviewDebounceRef.current = true;
+      if (call.op === "replace_page") {
+        const { name: newName, template, line_metadata } = call.args;
+        setName(newName);
+        const lines = template;
+        const alignments = lines.map((_, i) => (line_metadata[i]?.alignment as LineAlignment) ?? "left");
+        const wraps = lines.map((_, i) => Boolean(line_metadata[i]?.wrap));
+        setTemplateLines(lines);
+        setLineAlignments(alignments);
+        setLineWrapEnabled(wraps);
+        setDebouncedTemplateLines(lines);
+        setDebouncedLineAlignments(alignments);
+        setDebouncedLineWrapEnabled(wraps);
+        toast.success("AI replaced the page");
+        return;
+      }
+      // apply_patch
+      const lines = templateLinesRef.current.slice();
+      const alignments = lineAlignmentsRef.current.slice();
+      const wraps = lineWrapEnabledRef.current.slice();
+      for (const change of call.args.changes) {
+        applyLineOpInPlace(change, lines, alignments, wraps);
+      }
       setTemplateLines(lines);
       setLineAlignments(alignments);
       setLineWrapEnabled(wraps);
       setDebouncedTemplateLines(lines);
       setDebouncedLineAlignments(alignments);
       setDebouncedLineWrapEnabled(wraps);
-      toast.success("AI replaced the page");
-      return;
-    }
-    // apply_patch
-    const lines = templateLinesRef.current.slice();
-    const alignments = lineAlignmentsRef.current.slice();
-    const wraps = lineWrapEnabledRef.current.slice();
-    for (const change of call.args.changes) {
-      applyLineOpInPlace(change, lines, alignments, wraps);
-    }
-    setTemplateLines(lines);
-    setLineAlignments(alignments);
-    setLineWrapEnabled(wraps);
-    setDebouncedTemplateLines(lines);
-    setDebouncedLineAlignments(alignments);
-    setDebouncedLineWrapEnabled(wraps);
-    if (call.args.rename) {
-      setName(call.args.rename);
-    }
-    toast.success(
-      `AI applied ${call.args.changes.length} change${call.args.changes.length === 1 ? "" : "s"}`,
-    );
-  }, [pushUndoSnapshot]);
+      if (call.args.rename) {
+        setName(call.args.rename);
+      }
+      toast.success(`AI applied ${call.args.changes.length} change${call.args.changes.length === 1 ? "" : "s"}`);
+    },
+    [pushUndoSnapshot],
+  );
 
   const handleUndoAi = useCallback(() => {
     const [head, ...rest] = undoStackRef.current;
@@ -486,10 +471,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Track if we need to re-preview after current mutation completes
   const needsRePreview = useRef(false);
-  
+
   // Track if we're manually updating wrap to prevent onChange from overwriting state
   const isUpdatingWrap = useRef(false);
-  
+
   // Track if content was cleared while a mutation is in flight (to ignore stale responses)
   const shouldIgnoreNextResponse = useRef(false);
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -501,22 +486,21 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     enabled: !!pageId,
   });
 
-
   // Load draft or existing page data
   useEffect(() => {
     if (existingPage) {
       // Clear draft when loading existing page
       const draftKey = getDraftKey(pageId);
       localStorage.removeItem(draftKey);
-      
+
       // Set device type from existing page
       if (existingPage.device_type) {
         setDeviceType(existingPage.device_type);
       }
-      
+
       const pageName = existingPage.name;
       setName(pageName);
-      
+
       const rawLines = existingPage.template || emptyLines();
       const meta = existingPage.line_metadata;
 
@@ -540,7 +524,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setDebouncedLineAlignments(alignments);
       setDebouncedLineWrapEnabled(wrapStates);
       setDebouncedTemplateLines(contents);
-      setSavedSnapshot({ name: pageName, templateLines: contents, lineAlignments: alignments, lineWrapEnabled: wrapStates });
+      setSavedSnapshot({
+        name: pageName,
+        templateLines: contents,
+        lineAlignments: alignments,
+        lineWrapEnabled: wrapStates,
+      });
     } else if (!pageId && !loadingPage) {
       const draftKey = getDraftKey();
       if (skipDraft) {
@@ -551,23 +540,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           const draftJson = localStorage.getItem(draftKey);
           if (draftJson) {
             const draft: DraftData = JSON.parse(draftJson);
-              // Only restore if draft is less than 7 days old
-              const draftAge = Date.now() - draft.timestamp;
-              const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+            // Only restore if draft is less than 7 days old
+            const draftAge = Date.now() - draft.timestamp;
+            const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-              if (draftAge < maxAge) {
-                const restoredLines = draft.templateLines || ["", "", "", "", "", ""];
-                setName(draft.name || "");
-                setTemplateLines(restoredLines);
-                setLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
-                setLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
-                setDebouncedTemplateLines(restoredLines);
-                setDebouncedLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
-                setDebouncedLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
-                setDraftRestored(true);
+            if (draftAge < maxAge) {
+              const restoredLines = draft.templateLines || ["", "", "", "", "", ""];
+              setName(draft.name || "");
+              setTemplateLines(restoredLines);
+              setLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
+              setLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
+              setDebouncedTemplateLines(restoredLines);
+              setDebouncedLineAlignments(draft.lineAlignments || ["left", "left", "left", "left", "left", "left"]);
+              setDebouncedLineWrapEnabled(draft.lineWrapEnabled || [false, false, false, false, false, false]);
+              setDraftRestored(true);
 
-                // Auto-dismiss the alert after 5 seconds
-                setTimeout(() => setDraftRestored(false), 5000);
+              // Auto-dismiss the alert after 5 seconds
+              setTimeout(() => setDraftRestored(false), 5000);
             } else {
               // Draft too old, remove it
               localStorage.removeItem(draftKey);
@@ -580,7 +569,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       }
     }
   }, [existingPage, pageId, loadingPage, skipDraft]);
-
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -606,12 +594,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Auto-save draft to localStorage (debounced)
   useEffect(() => {
     const draftKey = getDraftKey(pageId);
-    
+
     // Don't save draft if we just loaded an existing page
     if (existingPage) {
       return;
     }
-    
+
     // Debounce draft saving
     const timeoutId = setTimeout(() => {
       try {
@@ -628,18 +616,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         console.warn("Failed to save draft:", error);
       }
     }, 1000); // Save draft 1 second after last change
-    
+
     return () => clearTimeout(timeoutId);
   }, [name, templateLines, lineAlignments, lineWrapEnabled, pageId, existingPage]);
-
 
   // Auto-resize textareas when content changes
   useEffect(() => {
     // Wait for DOM to update, then resize all textareas
     const timer = setTimeout(() => {
-      const textareas = document.querySelectorAll<HTMLTextAreaElement>('textarea[placeholder*="Use {{variable}} syntax"]');
-      textareas.forEach(textarea => {
-        textarea.style.height = 'auto';
+      const textareas = document.querySelectorAll<HTMLTextAreaElement>(
+        'textarea[placeholder*="Use {{variable}} syntax"]',
+      );
+      textareas.forEach((textarea) => {
+        textarea.style.height = "auto";
         textarea.style.height = `${textarea.scrollHeight}px`;
       });
     }, 0);
@@ -655,19 +644,25 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
    */
   const wrapBudgetWarnings = useMemo<number[]>(() => {
     const warnings: number[] = [];
-    const previewRows = preview ? preview.split('\n') : [];
+    const previewRows = preview ? preview.split("\n") : [];
     for (let i = 0; i < lineWrapEnabled.length; i++) {
       if (!lineWrapEnabled[i]) continue;
       // Skip wrap lines whose template content is empty — nothing to warn about.
-      const ownLine = (templateLines[i] || '').replace(/^\{wrap\}/, '').replace(/^\{(left|center|right)\}/i, '');
-      if (ownLine.trim() === '') continue;
+      const ownLine = (templateLines[i] || "").replace(/^\{wrap\}/, "").replace(/^\{(left|center|right)\}/i, "");
+      if (ownLine.trim() === "") continue;
 
       let budget = 1;
       for (let j = i + 1; j < templateLines.length; j++) {
-        const raw = templateLines[j] || '';
-        const stripped = raw.replace(/^\{wrap\}/, '').replace(/^\{(left|center|right)\}/i, '');
-        if (stripped.trim() === '') { budget++; continue; }
-        if (lineWrapEnabled[j] || raw.startsWith('{wrap}')) { budget++; continue; }
+        const raw = templateLines[j] || "";
+        const stripped = raw.replace(/^\{wrap\}/, "").replace(/^\{(left|center|right)\}/i, "");
+        if (stripped.trim() === "") {
+          budget++;
+          continue;
+        }
+        if (lineWrapEnabled[j] || raw.startsWith("{wrap}")) {
+          budget++;
+          continue;
+        }
         break;
       }
       if (budget !== 1) continue;
@@ -676,7 +671,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       // its trimmed length reaches the board width, suggesting the wrap
       // engine had to truncate. This avoids false positives when the user's
       // value happens to fit comfortably in one row.
-      const trimmed = (previewRows[i] || '').trimEnd();
+      const trimmed = (previewRows[i] || "").trimEnd();
       if (trimmed.length >= dims.cols) {
         warnings.push(i + 1); // 1-indexed for user-facing message
       }
@@ -751,29 +746,29 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (!pageId) {
         localStorage.removeItem(getDraftKey());
       }
-      
+
       // Clear preview cache for this page
       const targetPageId = pageId || data.id;
       if (targetPageId) {
         clearPreviewCacheForPage(targetPageId);
       }
-      
+
       // Invalidate pages list with active refetch
-      queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: 'active' });
-      
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
+
       // Invalidate the specific page and its preview to bust the cache
       if (targetPageId) {
-        queryClient.invalidateQueries({ queryKey: ["page", targetPageId], refetchType: 'active' });
-        queryClient.invalidateQueries({ queryKey: queryKeys.pagePreview(targetPageId), refetchType: 'active' });
+        queryClient.invalidateQueries({ queryKey: ["page", targetPageId], refetchType: "active" });
+        queryClient.invalidateQueries({ queryKey: queryKeys.pagePreview(targetPageId), refetchType: "active" });
       }
-      
+
       // Invalidate all page previews since they may have changed
-      queryClient.invalidateQueries({ queryKey: ["pagePreview"], refetchType: 'active' });
-      
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"], refetchType: "active" });
+
       // If this page is currently active, refresh the active page data
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
-      queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: 'active' });
-      
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: "active" });
+
       toast.success(pageId ? t("toastPageUpdated") : t("toastPageCreated"));
       onSave?.();
       onClose();
@@ -791,24 +786,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (pageId) {
         clearPreviewCacheForPage(pageId);
       }
-      
-      queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: 'active' });
-      
+
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages, refetchType: "active" });
+
       // Invalidate the specific page and its preview to bust the cache
       if (pageId) {
-        queryClient.invalidateQueries({ queryKey: ["page", pageId], refetchType: 'active' });
-        queryClient.invalidateQueries({ queryKey: queryKeys.pagePreview(pageId), refetchType: 'active' });
+        queryClient.invalidateQueries({ queryKey: ["page", pageId], refetchType: "active" });
+        queryClient.invalidateQueries({ queryKey: queryKeys.pagePreview(pageId), refetchType: "active" });
       }
-      
+
       // Invalidate all page previews
-      queryClient.invalidateQueries({ queryKey: ["pagePreview"], refetchType: 'active' });
-      
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"], refetchType: "active" });
+
       // Also invalidate active page if it was updated
       if (data.active_page_updated) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: 'active' });
-        queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: 'active' });
+        queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+        queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: "active" });
       }
-      
+
       // Show appropriate message
       if (data.default_page_created) {
         toast.success(t("toastDeletedDefaultCreated"));
@@ -863,19 +858,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Preview mutation
   const previewMutation = useMutation({
     mutationFn: async () => {
-      const { cleanedLines, metadata } = processLinesWithPrefixes(debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled);
+      const { cleanedLines, metadata } = processLinesWithPrefixes(
+        debouncedTemplateLines,
+        debouncedLineAlignments,
+        debouncedLineWrapEnabled,
+      );
 
-      const hasContent = cleanedLines.some(line => line.trim().length > 0);
-      
+      const hasContent = cleanedLines.some((line) => line.trim().length > 0);
+
       if (!hasContent) {
         const emptyCount = dims.rows;
-        return { 
+        return {
           rendered: "\n".repeat(emptyCount - 1),
-          lines: Array.from({ length: emptyCount }, () => ""), 
-          line_count: emptyCount 
+          lines: Array.from({ length: emptyCount }, () => ""),
+          line_count: emptyCount,
         };
       }
-      
+
       return api.renderTemplate(cleanedLines, metadata, deviceType);
     },
     onSuccess: (data) => {
@@ -883,24 +882,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         shouldIgnoreNextResponse.current = false;
         return;
       }
-      
-      const hasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
+
+      const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
       if (!hasContent) {
         setPreview(null);
         return;
       }
-      
+
       const renderedHasContent = data.rendered && data.rendered.trim().length > 0;
       if (!renderedHasContent) {
         setPreview(null);
         return;
       }
-      
+
       if (preview !== null && preview !== data.rendered) {
         setLastPreview(preview);
         setIsTransitioning(true);
         setPendingPreview(data.rendered);
-        
+
         setTimeout(() => {
           setPreview(data.rendered);
           setIsTransitioning(false);
@@ -915,7 +914,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           setLastPreview(data.rendered);
         }
       }
-      
+
       if (needsRePreview.current) {
         needsRePreview.current = false;
         previewMutation.mutate();
@@ -939,8 +938,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       return;
     }
 
-    const hasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
-    
+    const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+
     if (!hasContent) {
       setPreview(null);
       needsRePreview.current = false;
@@ -950,7 +949,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       }
       return;
     }
-    
+
     shouldIgnoreNextResponse.current = false;
 
     // AI-driven mutations skip the typing-debounce window so the board
@@ -958,7 +957,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     const debounceMs = skipNextPreviewDebounceRef.current ? 0 : 200;
     skipNextPreviewDebounceRef.current = false;
     const timeoutId = setTimeout(() => {
-      const stillHasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
+      const stillHasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
 
       if (!stillHasContent) {
         setPreview(null);
@@ -990,7 +989,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Live output mutation - sends rendered preview to the board
   const liveSendMutation = useMutation({
     mutationFn: async (_rendered: string) => {
-      const { cleanedLines, metadata } = processLinesWithPrefixes(debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled);
+      const { cleanedLines, metadata } = processLinesWithPrefixes(
+        debouncedTemplateLines,
+        debouncedLineAlignments,
+        debouncedLineWrapEnabled,
+      );
       return api.renderTemplateLive(cleanedLines, selectedBoardId || undefined, metadata, deviceType);
     },
     onSuccess: (data) => {
@@ -1002,7 +1005,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       }
     },
     onError: (error: Error) => {
-      console.error('[LiveOutput] Send failed:', error.message);
+      console.error("[LiveOutput] Send failed:", error.message);
       toast.error(t("toastLiveSendFailed"));
     },
   });
@@ -1015,7 +1018,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       return;
     }
 
-    const hasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
+    const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
     if (!hasContent) return;
 
     if (!liveSendMutation.isPending) {
@@ -1039,7 +1042,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       return;
     }
 
-    const hasContent = templateLines.some(line => line.trim().length > 0);
+    const hasContent = templateLines.some((line) => line.trim().length > 0);
     if (!hasContent) {
       if (liveAbortRef.current) {
         liveAbortRef.current.abort();
@@ -1063,16 +1066,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       liveAbortRef.current = controller;
 
       try {
-        const { cleanedLines, metadata } = processLinesWithPrefixes(
-          templateLines, lineAlignments, lineWrapEnabled
-        );
+        const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
 
         const data = await api.renderTemplateLive(
           cleanedLines,
           selectedBoardId || undefined,
           metadata,
           deviceType,
-          controller.signal
+          controller.signal,
         );
 
         if (controller.signal.aborted) return;
@@ -1086,10 +1087,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         queryClient.setQueryData(["liveOutputMessage"], data.rendered);
         writeLiveOutputMessage(data.rendered);
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
+        if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
-        console.error('[LiveFastPath] Error:', error);
+        console.error("[LiveFastPath] Error:", error);
       }
     }, 100);
 
@@ -1110,7 +1111,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setSelectedBoardId(boardSettings.boards[0].id);
     }
   }, [boardSettings?.boards, selectedBoardId]);
-
 
   if (pageId && loadingPage) {
     return (
@@ -1152,374 +1152,378 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                *  time to settle on the new layout before any new
                *  tooltip pops. */}
               <TooltipProvider skipDelayDuration={0}>
-              <div className="flex items-center gap-1.5">
-                {/* Delete button - only show when editing */}
-                {pageId && (
-                  <AlertDialog>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            aria-label={t("deletePageTooltip")}
+                <div className="flex items-center gap-1.5">
+                  {/* Delete button - only show when editing */}
+                  {pageId && (
+                    <AlertDialog>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              aria-label={t("deletePageTooltip")}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{t("deletePageTooltip")}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{t("deletePageTitle")}</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {name
+                              ? t("deletePageConfirmation", { pageName: name })
+                              : t("deletePageConfirmationGeneric")}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteMutation.mutate()}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{t("deletePageTooltip")}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t("deletePageTitle")}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {name
-                            ? t("deletePageConfirmation", { pageName: name })
-                            : t("deletePageConfirmationGeneric")}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => deleteMutation.mutate()}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          {deleteMutation.isPending ? tCommon("deleting") : tCommon("delete")}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-                {/* Save button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="brand"
-                      size="sm"
-                      className="h-8 gap-1.5 px-3"
-                      onClick={() => saveMutation.mutate()}
-                      disabled={!name.trim() || saveMutation.isPending}
-                      aria-label={t("savePageAriaLabel")}
-                    >
-                      <Save className="h-3.5 w-3.5" />
-                      <span className="text-xs">{saveMutation.isPending ? tCommon("saving") : t("savePage")}</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{t("savePageTooltip")}</p>
-                  </TooltipContent>
-                </Tooltip>
-                {/* Export button — only on existing pages */}
-                {pageId && (
+                            {deleteMutation.isPending ? tCommon("deleting") : tCommon("delete")}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  {/* Save button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        variant="secondary"
+                        variant="brand"
                         size="sm"
                         className="h-8 gap-1.5 px-3"
-                        disabled={hasUnsavedChanges}
-                        onClick={async () => {
-                          try {
-                            const res = await api.getPageShareString(pageId);
-                            setExportShareString(res.share_string);
-                            setExportCopied(false);
-                            setExportOpen(true);
-                          } catch {
-                            toast.error(t("exportFailed"));
-                          }
-                        }}
-                        aria-label={t("exportPageAriaLabel")}
+                        onClick={() => saveMutation.mutate()}
+                        disabled={!name.trim() || saveMutation.isPending}
+                        aria-label={t("savePageAriaLabel")}
                       >
-                        <Upload className="h-3.5 w-3.5" />
-                        <span className="text-xs">{t("exportPage")}</span>
+                        <Save className="h-3.5 w-3.5" />
+                        <span className="text-xs">{saveMutation.isPending ? tCommon("saving") : t("savePage")}</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{hasUnsavedChanges ? t("exportDisabledTooltip") : t("exportPageTooltip")}</p>
+                      <p>{t("savePageTooltip")}</p>
                     </TooltipContent>
                   </Tooltip>
-                )}
-              </div>
+                  {/* Export button — only on existing pages */}
+                  {pageId && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 gap-1.5 px-3"
+                          disabled={hasUnsavedChanges}
+                          onClick={async () => {
+                            try {
+                              const res = await api.getPageShareString(pageId);
+                              setExportShareString(res.share_string);
+                              setExportCopied(false);
+                              setExportOpen(true);
+                            } catch {
+                              toast.error(t("exportFailed"));
+                            }
+                          }}
+                          aria-label={t("exportPageAriaLabel")}
+                        >
+                          <Upload className="h-3.5 w-3.5" />
+                          <span className="text-xs">{t("exportPage")}</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{hasUnsavedChanges ? t("exportDisabledTooltip") : t("exportPageTooltip")}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
               </TooltipProvider>
             </div>
           </CardHeader>
 
           <CardContent className="flex flex-col flex-1 min-h-0 px-3 sm:px-4 md:px-6 pt-2">
             <ScrollArea className="flex-1 min-h-0 space-y-4">
-            {/* Draft restored notification */}
-            {draftRestored && (
-              <Alert className="bg-info/10 border-info/20">
-                <AlertDescription className="text-sm">
-                  {t("draftRestored")}
-                </AlertDescription>
-              </Alert>
-            )}
+              {/* Draft restored notification */}
+              {draftRestored && (
+                <Alert className="bg-info/10 border-info/20">
+                  <AlertDescription className="text-sm">{t("draftRestored")}</AlertDescription>
+                </Alert>
+              )}
 
-            {/* Page name */}
-            <div className="space-y-1.5">
-              <label htmlFor="page-name" className="text-xs sm:text-sm font-medium">{t("pageNameLabel")}</label>
-              <input
-                id="page-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t("pageNamePlaceholder")}
-                className="w-full h-10 sm:h-9 px-3 text-sm rounded-md border bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-
-            {/* Template line editors */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
-                <div className="flex items-center border rounded-md overflow-hidden" role="group" aria-label={t("editorModeAriaLabel")}>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleEditorModeChange("rich")}
-                    className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
-                    aria-label={t("richEditorAriaLabel")}
-                    aria-pressed={editorMode === "rich"}
-                  >
-                    {t("richEditor")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleEditorModeChange("plain")}
-                    className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
-                    aria-label={t("plainTextAriaLabel")}
-                    aria-pressed={editorMode === "plain"}
-                  >
-                    {t("plainEditor")}
-                  </Button>
-                </div>
+              {/* Page name */}
+              <div className="space-y-1.5">
+                <label htmlFor="page-name" className="text-xs sm:text-sm font-medium">
+                  {t("pageNameLabel")}
+                </label>
+                <input
+                  id="page-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t("pageNamePlaceholder")}
+                  className="w-full h-10 sm:h-9 px-3 text-sm rounded-md border bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
               </div>
-              {editorMode === "rich" ? (
-                <div>
-                  {/* Template editor with device-specific dimensions */}
-                  <TipTapTemplateEditor
-                    value={templateLines.join('\n')}
-                    onChange={(newValue) => {
-                      if (isUpdatingWrap.current) {
-                        return;
-                      }
-                      const lines = newValue.split('\n');
-                      setTemplateLines(lines);
 
-                      const oldLen = templateLines.length;
-                      const newLen = lines.length;
-                      if (newLen !== oldLen) {
-                        let prefixMatch = 0;
-                        while (prefixMatch < Math.min(newLen, oldLen) && lines[prefixMatch] === templateLines[prefixMatch]) {
-                          prefixMatch++;
-                        }
-                        let suffixMatch = 0;
-                        while (suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
-                               lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]) {
-                          suffixMatch++;
-                        }
-
-                        const updatedAlignments = [...lineAlignments];
-                        const updatedWrap = [...lineWrapEnabled];
-
-                        if (newLen < oldLen) {
-                          const deleteCount = oldLen - newLen;
-                          const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
-                          updatedAlignments.splice(deleteStart, deleteCount);
-                          updatedWrap.splice(deleteStart, deleteCount);
-                        } else {
-                          const insertCount = newLen - oldLen;
-                          const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
-                          for (let i = 0; i < insertCount; i++) {
-                            updatedAlignments.splice(insertStart + i, 0, "left");
-                            updatedWrap.splice(insertStart + i, 0, false);
-                          }
-                        }
-
-                        while (updatedAlignments.length < newLen) updatedAlignments.push("left");
-                        while (updatedWrap.length < newLen) updatedWrap.push(false);
-                        updatedAlignments.length = newLen;
-                        updatedWrap.length = newLen;
-
-                        setLineAlignments(updatedAlignments);
-                        setLineWrapEnabled(updatedWrap);
-                      }
-                    }}
-                    lineAlignments={lineAlignments}
-                    lineWrapEnabled={lineWrapEnabled}
-                    onLineAlignmentChange={(lineIndex, alignment) => {
-                      setLineAlignments(prev => {
-                        const newAlignments = [...prev];
-                        newAlignments[lineIndex] = alignment;
-                        return newAlignments;
-                      });
-                    }}
-                    onLineWrapChange={(lineIndex, wrapEnabled) => {
-                      setLineWrapEnabled(prev => {
-                        const newWrapStates = [...prev];
-                        newWrapStates[lineIndex] = wrapEnabled;
-                        return newWrapStates;
-                      });
-                    }}
-                    placeholder={t("richEditorPlaceholder")}
-                    showAlignmentControls={true}
-                    showToolbar={true}
-                    boardWidth={dims.cols}
-                    boardLines={numLines}
-                    deviceType={deviceType}
-                    onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                    syncFromBoardPending={syncFromBoardMutation.isPending}
-                  />
-                </div>
-              ) : (
-                <div>
-                  <PlainTextEditor
-                    value={templateLines.join('\n')}
-                    onChange={(newValue) => {
-                      setTemplateLines(newValue.split('\n'));
-                    }}
-                    placeholder={t("plainEditorPlaceholder")}
-                    boardLines={numLines}
-                    boardWidth={dims.cols}
-                  />
-                </div>
-              )}
-
-              {/* Line count validation warning */}
-              {lineCount > numLines && (
-                <div className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning">
-                  <span className="font-medium shrink-0">{t("warningLabel")}</span>
-                  <span>
-                    {t("lineCountWarning", { lineCount, maxLines: numLines })}
-                  </span>
-                </div>
-              )}
-
-              {/* Wrap budget warnings */}
-              {wrapBudgetWarnings.map((lineNumber) => (
-                <div
-                  key={`wrap-budget-${lineNumber}`}
-                  className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
-                >
-                  <span className="font-medium shrink-0">{t("warningLabel")}</span>
-                  <span>{t("wrapBudgetWarning", { lineNumber })}</span>
-                </div>
-              ))}
-
-              {/* Live preview */}
-              <div className="mt-4">
-                <div className="flex flex-wrap items-center justify-between gap-y-1 mb-2">
-                  <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[10px] text-muted-foreground mr-0.5">{t("boardColorLabel")}</span>
-                    <button
-                      onClick={() => setPreviewBoardColor("black")}
-                      aria-label={t("previewAsBlack")}
-                      aria-pressed={effectiveBoardColor === "black"}
-                      className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                        effectiveBoardColor === "black"
-                          ? "border-primary ring-1 ring-primary/30"
-                          : "border-border hover:border-muted-foreground"
-                      }`}
-                    />
-                    <button
-                      onClick={() => setPreviewBoardColor("white")}
-                      aria-label={t("previewAsWhite")}
-                      aria-pressed={effectiveBoardColor === "white"}
-                      className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                        effectiveBoardColor === "white"
-                          ? "border-primary ring-1 ring-primary/30"
-                          : "border-border hover:border-muted-foreground"
-                      }`}
-                    />
+              {/* Template line editors */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
+                  <div
+                    className="flex items-center border rounded-md overflow-hidden"
+                    role="group"
+                    aria-label={t("editorModeAriaLabel")}
+                  >
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleEditorModeChange("rich")}
+                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
+                      aria-label={t("richEditorAriaLabel")}
+                      aria-pressed={editorMode === "rich"}
+                    >
+                      {t("richEditor")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleEditorModeChange("plain")}
+                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
+                      aria-label={t("plainTextAriaLabel")}
+                      aria-pressed={editorMode === "plain"}
+                    >
+                      {t("plainEditor")}
+                    </Button>
                   </div>
                 </div>
-                <div className="flex justify-center">
-                  <ScaledBoardDisplay
-                    message={(() => {
-                      // Use new loading pattern: keep previous message visible during loading/transition
-                      // This allows tiles to cycle through characters (like real FiestaBoard)
-                      // instead of showing legacy FlipTiles
-                      
-                      const hasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
-                      const isPending = previewMutation.isPending;
-                      const shouldIgnore = shouldIgnoreNextResponse.current;
-                      
-                      if (isTransitioning && lastPreview) return lastPreview;
-                      if (preview !== null) return preview;
-                      if (!hasContent && !isPending && !shouldIgnore) return "";
-                      if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
-                      if (isPending && hasContent && !shouldIgnore) return "";
-                      return null;
-                    })()}
-                    isLoading={(() => {
-                      const hasContent = debouncedTemplateLines.some(line => line.trim().length > 0);
-                      const isPending = previewMutation.isPending;
-                      const shouldIgnore = shouldIgnoreNextResponse.current;
-                      
-                      if (isTransitioning) return true;
-                      if (preview !== null && !isTransitioning) return false;
-                      if (!hasContent) return false;
-                      if (shouldIgnore) return false;
-                      return isPending && hasContent;
-                    })()}
-                    size="md"
-                    boardType={effectiveBoardColor}
-                    deviceType={deviceType}
-                  />
-                </div>
+                {editorMode === "rich" ? (
+                  <div>
+                    {/* Template editor with device-specific dimensions */}
+                    <TipTapTemplateEditor
+                      value={templateLines.join("\n")}
+                      onChange={(newValue) => {
+                        if (isUpdatingWrap.current) {
+                          return;
+                        }
+                        const lines = newValue.split("\n");
+                        setTemplateLines(lines);
 
-                {/* Live output controls */}
-                <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="live-output-toggle"
-                      checked={liveOutputEnabled}
-                      onCheckedChange={setLiveOutputEnabled}
-                      aria-label={t("liveOutputAriaLabel")}
+                        const oldLen = templateLines.length;
+                        const newLen = lines.length;
+                        if (newLen !== oldLen) {
+                          let prefixMatch = 0;
+                          while (
+                            prefixMatch < Math.min(newLen, oldLen) &&
+                            lines[prefixMatch] === templateLines[prefixMatch]
+                          ) {
+                            prefixMatch++;
+                          }
+                          let suffixMatch = 0;
+                          while (
+                            suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
+                            lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]
+                          ) {
+                            suffixMatch++;
+                          }
+
+                          const updatedAlignments = [...lineAlignments];
+                          const updatedWrap = [...lineWrapEnabled];
+
+                          if (newLen < oldLen) {
+                            const deleteCount = oldLen - newLen;
+                            const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
+                            updatedAlignments.splice(deleteStart, deleteCount);
+                            updatedWrap.splice(deleteStart, deleteCount);
+                          } else {
+                            const insertCount = newLen - oldLen;
+                            const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
+                            for (let i = 0; i < insertCount; i++) {
+                              updatedAlignments.splice(insertStart + i, 0, "left");
+                              updatedWrap.splice(insertStart + i, 0, false);
+                            }
+                          }
+
+                          while (updatedAlignments.length < newLen) updatedAlignments.push("left");
+                          while (updatedWrap.length < newLen) updatedWrap.push(false);
+                          updatedAlignments.length = newLen;
+                          updatedWrap.length = newLen;
+
+                          setLineAlignments(updatedAlignments);
+                          setLineWrapEnabled(updatedWrap);
+                        }
+                      }}
+                      lineAlignments={lineAlignments}
+                      lineWrapEnabled={lineWrapEnabled}
+                      onLineAlignmentChange={(lineIndex, alignment) => {
+                        setLineAlignments((prev) => {
+                          const newAlignments = [...prev];
+                          newAlignments[lineIndex] = alignment;
+                          return newAlignments;
+                        });
+                      }}
+                      onLineWrapChange={(lineIndex, wrapEnabled) => {
+                        setLineWrapEnabled((prev) => {
+                          const newWrapStates = [...prev];
+                          newWrapStates[lineIndex] = wrapEnabled;
+                          return newWrapStates;
+                        });
+                      }}
+                      placeholder={t("richEditorPlaceholder")}
+                      showAlignmentControls={true}
+                      showToolbar={true}
+                      boardWidth={dims.cols}
+                      boardLines={numLines}
+                      deviceType={deviceType}
+                      onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                      syncFromBoardPending={syncFromBoardMutation.isPending}
                     />
-                    <label
-                      htmlFor="live-output-toggle"
-                      className="flex items-center gap-1.5 text-xs sm:text-sm font-medium cursor-pointer select-none"
-                    >
-                      <Radio className={`h-3.5 w-3.5 ${liveOutputEnabled ? "text-destructive animate-pulse" : "text-muted-foreground"}`} />
-                      {t("liveOutput")}
-                    </label>
-                    {liveSendMutation.isPending && (
-                      <span className="text-[10px] text-muted-foreground">{tCommon("sending")}</span>
+                  </div>
+                ) : (
+                  <div>
+                    <PlainTextEditor
+                      value={templateLines.join("\n")}
+                      onChange={(newValue) => {
+                        setTemplateLines(newValue.split("\n"));
+                      }}
+                      placeholder={t("plainEditorPlaceholder")}
+                      boardLines={numLines}
+                      boardWidth={dims.cols}
+                    />
+                  </div>
+                )}
+
+                {/* Line count validation warning */}
+                {lineCount > numLines && (
+                  <div className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning">
+                    <span className="font-medium shrink-0">{t("warningLabel")}</span>
+                    <span>{t("lineCountWarning", { lineCount, maxLines: numLines })}</span>
+                  </div>
+                )}
+
+                {/* Wrap budget warnings */}
+                {wrapBudgetWarnings.map((lineNumber) => (
+                  <div
+                    key={`wrap-budget-${lineNumber}`}
+                    className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                  >
+                    <span className="font-medium shrink-0">{t("warningLabel")}</span>
+                    <span>{t("wrapBudgetWarning", { lineNumber })}</span>
+                  </div>
+                ))}
+
+                {/* Live preview */}
+                <div className="mt-4">
+                  <div className="flex flex-wrap items-center justify-between gap-y-1 mb-2">
+                    <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] text-muted-foreground mr-0.5">{t("boardColorLabel")}</span>
+                      <button
+                        onClick={() => setPreviewBoardColor("black")}
+                        aria-label={t("previewAsBlack")}
+                        aria-pressed={effectiveBoardColor === "black"}
+                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                          effectiveBoardColor === "black"
+                            ? "border-primary ring-1 ring-primary/30"
+                            : "border-border hover:border-muted-foreground"
+                        }`}
+                      />
+                      <button
+                        onClick={() => setPreviewBoardColor("white")}
+                        aria-label={t("previewAsWhite")}
+                        aria-pressed={effectiveBoardColor === "white"}
+                        className={`h-5 w-5 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                          effectiveBoardColor === "white"
+                            ? "border-primary ring-1 ring-primary/30"
+                            : "border-border hover:border-muted-foreground"
+                        }`}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-center">
+                    <ScaledBoardDisplay
+                      message={(() => {
+                        // Use new loading pattern: keep previous message visible during loading/transition
+                        // This allows tiles to cycle through characters (like real FiestaBoard)
+                        // instead of showing legacy FlipTiles
+
+                        const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+                        const isPending = previewMutation.isPending;
+                        const shouldIgnore = shouldIgnoreNextResponse.current;
+
+                        if (isTransitioning && lastPreview) return lastPreview;
+                        if (preview !== null) return preview;
+                        if (!hasContent && !isPending && !shouldIgnore) return "";
+                        if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
+                        if (isPending && hasContent && !shouldIgnore) return "";
+                        return null;
+                      })()}
+                      isLoading={(() => {
+                        const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+                        const isPending = previewMutation.isPending;
+                        const shouldIgnore = shouldIgnoreNextResponse.current;
+
+                        if (isTransitioning) return true;
+                        if (preview !== null && !isTransitioning) return false;
+                        if (!hasContent) return false;
+                        if (shouldIgnore) return false;
+                        return isPending && hasContent;
+                      })()}
+                      size="md"
+                      boardType={effectiveBoardColor}
+                      deviceType={deviceType}
+                    />
+                  </div>
+
+                  {/* Live output controls */}
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="live-output-toggle"
+                        checked={liveOutputEnabled}
+                        onCheckedChange={setLiveOutputEnabled}
+                        aria-label={t("liveOutputAriaLabel")}
+                      />
+                      <label
+                        htmlFor="live-output-toggle"
+                        className="flex items-center gap-1.5 text-xs sm:text-sm font-medium cursor-pointer select-none"
+                      >
+                        <Radio
+                          className={`h-3.5 w-3.5 ${liveOutputEnabled ? "text-destructive animate-pulse" : "text-muted-foreground"}`}
+                        />
+                        {t("liveOutput")}
+                      </label>
+                      {liveSendMutation.isPending && (
+                        <span className="text-[10px] text-muted-foreground">{tCommon("sending")}</span>
+                      )}
+                    </div>
+
+                    {boardSettings?.boards && boardSettings.boards.length > 1 && (
+                      <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
+                        <SelectTrigger className="h-7 w-[140px] text-xs" aria-label={t("selectBoardAriaLabel")}>
+                          <SelectValue placeholder={t("selectBoardPlaceholder")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {boardSettings.boards.map((board: BoardInstance) => (
+                            <SelectItem key={board.id} value={board.id} className="text-xs">
+                              {board.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                   </div>
-
-                  {boardSettings?.boards && boardSettings.boards.length > 1 && (
-                    <Select
-                      value={selectedBoardId}
-                      onValueChange={setSelectedBoardId}
-                    >
-                      <SelectTrigger className="h-7 w-[140px] text-xs" aria-label={t("selectBoardAriaLabel")}>
-                        <SelectValue placeholder={t("selectBoardPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {boardSettings.boards.map((board: BoardInstance) => (
-                          <SelectItem key={board.id} value={board.id} className="text-xs">
-                            {board.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
                 </div>
               </div>
-
-            </div>
             </ScrollArea>
           </CardContent>
         </Card>
-
       </div>
 
       {/* Export dialog */}
@@ -1554,4 +1558,3 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   );
 });
 PageBuilder.displayName = "PageBuilder";
-

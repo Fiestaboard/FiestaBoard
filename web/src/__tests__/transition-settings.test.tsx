@@ -1,11 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
-import { TransitionSettings } from "@/components/settings/transition-settings";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { ThemeProvider } from "next-themes";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { TransitionSettings } from "@/components/settings/transition-settings";
+
 import { mockTransitionSettings } from "./mocks/handlers";
+import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
@@ -58,15 +60,11 @@ describe("TransitionSettings", () => {
 
     // The mock returns strategy: "column" (Wave), so only that description is visible
     await waitFor(() => {
-      expect(
-        screen.getByText(/column-by-column from left to right/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/column-by-column from left to right/)).toBeInTheDocument();
     });
 
     // Descriptions for non-selected strategies are not shown
-    expect(
-      screen.queryByText(/column-by-column from right to left/)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/column-by-column from right to left/)).not.toBeInTheDocument();
   });
 
   it("shows advanced options when a strategy is selected", async () => {
@@ -99,10 +97,17 @@ describe("TransitionSettings", () => {
             boards: [{ id: "default", name: "Flagship", device_type: "flagship", board_color: "black" }],
             devices: ["flagship"],
           },
-          mqtt: { enabled: false, broker_host: "localhost", broker_port: 1883, username: "", password: "", external_url: "" },
+          mqtt: {
+            enabled: false,
+            broker_host: "localhost",
+            broker_port: 1883,
+            username: "",
+            password: "",
+            external_url: "",
+          },
           status: { running: true, config_summary: {} },
         });
-      })
+      }),
     );
 
     render(<TransitionSettings />, { wrapper: TestWrapper });
@@ -135,7 +140,7 @@ describe("TransitionSettings", () => {
           status: "success",
           settings: { strategy: "random", step_interval_ms: 500, step_size: 2 },
         });
-      })
+      }),
     );
 
     render(<TransitionSettings />, { wrapper: TestWrapper });
@@ -152,7 +157,7 @@ describe("TransitionSettings", () => {
       () => {
         expect(updatePayload).toBeDefined();
       },
-      { timeout: 3000 }
+      { timeout: 3000 },
     );
 
     expect(updatePayload?.strategy).toBe("random");

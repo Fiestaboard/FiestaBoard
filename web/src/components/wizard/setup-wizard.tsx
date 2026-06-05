@@ -1,23 +1,21 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
-import { 
-  saveWizardProgress, 
-  getWizardProgress, 
-  markWizardComplete,
-  clearWizardProgress,
-  WizardProgress 
-} from "@/lib/setup-detection";
-import { Aurora } from "@/components/ui/aurora";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useState } from "react";
+
 import { LanguageSelector } from "@/components/language-selector";
+import { Aurora } from "@/components/ui/aurora";
+import { Button } from "@/components/ui/button";
+import type { WizardProgress } from "@/lib/setup-detection";
+import { clearWizardProgress, getWizardProgress, markWizardComplete, saveWizardProgress } from "@/lib/setup-detection";
+import { cn } from "@/lib/utils";
+
 import { StepBoardSetup } from "./step-board-setup";
-import { StepEasyPlugins, WizardPluginConfig } from "./step-easy-plugins";
+import type { WizardPluginConfig } from "./step-easy-plugins";
+import { StepEasyPlugins } from "./step-easy-plugins";
 import { StepWelcome } from "./step-welcome";
 
 interface SetupWizardProps {
@@ -33,7 +31,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [canProceed, setCanProceed] = useState(false);
-  
+
   // Board config state
   const [boardConfig, setBoardConfig] = useState<{
     api_mode: "local" | "cloud";
@@ -65,7 +63,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     if (saved) {
       setCurrentStep(saved.currentStep);
       if (saved.boardConfig) {
-        setBoardConfig(prev => ({
+        setBoardConfig((prev) => ({
           ...prev,
           api_mode: saved.boardConfig!.api_mode,
           local_api_key: saved.boardConfig!.local_api_key || "",
@@ -76,7 +74,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         }));
       }
       if (saved.plugins) {
-        setPluginConfig(prev => ({
+        setPluginConfig((prev) => ({
           ...prev,
           ...saved.plugins,
         }));
@@ -103,14 +101,14 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
   const handleNext = useCallback(() => {
     if (currentStep < TOTAL_STEPS) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep((prev) => prev + 1);
       setCanProceed(false);
     }
   }, [currentStep]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
+      setCurrentStep((prev) => prev - 1);
     }
   }, [currentStep]);
 
@@ -135,13 +133,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
           />
         );
       case 2:
-        return (
-          <StepEasyPlugins
-            config={pluginConfig}
-            onConfigChange={setPluginConfig}
-            onValidChange={setCanProceed}
-          />
-        );
+        return <StepEasyPlugins config={pluginConfig} onConfigChange={setPluginConfig} onValidChange={setCanProceed} />;
       case 3:
         return (
           <StepWelcome
@@ -158,11 +150,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   };
 
   // Step titles
-  const stepTitles = [
-    t("stepTitles.connectBoard"),
-    t("stepTitles.addDataSources"),
-    t("stepTitles.allSet"),
-  ];
+  const stepTitles = [t("stepTitles.connectBoard"), t("stepTitles.addDataSources"), t("stepTitles.allSet")];
 
   const stepDescriptions = [
     t("stepDescriptions.enterCredentials"),
@@ -174,14 +162,9 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
       {/* Aurora background - fixed so it stays in place while content scrolls */}
       <div className="fixed inset-0 pointer-events-none">
-        <Aurora
-          colorStops={["#f8e71c", "#eb4034", "#AA00FF", "#9b59b6"]}
-          blend={0.5}
-          amplitude={1.0}
-          speed={0.5}
-        />
+        <Aurora colorStops={["#f8e71c", "#eb4034", "#AA00FF", "#9b59b6"]} blend={0.5} amplitude={1.0} speed={0.5} />
       </div>
-      
+
       {/* Content container */}
       <div className="relative min-h-full flex items-start justify-center py-6 sm:py-10 px-4 sm:px-6">
         <div className="w-full max-w-lg bg-background/75 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-6 sm:p-8">
@@ -200,12 +183,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
               </div>
               <LanguageSelector />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              {t("welcomeTitle")}
-            </h1>
-            <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-              {t("welcomeSubtitle")}
-            </p>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("welcomeTitle")}</h1>
+            <p className="text-muted-foreground mt-2 text-sm sm:text-base">{t("welcomeSubtitle")}</p>
           </header>
 
           {/* Progress indicator */}
@@ -216,9 +195,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   key={step}
                   className={cn(
                     "flex-1 h-2 rounded-full transition-all duration-500",
-                    step <= currentStep 
-                      ? "bg-primary" 
-                      : "bg-muted"
+                    step <= currentStep ? "bg-primary" : "bg-muted",
                   )}
                 />
               ))}
@@ -232,12 +209,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step header */}
           <div className="mb-6">
-            <h2 className="text-xl sm:text-2xl font-semibold">
-              {stepTitles[currentStep - 1]}
-            </h2>
-            <p className="text-muted-foreground mt-1">
-              {stepDescriptions[currentStep - 1]}
-            </p>
+            <h2 className="text-xl sm:text-2xl font-semibold">{stepTitles[currentStep - 1]}</h2>
+            <p className="text-muted-foreground mt-1">{stepDescriptions[currentStep - 1]}</p>
           </div>
 
           {/* Step content */}
@@ -247,12 +220,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
           <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
             <div>
               {currentStep > 1 && (
-                <Button 
-                  variant="ghost" 
-                  onClick={handleBack} 
-                  disabled={isLoading}
-                  size="lg"
-                >
+                <Button variant="ghost" onClick={handleBack} disabled={isLoading} size="lg">
                   <ChevronLeft className="h-4 w-4 mr-1" />
                   {tc("back")}
                 </Button>
@@ -265,22 +233,13 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
               </span>
 
               {currentStep === 1 && (
-                <Button
-                  variant="ghost"
-                  onClick={handleComplete}
-                  disabled={isLoading}
-                  size="lg"
-                >
+                <Button variant="ghost" onClick={handleComplete} disabled={isLoading} size="lg">
                   {t("skipForNow")}
                 </Button>
               )}
 
               {currentStep < TOTAL_STEPS && (
-                <Button 
-                  onClick={handleNext} 
-                  disabled={!canProceed || isLoading}
-                  size="lg"
-                >
+                <Button onClick={handleNext} disabled={!canProceed || isLoading} size="lg">
                   {tc("next")}
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
@@ -292,4 +251,3 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     </div>
   );
 }
-

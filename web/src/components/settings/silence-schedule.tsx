@@ -1,25 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState, useDeferredValue } from "react";
-import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Moon } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { TimePicker } from "@/components/ui/time-picker";
-import { Moon } from "lucide-react";
-import { toast } from "sonner";
-import { api } from "@/lib/api";
 import { usePages } from "@/hooks/use-board";
+import { api } from "@/lib/api";
 import { localTimeToUTC, utcToLocalTime } from "@/lib/timezone-utils";
 
 type SilenceMode = "indicator" | "freeze" | "page";
@@ -76,8 +71,7 @@ export function SilenceSchedule() {
   }, [deferredSilenceConfig, generalConfig?.timezone]);
 
   const updateSilenceMutation = useMutation({
-    mutationFn: (data: Parameters<typeof api.updateSilenceSchedule>[0]) =>
-      api.updateSilenceSchedule(data),
+    mutationFn: (data: Parameters<typeof api.updateSilenceSchedule>[0]) => api.updateSilenceSchedule(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-settings"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["silence-status"], refetchType: "active" });
@@ -153,7 +147,16 @@ export function SilenceSchedule() {
     }, 1000);
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [silenceEnabled, silenceStartTime, silenceEndTime, silenceMode, silencePageId, silenceIndicatorText, silenceIndicatorPosition, hasChanges]);
+  }, [
+    silenceEnabled,
+    silenceStartTime,
+    silenceEndTime,
+    silenceMode,
+    silencePageId,
+    silenceIndicatorText,
+    silenceIndicatorPosition,
+    hasChanges,
+  ]);
 
   return (
     <Card>
@@ -189,7 +192,9 @@ export function SilenceSchedule() {
               <div className="mt-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="silence-start" className="text-sm font-medium">{t("startTimeLabel")}</Label>
+                    <Label htmlFor="silence-start" className="text-sm font-medium">
+                      {t("startTimeLabel")}
+                    </Label>
                     <TimePicker
                       id="silence-start"
                       value={silenceStartTime}
@@ -199,7 +204,9 @@ export function SilenceSchedule() {
                     <p className="text-xs text-muted-foreground">{t("whenSilenceBegins")}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="silence-end" className="text-sm font-medium">{t("endTimeLabel")}</Label>
+                    <Label htmlFor="silence-end" className="text-sm font-medium">
+                      {t("endTimeLabel")}
+                    </Label>
                     <TimePicker
                       id="silence-end"
                       value={silenceEndTime}

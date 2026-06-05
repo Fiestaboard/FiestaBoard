@@ -1,20 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import {
-  useSetActivePage,
-  usePagePreview,
-  useBoardSettings,
   getEffectiveBoardColor,
   getEffectiveDeviceType,
   queryKeys,
+  useBoardSettings,
+  usePagePreview,
+  useSetActivePage,
 } from "@/hooks/use-board";
-import {
-  ConfigOverridesProvider,
-  useConfigOverrides,
-  SERVICE_KEYS,
-} from "@/hooks/use-config-overrides";
+import { ConfigOverridesProvider, SERVICE_KEYS, useConfigOverrides } from "@/hooks/use-config-overrides";
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -88,10 +85,7 @@ describe("use-board extended", () => {
     });
 
     it("is disabled when enabled option is false", () => {
-      const { result } = renderHook(
-        () => usePagePreview("page-1", { enabled: false }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePagePreview("page-1", { enabled: false }), { wrapper: createWrapper() });
 
       expect(result.current.fetchStatus).toBe("idle");
     });
@@ -114,7 +108,7 @@ describe("use-board extended", () => {
         getEffectiveBoardColor({
           board_type: "black",
           boards: [{ board_color: "white" }],
-        })
+        }),
       ).toBe("white");
     });
 
@@ -123,7 +117,7 @@ describe("use-board extended", () => {
         getEffectiveBoardColor({
           board_type: "white",
           boards: [{}],
-        })
+        }),
       ).toBe("white");
     });
 
@@ -132,7 +126,7 @@ describe("use-board extended", () => {
         getEffectiveBoardColor({
           board_type: "white",
           boards: [],
-        })
+        }),
       ).toBe("white");
     });
 
@@ -140,7 +134,7 @@ describe("use-board extended", () => {
       expect(
         getEffectiveBoardColor({
           board_type: "white",
-        })
+        }),
       ).toBe("white");
     });
 
@@ -149,7 +143,7 @@ describe("use-board extended", () => {
         getEffectiveBoardColor({
           board_type: null,
           boards: [],
-        })
+        }),
       ).toBe("black");
     });
 
@@ -163,7 +157,7 @@ describe("use-board extended", () => {
       expect(
         getEffectiveDeviceType({
           boards: [{ device_type: "note" }],
-        })
+        }),
       ).toBe("note");
     });
 
@@ -171,7 +165,7 @@ describe("use-board extended", () => {
       expect(
         getEffectiveDeviceType({
           boards: [{ device_type: "flagship" }],
-        })
+        }),
       ).toBe("flagship");
     });
 
@@ -179,14 +173,12 @@ describe("use-board extended", () => {
       expect(
         getEffectiveDeviceType({
           boards: [],
-        })
+        }),
       ).toBe("flagship");
     });
 
     it("returns flagship when boards is undefined", () => {
-      expect(
-        getEffectiveDeviceType({})
-      ).toBe("flagship");
+      expect(getEffectiveDeviceType({})).toBe("flagship");
     });
 
     it("defaults to flagship when settings is undefined", () => {
@@ -197,7 +189,7 @@ describe("use-board extended", () => {
       expect(
         getEffectiveDeviceType({
           boards: [{ device_type: "note" }, { device_type: "flagship" }],
-        })
+        }),
       ).toBe("note");
     });
 
@@ -205,7 +197,7 @@ describe("use-board extended", () => {
       expect(
         getEffectiveDeviceType({
           boards: [{}],
-        })
+        }),
       ).toBe("flagship");
     });
   });
@@ -220,7 +212,7 @@ describe("use-config-overrides", () => {
       return React.createElement(
         QueryClientProvider,
         { client: queryClient },
-        React.createElement(ConfigOverridesProvider, null, children)
+        React.createElement(ConfigOverridesProvider, null, children),
       );
     };
   }

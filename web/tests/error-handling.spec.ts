@@ -4,12 +4,7 @@
  * Tests error resilience: 404s for missing resources,
  * validation rejections, and invalid data handling.
  */
-import {
-  test,
-  expect,
-  configureBoard,
-  API_URL,
-} from "./helpers";
+import { API_URL, configureBoard, expect, test } from "./helpers";
 
 test.beforeEach(async () => {
   await configureBoard();
@@ -68,9 +63,7 @@ test.describe("Error Handling", () => {
     expect(data).toHaveProperty("errors");
   });
 
-  test("UI handles navigation to invalid page route gracefully", async ({
-    page,
-  }) => {
+  test("UI handles navigation to invalid page route gracefully", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem("fiestaboard_wizard_complete", "true");
     });
@@ -82,8 +75,6 @@ test.describe("Error Handling", () => {
     // The desktop sidebar is an <aside aria-label="Main navigation"> outside the
     // page-transition FadeContent wrapper (which starts at opacity:0 until
     // IntersectionObserver fires), so it is a reliable indicator that the app loaded.
-    await expect(
-      page.getByRole("complementary", { name: "Main navigation" }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("complementary", { name: "Main navigation" })).toBeVisible({ timeout: 15_000 });
   });
 });

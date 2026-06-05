@@ -6,10 +6,11 @@
  *  2. Custom day abbreviation lookup is case-insensitive and robust
  *  3. Aria-labels on Edit/Delete buttons include the page name for accessibility
  */
-import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
 import { ScheduleListView } from "@/app/schedule/components/schedule-list-view";
-import type { ScheduleEntry, Page } from "@/lib/api";
+import type { Page, ScheduleEntry } from "@/lib/api";
 
 const MOCK_PAGES: Page[] = [
   {
@@ -161,31 +162,13 @@ describe("ScheduleListView – formatDays", () => {
 
 describe("ScheduleListView – accessibility aria-labels", () => {
   it("Edit button has aria-label including the page name", () => {
-    render(
-      <ScheduleListView
-        schedules={[makeSchedule({})]}
-        pages={MOCK_PAGES}
-        onEdit={vi.fn()}
-        onDelete={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getByRole("button", { name: "Edit schedule for Morning Board" }),
-    ).toBeInTheDocument();
+    render(<ScheduleListView schedules={[makeSchedule({})]} pages={MOCK_PAGES} onEdit={vi.fn()} onDelete={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Edit schedule for Morning Board" })).toBeInTheDocument();
   });
 
   it("Delete button has aria-label including the page name", () => {
-    render(
-      <ScheduleListView
-        schedules={[makeSchedule({})]}
-        pages={MOCK_PAGES}
-        onEdit={vi.fn()}
-        onDelete={vi.fn()}
-      />,
-    );
-    expect(
-      screen.getByRole("button", { name: "Delete schedule for Morning Board" }),
-    ).toBeInTheDocument();
+    render(<ScheduleListView schedules={[makeSchedule({})]} pages={MOCK_PAGES} onEdit={vi.fn()} onDelete={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Delete schedule for Morning Board" })).toBeInTheDocument();
   });
 
   it("Edit and Delete buttons call their handlers with correct arguments", () => {
@@ -193,23 +176,12 @@ describe("ScheduleListView – accessibility aria-labels", () => {
     const onDelete = vi.fn();
     const schedule = makeSchedule({});
 
-    render(
-      <ScheduleListView
-        schedules={[schedule]}
-        pages={MOCK_PAGES}
-        onEdit={onEdit}
-        onDelete={onDelete}
-      />,
-    );
+    render(<ScheduleListView schedules={[schedule]} pages={MOCK_PAGES} onEdit={onEdit} onDelete={onDelete} />);
 
-    screen
-      .getByRole("button", { name: "Edit schedule for Morning Board" })
-      .click();
+    screen.getByRole("button", { name: "Edit schedule for Morning Board" }).click();
     expect(onEdit).toHaveBeenCalledWith(schedule);
 
-    screen
-      .getByRole("button", { name: "Delete schedule for Morning Board" })
-      .click();
+    screen.getByRole("button", { name: "Delete schedule for Morning Board" }).click();
     expect(onDelete).toHaveBeenCalledWith("sched-1");
   });
 });

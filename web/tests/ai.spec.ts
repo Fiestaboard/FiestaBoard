@@ -17,7 +17,7 @@
  * Streaming /chat is intentionally NOT covered here — it's unit-tested and
  * Playwright SSE handling is complex enough to warrant its own PR.
  */
-import { test, expect, type APIRequestContext } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:4420";
 const API_URL = `${BASE_URL}/api`;
@@ -291,9 +291,7 @@ test.describe("AI", () => {
       expect(status).toBe(400);
     });
 
-    test("happy path round-trips through the mock and returns a valid page", async ({
-      request,
-    }) => {
+    test("happy path round-trips through the mock and returns a valid page", async ({ request }) => {
       await configureMockProvider(request);
       await setMockScenario("ok");
 
@@ -323,9 +321,7 @@ test.describe("AI", () => {
       expect(lastUserMsg!.content).toContain("show hello world");
     });
 
-    test("surfaces upstream auth error as a 400 with the provider message", async ({
-      request,
-    }) => {
+    test("surfaces upstream auth error as a 400 with the provider message", async ({ request }) => {
       await configureMockProvider(request);
       await setMockScenario("auth_error");
       const { status, data } = await callGenerate(request, {
@@ -347,9 +343,7 @@ test.describe("AI", () => {
       expect(String(data.detail || "")).toMatch(/json|did not contain|valid/i);
     });
 
-    test("returns 400 when the model omits the required template field", async ({
-      request,
-    }) => {
+    test("returns 400 when the model omits the required template field", async ({ request }) => {
       await configureMockProvider(request);
       await setMockScenario("missing_template");
       const { status, data } = await callGenerate(request, {
@@ -381,9 +375,7 @@ test.describe("AI", () => {
 
       // The settings component is loaded — assert on a stable string from
       // its header / description copy rather than a specific button label.
-      await expect(
-        page.getByText(/AI Providers|AI Settings|Add provider/i).first(),
-      ).toBeVisible();
+      await expect(page.getByText(/AI Providers|AI Settings|Add provider/i).first()).toBeVisible();
       // The provider we configured via the API should appear in the list.
       await expect(page.getByText(PROVIDER_NAME, { exact: false }).first()).toBeVisible();
     });

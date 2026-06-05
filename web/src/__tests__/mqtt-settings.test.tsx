@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { server } from "./mocks/server";
 
 vi.mock("next/navigation", () => ({
@@ -28,11 +29,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     },
   });
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 describe("MqttSettingsCard", () => {
@@ -60,9 +57,7 @@ describe("MqttSettingsCard", () => {
     render(<MqttSettingsCard />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Expose FiestaBoard as a device in Home Assistant/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Expose FiestaBoard as a device in Home Assistant/)).toBeInTheDocument();
     });
   });
 
@@ -84,15 +79,15 @@ describe("MqttSettingsCard", () => {
           username: "ha_user",
           password: "***",
           external_url: "http://192.168.1.50:4420",
-        })
+        }),
       ),
       http.get(`${API_BASE}/mqtt/status`, () =>
         HttpResponse.json({
           enabled: true,
           connected: true,
           running: true,
-        })
-      )
+        }),
+      ),
     );
 
     render(<MqttSettingsCard />, { wrapper: TestWrapper });
@@ -112,15 +107,15 @@ describe("MqttSettingsCard", () => {
           username: "",
           password: "",
           external_url: "",
-        })
+        }),
       ),
       http.get(`${API_BASE}/mqtt/status`, () =>
         HttpResponse.json({
           enabled: true,
           connected: false,
           running: true,
-        })
-      )
+        }),
+      ),
     );
 
     render(<MqttSettingsCard />, { wrapper: TestWrapper });

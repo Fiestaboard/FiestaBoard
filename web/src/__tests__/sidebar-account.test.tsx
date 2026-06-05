@@ -1,10 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
-import { server } from "./mocks/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { TooltipProvider } from "@/components/ui/tooltip";
+
+import { server } from "./mocks/server";
 
 const replaceMock = vi.fn();
 
@@ -55,9 +57,7 @@ const authStatusDisabled = {
 };
 
 function mockAuthStatus(payload: typeof authStatusAuthenticated | typeof authStatusDisabled) {
-  server.use(
-    http.get("/api/auth/status", () => HttpResponse.json(payload)),
-  );
+  server.use(http.get("/api/auth/status", () => HttpResponse.json(payload)));
 }
 
 describe("SidebarAccount", () => {
@@ -92,9 +92,7 @@ describe("SidebarAccount", () => {
 
     render(<SidebarAccount />, { wrapper: TestWrapper });
     const user = userEvent.setup();
-    await user.click(
-      await screen.findByRole("button", { name: /Sign out/i }),
-    );
+    await user.click(await screen.findByRole("button", { name: /Sign out/i }));
 
     await waitFor(() => {
       expect(logoutCalled).toBe(true);
@@ -105,17 +103,11 @@ describe("SidebarAccount", () => {
   it("still routes to /login even if the logout API errors", async () => {
     // Best-effort behavior — the local cache should be dropped regardless.
     mockAuthStatus(authStatusAuthenticated);
-    server.use(
-      http.post("/api/auth/logout", () =>
-        HttpResponse.json({ detail: "boom" }, { status: 500 }),
-      ),
-    );
+    server.use(http.post("/api/auth/logout", () => HttpResponse.json({ detail: "boom" }, { status: 500 })));
 
     render(<SidebarAccount />, { wrapper: TestWrapper });
     const user = userEvent.setup();
-    await user.click(
-      await screen.findByRole("button", { name: /Sign out/i }),
-    );
+    await user.click(await screen.findByRole("button", { name: /Sign out/i }));
 
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/login");
