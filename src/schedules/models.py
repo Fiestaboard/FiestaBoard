@@ -13,10 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 DayPattern = Literal["all", "weekdays", "weekends", "custom"]
 TimeType = Literal["fixed", "sunrise", "sunset"]
 
-VALID_DAYS = [
-    "monday", "tuesday", "wednesday", "thursday",
-    "friday", "saturday", "sunday"
-]
+VALID_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"]
 WEEKENDS = ["saturday", "sunday"]
@@ -24,6 +21,7 @@ WEEKENDS = ["saturday", "sunday"]
 
 # Sentinel for "default" board when board_id was not set (backward compat)
 DEFAULT_BOARD_ID = ""
+
 
 class ScheduleEntry(BaseModel):
     """A schedule entry defining when a page should be displayed.
@@ -34,6 +32,7 @@ class ScheduleEntry(BaseModel):
     takes over).
     Each entry is scoped to a board via board_id (empty string = default/first board).
     """
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     board_id: str = Field(default=DEFAULT_BOARD_ID, min_length=0)  # "" = default board
     page_id: str = Field(min_length=1)
@@ -73,9 +72,13 @@ class ScheduleEntry(BaseModel):
         # Validate times are not identical (zero-duration schedule)
         # Note: end_time < start_time is valid (midnight rollover, e.g. 23:00-03:00)
         # When end_time is None, the schedule is open-ended (no zero-duration issue)
-        if self.end_time is not None and time_pattern.match(self.start_time) and time_pattern.match(self.end_time):
-            if self.start_time == self.end_time:
-                errors.append("end_time must be different from start_time (zero-duration schedule)")
+        if (
+            self.end_time is not None
+            and time_pattern.match(self.start_time)
+            and time_pattern.match(self.end_time)
+            and self.start_time == self.end_time
+        ):
+            errors.append("end_time must be different from start_time (zero-duration schedule)")
 
         # Validate custom_days when pattern is custom
         if self.day_pattern == "custom":
@@ -107,11 +110,11 @@ class ScheduleEntry(BaseModel):
         """
         if self.day_pattern == "all":
             return VALID_DAYS.copy()
-        elif self.day_pattern == "weekdays":
+        if self.day_pattern == "weekdays":
             return WEEKDAYS.copy()
-        elif self.day_pattern == "weekends":
+        if self.day_pattern == "weekends":
             return WEEKENDS.copy()
-        elif self.day_pattern == "custom":
+        if self.day_pattern == "custom":
             return self.custom_days.copy() if self.custom_days else []
         return []
 
@@ -151,13 +154,13 @@ class ScheduleEntry(BaseModel):
         if end_minutes <= start_minutes:
             # Midnight rollover: active if time >= start OR time < end
             return time_minutes >= start_minutes or time_minutes < end_minutes
-        else:
-            # Normal range: active if start <= time < end
-            return start_minutes <= time_minutes < end_minutes
+        # Normal range: active if start <= time < end
+        return start_minutes <= time_minutes < end_minutes
 
 
 class ScheduleCreate(BaseModel):
     """Request model for creating a new schedule entry."""
+
     board_id: str = Field(default=DEFAULT_BOARD_ID, min_length=0)
     page_id: str = Field(min_length=1)
     start_time: str = Field(pattern=r"^\d{2}:\d{2}$")
@@ -173,6 +176,7 @@ class ScheduleCreate(BaseModel):
 
 class ScheduleUpdate(BaseModel):
     """Request model for updating an existing schedule entry."""
+
     board_id: str | None = Field(default=None, min_length=0)
     page_id: str | None = Field(default=None, min_length=1)
     start_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
@@ -188,6 +192,7 @@ class ScheduleUpdate(BaseModel):
 
 class Overlap(BaseModel):
     """Represents an overlap between two schedule entries."""
+
     schedule1_id: str
     schedule2_id: str
     conflict_description: str
@@ -195,6 +200,7 @@ class Overlap(BaseModel):
 
 class Gap(BaseModel):
     """Represents a gap in the schedule."""
+
     start_time: str
     end_time: str
     days: list[str]
@@ -202,6 +208,7 @@ class Gap(BaseModel):
 
 class ScheduleValidationResult(BaseModel):
     """Result of schedule validation."""
+
     valid: bool
     overlaps: list[Overlap]
     gaps: list[Gap]

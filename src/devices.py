@@ -14,6 +14,7 @@ DEVICE_TYPES = ("flagship", "note")
 
 class DeviceDimensions(NamedTuple):
     """Physical board dimensions for a device type."""
+
     rows: int
     cols: int
 
@@ -36,6 +37,7 @@ class BoardInstance:
     device type, display color, and connection settings.
     Each board has its own API credentials and connection mode.
     """
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = ""
     device_type: str = "flagship"

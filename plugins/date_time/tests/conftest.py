@@ -31,7 +31,4 @@ def sample_manifest():
 @pytest.fixture
 def sample_config():
     """Sample configuration for testing."""
-    return {
-        "enabled": True,
-        "timezone": "America/Los_Angeles"
-    }
+    return {"enabled": True, "timezone": "America/Los_Angeles"}

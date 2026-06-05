@@ -1,11 +1,12 @@
 """Tests for MQTT command handler."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
-from src.mqtt.config import MQTTConfig
+import pytest
+
 from src.mqtt.client import MQTTClient
 from src.mqtt.commands import CommandHandler
+from src.mqtt.config import MQTTConfig
 
 
 @pytest.fixture
@@ -224,7 +225,9 @@ class TestCommandHandlerEventPublishing:
     @patch("src.text_to_board.text_to_board_array")
     @patch("src.api_server.get_service")
     @patch("src.config.Config")
-    def test_send_message_fires_display_updated_event(self, mock_config, get_service, text_to_board, get_settings, handler_with_publisher):
+    def test_send_message_fires_display_updated_event(
+        self, mock_config, get_service, text_to_board, get_settings, handler_with_publisher
+    ):
         handler, publisher = handler_with_publisher
         mock_config.is_silence_mode_active.return_value = False
         service = MagicMock()
@@ -232,9 +235,7 @@ class TestCommandHandlerEventPublishing:
         get_service.return_value = service
         text_to_board.return_value = [[0] * 22 for _ in range(6)]
         settings = MagicMock()
-        settings.get_transition_settings.return_value = MagicMock(
-            strategy="column", step_interval_ms=100, step_size=1
-        )
+        settings.get_transition_settings.return_value = MagicMock(strategy="column", step_interval_ms=100, step_size=1)
         get_settings.return_value = settings
         handler.handle("send_message", "Hello World")
         publisher.publish_event.assert_called_once()
@@ -272,9 +273,15 @@ class TestCommandHandlerPageNavigation:
     def test_next_page_advances_to_next(self, get_page, get_settings, handler_with_publisher):
         handler, publisher = handler_with_publisher
         page_svc = MagicMock()
-        page1 = MagicMock(); page1.name = "Weather"; page1.id = "p1"
-        page2 = MagicMock(); page2.name = "Sports"; page2.id = "p2"
-        page3 = MagicMock(); page3.name = "News"; page3.id = "p3"
+        page1 = MagicMock()
+        page1.name = "Weather"
+        page1.id = "p1"
+        page2 = MagicMock()
+        page2.name = "Sports"
+        page2.id = "p2"
+        page3 = MagicMock()
+        page3.name = "News"
+        page3.id = "p3"
         page_svc.list_pages.return_value = [page1, page2, page3]
         get_page.return_value = page_svc
         settings = MagicMock()
@@ -292,8 +299,12 @@ class TestCommandHandlerPageNavigation:
     def test_next_page_wraps_around(self, get_page, get_settings, handler):
         """At the last page, next should wrap to the first."""
         page_svc = MagicMock()
-        page1 = MagicMock(); page1.name = "A"; page1.id = "p1"
-        page2 = MagicMock(); page2.name = "B"; page2.id = "p2"
+        page1 = MagicMock()
+        page1.name = "A"
+        page1.id = "p1"
+        page2 = MagicMock()
+        page2.name = "B"
+        page2.id = "p2"
         page_svc.list_pages.return_value = [page1, page2]
         get_page.return_value = page_svc
         settings = MagicMock()
@@ -307,9 +318,15 @@ class TestCommandHandlerPageNavigation:
     def test_previous_page_goes_back(self, get_page, get_settings, handler_with_publisher):
         handler, publisher = handler_with_publisher
         page_svc = MagicMock()
-        page1 = MagicMock(); page1.name = "Weather"; page1.id = "p1"
-        page2 = MagicMock(); page2.name = "Sports"; page2.id = "p2"
-        page3 = MagicMock(); page3.name = "News"; page3.id = "p3"
+        page1 = MagicMock()
+        page1.name = "Weather"
+        page1.id = "p1"
+        page2 = MagicMock()
+        page2.name = "Sports"
+        page2.id = "p2"
+        page3 = MagicMock()
+        page3.name = "News"
+        page3.id = "p3"
         page_svc.list_pages.return_value = [page1, page2, page3]
         get_page.return_value = page_svc
         settings = MagicMock()
@@ -327,8 +344,12 @@ class TestCommandHandlerPageNavigation:
     def test_previous_page_wraps_around(self, get_page, get_settings, handler):
         """At the first page, previous should wrap to the last."""
         page_svc = MagicMock()
-        page1 = MagicMock(); page1.name = "A"; page1.id = "p1"
-        page2 = MagicMock(); page2.name = "B"; page2.id = "p2"
+        page1 = MagicMock()
+        page1.name = "A"
+        page1.id = "p1"
+        page2 = MagicMock()
+        page2.name = "B"
+        page2.id = "p2"
         page_svc.list_pages.return_value = [page1, page2]
         get_page.return_value = page_svc
         settings = MagicMock()

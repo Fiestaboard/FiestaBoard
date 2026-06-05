@@ -54,7 +54,7 @@ class TestDateTimePlugin:
         # Should use default and be valid
         assert len(errors) == 0
 
-    @patch('plugins.date_time.datetime')
+    @patch("plugins.date_time.datetime")
     def test_fetch_data_all_variables(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data returns all expected variables."""
         # Mock datetime to return a specific date/time
@@ -95,7 +95,7 @@ class TestDateTimePlugin:
         assert "month_abbr" in data
         assert "timezone" in data
 
-    @patch('plugins.date_time.datetime')
+    @patch("plugins.date_time.datetime")
     def test_fetch_data_time_formats(self, mock_datetime, sample_manifest, sample_config):
         """Test time format variables."""
         # Test at 2:30 PM (14:30)
@@ -112,7 +112,7 @@ class TestDateTimePlugin:
         assert result.data["time"] == "14:30"  # Should match time_24h
         assert result.data["time_12h"] == "2:30 PM"  # Leading zero removed
 
-    @patch('plugins.date_time.datetime')
+    @patch("plugins.date_time.datetime")
     def test_fetch_data_time_formats_midnight(self, mock_datetime, sample_manifest, sample_config):
         """Test time formats at midnight (12:00 AM)."""
         mock_now = datetime(2025, 1, 15, 0, 0, 0)
@@ -127,7 +127,7 @@ class TestDateTimePlugin:
         assert result.data["time_24h"] == "00:00"
         assert result.data["time_12h"] == "12:00 AM"
 
-    @patch('plugins.date_time.datetime')
+    @patch("plugins.date_time.datetime")
     def test_fetch_data_time_formats_noon(self, mock_datetime, sample_manifest, sample_config):
         """Test time formats at noon (12:00 PM)."""
         mock_now = datetime(2025, 1, 15, 12, 0, 0)
@@ -142,7 +142,7 @@ class TestDateTimePlugin:
         assert result.data["time_24h"] == "12:00"
         assert result.data["time_12h"] == "12:00 PM"
 
-    @patch('plugins.date_time.datetime')
+    @patch("plugins.date_time.datetime")
     def test_fetch_data_date_formats(self, mock_datetime, sample_manifest, sample_config):
         """Test US date format variables."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
@@ -158,7 +158,7 @@ class TestDateTimePlugin:
         assert result.data["date_us"] == "01/15/2025"
         assert result.data["date_us_short"] == "01/15/25"
 
-    @patch('plugins.date_time.datetime')
+    @patch("plugins.date_time.datetime")
     def test_fetch_data_month_formats(self, mock_datetime, sample_manifest, sample_config):
         """Test month format variables."""
         # Test January (month 1)
@@ -187,7 +187,7 @@ class TestDateTimePlugin:
         assert result.data["month_number_padded"] == "12"
         assert result.data["month_abbr"] == "Dec"
 
-    @patch('plugins.date_time.datetime')
+    @patch("plugins.date_time.datetime")
     def test_fetch_data_timezone_info(self, mock_datetime, sample_manifest, sample_config):
         """Test timezone-related variables."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
@@ -205,7 +205,7 @@ class TestDateTimePlugin:
         assert result.data["timezone"] == "America/New_York"
         assert "timezone_abbr" in result.data  # Should have abbreviation like "EST" or "EDT"
 
-    @patch('plugins.date_time.datetime')
+    @patch("plugins.date_time.datetime")
     def test_fetch_data_day_of_week(self, mock_datetime, sample_manifest, sample_config):
         """Test day of week variable."""
         # Wednesday
@@ -222,7 +222,7 @@ class TestDateTimePlugin:
         assert result.data["day"] == "15"
         assert result.data["year"] == "2025"
 
-    @patch('plugins.date_time.datetime')
+    @patch("plugins.date_time.datetime")
     def test_fetch_data_variables_match_manifest(self, mock_datetime, sample_manifest, sample_config):
         """Test that fetch_data() output keys match the manifest-declared variables."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
@@ -257,7 +257,7 @@ class TestDateTimePlugin:
 
     def test_fetch_data_default_timezone(self, sample_manifest):
         """Test fetch_data falls back to LA when neither plugin nor general timezone is set."""
-        with patch('src.config.Config') as mock_config:
+        with patch("src.config.Config") as mock_config:
             mock_config.GENERAL_TIMEZONE = ""
             plugin = DateTimePlugin(sample_manifest)
             plugin.config = {"enabled": True}  # No timezone in config
@@ -269,7 +269,7 @@ class TestDateTimePlugin:
 
     def test_fetch_data_uses_general_timezone(self, sample_manifest):
         """Test fetch_data falls back to general/profile timezone when plugin timezone is not set."""
-        with patch('src.config.Config') as mock_config:
+        with patch("src.config.Config") as mock_config:
             mock_config.GENERAL_TIMEZONE = "America/Denver"
             plugin = DateTimePlugin(sample_manifest)
             plugin.config = {"enabled": True}  # No plugin-specific timezone
@@ -279,7 +279,7 @@ class TestDateTimePlugin:
         assert result.data is not None
         assert result.data["timezone"] == "America/Denver"
 
-    @patch('plugins.date_time.datetime')
+    @patch("plugins.date_time.datetime")
     def test_get_formatted_display(self, mock_datetime, sample_manifest, sample_config):
         """Test formatted display output."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
@@ -297,7 +297,7 @@ class TestDateTimePlugin:
         assert "2025-01-15" in lines[2]  # Date should be centered
         assert "14:30" in lines[3]  # Time should be centered
 
-    @patch('plugins.date_time.datetime')
+    @patch("plugins.date_time.datetime")
     def test_get_formatted_display_fetch_fails(self, mock_datetime, sample_manifest):
         """Test formatted display when fetch_data fails."""
         mock_datetime.now.side_effect = Exception("Test error")
@@ -329,8 +329,7 @@ class TestDateTimeManifestMetadata:
 
         simple = manifest["variables"]["simple"]
         for var_name, meta in simple.items():
-            assert "description" in meta and meta["description"], \
-                f"Variable '{var_name}' missing description"
+            assert meta.get("description"), f"Variable '{var_name}' missing description"
 
     def test_all_variables_have_valid_groups(self):
         """Every variable references a group that is defined."""
@@ -343,8 +342,7 @@ class TestDateTimeManifestMetadata:
         for var_name, meta in simple.items():
             group = meta.get("group", "")
             if group:
-                assert group in groups, \
-                    f"Variable '{var_name}' references undefined group '{group}'"
+                assert group in groups, f"Variable '{var_name}' references undefined group '{group}'"
 
     def test_groups_are_defined(self):
         """Manifest defines variable groups."""
@@ -365,10 +363,25 @@ class TestDateTimeManifestMetadata:
 
         simple = manifest["variables"]["simple"]
         expected = [
-            "time", "date", "datetime", "day", "day_of_week", "month",
-            "year", "hour", "minute", "timezone_abbr", "time_12h", "time_24h",
-            "date_us", "date_us_short", "month_number", "month_number_padded",
-            "month_abbr", "timezone", "time_english",
+            "time",
+            "date",
+            "datetime",
+            "day",
+            "day_of_week",
+            "month",
+            "year",
+            "hour",
+            "minute",
+            "timezone_abbr",
+            "time_12h",
+            "time_24h",
+            "date_us",
+            "date_us_short",
+            "month_number",
+            "month_number_padded",
+            "month_abbr",
+            "timezone",
+            "time_english",
         ]
         for var in expected:
             assert var in simple, f"Expected variable '{var}' not in manifest"

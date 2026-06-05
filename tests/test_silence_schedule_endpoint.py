@@ -6,6 +6,7 @@ endpoint at `PUT /settings/silence-schedule` backed by
 happy path, validation errors, round-trip via `get_feature`, and that
 `/silence-status` reflects writes made through this endpoint.
 """
+
 from unittest.mock import Mock, patch
 
 import pytest
@@ -47,7 +48,7 @@ def mock_config_manager_for_silence():
 
 class TestUpdateSilenceScheduleEndpoint:
     def test_update_success(self, client, mock_config_manager_for_silence):
-        cm, store = mock_config_manager_for_silence
+        cm, _store = mock_config_manager_for_silence
         response = client.put(
             "/settings/silence-schedule",
             json={
@@ -83,7 +84,7 @@ class TestUpdateSilenceScheduleEndpoint:
         )
 
     def test_update_roundtrip_via_get_feature(self, client, mock_config_manager_for_silence):
-        cm, store = mock_config_manager_for_silence
+        _cm, store = mock_config_manager_for_silence
         client.put(
             "/settings/silence-schedule",
             json={
@@ -284,7 +285,7 @@ class TestSilenceIndicatorTextAndPosition:
         assert store["indicator_text"] == "SNOOZING"
 
     def test_null_text_defaults_to_snoozing(self, client, mock_config_manager_for_silence):
-        _, store = mock_config_manager_for_silence
+        _, _store = mock_config_manager_for_silence
         response = self._put(client, indicator_text=None)
         assert response.status_code == 200
         assert response.json()["config"]["indicator_text"] == "SNOOZING"
@@ -308,13 +309,13 @@ class TestSilenceIndicatorTextAndPosition:
         assert store["indicator_position"] == "center"
 
     def test_missing_position_defaults_to_center(self, client, mock_config_manager_for_silence):
-        _, store = mock_config_manager_for_silence
+        _, _store = mock_config_manager_for_silence
         response = self._put(client)
         assert response.status_code == 200
         assert response.json()["config"]["indicator_position"] == "center"
 
     def test_combined_indicator_settings_roundtrip(self, client, mock_config_manager_for_silence):
-        _, store = mock_config_manager_for_silence
+        _, _store = mock_config_manager_for_silence
         response = self._put(
             client,
             indicator_text="quiet hours",
@@ -334,7 +335,7 @@ class TestSilenceIndicatorTextAndPosition:
 
     def test_long_text_is_persisted_unchanged(self, client, mock_config_manager_for_silence):
         """Endpoint should not truncate; truncation happens at render time."""
-        _, store = mock_config_manager_for_silence
+        _, _store = mock_config_manager_for_silence
         long_text = "A" * 50
         response = self._put(client, indicator_text=long_text)
         assert response.status_code == 200

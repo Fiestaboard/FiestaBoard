@@ -30,7 +30,6 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 # Project paths
 SCRIPT_DIR = Path(__file__).parent
@@ -43,38 +42,38 @@ SKIP_DIRECTORIES = {"_template", "__pycache__"}
 
 class ValidationResult:
     """Result of validating a single plugin."""
-    
+
     def __init__(self, plugin_id: str):
         self.plugin_id = plugin_id
-        self.errors: List[str] = []
-        self.warnings: List[str] = []
-    
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
+
     @property
     def is_valid(self) -> bool:
         return len(self.errors) == 0
-    
+
     def add_error(self, message: str):
         self.errors.append(message)
-    
+
     def add_warning(self, message: str):
         self.warnings.append(message)
-    
+
     def __str__(self):
         status = "PASS" if self.is_valid else "FAIL"
         return f"{self.plugin_id}: {status}"
 
 
-def discover_plugin_directories() -> List[Path]:
+def discover_plugin_directories() -> list[Path]:
     """Discover all plugin directories.
-    
+
     Returns:
         List of paths to plugin directories
     """
     plugins = []
-    
+
     if not PLUGINS_DIR.exists():
         return plugins
-    
+
     for item in PLUGINS_DIR.iterdir():
         if not item.is_dir():
             continue
@@ -83,23 +82,23 @@ def discover_plugin_directories() -> List[Path]:
         if item.name.startswith("."):
             continue
         plugins.append(item)
-    
+
     return sorted(plugins, key=lambda p: p.name)
 
 
-def load_manifest(plugin_dir: Path) -> Tuple[Optional[Dict], Optional[str]]:
+def load_manifest(plugin_dir: Path) -> tuple[dict | None, str | None]:
     """Load a plugin's manifest.json.
-    
+
     Returns:
         Tuple of (manifest_dict, error_message)
     """
     manifest_path = plugin_dir / "manifest.json"
-    
+
     if not manifest_path.exists():
         return None, f"manifest.json not found in {plugin_dir.name}"
-    
+
     try:
-        with open(manifest_path, "r", encoding="utf-8") as f:
+        with open(manifest_path, encoding="utf-8") as f:
             return json.load(f), None
     except json.JSONDecodeError as e:
         return None, f"Invalid JSON in manifest.json: {e}"
@@ -107,36 +106,36 @@ def load_manifest(plugin_dir: Path) -> Tuple[Optional[Dict], Optional[str]]:
         return None, f"Failed to read manifest.json: {e}"
 
 
-def validate_manifest_schema(manifest: Dict, plugin_dir_name: str) -> List[str]:
+def validate_manifest_schema(manifest: dict, plugin_dir_name: str) -> list[str]:
     """Validate manifest against required schema.
-    
+
     Returns:
         List of error messages
     """
     errors = []
-    
+
     # Required fields
     required_fields = ["id", "name", "version"]
     for field in required_fields:
         if field not in manifest:
             errors.append(f"Missing required field: {field}")
-    
+
     if errors:
         return errors
-    
+
     # Validate ID format
     plugin_id = manifest.get("id", "")
     if not plugin_id:
         errors.append("Plugin id cannot be empty")
     elif not plugin_id[0].islower() or not plugin_id[0].isalpha():
         errors.append("Plugin id must start with a lowercase letter")
-    elif not all(c.islower() or c.isdigit() or c == '_' for c in plugin_id):
+    elif not all(c.islower() or c.isdigit() or c == "_" for c in plugin_id):
         errors.append("Plugin id must contain only lowercase letters, numbers, and underscores")
-    
+
     # Validate ID matches directory name
     if plugin_id != plugin_dir_name:
         errors.append(f"Plugin id '{plugin_id}' does not match directory name '{plugin_dir_name}'")
-    
+
     # Validate version format (semantic versioning)
     version = manifest.get("version", "")
     if version:
@@ -148,12 +147,12 @@ def validate_manifest_schema(manifest: Dict, plugin_dir_name: str) -> List[str]:
                 if not part.isdigit():
                     errors.append("Version parts must be integers")
                     break
-    
+
     # Validate settings_schema if present
     settings = manifest.get("settings_schema", {})
     if settings and not isinstance(settings, dict):
         errors.append("settings_schema must be an object")
-    
+
     # Validate env_vars if present
     env_vars = manifest.get("env_vars", [])
     if not isinstance(env_vars, list):
@@ -164,12 +163,12 @@ def validate_manifest_schema(manifest: Dict, plugin_dir_name: str) -> List[str]:
                 errors.append(f"env_vars[{i}] must be an object")
             elif "name" not in env_var:
                 errors.append(f"env_vars[{i}] missing required field: name")
-    
+
     # Validate variables if present
     variables = manifest.get("variables", {})
     if variables and not isinstance(variables, dict):
         errors.append("variables must be an object")
-    
+
     # Validate max_lengths if present
     max_lengths = manifest.get("max_lengths", {})
     if max_lengths:
@@ -179,40 +178,40 @@ def validate_manifest_schema(manifest: Dict, plugin_dir_name: str) -> List[str]:
             for key, value in max_lengths.items():
                 if not isinstance(value, int) or value < 1:
                     errors.append(f"max_lengths.{key} must be a positive integer")
-    
+
     # Validate icon if present
     icon = manifest.get("icon", "")
     if icon and not isinstance(icon, str):
         errors.append("icon must be a string")
-    
+
     # Validate category if present
     valid_categories = ["art", "data", "transit", "weather", "entertainment", "utility", "home"]
     category = manifest.get("category", "")
     if category and category not in valid_categories:
         errors.append(f"category must be one of: {', '.join(valid_categories)}")
-    
+
     return errors
 
 
-def validate_plugin_structure(plugin_dir: Path) -> Tuple[List[str], List[str]]:
+def validate_plugin_structure(plugin_dir: Path) -> tuple[list[str], list[str]]:
     """Validate plugin directory structure.
-    
+
     Returns:
         Tuple of (errors, warnings)
     """
     errors = []
     warnings = []
-    
+
     # Required files
     required_files = ["__init__.py", "manifest.json"]
     for filename in required_files:
         if not (plugin_dir / filename).exists():
             errors.append(f"Missing required file: {filename}")
-    
+
     # Recommended files
     if not (plugin_dir / "README.md").exists():
         warnings.append("Missing recommended file: README.md")
-    
+
     # Tests directory
     tests_dir = plugin_dir / "tests"
     if not tests_dir.exists():
@@ -222,48 +221,48 @@ def validate_plugin_structure(plugin_dir: Path) -> Tuple[List[str], List[str]]:
         test_files = list(tests_dir.glob("test_*.py"))
         if not test_files:
             warnings.append("No test files (test_*.py) found in tests/ directory")
-    
+
     return errors, warnings
 
 
 def validate_plugin(plugin_dir: Path) -> ValidationResult:
     """Validate a single plugin.
-    
+
     Returns:
         ValidationResult with errors and warnings
     """
     result = ValidationResult(plugin_dir.name)
-    
+
     # Validate structure
     structure_errors, structure_warnings = validate_plugin_structure(plugin_dir)
     for error in structure_errors:
         result.add_error(error)
     for warning in structure_warnings:
         result.add_warning(warning)
-    
+
     # Load and validate manifest
     manifest, load_error = load_manifest(plugin_dir)
     if load_error:
         result.add_error(load_error)
         return result
-    
+
     # Validate manifest schema
     schema_errors = validate_manifest_schema(manifest, plugin_dir.name)
     for error in schema_errors:
         result.add_error(error)
-    
+
     return result
 
 
-def validate_unique_ids(plugins: List[Path]) -> List[str]:
+def validate_unique_ids(plugins: list[Path]) -> list[str]:
     """Check that all plugin IDs are unique.
-    
+
     Returns:
         List of error messages for duplicate IDs
     """
     errors = []
-    id_to_dirs: Dict[str, List[str]] = {}
-    
+    id_to_dirs: dict[str, list[str]] = {}
+
     for plugin_dir in plugins:
         manifest, _ = load_manifest(plugin_dir)
         if manifest:
@@ -272,14 +271,12 @@ def validate_unique_ids(plugins: List[Path]) -> List[str]:
                 if plugin_id not in id_to_dirs:
                     id_to_dirs[plugin_id] = []
                 id_to_dirs[plugin_id].append(plugin_dir.name)
-    
+
     # Check for duplicates
     for plugin_id, dirs in id_to_dirs.items():
         if len(dirs) > 1:
-            errors.append(
-                f"Duplicate plugin ID '{plugin_id}' found in directories: {', '.join(dirs)}"
-            )
-    
+            errors.append(f"Duplicate plugin ID '{plugin_id}' found in directories: {', '.join(dirs)}")
+
     return errors
 
 
@@ -302,11 +299,11 @@ def _repo_name_from_url(url: str) -> str:
 
 def _plugin_id_from_repo_name(repo_name: str) -> str:
     if repo_name.startswith(REGISTRY_PREFIX):
-        return repo_name[len(REGISTRY_PREFIX):].replace("-", "_")
+        return repo_name[len(REGISTRY_PREFIX) :].replace("-", "_")
     return repo_name.replace("-", "_")
 
 
-def validate_registry_entry(entry: Dict, verbose: bool) -> List[str]:
+def validate_registry_entry(entry: dict, verbose: bool) -> list[str]:
     """Validate a single registry entry dict. Returns list of error strings."""
     errors = []
     plugin_id = entry.get("id", "")
@@ -323,8 +320,7 @@ def validate_registry_entry(entry: Dict, verbose: bool) -> List[str]:
     repo_name = _repo_name_from_url(repo_url)
     if not REGISTRY_NAME_RE.match(repo_name):
         errors.append(
-            f"[{plugin_id}] Repository name '{repo_name}' does not follow "
-            f"'{REGISTRY_PREFIX}{{name}}' convention"
+            f"[{plugin_id}] Repository name '{repo_name}' does not follow '{REGISTRY_PREFIX}{{name}}' convention"
         )
 
     # 2. ID consistency with repo name
@@ -339,8 +335,7 @@ def validate_registry_entry(entry: Dict, verbose: bool) -> List[str]:
     fv = entry.get("fiestaboard_version", "")
     if fv and not SEMVER_CONSTRAINT_RE.match(fv.strip()):
         errors.append(
-            f"[{plugin_id}] fiestaboard_version '{fv}' is not a valid semver "
-            f"constraint (expected e.g. '>=2.10.0')"
+            f"[{plugin_id}] fiestaboard_version '{fv}' is not a valid semver constraint (expected e.g. '>=2.10.0')"
         )
 
     # 4. Repo reachability via git ls-remote
@@ -388,15 +383,15 @@ def validate_registry_entry(entry: Dict, verbose: bool) -> List[str]:
     return errors
 
 
-def validate_registry(verbose: bool) -> List[str]:
+def validate_registry(verbose: bool) -> list[str]:
     """Validate plugin-registry.json. Returns list of error strings."""
-    errors: List[str] = []
+    errors: list[str] = []
 
     if not REGISTRY_FILE.exists():
         return [f"Registry file not found: {REGISTRY_FILE}"]
 
     try:
-        with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
+        with open(REGISTRY_FILE, encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError as exc:
         return [f"Registry file is invalid JSON: {exc}"]
@@ -409,7 +404,7 @@ def validate_registry(verbose: bool) -> List[str]:
         print(f"Validating {len(plugins)} registry entries...")
         print()
 
-    seen_ids: Dict[str, int] = {}
+    seen_ids: dict[str, int] = {}
     for i, entry in enumerate(plugins):
         entry_errors = validate_registry_entry(entry, verbose)
         errors.extend(entry_errors)
@@ -423,24 +418,10 @@ def validate_registry(verbose: bool) -> List[str]:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Validate FiestaBoard plugin integrity"
-    )
-    parser.add_argument(
-        "--strict",
-        action="store_true",
-        help="Fail on warnings (missing tests, etc.)"
-    )
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Show detailed output"
-    )
-    parser.add_argument(
-        "--plugin",
-        type=str,
-        help="Validate specific plugin only"
-    )
+    parser = argparse.ArgumentParser(description="Validate FiestaBoard plugin integrity")
+    parser.add_argument("--strict", action="store_true", help="Fail on warnings (missing tests, etc.)")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed output")
+    parser.add_argument("--plugin", type=str, help="Validate specific plugin only")
     parser.add_argument(
         "--registry",
         action="store_true",
@@ -448,7 +429,7 @@ def main():
     )
 
     args = parser.parse_args()
-    
+
     print("FiestaBoard Plugin Validator")
     print("=" * 50)
     print()
@@ -478,32 +459,32 @@ def main():
 
     # Discover plugins
     plugins = discover_plugin_directories()
-    
+
     if args.plugin:
         plugins = [p for p in plugins if p.name == args.plugin]
         if not plugins:
             print(f"Error: Plugin '{args.plugin}' not found")
             sys.exit(2)
-    
+
     if not plugins:
         print("No plugins found to validate.")
         print(f"Plugins directory: {PLUGINS_DIR}")
         sys.exit(0)
-    
+
     print(f"Found {len(plugins)} plugin(s) to validate:")
     for p in plugins:
         print(f"  - {p.name}")
     print()
-    
+
     # Validate each plugin
-    results: List[ValidationResult] = []
+    results: list[ValidationResult] = []
     for plugin_dir in plugins:
         if args.verbose:
             print(f"Validating: {plugin_dir.name}")
-        
+
         result = validate_plugin(plugin_dir)
         results.append(result)
-        
+
         if args.verbose:
             if result.errors:
                 for error in result.errors:
@@ -512,32 +493,32 @@ def main():
                 for warning in result.warnings:
                     print(f"  WARNING: {warning}")
             print()
-    
+
     # Check for duplicate IDs across all plugins
     print("Checking for duplicate plugin IDs...")
     duplicate_errors = validate_unique_ids(plugins)
     for error in duplicate_errors:
         print(f"  ERROR: {error}")
     print()
-    
+
     # Summary
     print("=" * 50)
     print("VALIDATION SUMMARY")
     print("=" * 50)
-    
+
     total_errors = sum(len(r.errors) for r in results) + len(duplicate_errors)
     total_warnings = sum(len(r.warnings) for r in results)
-    
+
     passed = [r for r in results if r.is_valid]
     failed = [r for r in results if not r.is_valid]
-    
+
     print(f"Plugins validated: {len(results)}")
     print(f"  Passed: {len(passed)}")
     print(f"  Failed: {len(failed)}")
     print(f"Total errors: {total_errors}")
     print(f"Total warnings: {total_warnings}")
     print()
-    
+
     # List failures
     if failed:
         print("Failed plugins:")
@@ -545,21 +526,21 @@ def main():
             print(f"  - {result.plugin_id}")
             for error in result.errors:
                 print(f"      ERROR: {error}")
-    
+
     if duplicate_errors:
         print("\nDuplicate ID errors:")
         for error in duplicate_errors:
             print(f"  {error}")
-    
+
     # List warnings
     if total_warnings > 0 and args.verbose:
         print("\nWarnings:")
         for result in results:
             for warning in result.warnings:
                 print(f"  [{result.plugin_id}] {warning}")
-    
+
     print()
-    
+
     # Determine exit code
     if total_errors > 0:
         print("VALIDATION FAILED")
@@ -574,4 +555,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -7,18 +7,16 @@ branching elsewhere — all wire-format differences are isolated to
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 
 from src.ai.protocols import (
     DEFAULT_PROTOCOL,
     PROTOCOLS,
-    Protocol,
     get_protocol,
     supported_protocols,
 )
-
 
 # ---------------------------------------------------------------------------
 # Registry
@@ -107,9 +105,7 @@ def test_openai_parse_content_list_parts():
 
 def test_openai_parse_usage():
     proto = PROTOCOLS["openai"]
-    usage = proto.parse_usage(
-        {"usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}}
-    )
+    usage = proto.parse_usage({"usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}})
     assert usage == {
         "prompt_tokens": 10,
         "completion_tokens": 20,
@@ -119,9 +115,7 @@ def test_openai_parse_usage():
 
 def test_openai_parse_error_extracts_message():
     proto = PROTOCOLS["openai"]
-    assert (
-        proto.parse_error({"error": {"message": "bad key"}}) == "bad key"
-    )
+    assert proto.parse_error({"error": {"message": "bad key"}}) == "bad key"
     assert proto.parse_error({"error": "string"}) is None
     assert proto.parse_error({}) is None
 
@@ -142,7 +136,7 @@ def test_anthropic_headers_use_x_api_key_and_version():
 
 def test_anthropic_body_lifts_system_to_top_level():
     proto = PROTOCOLS["anthropic"]
-    messages: List[Dict[str, Any]] = [
+    messages: list[dict[str, Any]] = [
         {"role": "system", "content": "be brief"},
         {"role": "user", "content": "hi"},
         {"role": "assistant", "content": "hello"},
@@ -174,9 +168,7 @@ def test_anthropic_body_concatenates_multiple_systems():
 
 def test_anthropic_body_omits_system_when_none():
     proto = PROTOCOLS["anthropic"]
-    body = proto.build_body(
-        "claude", [{"role": "user", "content": "hi"}], 0.0, 50
-    )
+    body = proto.build_body("claude", [{"role": "user", "content": "hi"}], 0.0, 50)
     assert "system" not in body
 
 
@@ -212,9 +204,7 @@ def test_anthropic_parse_content_handles_missing_content():
 
 def test_anthropic_parse_usage_normalizes_to_common_shape():
     proto = PROTOCOLS["anthropic"]
-    usage = proto.parse_usage(
-        {"usage": {"input_tokens": 7, "output_tokens": 13}}
-    )
+    usage = proto.parse_usage({"usage": {"input_tokens": 7, "output_tokens": 13}})
     assert usage == {
         "prompt_tokens": 7,
         "completion_tokens": 13,
@@ -234,10 +224,7 @@ def test_anthropic_parse_usage_handles_missing_fields():
 
 def test_anthropic_parse_error_extracts_message():
     proto = PROTOCOLS["anthropic"]
-    assert (
-        proto.parse_error({"error": {"type": "invalid_request_error", "message": "bad"}})
-        == "bad"
-    )
+    assert proto.parse_error({"error": {"type": "invalid_request_error", "message": "bad"}}) == "bad"
     assert proto.parse_error({}) is None
 
 
@@ -256,7 +243,7 @@ async def test_generate_page_uses_anthropic_wire_format(monkeypatch):
 
     from src.ai import generator as gen_mod
 
-    captured: Dict[str, Any] = {}
+    captured: dict[str, Any] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["url"] = str(request.url)
@@ -271,9 +258,7 @@ async def test_generate_page_uses_anthropic_wire_format(monkeypatch):
             "type": "template",
             "device_type": "flagship",
             "template": ["", "HELLO", "", "", "", ""],
-            "line_metadata": [
-                {"alignment": "center", "wrap": False} for _ in range(6)
-            ],
+            "line_metadata": [{"alignment": "center", "wrap": False} for _ in range(6)],
             "duration_seconds": 60,
         }
         import json as _json2
@@ -285,9 +270,7 @@ async def test_generate_page_uses_anthropic_wire_format(monkeypatch):
                 "type": "message",
                 "role": "assistant",
                 "model": "claude-3-5-sonnet-20241022",
-                "content": [
-                    {"type": "text", "text": _json2.dumps(page_json)}
-                ],
+                "content": [{"type": "text", "text": _json2.dumps(page_json)}],
                 "usage": {"input_tokens": 100, "output_tokens": 50},
             },
         )
@@ -411,7 +394,7 @@ async def test_generate_page_still_uses_openai_format_by_default(monkeypatch):
 
     from src.ai import generator as gen_mod
 
-    captured: Dict[str, Any] = {}
+    captured: dict[str, Any] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["url"] = str(request.url)
@@ -421,9 +404,7 @@ async def test_generate_page_still_uses_openai_format_by_default(monkeypatch):
             "type": "template",
             "device_type": "flagship",
             "template": ["", "HELLO", "", "", "", ""],
-            "line_metadata": [
-                {"alignment": "center", "wrap": False} for _ in range(6)
-            ],
+            "line_metadata": [{"alignment": "center", "wrap": False} for _ in range(6)],
             "duration_seconds": 60,
         }
         import json as _json
@@ -431,9 +412,7 @@ async def test_generate_page_still_uses_openai_format_by_default(monkeypatch):
         return httpx.Response(
             200,
             json={
-                "choices": [
-                    {"message": {"role": "assistant", "content": _json.dumps(page_json)}}
-                ],
+                "choices": [{"message": {"role": "assistant", "content": _json.dumps(page_json)}}],
                 "usage": {
                     "prompt_tokens": 1,
                     "completion_tokens": 2,

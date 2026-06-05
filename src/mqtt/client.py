@@ -18,9 +18,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 # Lazy import so tests can patch before import
 def _get_paho_client():
     import paho.mqtt.client as mqtt_client
+
     return mqtt_client
 
 
@@ -152,6 +154,7 @@ class MQTTClient:
         """Publish all HA discovery messages (retained)."""
         try:
             import src as src_pkg
+
             sw_version = getattr(src_pkg, "__version__", "1.0.0")
         except Exception:
             sw_version = "1.0.0"
@@ -159,6 +162,7 @@ class MQTTClient:
         page_names = None
         try:
             from src.pages.service import get_page_service
+
             pages = get_page_service().list_pages()
             page_names = [p.name for p in pages]
         except Exception:
@@ -229,5 +233,3 @@ def set_mqtt_client_instance(client: Optional["MQTTClient"]) -> None:
     """Set the global MQTT client instance (used by lifespan)."""
     global _mqtt_client_instance
     _mqtt_client_instance = client
-
-

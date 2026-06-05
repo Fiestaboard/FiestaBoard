@@ -5,7 +5,7 @@ import math
 
 import requests
 
-from ..config import Config
+from src.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class AirFogSource:
         openweathermap_api_key: str = "",
         latitude: float = DEFAULT_LAT,
         longitude: float = DEFAULT_LON,
-        purpleair_sensor_id: str | None = None
+        purpleair_sensor_id: str | None = None,
     ):
         """
         Initialize air/fog source.
@@ -133,9 +133,7 @@ class AirFogSource:
         for bp_low, bp_high, aqi_low, aqi_high, category, color in AirFogSource.AQI_BREAKPOINTS:
             if bp_low <= pm25 <= bp_high:
                 # Linear interpolation
-                aqi = round(
-                    ((aqi_high - aqi_low) / (bp_high - bp_low)) * (pm25 - bp_low) + aqi_low
-                )
+                aqi = round(((aqi_high - aqi_low) / (bp_high - bp_low)) * (pm25 - bp_low) + aqi_low)
                 return aqi, category, color
 
         # If above all breakpoints, return hazardous
@@ -164,11 +162,7 @@ class AirFogSource:
         return "VERY HIGH", "RED"
 
     @staticmethod
-    def determine_fog_status(
-        visibility_m: float,
-        humidity: float,
-        temp_f: float
-    ) -> tuple[bool, str, str]:
+    def determine_fog_status(visibility_m: float, humidity: float, temp_f: float) -> tuple[bool, str, str]:
         """
         Determine fog status based on visibility, humidity, and temperature.
 
@@ -211,16 +205,15 @@ class AirFogSource:
         """
         if aqi > 300:
             return "AIR: HAZARDOUS", "MAROON"
-        elif aqi > 200:
+        if aqi > 200:
             return "AIR: VERY UNHEALTHY", "PURPLE"
-        elif aqi > 150:
+        if aqi > 150:
             return "AIR: UNHEALTHY", "RED"
-        elif aqi > AirFogSource.AQI_FIRE_THRESHOLD:
+        if aqi > AirFogSource.AQI_FIRE_THRESHOLD:
             return "AIR: UNHEALTHY", "ORANGE"
-        elif aqi > 50:
+        if aqi > 50:
             return "AIR: MODERATE", "YELLOW"
-        else:
-            return "AIR: GOOD", "GREEN"
+        return "AIR: GOOD", "GREEN"
 
     def fetch_purpleair_data(self) -> dict[str, any] | None:
         """
@@ -314,7 +307,7 @@ class AirFogSource:
             "lat": self.latitude,
             "lon": self.longitude,
             "appid": self.openweathermap_api_key,
-            "units": "imperial"
+            "units": "imperial",
         }
 
         try:
@@ -379,15 +372,9 @@ class AirFogSource:
             tree_total = birch + alder + olive
             weed_total = ragweed + mugwort
 
-            grass_level, grass_color = self.determine_pollen_level(
-                grass, self.GRASS_POLLEN_THRESHOLDS
-            )
-            tree_level, tree_color = self.determine_pollen_level(
-                tree_total, self.TREE_POLLEN_THRESHOLDS
-            )
-            weed_level, weed_color = self.determine_pollen_level(
-                weed_total, self.WEED_POLLEN_THRESHOLDS
-            )
+            grass_level, grass_color = self.determine_pollen_level(grass, self.GRASS_POLLEN_THRESHOLDS)
+            tree_level, tree_color = self.determine_pollen_level(tree_total, self.TREE_POLLEN_THRESHOLDS)
+            weed_level, weed_color = self.determine_pollen_level(weed_total, self.WEED_POLLEN_THRESHOLDS)
 
             return {
                 "grass_pollen": round(grass, 1),
@@ -474,9 +461,7 @@ class AirFogSource:
 
             # Determine fog status
             is_foggy, fog_status, fog_color = self.determine_fog_status(
-                owm_data["visibility_m"],
-                owm_data["humidity"],
-                owm_data["temperature_f"]
+                owm_data["visibility_m"], owm_data["humidity"], owm_data["temperature_f"]
             )
             result["is_foggy"] = is_foggy
             result["fog_status"] = fog_status
@@ -484,10 +469,7 @@ class AirFogSource:
 
         # Calculate dew point if we have data but it wasn't from OWM
         if result["humidity"] and result["temperature_f"] and not result["dew_point_f"]:
-            result["dew_point_f"] = self.calculate_dew_point(
-                result["temperature_f"],
-                result["humidity"]
-            )
+            result["dew_point_f"] = self.calculate_dew_point(result["temperature_f"], result["humidity"])
 
         # Merge pollen data (Open-Meteo, free API)
         if pollen_data:
@@ -549,22 +531,21 @@ class AirFogSource:
 
 def get_air_fog_source() -> AirFogSource | None:
     """Get configured air/fog source instance."""
-    purpleair_key = Config.PURPLEAIR_API_KEY if hasattr(Config, 'PURPLEAIR_API_KEY') else ""
-    owm_key = Config.OPENWEATHERMAP_API_KEY if hasattr(Config, 'OPENWEATHERMAP_API_KEY') else ""
+    purpleair_key = Config.PURPLEAIR_API_KEY if hasattr(Config, "PURPLEAIR_API_KEY") else ""
+    owm_key = Config.OPENWEATHERMAP_API_KEY if hasattr(Config, "OPENWEATHERMAP_API_KEY") else ""
 
     if not purpleair_key and not owm_key:
         logger.warning("Neither PurpleAir nor OpenWeatherMap API keys configured")
         return None
 
-    latitude = Config.AIR_FOG_LATITUDE if hasattr(Config, 'AIR_FOG_LATITUDE') else DEFAULT_LAT
-    longitude = Config.AIR_FOG_LONGITUDE if hasattr(Config, 'AIR_FOG_LONGITUDE') else DEFAULT_LON
-    sensor_id = Config.PURPLEAIR_SENSOR_ID if hasattr(Config, 'PURPLEAIR_SENSOR_ID') else None
+    latitude = Config.AIR_FOG_LATITUDE if hasattr(Config, "AIR_FOG_LATITUDE") else DEFAULT_LAT
+    longitude = Config.AIR_FOG_LONGITUDE if hasattr(Config, "AIR_FOG_LONGITUDE") else DEFAULT_LON
+    sensor_id = Config.PURPLEAIR_SENSOR_ID if hasattr(Config, "PURPLEAIR_SENSOR_ID") else None
 
     return AirFogSource(
         purpleair_api_key=purpleair_key,
         openweathermap_api_key=owm_key,
         latitude=latitude,
         longitude=longitude,
-        purpleair_sensor_id=sensor_id
+        purpleair_sensor_id=sensor_id,
     )
-

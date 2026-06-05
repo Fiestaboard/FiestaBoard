@@ -9,9 +9,10 @@ Covers:
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
 
 from src.api_server import app
 from src.config_manager import ConfigManager
@@ -203,9 +204,7 @@ def test_generate_page_happy_path_mocks_generator(client, reset_config_singleton
             "type": "template",
             "device_type": "flagship",
             "template": ["", "12:34", "", "", "", ""],
-            "line_metadata": [
-                {"alignment": "center", "wrap": False} for _ in range(6)
-            ],
+            "line_metadata": [{"alignment": "center", "wrap": False} for _ in range(6)],
             "duration_seconds": 60,
         },
         "model_used": "test-model",
@@ -258,9 +257,7 @@ def test_generate_page_throttles_back_to_back_calls(client, reset_config_singlet
             "type": "template",
             "device_type": "flagship",
             "template": [""] * 6,
-            "line_metadata": [
-                {"alignment": "left", "wrap": False} for _ in range(6)
-            ],
+            "line_metadata": [{"alignment": "left", "wrap": False} for _ in range(6)],
             "duration_seconds": 60,
         },
         "model_used": "test-model",

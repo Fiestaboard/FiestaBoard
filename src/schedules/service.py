@@ -7,7 +7,8 @@ and validation (overlap and gap detection).
 import logging
 from datetime import date, time
 
-from ..settings.service import get_settings_service
+from src.settings.service import get_settings_service
+
 from .models import (
     DEFAULT_BOARD_ID,
     VALID_DAYS,
@@ -152,9 +153,7 @@ class ScheduleService:
 
         matches = []
         for schedule in schedules:
-            effective_schedule = self._resolve_effective_times(
-                schedule, today, location
-            )
+            effective_schedule = self._resolve_effective_times(schedule, today, location)
             if effective_schedule.applies_to_day(current_day) and effective_schedule.applies_to_time(time_str):
                 matches.append(schedule)
         if matches:
@@ -189,10 +188,7 @@ class ScheduleService:
         If the schedule uses only fixed times, returns it unchanged.
         Otherwise creates a shallow copy with resolved start/end times.
         """
-        if (
-            schedule.start_type == "fixed"
-            and schedule.end_type == "fixed"
-        ):
+        if schedule.start_type == "fixed" and schedule.end_type == "fixed":
             return schedule
 
         lat, lon, tz = location
@@ -210,10 +206,12 @@ class ScheduleService:
         )
 
         # Build a copy with resolved times (model_copy available in Pydantic v2)
-        return schedule.model_copy(update={
-            "start_time": resolved_start,
-            "end_time": resolved_end,
-        })
+        return schedule.model_copy(
+            update={
+                "start_time": resolved_start,
+                "end_time": resolved_end,
+            }
+        )
 
     # Default page management
 
@@ -234,11 +232,7 @@ class ScheduleService:
         overlaps = self._detect_overlaps(schedules)
         gaps = self._detect_gaps(schedules)
 
-        return ScheduleValidationResult(
-            valid=len(overlaps) == 0,
-            overlaps=overlaps,
-            gaps=gaps
-        )
+        return ScheduleValidationResult(valid=len(overlaps) == 0, overlaps=overlaps, gaps=gaps)
 
     def _detect_overlaps(self, schedules: list[ScheduleEntry]) -> list[Overlap]:
         """Detect overlapping schedules.
@@ -257,7 +251,7 @@ class ScheduleService:
 
         # Check each pair of schedules
         for i, schedule1 in enumerate(schedules):
-            for schedule2 in schedules[i+1:]:
+            for schedule2 in schedules[i + 1 :]:
                 # Get days each schedule applies to
                 days1 = set(schedule1.get_days())
                 days2 = set(schedule2.get_days())
@@ -269,10 +263,7 @@ class ScheduleService:
 
                 # Check if times overlap
                 if self._times_overlap(
-                    schedule1.start_time,
-                    schedule1.end_time,
-                    schedule2.start_time,
-                    schedule2.end_time
+                    schedule1.start_time, schedule1.end_time, schedule2.start_time, schedule2.end_time
                 ):
                     # Build description
                     days_str = ", ".join(sorted(common_days))
@@ -284,21 +275,15 @@ class ScheduleService:
                         f"{schedule2.start_time}-{end2_str}"
                     )
 
-                    overlaps.append(Overlap(
-                        schedule1_id=schedule1.id,
-                        schedule2_id=schedule2.id,
-                        conflict_description=conflict_desc
-                    ))
+                    overlaps.append(
+                        Overlap(
+                            schedule1_id=schedule1.id, schedule2_id=schedule2.id, conflict_description=conflict_desc
+                        )
+                    )
 
         return overlaps
 
-    def _times_overlap(
-        self,
-        start1: str,
-        end1: str | None,
-        start2: str,
-        end2: str | None
-    ) -> bool:
+    def _times_overlap(self, start1: str, end1: str | None, start2: str, end2: str | None) -> bool:
         """Check if two time ranges overlap.
 
         Handles midnight rollover schedules where end_time < start_time,
@@ -327,19 +312,18 @@ class ScheduleService:
         if not wrap1 and not wrap2:
             # Both normal ranges (or open-ended): standard overlap check
             return s1 < e2 and s2 < e1
-        elif wrap1 and wrap2:
+        if wrap1 and wrap2:
             # Both cross midnight: they always overlap (both cover midnight)
             return True
-        else:
-            # One wraps, one doesn't. Check if the normal range intersects
-            # either part of the wraparound range.
-            # Normalize: make range1 the wrapping one, range2 the normal one
-            if wrap2:
-                s1, e1, s2, e2 = s2, e2, s1, e1
-            # range1 wraps: covers [s1, 1440) and [0, e1)
-            # range2 is normal: covers [s2, e2)
-            # Overlap if range2 intersects [s1, 1440) or [0, e1)
-            return s2 < e1 or e2 > s1
+        # One wraps, one doesn't. Check if the normal range intersects
+        # either part of the wraparound range.
+        # Normalize: make range1 the wrapping one, range2 the normal one
+        if wrap2:
+            s1, e1, s2, e2 = s2, e2, s1, e1
+        # range1 wraps: covers [s1, 1440) and [0, e1)
+        # range2 is normal: covers [s2, e2)
+        # Overlap if range2 intersects [s1, 1440) or [0, e1)
+        return s2 < e1 or e2 > s1
 
     def _detect_gaps(self, schedules: list[ScheduleEntry]) -> list[Gap]:
         """Detect gaps in schedule coverage.
@@ -365,11 +349,7 @@ class ScheduleService:
 
             if not day_schedules:
                 # Entire day is a gap
-                gaps.append(Gap(
-                    start_time="00:00",
-                    end_time="23:59",
-                    days=[day]
-                ))
+                gaps.append(Gap(start_time="00:00", end_time="23:59", days=[day]))
                 continue
 
             # Build a coverage bitmap for the day (True = covered)
@@ -386,7 +366,7 @@ class ScheduleService:
                         # Wraparound: covers [s, 1440) and [0, e)
                         for m in range(s, TOTAL_MINUTES):
                             covered[m] = True
-                        for m in range(0, e):
+                        for m in range(e):
                             covered[m] = True
                     else:
                         # Normal: covers [s, e)
@@ -401,22 +381,20 @@ class ScheduleService:
                 elif covered[m] and gap_start is not None:
                     gap_minutes = m - gap_start
                     if gap_minutes > 15:
-                        gaps.append(Gap(
-                            start_time=self._minutes_to_time(gap_start),
-                            end_time=self._minutes_to_time(m),
-                            days=[day]
-                        ))
+                        gaps.append(
+                            Gap(
+                                start_time=self._minutes_to_time(gap_start),
+                                end_time=self._minutes_to_time(m),
+                                days=[day],
+                            )
+                        )
                     gap_start = None
 
             # Handle gap at end of day
             if gap_start is not None:
                 gap_minutes = TOTAL_MINUTES - gap_start
                 if gap_minutes > 15:
-                    gaps.append(Gap(
-                        start_time=self._minutes_to_time(gap_start),
-                        end_time="23:59",
-                        days=[day]
-                    ))
+                    gaps.append(Gap(start_time=self._minutes_to_time(gap_start), end_time="23:59", days=[day]))
 
         # Merge gaps across multiple days with same times
         return self._merge_gaps_by_time(gaps)
@@ -444,11 +422,13 @@ class ScheduleService:
         # Create merged gaps
         merged = []
         for (start_time, end_time), days in time_groups.items():
-            merged.append(Gap(
-                start_time=start_time,
-                end_time=end_time,
-                days=sorted(set(days))  # Remove duplicates and sort
-            ))
+            merged.append(
+                Gap(
+                    start_time=start_time,
+                    end_time=end_time,
+                    days=sorted(set(days)),  # Remove duplicates and sort
+                )
+            )
 
         return merged
 

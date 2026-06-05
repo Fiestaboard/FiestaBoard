@@ -6,16 +6,17 @@ schema the Next.js frontend expects.
 Issue: #502
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
-from tests.contract.schemas import (
-    SchedulesEnabledResponse,
-    DefaultPageResponse,
-)
 from src.schedules.models import ScheduleEntry as Schedule
+from tests.contract.schemas import (
+    DefaultPageResponse,
+    SchedulesEnabledResponse,
+)
 
 
 @pytest.fixture
@@ -41,8 +42,10 @@ def sample_schedule():
 
 class TestListSchedulesContract:
     def test_returns_200(self, client):
-        with patch("src.api_server.get_schedule_service") as mock_svc, \
-             patch("src.api_server.get_settings_service") as mock_settings:
+        with (
+            patch("src.api_server.get_schedule_service") as mock_svc,
+            patch("src.api_server.get_settings_service") as mock_settings,
+        ):
             svc = Mock()
             svc.list_schedules.return_value = []
             svc.get_default_page.return_value = None
@@ -57,8 +60,10 @@ class TestListSchedulesContract:
         assert resp.status_code == 200
 
     def test_response_has_required_keys(self, client):
-        with patch("src.api_server.get_schedule_service") as mock_svc, \
-             patch("src.api_server.get_settings_service") as mock_settings:
+        with (
+            patch("src.api_server.get_schedule_service") as mock_svc,
+            patch("src.api_server.get_settings_service") as mock_settings,
+        ):
             svc = Mock()
             svc.list_schedules.return_value = []
             svc.get_default_page.return_value = None
@@ -75,8 +80,10 @@ class TestListSchedulesContract:
         assert "total" in data
 
     def test_schedules_is_list(self, client):
-        with patch("src.api_server.get_schedule_service") as mock_svc, \
-             patch("src.api_server.get_settings_service") as mock_settings:
+        with (
+            patch("src.api_server.get_schedule_service") as mock_svc,
+            patch("src.api_server.get_settings_service") as mock_settings,
+        ):
             svc = Mock()
             svc.list_schedules.return_value = []
             svc.get_default_page.return_value = None
@@ -91,8 +98,10 @@ class TestListSchedulesContract:
         assert isinstance(resp.json()["schedules"], list)
 
     def test_total_matches_schedules_length(self, client, sample_schedule):
-        with patch("src.api_server.get_schedule_service") as mock_svc, \
-             patch("src.api_server.get_settings_service") as mock_settings:
+        with (
+            patch("src.api_server.get_schedule_service") as mock_svc,
+            patch("src.api_server.get_settings_service") as mock_settings,
+        ):
             svc = Mock()
             svc.list_schedules.return_value = [sample_schedule]
             svc.get_default_page.return_value = None
@@ -108,8 +117,10 @@ class TestListSchedulesContract:
         assert data["total"] == len(data["schedules"])
 
     def test_schedule_item_has_required_fields(self, client, sample_schedule):
-        with patch("src.api_server.get_schedule_service") as mock_svc, \
-             patch("src.api_server.get_settings_service") as mock_settings:
+        with (
+            patch("src.api_server.get_schedule_service") as mock_svc,
+            patch("src.api_server.get_settings_service") as mock_settings,
+        ):
             svc = Mock()
             svc.list_schedules.return_value = [sample_schedule]
             svc.get_default_page.return_value = None
@@ -129,8 +140,10 @@ class TestListSchedulesContract:
         assert "day_pattern" in sched
 
     def test_schedule_time_format_is_hhmm(self, client, sample_schedule):
-        with patch("src.api_server.get_schedule_service") as mock_svc, \
-             patch("src.api_server.get_settings_service") as mock_settings:
+        with (
+            patch("src.api_server.get_schedule_service") as mock_svc,
+            patch("src.api_server.get_settings_service") as mock_settings,
+        ):
             svc = Mock()
             svc.list_schedules.return_value = [sample_schedule]
             svc.get_default_page.return_value = None
@@ -144,15 +157,16 @@ class TestListSchedulesContract:
 
         sched = resp.json()["schedules"][0]
         import re
-        assert re.match(r"^\d{2}:\d{2}$", sched["start_time"]), \
-            f"start_time format unexpected: {sched['start_time']}"
-        assert re.match(r"^\d{2}:\d{2}$", sched["end_time"]), \
-            f"end_time format unexpected: {sched['end_time']}"
+
+        assert re.match(r"^\d{2}:\d{2}$", sched["start_time"]), f"start_time format unexpected: {sched['start_time']}"
+        assert re.match(r"^\d{2}:\d{2}$", sched["end_time"]), f"end_time format unexpected: {sched['end_time']}"
 
     def test_wildcard_board_id_returns_no_default_or_enabled(self, client, sample_schedule):
         """board_id=* returns schedules without enabled/default_page_id semantics."""
-        with patch("src.api_server.get_schedule_service") as mock_svc, \
-             patch("src.api_server.get_settings_service") as mock_settings:
+        with (
+            patch("src.api_server.get_schedule_service") as mock_svc,
+            patch("src.api_server.get_settings_service") as mock_settings,
+        ):
             svc = Mock()
             svc.list_schedules.return_value = [sample_schedule]
             mock_svc.return_value = svc

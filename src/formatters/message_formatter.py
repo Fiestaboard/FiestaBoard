@@ -10,7 +10,7 @@ Use them as decorative indicators followed by a space, e.g., "{green} SSID: netw
 
 import logging
 
-from ..board_chars import get_weather_symbol
+from src.board_chars import get_weather_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,6 @@ class MessageFormatter:
 
     def __init__(self):
         """Initialize message formatter."""
-        pass
 
     def format_weather(self, weather_data: dict) -> str:
         """
@@ -73,7 +72,7 @@ class MessageFormatter:
             lines.append(" | ".join(info_parts))
 
         # Ensure we don't exceed 6 rows
-        return "\n".join(lines[:self.MAX_ROWS])
+        return "\n".join(lines[: self.MAX_ROWS])
 
     def format_datetime(self, datetime_data: dict) -> str:
         """
@@ -107,7 +106,7 @@ class MessageFormatter:
             else:
                 lines.append(time_str)
 
-        return "\n".join(lines[:self.MAX_ROWS])
+        return "\n".join(lines[: self.MAX_ROWS])
 
     def format_guest_wifi(self, ssid: str, password: str) -> str:
         """
@@ -133,14 +132,14 @@ class MessageFormatter:
 
         # SSID with blue tile indicator
         ssid_line = f"{{{{blue}}}} {ssid}"
-        lines.append(ssid_line[:self.MAX_COLS + 8])  # +8 for {{blue}} marker
+        lines.append(ssid_line[: self.MAX_COLS + 8])  # +8 for {{blue}} marker
 
         # Password with violet tile indicator
         pass_line = f"{{{{violet}}}} {password}"
-        lines.append(pass_line[:self.MAX_COLS + 10])  # +10 for {{violet}} marker
+        lines.append(pass_line[: self.MAX_COLS + 10])  # +10 for {{violet}} marker
 
         # Ensure we don't exceed 6 rows
-        return "\n".join(lines[:self.MAX_ROWS])
+        return "\n".join(lines[: self.MAX_ROWS])
 
     def format_star_trek_quote(self, quote_data: dict) -> str:
         """
@@ -167,7 +166,7 @@ class MessageFormatter:
         series_config = {
             "tng": {"name": "TNG", "color": "{{yellow}}"},
             "voyager": {"name": "VOY", "color": "{{blue}}"},
-            "ds9": {"name": "DS9", "color": "{{red}}"}
+            "ds9": {"name": "DS9", "color": "{{red}}"},
         }
         config = series_config.get(series, {"name": series.upper(), "color": ""})
         series_display = config["name"]
@@ -185,13 +184,13 @@ class MessageFormatter:
         if len(lines) < self.MAX_ROWS:
             if series_color and len(lines) < self.MAX_ROWS - 1:
                 # Room for character line and series line with color
-                lines.append(f"- {character}"[:self.MAX_COLS])
-                lines.append(f"{series_color} {series_display}"[:self.MAX_COLS + 8])
+                lines.append(f"- {character}"[: self.MAX_COLS])
+                lines.append(f"{series_color} {series_display}"[: self.MAX_COLS + 8])
             else:
                 # Combine into one line
-                lines.append(f"- {character} ({series_display})"[:self.MAX_COLS])
+                lines.append(f"- {character} ({series_display})"[: self.MAX_COLS])
 
-        return "\n".join(lines[:self.MAX_ROWS])
+        return "\n".join(lines[: self.MAX_ROWS])
 
     def format_house_status(self, status_data: dict[str, dict]) -> str:
         """
@@ -253,10 +252,9 @@ class MessageFormatter:
             line = f"{indicator} {display_name}: {status_text}"
             lines.append(line)
 
-        return "\n".join(lines[:self.MAX_ROWS])
+        return "\n".join(lines[: self.MAX_ROWS])
 
-    def format_combined(self, weather_data: dict | None,
-                       datetime_data: dict | None) -> str:
+    def format_combined(self, weather_data: dict | None, datetime_data: dict | None) -> str:
         """
         Format combined weather and datetime display.
 
@@ -319,7 +317,7 @@ class MessageFormatter:
                 lines.append(f"{location}: {temp_color} {temp}F")
 
         # Ensure we don't exceed 6 rows
-        result = "\n".join(lines[:self.MAX_ROWS])
+        result = "\n".join(lines[: self.MAX_ROWS])
 
         # Truncate each line to 22 characters if needed (accounting for color markers)
         result_lines = result.split("\n")
@@ -344,17 +342,16 @@ class MessageFormatter:
             Color marker string (e.g., "{{red}}" for hot)
         """
         if temp >= 90:
-            return "{{red}}"     # Very hot
-        elif temp >= 80:
+            return "{{red}}"  # Very hot
+        if temp >= 80:
             return "{{orange}}"  # Hot
-        elif temp >= 70:
+        if temp >= 70:
             return "{{yellow}}"  # Warm
-        elif temp >= 60:
-            return "{{green}}"   # Comfortable
-        elif temp >= 45:
-            return "{{blue}}"    # Cool
-        else:
-            return "{{violet}}"  # Cold
+        if temp >= 60:
+            return "{{green}}"  # Comfortable
+        if temp >= 45:
+            return "{{blue}}"  # Cool
+        return "{{violet}}"  # Cold
 
     def split_into_lines(self, text: str, max_lines: int = MAX_ROWS) -> list[str]:
         """
@@ -430,7 +427,7 @@ class MessageFormatter:
 
         # Stop name (if available and fits)
         if stop_name:
-            lines.append(stop_name[:self.MAX_COLS])
+            lines.append(stop_name[: self.MAX_COLS])
 
         # Format arrival times
         if arrivals:
@@ -458,16 +455,15 @@ class MessageFormatter:
             if is_delayed:
                 arrival_line = f"{{{{red}}}}{arrival_line}"
 
-            lines.append(arrival_line[:self.MAX_COLS + 10])  # Account for color markers
+            lines.append(arrival_line[: self.MAX_COLS + 10])  # Account for color markers
         else:
             lines.append(f"{line}: No arrivals")
 
         # Add delay description if present
         if delay_description and len(lines) < self.MAX_ROWS:
-            lines.append(delay_description[:self.MAX_COLS])
+            lines.append(delay_description[: self.MAX_COLS])
 
-        return "\n".join(lines[:self.MAX_ROWS])
-
+        return "\n".join(lines[: self.MAX_ROWS])
 
     def format_stocks(self, stocks_data: dict) -> str:
         """
@@ -495,7 +491,7 @@ class MessageFormatter:
                 lines.append(formatted)
 
         # Ensure we don't exceed 6 rows
-        return "\n".join(lines[:self.MAX_ROWS])
+        return "\n".join(lines[: self.MAX_ROWS])
 
 
 def get_message_formatter() -> MessageFormatter:

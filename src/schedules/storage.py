@@ -42,10 +42,7 @@ class ScheduleStorage:
         # Load existing schedules
         self._load()
 
-        logger.info(
-            f"ScheduleStorage initialized "
-            f"(file: {self.storage_file}, schedules: {len(self._schedules)})"
-        )
+        logger.info(f"ScheduleStorage initialized (file: {self.storage_file}, schedules: {len(self._schedules)})")
 
     def _load(self) -> None:
         """Load schedules from storage file."""
@@ -56,7 +53,9 @@ class ScheduleStorage:
             return
 
         try:
-            with open(self.storage_file) as f:
+            # Use builtins.open (not Path.open) so existing tests can
+            # patch builtins.open to inject I/O errors.
+            with open(self.storage_file) as f:  # noqa: PTH123
                 data = json.load(f)
 
             self._schedules = {}
@@ -101,7 +100,9 @@ class ScheduleStorage:
                 if schedule_data.get("updated_at"):
                     schedule_data["updated_at"] = schedule_data["updated_at"].isoformat()
 
-            with open(self.storage_file, 'w') as f:
+            # Use builtins.open (not Path.open) so existing tests can
+            # patch builtins.open to inject I/O errors.
+            with open(self.storage_file, "w") as f:  # noqa: PTH123
                 json.dump(data, f, indent=2)
 
             logger.debug(f"Saved {len(self._schedules)} schedules to storage")
@@ -125,7 +126,9 @@ class ScheduleStorage:
             schedules = list(self._schedules.values())
         else:
             bid = board_id if board_id is not None else DEFAULT_BOARD_ID
-            schedules = [s for s in self._schedules.values() if (s.board_id or DEFAULT_BOARD_ID) == (bid or DEFAULT_BOARD_ID)]
+            schedules = [
+                s for s in self._schedules.values() if (s.board_id or DEFAULT_BOARD_ID) == (bid or DEFAULT_BOARD_ID)
+            ]
         schedules.sort(key=lambda s: s.created_at)
         return schedules
 
@@ -174,9 +177,8 @@ class ScheduleStorage:
         # Fields that are allowed to be set to None explicitly
         nullable_fields = {"end_time"}
         for key, value in updates.items():
-            if key in schedule_dict:
-                if value is not None or key in nullable_fields:
-                    schedule_dict[key] = value
+            if key in schedule_dict and (value is not None or key in nullable_fields):
+                schedule_dict[key] = value
 
         # Update timestamp
         schedule_dict["updated_at"] = datetime.now(UTC)

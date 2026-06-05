@@ -14,7 +14,6 @@ from src.backup.service import (
     BackupService,
 )
 
-
 # ── unit tests for BackupService ────────────────────────────────────────────
 
 
@@ -30,9 +29,7 @@ def _seed_data_dir(data_dir: Path) -> None:
             }
         )
     )
-    (data_dir / "settings.json").write_text(
-        json.dumps({"transitions": {"strategy": "column"}})
-    )
+    (data_dir / "settings.json").write_text(json.dumps({"transitions": {"strategy": "column"}}))
     (data_dir / "pages.json").write_text(
         json.dumps(
             {
@@ -42,9 +39,7 @@ def _seed_data_dir(data_dir: Path) -> None:
         )
     )
     (data_dir / "carousels.json").write_text(json.dumps({"carousels": []}))
-    (data_dir / "schedules.json").write_text(
-        json.dumps({"schedules": [], "default_page_id": None})
-    )
+    (data_dir / "schedules.json").write_text(json.dumps({"schedules": [], "default_page_id": None}))
 
 
 def test_build_backup_includes_all_data_files(tmp_path):
@@ -95,9 +90,7 @@ def test_round_trip_export_then_import(tmp_path):
     backup = BackupService(data_dir=src_dir).build_backup()
 
     with patch("src.backup.service._reload_services", return_value=[]):
-        result = BackupService(data_dir=dst_dir).import_from_dict(
-            backup, reinstall_plugins=False
-        )
+        result = BackupService(data_dir=dst_dir).import_from_dict(backup, reinstall_plugins=False)
 
     assert result["status"] == "success"
     assert set(result["restored_files"]) == {
@@ -108,10 +101,7 @@ def test_round_trip_export_then_import(tmp_path):
         "schedules.json",
     }
     # Data was actually written to the destination.
-    assert (
-        json.loads((dst_dir / "config.json").read_text())["board"]["host"]
-        == "fiestaboard.example.test"
-    )
+    assert json.loads((dst_dir / "config.json").read_text())["board"]["host"] == "fiestaboard.example.test"
     assert json.loads((dst_dir / "pages.json").read_text())["pages"][0]["id"] == "p1"
 
 
@@ -128,9 +118,7 @@ def test_import_preserves_existing_files_as_pre_restore_backup(tmp_path):
     }
 
     with patch("src.backup.service._reload_services", return_value=[]):
-        result = BackupService(data_dir=tmp_path).import_from_dict(
-            backup, reinstall_plugins=False
-        )
+        result = BackupService(data_dir=tmp_path).import_from_dict(backup, reinstall_plugins=False)
 
     assert json.loads((tmp_path / "config.json").read_text()) == {"marker": "NEW"}
 
@@ -150,9 +138,7 @@ def test_import_skips_missing_data_keys(tmp_path):
     }
 
     with patch("src.backup.service._reload_services", return_value=[]):
-        result = BackupService(data_dir=tmp_path).import_from_dict(
-            backup, reinstall_plugins=False
-        )
+        result = BackupService(data_dir=tmp_path).import_from_dict(backup, reinstall_plugins=False)
 
     assert "config.json" in result["restored_files"]
     # All other keys absent from the backup should be reported as skipped.
@@ -205,9 +191,7 @@ def test_collect_installed_plugins_skips_builtins(tmp_path):
     )
     fake_registry = MagicMock(_loader=fake_loader)
 
-    with patch(
-        "src.plugins.get_plugin_registry", return_value=fake_registry, create=True
-    ):
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
         plugins = BackupService._collect_installed_plugins()
 
     assert len(plugins) == 1
@@ -221,9 +205,7 @@ def test_reinstall_plugins_skips_already_installed(tmp_path):
     fake_registry.get_plugin.return_value = object()  # already installed
     fake_registry.install_from_registry.return_value = []
 
-    with patch(
-        "src.plugins.get_plugin_registry", return_value=fake_registry, create=True
-    ):
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
         result = BackupService._reinstall_plugins(
             [
                 {
@@ -245,9 +227,7 @@ def test_reinstall_plugins_records_failures(tmp_path):
     fake_registry.get_plugin.return_value = None
     fake_registry.install_from_registry.return_value = ["clone failed"]
 
-    with patch(
-        "src.plugins.get_plugin_registry", return_value=fake_registry, create=True
-    ):
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
         result = BackupService._reinstall_plugins(
             [
                 {
@@ -269,9 +249,7 @@ def test_reinstall_plugins_installs_registry_plugin(tmp_path):
     fake_registry.get_plugin.return_value = None  # not yet installed
     fake_registry.install_from_registry.return_value = []  # success — no errors
 
-    with patch(
-        "src.plugins.get_plugin_registry", return_value=fake_registry, create=True
-    ):
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
         result = BackupService._reinstall_plugins(
             [
                 {
@@ -295,9 +273,7 @@ def test_reinstall_plugins_rejects_malicious_plugin_id(tmp_path):
     fake_registry = MagicMock()
     fake_registry.get_plugin.return_value = None
 
-    with patch(
-        "src.plugins.get_plugin_registry", return_value=fake_registry, create=True
-    ):
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
         result = BackupService._reinstall_plugins(
             [
                 {
@@ -324,9 +300,7 @@ def test_reinstall_plugins_skips_external_git_plugins(tmp_path):
     fake_registry = MagicMock()
     fake_registry.get_plugin.return_value = None
 
-    with patch(
-        "src.plugins.get_plugin_registry", return_value=fake_registry, create=True
-    ):
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
         result = BackupService._reinstall_plugins(
             [
                 {
@@ -398,26 +372,19 @@ def test_import_endpoint_round_trip(client_with_data_dir):
     # Mutate a value in the backup so we can confirm import wrote it.
     backup["data"]["config"]["board"]["host"] = "new-host.example.test"
 
-    response = client.post(
-        "/backup/import?reinstall_plugins=false", json=backup
-    )
+    response = client.post("/backup/import?reinstall_plugins=false", json=backup)
 
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["status"] == "success"
     assert "config.json" in body["restored_files"]
-    assert (
-        json.loads((data_dir / "config.json").read_text())["board"]["host"]
-        == "new-host.example.test"
-    )
+    assert json.loads((data_dir / "config.json").read_text())["board"]["host"] == "new-host.example.test"
 
 
 def test_import_endpoint_rejects_invalid_payload(client_with_data_dir):
     client, _ = client_with_data_dir
 
-    response = client.post(
-        "/backup/import", json={"definitely": "not a backup"}
-    )
+    response = client.post("/backup/import", json={"definitely": "not a backup"})
 
     assert response.status_code == 400
     assert "marker" in response.json()["detail"].lower()

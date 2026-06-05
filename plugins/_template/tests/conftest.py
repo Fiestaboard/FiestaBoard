@@ -19,4 +19,3 @@ def reset_plugin_singletons():
 def mock_api_response():
     """Fixture to create mock API responses."""
     return create_mock_response
-

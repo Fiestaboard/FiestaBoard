@@ -46,10 +46,7 @@ class CountdownPlugin(PluginBase):
             try:
                 datetime.fromisoformat(target)
             except (ValueError, TypeError):
-                errors.append(
-                    f"Invalid target datetime format: {target}. "
-                    "Use ISO format (e.g., 2025-06-15T00:00:00)"
-                )
+                errors.append(f"Invalid target datetime format: {target}. Use ISO format (e.g., 2025-06-15T00:00:00)")
 
         return errors
 
@@ -60,9 +57,7 @@ class CountdownPlugin(PluginBase):
             tz = ZoneInfo(timezone_str)
             now = datetime.now(tz)
 
-            target_str = self.config.get("target_datetime") or os.getenv(
-                "COUNTDOWN_TARGET"
-            )
+            target_str = self.config.get("target_datetime") or os.getenv("COUNTDOWN_TARGET")
             if not target_str:
                 return PluginResult(
                     available=False,
@@ -83,11 +78,7 @@ class CountdownPlugin(PluginBase):
             else:
                 target = target_naive
 
-            event_name = (
-                self.config.get("event_name")
-                or os.getenv("COUNTDOWN_EVENT_NAME")
-                or "Event"
-            )
+            event_name = self.config.get("event_name") or os.getenv("COUNTDOWN_EVENT_NAME") or "Event"
 
             delta = target - now
             total_seconds = int(delta.total_seconds())

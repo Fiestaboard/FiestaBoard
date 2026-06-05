@@ -28,11 +28,12 @@ import pytest
 
 pytest.importorskip("mcp", reason="mcp package not installed")
 
-from src.mcp_server import _MCP_AVAILABLE, _build_mcp_server, mcp_server  # noqa: E402
+from src.mcp_server import _MCP_AVAILABLE, _build_mcp_server, mcp_server
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _call_tool(mcp_instance: Any, tool_name: str, **kwargs: Any) -> Any:
     """Synchronously call a registered MCP tool by name.
@@ -41,6 +42,7 @@ def _call_tool(mcp_instance: Any, tool_name: str, **kwargs: Any) -> Any:
     original decorated function.  We call it directly, bypassing JSON-RPC.
     """
     import asyncio
+
     mgr = mcp_instance._tool_manager
     tool = mgr._tools.get(tool_name)
     if tool is None:
@@ -54,6 +56,7 @@ def _call_tool(mcp_instance: Any, tool_name: str, **kwargs: Any) -> Any:
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def mcp():
@@ -185,6 +188,7 @@ def mock_settings_service():
     MagicMock.__dict__ handling doesn't interfere.
     """
     from types import SimpleNamespace
+
     svc = MagicMock()
     svc.get_display_settings.return_value = SimpleNamespace(brightness=80, refresh_rate=30)
     svc.get_location_settings.return_value = SimpleNamespace(
@@ -197,6 +201,7 @@ def mock_settings_service():
 # ---------------------------------------------------------------------------
 # Module-level guards
 # ---------------------------------------------------------------------------
+
 
 def test_mcp_available():
     """_MCP_AVAILABLE is True when the mcp package is installed."""
@@ -211,6 +216,7 @@ def test_mcp_server_singleton_not_none():
 def test_build_mcp_server_returns_fastmcp(mcp):
     """_build_mcp_server() returns a FastMCP instance."""
     from mcp.server.fastmcp import FastMCP
+
     assert isinstance(mcp, FastMCP)
 
 
@@ -269,6 +275,7 @@ def test_tool_count(mcp):
 # ---------------------------------------------------------------------------
 # Plugin tools
 # ---------------------------------------------------------------------------
+
 
 class TestListInstalledPlugins:
     def test_returns_json_array(self, mcp, mock_registry, mock_config_manager):
@@ -432,6 +439,7 @@ class TestGetTemplateVariables:
 class TestGetPluginData:
     def test_returns_live_values(self, mcp):
         from src.plugins.base import PluginResult
+
         mock_reg = MagicMock()
         mock_reg.fetch_plugin_data.return_value = PluginResult(
             available=True,
@@ -446,6 +454,7 @@ class TestGetPluginData:
 
     def test_disabled_plugin_returns_error_field(self, mcp):
         from src.plugins.base import PluginResult
+
         mock_reg = MagicMock()
         mock_reg.fetch_plugin_data.return_value = PluginResult(
             available=False,
@@ -461,6 +470,7 @@ class TestGetPluginData:
 # ---------------------------------------------------------------------------
 # Page tools
 # ---------------------------------------------------------------------------
+
 
 class TestListPages:
     def test_returns_page_list(self, mcp, mock_page_service):
@@ -587,6 +597,7 @@ class TestRenderPagePreview:
 # Schedule tools
 # ---------------------------------------------------------------------------
 
+
 class TestListSchedules:
     def test_returns_schedule_list(self, mcp, mock_schedule_service):
         with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
@@ -649,6 +660,7 @@ class TestDeleteSchedule:
 # Carousel tools
 # ---------------------------------------------------------------------------
 
+
 class TestListCarousels:
     def test_returns_carousel_list(self, mcp, mock_carousel_service):
         with patch("src.carousels.service.get_carousel_service", return_value=mock_carousel_service):
@@ -699,6 +711,7 @@ class TestDeleteCarousel:
 # System tools
 # ---------------------------------------------------------------------------
 
+
 class TestGetSystemStatus:
     def test_returns_version_and_status(self, mcp, mock_registry):
         with (
@@ -707,6 +720,7 @@ class TestGetSystemStatus:
         ):
             # Patch the import inside the tool function
             import src.api_server as api_mod
+
             orig_running = getattr(api_mod, "_service_running", False)
             try:
                 api_mod._service_running = True
@@ -768,9 +782,11 @@ class TestSetScheduleMode:
 # MCP Resources
 # ---------------------------------------------------------------------------
 
+
 def _call_resource(mcp_instance: Any, uri: str) -> str:
     """Call a resource handler directly."""
     import asyncio
+
     mgr = mcp_instance._resource_manager
     # Resources are keyed by URI template
     for key, resource in mgr._resources.items():
@@ -819,9 +835,11 @@ class TestMCPResources:
 # MCP Prompts
 # ---------------------------------------------------------------------------
 
+
 def _call_prompt(mcp_instance: Any, prompt_name: str, **kwargs: Any) -> str:
     """Call a prompt handler directly."""
     import asyncio
+
     mgr = mcp_instance._prompt_manager
     prompt = mgr._prompts.get(prompt_name)
     if prompt is None:
@@ -867,39 +885,43 @@ class TestMCPPrompts:
 # Error resilience: ensure no tool raises an unhandled exception
 # ---------------------------------------------------------------------------
 
+
 class TestToolErrorResilience:
     """All tools should catch exceptions and return a structured response."""
 
-    @pytest.mark.parametrize("tool_name,kwargs", [
-        ("list_installed_plugins", {}),
-        ("list_registry_plugins", {}),
-        ("install_plugin", {"plugin_id": "x"}),
-        ("enable_plugin", {"plugin_id": "x"}),
-        ("disable_plugin", {"plugin_id": "x"}),
-        ("uninstall_plugin", {"plugin_id": "x"}),
-        ("configure_plugin", {"plugin_id": "x", "config": {}}),
-        ("update_plugin", {"plugin_id": "x"}),
-        ("get_template_variables", {}),
-        ("get_plugin_data", {"plugin_id": "x"}),
-        ("list_pages", {}),
-        ("get_page", {"page_id": "x"}),
-        ("create_page", {"name": "x", "template_lines": []}),
-        ("update_page", {"page_id": "x"}),
-        ("delete_page", {"page_id": "x"}),
-        ("render_page_preview", {"template_lines": ["{{x.y}}"]}),
-        ("list_schedules", {}),
-        ("create_schedule", {"page_id": "x", "start_time": "08:00"}),
-        ("update_schedule", {"schedule_id": "x"}),
-        ("delete_schedule", {"schedule_id": "x"}),
-        ("list_carousels", {}),
-        ("create_carousel", {"name": "x", "page_ids": []}),
-        ("update_carousel", {"carousel_id": "x"}),
-        ("delete_carousel", {"carousel_id": "x"}),
-        ("get_system_status", {}),
-        ("get_settings_summary", {}),
-        ("set_active_page", {"page_id": "x"}),
-        ("set_schedule_mode", {"enabled": True}),
-    ])
+    @pytest.mark.parametrize(
+        "tool_name,kwargs",
+        [
+            ("list_installed_plugins", {}),
+            ("list_registry_plugins", {}),
+            ("install_plugin", {"plugin_id": "x"}),
+            ("enable_plugin", {"plugin_id": "x"}),
+            ("disable_plugin", {"plugin_id": "x"}),
+            ("uninstall_plugin", {"plugin_id": "x"}),
+            ("configure_plugin", {"plugin_id": "x", "config": {}}),
+            ("update_plugin", {"plugin_id": "x"}),
+            ("get_template_variables", {}),
+            ("get_plugin_data", {"plugin_id": "x"}),
+            ("list_pages", {}),
+            ("get_page", {"page_id": "x"}),
+            ("create_page", {"name": "x", "template_lines": []}),
+            ("update_page", {"page_id": "x"}),
+            ("delete_page", {"page_id": "x"}),
+            ("render_page_preview", {"template_lines": ["{{x.y}}"]}),
+            ("list_schedules", {}),
+            ("create_schedule", {"page_id": "x", "start_time": "08:00"}),
+            ("update_schedule", {"schedule_id": "x"}),
+            ("delete_schedule", {"schedule_id": "x"}),
+            ("list_carousels", {}),
+            ("create_carousel", {"name": "x", "page_ids": []}),
+            ("update_carousel", {"carousel_id": "x"}),
+            ("delete_carousel", {"carousel_id": "x"}),
+            ("get_system_status", {}),
+            ("get_settings_summary", {}),
+            ("set_active_page", {"page_id": "x"}),
+            ("set_schedule_mode", {"enabled": True}),
+        ],
+    )
     def test_tool_does_not_raise(self, mcp, tool_name: str, kwargs: dict):
         """Each tool returns a dict/list (not raises) even when all services fail."""
         with (
@@ -918,4 +940,4 @@ class TestToolErrorResilience:
         # despite our boom — e.g., get_settings_summary swallows per-field
         # errors and returns {}). Either way it must be a structured value,
         # never a raw exception.
-        assert isinstance(result, (dict, list))
+        assert isinstance(result, dict | list)

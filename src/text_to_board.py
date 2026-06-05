@@ -28,12 +28,12 @@ COLOR_CODES = {
 # Parse color markers: {63}, {red}, {/red}, {/} - each produces a single colored tile
 # Note: Single brackets are used after template normalization to avoid conflicting with {{variable}} syntax
 COLOR_MARKER_PATTERN = re.compile(
-    r'\{(?:'
-    r'(6[3-9]|7[01])|'  # Numeric codes 63-71
-    r'(red|orange|yellow|green|blue|violet|purple|white|black|filled)|'  # Named colors
-    r'(/(?:red|orange|yellow|green|blue|violet|purple|white|black|filled)?)'  # End tags {/} or {/red}
-    r')\}',
-    re.IGNORECASE
+    r"\{(?:"
+    r"(6[3-9]|7[01])|"  # Numeric codes 63-71
+    r"(red|orange|yellow|green|blue|violet|purple|white|black|filled)|"  # Named colors
+    r"(/(?:red|orange|yellow|green|blue|violet|purple|white|black|filled)?)"  # End tags {/} or {/red}
+    r")\}",
+    re.IGNORECASE,
 )
 
 
@@ -64,7 +64,7 @@ def text_to_board_array(text: str, use_color_tiles: bool = True, rows: int = 6, 
     board = [[BoardChars.SPACE] * cols for _ in range(rows)]
 
     # Split into lines (max rows)
-    lines = text.split('\n')[:rows]
+    lines = text.split("\n")[:rows]
 
     # Process each line
     for row_idx, line in enumerate(lines):
@@ -132,48 +132,54 @@ def format_board_array_preview(board: list[list[int]]) -> str:
     # Character code to character mapping (reverse lookup)
     # Based on official board character codes
     code_to_char = {
-        0: ' ',  # Blank/space
+        0: " ",  # Blank/space
     }
 
     # Letters A-Z (codes 1-26)
     for i in range(26):
-        code_to_char[i + 1] = chr(ord('A') + i)
+        code_to_char[i + 1] = chr(ord("A") + i)
 
     # Numbers: 1-9 are codes 27-35, 0 is code 36
     for i in range(1, 10):
         code_to_char[i + 26] = str(i)  # 1→27, 2→28, ..., 9→35
-    code_to_char[36] = '0'
+    code_to_char[36] = "0"
 
     # Punctuation (official codes)
     special_chars = {
-        37: '!',   # Exclamation
-        38: '@',   # At
-        39: '#',   # Pound
-        40: '$',   # Dollar
-        41: '(',   # Left paren
-        42: ')',   # Right paren
-        44: '-',   # Dash/hyphen
-        46: '+',   # Plus
-        47: '&',   # Ampersand
-        48: '=',   # Equals
-        49: ';',   # Semicolon
-        50: ':',   # Colon
-        52: "'",   # Single quote
-        53: '"',   # Double quote
-        54: '%',   # Percent
-        55: ',',   # Comma
-        56: '.',   # Period
-        59: '/',   # Slash
-        60: '?',   # Question
-        62: '°',   # Degree
+        37: "!",  # Exclamation
+        38: "@",  # At
+        39: "#",  # Pound
+        40: "$",  # Dollar
+        41: "(",  # Left paren
+        42: ")",  # Right paren
+        44: "-",  # Dash/hyphen
+        46: "+",  # Plus
+        47: "&",  # Ampersand
+        48: "=",  # Equals
+        49: ";",  # Semicolon
+        50: ":",  # Colon
+        52: "'",  # Single quote
+        53: '"',  # Double quote
+        54: "%",  # Percent
+        55: ",",  # Comma
+        56: ".",  # Period
+        59: "/",  # Slash
+        60: "?",  # Question
+        62: "°",  # Degree
     }
     code_to_char.update(special_chars)
 
     # Color tiles
     color_names = {
-        63: "[RED]", 64: "[ORG]", 65: "[YEL]", 66: "[GRN]",
-        67: "[BLU]", 68: "[VIO]", 69: "[WHT]", 70: "[BLK]",
-        71: "[FIL]"
+        63: "[RED]",
+        64: "[ORG]",
+        65: "[YEL]",
+        66: "[GRN]",
+        67: "[BLU]",
+        68: "[VIO]",
+        69: "[WHT]",
+        70: "[BLK]",
+        71: "[FIL]",
     }
 
     for row in board:
@@ -182,10 +188,10 @@ def format_board_array_preview(board: list[list[int]]) -> str:
             if code in color_names:
                 line_chars.append(color_names[code])
             else:
-                line_chars.append(code_to_char.get(code, '?'))
-        lines.append(''.join(line_chars))
+                line_chars.append(code_to_char.get(code, "?"))
+        lines.append("".join(line_chars))
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def validate_board_array(board: list[list[int]], rows: int = 6, cols: int = 22) -> bool:
@@ -201,12 +207,16 @@ def validate_board_array(board: list[list[int]], rows: int = 6, cols: int = 22) 
         True if valid, False otherwise
     """
     if not isinstance(board, list) or len(board) != rows:
-        logger.error(f"Invalid board: expected {rows} rows, got {len(board) if isinstance(board, list) else 'not a list'}")
+        logger.error(
+            f"Invalid board: expected {rows} rows, got {len(board) if isinstance(board, list) else 'not a list'}"
+        )
         return False
 
     for i, row in enumerate(board):
         if not isinstance(row, list) or len(row) != cols:
-            logger.error(f"Invalid row {i}: expected {cols} columns, got {len(row) if isinstance(row, list) else 'not a list'}")
+            logger.error(
+                f"Invalid row {i}: expected {cols} columns, got {len(row) if isinstance(row, list) else 'not a list'}"
+            )
             return False
 
         for j, code in enumerate(row):
@@ -215,4 +225,3 @@ def validate_board_array(board: list[list[int]], rows: int = 6, cols: int = 22) 
                 return False
 
     return True
-

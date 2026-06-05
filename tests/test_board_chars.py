@@ -3,9 +3,9 @@
 import pytest
 
 from src.board_chars import (
+    WEATHER_SYMBOLS,
     BoardChars,
     FiestaboardChars,
-    WEATHER_SYMBOLS,
     get_weather_symbol,
 )
 
@@ -13,14 +13,37 @@ from src.board_chars import (
 class TestBoardCharsLetterCodes:
     """Tests for letter codes A-Z (codes 1-26)."""
 
-    @pytest.mark.parametrize("char,expected", [
-        ("A", 1), ("B", 2), ("C", 3), ("D", 4), ("E", 5),
-        ("F", 6), ("G", 7), ("H", 8), ("I", 9), ("J", 10),
-        ("K", 11), ("L", 12), ("M", 13), ("N", 14), ("O", 15),
-        ("P", 16), ("Q", 17), ("R", 18), ("S", 19), ("T", 20),
-        ("U", 21), ("V", 22), ("W", 23), ("X", 24), ("Y", 25),
-        ("Z", 26),
-    ])
+    @pytest.mark.parametrize(
+        "char,expected",
+        [
+            ("A", 1),
+            ("B", 2),
+            ("C", 3),
+            ("D", 4),
+            ("E", 5),
+            ("F", 6),
+            ("G", 7),
+            ("H", 8),
+            ("I", 9),
+            ("J", 10),
+            ("K", 11),
+            ("L", 12),
+            ("M", 13),
+            ("N", 14),
+            ("O", 15),
+            ("P", 16),
+            ("Q", 17),
+            ("R", 18),
+            ("S", 19),
+            ("T", 20),
+            ("U", 21),
+            ("V", 22),
+            ("W", 23),
+            ("X", 24),
+            ("Y", 25),
+            ("Z", 26),
+        ],
+    )
     def test_uppercase_letters(self, char, expected):
         """All uppercase letters map to codes 1-26."""
         assert BoardChars.get_char_code(char) == expected
@@ -34,10 +57,21 @@ class TestBoardCharsLetterCodes:
 class TestBoardCharsNumberCodes:
     """Tests for number codes (1-9 = 27-35, 0 = 36)."""
 
-    @pytest.mark.parametrize("char,expected", [
-        ("1", 27), ("2", 28), ("3", 29), ("4", 30), ("5", 31),
-        ("6", 32), ("7", 33), ("8", 34), ("9", 35), ("0", 36),
-    ])
+    @pytest.mark.parametrize(
+        "char,expected",
+        [
+            ("1", 27),
+            ("2", 28),
+            ("3", 29),
+            ("4", 30),
+            ("5", 31),
+            ("6", 32),
+            ("7", 33),
+            ("8", 34),
+            ("9", 35),
+            ("0", 36),
+        ],
+    )
     def test_number_codes(self, char, expected):
         """Numbers 1-9 map to 27-35, 0 maps to 36."""
         assert BoardChars.get_char_code(char) == expected
@@ -46,31 +80,34 @@ class TestBoardCharsNumberCodes:
 class TestBoardCharsSpecialCharacters:
     """Tests for special character codes."""
 
-    @pytest.mark.parametrize("char,expected", [
-        (" ", BoardChars.SPACE),
-        ("!", BoardChars.EXCLAMATION),
-        ("@", BoardChars.AT),
-        ("#", BoardChars.POUND),
-        ("$", BoardChars.DOLLAR),
-        ("(", BoardChars.LEFT_PAREN),
-        (")", BoardChars.RIGHT_PAREN),
-        ("-", BoardChars.DASH),
-        ("+", BoardChars.PLUS),
-        ("&", BoardChars.AMPERSAND),
-        ("=", BoardChars.EQUALS),
-        (";", BoardChars.SEMICOLON),
-        (":", BoardChars.COLON),
-        ("'", BoardChars.SINGLE_QUOTE),
-        ('"', BoardChars.DOUBLE_QUOTE),
-        ("%", BoardChars.PERCENT),
-        (",", BoardChars.COMMA),
-        (".", BoardChars.PERIOD),
-        ("/", BoardChars.SLASH),
-        ("?", BoardChars.QUESTION),
-        ("°", BoardChars.DEGREE),
-        ("❤", BoardChars.DEGREE),
-        ("♥", BoardChars.DEGREE),
-    ])
+    @pytest.mark.parametrize(
+        "char,expected",
+        [
+            (" ", BoardChars.SPACE),
+            ("!", BoardChars.EXCLAMATION),
+            ("@", BoardChars.AT),
+            ("#", BoardChars.POUND),
+            ("$", BoardChars.DOLLAR),
+            ("(", BoardChars.LEFT_PAREN),
+            (")", BoardChars.RIGHT_PAREN),
+            ("-", BoardChars.DASH),
+            ("+", BoardChars.PLUS),
+            ("&", BoardChars.AMPERSAND),
+            ("=", BoardChars.EQUALS),
+            (";", BoardChars.SEMICOLON),
+            (":", BoardChars.COLON),
+            ("'", BoardChars.SINGLE_QUOTE),
+            ('"', BoardChars.DOUBLE_QUOTE),
+            ("%", BoardChars.PERCENT),
+            (",", BoardChars.COMMA),
+            (".", BoardChars.PERIOD),
+            ("/", BoardChars.SLASH),
+            ("?", BoardChars.QUESTION),
+            ("°", BoardChars.DEGREE),
+            ("❤", BoardChars.DEGREE),
+            ("♥", BoardChars.DEGREE),
+        ],
+    )
     def test_special_char_codes(self, char, expected):
         """Special characters map to correct codes."""
         assert BoardChars.get_char_code(char) == expected
@@ -95,18 +132,21 @@ class TestBoardCharsUnknownCharacter:
 class TestBoardCharsColorCodes:
     """Tests for color code lookups."""
 
-    @pytest.mark.parametrize("color_name,expected", [
-        ("red", BoardChars.RED),
-        ("orange", BoardChars.ORANGE),
-        ("yellow", BoardChars.YELLOW),
-        ("green", BoardChars.GREEN),
-        ("blue", BoardChars.BLUE),
-        ("violet", BoardChars.VIOLET),
-        ("purple", BoardChars.VIOLET),
-        ("white", BoardChars.WHITE),
-        ("black", BoardChars.BLACK),
-        ("filled", BoardChars.FILLED),
-    ])
+    @pytest.mark.parametrize(
+        "color_name,expected",
+        [
+            ("red", BoardChars.RED),
+            ("orange", BoardChars.ORANGE),
+            ("yellow", BoardChars.YELLOW),
+            ("green", BoardChars.GREEN),
+            ("blue", BoardChars.BLUE),
+            ("violet", BoardChars.VIOLET),
+            ("purple", BoardChars.VIOLET),
+            ("white", BoardChars.WHITE),
+            ("black", BoardChars.BLACK),
+            ("filled", BoardChars.FILLED),
+        ],
+    )
     def test_color_code_lookups(self, color_name, expected):
         """All color names map to correct codes."""
         assert BoardChars.get_color_code(color_name) == expected
@@ -227,9 +267,21 @@ class TestWeatherSymbols:
     def test_weather_symbols_dict_keys(self):
         """WEATHER_SYMBOLS has expected keys."""
         expected_conditions = [
-            "Clear", "Sunny", "Partly Cloudy", "Cloudy", "Overcast",
-            "Rain", "Rainy", "Light Rain", "Heavy Rain",
-            "Thunderstorm", "Storm", "Snow", "Snowy", "Fog", "Mist",
+            "Clear",
+            "Sunny",
+            "Partly Cloudy",
+            "Cloudy",
+            "Overcast",
+            "Rain",
+            "Rainy",
+            "Light Rain",
+            "Heavy Rain",
+            "Thunderstorm",
+            "Storm",
+            "Snow",
+            "Snowy",
+            "Fog",
+            "Mist",
         ]
         for cond in expected_conditions:
             assert cond in WEATHER_SYMBOLS

@@ -146,7 +146,7 @@ class TestRandomPlugin:
         for _ in range(20):
             result = plugin.fetch_data()
             tile = result.data["color"]
-            assert re.match(r'^\{\d+\}$', tile), f"color {tile!r} not in {{N}} format"
+            assert re.match(r"^\{\d+\}$", tile), f"color {tile!r} not in {{N}} format"
 
     def test_fetch_data_color_tile_valid_code(self, sample_manifest, sample_config):
         plugin = RandomPlugin(sample_manifest)
@@ -158,6 +158,7 @@ class TestRandomPlugin:
 
     def test_fetch_data_color_tile_matches_color_name(self, sample_manifest, sample_config):
         from plugins.random import _COLOR_TILE_CODES
+
         plugin = RandomPlugin(sample_manifest)
         plugin.config = sample_config
         for _ in range(20):
@@ -229,8 +230,7 @@ class TestRandomManifest:
     def test_manifest_variables_have_descriptions(self, random_manifest):
         simple = random_manifest["variables"]["simple"]
         for var_name, meta in simple.items():
-            assert "description" in meta and meta["description"], \
-                f"Variable '{var_name}' missing description"
+            assert meta.get("description"), f"Variable '{var_name}' missing description"
 
     def test_manifest_variables_reference_valid_groups(self, random_manifest):
         groups = set(random_manifest["variables"].get("groups", {}).keys())
@@ -238,8 +238,7 @@ class TestRandomManifest:
         for var_name, meta in simple.items():
             group = meta.get("group", "")
             if group:
-                assert group in groups, \
-                    f"Variable '{var_name}' references undefined group '{group}'"
+                assert group in groups, f"Variable '{var_name}' references undefined group '{group}'"
 
     def test_manifest_has_demo(self, random_manifest):
         assert "demo" in random_manifest

@@ -26,6 +26,7 @@ class PluginResult:
         error: Error message if fetch failed
         formatted_lines: Optional pre-formatted display lines (6 lines for board)
     """
+
     available: bool
     data: dict[str, Any] | None = None
     error: str | None = None
@@ -58,6 +59,7 @@ class TriggerResult:
         duration_seconds: How long the triggered message should be shown.
         data: Raw data dict available for template rendering.
     """
+
     triggered: bool
     trigger_id: str = ""
     message: str | None = None
@@ -92,6 +94,7 @@ class PluginInfo:
         repository: Source repository URL
         documentation: Path to README or docs
     """
+
     id: str
     name: str
     version: str
@@ -135,7 +138,6 @@ class PluginBase(ABC):
 
         Must match the 'id' field in manifest.json.
         """
-        pass
 
     @property
     def manifest(self) -> dict[str, Any]:
@@ -198,7 +200,6 @@ class PluginBase(ABC):
             PluginResult with available=True and data if successful,
             or available=False and error message if failed.
         """
-        pass
 
     def _get_refresh_schema(self) -> dict[str, Any] | None:
         """Get refresh_seconds property schema from the manifest, if defined."""
@@ -239,11 +240,8 @@ class PluginBase(ABC):
         default = refresh_schema.get("default", DEFAULT_REFRESH_SECONDS)
         value = self._config.get("refresh_seconds", default)
         floor = self.min_refresh_seconds
-        if floor is not None and isinstance(value, (int, float)) and value < floor:
-            logger.warning(
-                f"Plugin {self.plugin_id}: refresh_seconds {value} is below "
-                f"hard minimum {floor}, clamping"
-            )
+        if floor is not None and isinstance(value, int | float) and value < floor:
+            logger.warning(f"Plugin {self.plugin_id}: refresh_seconds {value} is below hard minimum {floor}, clamping")
             return floor
         return value
 
@@ -265,10 +263,7 @@ class PluginBase(ABC):
         if self._cached_result is not None and self._last_fetch_time is not None:
             age = (datetime.now() - self._last_fetch_time).total_seconds()
             if age < interval:
-                logger.debug(
-                    f"Using cached data for {self.plugin_id} "
-                    f"(age: {age:.0f}s < {interval}s)"
-                )
+                logger.debug(f"Using cached data for {self.plugin_id} (age: {age:.0f}s < {interval}s)")
                 return self._cached_result
 
         result = self.fetch_data()
@@ -300,16 +295,12 @@ class PluginBase(ABC):
         floor = self.min_refresh_seconds or MIN_REFRESH_SECONDS
         maximum = refresh_schema.get("maximum", MAX_REFRESH_SECONDS)
 
-        if not isinstance(value, (int, float)):
+        if not isinstance(value, int | float):
             errors.append("Refresh interval must be a number")
         elif value < floor:
-            errors.append(
-                f"Refresh interval must be at least {floor} seconds"
-            )
+            errors.append(f"Refresh interval must be at least {floor} seconds")
         elif value > maximum:
-            errors.append(
-                f"Refresh interval must not exceed {maximum} seconds"
-            )
+            errors.append(f"Refresh interval must not exceed {maximum} seconds")
 
         return errors
 
@@ -394,9 +385,7 @@ class PluginBase(ABC):
         timezone: str | None = None,
     ) -> Any:
         """Return a single config value from a resolved copy (see ``resolve_config_variables``)."""
-        resolved = self.resolve_config_variables(
-            extra_variables=extra_variables, timezone=timezone
-        )
+        resolved = self.resolve_config_variables(extra_variables=extra_variables, timezone=timezone)
         return resolved.get(key, default)
 
     def get_url(
@@ -505,16 +494,14 @@ class PluginBase(ABC):
         """
         if not self.supports_triggers:
             logger.debug(
-                "fire_trigger called on plugin %s which does not declare "
-                "supports_triggers; ignoring",
+                "fire_trigger called on plugin %s which does not declare supports_triggers; ignoring",
                 self.plugin_id,
             )
             return
 
         if not getattr(trigger, "triggered", False):
             logger.debug(
-                "fire_trigger received a non-fired TriggerResult from %s; "
-                "ignoring",
+                "fire_trigger received a non-fired TriggerResult from %s; ignoring",
                 self.plugin_id,
             )
             return
@@ -529,7 +516,7 @@ class PluginBase(ABC):
             # Local import keeps the plugin base independent of the triggers
             # subpackage at import time (avoids a circular import — the
             # service module imports PluginBase).
-            from ..triggers.service import get_trigger_service
+            from src.triggers.service import get_trigger_service
         except Exception:
             logger.exception(
                 "fire_trigger could not import TriggerService for plugin %s",
@@ -547,4 +534,3 @@ class PluginBase(ABC):
             List of env var definitions with name, required, description.
         """
         return self._manifest.get("env_vars", [])
-

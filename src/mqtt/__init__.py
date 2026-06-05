@@ -19,8 +19,8 @@ from .client import MQTTClient, get_mqtt_client, set_mqtt_client_instance
 from .config import MQTTConfig
 
 __all__ = [
-    "MQTTConfig",
     "MQTTClient",
+    "MQTTConfig",
     "get_mqtt_client",
     "set_mqtt_client_instance",
 ]

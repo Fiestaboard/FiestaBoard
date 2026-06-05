@@ -11,7 +11,7 @@ from .config_manager import get_config_manager
 logger = logging.getLogger(__name__)
 
 
-class classproperty:                         # noqa: N801
+class classproperty:
     """Descriptor that acts like @property but on the class itself.
 
     Python 3.13 removed support for stacking @classmethod on @property.
@@ -33,10 +33,7 @@ class Config:
     """
 
     # Valid transition strategies
-    VALID_TRANSITION_STRATEGIES = [
-        "column", "reverse-column", "edges-to-center",
-        "row", "diagonal", "random"
-    ]
+    VALID_TRANSITION_STRATEGIES = ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
 
     @classmethod
     def _get_cm(cls):
@@ -169,16 +166,17 @@ class Config:
         if locations:
             if isinstance(locations, list):
                 return locations
-            else:
-                return [locations]
+            return [locations]
 
         # Fallback to old single location format
         location = feature_config.get("location", "")
         if location:
-            return [{
-                "location": location,
-                "name": "HOME"  # Default name
-            }]
+            return [
+                {
+                    "location": location,
+                    "name": "HOME",  # Default name
+                }
+            ]
 
         return []
 
@@ -294,6 +292,7 @@ class Config:
         """Home Assistant entities (JSON string for compatibility)."""
         entities = cls._get_feature("home_assistant").get("entities", [])
         import json
+
         return json.dumps(entities)
 
     @classproperty
@@ -374,8 +373,7 @@ class Config:
         if stop_codes:
             if isinstance(stop_codes, list):
                 return stop_codes
-            else:
-                return [stop_codes]
+            return [stop_codes]
 
         # Fallback to old single stop_code format
         stop_code = feature_config.get("stop_code", "")
@@ -439,7 +437,7 @@ class Config:
         if station_ids:
             if isinstance(station_ids, list):
                 return station_ids
-            elif isinstance(station_ids, str):
+            if isinstance(station_ids, str):
                 return [station_ids]
 
         # Fallback to old station_id format for backward compatibility
@@ -448,7 +446,7 @@ class Config:
             # Migrate single station_id to array format
             if isinstance(station_id, list):
                 return station_id
-            elif isinstance(station_id, str):
+            if isinstance(station_id, str):
                 return [station_id]
 
         return []
@@ -500,8 +498,7 @@ class Config:
         if routes:
             if isinstance(routes, list):
                 return routes
-            else:
-                return [routes]
+            return [routes]
 
         # Fallback to old single route format
         origin = feature_config.get("origin", "")
@@ -509,11 +506,7 @@ class Config:
         destination_name = feature_config.get("destination_name", "DOWNTOWN")
 
         if origin and destination:
-            return [{
-                "origin": origin,
-                "destination": destination,
-                "destination_name": destination_name
-            }]
+            return [{"origin": origin, "destination": destination, "destination_name": destination_name}]
 
         return []
 
@@ -587,6 +580,7 @@ class Config:
         try:
             # Trigger migration if needed (on first call)
             from .config_manager import get_config_manager
+
             config_manager = get_config_manager()
             config_manager.migrate_silence_schedule_to_utc()
 
@@ -596,6 +590,7 @@ class Config:
 
             # Use TimeService to check if we're in the window
             from .time_service import get_time_service
+
             time_service = get_time_service()
 
             return time_service.is_time_in_window(start_time, end_time)
@@ -624,7 +619,7 @@ class Config:
         if isinstance(symbols, list):
             # Limit to 5 symbols max
             return symbols[:5]
-        elif isinstance(symbols, str):
+        if isinstance(symbols, str):
             return [symbols] if symbols else []
         return []
 
@@ -712,6 +707,8 @@ class Config:
             "weather_key_set": bool(cls.WEATHER_API_KEY),
             # Transition settings (only available in Local API mode)
             "transition_strategy": cls.BOARD_TRANSITION_STRATEGY if cls.BOARD_API_MODE.lower() == "local" else None,
-            "transition_interval_ms": cls.BOARD_TRANSITION_INTERVAL_MS if cls.BOARD_API_MODE.lower() == "local" else None,
+            "transition_interval_ms": cls.BOARD_TRANSITION_INTERVAL_MS
+            if cls.BOARD_API_MODE.lower() == "local"
+            else None,
             "transition_step_size": cls.BOARD_TRANSITION_STEP_SIZE if cls.BOARD_API_MODE.lower() == "local" else None,
         }

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
-from ..plugins.base import PluginBase, TriggerResult
+from src.plugins.base import PluginBase, TriggerResult
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ class ActiveTrigger:
         duration_seconds: How long to keep showing the trigger.
         activated_at: When the trigger was activated.
     """
+
     trigger_id: str
     plugin_id: str
     message: str | None
@@ -169,9 +170,7 @@ class TriggerService:
             # not the full duration — once that window passes, the underlying
             # condition (e.g. "event happening soon") should be gone, and any
             # new trigger from the plugin is a fresh signal worth honoring.
-            self._suppressed_until[trigger_id] = (
-                active.activated_at + timedelta(seconds=active.duration_seconds)
-            )
+            self._suppressed_until[trigger_id] = active.activated_at + timedelta(seconds=active.duration_seconds)
             logger.info(
                 "Trigger dismissed + suppressed: %s (until %s)",
                 trigger_id,
@@ -204,9 +203,7 @@ class TriggerService:
 
     def clear_expired(self) -> None:
         """Remove all triggers that have exceeded their duration."""
-        expired = [
-            tid for tid, t in self._active_triggers.items() if t.is_expired()
-        ]
+        expired = [tid for tid, t in self._active_triggers.items() if t.is_expired()]
         for tid in expired:
             del self._active_triggers[tid]
             logger.debug("Trigger expired and removed: %s", tid)
@@ -238,9 +235,7 @@ class TriggerService:
         try:
             results = plugin.check_triggers()
         except Exception:
-            logger.exception(
-                "Error checking triggers for plugin %s", plugin.plugin_id
-            )
+            logger.exception("Error checking triggers for plugin %s", plugin.plugin_id)
             return
 
         for result in results:

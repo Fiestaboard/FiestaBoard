@@ -115,9 +115,7 @@ def _is_secure_request(request: Request) -> bool:
     return request.url.scheme == "https"
 
 
-def _set_session_cookie(
-    response: Response, request: Request, token: str, *, persistent: bool = True
-) -> None:
+def _set_session_cookie(response: Response, request: Request, token: str, *, persistent: bool = True) -> None:
     """Write the session cookie.
 
     When *persistent* is true the cookie gets a ``Max-Age`` (the "Keep me
@@ -227,10 +225,7 @@ async def auth_preference(payload: PreferenceRequest) -> SimpleResponse:
     if svc.has_user():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "A user already exists. Sign in and use the account "
-                "settings to change preferences."
-            ),
+            detail=("A user already exists. Sign in and use the account settings to change preferences."),
         )
     svc.set_auth_preference("enabled" if payload.enabled else "disabled")
     return SimpleResponse(status="ok")
@@ -267,9 +262,7 @@ async def auth_login(payload: LoginRequest, request: Request, response: Response
     _check_lockout(ip)
     svc = get_auth_service()
     try:
-        token = svc.authenticate(
-            payload.username, payload.password, remember=payload.remember_me
-        )
+        token = svc.authenticate(payload.username, payload.password, remember=payload.remember_me)
     except SetupRequired:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -294,17 +287,13 @@ async def auth_logout(response: Response) -> SimpleResponse:
 
 
 @router.post("/change-password", response_model=SimpleResponse)
-async def auth_change_password(
-    payload: ChangePasswordRequest, request: Request, response: Response
-) -> SimpleResponse:
+async def auth_change_password(payload: ChangePasswordRequest, request: Request, response: Response) -> SimpleResponse:
     """Change the logged-in user's password."""
     svc = get_auth_service()
     cookie = request.cookies.get(SESSION_COOKIE_NAME)
     username = svc.verify_session(cookie) if cookie else None
     if not username:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:
         svc.change_password(username, payload.current_password, payload.new_password)
     except InvalidCredentials:
@@ -323,21 +312,15 @@ async def auth_change_password(
 
 
 @router.post("/change-username", response_model=SimpleResponse)
-async def auth_change_username(
-    payload: ChangeUsernameRequest, request: Request, response: Response
-) -> SimpleResponse:
+async def auth_change_username(payload: ChangeUsernameRequest, request: Request, response: Response) -> SimpleResponse:
     """Rename the logged-in user, gated by their current password."""
     svc = get_auth_service()
     cookie = request.cookies.get(SESSION_COOKIE_NAME)
     username = svc.verify_session(cookie) if cookie else None
     if not username:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:
-        new_username = svc.change_username(
-            username, payload.current_password, payload.new_username
-        )
+        new_username = svc.change_username(username, payload.current_password, payload.new_username)
     except InvalidCredentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -353,9 +336,7 @@ async def auth_change_username(
 
 
 @router.post("/disable", response_model=SimpleResponse)
-async def auth_disable(
-    payload: DisableAuthRequest, request: Request, response: Response
-) -> SimpleResponse:
+async def auth_disable(payload: DisableAuthRequest, request: Request, response: Response) -> SimpleResponse:
     """Turn off auth enforcement after a password check.
 
     Requires both a valid session cookie *and* the current password.
@@ -372,9 +353,7 @@ async def auth_disable(
     cookie = request.cookies.get(SESSION_COOKIE_NAME)
     username = svc.verify_session(cookie) if cookie else None
     if not username:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:
         svc.disable_auth_for_user(username, payload.current_password)
     except InvalidCredentials:
@@ -414,9 +393,7 @@ def _require_admin(request: Request) -> str:
     cookie = request.cookies.get(SESSION_COOKIE_NAME)
     username = svc.verify_session(cookie) if cookie else None
     if not username:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     return username
 
 

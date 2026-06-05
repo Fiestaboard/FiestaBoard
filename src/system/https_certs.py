@@ -170,9 +170,7 @@ def generate_cert(
         return cert_path, key_path
 
     if not _openssl_available():
-        raise RuntimeError(
-            "openssl CLI not found; cannot generate self-signed certificate."
-        )
+        raise RuntimeError("openssl CLI not found; cannot generate self-signed certificate.")
 
     cert_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -199,25 +197,30 @@ def generate_cert(
         f"subjectAltName = {','.join(san_entries)}\n"
     )
 
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".cnf", delete=False
-    ) as cfg_file:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".cnf", delete=False) as cfg_file:
         cfg_file.write(config_text)
         cfg_path = cfg_file.name
 
     try:
         cmd = [
-            "openssl", "req", "-x509",
-            "-newkey", "rsa:2048",
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
             "-sha256",
             "-nodes",
-            "-days", str(CERT_VALID_DAYS),
-            "-keyout", str(key_path),
-            "-out", str(cert_path),
-            "-config", cfg_path,
+            "-days",
+            str(CERT_VALID_DAYS),
+            "-keyout",
+            str(key_path),
+            "-out",
+            str(cert_path),
+            "-config",
+            cfg_path,
         ]
         try:
-            result = subprocess.run(  # noqa: S603 - args list, no shell
+            result = subprocess.run(
                 cmd,
                 check=True,
                 capture_output=True,
@@ -226,21 +229,19 @@ def generate_cert(
             )
             logger.debug("openssl stderr: %s", result.stderr.strip())
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"openssl failed to generate cert: {e.stderr or e.stdout}"
-            ) from e
+            raise RuntimeError(f"openssl failed to generate cert: {e.stderr or e.stdout}") from e
         except subprocess.TimeoutExpired as e:
             raise RuntimeError("openssl timed out generating cert") from e
     finally:
         try:
-            os.unlink(cfg_path)
+            Path(cfg_path).unlink()
         except OSError as e:
             logger.debug("Failed to remove temporary openssl config %s: %s", cfg_path, e)
 
     # Lock down the private key permissions. The cert is fine world-readable.
     try:
-        os.chmod(key_path, 0o600)
-        os.chmod(cert_path, 0o644)
+        key_path.chmod(0o600)
+        cert_path.chmod(0o644)
     except OSError as e:
         logger.warning("Failed to chmod cert files: %s", e)
 

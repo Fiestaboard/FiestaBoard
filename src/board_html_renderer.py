@@ -64,6 +64,7 @@ ALL_COLOR_CODES: dict[str, str] = {**COLOR_CODE_MAP, **NAMED_COLORS}
 # Token parsing — mirrors parseLine() in board-display.tsx
 # ---------------------------------------------------------------------------
 
+
 class _CharToken:
     __slots__ = ("value",)
 
@@ -234,22 +235,14 @@ def _tile_html(token: object, row: int, col: int, is_note: bool) -> str:
     note_cls = " note" if is_note else ""
     style = f'style="--r:{row};--c:{col};"'
     if isinstance(token, _ColorToken):
-        return (
-            f'<div class="tile{note_cls}" {style}>'
-            f'<div class="swatch" style="background:{token.hex};"></div>'
-            f"</div>"
-        )
+        return f'<div class="tile{note_cls}" {style}><div class="swatch" style="background:{token.hex};"></div></div>'
     # Character token
     ch = token.value if isinstance(token, _CharToken) else " "
     if ch == " ":
         return f'<div class="tile{note_cls}" {style}></div>'
     is_heart = ch == "♥"
     char_cls = " heart" if is_heart else ""
-    return (
-        f'<div class="tile{note_cls}" {style}>'
-        f'<span class="char{char_cls}">{html.escape(ch)}</span>'
-        f"</div>"
-    )
+    return f'<div class="tile{note_cls}" {style}><span class="char{char_cls}">{html.escape(ch)}</span></div>'
 
 
 def render_board_html(
@@ -283,10 +276,7 @@ def render_board_html(
     label_html = ""
     if page_name:
         safe_name = html.escape(page_name)
-        label_html = (
-            f'<div class="label"><strong>{safe_name}</strong> '
-            f"&middot; {device_type} {cols}&times;{rows}</div>"
-        )
+        label_html = f'<div class="label"><strong>{safe_name}</strong> &middot; {device_type} {cols}&times;{rows}</div>'
 
     title = html.escape(page_name or "FiestaBoard Preview")
     return (

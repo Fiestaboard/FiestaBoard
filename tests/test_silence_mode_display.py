@@ -52,12 +52,8 @@ class TestSilenceIndicator:
     def test_note_indicator_fits_and_does_not_overlay(self, service):
         with patch("src.main.get_settings_service") as settings_svc:
             inst = Mock()
-            inst.get_board_settings.return_value = Mock(
-                boards=[{"device_type": "note"}]
-            )
-            inst.get_transition_settings.return_value = Mock(
-                strategy=None, step_interval_ms=500, step_size=1
-            )
+            inst.get_board_settings.return_value = Mock(boards=[{"device_type": "note"}])
+            inst.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
             settings_svc.return_value = inst
 
             sent = service._send_silence_indicator("note")
@@ -80,12 +76,8 @@ class TestSilenceIndicator:
     def test_flagship_indicator_fits(self, service):
         with patch("src.main.get_settings_service") as settings_svc:
             inst = Mock()
-            inst.get_board_settings.return_value = Mock(
-                boards=[{"device_type": "flagship"}]
-            )
-            inst.get_transition_settings.return_value = Mock(
-                strategy=None, step_interval_ms=500, step_size=1
-            )
+            inst.get_board_settings.return_value = Mock(boards=[{"device_type": "flagship"}])
+            inst.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
             settings_svc.return_value = inst
 
             assert service._send_silence_indicator("flagship") is True
@@ -119,9 +111,7 @@ class TestSilenceModeDispatch:
         settings.is_schedule_enabled.return_value = False
         settings.get_active_page_id.return_value = "active-page"
         settings.get_board_settings.return_value = Mock(boards=[{"device_type": "note"}])
-        settings.get_transition_settings.return_value = Mock(
-            strategy=None, step_interval_ms=500, step_size=1
-        )
+        settings.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
 
         config = Mock()
         config.is_silence_mode_active.return_value = silence_active
@@ -134,11 +124,13 @@ class TestSilenceModeDispatch:
 
     def test_freeze_mode_does_not_send(self, service):
         _, page_service, settings, config = self._patch_common(mode="freeze")
-        with patch("src.main.get_page_service", return_value=page_service), \
-             patch("src.main.get_settings_service", return_value=settings), \
-             patch("src.main.get_schedule_service"), \
-             patch("src.main.Config", config), \
-             patch.object(service, "_check_trigger_override", return_value=None):
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
             sent = service.check_and_send_active_page()
 
         assert sent is False
@@ -148,11 +140,13 @@ class TestSilenceModeDispatch:
     def test_freeze_mode_blocks_subsequent_ticks(self, service):
         service._last_silence_mode_active = True
         _, page_service, settings, config = self._patch_common(mode="freeze")
-        with patch("src.main.get_page_service", return_value=page_service), \
-             patch("src.main.get_settings_service", return_value=settings), \
-             patch("src.main.get_schedule_service"), \
-             patch("src.main.Config", config), \
-             patch.object(service, "_check_trigger_override", return_value=None):
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
             sent = service.check_and_send_active_page()
 
         assert sent is False
@@ -160,11 +154,13 @@ class TestSilenceModeDispatch:
 
     def test_indicator_mode_sends_once(self, service):
         _, page_service, settings, config = self._patch_common(mode="indicator")
-        with patch("src.main.get_page_service", return_value=page_service), \
-             patch("src.main.get_settings_service", return_value=settings), \
-             patch("src.main.get_schedule_service"), \
-             patch("src.main.Config", config), \
-             patch.object(service, "_check_trigger_override", return_value=None):
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
             # First tick: enters silence, sends indicator
             service.check_and_send_active_page()
             assert service.vb_client.send_characters.call_count == 1
@@ -179,9 +175,7 @@ class TestSilenceModeDispatch:
             assert service.vb_client.send_characters.call_count == 1
 
     def test_page_mode_renders_configured_page(self, service):
-        active_page, page_service, settings, config = self._patch_common(
-            mode="page", page_id="silence-page"
-        )
+        active_page, page_service, settings, config = self._patch_common(mode="page", page_id="silence-page")
 
         # Configure get_page to return the silence page when asked.
         silence_page = Mock(
@@ -206,11 +200,13 @@ class TestSilenceModeDispatch:
         page_service.get_page.side_effect = _get_page
         page_service.preview_page.side_effect = _preview
 
-        with patch("src.main.get_page_service", return_value=page_service), \
-             patch("src.main.get_settings_service", return_value=settings), \
-             patch("src.main.get_schedule_service"), \
-             patch("src.main.Config", config), \
-             patch.object(service, "_check_trigger_override", return_value=None):
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
             sent = service.check_and_send_active_page()
             assert sent is True
             # The board content should be the silence page, not the active page.
@@ -222,9 +218,7 @@ class TestSilenceModeDispatch:
             assert service.vb_client.send_characters.call_count == 1
 
     def test_page_mode_falls_back_to_indicator_when_page_missing(self, service):
-        active_page, page_service, settings, config = self._patch_common(
-            mode="page", page_id="missing-page"
-        )
+        active_page, page_service, settings, config = self._patch_common(mode="page", page_id="missing-page")
 
         def _get_page(pid):
             if pid == "missing-page":
@@ -233,11 +227,13 @@ class TestSilenceModeDispatch:
 
         page_service.get_page.side_effect = _get_page
 
-        with patch("src.main.get_page_service", return_value=page_service), \
-             patch("src.main.get_settings_service", return_value=settings), \
-             patch("src.main.get_schedule_service"), \
-             patch("src.main.Config", config), \
-             patch.object(service, "_check_trigger_override", return_value=None):
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
             sent = service.check_and_send_active_page()
 
         assert sent is True
@@ -267,9 +263,7 @@ class TestCustomIndicatorTextAndPosition:
         settings.is_schedule_enabled.return_value = False
         settings.get_active_page_id.return_value = "active-page"
         settings.get_board_settings.return_value = Mock(boards=[{"device_type": "flagship"}])
-        settings.get_transition_settings.return_value = Mock(
-            strategy=None, step_interval_ms=500, step_size=1
-        )
+        settings.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
 
         config = Mock()
         config.is_silence_mode_active.return_value = True
@@ -281,11 +275,13 @@ class TestCustomIndicatorTextAndPosition:
 
     def test_indicator_uses_custom_text(self, service):
         page_service, settings, config = self._patch_common(indicator_text="ZZZ")
-        with patch("src.main.get_page_service", return_value=page_service), \
-             patch("src.main.get_settings_service", return_value=settings), \
-             patch("src.main.get_schedule_service"), \
-             patch("src.main.Config", config), \
-             patch.object(service, "_check_trigger_override", return_value=None):
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
             service.check_and_send_active_page()
 
         args, _ = service.vb_client.send_characters.call_args
@@ -294,14 +290,14 @@ class TestCustomIndicatorTextAndPosition:
         assert text == "ZZZ"
 
     def test_indicator_at_bottom_right_for_flagship(self, service):
-        page_service, settings, config = self._patch_common(
-            indicator_text="ZZZ", indicator_position="bottom-right"
-        )
-        with patch("src.main.get_page_service", return_value=page_service), \
-             patch("src.main.get_settings_service", return_value=settings), \
-             patch("src.main.get_schedule_service"), \
-             patch("src.main.Config", config), \
-             patch.object(service, "_check_trigger_override", return_value=None):
+        page_service, settings, config = self._patch_common(indicator_text="ZZZ", indicator_position="bottom-right")
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
             service.check_and_send_active_page()
 
         args, _ = service.vb_client.send_characters.call_args
@@ -323,11 +319,13 @@ class TestCustomIndicatorTextAndPosition:
         """If config provides no mode (so Config.SILENCE_SCHEDULE_MODE == 'freeze'), no send."""
         page_service, settings, config = self._patch_common()
         config.SILENCE_SCHEDULE_MODE = "freeze"
-        with patch("src.main.get_page_service", return_value=page_service), \
-             patch("src.main.get_settings_service", return_value=settings), \
-             patch("src.main.get_schedule_service"), \
-             patch("src.main.Config", config), \
-             patch.object(service, "_check_trigger_override", return_value=None):
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
             sent = service.check_and_send_active_page()
 
         assert sent is False
@@ -339,9 +337,11 @@ class TestSendTriggerContent:
 
     def test_device_type_passed_to_get_dimensions(self, service):
         """Regression #748: get_dimensions must receive device_type, not be called bare."""
-        with patch("src.main.get_settings_service") as mock_settings_svc, \
-             patch("src.main.get_dimensions") as mock_get_dims, \
-             patch.object(service, "_silence_device_type", return_value="note"):
+        with (
+            patch("src.main.get_settings_service") as mock_settings_svc,
+            patch("src.main.get_dimensions") as mock_get_dims,
+            patch.object(service, "_silence_device_type", return_value="note"),
+        ):
             mock_settings_svc.return_value.get_transition_settings.return_value = Mock(
                 strategy=None, step_interval_ms=500, step_size=1
             )

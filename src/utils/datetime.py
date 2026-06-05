@@ -2,8 +2,8 @@
 
 import logging
 
-from ..config import Config
-from ..time_service import get_time_service
+from src.config import Config
+from src.time_service import get_time_service
 
 logger = logging.getLogger(__name__)
 

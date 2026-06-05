@@ -10,14 +10,15 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from ..config import Config
+from src.config import Config
+
 from .transit_cache import get_transit_cache
 
 logger = logging.getLogger(__name__)
 
 
 # Board color codes
-COLOR_RED = 63    # Delay indicator
+COLOR_RED = 63  # Delay indicator
 COLOR_ORANGE = 64  # Full occupancy indicator
 
 
@@ -49,7 +50,6 @@ class MuniSource:
 
         # For backward compatibility
         self.stop_code = self.stop_codes[0] if self.stop_codes else ""
-
 
     def fetch_arrivals(self) -> dict[str, Any] | None:
         """
@@ -118,13 +118,7 @@ class MuniSource:
                     continue
 
                 # Build a mock StopMonitoring response structure from cached visits
-                mock_response = {
-                    "ServiceDelivery": {
-                        "StopMonitoringDelivery": {
-                            "MonitoredStopVisit": visits
-                        }
-                    }
-                }
+                mock_response = {"ServiceDelivery": {"StopMonitoringDelivery": {"MonitoredStopVisit": visits}}}
 
                 # Parse using existing parser
                 parsed = self._parse_response(mock_response, stop_code)
@@ -151,8 +145,7 @@ class MuniSource:
             return None
 
         # Find stop with soonest arrival
-        best = min(stops, key=lambda s: s.get("arrivals", [{}])[0].get("minutes", 999) if s.get("arrivals") else 999)
-        return best
+        return min(stops, key=lambda s: s.get("arrivals", [{}])[0].get("minutes", 999) if s.get("arrivals") else 999)
 
     def _parse_response(self, data: dict[str, Any], stop_code: str | None = None) -> dict[str, Any] | None:
         """
@@ -212,9 +205,11 @@ class MuniSource:
                     stop_name = stop_point_name
 
                 # Calculate minutes until arrival
-                expected_arrival = monitored_call.get("ExpectedArrivalTime") or \
-                                   monitored_call.get("ExpectedDepartureTime") or \
-                                   monitored_call.get("AimedArrivalTime")
+                expected_arrival = (
+                    monitored_call.get("ExpectedArrivalTime")
+                    or monitored_call.get("ExpectedDepartureTime")
+                    or monitored_call.get("AimedArrivalTime")
+                )
 
                 if expected_arrival:
                     minutes = self._calculate_minutes_until(expected_arrival)
@@ -288,7 +283,9 @@ class MuniSource:
                     "arrivals": top_arrivals,
                     "next_arrival": top_arrivals[0]["minutes"] if top_arrivals else None,
                     "is_delayed": is_delayed,
-                    "delay_description": top_arrivals[0].get("delay_description", "") if is_delayed and top_arrivals else "",
+                    "delay_description": top_arrivals[0].get("delay_description", "")
+                    if is_delayed and top_arrivals
+                    else "",
                     "formatted": formatted,
                     "color_code": color_code,
                 }
@@ -356,7 +353,7 @@ class MuniSource:
         try:
             # Parse ISO timestamp (511.org uses ISO 8601 with timezone)
             # Handle various formats: 2024-12-24T10:30:00-08:00 or 2024-12-24T18:30:00Z
-            arrival_time = datetime.fromisoformat(iso_timestamp.replace('Z', '+00:00'))
+            arrival_time = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
             now = datetime.now(UTC)
 
             delta = arrival_time - now
@@ -530,20 +527,16 @@ def get_muni_source() -> MuniSource | None:
     cache = get_transit_cache()
 
     # Configure cache with API key and refresh settings
-    refresh_interval = getattr(Config, 'TRANSIT_CACHE_REFRESH_SECONDS', 90)
-    cache_enabled = getattr(Config, 'TRANSIT_CACHE_ENABLED', True)
-    cache.configure(
-        api_key=Config.MUNI_API_KEY,
-        refresh_interval=refresh_interval,
-        enabled=cache_enabled
-    )
+    refresh_interval = getattr(Config, "TRANSIT_CACHE_REFRESH_SECONDS", 90)
+    cache_enabled = getattr(Config, "TRANSIT_CACHE_ENABLED", True)
+    cache.configure(api_key=Config.MUNI_API_KEY, refresh_interval=refresh_interval, enabled=cache_enabled)
 
     # Start cache if not already running
     if cache_enabled and not cache.is_ready():
         cache.start()
 
     # Support both new (MUNI_STOP_CODES list) and old (MUNI_STOP_CODE string) config
-    stop_codes = getattr(Config, 'MUNI_STOP_CODES', None)
+    stop_codes = getattr(Config, "MUNI_STOP_CODES", None)
 
     if not stop_codes:
         # Fall back to single stop code (backward compatibility)
@@ -558,6 +551,5 @@ def get_muni_source() -> MuniSource | None:
     return MuniSource(
         api_key=Config.MUNI_API_KEY,
         stop_codes=stop_codes,
-        line_name=Config.MUNI_LINE_NAME if Config.MUNI_LINE_NAME else None
+        line_name=Config.MUNI_LINE_NAME if Config.MUNI_LINE_NAME else None,
     )
-

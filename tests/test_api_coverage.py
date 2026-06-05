@@ -6,9 +6,11 @@ display settings, silence status, display send, page send, force refresh,
 debug endpoints (error paths), plugin endpoints, stocks, and transit cache.
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from fastapi.testclient import TestClient
+
 from src.api_server import app
 
 
@@ -21,6 +23,7 @@ def client():
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_service():
@@ -137,21 +140,20 @@ def mock_carousel_service():
 # Priority 1 – Service & Board Operations
 # ===========================================================================
 
+
 class TestStartService:
     """Tests for POST /start."""
 
     def test_start_already_running(self, client):
         """When service is already running, return status already_running."""
-        with patch("src.api_server._service_running", True), \
-             patch("src.api_server.get_service", return_value=Mock()):
+        with patch("src.api_server._service_running", True), patch("src.api_server.get_service", return_value=Mock()):
             response = client.post("/start")
             assert response.status_code == 200
             assert response.json()["status"] == "already_running"
 
     def test_start_no_service(self, client):
         """When service cannot be created, return 503."""
-        with patch("src.api_server._service_running", False), \
-             patch("src.api_server.get_service", return_value=None):
+        with patch("src.api_server._service_running", False), patch("src.api_server.get_service", return_value=None):
             response = client.post("/start")
             assert response.status_code == 503
 
@@ -160,8 +162,7 @@ class TestStartService:
         service = Mock()
         service.vb_client = None
         service.initialize.return_value = False
-        with patch("src.api_server._service_running", False), \
-             patch("src.api_server.get_service", return_value=service):
+        with patch("src.api_server._service_running", False), patch("src.api_server.get_service", return_value=service):
             response = client.post("/start")
             assert response.status_code == 503
             assert "initialization failed" in response.json()["detail"].lower()
@@ -173,17 +174,21 @@ class TestStartService:
 
         def fake_start():
             import src.api_server as mod
+
             mod._service_running = True
 
-        with patch("src.api_server._service_running", False), \
-             patch("src.api_server.get_service", return_value=service), \
-             patch("src.api_server.threading") as mock_threading, \
-             patch("src.api_server.asyncio") as mock_asyncio:
+        with (
+            patch("src.api_server._service_running", False),
+            patch("src.api_server.get_service", return_value=service),
+            patch("src.api_server.threading") as mock_threading,
+            patch("src.api_server.asyncio") as mock_asyncio,
+        ):
             thread = Mock()
             mock_threading.Thread.return_value = thread
             thread.start.side_effect = fake_start
             # mock asyncio.sleep to be a coroutine
             import asyncio
+
             mock_asyncio.sleep = asyncio.sleep
             response = client.post("/start")
             assert response.status_code == 200
@@ -193,9 +198,11 @@ class TestStartService:
         """Service thread starts but _service_running stays False."""
         service = Mock()
         service.vb_client = Mock()
-        with patch("src.api_server._service_running", False), \
-             patch("src.api_server.get_service", return_value=service), \
-             patch("src.api_server.threading") as mock_threading:
+        with (
+            patch("src.api_server._service_running", False),
+            patch("src.api_server.get_service", return_value=service),
+            patch("src.api_server.threading") as mock_threading,
+        ):
             thread = Mock()
             mock_threading.Thread.return_value = thread
             response = client.post("/start")
@@ -215,8 +222,7 @@ class TestStopService:
     def test_stop_success(self, client):
         """Stopping a running service."""
         service = Mock()
-        with patch("src.api_server._service_running", True), \
-             patch("src.api_server._service", service):
+        with patch("src.api_server._service_running", True), patch("src.api_server._service", service):
             response = client.post("/stop")
             assert response.status_code == 200
             assert response.json()["status"] == "stopped"
@@ -235,8 +241,10 @@ class TestSendWelcomeMessage:
 
     def test_welcome_board_not_configured(self, client):
         """Welcome fails when board client cannot be created."""
-        with patch("src.api_server.Config") as mock_config, \
-             patch("src.board_client.BoardClient", side_effect=ValueError("no key")):
+        with (
+            patch("src.api_server.Config") as mock_config,
+            patch("src.board_client.BoardClient", side_effect=ValueError("no key")),
+        ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "local"
             mock_config.get_board_api_key.return_value = "test_key_12345"
@@ -246,10 +254,12 @@ class TestSendWelcomeMessage:
 
     def test_welcome_success(self, client):
         """Welcome message sent successfully."""
-        with patch("src.api_server.Config") as mock_config, \
-             patch("src.board_client.BoardClient") as MockBoardClient, \
-             patch("src.api_server.text_to_board_array") as mock_ttba, \
-             patch("src.api_server.get_settings_service") as mock_ss:
+        with (
+            patch("src.api_server.Config") as mock_config,
+            patch("src.board_client.BoardClient") as MockBoardClient,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "local"
             mock_config.get_board_api_key.return_value = "test_key_12345"
@@ -275,10 +285,12 @@ class TestSendWelcomeMessage:
 
     def test_welcome_send_failure(self, client):
         """Welcome message fails to send."""
-        with patch("src.api_server.Config") as mock_config, \
-             patch("src.board_client.BoardClient") as MockBoardClient, \
-             patch("src.api_server.text_to_board_array") as mock_ttba, \
-             patch("src.api_server.get_settings_service") as mock_ss:
+        with (
+            patch("src.api_server.Config") as mock_config,
+            patch("src.board_client.BoardClient") as MockBoardClient,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "local"
             mock_config.get_board_api_key.return_value = "test_key_12345"
@@ -303,10 +315,12 @@ class TestSendWelcomeMessage:
 
     def test_welcome_unchanged(self, client):
         """Welcome message unchanged (was_sent=False, success=True)."""
-        with patch("src.api_server.Config") as mock_config, \
-             patch("src.board_client.BoardClient") as MockBoardClient, \
-             patch("src.api_server.text_to_board_array") as mock_ttba, \
-             patch("src.api_server.get_settings_service") as mock_ss:
+        with (
+            patch("src.api_server.Config") as mock_config,
+            patch("src.board_client.BoardClient") as MockBoardClient,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "cloud"
             mock_config.get_board_api_key.return_value = "test_cloud_key"
@@ -334,10 +348,12 @@ class TestSendWelcomeMessage:
 
     def test_welcome_uses_note_template_for_note_board(self, client):
         """When the configured board is a Note, render the 3x15 template."""
-        with patch("src.api_server.Config") as mock_config, \
-             patch("src.board_client.BoardClient") as MockBoardClient, \
-             patch("src.api_server.text_to_board_array") as mock_ttba, \
-             patch("src.api_server.get_settings_service") as mock_ss:
+        with (
+            patch("src.api_server.Config") as mock_config,
+            patch("src.board_client.BoardClient") as MockBoardClient,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "local"
             mock_config.get_board_api_key.return_value = "test_key_12345"
@@ -381,10 +397,12 @@ class TestSendWelcomeMessage:
 
     def test_welcome_uses_flagship_template_for_flagship_board(self, client):
         """When the configured board is a Flagship, render the 6x22 template."""
-        with patch("src.api_server.Config") as mock_config, \
-             patch("src.board_client.BoardClient") as MockBoardClient, \
-             patch("src.api_server.text_to_board_array") as mock_ttba, \
-             patch("src.api_server.get_settings_service") as mock_ss:
+        with (
+            patch("src.api_server.Config") as mock_config,
+            patch("src.board_client.BoardClient") as MockBoardClient,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
             mock_config.is_silence_mode_active.return_value = False
             mock_config.BOARD_API_MODE = "local"
             mock_config.get_board_api_key.return_value = "test_key_12345"
@@ -443,9 +461,7 @@ class TestBuildWelcomeTemplate:
     def test_note_custom_message_truncated_to_15(self):
         from src.api_server import _build_welcome_template
 
-        template = _build_welcome_template(
-            "note", "this message is way too long for a note"
-        )
+        template = _build_welcome_template("note", "this message is way too long for a note")
         assert len(template) == 3
         assert template[1] == "THIS MESSAGE IS"
         assert len(template[1]) == 15
@@ -453,9 +469,7 @@ class TestBuildWelcomeTemplate:
     def test_flagship_custom_message_truncated_to_22(self):
         from src.api_server import _build_welcome_template
 
-        template = _build_welcome_template(
-            "flagship", "this message is much longer than twenty two cols"
-        )
+        template = _build_welcome_template("flagship", "this message is much longer than twenty two cols")
         assert len(template) == 6
         assert template[2] == "THIS MESSAGE IS MUCH L"
         assert len(template[2]) == 22
@@ -471,6 +485,7 @@ class TestBuildWelcomeTemplate:
 # ===========================================================================
 # Priority 2 – Configuration Endpoints
 # ===========================================================================
+
 
 class TestResetBoardConfig:
     """Tests for DELETE /config/board."""
@@ -534,9 +549,7 @@ class TestValidateConfig:
         assert data["is_first_run"] is True
         assert "board.cloud_key" in data["missing_fields"]
 
-    def test_validate_config_multi_board_overrides_first_run(
-        self, client, mock_config_manager, mock_settings_service
-    ):
+    def test_validate_config_multi_board_overrides_first_run(self, client, mock_config_manager, mock_settings_service):
         """A configured board instance in multi-board settings clears first-run state.
 
         When a user sets up a board via Settings (rather than the wizard),
@@ -671,6 +684,7 @@ class TestBoardScan:
 # Priority 3 – MQTT Operations
 # ===========================================================================
 
+
 class TestMQTTStatus:
     """Tests for GET /mqtt/status."""
 
@@ -743,6 +757,7 @@ class TestMQTTRepublishDiscovery:
 # Priority 4 – Settings
 # ===========================================================================
 
+
 class TestSetActivePage:
     """Tests for PUT /settings/active-page."""
 
@@ -751,10 +766,10 @@ class TestSetActivePage:
     ):
         """Setting an active page also sends to board when enabled."""
         mock_settings_service.should_send_to_board.return_value = True
-        page = mock_page_service.get_page.return_value
-        preview = mock_page_service.preview_page.return_value
-        with patch("src.api_server.get_dimensions") as mock_dims, \
-             patch("src.api_server.text_to_board_array") as mock_ttba:
+        with (
+            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+        ):
             mock_dims.return_value = Mock(rows=6, cols=22)
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
             response = client.put("/settings/active-page", json={"page_id": "page1"})
@@ -787,8 +802,10 @@ class TestSetActivePage:
         """Board send failure still returns success but sent_to_board is False."""
         mock_settings_service.should_send_to_board.return_value = True
         mock_service.vb_client.send_characters.return_value = (False, False)
-        with patch("src.api_server.get_dimensions") as mock_dims, \
-             patch("src.api_server.text_to_board_array") as mock_ttba:
+        with (
+            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+        ):
             mock_dims.return_value = Mock(rows=6, cols=22)
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
             response = client.put("/settings/active-page", json={"page_id": "page1"})
@@ -868,6 +885,7 @@ class TestSilenceStatus:
 # Priority 5 – Content Operations
 # ===========================================================================
 
+
 class TestSendDisplay:
     """Tests for POST /displays/{display_type}/send."""
 
@@ -878,9 +896,11 @@ class TestSendDisplay:
 
     def test_send_display_no_service(self, client):
         """No service returns 503."""
-        with patch("src.api_server.get_display_service"), \
-             patch("src.api_server.get_settings_service"), \
-             patch("src.api_server.get_service", return_value=None):
+        with (
+            patch("src.api_server.get_display_service"),
+            patch("src.api_server.get_settings_service"),
+            patch("src.api_server.get_service", return_value=None),
+        ):
             response = client.post("/displays/weather/send")
             assert response.status_code == 503
 
@@ -888,9 +908,11 @@ class TestSendDisplay:
         """Service without vb_client returns 503."""
         svc = Mock()
         svc.vb_client = None
-        with patch("src.api_server.get_display_service"), \
-             patch("src.api_server.get_settings_service"), \
-             patch("src.api_server.get_service", return_value=svc):
+        with (
+            patch("src.api_server.get_display_service"),
+            patch("src.api_server.get_settings_service"),
+            patch("src.api_server.get_service", return_value=svc),
+        ):
             response = client.post("/displays/weather/send")
             assert response.status_code == 503
 
@@ -921,9 +943,11 @@ class TestSendDisplay:
     def test_send_display_to_board(self, client, mock_service, mock_settings_service):
         """Send display to board successfully."""
         mock_settings_service.should_send_to_board.return_value = True
-        with patch("src.api_server.get_display_service") as mock_ds, \
-             patch("src.api_server.text_to_board_array") as mock_ttba, \
-             patch("src.api_server.get_dimensions") as mock_dims:
+        with (
+            patch("src.api_server.get_display_service") as mock_ds,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.api_server.get_dimensions") as mock_dims,
+        ):
             display_service = Mock()
             result = Mock()
             result.available = True
@@ -943,9 +967,11 @@ class TestSendDisplay:
         """Board send failure → 500."""
         mock_settings_service.should_send_to_board.return_value = True
         mock_service.vb_client.send_characters.return_value = (False, False)
-        with patch("src.api_server.get_display_service") as mock_ds, \
-             patch("src.api_server.text_to_board_array") as mock_ttba, \
-             patch("src.api_server.get_dimensions") as mock_dims:
+        with (
+            patch("src.api_server.get_display_service") as mock_ds,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.api_server.get_dimensions") as mock_dims,
+        ):
             display_service = Mock()
             result = Mock()
             result.available = True
@@ -981,9 +1007,11 @@ class TestSendPage:
 
     def test_send_page_no_service(self, client):
         """No service → 503."""
-        with patch("src.api_server.get_page_service"), \
-             patch("src.api_server.get_settings_service"), \
-             patch("src.api_server.get_service", return_value=None):
+        with (
+            patch("src.api_server.get_page_service"),
+            patch("src.api_server.get_settings_service"),
+            patch("src.api_server.get_service", return_value=None),
+        ):
             response = client.post("/pages/page1/send")
             assert response.status_code == 503
 
@@ -1020,9 +1048,11 @@ class TestSendPage:
     def test_send_page_to_board(self, client, mock_service, mock_settings_service, mock_page_service):
         """Send page to board successfully."""
         mock_settings_service.should_send_to_board.return_value = True
-        with patch("src.api_server.Config") as mock_config, \
-             patch("src.api_server.get_dimensions") as mock_dims, \
-             patch("src.api_server.text_to_board_array") as mock_ttba:
+        with (
+            patch("src.api_server.Config") as mock_config,
+            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+        ):
             mock_config.is_silence_mode_active.return_value = False
             mock_dims.return_value = Mock(rows=6, cols=22)
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -1044,9 +1074,11 @@ class TestSendPage:
         """Board send failure → 500."""
         mock_settings_service.should_send_to_board.return_value = True
         mock_service.vb_client.send_characters.return_value = (False, False)
-        with patch("src.api_server.Config") as mock_config, \
-             patch("src.api_server.get_dimensions") as mock_dims, \
-             patch("src.api_server.text_to_board_array") as mock_ttba:
+        with (
+            patch("src.api_server.Config") as mock_config,
+            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+        ):
             mock_config.is_silence_mode_active.return_value = False
             mock_dims.return_value = Mock(rows=6, cols=22)
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -1060,9 +1092,11 @@ class TestSendPage:
 
     def test_send_page_target_board(self, client, mock_service, mock_settings_service, mock_page_service):
         """Explicit target=board sends to board."""
-        with patch("src.api_server.Config") as mock_config, \
-             patch("src.api_server.get_dimensions") as mock_dims, \
-             patch("src.api_server.text_to_board_array") as mock_ttba:
+        with (
+            patch("src.api_server.Config") as mock_config,
+            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+        ):
             mock_config.is_silence_mode_active.return_value = False
             mock_dims.return_value = Mock(rows=6, cols=22)
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -1107,13 +1141,16 @@ class TestForceRefresh:
 # Priority 6 – Debug Endpoints (error paths not covered elsewhere)
 # ===========================================================================
 
+
 class TestDebugBlankErrorPaths:
     """Additional error-path tests for POST /debug/blank."""
 
     def test_blank_ui_only(self, client):
         """When output target is UI only, blank returns success without sending."""
-        with patch("src.api_server._get_board_client") as mock_bc, \
-             patch("src.api_server.get_settings_service") as mock_ss:
+        with (
+            patch("src.api_server._get_board_client") as mock_bc,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
             mock_bc.return_value = Mock()
             ss = Mock()
             ss.should_send_to_board.return_value = False
@@ -1124,8 +1161,10 @@ class TestDebugBlankErrorPaths:
 
     def test_blank_send_failure(self, client):
         """Board send failure → 500."""
-        with patch("src.api_server._get_board_client") as mock_bc, \
-             patch("src.api_server.get_settings_service") as mock_ss:
+        with (
+            patch("src.api_server._get_board_client") as mock_bc,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
             bc = Mock()
             bc.send_characters.return_value = (False, False)
             mock_bc.return_value = bc
@@ -1137,8 +1176,10 @@ class TestDebugBlankErrorPaths:
 
     def test_blank_exception(self, client):
         """Exception during send → 500."""
-        with patch("src.api_server._get_board_client") as mock_bc, \
-             patch("src.api_server.get_settings_service") as mock_ss:
+        with (
+            patch("src.api_server._get_board_client") as mock_bc,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
             bc = Mock()
             bc.send_characters.side_effect = RuntimeError("network error")
             mock_bc.return_value = bc
@@ -1154,8 +1195,10 @@ class TestDebugFillErrorPaths:
 
     def test_fill_ui_only(self, client):
         """When output target is UI only, fill returns success without sending."""
-        with patch("src.api_server._get_board_client") as mock_bc, \
-             patch("src.api_server.get_settings_service") as mock_ss:
+        with (
+            patch("src.api_server._get_board_client") as mock_bc,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
             mock_bc.return_value = Mock()
             ss = Mock()
             ss.should_send_to_board.return_value = False
@@ -1166,8 +1209,10 @@ class TestDebugFillErrorPaths:
 
     def test_fill_send_failure(self, client):
         """Board send failure → 500."""
-        with patch("src.api_server._get_board_client") as mock_bc, \
-             patch("src.api_server.get_settings_service") as mock_ss:
+        with (
+            patch("src.api_server._get_board_client") as mock_bc,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
             bc = Mock()
             bc.send_characters.return_value = (False, False)
             mock_bc.return_value = bc
@@ -1179,8 +1224,10 @@ class TestDebugFillErrorPaths:
 
     def test_fill_exception(self, client):
         """Exception during send → 500."""
-        with patch("src.api_server._get_board_client") as mock_bc, \
-             patch("src.api_server.get_settings_service") as mock_ss:
+        with (
+            patch("src.api_server._get_board_client") as mock_bc,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
             bc = Mock()
             bc.send_characters.side_effect = RuntimeError("error")
             mock_bc.return_value = bc
@@ -1196,14 +1243,16 @@ class TestDebugInfoErrorPaths:
 
     def test_info_ui_only(self, client):
         """UI-only mode returns debug info without sending."""
-        with patch("src.api_server._get_board_client") as mock_bc, \
-             patch("src.api_server.get_settings_service") as mock_ss, \
-             patch("src.api_server.Config") as mock_config, \
-             patch("src.api_server._get_server_ip", return_value="10.0.0.1"), \
-             patch("src.api_server._get_service_uptime", return_value=3600), \
-             patch("src.api_server._format_uptime", return_value="1h"), \
-             patch("src.api_server.__version__", "1.0.0"), \
-             patch("src.time_service.get_time_service") as mock_ts:
+        with (
+            patch("src.api_server._get_board_client") as mock_bc,
+            patch("src.api_server.get_settings_service") as mock_ss,
+            patch("src.api_server.Config") as mock_config,
+            patch("src.api_server._get_server_ip", return_value="10.0.0.1"),
+            patch("src.api_server._get_service_uptime", return_value=3600),
+            patch("src.api_server._format_uptime", return_value="1h"),
+            patch("src.api_server.__version__", "1.0.0"),
+            patch("src.time_service.get_time_service") as mock_ts,
+        ):
             mock_bc.return_value = Mock()
             ss = Mock()
             ss.should_send_to_board.return_value = False
@@ -1221,15 +1270,17 @@ class TestDebugInfoErrorPaths:
 
     def test_info_send_failure(self, client):
         """Board send failure → 500."""
-        with patch("src.api_server._get_board_client") as mock_bc, \
-             patch("src.api_server.get_settings_service") as mock_ss, \
-             patch("src.api_server.Config") as mock_config, \
-             patch("src.api_server._get_server_ip", return_value="10.0.0.1"), \
-             patch("src.api_server._get_service_uptime", return_value=3600), \
-             patch("src.api_server._format_uptime", return_value="1h"), \
-             patch("src.api_server.__version__", "1.0.0"), \
-             patch("src.time_service.get_time_service") as mock_ts, \
-             patch("src.api_server.text_to_board_array") as mock_ttba:
+        with (
+            patch("src.api_server._get_board_client") as mock_bc,
+            patch("src.api_server.get_settings_service") as mock_ss,
+            patch("src.api_server.Config") as mock_config,
+            patch("src.api_server._get_server_ip", return_value="10.0.0.1"),
+            patch("src.api_server._get_service_uptime", return_value=3600),
+            patch("src.api_server._format_uptime", return_value="1h"),
+            patch("src.api_server.__version__", "1.0.0"),
+            patch("src.time_service.get_time_service") as mock_ts,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+        ):
             bc = Mock()
             bc.send_characters.return_value = (False, False)
             mock_bc.return_value = bc
@@ -1249,15 +1300,17 @@ class TestDebugInfoErrorPaths:
 
     def test_info_exception(self, client):
         """Exception during send → 500."""
-        with patch("src.api_server._get_board_client") as mock_bc, \
-             patch("src.api_server.get_settings_service") as mock_ss, \
-             patch("src.api_server.Config") as mock_config, \
-             patch("src.api_server._get_server_ip", return_value="10.0.0.1"), \
-             patch("src.api_server._get_service_uptime", return_value=3600), \
-             patch("src.api_server._format_uptime", return_value="1h"), \
-             patch("src.api_server.__version__", "1.0.0"), \
-             patch("src.time_service.get_time_service") as mock_ts, \
-             patch("src.api_server.text_to_board_array") as mock_ttba:
+        with (
+            patch("src.api_server._get_board_client") as mock_bc,
+            patch("src.api_server.get_settings_service") as mock_ss,
+            patch("src.api_server.Config") as mock_config,
+            patch("src.api_server._get_server_ip", return_value="10.0.0.1"),
+            patch("src.api_server._get_service_uptime", return_value=3600),
+            patch("src.api_server._format_uptime", return_value="1h"),
+            patch("src.api_server.__version__", "1.0.0"),
+            patch("src.time_service.get_time_service") as mock_ts,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+        ):
             bc = Mock()
             bc.send_characters.side_effect = Exception("error")
             mock_bc.return_value = bc
@@ -1334,13 +1387,16 @@ class TestDebugCacheStatusErrorPaths:
 # Priority 7 – Plugin System
 # ===========================================================================
 
+
 class TestPluginErrors:
     """Tests for GET /plugins/errors."""
 
     def test_plugin_errors_system_available(self, client):
         """Plugin errors when system is available."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.get_plugin_registry") as mock_reg:
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry") as mock_reg,
+        ):
             registry = Mock()
             registry.get_load_errors.return_value = {"bad_plugin": "ImportError"}
             mock_reg.return_value = registry
@@ -1365,12 +1421,12 @@ class TestPluginRegistry:
 
     def test_registry_list(self, client):
         """List registry plugins."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.get_plugin_registry") as mock_reg:
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry") as mock_reg,
+        ):
             registry = Mock()
-            registry.get_registry_entries.return_value = [
-                {"id": "weather", "name": "Weather", "installed": True}
-            ]
+            registry.get_registry_entries.return_value = [{"id": "weather", "name": "Weather", "installed": True}]
             mock_reg.return_value = registry
             response = client.get("/plugins/registry")
             assert response.status_code == 200
@@ -1388,8 +1444,10 @@ class TestPluginUpdates:
 
     def test_get_updates(self, client):
         """Get cached update status."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.get_plugin_registry") as mock_reg:
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry") as mock_reg,
+        ):
             registry = Mock()
             registry.get_update_status.return_value = {"my_plugin": True}
             mock_reg.return_value = registry
@@ -1409,8 +1467,10 @@ class TestTriggerPluginUpdateCheck:
 
     def test_trigger_check(self, client):
         """Trigger update check."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.get_plugin_registry") as mock_reg:
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry") as mock_reg,
+        ):
             registry = Mock()
             registry.check_for_updates.return_value = {"plugin_a": True, "plugin_b": False}
             mock_reg.return_value = registry
@@ -1432,17 +1492,15 @@ class TestTriggerPluginUpdateCheck:
 # Priority 8 – External Data APIs
 # ===========================================================================
 
+
 class TestStocksSearch:
     """Tests for GET /stocks/search."""
 
     def test_search_success(self, client):
         """Search stock symbols successfully."""
-        with patch("src.utils.stocks.StocksSource") as MockStocks, \
-             patch("src.api_server.Config") as mock_config:
+        with patch("src.utils.stocks.StocksSource") as MockStocks, patch("src.api_server.Config") as mock_config:
             mock_config.FINNHUB_API_KEY = "test_finnhub_key"
-            MockStocks.search_symbols.return_value = [
-                {"symbol": "GOOG", "name": "Alphabet Inc."}
-            ]
+            MockStocks.search_symbols.return_value = [{"symbol": "GOOG", "name": "Alphabet Inc."}]
             response = client.get("/stocks/search?query=GOOG")
             assert response.status_code == 200
             data = response.json()
@@ -1451,8 +1509,7 @@ class TestStocksSearch:
 
     def test_search_no_api_key(self, client):
         """Search without API key uses fallback."""
-        with patch("src.utils.stocks.StocksSource") as MockStocks, \
-             patch("src.api_server.Config") as mock_config:
+        with patch("src.utils.stocks.StocksSource") as MockStocks, patch("src.api_server.Config") as mock_config:
             mock_config.FINNHUB_API_KEY = None
             MockStocks.search_symbols.return_value = []
             response = client.get("/stocks/search?query=XYZ&limit=5")
@@ -1461,8 +1518,7 @@ class TestStocksSearch:
 
     def test_search_exception(self, client):
         """Exception during search → 500."""
-        with patch("src.utils.stocks.StocksSource") as MockStocks, \
-             patch("src.api_server.Config") as mock_config:
+        with patch("src.utils.stocks.StocksSource") as MockStocks, patch("src.api_server.Config") as mock_config:
             mock_config.FINNHUB_API_KEY = None
             MockStocks.search_symbols.side_effect = RuntimeError("API down")
             response = client.get("/stocks/search?query=GOOG")

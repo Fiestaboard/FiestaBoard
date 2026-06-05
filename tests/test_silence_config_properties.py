@@ -4,6 +4,7 @@ These properties read from `config_manager.get_feature("silence_schedule")`
 and apply normalization (defaults, validation, uppercasing). They are the
 single source of truth used by DisplayService at render time.
 """
+
 from unittest.mock import patch
 
 import pytest
@@ -24,7 +25,7 @@ class TestSilenceScheduleMode:
     @pytest.mark.parametrize("mode", ["indicator", "freeze", "page"])
     def test_accepts_valid_modes(self, mode):
         with _patch_feature({"mode": mode}):
-            assert Config.SILENCE_SCHEDULE_MODE == mode
+            assert mode == Config.SILENCE_SCHEDULE_MODE
 
     @pytest.mark.parametrize("bad", ["", "garbage", "INDICATOR", None, 42])
     def test_invalid_falls_back_to_freeze(self, bad):
@@ -62,7 +63,7 @@ class TestSilenceScheduleIndicatorPosition:
     )
     def test_accepts_each_valid_position(self, pos):
         with _patch_feature({"indicator_position": pos}):
-            assert Config.SILENCE_SCHEDULE_INDICATOR_POSITION == pos
+            assert pos == Config.SILENCE_SCHEDULE_INDICATOR_POSITION
 
     @pytest.mark.parametrize("bad", ["", "middle", "TOP-LEFT", None, 42])
     def test_invalid_falls_back_to_center(self, bad):

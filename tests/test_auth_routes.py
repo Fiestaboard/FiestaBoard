@@ -14,8 +14,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
-from src.auth import service as auth_service
 from src.auth import routes as auth_routes
+from src.auth import service as auth_service
 
 
 @pytest.fixture
@@ -194,9 +194,7 @@ def test_login_remember_me_defaults_to_session_cookie(client, enabled):
     """Omitting the field behaves like remember_me=False for API clients."""
     client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
     client.cookies.clear()
-    r = client.post(
-        "/auth/login", json={"username": "admin", "password": "supersecret"}
-    )
+    r = client.post("/auth/login", json={"username": "admin", "password": "supersecret"})
     assert r.status_code == 200
     cookie = _session_set_cookie(r)
     assert "Max-Age" not in cookie
@@ -228,9 +226,7 @@ def test_change_password_flow(client, enabled):
     assert r.status_code == 200
     # Log out, log back in with new password.
     client.post("/auth/logout")
-    r2 = client.post(
-        "/auth/login", json={"username": "admin", "password": "brandnewpassword"}
-    )
+    r2 = client.post("/auth/login", json={"username": "admin", "password": "brandnewpassword"})
     assert r2.status_code == 200
 
 
@@ -405,9 +401,7 @@ def test_disable_auth_happy_path(client, enabled, monkeypatch):
     # Clear the env-var pin so set_auth_preference("disabled") actually
     # takes effect for the next /auth/status call.
     monkeypatch.delenv("FIESTABOARD_AUTH_ENABLED", raising=False)
-    r = client.post(
-        "/auth/disable", json={"current_password": "supersecret"}
-    )
+    r = client.post("/auth/disable", json={"current_password": "supersecret"})
     assert r.status_code == 200, r.text
     # The session cookie was cleared and the user record removed.
     status_body = client.get("/auth/status").json()
@@ -440,8 +434,6 @@ def test_disable_auth_blocked_when_env_pinned(client, enabled):
     """The env var always wins — UI can't override an ops-pinned mode."""
     client.post("/auth/setup", json={"username": "admin", "password": "supersecret"})
     # `enabled` fixture sets FIESTABOARD_AUTH_ENABLED=true and leaves it set.
-    r = client.post(
-        "/auth/disable", json={"current_password": "supersecret"}
-    )
+    r = client.post("/auth/disable", json={"current_password": "supersecret"})
     assert r.status_code == 409
     assert "FIESTABOARD_AUTH_ENABLED" in r.json()["detail"]

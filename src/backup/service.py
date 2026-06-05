@@ -91,7 +91,7 @@ class BackupService:
             installed_plugins = self._collect_installed_plugins()
 
             try:
-                from .. import __version__ as app_version
+                from src import __version__ as app_version
             except Exception:  # pragma: no cover - defensive only
                 app_version = "unknown"
 
@@ -153,9 +153,7 @@ class BackupService:
                 if payload is None:
                     skipped.append(filename)
                     continue
-                self._write_json_with_backup(
-                    self.data_dir / filename, payload, timestamp
-                )
+                self._write_json_with_backup(self.data_dir / filename, payload, timestamp)
                 restored.append(filename)
 
         plugin_results: dict[str, Any] = {
@@ -202,7 +200,7 @@ class BackupService:
         if not path.exists():
             return None
         try:
-            with open(path, encoding="utf-8") as fh:
+            with path.open(encoding="utf-8") as fh:
                 return json.load(fh)
         except (OSError, json.JSONDecodeError) as exc:
             logger.warning("Could not read %s for backup: %s", path, exc)
@@ -227,7 +225,7 @@ class BackupService:
                 logger.warning("Could not write pre-restore backup %s: %s", backup_path, exc)
 
         tmp_path = path.with_suffix(path.suffix + ".tmp")
-        with open(tmp_path, "w", encoding="utf-8") as fh:
+        with tmp_path.open("w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2)
         tmp_path.replace(path)
 
@@ -236,10 +234,7 @@ class BackupService:
         if not isinstance(backup, dict):
             raise BackupError("Backup file must be a JSON object.")
         if not backup.get(BACKUP_FILE_MARKER):
-            raise BackupError(
-                "File does not look like a FiestaBoard backup "
-                f"(missing '{BACKUP_FILE_MARKER}' marker)."
-            )
+            raise BackupError(f"File does not look like a FiestaBoard backup (missing '{BACKUP_FILE_MARKER}' marker).")
         version = backup.get("schema_version")
         if not isinstance(version, int):
             raise BackupError("Backup file is missing 'schema_version'.")
@@ -260,7 +255,7 @@ class BackupService:
         and never need to be reinstalled.
         """
         try:
-            from ..plugins import get_plugin_registry  # type: ignore
+            from src.plugins import get_plugin_registry  # type: ignore
         except Exception:  # pragma: no cover - plugin system optional
             return []
 
@@ -307,13 +302,11 @@ class BackupService:
         }
 
         try:
-            from ..plugins import get_plugin_registry  # type: ignore
+            from src.plugins import get_plugin_registry  # type: ignore
         except Exception:
             for entry in installed_meta:
                 pid = entry.get("plugin_id", "")
-                result["failed"].append(
-                    {"plugin_id": pid, "error": "plugin system unavailable"}
-                )
+                result["failed"].append({"plugin_id": pid, "error": "plugin system unavailable"})
             return result
 
         try:
@@ -322,9 +315,7 @@ class BackupService:
             logger.warning("Plugin registry unavailable during restore: %s", exc)
             for entry in installed_meta:
                 pid = entry.get("plugin_id", "")
-                result["failed"].append(
-                    {"plugin_id": pid, "error": "plugin registry unavailable"}
-                )
+                result["failed"].append({"plugin_id": pid, "error": "plugin registry unavailable"})
             return result
 
         for entry in installed_meta:
@@ -336,9 +327,7 @@ class BackupService:
             # Validate plugin_id with a strict allowlist.
             pid_m = _BACKUP_PLUGIN_ID_RE.fullmatch(plugin_id)
             if pid_m is None:
-                result["failed"].append(
-                    {"plugin_id": plugin_id, "error": "invalid plugin id in backup"}
-                )
+                result["failed"].append({"plugin_id": plugin_id, "error": "invalid plugin id in backup"})
                 continue
             safe_plugin_id = pid_m.group(0)
 
@@ -371,15 +360,11 @@ class BackupService:
                 errors = registry.install_from_registry(safe_plugin_id)
             except Exception:  # pragma: no cover - defensive
                 logger.exception("Plugin reinstall raised: %s", safe_plugin_id)
-                result["failed"].append(
-                    {"plugin_id": safe_plugin_id, "error": "install failed (see server logs)"}
-                )
+                result["failed"].append({"plugin_id": safe_plugin_id, "error": "install failed (see server logs)"})
                 continue
 
             if errors:
-                result["failed"].append(
-                    {"plugin_id": safe_plugin_id, "error": "; ".join(errors)}
-                )
+                result["failed"].append({"plugin_id": safe_plugin_id, "error": "; ".join(errors)})
             else:
                 result["installed"].append(safe_plugin_id)
 
@@ -414,7 +399,8 @@ def _reload_services() -> list[str]:
 
     # Config manager: re-read config.json from disk.
     try:
-        from ..config_manager import get_config_manager
+        from src.config_manager import get_config_manager
+
         get_config_manager().reload()
     except Exception:  # pragma: no cover - defensive
         logger.exception("Failed to reload config manager")
@@ -430,6 +416,7 @@ def _reload_services() -> list[str]:
     ):
         try:
             import importlib
+
             mod = importlib.import_module(module_path)
             if hasattr(mod, attr):
                 setattr(mod, attr, None)
@@ -439,7 +426,8 @@ def _reload_services() -> list[str]:
 
     # Display service has its own reset helper.
     try:
-        from ..displays.service import reset_display_service
+        from src.displays.service import reset_display_service
+
         reset_display_service()
     except Exception:  # pragma: no cover - defensive
         logger.exception("Failed to reset display service")
@@ -448,7 +436,8 @@ def _reload_services() -> list[str]:
     # Template engine caches plugin variables — reset so it picks up the
     # restored plugin configuration on next render.
     try:
-        from ..templates.engine import reset_template_engine
+        from src.templates.engine import reset_template_engine
+
         reset_template_engine()
     except Exception:  # pragma: no cover - defensive
         logger.exception("Failed to reset template engine")

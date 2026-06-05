@@ -108,8 +108,23 @@ class Token:
 
 # Multi-character operators must be matched before single-character ones.
 _OPERATORS = (
-    "==", "!=", "<>", "<=", ">=", "&&", "||",
-    "<", ">", "=", "+", "-", "*", "/", "%", "&", "!",
+    "==",
+    "!=",
+    "<>",
+    "<=",
+    ">=",
+    "&&",
+    "||",
+    "<",
+    ">",
+    "=",
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "&",
+    "!",
 )
 
 
@@ -156,9 +171,7 @@ def _tokenize(source: str) -> list[Token]:
             while i < n and source[i] != '"':
                 if source[i] == "\\" and i + 1 < n:
                     nxt = source[i + 1]
-                    buf.append(
-                        {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\"}.get(nxt, nxt)
-                    )
+                    buf.append({"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\"}.get(nxt, nxt))
                     i += 2
                 else:
                     buf.append(source[i])
@@ -174,17 +187,13 @@ def _tokenize(source: str) -> list[Token]:
         if ch.isalpha() or ch == "_":
             start = i
             i += 1
-            while i < n and (
-                source[i].isalnum() or source[i] in ("_", ":", ".")
-            ):
+            while i < n and (source[i].isalnum() or source[i] in ("_", ":", ".")):
                 i += 1
             text = source[start:i]
             # Strip a trailing dot which is almost certainly a typo, leaving
             # it would produce a misleading "Unknown source" error.
             if text.endswith("."):
-                raise FormulaError(
-                    "#SYNTAX", f"Trailing dot in identifier: {text}", pos=start
-                )
+                raise FormulaError("#SYNTAX", f"Trailing dot in identifier: {text}", pos=start)
             tokens.append(Token(_T_IDENT, text, start))
             continue
 
@@ -213,9 +222,7 @@ def _tokenize(source: str) -> list[Token]:
         if matched:
             continue
 
-        raise FormulaError(
-            "#SYNTAX", f"Unexpected character {ch!r} at position {i}", pos=i
-        )
+        raise FormulaError("#SYNTAX", f"Unexpected character {ch!r} at position {i}", pos=i)
 
     tokens.append(Token(_T_EOF, None, n))
     return tokens
@@ -434,9 +441,7 @@ class _Parser:
                         args.append(self._parse_or())
                 close = self._advance()
                 if close.kind != _T_RPAREN:
-                    raise FormulaError(
-                        "#SYNTAX", f"Missing ')' in call to {name}", pos=close.pos
-                    )
+                    raise FormulaError("#SYNTAX", f"Missing ')' in call to {name}", pos=close.pos)
                 return _Call(upper, args)
 
             # Variable reference
@@ -472,7 +477,7 @@ def _to_number(value: Any) -> float:
     """Coerce a value to a number, raising ``#VALUE`` on failure."""
     if isinstance(value, bool):
         return 1.0 if value else 0.0
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return float(value)
     if value is None:
         return 0.0
@@ -492,7 +497,7 @@ def _to_number(value: Any) -> float:
 def _to_bool(value: Any) -> bool:
     if isinstance(value, bool):
         return value
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return value != 0
     if value is None:
         return False
@@ -526,7 +531,7 @@ def _to_string(value: Any) -> str:
 
 
 def _looks_numeric(value: Any) -> bool:
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
+    if isinstance(value, int | float) and not isinstance(value, bool):
         return True
     if isinstance(value, str):
         try:
@@ -701,6 +706,7 @@ def _math_unary(name: str, fn: Callable[[float], float]) -> Callable[[list[Any]]
         if err is not None:
             return err
         return fn(_to_number(args[0]))
+
     return impl
 
 
@@ -722,7 +728,7 @@ def _fn_roundup(args: list[Any]) -> Any:
         return err
     x = _to_number(args[0])
     n = int(_to_number(args[1])) if len(args) == 2 else 0
-    multiplier = 10 ** n
+    multiplier = 10**n
     if x >= 0:
         return math.ceil(x * multiplier) / multiplier
     return math.floor(x * multiplier) / multiplier
@@ -736,7 +742,7 @@ def _fn_rounddown(args: list[Any]) -> Any:
         return err
     x = _to_number(args[0])
     n = int(_to_number(args[1])) if len(args) == 2 else 0
-    multiplier = 10 ** n
+    multiplier = 10**n
     if x >= 0:
         return math.floor(x * multiplier) / multiplier
     return math.ceil(x * multiplier) / multiplier
@@ -1064,7 +1070,7 @@ def _fn_color(args: list[Any]) -> Any:
     if err is not None:
         return err
     raw = args[0]
-    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+    if isinstance(raw, int | float) and not isinstance(raw, bool):
         code = int(raw)
     else:
         name = _to_string(raw).strip().lower()
@@ -1159,59 +1165,59 @@ _BUILTINS: dict[str, Callable[[list[Any]], Any]] = {
 
 _SIGNATURES: dict[str, tuple[str, str, str]] = {
     # Logic
-    "IF":        ("logic", "IF(cond, then[, else])",          "Conditional value"),
-    "IFS":       ("logic", "IFS(c1, v1, c2, v2, ...[, def])", "First matching condition's value"),
-    "SWITCH":    ("logic", "SWITCH(x, m1, r1, ...[, def])",   "Match value against options"),
-    "AND":       ("logic", "AND(a, b, ...)",                  "True if all args truthy (short-circuit)"),
-    "OR":        ("logic", "OR(a, b, ...)",                   "True if any arg truthy (short-circuit)"),
-    "NOT":       ("logic", "NOT(x)",                          "Logical negation"),
-    "IFERROR":   ("logic", "IFERROR(expr, fallback)",         "Replace error result with fallback"),
-    "ISERROR":   ("logic", "ISERROR(expr)",                   "True if expr evaluated to an error"),
-    "ISBLANK":   ("logic", "ISBLANK(expr)",                   "True if expr is null/empty/missing"),
-    "DEFAULT":   ("logic", "DEFAULT(expr, fallback)",         "Fallback for error/null/blank"),
-    "COALESCE":  ("logic", "COALESCE(a, b, c, ...)",          "First non-error/non-blank value"),
+    "IF": ("logic", "IF(cond, then[, else])", "Conditional value"),
+    "IFS": ("logic", "IFS(c1, v1, c2, v2, ...[, def])", "First matching condition's value"),
+    "SWITCH": ("logic", "SWITCH(x, m1, r1, ...[, def])", "Match value against options"),
+    "AND": ("logic", "AND(a, b, ...)", "True if all args truthy (short-circuit)"),
+    "OR": ("logic", "OR(a, b, ...)", "True if any arg truthy (short-circuit)"),
+    "NOT": ("logic", "NOT(x)", "Logical negation"),
+    "IFERROR": ("logic", "IFERROR(expr, fallback)", "Replace error result with fallback"),
+    "ISERROR": ("logic", "ISERROR(expr)", "True if expr evaluated to an error"),
+    "ISBLANK": ("logic", "ISBLANK(expr)", "True if expr is null/empty/missing"),
+    "DEFAULT": ("logic", "DEFAULT(expr, fallback)", "Fallback for error/null/blank"),
+    "COALESCE": ("logic", "COALESCE(a, b, c, ...)", "First non-error/non-blank value"),
     # Math
-    "ABS":       ("math",  "ABS(x)",                          "Absolute value"),
-    "FLOOR":     ("math",  "FLOOR(x)",                        "Round toward -infinity"),
-    "CEIL":      ("math",  "CEIL(x)",                         "Round toward +infinity"),
-    "INT":       ("math",  "INT(x)",                          "Truncate toward zero"),
-    "ROUND":     ("math",  "ROUND(x[, n])",                   "Round to n decimals"),
-    "ROUNDUP":   ("math",  "ROUNDUP(x[, n])",                 "Round away from zero"),
-    "ROUNDDOWN": ("math",  "ROUNDDOWN(x[, n])",               "Round toward zero"),
-    "POWER":     ("math",  "POWER(base, exp)",                "Exponentiation"),
-    "SQRT":      ("math",  "SQRT(x)",                         "Square root"),
-    "MIN":       ("math",  "MIN(a, b, ...)",                  "Smallest value"),
-    "MAX":       ("math",  "MAX(a, b, ...)",                  "Largest value"),
-    "SUM":       ("math",  "SUM(a, b, ...)",                  "Sum of values"),
-    "AVG":       ("math",  "AVG(a, b, ...)",                  "Arithmetic mean"),
-    "MOD":       ("math",  "MOD(a, b)",                       "a modulo b"),
-    "SIGN":      ("math",  "SIGN(x)",                         "-1, 0, or 1"),
+    "ABS": ("math", "ABS(x)", "Absolute value"),
+    "FLOOR": ("math", "FLOOR(x)", "Round toward -infinity"),
+    "CEIL": ("math", "CEIL(x)", "Round toward +infinity"),
+    "INT": ("math", "INT(x)", "Truncate toward zero"),
+    "ROUND": ("math", "ROUND(x[, n])", "Round to n decimals"),
+    "ROUNDUP": ("math", "ROUNDUP(x[, n])", "Round away from zero"),
+    "ROUNDDOWN": ("math", "ROUNDDOWN(x[, n])", "Round toward zero"),
+    "POWER": ("math", "POWER(base, exp)", "Exponentiation"),
+    "SQRT": ("math", "SQRT(x)", "Square root"),
+    "MIN": ("math", "MIN(a, b, ...)", "Smallest value"),
+    "MAX": ("math", "MAX(a, b, ...)", "Largest value"),
+    "SUM": ("math", "SUM(a, b, ...)", "Sum of values"),
+    "AVG": ("math", "AVG(a, b, ...)", "Arithmetic mean"),
+    "MOD": ("math", "MOD(a, b)", "a modulo b"),
+    "SIGN": ("math", "SIGN(x)", "-1, 0, or 1"),
     # Text
-    "UPPER":     ("text",  "UPPER(s)",                        "Convert to uppercase"),
-    "LOWER":     ("text",  "LOWER(s)",                        "Convert to lowercase"),
-    "TRIM":      ("text",  "TRIM(s)",                         "Strip leading/trailing whitespace"),
-    "PROPER":    ("text",  "PROPER(s)",                       "Title-case each word"),
-    "LEN":       ("text",  "LEN(s)",                          "Character length"),
-    "LEFT":      ("text",  "LEFT(s, n)",                      "First n characters"),
-    "RIGHT":     ("text",  "RIGHT(s, n)",                     "Last n characters"),
-    "MID":       ("text",  "MID(s, start, length)",           "Substring (start is 1-indexed)"),
-    "FIND":      ("text",  "FIND(needle, haystack[, start])", "Case-sensitive position (1-indexed); #VALUE if missing"),
-    "SEARCH":    ("text",  "SEARCH(needle, haystack[, start])", "Case-insensitive position; 0 if missing"),
-    "CONCAT":    ("text",  "CONCAT(a, b, ...)",               "Join values as text"),
-    "REPLACE":   ("text",  "REPLACE(s, find, repl)",          "Replace all occurrences"),
-    "REPT":      ("text",  "REPT(s, n)",                      "Repeat n times (capped at 1024)"),
-    "CONTAINS":  ("text",  "CONTAINS(s, sub)",                "True if s contains sub"),
-    "STARTSWITH":("text",  "STARTSWITH(s, prefix)",           "True if s starts with prefix"),
-    "ENDSWITH":  ("text",  "ENDSWITH(s, suffix)",             "True if s ends with suffix"),
-    "PAD":       ("text",  "PAD(s, width)",                   "Right-pad to width"),
-    "PADLEFT":   ("text",  "PADLEFT(s, width)",               "Left-pad to width"),
-    "CENTER":    ("text",  "CENTER(s, width)",                "Center within width"),
+    "UPPER": ("text", "UPPER(s)", "Convert to uppercase"),
+    "LOWER": ("text", "LOWER(s)", "Convert to lowercase"),
+    "TRIM": ("text", "TRIM(s)", "Strip leading/trailing whitespace"),
+    "PROPER": ("text", "PROPER(s)", "Title-case each word"),
+    "LEN": ("text", "LEN(s)", "Character length"),
+    "LEFT": ("text", "LEFT(s, n)", "First n characters"),
+    "RIGHT": ("text", "RIGHT(s, n)", "Last n characters"),
+    "MID": ("text", "MID(s, start, length)", "Substring (start is 1-indexed)"),
+    "FIND": ("text", "FIND(needle, haystack[, start])", "Case-sensitive position (1-indexed); #VALUE if missing"),
+    "SEARCH": ("text", "SEARCH(needle, haystack[, start])", "Case-insensitive position; 0 if missing"),
+    "CONCAT": ("text", "CONCAT(a, b, ...)", "Join values as text"),
+    "REPLACE": ("text", "REPLACE(s, find, repl)", "Replace all occurrences"),
+    "REPT": ("text", "REPT(s, n)", "Repeat n times (capped at 1024)"),
+    "CONTAINS": ("text", "CONTAINS(s, sub)", "True if s contains sub"),
+    "STARTSWITH": ("text", "STARTSWITH(s, prefix)", "True if s starts with prefix"),
+    "ENDSWITH": ("text", "ENDSWITH(s, suffix)", "True if s ends with suffix"),
+    "PAD": ("text", "PAD(s, width)", "Right-pad to width"),
+    "PADLEFT": ("text", "PADLEFT(s, width)", "Left-pad to width"),
+    "CENTER": ("text", "CENTER(s, width)", "Center within width"),
     # Conversion
-    "TEXT":      ("convert", "TEXT(x)",                       "Convert to string"),
-    "NUM":       ("convert", "NUM(x)",                        "Convert to number"),
-    "FIXED":     ("convert", "FIXED(x[, n])",                 "Format with n decimals (default 2)"),
+    "TEXT": ("convert", "TEXT(x)", "Convert to string"),
+    "NUM": ("convert", "NUM(x)", "Convert to number"),
+    "FIXED": ("convert", "FIXED(x[, n])", "Format with n decimals (default 2)"),
     # Color
-    "COLOR":     ("color",   "COLOR(name_or_code)",           "Single color tile (e.g. \"red\" or 67)"),
+    "COLOR": ("color", "COLOR(name_or_code)", 'Single color tile (e.g. "red" or 67)'),
 }
 
 
@@ -1430,8 +1436,8 @@ class ExpressionIssue:
     Designed to be JSON-serialisable for editor integrations.
     """
 
-    code: str           # e.g. "#SYNTAX", "#NAME?"
-    message: str        # Human-readable diagnostic
+    code: str  # e.g. "#SYNTAX", "#NAME?"
+    message: str  # Human-readable diagnostic
     pos: int | None  # Character offset within the expression (None if unknown)
 
 
@@ -1495,22 +1501,54 @@ def validate_expression(
 # accept any number of arguments (we still rely on runtime ``_expect_args``
 # checks for the strict variants).
 _ARITY: dict[str, tuple[int, int | None]] = {
-    "IF": (2, 3), "NOT": (1, 1), "IFERROR": (2, 2), "ISERROR": (1, 1),
-    "ISBLANK": (1, 1), "DEFAULT": (2, 2), "COALESCE": (1, None),
-    "ABS": (1, 1), "FLOOR": (1, 1), "CEIL": (1, 1), "INT": (1, 1),
-    "ROUND": (1, 2), "ROUNDUP": (1, 2), "ROUNDDOWN": (1, 2),
-    "POWER": (2, 2), "SQRT": (1, 1), "MOD": (2, 2), "SIGN": (1, 1),
-    "MIN": (1, None), "MAX": (1, None), "SUM": (1, None), "AVG": (1, None),
-    "AND": (0, None), "OR": (0, None),
-    "UPPER": (1, 1), "LOWER": (1, 1), "TRIM": (1, 1), "PROPER": (1, 1),
-    "LEN": (1, 1), "LEFT": (2, 2), "RIGHT": (2, 2), "MID": (3, 3),
-    "FIND": (2, 3), "SEARCH": (2, 3),
-    "REPLACE": (3, 3), "REPT": (2, 2),
-    "CONTAINS": (2, 2), "STARTSWITH": (2, 2), "ENDSWITH": (2, 2),
-    "PAD": (2, 2), "PADLEFT": (2, 2), "CENTER": (2, 2),
-    "TEXT": (1, 1), "NUM": (1, 1), "FIXED": (1, 2),
+    "IF": (2, 3),
+    "NOT": (1, 1),
+    "IFERROR": (2, 2),
+    "ISERROR": (1, 1),
+    "ISBLANK": (1, 1),
+    "DEFAULT": (2, 2),
+    "COALESCE": (1, None),
+    "ABS": (1, 1),
+    "FLOOR": (1, 1),
+    "CEIL": (1, 1),
+    "INT": (1, 1),
+    "ROUND": (1, 2),
+    "ROUNDUP": (1, 2),
+    "ROUNDDOWN": (1, 2),
+    "POWER": (2, 2),
+    "SQRT": (1, 1),
+    "MOD": (2, 2),
+    "SIGN": (1, 1),
+    "MIN": (1, None),
+    "MAX": (1, None),
+    "SUM": (1, None),
+    "AVG": (1, None),
+    "AND": (0, None),
+    "OR": (0, None),
+    "UPPER": (1, 1),
+    "LOWER": (1, 1),
+    "TRIM": (1, 1),
+    "PROPER": (1, 1),
+    "LEN": (1, 1),
+    "LEFT": (2, 2),
+    "RIGHT": (2, 2),
+    "MID": (3, 3),
+    "FIND": (2, 3),
+    "SEARCH": (2, 3),
+    "REPLACE": (3, 3),
+    "REPT": (2, 2),
+    "CONTAINS": (2, 2),
+    "STARTSWITH": (2, 2),
+    "ENDSWITH": (2, 2),
+    "PAD": (2, 2),
+    "PADLEFT": (2, 2),
+    "CENTER": (2, 2),
+    "TEXT": (1, 1),
+    "NUM": (1, 1),
+    "FIXED": (1, 2),
     "COLOR": (1, 1),
-    "IFS": (2, None), "SWITCH": (3, None),
+    "IFS": (2, None),
+    "SWITCH": (3, None),
 }
 
 
@@ -1571,10 +1609,7 @@ def find_formulas(template: str) -> list[tuple[int, int, str]]:
     Useful for editor tooling that wants to underline / lint the formula
     bodies in-place.
     """
-    return [
-        (m.start(), m.end(), m.group(1).strip())
-        for m in _FORMULA_PATTERN.finditer(template)
-    ]
+    return [(m.start(), m.end(), m.group(1).strip()) for m in _FORMULA_PATTERN.finditer(template)]
 
 
 def list_builtins() -> tuple[str, ...]:
@@ -1599,9 +1634,9 @@ __all__ = [
     "ExpressionIssue",
     "FormulaError",
     "evaluate",
-    "validate_expression",
-    "render_expressions",
     "find_formulas",
-    "list_builtins",
     "function_signatures",
+    "list_builtins",
+    "render_expressions",
+    "validate_expression",
 ]

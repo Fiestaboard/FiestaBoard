@@ -1,9 +1,10 @@
 """Tests for the logs API endpoint."""
 
-import pytest
 import json
 import os
 from unittest.mock import patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -23,32 +24,27 @@ def sample_log_entries():
             "timestamp": "2025-12-25T10:00:00",
             "level": "INFO",
             "logger": "src.api_server",
-            "message": "Server started successfully"
+            "message": "Server started successfully",
         },
         {
             "timestamp": "2025-12-25T10:00:01",
             "level": "DEBUG",
             "logger": "src.board_client",
-            "message": "Connecting to board"
+            "message": "Connecting to board",
         },
         {
             "timestamp": "2025-12-25T10:00:02",
             "level": "WARNING",
             "logger": "src.utils.weather",
-            "message": "Weather API rate limit approaching"
+            "message": "Weather API rate limit approaching",
         },
         {
             "timestamp": "2025-12-25T10:00:03",
             "level": "ERROR",
             "logger": "src.displays.service",
-            "message": "Failed to render display"
+            "message": "Failed to render display",
         },
-        {
-            "timestamp": "2025-12-25T10:00:04",
-            "level": "INFO",
-            "logger": "src.main",
-            "message": "Refresh complete"
-        },
+        {"timestamp": "2025-12-25T10:00:04", "level": "INFO", "logger": "src.main", "message": "Refresh complete"},
     ]
 
 
@@ -56,9 +52,9 @@ def sample_log_entries():
 def log_file_with_entries(test_log_dir, sample_log_entries):
     """Create a log file with sample entries."""
     log_file = test_log_dir / "app.log"
-    with open(log_file, 'w') as f:
+    with open(log_file, "w") as f:
         for entry in sample_log_entries:
-            f.write(json.dumps(entry) + '\n')
+            f.write(json.dumps(entry) + "\n")
     return log_file
 
 
@@ -67,26 +63,28 @@ def mock_api_server(test_log_dir, sample_log_entries):
     """Create a test client with mocked log directory."""
     # Patch the log directory before importing
     with patch.dict(os.environ, {"PRODUCTION": "true"}):
-        with patch('src.api_server.LOG_DIR', test_log_dir):
-            with patch('src.api_server.LOG_FILE', test_log_dir / "app.log"):
+        with patch("src.api_server.LOG_DIR", test_log_dir):
+            with patch("src.api_server.LOG_FILE", test_log_dir / "app.log"):
                 # Create log file
                 log_file = test_log_dir / "app.log"
-                with open(log_file, 'w') as f:
+                with open(log_file, "w") as f:
                     for entry in sample_log_entries:
-                        f.write(json.dumps(entry) + '\n')
-                
+                        f.write(json.dumps(entry) + "\n")
+
                 # Also populate the in-memory buffer
                 from src import api_server
+
                 with api_server._log_lock:
                     api_server._log_buffer.clear()
                     for entry in sample_log_entries:
                         api_server._log_buffer.append(entry)
-                
+
                 # Create test client
                 from src.api_server import app
+
                 client = TestClient(app)
                 yield client
-                
+
                 # Cleanup
                 with api_server._log_lock:
                     api_server._log_buffer.clear()
@@ -99,7 +97,7 @@ class TestLogsEndpoint:
         """Test getting logs with default parameters."""
         response = mock_api_server.get("/logs")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert "logs" in data
         assert "total" in data
@@ -107,7 +105,7 @@ class TestLogsEndpoint:
         assert "offset" in data
         assert "has_more" in data
         assert "filters" in data
-        
+
         # Check default values
         assert data["limit"] == 50
         assert data["offset"] == 0
@@ -117,7 +115,7 @@ class TestLogsEndpoint:
         """Test getting logs with custom limit."""
         response = mock_api_server.get("/logs?limit=2")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert len(data["logs"]) <= 2
         assert data["limit"] == 2
@@ -126,7 +124,7 @@ class TestLogsEndpoint:
         """Test getting logs with offset for pagination."""
         response = mock_api_server.get("/logs?limit=2&offset=2")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["offset"] == 2
         assert data["limit"] == 2
@@ -135,7 +133,7 @@ class TestLogsEndpoint:
         """Test filtering logs by INFO level."""
         response = mock_api_server.get("/logs?level=INFO")
         assert response.status_code == 200
-        
+
         data = response.json()
         for log in data["logs"]:
             assert log["level"] == "INFO"
@@ -145,7 +143,7 @@ class TestLogsEndpoint:
         """Test filtering logs by ERROR level."""
         response = mock_api_server.get("/logs?level=ERROR")
         assert response.status_code == 200
-        
+
         data = response.json()
         for log in data["logs"]:
             assert log["level"] == "ERROR"
@@ -154,7 +152,7 @@ class TestLogsEndpoint:
         """Test that level filter is case-insensitive."""
         response = mock_api_server.get("/logs?level=info")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["filters"]["level"] == "INFO"
 
@@ -168,7 +166,7 @@ class TestLogsEndpoint:
         """Test searching in log messages."""
         response = mock_api_server.get("/logs?search=weather")
         assert response.status_code == 200
-        
+
         data = response.json()
         # Should find the weather-related log
         assert len(data["logs"]) >= 0
@@ -178,7 +176,7 @@ class TestLogsEndpoint:
         """Test that search is case-insensitive."""
         response = mock_api_server.get("/logs?search=SERVER")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["filters"]["search"] == "SERVER"
 
@@ -186,7 +184,7 @@ class TestLogsEndpoint:
         """Test combining level filter and search."""
         response = mock_api_server.get("/logs?level=INFO&search=server")
         assert response.status_code == 200
-        
+
         data = response.json()
         for log in data["logs"]:
             assert log["level"] == "INFO"
@@ -198,31 +196,31 @@ class TestLogsEndpoint:
         # Get first page with small limit
         response = mock_api_server.get("/logs?limit=2&offset=0")
         assert response.status_code == 200
-        
+
         data = response.json()
         if data["total"] > 2:
-            assert data["has_more"] == True
+            assert data["has_more"] is True
 
     def test_get_logs_pagination_no_more(self, mock_api_server, sample_log_entries):
         """Test that has_more is False when no more logs."""
         # Get all logs
         response = mock_api_server.get("/logs?limit=500&offset=0")
         assert response.status_code == 200
-        
+
         data = response.json()
-        assert data["has_more"] == False
+        assert data["has_more"] is False
 
     def test_get_logs_limit_max_value(self, mock_api_server):
         """Test that limit above maximum returns validation error."""
         response = mock_api_server.get("/logs?limit=1000")
         # API rejects values above 500 with a validation error
         assert response.status_code == 422
-    
+
     def test_get_logs_limit_at_max(self, mock_api_server):
         """Test that limit at maximum is accepted."""
         response = mock_api_server.get("/logs?limit=500")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["limit"] == 500
 
@@ -236,7 +234,7 @@ class TestLogsEndpoint:
         """Test that empty search doesn't filter."""
         response = mock_api_server.get("/logs?search=")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["filters"]["search"] is None or data["filters"]["search"] == ""
 
@@ -244,7 +242,7 @@ class TestLogsEndpoint:
         """Test that log entries have correct structure."""
         response = mock_api_server.get("/logs?limit=1")
         assert response.status_code == 200
-        
+
         data = response.json()
         if data["logs"]:
             log = data["logs"][0]
@@ -262,7 +260,7 @@ class TestLogLevels:
         """Test all valid log levels are accepted."""
         response = mock_api_server.get(f"/logs?level={level}")
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["filters"]["level"] == level
 
@@ -277,12 +275,12 @@ class TestLogFilePersistence:
 
     def test_read_from_log_file(self, log_file_with_entries, sample_log_entries):
         """Test reading logs from file."""
-        with open(log_file_with_entries, 'r') as f:
+        with open(log_file_with_entries) as f:
             lines = f.readlines()
-        
+
         assert len(lines) == len(sample_log_entries)
-        
-        for line, expected in zip(lines, sample_log_entries):
+
+        for line, expected in zip(lines, sample_log_entries, strict=False):
             entry = json.loads(line)
             assert entry["timestamp"] == expected["timestamp"]
             assert entry["level"] == expected["level"]
@@ -290,12 +288,8 @@ class TestLogFilePersistence:
 
     def test_json_line_format(self, log_file_with_entries):
         """Test that logs are stored as JSON lines."""
-        with open(log_file_with_entries, 'r') as f:
+        with open(log_file_with_entries) as f:
             for line in f:
                 # Each line should be valid JSON
                 entry = json.loads(line.strip())
                 assert isinstance(entry, dict)
-
-
-
-

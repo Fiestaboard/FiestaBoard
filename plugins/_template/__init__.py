@@ -53,10 +53,7 @@ class MyPlugin(PluginBase):
             api_key = os.getenv("MY_PLUGIN_API_KEY")
 
         if not api_key:
-            return PluginResult(
-                available=False,
-                error="API key not configured"
-            )
+            return PluginResult(available=False, error="API key not configured")
 
         try:
             # TODO: Implement your data fetching logic here
@@ -76,18 +73,11 @@ class MyPlugin(PluginBase):
                 ],
             }
 
-            return PluginResult(
-                available=True,
-                data=example_data,
-                formatted_lines=self._format_display(example_data)
-            )
+            return PluginResult(available=True, data=example_data, formatted_lines=self._format_display(example_data))
 
         except Exception as e:
             logger.error(f"Error fetching data: {e}", exc_info=True)
-            return PluginResult(
-                available=False,
-                error=str(e)
-            )
+            return PluginResult(available=False, error=str(e))
 
     def validate_config(self, config: dict[str, Any]) -> list[str]:
         """
@@ -173,4 +163,3 @@ class MyPlugin(PluginBase):
     #                                                         # trigger_page_id is set
     #         )
     #     ]
-

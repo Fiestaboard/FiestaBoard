@@ -60,6 +60,7 @@ logger = logging.getLogger(__name__)
 # string that has to be parsed again.
 # ---------------------------------------------------------------------------
 
+
 def _ok(message: str, **fields: Any) -> dict[str, Any]:
     """Standard success envelope for mutation tools."""
     return {"status": "success", "message": message, **fields}
@@ -79,7 +80,8 @@ def _serialize(obj: Any) -> Any:
     """
     import dataclasses
     from datetime import date, datetime, time
-    if obj is None or isinstance(obj, (str, int, float, bool)):
+
+    if obj is None or isinstance(obj, str | int | float | bool):
         return obj
     if hasattr(obj, "model_dump"):
         return obj.model_dump(mode="json")
@@ -91,11 +93,12 @@ def _serialize(obj: Any) -> Any:
         return [_serialize(x) for x in obj]
     if isinstance(obj, dict):
         return {k: _serialize(v) for k, v in obj.items()}
-    if isinstance(obj, (datetime, date, time)):
+    if isinstance(obj, datetime | date | time):
         return obj.isoformat()
     if hasattr(obj, "__dict__"):
         return {k: _serialize(v) for k, v in vars(obj).items() if not k.startswith("_")}
     return str(obj)
+
 
 # ---------------------------------------------------------------------------
 # Lazy imports — the MCP package is optional; we log a warning if missing
@@ -104,6 +107,7 @@ def _serialize(obj: Any) -> Any:
 
 try:
     from mcp.server.fastmcp import FastMCP  # type: ignore[import-untyped]
+
     _MCP_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _MCP_AVAILABLE = False
@@ -114,7 +118,7 @@ except ImportError:  # pragma: no cover
     )
 
 
-def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
+def _build_mcp_server() -> Any:
     """Construct and return the FastMCP server instance.
 
     Returns ``None`` if the ``mcp`` package is not installed.
@@ -179,7 +183,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             "  • Formulas:   {{= EXPRESSION }} for Excel-like logic.\n"
             "                Functions include: IF, AND, OR, NOT, UPPER, LOWER,\n"
             "                LEFT, RIGHT, LEN, ROUND, FLOOR, CEIL, MIN, MAX, COLOR.\n"
-            "                Example: {{= IF(weather.temp_f > 80, \"HOT\", \"OK\")}}\n\n"
+            '                Example: {{= IF(weather.temp_f > 80, "HOT", "OK")}}\n\n'
             "SAFETY RULES (please follow strictly)\n"
             "  • NEVER guess API keys, tokens, or credentials. If a plugin needs\n"
             "    one, ask the user to provide it before calling configure_plugin().\n"
@@ -192,7 +196,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
             "  • Color sparingly. A single {{yellow}} or {{green}} tile as a\n"
             "    status indicator reads better than walls of color.\n"
             "  • Reserve row 1 for a title/label and the last row for time or\n"
-            "    context. Use \"\" (empty string) for breathing room and as\n"
+            '    context. Use "" (empty string) for breathing room and as\n'
             "    overflow space for |wrap.\n\n"
             "Available user-invokable PROMPTS: setup_fiestaboard,\n"
             "create_display_page, schedule_my_day, build_a_carousel,\n"
@@ -220,6 +224,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .config_manager import get_config_manager
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             cm = get_config_manager()
             plugins = registry.list_plugins()
@@ -242,6 +247,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             return _serialize(registry.get_registry_entries())
         except Exception as exc:
@@ -260,13 +266,13 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             registry.install_from_registry(plugin_id)
             if auto_enable:
                 registry.enable_plugin(plugin_id)
             state = "installed and enabled" if auto_enable else "installed (disabled)"
-            return _ok(f"Plugin '{plugin_id}' {state} successfully.",
-                       plugin_id=plugin_id, enabled=auto_enable)
+            return _ok(f"Plugin '{plugin_id}' {state} successfully.", plugin_id=plugin_id, enabled=auto_enable)
         except Exception as exc:
             return _err(f"Error installing plugin '{plugin_id}': {exc}")
 
@@ -279,6 +285,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             registry.enable_plugin(plugin_id)
             return _ok(f"Plugin '{plugin_id}' enabled successfully.", plugin_id=plugin_id)
@@ -296,6 +303,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             registry.disable_plugin(plugin_id)
             return _ok(f"Plugin '{plugin_id}' disabled successfully.", plugin_id=plugin_id)
@@ -315,6 +323,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             registry.uninstall_external_plugin(plugin_id)
             return _ok(f"Plugin '{plugin_id}' uninstalled successfully.", plugin_id=plugin_id)
@@ -339,6 +348,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .config_manager import get_config_manager
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             cm = get_config_manager()
             existing = cm.get_plugin_config(plugin_id) or {}
@@ -362,6 +372,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             registry.reload_plugin(plugin_id)
             return _ok(f"Plugin '{plugin_id}' updated successfully.", plugin_id=plugin_id)
@@ -379,6 +390,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             return _serialize(registry.get_all_variables())
         except Exception as exc:
@@ -402,6 +414,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             result = registry.fetch_plugin_data(plugin_id)
             return {
@@ -429,6 +442,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .pages.service import get_page_service
+
             svc = get_page_service()
             return _serialize(svc.list_pages())
         except Exception as exc:
@@ -447,6 +461,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .pages.service import get_page_service
+
             svc = get_page_service()
             page = svc.get_page(page_id)
             if page is None:
@@ -485,6 +500,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .pages.models import PageCreate
             from .pages.service import get_page_service
+
             svc = get_page_service()
             data = PageCreate(
                 name=name,
@@ -520,6 +536,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .pages.models import PageUpdate
             from .pages.service import get_page_service
+
             svc = get_page_service()
             data = PageUpdate(
                 name=name,
@@ -545,6 +562,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .pages.service import get_page_service
+
             svc = get_page_service()
             result = svc.delete_page(page_id)
             if not result.success:
@@ -582,6 +600,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .templates.engine import get_template_engine
+
             engine = get_template_engine()
             context = engine._build_context()
             rendered = engine.render_lines(
@@ -614,6 +633,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .schedules.service import get_schedule_service
+
             svc = get_schedule_service()
             return _serialize(svc.list_schedules())
         except Exception as exc:
@@ -642,6 +662,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .schedules.models import ScheduleCreate
             from .schedules.service import get_schedule_service
+
             svc = get_schedule_service()
             data = ScheduleCreate(
                 page_id=page_id,
@@ -682,6 +703,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .schedules.models import ScheduleUpdate
             from .schedules.service import get_schedule_service
+
             svc = get_schedule_service()
             data = ScheduleUpdate(
                 page_id=page_id,
@@ -706,6 +728,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .schedules.service import get_schedule_service
+
             svc = get_schedule_service()
             svc.delete_schedule(schedule_id)
             return _ok(f"Schedule '{schedule_id}' deleted successfully.", schedule_id=schedule_id)
@@ -726,6 +749,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .carousels.service import get_carousel_service
+
             svc = get_carousel_service()
             return _serialize(svc.list_carousels())
         except Exception as exc:
@@ -750,6 +774,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .carousels.models import CarouselCreate
             from .carousels.service import get_carousel_service
+
             svc = get_carousel_service()
             data = CarouselCreate(
                 name=name,
@@ -783,6 +808,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .carousels.models import CarouselUpdate
             from .carousels.service import get_carousel_service
+
             svc = get_carousel_service()
             data = CarouselUpdate(
                 name=name,
@@ -805,6 +831,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .carousels.service import get_carousel_service
+
             svc = get_carousel_service()
             svc.delete_carousel(carousel_id)
             return _ok(f"Carousel '{carousel_id}' deleted successfully.", carousel_id=carousel_id)
@@ -825,6 +852,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .api_server import __version__, _service_running, get_service
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             plugins = registry.list_plugins()
             service = get_service()
@@ -847,6 +875,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .settings.service import get_settings_service
+
             svc = get_settings_service()
             summary: dict[str, Any] = {}
             for key, fetch in (
@@ -859,7 +888,8 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
                 except Exception as exc:
                     logger.debug(
                         "get_settings_summary: could not fetch %s settings: %s",
-                        key, exc,
+                        key,
+                        exc,
                     )
             return summary
         except Exception as exc:
@@ -876,6 +906,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .config_manager import get_config_manager
+
             cm = get_config_manager()
             cm.set_active_page(page_id)
             return _ok(f"Active page set to '{page_id}'.", page_id=page_id)
@@ -894,6 +925,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """
         try:
             from .schedules.service import get_schedule_service
+
             svc = get_schedule_service()
             svc.set_schedule_enabled(enabled)
             state = "enabled" if enabled else "disabled"
@@ -910,6 +942,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """Live list of all installed plugins with status."""
         try:
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             plugins = registry.list_plugins()
             lines = [f"# Installed Plugins ({len(plugins)} total)\n"]
@@ -927,6 +960,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """Live list of all pages."""
         try:
             from .pages.service import get_page_service
+
             svc = get_page_service()
             pages = svc.list_pages()
             lines = [f"# Pages ({len(pages)} total)\n"]
@@ -946,13 +980,11 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         try:
             from .board_html_renderer import render_page_preview_html
             from .pages.service import get_page_service
+
             svc = get_page_service()
             page = svc.get_page(page_id)
             if page is None:
-                return (
-                    "<!DOCTYPE html><html><body><p>Page "
-                    f"<code>{page_id}</code> not found.</p></body></html>"
-                )
+                return f"<!DOCTYPE html><html><body><p>Page <code>{page_id}</code> not found.</p></body></html>"
             return render_page_preview_html(page)
         except Exception as exc:
             return f"<!DOCTYPE html><html><body><p>Error: {exc}</p></body></html>"
@@ -962,10 +994,10 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """All template variables from enabled plugins."""
         try:
             from .plugins import get_plugin_registry
+
             registry = get_plugin_registry()
             variables = registry.get_all_variables()
-            lines = ["# Available Template Variables\n",
-                     "Use these in page templates as `{{plugin.variable}}`.\n"]
+            lines = ["# Available Template Variables\n", "Use these in page templates as `{{plugin.variable}}`.\n"]
             for plugin_id, vars_dict in variables.items():
                 lines.append(f"\n## {plugin_id}")
                 for var_name, meta in vars_dict.items():
@@ -982,6 +1014,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """Live list of all scheduled time slots."""
         try:
             from .schedules.service import get_schedule_service
+
             svc = get_schedule_service()
             schedules = svc.list_schedules()
             lines = [f"# Schedules ({len(schedules)} total)\n"]
@@ -989,8 +1022,7 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
                 status = "✓ enabled" if getattr(s, "enabled", True) else "✗ disabled"
                 end = getattr(s, "end_time", None) or "open"
                 lines.append(
-                    f"- **{s.start_time}–{end}** on {s.day_pattern} "
-                    f"→ page `{s.page_id}` ({status}) [`{s.id}`]"
+                    f"- **{s.start_time}–{end}** on {s.day_pattern} → page `{s.page_id}` ({status}) [`{s.id}`]"
                 )
             return "\n".join(lines)
         except Exception as exc:
@@ -1001,16 +1033,14 @@ def _build_mcp_server() -> Any:  # noqa: PLR0915 — large but tabular
         """Live list of all carousels (page playlists)."""
         try:
             from .carousels.service import get_carousel_service
+
             svc = get_carousel_service()
             carousels = svc.list_carousels()
             lines = [f"# Carousels ({len(carousels)} total)\n"]
             for c in carousels:
                 page_count = len(getattr(c, "page_ids", []) or [])
                 interval = getattr(c, "interval_seconds", "?")
-                lines.append(
-                    f"- **{c.name}** (`{c.id}`) — {page_count} pages, "
-                    f"{interval}s per page"
-                )
+                lines.append(f"- **{c.name}** (`{c.id}`) — {page_count} pages, {interval}s per page")
             return "\n".join(lines)
         except Exception as exc:
             return f"Error: {exc}"

@@ -9,7 +9,7 @@ what a real provider would emit.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 import pytest
@@ -20,8 +20,7 @@ from src.ai.chat_ops import (
     parse_tool_call,
 )
 
-
-_PROVIDERS_BLOCK_OPENAI: Dict[str, Any] = {
+_PROVIDERS_BLOCK_OPENAI: dict[str, Any] = {
     "enabled": True,
     "providers": [
         {
@@ -38,7 +37,7 @@ _PROVIDERS_BLOCK_OPENAI: Dict[str, Any] = {
 }
 
 
-_PROVIDERS_BLOCK_ANTHROPIC: Dict[str, Any] = {
+_PROVIDERS_BLOCK_ANTHROPIC: dict[str, Any] = {
     "enabled": True,
     "providers": [
         {
@@ -209,20 +208,20 @@ def test_parse_tool_call_update_setting():
 
 def test_parse_tool_call_update_setting_invalid_category():
     with pytest.raises(ToolCallValidationError):
-        parse_tool_call(
-            {"op": "update_setting", "args": {"category": "mqtt", "values": {}}}
-        )
+        parse_tool_call({"op": "update_setting", "args": {"category": "mqtt", "values": {}}})
 
 
 def test_parse_tool_call_create_carousel():
-    call = parse_tool_call({
-        "op": "create_carousel",
-        "args": {
-            "name": "Morning",
-            "page_ids": ["abc", "def"],
-            "interval_seconds": 45,
-        },
-    })
+    call = parse_tool_call(
+        {
+            "op": "create_carousel",
+            "args": {
+                "name": "Morning",
+                "page_ids": ["abc", "def"],
+                "interval_seconds": 45,
+            },
+        }
+    )
     assert call.op == "create_carousel"
     assert call.args.name == "Morning"
     assert call.args.page_ids == ["abc", "def"]
@@ -230,13 +229,15 @@ def test_parse_tool_call_create_carousel():
 
 
 def test_parse_tool_call_update_carousel():
-    call = parse_tool_call({
-        "op": "update_carousel",
-        "args": {
-            "carousel_id": "carousel:abc",
-            "page_ids": ["x", "y"],
-        },
-    })
+    call = parse_tool_call(
+        {
+            "op": "update_carousel",
+            "args": {
+                "carousel_id": "carousel:abc",
+                "page_ids": ["x", "y"],
+            },
+        }
+    )
     assert call.op == "update_carousel"
     assert call.args.carousel_id == "carousel:abc"
     assert call.args.page_ids == ["x", "y"]
@@ -244,16 +245,18 @@ def test_parse_tool_call_update_carousel():
 
 
 def test_parse_tool_call_create_schedule():
-    call = parse_tool_call({
-        "op": "create_schedule",
-        "args": {
-            "page_id": "abc123",
-            "start_time": "07:00",
-            "end_time": "09:00",
-            "day_pattern": "weekdays",
-            "enabled": True,
-        },
-    })
+    call = parse_tool_call(
+        {
+            "op": "create_schedule",
+            "args": {
+                "page_id": "abc123",
+                "start_time": "07:00",
+                "end_time": "09:00",
+                "day_pattern": "weekdays",
+                "enabled": True,
+            },
+        }
+    )
     assert call.op == "create_schedule"
     assert call.args.page_id == "abc123"
     assert call.args.start_time == "07:00"
@@ -262,26 +265,30 @@ def test_parse_tool_call_create_schedule():
 
 
 def test_parse_tool_call_create_schedule_open_ended():
-    call = parse_tool_call({
-        "op": "create_schedule",
-        "args": {
-            "page_id": "abc123",
-            "start_time": "08:00",
-            "day_pattern": "all",
-            "enabled": True,
-        },
-    })
+    call = parse_tool_call(
+        {
+            "op": "create_schedule",
+            "args": {
+                "page_id": "abc123",
+                "start_time": "08:00",
+                "day_pattern": "all",
+                "enabled": True,
+            },
+        }
+    )
     assert call.args.end_time is None
 
 
 def test_parse_tool_call_update_schedule():
-    call = parse_tool_call({
-        "op": "update_schedule",
-        "args": {
-            "schedule_id": "sch-abc",
-            "enabled": False,
-        },
-    })
+    call = parse_tool_call(
+        {
+            "op": "update_schedule",
+            "args": {
+                "schedule_id": "sch-abc",
+                "enabled": False,
+            },
+        }
+    )
     assert call.op == "update_schedule"
     assert call.args.schedule_id == "sch-abc"
     assert call.args.enabled is False
@@ -289,54 +296,66 @@ def test_parse_tool_call_update_schedule():
 
 
 def test_parse_tool_call_delete_schedule():
-    call = parse_tool_call({
-        "op": "delete_schedule",
-        "args": {"schedule_id": "sch-xyz"},
-    })
+    call = parse_tool_call(
+        {
+            "op": "delete_schedule",
+            "args": {"schedule_id": "sch-xyz"},
+        }
+    )
     assert call.op == "delete_schedule"
     assert call.args.schedule_id == "sch-xyz"
 
 
 def test_parse_tool_call_update_plugin():
-    call = parse_tool_call({
-        "op": "update_plugin",
-        "args": {"plugin_id": "openweather"},
-    })
+    call = parse_tool_call(
+        {
+            "op": "update_plugin",
+            "args": {"plugin_id": "openweather"},
+        }
+    )
     assert call.op == "update_plugin"
     assert call.args.plugin_id == "openweather"
 
 
 def test_parse_tool_call_trigger_system_update():
-    call = parse_tool_call({
-        "op": "trigger_system_update",
-        "args": {},
-    })
+    call = parse_tool_call(
+        {
+            "op": "trigger_system_update",
+            "args": {},
+        }
+    )
     assert call.op == "trigger_system_update"
 
 
 def test_parse_tool_call_enable_plugin():
-    call = parse_tool_call({
-        "op": "enable_plugin",
-        "args": {"plugin_id": "openweather"},
-    })
+    call = parse_tool_call(
+        {
+            "op": "enable_plugin",
+            "args": {"plugin_id": "openweather"},
+        }
+    )
     assert call.op == "enable_plugin"
     assert call.args.plugin_id == "openweather"
 
 
 def test_parse_tool_call_disable_plugin():
-    call = parse_tool_call({
-        "op": "disable_plugin",
-        "args": {"plugin_id": "stocks"},
-    })
+    call = parse_tool_call(
+        {
+            "op": "disable_plugin",
+            "args": {"plugin_id": "stocks"},
+        }
+    )
     assert call.op == "disable_plugin"
     assert call.args.plugin_id == "stocks"
 
 
 def test_parse_tool_call_uninstall_plugin():
-    call = parse_tool_call({
-        "op": "uninstall_plugin",
-        "args": {"plugin_id": "old_plugin"},
-    })
+    call = parse_tool_call(
+        {
+            "op": "uninstall_plugin",
+            "args": {"plugin_id": "old_plugin"},
+        }
+    )
     assert call.op == "uninstall_plugin"
     assert call.args.plugin_id == "old_plugin"
 
@@ -347,7 +366,7 @@ def test_parse_tool_call_unknown_op():
 
 
 def test_parse_tool_call_missing_op():
-    with pytest.raises(ToolCallValidationError, match="missing.*op"):
+    with pytest.raises(ToolCallValidationError, match=r"missing.*op"):
         parse_tool_call({"args": {}})
 
 
@@ -362,11 +381,7 @@ def test_parse_tool_call_bad_arg_types():
         parse_tool_call(
             {
                 "op": "apply_patch",
-                "args": {
-                    "changes": [
-                        {"type": "replace_line", "index": -1, "text": "X"}
-                    ]
-                },
+                "args": {"changes": [{"type": "replace_line", "index": -1, "text": "X"}]},
             }
         )
 
@@ -376,8 +391,8 @@ def test_parse_tool_call_bad_arg_types():
 # ---------------------------------------------------------------------------
 
 
-def _events(parser: _FenceParser, *chunks: str) -> List[Dict[str, Any]]:
-    out: List[Dict[str, Any]] = []
+def _events(parser: _FenceParser, *chunks: str) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
     for c in chunks:
         out.extend(parser.feed(c))
     out.extend(parser.flush())
@@ -397,18 +412,12 @@ def test_fence_parser_emits_tool_call():
     body = json.dumps(
         {
             "op": "apply_patch",
-            "args": {
-                "changes": [
-                    {"type": "replace_line", "index": 0, "text": "HI"}
-                ]
-            },
+            "args": {"changes": [{"type": "replace_line", "index": 0, "text": "HI"}]},
         }
     )
     chunk = f"Here you go:\n```fiestaboard\n{body}\n```\nDone!"
     events = _events(p, chunk)
-    text = "".join(
-        e["data"]["delta"] for e in events if e["event"] == "text"
-    )
+    text = "".join(e["data"]["delta"] for e in events if e["event"] == "text")
     tools = [e for e in events if e["event"] == "tool_call"]
     assert "Here you go" in text
     assert "Done!" in text
@@ -422,15 +431,11 @@ def test_fence_parser_handles_chunked_fence_open():
     p = _FenceParser()
     body = '{"op":"suggest_variables","args":{"suggestions":[]}}'
     # Split right in the middle of the marker.
-    events = _events(
-        p, "Look:\n``", "`fiest", "aboard\n", body, "\n```\nbye"
-    )
+    events = _events(p, "Look:\n``", "`fiest", "aboard\n", body, "\n```\nbye")
     tools = [e for e in events if e["event"] == "tool_call"]
     assert len(tools) == 1
     assert tools[0]["data"]["op"] == "suggest_variables"
-    text = "".join(
-        e["data"]["delta"] for e in events if e["event"] == "text"
-    )
+    text = "".join(e["data"]["delta"] for e in events if e["event"] == "text")
     assert text.startswith("Look:\n")
     assert text.endswith("bye")
 
@@ -454,11 +459,7 @@ def test_fence_parser_invalid_json_emits_warning():
 
 def test_fence_parser_invalid_op_emits_warning():
     p = _FenceParser()
-    chunk = (
-        "```fiestaboard\n"
-        + json.dumps({"op": "self_destruct", "args": {}})
-        + "\n```"
-    )
+    chunk = "```fiestaboard\n" + json.dumps({"op": "self_destruct", "args": {}}) + "\n```"
     events = _events(p, chunk)
     warnings = [e for e in events if e["event"] == "warning"]
     assert len(warnings) == 1
@@ -539,9 +540,9 @@ def test_fence_parser_repairs_apply_patch_filled_color():
 # ---------------------------------------------------------------------------
 
 
-def _openai_sse(text_chunks: List[str], usage: Dict[str, int] | None = None) -> bytes:
+def _openai_sse(text_chunks: list[str], usage: dict[str, int] | None = None) -> bytes:
     """Build a minimal OpenAI-compatible SSE response body."""
-    lines: List[str] = []
+    lines: list[str] = []
     for text in text_chunks:
         chunk = {"choices": [{"delta": {"content": text}}]}
         lines.append(f"data: {json.dumps(chunk)}\n\n")
@@ -551,13 +552,11 @@ def _openai_sse(text_chunks: List[str], usage: Dict[str, int] | None = None) -> 
     return "".join(lines).encode("utf-8")
 
 
-def _anthropic_sse(text_chunks: List[str]) -> bytes:
+def _anthropic_sse(text_chunks: list[str]) -> bytes:
     """Build a minimal Anthropic-shape SSE response body."""
-    lines: List[str] = [
+    lines: list[str] = [
         "event: message_start\n",
-        "data: "
-        + json.dumps({"type": "message_start", "message": {"usage": {"input_tokens": 7}}})
-        + "\n\n",
+        "data: " + json.dumps({"type": "message_start", "message": {"usage": {"input_tokens": 7}}}) + "\n\n",
     ]
     for text in text_chunks:
         ev = {
@@ -567,11 +566,7 @@ def _anthropic_sse(text_chunks: List[str]) -> bytes:
         lines.append("event: content_block_delta\n")
         lines.append(f"data: {json.dumps(ev)}\n\n")
     lines.append("event: message_delta\n")
-    lines.append(
-        "data: "
-        + json.dumps({"type": "message_delta", "usage": {"output_tokens": 3}})
-        + "\n\n"
-    )
+    lines.append("data: " + json.dumps({"type": "message_delta", "usage": {"output_tokens": 3}}) + "\n\n")
     lines.append("event: message_stop\n")
     lines.append('data: {"type": "message_stop"}\n\n')
     return "".join(lines).encode("utf-8")
@@ -604,19 +599,24 @@ def _stream_response(body: bytes) -> httpx.Response:
 
 @pytest.mark.asyncio
 async def test_stream_chat_emits_text_and_tool_call():
-    body = "Sure!\n```fiestaboard\n" + json.dumps(
-        {
-            "op": "apply_patch",
-            "args": {
-                "changes": [
-                    {"type": "replace_line", "index": 0, "text": "HELLO"}
-                ]
-            },
-        }
-    ) + "\n```\nAll set."
-    sse = _openai_sse([body[:5], body[5:30], body[30:]], usage={
-        "prompt_tokens": 10, "completion_tokens": 4, "total_tokens": 14,
-    })
+    body = (
+        "Sure!\n```fiestaboard\n"
+        + json.dumps(
+            {
+                "op": "apply_patch",
+                "args": {"changes": [{"type": "replace_line", "index": 0, "text": "HELLO"}]},
+            }
+        )
+        + "\n```\nAll set."
+    )
+    sse = _openai_sse(
+        [body[:5], body[5:30], body[30:]],
+        usage={
+            "prompt_tokens": 10,
+            "completion_tokens": 4,
+            "total_tokens": 14,
+        },
+    )
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path.endswith("/chat/completions")
@@ -628,7 +628,7 @@ async def test_stream_chat_emits_text_and_tool_call():
     transport = httpx.MockTransport(handler)
     client = httpx.AsyncClient(transport=transport)
     try:
-        events: List[Dict[str, Any]] = []
+        events: list[dict[str, Any]] = []
         async for evt in stream_chat(
             messages=[{"role": "user", "content": "make line 1 say hello"}],
             device_type="flagship",
@@ -654,9 +654,7 @@ async def test_stream_chat_emits_text_and_tool_call():
     assert len(tool_calls) == 1
     assert tool_calls[0]["data"]["op"] == "apply_patch"
 
-    text = "".join(
-        e["data"]["delta"] for e in events if e["event"] == "text"
-    )
+    text = "".join(e["data"]["delta"] for e in events if e["event"] == "text")
     assert "Sure!" in text
     assert "All set" in text
 
@@ -688,11 +686,9 @@ async def test_stream_chat_anthropic_protocol():
     finally:
         await client.aclose()
 
-    text = "".join(
-        e["data"]["delta"] for e in events if e["event"] == "text"
-    )
+    text = "".join(e["data"]["delta"] for e in events if e["event"] == "text")
     assert text == body
-    done = [e for e in events if e["event"] == "done"][0]
+    done = next(e for e in events if e["event"] == "done")
     assert done["data"]["usage"]["prompt_tokens"] == 7
     assert done["data"]["usage"]["completion_tokens"] == 3
     assert done["data"]["usage"]["total_tokens"] == 10
@@ -728,18 +724,14 @@ async def test_stream_chat_invalid_tool_emits_warning_but_continues():
     assert any("Unknown tool op" in w["data"]["message"] for w in warnings)
     # Stream still finished cleanly.
     assert events[-1]["event"] == "done"
-    text = "".join(
-        e["data"]["delta"] for e in events if e["event"] == "text"
-    )
+    text = "".join(e["data"]["delta"] for e in events if e["event"] == "text")
     assert "Never mind" in text
 
 
 @pytest.mark.asyncio
 async def test_stream_chat_provider_error_emits_error_event():
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            401, json={"error": {"message": "Bad API key"}}
-        )
+        return httpx.Response(401, json={"error": {"message": "Bad API key"}})
 
     transport = httpx.MockTransport(handler)
     client = httpx.AsyncClient(transport=transport)
@@ -774,9 +766,7 @@ async def test_stream_chat_rejects_empty_messages():
             variables={},
         )
     ]
-    assert events == [
-        {"event": "error", "data": {"message": "No messages provided."}}
-    ]
+    assert events == [{"event": "error", "data": {"message": "No messages provided."}}]
 
 
 @pytest.mark.asyncio
@@ -793,18 +783,14 @@ async def test_stream_chat_rejects_when_no_user_last():
             variables={},
         )
     ]
-    assert any(
-        e["event"] == "error"
-        and "must end with a user message" in e["data"]["message"]
-        for e in events
-    )
+    assert any(e["event"] == "error" and "must end with a user message" in e["data"]["message"] for e in events)
 
 
 @pytest.mark.asyncio
 async def test_stream_chat_includes_history_in_request():
     """History messages should be forwarded to the provider verbatim."""
     sse = _openai_sse(["ok"])
-    captured: Dict[str, Any] = {}
+    captured: dict[str, Any] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["body"] = json.loads(request.content)
@@ -851,6 +837,7 @@ def reset_throttle(monkeypatch):
 
 def test_chat_endpoint_validates_body(reset_throttle):
     from fastapi.testclient import TestClient
+
     from src.api_server import app
 
     client = TestClient(app)
@@ -860,6 +847,7 @@ def test_chat_endpoint_validates_body(reset_throttle):
 
 def test_chat_endpoint_rejects_invalid_device_type(reset_throttle):
     from fastapi.testclient import TestClient
+
     from src.api_server import app
 
     client = TestClient(app)

@@ -53,10 +53,7 @@ _PUBLIC_EXACT: frozenset = frozenset({"/", "/auth", "/health"})
 def _is_public_path(path: str) -> bool:
     if path in _PUBLIC_EXACT:
         return True
-    for prefix in _PUBLIC_PREFIXES:
-        if path == prefix.rstrip("/") or path.startswith(prefix):
-            return True
-    return False
+    return any(path == prefix.rstrip("/") or path.startswith(prefix) for prefix in _PUBLIC_PREFIXES)
 
 
 def _is_mcp_path(path: str) -> bool:
@@ -74,12 +71,7 @@ def _is_mcp_path(path: str) -> bool:
     Both forms point at the same endpoint and should accept the same
     bearer token.
     """
-    return (
-        path == "/mcp"
-        or path.startswith("/mcp/")
-        or path == "/api/mcp"
-        or path.startswith("/api/mcp/")
-    )
+    return path == "/mcp" or path.startswith(("/mcp/", "/api/mcp/")) or path == "/api/mcp"
 
 
 def _bearer_from(request: Request) -> str | None:

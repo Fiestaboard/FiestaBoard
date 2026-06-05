@@ -16,7 +16,6 @@ from src.network_diagnostics import (
     run_full_diagnostics,
 )
 
-
 _URL_RE = re.compile(r"https?://[^\s'\"<>]+")
 
 
@@ -33,9 +32,11 @@ def _mentions_host(text, expected_host):
             return True
     return False
 
+
 # ---------------------------------------------------------------------------
 # check_dns_resolution
 # ---------------------------------------------------------------------------
+
 
 class TestCheckDnsResolution:
     """Tests for check_dns_resolution."""
@@ -83,6 +84,7 @@ class TestCheckDnsResolution:
 # ---------------------------------------------------------------------------
 # check_internet_connectivity
 # ---------------------------------------------------------------------------
+
 
 class TestCheckInternetConnectivity:
     """Tests for check_internet_connectivity."""
@@ -159,6 +161,7 @@ class TestCheckInternetConnectivity:
 # check_port_reachable
 # ---------------------------------------------------------------------------
 
+
 class TestCheckPortReachable:
     """Tests for check_port_reachable."""
 
@@ -197,6 +200,7 @@ class TestCheckPortReachable:
 # ---------------------------------------------------------------------------
 # check_vestaboard_connection
 # ---------------------------------------------------------------------------
+
 
 class TestCheckVestaboardConnection:
     """Tests for check_vestaboard_connection."""
@@ -262,9 +266,7 @@ class TestCheckVestaboardConnection:
         mock_resp.status_code = 200
         mock_get.return_value = mock_resp
 
-        result = check_vestaboard_connection(
-            host="", use_cloud=True, cloud_key="rw-key-123"
-        )
+        result = check_vestaboard_connection(host="", use_cloud=True, cloud_key="rw-key-123")
 
         assert result["ok"] is True
         assert result["mode"] == "cloud"
@@ -274,9 +276,7 @@ class TestCheckVestaboardConnection:
     def test_cloud_failure(self, mock_get):
         mock_get.side_effect = requests.exceptions.ConnectionError("no route")
 
-        result = check_vestaboard_connection(
-            host="", use_cloud=True, cloud_key="rw-key-123"
-        )
+        result = check_vestaboard_connection(host="", use_cloud=True, cloud_key="rw-key-123")
 
         assert result["ok"] is False
         assert result["mode"] == "cloud"
@@ -287,9 +287,7 @@ class TestCheckVestaboardConnection:
         mock_resp.status_code = 500
         mock_get.return_value = mock_resp
 
-        result = check_vestaboard_connection(
-            host="", use_cloud=True, cloud_key="rw-key-123"
-        )
+        result = check_vestaboard_connection(host="", use_cloud=True, cloud_key="rw-key-123")
 
         assert result["ok"] is False
 
@@ -297,6 +295,7 @@ class TestCheckVestaboardConnection:
 # ---------------------------------------------------------------------------
 # _build_recommendations
 # ---------------------------------------------------------------------------
+
 
 class TestBuildRecommendations:
     """Tests for _build_recommendations troubleshooting output."""
@@ -321,10 +320,7 @@ class TestBuildRecommendations:
         recs = _build_recommendations(results)
         assert any("cannot look up" in r["summary"].lower() for r in recs)
         # Should suggest common DNS servers
-        assert any(
-            any("8.8.8.8" in s or "1.1.1.1" in s for s in r["steps"])
-            for r in recs
-        )
+        assert any(any("8.8.8.8" in s or "1.1.1.1" in s for s in r["steps"]) for r in recs)
 
     def test_internet_failure_with_dns_ok_recommends_router(self):
         results = {
@@ -334,10 +330,7 @@ class TestBuildRecommendations:
         }
         recs = _build_recommendations(results)
         assert any("cannot reach the internet" in r["summary"].lower() for r in recs)
-        assert any(
-            any("router" in s.lower() for s in r["steps"])
-            for r in recs
-        )
+        assert any(any("router" in s.lower() for s in r["steps"]) for r in recs)
 
     def test_internet_failure_with_dns_down_points_to_dns(self):
         results = {
@@ -347,10 +340,7 @@ class TestBuildRecommendations:
         }
         recs = _build_recommendations(results)
         # Should tell user to fix DNS first
-        assert any(
-            any("dns" in s.lower() and "fix" in s.lower() for s in r["steps"])
-            for r in recs
-        )
+        assert any(any("dns" in s.lower() and "fix" in s.lower() for s in r["steps"]) for r in recs)
 
     def test_no_board_configured_no_extra_recommendation(self):
         results = {
@@ -367,24 +357,23 @@ class TestBuildRecommendations:
             "dns": {"ok": True},
             "internet": {"ok": True},
             "vestaboard": {
-                "ok": False, "mode": "local",
+                "ok": False,
+                "mode": "local",
                 "steps": {"dns": {"ok": False, "hostname": "myboard.local"}},
             },
         }
         recs = _build_recommendations(results)
         assert any("myboard.local" in r["summary"] for r in recs)
         # Should suggest using IP address
-        assert any(
-            any("ip" in s.lower() for s in r["steps"])
-            for r in recs
-        )
+        assert any(any("ip" in s.lower() for s in r["steps"]) for r in recs)
 
     def test_local_port_failure_recommends_local_api(self):
         results = {
             "dns": {"ok": True},
             "internet": {"ok": True},
             "vestaboard": {
-                "ok": False, "mode": "local",
+                "ok": False,
+                "mode": "local",
                 "steps": {
                     "dns": {"ok": True},
                     "port": {"ok": False, "port": 7000, "error": "refused"},
@@ -393,17 +382,15 @@ class TestBuildRecommendations:
         }
         recs = _build_recommendations(results)
         assert any("cannot connect" in r["summary"].lower() for r in recs)
-        assert any(
-            any("local api" in s.lower() for s in r["steps"])
-            for r in recs
-        )
+        assert any(any("local api" in s.lower() for s in r["steps"]) for r in recs)
 
     def test_local_api_auth_failure_recommends_key_check(self):
         results = {
             "dns": {"ok": True},
             "internet": {"ok": True},
             "vestaboard": {
-                "ok": False, "mode": "local",
+                "ok": False,
+                "mode": "local",
                 "steps": {
                     "dns": {"ok": True},
                     "port": {"ok": True},
@@ -415,11 +402,7 @@ class TestBuildRecommendations:
         assert any("api key" in r["summary"].lower() for r in recs)
         # Docs copy points users to enablement token flow (not app Settings)
         assert any(
-            any(
-                "enablement token" in s.lower()
-                or "vestaboard.com/local-api" in s.lower()
-                for s in r["steps"]
-            )
+            any("enablement token" in s.lower() or "vestaboard.com/local-api" in s.lower() for s in r["steps"])
             for r in recs
         )
 
@@ -428,7 +411,8 @@ class TestBuildRecommendations:
             "dns": {"ok": True},
             "internet": {"ok": True},
             "vestaboard": {
-                "ok": False, "mode": "local",
+                "ok": False,
+                "mode": "local",
                 "steps": {
                     "dns": {"ok": True},
                     "port": {"ok": True},
@@ -437,17 +421,15 @@ class TestBuildRecommendations:
             },
         }
         recs = _build_recommendations(results)
-        assert any(
-            any("unplug" in s.lower() for s in r["steps"])
-            for r in recs
-        )
+        assert any(any("unplug" in s.lower() for s in r["steps"]) for r in recs)
 
     def test_local_api_no_response_recommends_retry(self):
         results = {
             "dns": {"ok": True},
             "internet": {"ok": True},
             "vestaboard": {
-                "ok": False, "mode": "local",
+                "ok": False,
+                "mode": "local",
                 "steps": {
                     "dns": {"ok": True},
                     "port": {"ok": True},
@@ -456,58 +438,49 @@ class TestBuildRecommendations:
             },
         }
         recs = _build_recommendations(results)
-        assert any(
-            any("starting up" in s.lower() or "try again" in s.lower() for s in r["steps"])
-            for r in recs
-        )
+        assert any(any("starting up" in s.lower() or "try again" in s.lower() for s in r["steps"]) for r in recs)
 
     def test_cloud_auth_failure_recommends_key_check(self):
         results = {
             "dns": {"ok": True},
             "internet": {"ok": True},
             "vestaboard": {
-                "ok": False, "mode": "cloud",
+                "ok": False,
+                "mode": "cloud",
                 "steps": {"cloud_api": {"ok": False, "status_code": 403}},
             },
         }
         recs = _build_recommendations(results)
         assert any("rejected" in r["summary"].lower() for r in recs)
-        assert any(
-            any(_mentions_host(s, "web.vestaboard.com") for s in r["steps"])
-            for r in recs
-        )
+        assert any(any(_mentions_host(s, "web.vestaboard.com") for s in r["steps"]) for r in recs)
 
     def test_cloud_server_error_recommends_wait(self):
         results = {
             "dns": {"ok": True},
             "internet": {"ok": True},
             "vestaboard": {
-                "ok": False, "mode": "cloud",
+                "ok": False,
+                "mode": "cloud",
                 "steps": {"cloud_api": {"ok": False, "status_code": 500}},
             },
         }
         recs = _build_recommendations(results)
         assert any("temporarily down" in r["summary"].lower() for r in recs)
-        assert any(
-            any("wait" in s.lower() for s in r["steps"])
-            for r in recs
-        )
+        assert any(any("wait" in s.lower() for s in r["steps"]) for r in recs)
 
     def test_cloud_connection_error_recommends_internet(self):
         results = {
             "dns": {"ok": True},
             "internet": {"ok": True},
             "vestaboard": {
-                "ok": False, "mode": "cloud",
+                "ok": False,
+                "mode": "cloud",
                 "steps": {"cloud_api": {"ok": False, "status_code": None, "error": "no route"}},
             },
         }
         recs = _build_recommendations(results)
         assert any("cannot reach" in r["summary"].lower() for r in recs)
-        assert any(
-            any(_mentions_host(s, "rw.vestaboard.com") for s in r["steps"])
-            for r in recs
-        )
+        assert any(any(_mentions_host(s, "rw.vestaboard.com") for s in r["steps"]) for r in recs)
 
     def test_cloud_fallback_recommends_check(self):
         """Cloud mode with no specific error triggers the fallback recommendation."""
@@ -515,7 +488,8 @@ class TestBuildRecommendations:
             "dns": {"ok": True},
             "internet": {"ok": True},
             "vestaboard": {
-                "ok": False, "mode": "cloud",
+                "ok": False,
+                "mode": "cloud",
                 "steps": {"cloud_api": {"ok": False, "status_code": None}},
             },
         }
@@ -529,7 +503,8 @@ class TestBuildRecommendations:
             "dns": {"ok": False},
             "internet": {"ok": False},
             "vestaboard": {
-                "ok": False, "mode": "local",
+                "ok": False,
+                "mode": "local",
                 "steps": {"dns": {"ok": False, "hostname": "board.local"}},
             },
         }
@@ -544,6 +519,7 @@ class TestBuildRecommendations:
 # ---------------------------------------------------------------------------
 # run_full_diagnostics
 # ---------------------------------------------------------------------------
+
 
 class TestRunFullDiagnostics:
     """Tests for run_full_diagnostics."""

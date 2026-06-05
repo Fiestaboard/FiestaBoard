@@ -19,6 +19,7 @@ Design notes
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import hmac
 import json
@@ -40,7 +41,7 @@ SESSION_COOKIE_NAME = "fiestaboard_session"
 
 # scrypt parameters: ~64MB / ~100ms on a modern CPU. Tuned for interactive
 # logins on a Raspberry-Pi-class host; bump N for stronger.
-_SCRYPT_N = 2 ** 15
+_SCRYPT_N = 2**15
 _SCRYPT_R = 8
 _SCRYPT_P = 1
 _SCRYPT_DKLEN = 32
@@ -75,9 +76,7 @@ def _session_ttl_seconds() -> int:
 
 
 def _remember_me_ttl_seconds() -> int:
-    return _ttl_from_env(
-        "FIESTABOARD_REMEMBER_ME_TTL_SECONDS", _DEFAULT_REMEMBER_ME_TTL_SECONDS
-    )
+    return _ttl_from_env("FIESTABOARD_REMEMBER_ME_TTL_SECONDS", _DEFAULT_REMEMBER_ME_TTL_SECONDS)
 
 
 def is_auth_enabled() -> bool:
@@ -331,10 +330,7 @@ class SessionToken:
         # Embedded in the payload, not the header, so an attacker can't
         # selectively shorten / extend the session.
         nonce = _b64e(secrets.token_bytes(8))
-        return (
-            f"{_b64e(self.username.encode('utf-8'))}."
-            f"{self.issued_at}.{self.expires_at}.{nonce}"
-        )
+        return f"{_b64e(self.username.encode('utf-8'))}.{self.issued_at}.{self.expires_at}.{nonce}"
 
 
 def _now_ms() -> int:
@@ -391,7 +387,7 @@ class AuthService:
         if not self._path.exists():
             return
         try:
-            with open(self._path, encoding="utf-8") as fh:
+            with self._path.open(encoding="utf-8") as fh:
                 self._data = json.load(fh)
         except (json.JSONDecodeError, OSError) as exc:
             logger.error("Failed to read %s: %s; starting empty", self._path, exc)
@@ -416,15 +412,13 @@ class AuthService:
                 json.dump(self._data, fh, indent=2)
                 fh.flush()
                 os.fsync(fh.fileno())
-            os.replace(tmp, self._path)
+            Path(tmp).replace(self._path)
         except Exception:
-            try:
+            # Cleanup of a cleanup failure — nothing useful we can do;
+            # the original exception below is the one that matters and
+            # we don't want to mask it.
+            with contextlib.suppress(OSError):
                 tmp.unlink(missing_ok=True)
-            except OSError:
-                # Cleanup of a cleanup failure — nothing useful we can
-                # do; the original exception below is the one that
-                # matters and we don't want to mask it.
-                pass
             raise
 
     # -- queries -----------------------------------------------------------
@@ -597,9 +591,7 @@ class AuthService:
                 if u.get("username") == username:
                     if not verify_password(password, u.get("password_hash", "")):
                         raise InvalidCredentials("Password is incorrect")
-                    self._data["users"] = [
-                        other for other in users if other is not u
-                    ]
+                    self._data["users"] = [other for other in users if other is not u]
                     self._data["auth_pref"] = "disabled"
                     self._save()
                     return
@@ -607,9 +599,7 @@ class AuthService:
 
     # -- auth flow ---------------------------------------------------------
 
-    def authenticate(
-        self, username: str, password: str, *, remember: bool = False
-    ) -> str:
+    def authenticate(self, username: str, password: str, *, remember: bool = False) -> str:
         """Verify *username*/*password* and return a signed session token.
 
         When *remember* is true the token is minted with the longer
@@ -694,22 +684,16 @@ def _validate_username(username: str) -> None:
         raise ValueError("username must not have leading/trailing whitespace")
     for ch in username:
         if not (ch.isalnum() or ch in "._-@"):
-            raise ValueError(
-                "username may only contain letters, digits, '.', '_', '-', '@'"
-            )
+            raise ValueError("username may only contain letters, digits, '.', '_', '-', '@'")
 
 
 def _validate_password(password: str) -> None:
     if not isinstance(password, str):
         raise ValueError("password must be a string")
     if len(password) < _PASSWORD_MIN:
-        raise ValueError(
-            f"password must be at least {_PASSWORD_MIN} characters"
-        )
+        raise ValueError(f"password must be at least {_PASSWORD_MIN} characters")
     if len(password) > _PASSWORD_MAX:
-        raise ValueError(
-            f"password must be at most {_PASSWORD_MAX} characters"
-        )
+        raise ValueError(f"password must be at most {_PASSWORD_MAX} characters")
 
 
 # --- Module-level singleton -----------------------------------------------

@@ -7,7 +7,7 @@ import logging
 
 import requests
 
-from ..config import Config
+from src.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +17,9 @@ class TrafficSource:
 
     # Traffic index thresholds
     TRAFFIC_INDEX_YELLOW = 1.2  # 20% slower than normal
-    TRAFFIC_INDEX_RED = 1.5    # 50% slower than normal
+    TRAFFIC_INDEX_RED = 1.5  # 50% slower than normal
 
-    def __init__(
-        self,
-        api_key: str,
-        routes: list[dict[str, str]]
-    ):
+    def __init__(self, api_key: str, routes: list[dict[str, str]]):
         """
         Initialize traffic source.
 
@@ -50,10 +46,7 @@ class TrafficSource:
             self.destination_name = self.routes[0].get("destination_name", "DOWNTOWN")
 
     @staticmethod
-    def calculate_traffic_index(
-        duration_in_traffic: int | None,
-        duration_normal: int
-    ) -> float:
+    def calculate_traffic_index(duration_in_traffic: int | None, duration_normal: int) -> float:
         """
         Calculate traffic index as ratio of traffic time to normal time.
 
@@ -91,17 +84,12 @@ class TrafficSource:
         """
         if traffic_index > TrafficSource.TRAFFIC_INDEX_RED:
             return "HEAVY", "RED"
-        elif traffic_index > TrafficSource.TRAFFIC_INDEX_YELLOW:
+        if traffic_index > TrafficSource.TRAFFIC_INDEX_YELLOW:
             return "MODERATE", "YELLOW"
-        else:
-            return "LIGHT", "GREEN"
+        return "LIGHT", "GREEN"
 
     @staticmethod
-    def format_message(
-        destination_name: str,
-        duration_minutes: int,
-        delay_minutes: int
-    ) -> str:
+    def format_message(destination_name: str, duration_minutes: int, delay_minutes: int) -> str:
         """
         Format traffic message for display.
 
@@ -117,8 +105,7 @@ class TrafficSource:
         """
         if delay_minutes > 0:
             return f"{destination_name}: {duration_minutes}m (+{delay_minutes}m delay)"
-        else:
-            return f"{destination_name}: {duration_minutes}m"
+        return f"{destination_name}: {duration_minutes}m"
 
     @staticmethod
     def _parse_duration(duration_str: str) -> int:
@@ -134,7 +121,7 @@ class TrafficSource:
         if not duration_str:
             return 0
         # Remove 's' suffix and convert to int
-        return int(duration_str.rstrip('s'))
+        return int(duration_str.rstrip("s"))
 
     def fetch_traffic_data(self) -> dict[str, any] | None:
         """
@@ -170,7 +157,7 @@ class TrafficSource:
                     origin=route.get("origin", ""),
                     destination=route.get("destination", ""),
                     destination_name=route.get("destination_name", "DESTINATION"),
-                    travel_mode=route.get("travel_mode", "DRIVE")
+                    travel_mode=route.get("travel_mode", "DRIVE"),
                 )
                 if data:
                     results.append(data)
@@ -192,15 +179,10 @@ class TrafficSource:
             return None
 
         # Find route with highest delay
-        worst = max(routes, key=lambda r: r.get("delay_minutes", 0))
-        return worst
+        return max(routes, key=lambda r: r.get("delay_minutes", 0))
 
     def _fetch_single_route(
-        self,
-        origin: str,
-        destination: str,
-        destination_name: str,
-        travel_mode: str = "DRIVE"
+        self, origin: str, destination: str, destination_name: str, travel_mode: str = "DRIVE"
     ) -> dict[str, any] | None:
         """
         Fetch traffic data for a single route from Google Routes API.
@@ -221,7 +203,7 @@ class TrafficSource:
         headers = {
             "Content-Type": "application/json",
             "X-Goog-Api-Key": self.api_key,
-            "X-Goog-FieldMask": "routes.duration,routes.staticDuration,routes.routeToken"
+            "X-Goog-FieldMask": "routes.duration,routes.staticDuration,routes.routeToken",
         }
 
         # Validate travel mode
@@ -237,7 +219,7 @@ class TrafficSource:
             "travelMode": travel_mode.upper(),
             "computeAlternativeRoutes": False,
             "languageCode": "en-US",
-            "units": "IMPERIAL"
+            "units": "IMPERIAL",
         }
 
         # Only add routing preference for DRIVE and TWO_WHEELER
@@ -250,11 +232,15 @@ class TrafficSource:
 
             # Handle specific HTTP errors with helpful messages
             if response.status_code == 403:
-                logger.error("Google Routes API returned 403 Forbidden. Check: 1) Routes API is enabled, 2) Billing is set up, 3) API key has proper restrictions")
+                logger.error(
+                    "Google Routes API returned 403 Forbidden. Check: 1) Routes API is enabled, 2) Billing is set up, 3) API key has proper restrictions"
+                )
                 logger.error(f"Response: {response.text}")
                 return None
-            elif response.status_code == 400:
-                logger.error("Google Routes API returned 400 Bad Request. The addresses may be invalid or improperly formatted.")
+            if response.status_code == 400:
+                logger.error(
+                    "Google Routes API returned 400 Bad Request. The addresses may be invalid or improperly formatted."
+                )
                 logger.error(f"Response: {response.text}")
                 return None
 
@@ -289,30 +275,23 @@ class TrafficSource:
             static_duration_minutes = round(static_duration / 60)
 
             # Format message
-            formatted_message = self.format_message(
-                destination_name,
-                duration_minutes,
-                delay_minutes
-            )
+            formatted_message = self.format_message(destination_name, duration_minutes, delay_minutes)
 
             return {
                 # Raw durations (seconds)
                 "duration": duration_in_traffic,
                 "static_duration": static_duration,
                 "route_token": route_token,
-
                 # Calculated values
                 "traffic_index": traffic_index,
                 "traffic_status": traffic_status,
                 "traffic_color": traffic_color,
-
                 # Friendly formats
                 "duration_minutes": duration_minutes,
                 "static_duration_minutes": static_duration_minutes,
                 "delay_minutes": delay_minutes,
                 "formatted_message": formatted_message,
                 "formatted": formatted_message,  # Alias for template compatibility
-
                 # Route info
                 "origin": origin,
                 "destination": destination,
@@ -347,52 +326,38 @@ class TrafficSource:
                 try:
                     lat = float(parts[0].strip())
                     lng = float(parts[1].strip())
-                    return {
-                        "location": {
-                            "latLng": {
-                                "latitude": lat,
-                                "longitude": lng
-                            }
-                        }
-                    }
+                    return {"location": {"latLng": {"latitude": lat, "longitude": lng}}}
                 except ValueError:
                     logger.debug("Could not parse lat/lng from location string: %s", location, exc_info=True)
 
         # Default to address
-        return {
-            "address": location
-        }
+        return {"address": location}
 
 
 def get_traffic_source() -> TrafficSource | None:
     """Get configured traffic source instance."""
-    api_key = Config.GOOGLE_ROUTES_API_KEY if hasattr(Config, 'GOOGLE_ROUTES_API_KEY') else ""
+    api_key = Config.GOOGLE_ROUTES_API_KEY if hasattr(Config, "GOOGLE_ROUTES_API_KEY") else ""
 
     if not api_key:
         logger.warning("Google Routes API key not configured")
         return None
 
     # Support both new (TRAFFIC_ROUTES list) and old (TRAFFIC_ORIGIN/DESTINATION) config
-    routes = getattr(Config, 'TRAFFIC_ROUTES', None)
+    routes = getattr(Config, "TRAFFIC_ROUTES", None)
 
     if not routes:
         # Fall back to single route (backward compatibility)
-        origin = Config.TRAFFIC_ORIGIN if hasattr(Config, 'TRAFFIC_ORIGIN') else ""
-        destination = Config.TRAFFIC_DESTINATION if hasattr(Config, 'TRAFFIC_DESTINATION') else ""
-        destination_name = Config.TRAFFIC_DESTINATION_NAME if hasattr(Config, 'TRAFFIC_DESTINATION_NAME') else "DOWNTOWN"
+        origin = Config.TRAFFIC_ORIGIN if hasattr(Config, "TRAFFIC_ORIGIN") else ""
+        destination = Config.TRAFFIC_DESTINATION if hasattr(Config, "TRAFFIC_DESTINATION") else ""
+        destination_name = (
+            Config.TRAFFIC_DESTINATION_NAME if hasattr(Config, "TRAFFIC_DESTINATION_NAME") else "DOWNTOWN"
+        )
 
         if origin and destination:
-            routes = [{
-                "origin": origin,
-                "destination": destination,
-                "destination_name": destination_name
-            }]
+            routes = [{"origin": origin, "destination": destination, "destination_name": destination_name}]
         else:
             # No routes configured yet, but return source anyway so variables show in UI
             routes = []
 
     # Return source even with empty routes so template variables are available
-    return TrafficSource(
-        api_key=api_key,
-        routes=routes
-    )
+    return TrafficSource(api_key=api_key, routes=routes)

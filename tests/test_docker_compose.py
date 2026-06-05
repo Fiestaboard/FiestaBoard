@@ -26,6 +26,7 @@ def _load_compose(filename: str) -> dict:
 # docker-compose.dev.yml
 # ---------------------------------------------------------------------------
 
+
 class TestDevComposeNetwork:
     """Validate that docker-compose.dev.yml uses explicit networks."""
 
@@ -48,18 +49,14 @@ class TestDevComposeNetwork:
 
         for name, svc in services.items():
             svc_nets = svc.get("networks", [])
-            assert shared_net in svc_nets, (
-                f"Service '{name}' is missing network '{shared_net}'"
-            )
+            assert shared_net in svc_nets, f"Service '{name}' is missing network '{shared_net}'"
 
     def test_mock_board_on_same_network_as_app(self):
         """The mock board must be on the same network as the main app."""
         services = self.compose.get("services", {})
         app_nets = set(services.get("fiestaboard", {}).get("networks", []))
         mock_nets = set(services.get("fiestaboard-mock-board", {}).get("networks", []))
-        assert app_nets & mock_nets, (
-            "fiestaboard and fiestaboard-mock-board must share at least one network"
-        )
+        assert app_nets & mock_nets, "fiestaboard and fiestaboard-mock-board must share at least one network"
 
     def test_network_driver_is_bridge(self):
         """The defined network should use the bridge driver."""
@@ -71,6 +68,7 @@ class TestDevComposeNetwork:
 # ---------------------------------------------------------------------------
 # docker-compose.yml (production)
 # ---------------------------------------------------------------------------
+
 
 class TestProdCompose:
     """Validate docker-compose.yml (production) settings."""
@@ -100,6 +98,7 @@ class TestProdCompose:
 # docker-compose.hub.yml
 # ---------------------------------------------------------------------------
 
+
 class TestHubCompose:
     """Validate docker-compose.hub.yml settings."""
 
@@ -119,6 +118,7 @@ class TestHubCompose:
 # ---------------------------------------------------------------------------
 # docker-compose.prod.yml
 # ---------------------------------------------------------------------------
+
 
 class TestProdPrebuiltCompose:
     """Validate docker-compose.prod.yml settings."""

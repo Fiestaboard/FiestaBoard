@@ -33,7 +33,8 @@ from typing import Any, Literal
 
 import httpx
 
-from ..devices import DeviceType
+from src.devices import DeviceType
+
 from .chat_ops import ToolCallValidationError, parse_tool_call, supported_ops
 from .generator import (
     AIGenerationError,
@@ -428,19 +429,19 @@ _GLOBAL_SURFACE_INTRO = (
 _EDITOR_CREATION_BIAS = (
     "   When the user asks to CREATE, MAKE, DESIGN, or BUILD a page from\n"
     "   inside the editor, they almost always mean \"turn the page I'm\n"
-    "   editing into that\" — use `replace_page` (or `apply_patch` for an\n"
+    '   editing into that" — use `replace_page` (or `apply_patch` for an\n'
     "   incremental change). Reserve `navigate_to_page` for explicit\n"
-    "   requests like \"open my weather page\" or \"start a new page\".\n"
+    '   requests like "open my weather page" or "start a new page".\n'
 )
 
 
 _GLOBAL_CREATION_BIAS = (
-    "   IMPORTANT — \"make\" bias: when the user asks to CREATE, MAKE,\n"
+    '   IMPORTANT — "make" bias: when the user asks to CREATE, MAKE,\n'
     "   DESIGN, or BUILD a page, display, layout, or visual, default to\n"
-    "   opening the page editor with `\"page_id\": \"new\"`. The page\n"
+    '   opening the page editor with `"page_id": "new"`. The page\n'
     "   editor is the canvas where users author content; do not write\n"
     "   template content remotely from the global drawer. Example:\n"
-    "   \"make me a weather page\" → navigate_to_page with page_id: \"new\".\n"
+    '   "make me a weather page" → navigate_to_page with page_id: "new".\n'
 )
 
 
@@ -464,13 +465,7 @@ def _build_tool_grammar_addendum(surface: ChatSurface) -> str:
     else:
         intro = _GLOBAL_SURFACE_INTRO
         bias = _GLOBAL_CREATION_BIAS
-    return (
-        "\n\nCHAT MODE — TOOL GRAMMAR\n\n"
-        + intro
-        + _TOOL_GRAMMAR_BODY_HEAD
-        + bias
-        + _TOOL_GRAMMAR_BODY_TAIL
-    )
+    return "\n\nCHAT MODE — TOOL GRAMMAR\n\n" + intro + _TOOL_GRAMMAR_BODY_HEAD + bias + _TOOL_GRAMMAR_BODY_TAIL
 
 
 # ---------------------------------------------------------------------------
@@ -582,17 +577,12 @@ async def stream_chat(
     base_messages = list(context.to_messages())
     base_messages[0] = {
         "role": "system",
-        "content": (
-            base_messages[0]["content"]
-            + _build_tool_grammar_addendum(surface)
-        ),
+        "content": (base_messages[0]["content"] + _build_tool_grammar_addendum(surface)),
     }
     if history:
         # Keep history right after the system prompt so the model sees
         # the conversation in order.
-        full_messages = (
-            [base_messages[0]] + history + base_messages[1:]
-        )
+        full_messages = [base_messages[0], *history, *base_messages[1:]]
     else:
         full_messages = base_messages
 
@@ -637,25 +627,16 @@ async def stream_chat(
         )
 
         try:
-            async with client.stream(
-                "POST", url, headers=headers, json=payload
-            ) as response:
+            async with client.stream("POST", url, headers=headers, json=payload) as response:
                 if response.status_code >= 400:
                     err_msg = await _extract_error_message(response, protocol)
                     yield {
                         "event": "error",
-                        "data": {
-                            "message": (
-                                f"AI provider returned {response.status_code}: "
-                                f"{err_msg}"
-                            )
-                        },
+                        "data": {"message": (f"AI provider returned {response.status_code}: {err_msg}")},
                     }
                     return
 
-                async for delta_event in _iter_provider_stream(
-                    response, protocol, usage
-                ):
+                async for delta_event in _iter_provider_stream(response, protocol, usage):
                     if delta_event["kind"] == "text":
                         text = delta_event["text"]
                         for emit in fence_parser.feed(text):
@@ -696,9 +677,7 @@ async def stream_chat(
 # ---------------------------------------------------------------------------
 
 
-async def _extract_error_message(
-    response: httpx.Response, protocol: Protocol
-) -> str:
+async def _extract_error_message(response: httpx.Response, protocol: Protocol) -> str:
     """Best-effort extraction of an upstream error message."""
     try:
         body = await response.aread()
@@ -790,9 +769,7 @@ def _openai_delta_text(event: dict[str, Any]) -> str:
     return ""
 
 
-def _absorb_openai_usage(
-    event: dict[str, Any], usage: dict[str, int | None]
-) -> None:
+def _absorb_openai_usage(event: dict[str, Any], usage: dict[str, int | None]) -> None:
     u = event.get("usage")
     if isinstance(u, dict):
         if isinstance(u.get("prompt_tokens"), int):
@@ -813,9 +790,7 @@ def _anthropic_delta_text(event: dict[str, Any]) -> str:
     return ""
 
 
-def _absorb_anthropic_usage(
-    event: dict[str, Any], usage: dict[str, int | None]
-) -> None:
+def _absorb_anthropic_usage(event: dict[str, Any], usage: dict[str, int | None]) -> None:
     if event.get("type") == "message_start":
         msg = event.get("message") or {}
         u = msg.get("usage") or {}
@@ -879,7 +854,7 @@ class _FenceParser:
                 # Close: text up to start of ``` is the final fence
                 # contents.
                 self._fence_buffer += self._buffer[: close.start()]
-                self._buffer = self._buffer[close.end():]
+                self._buffer = self._buffer[close.end() :]
                 events.extend(self._finalize_fence())
                 self._in_fence = False
                 self._fence_buffer = ""
@@ -900,9 +875,7 @@ class _FenceParser:
                     self._buffer = self._buffer[-hold:]
                 else:
                     if self._buffer:
-                        events.append(
-                            {"event": "text", "data": {"delta": self._buffer}}
-                        )
+                        events.append({"event": "text", "data": {"delta": self._buffer}})
                     self._buffer = ""
                 return events
 
@@ -912,7 +885,7 @@ class _FenceParser:
                 events.append({"event": "text", "data": {"delta": prose}})
             # Skip past the fence open marker; allow optional trailing
             # newline before the body starts.
-            after = self._buffer[m.end():]
+            after = self._buffer[m.end() :]
             if after.startswith("\r\n"):
                 after = after[2:]
             elif after.startswith("\n"):
@@ -930,12 +903,7 @@ class _FenceParser:
             events.append(
                 {
                     "event": "warning",
-                    "data": {
-                        "message": (
-                            "Model emitted an unterminated `fiestaboard` "
-                            "fence; ignored."
-                        )
-                    },
+                    "data": {"message": ("Model emitted an unterminated `fiestaboard` fence; ignored.")},
                 }
             )
             self._in_fence = False
@@ -968,30 +936,30 @@ class _FenceParser:
         """
         body = self._fence_buffer.strip()
         if not body:
-            return [{
-                "event": "warning",
-                "data": {"message": "Empty fiestaboard tool block; ignored."},
-            }]
+            return [
+                {
+                    "event": "warning",
+                    "data": {"message": "Empty fiestaboard tool block; ignored."},
+                }
+            ]
         try:
             parsed = json.loads(body)
         except json.JSONDecodeError as exc:
-            return [{
-                "event": "warning",
-                "data": {
-                    "message": (
-                        f"Could not parse fiestaboard tool block: {exc.msg}"
-                    )
-                },
-            }]
+            return [
+                {
+                    "event": "warning",
+                    "data": {"message": (f"Could not parse fiestaboard tool block: {exc.msg}")},
+                }
+            ]
         try:
             tool = parse_tool_call(parsed)
         except ToolCallValidationError as exc:
-            return [{
-                "event": "warning",
-                "data": {
-                    "message": f"Invalid fiestaboard tool block: {exc}"
-                },
-            }]
+            return [
+                {
+                    "event": "warning",
+                    "data": {"message": f"Invalid fiestaboard tool block: {exc}"},
+                }
+            ]
 
         # Repair common ``{{filled:...}}`` mistakes in any template
         # lines the tool call carries. We mutate the validated args
@@ -1001,14 +969,16 @@ class _FenceParser:
         events: list[dict[str, Any]] = []
         for warning in _repair_tool_template_lines(tool):
             events.append({"event": "warning", "data": {"message": warning}})
-        events.append({
-            "event": "tool_call",
-            "data": {
-                "id": secrets.token_urlsafe(8),
-                "op": tool.op,
-                "args": tool.args.model_dump(mode="json"),
-            },
-        })
+        events.append(
+            {
+                "event": "tool_call",
+                "data": {
+                    "id": secrets.token_urlsafe(8),
+                    "op": tool.op,
+                    "args": tool.args.model_dump(mode="json"),
+                },
+            }
+        )
         return events
 
 
@@ -1051,7 +1021,7 @@ def _repair_tool_template_lines(tool: Any) -> list[str]:
 
 
 __all__ = [
+    "_FenceParser",
     "stream_chat",
     "supported_ops",
-    "_FenceParser",
 ]

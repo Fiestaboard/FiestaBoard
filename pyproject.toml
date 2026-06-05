@@ -39,7 +39,6 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-xdist>=3.6.0",
     "coverage>=7.6.0",
-    "black>=24.10.0",
     "ruff>=0.9.0",
 ]
 
@@ -110,42 +109,65 @@ output = "coverage/coverage.xml"
 line-length = 120
 target-version = "py311"
 
+[tool.ruff.format]
+# Use ruff's built-in formatter (Black-compatible). Replaces black entirely;
+# fewer tools, same output.
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+exclude = [
+    # CodeQL data-flow barriers in these files are sensitive to line/scope
+    # changes (e.g. py/path-injection, py/full-ssrf). Reformatting shifts
+    # alert line numbers and can cause CodeQL's PR-diff analysis to
+    # mis-classify pre-existing alerts as new. Pin them at the upstream
+    # layout; fix bigger refactors in a dedicated security PR.
+    "src/plugins/sources.py",
+    "src/api_server.py",
+]
+
 [tool.ruff.lint]
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific
+    "PIE",  # flake8-pie
+    "RET",  # flake8-return
+    "PTH",  # flake8-use-pathlib
+    "TID",  # flake8-tidy-imports
 ]
 ignore = [
-    "E501",  # line too long (handled by formatter)
-    "B008",  # do not perform function calls in argument defaults
+    "E501",    # line too long (handled by formatter)
+    "B008",    # do not perform function calls in argument defaults
+    "SIM108",  # ternary instead of if-else — sometimes the if/else is more readable
+    "RUF012",  # mutable class attributes need ClassVar — too noisy for plugin authors
+    # Em-dashes / curly quotes / ellipses appear deliberately in docstrings,
+    # CLI help text, and user-facing strings. Flagging them as ambiguous
+    # produces too much noise.
+    "RUF001",  # ambiguous-unicode-character-string
+    "RUF002",  # ambiguous-unicode-character-docstring
+    "RUF003",  # ambiguous-unicode-character-comment
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
-"tests/**" = ["B008"]  # Allow function calls in argument defaults in tests
-"plugins/**/tests/**" = ["B008"]  # Allow function calls in argument defaults in plugin tests
-
-[tool.black]
-line-length = 120
-target-version = ["py311"]
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-  | node_modules
-)/
-'''
+"tests/**" = [
+    "B008",    # function calls in argument defaults
+    "PTH",     # tests use os.path freely; not worth porting
+    "SIM117",  # nested `with` is often clearer in tests
+]
+"plugins/**/tests/**" = ["B008", "PTH", "SIM117"]
+"scripts/**" = [
+    "PTH",  # CLI scripts use os.path freely
+    "T201", # allow print()
+]
+# CodeQL-sensitive files: see the matching [tool.ruff.format].exclude entry
+# above for the rationale. Any rule fix here would shift line numbers and
+# re-trigger CodeQL's "new alert" false positives on pre-existing findings.
+"src/plugins/sources.py" = ["PTH", "SIM", "RET", "PIE"]
+"src/api_server.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]

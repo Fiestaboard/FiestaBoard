@@ -7,12 +7,11 @@ Note: Some codes (43, 45, 51, 57, 58, 61) are not defined in the official table.
 """
 
 
-
 class BoardChars:
     """Board character code mappings - Official codes."""
 
     # Blank/Space
-    SPACE = 0       # Black on black / white on white
+    SPACE = 0  # Black on black / white on white
 
     # Letters A-Z (codes 1-26)
     A = 1
@@ -55,31 +54,31 @@ class BoardChars:
     ZERO = 36
 
     # Punctuation and symbols (official codes)
-    EXCLAMATION = 37     # !
-    AT = 38              # @
-    POUND = 39           # #
-    DOLLAR = 40          # $
-    LEFT_PAREN = 41      # (
-    RIGHT_PAREN = 42     # )
+    EXCLAMATION = 37  # !
+    AT = 38  # @
+    POUND = 39  # #
+    DOLLAR = 40  # $
+    LEFT_PAREN = 41  # (
+    RIGHT_PAREN = 42  # )
     # 43 is undefined
-    DASH = 44            # - (hyphen)
+    DASH = 44  # - (hyphen)
     # 45 is undefined
-    PLUS = 46            # +
-    AMPERSAND = 47       # &
-    EQUALS = 48          # =
-    SEMICOLON = 49       # ;
-    COLON = 50           # :
+    PLUS = 46  # +
+    AMPERSAND = 47  # &
+    EQUALS = 48  # =
+    SEMICOLON = 49  # ;
+    COLON = 50  # :
     # 51 is undefined
-    SINGLE_QUOTE = 52    # '
-    DOUBLE_QUOTE = 53    # "
-    PERCENT = 54         # %
-    COMMA = 55           # ,
-    PERIOD = 56          # .
+    SINGLE_QUOTE = 52  # '
+    DOUBLE_QUOTE = 53  # "
+    PERCENT = 54  # %
+    COMMA = 55  # ,
+    PERIOD = 56  # .
     # 57-58 are undefined
-    SLASH = 59           # /
-    QUESTION = 60        # ?
+    SLASH = 59  # /
+    QUESTION = 60  # ?
     # 61 is undefined
-    DEGREE = 62          # ° (Flagship only, Heart on Note)
+    DEGREE = 62  # ° (Flagship only, Heart on Note)
 
     # Color codes (filled color tiles)
     RED = 63
@@ -87,10 +86,10 @@ class BoardChars:
     YELLOW = 65
     GREEN = 66
     BLUE = 67
-    VIOLET = 68          # Also called Purple
-    WHITE = 69           # Black on white board (local API)
-    BLACK = 70           # White on white board (local API)
-    FILLED = 71          # White on black / black on white (not available for local API)
+    VIOLET = 68  # Also called Purple
+    WHITE = 69  # Black on white board (local API)
+    BLACK = 70  # White on white board (local API)
+    FILLED = 71  # White on black / black on white (not available for local API)
 
     # Aliases for compatibility
     APOSTROPHE = SINGLE_QUOTE
@@ -111,40 +110,40 @@ class BoardChars:
         char = char.upper()
 
         # Letters A-Z → codes 1-26
-        if 'A' <= char <= 'Z':
-            return ord(char) - ord('A') + 1
+        if "A" <= char <= "Z":
+            return ord(char) - ord("A") + 1
 
         # Numbers: 1-9 → codes 27-35, 0 → code 36
-        if '1' <= char <= '9':
-            return ord(char) - ord('1') + 27  # 1→27, 2→28, ..., 9→35
-        elif char == '0':
+        if "1" <= char <= "9":
+            return ord(char) - ord("1") + 27  # 1→27, 2→28, ..., 9→35
+        if char == "0":
             return 36
 
         # Special characters mapping (official codes)
         special_map = {
-            ' ': cls.SPACE,
-            '!': cls.EXCLAMATION,
-            '@': cls.AT,
-            '#': cls.POUND,
-            '$': cls.DOLLAR,
-            '(': cls.LEFT_PAREN,
-            ')': cls.RIGHT_PAREN,
-            '-': cls.DASH,
-            '+': cls.PLUS,
-            '&': cls.AMPERSAND,
-            '=': cls.EQUALS,
-            ';': cls.SEMICOLON,
-            ':': cls.COLON,
+            " ": cls.SPACE,
+            "!": cls.EXCLAMATION,
+            "@": cls.AT,
+            "#": cls.POUND,
+            "$": cls.DOLLAR,
+            "(": cls.LEFT_PAREN,
+            ")": cls.RIGHT_PAREN,
+            "-": cls.DASH,
+            "+": cls.PLUS,
+            "&": cls.AMPERSAND,
+            "=": cls.EQUALS,
+            ";": cls.SEMICOLON,
+            ":": cls.COLON,
             "'": cls.SINGLE_QUOTE,
             '"': cls.DOUBLE_QUOTE,
-            '%': cls.PERCENT,
-            ',': cls.COMMA,
-            '.': cls.PERIOD,
-            '/': cls.SLASH,
-            '?': cls.QUESTION,
-            '°': cls.DEGREE,
-            '❤': cls.DEGREE,  # Heart on Note devices shares code 62
-            '♥': cls.DEGREE,
+            "%": cls.PERCENT,
+            ",": cls.COMMA,
+            ".": cls.PERIOD,
+            "/": cls.SLASH,
+            "?": cls.QUESTION,
+            "°": cls.DEGREE,
+            "❤": cls.DEGREE,  # Heart on Note devices shares code 62
+            "♥": cls.DEGREE,
         }
 
         return special_map.get(char)
@@ -161,16 +160,16 @@ class BoardChars:
             Color code or None if not found
         """
         color_map = {
-            'red': cls.RED,
-            'orange': cls.ORANGE,
-            'yellow': cls.YELLOW,
-            'green': cls.GREEN,
-            'blue': cls.BLUE,
-            'violet': cls.VIOLET,
-            'purple': cls.VIOLET,
-            'white': cls.WHITE,
-            'black': cls.BLACK,
-            'filled': cls.FILLED,
+            "red": cls.RED,
+            "orange": cls.ORANGE,
+            "yellow": cls.YELLOW,
+            "green": cls.GREEN,
+            "blue": cls.BLUE,
+            "violet": cls.VIOLET,
+            "purple": cls.VIOLET,
+            "white": cls.WHITE,
+            "black": cls.BLACK,
+            "filled": cls.FILLED,
         }
         return color_map.get(color_name.lower())
 
@@ -201,78 +200,22 @@ WEATHER_SYMBOLS: dict[str, dict[str, any]] = {
     "Clear": {
         "symbol": "O",  # Sun approximation
         "char_code": BoardChars.O,
-        "description": "Sunny"
+        "description": "Sunny",
     },
-    "Sunny": {
-        "symbol": "O",
-        "char_code": BoardChars.O,
-        "description": "Sunny"
-    },
-    "Partly Cloudy": {
-        "symbol": "%",
-        "char_code": BoardChars.PERCENT,
-        "description": "Partly"
-    },
-    "Cloudy": {
-        "symbol": "O",
-        "char_code": BoardChars.O,
-        "description": "Cloudy"
-    },
-    "Overcast": {
-        "symbol": "O",
-        "char_code": BoardChars.O,
-        "description": "Overcast"
-    },
-    "Rain": {
-        "symbol": "/",
-        "char_code": BoardChars.SLASH,
-        "description": "Rain"
-    },
-    "Rainy": {
-        "symbol": "/",
-        "char_code": BoardChars.SLASH,
-        "description": "Rain"
-    },
-    "Light Rain": {
-        "symbol": "/",
-        "char_code": BoardChars.SLASH,
-        "description": "Lt Rain"
-    },
-    "Heavy Rain": {
-        "symbol": "/",
-        "char_code": BoardChars.SLASH,
-        "description": "Hvy Rain"
-    },
-    "Thunderstorm": {
-        "symbol": "!",
-        "char_code": BoardChars.EXCLAMATION,
-        "description": "Storm"
-    },
-    "Storm": {
-        "symbol": "!",
-        "char_code": BoardChars.EXCLAMATION,
-        "description": "Storm"
-    },
-    "Snow": {
-        "symbol": "O",
-        "char_code": BoardChars.O,
-        "description": "Snow"
-    },
-    "Snowy": {
-        "symbol": "O",
-        "char_code": BoardChars.O,
-        "description": "Snow"
-    },
-    "Fog": {
-        "symbol": "-",
-        "char_code": BoardChars.DASH,
-        "description": "Fog"
-    },
-    "Mist": {
-        "symbol": "-",
-        "char_code": BoardChars.DASH,
-        "description": "Mist"
-    },
+    "Sunny": {"symbol": "O", "char_code": BoardChars.O, "description": "Sunny"},
+    "Partly Cloudy": {"symbol": "%", "char_code": BoardChars.PERCENT, "description": "Partly"},
+    "Cloudy": {"symbol": "O", "char_code": BoardChars.O, "description": "Cloudy"},
+    "Overcast": {"symbol": "O", "char_code": BoardChars.O, "description": "Overcast"},
+    "Rain": {"symbol": "/", "char_code": BoardChars.SLASH, "description": "Rain"},
+    "Rainy": {"symbol": "/", "char_code": BoardChars.SLASH, "description": "Rain"},
+    "Light Rain": {"symbol": "/", "char_code": BoardChars.SLASH, "description": "Lt Rain"},
+    "Heavy Rain": {"symbol": "/", "char_code": BoardChars.SLASH, "description": "Hvy Rain"},
+    "Thunderstorm": {"symbol": "!", "char_code": BoardChars.EXCLAMATION, "description": "Storm"},
+    "Storm": {"symbol": "!", "char_code": BoardChars.EXCLAMATION, "description": "Storm"},
+    "Snow": {"symbol": "O", "char_code": BoardChars.O, "description": "Snow"},
+    "Snowy": {"symbol": "O", "char_code": BoardChars.O, "description": "Snow"},
+    "Fog": {"symbol": "-", "char_code": BoardChars.DASH, "description": "Fog"},
+    "Mist": {"symbol": "-", "char_code": BoardChars.DASH, "description": "Mist"},
 }
 
 
@@ -308,7 +251,7 @@ def get_weather_symbol(condition: str) -> dict[str, any]:
     return {
         "symbol": "?",
         "char_code": BoardChars.QUESTION,
-        "description": condition[:8]  # Truncate long descriptions
+        "description": condition[:8],  # Truncate long descriptions
     }
 
 

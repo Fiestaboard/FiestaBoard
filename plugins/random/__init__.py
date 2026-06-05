@@ -17,8 +17,7 @@ BOARD_COLORS = ["red", "orange", "yellow", "green", "blue", "violet"]
 # Maps color names to board character codes; used to produce color tiles.
 # White (69) and black (70) are excluded: they render inverted on white boards,
 # making color_name misleading (a "black" tile appears white on a white board).
-_COLOR_TILE_CODES = {"red": 63, "orange": 64, "yellow": 65, "green": 66,
-                     "blue": 67, "violet": 68}
+_COLOR_TILE_CODES = {"red": 63, "orange": 64, "yellow": 65, "green": 66, "blue": 67, "violet": 68}
 
 _DEFAULT_CHOICES = ["Heads", "Tails"]
 

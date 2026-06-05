@@ -27,9 +27,11 @@ DEFAULT_PLUGINS_DIR = "plugins"
 # FiestaBoard version compatibility helpers
 # ---------------------------------------------------------------------------
 
+
 def _get_fiestaboard_version() -> str:
     """Return the running FiestaBoard version."""
-    from .. import __version__
+    from src import __version__
+
     return __version__
 
 
@@ -60,24 +62,20 @@ def _check_version_constraint(constraint: str, running_version: str) -> tuple[bo
 
     satisfied = {
         ">=": running >= required,
-        ">":  running > required,
+        ">": running > required,
         "<=": running <= required,
-        "<":  running < required,
+        "<": running < required,
         "==": running == required,
         "!=": running != required,
     }[op]
 
     if not satisfied:
-        return False, (
-            f"Plugin requires FiestaBoard {constraint}, "
-            f"but running version is {running_version}"
-        )
+        return False, (f"Plugin requires FiestaBoard {constraint}, but running version is {running_version}")
     return True, ""
 
 
 class PluginLoadError(Exception):
     """Raised when a plugin fails to load."""
-    pass
 
 
 class PluginLoader:
@@ -267,12 +265,8 @@ class PluginLoader:
             running = _get_fiestaboard_version()
             ok, reason = _check_version_constraint(manifest.fiestaboard_version, running)
             if not ok:
-                logger.warning(
-                    "Plugin '%s' version incompatibility: %s", plugin_name, reason
-                )
-                self._load_errors.setdefault(plugin_name, []).append(
-                    f"Version incompatibility: {reason}"
-                )
+                logger.warning("Plugin '%s' version incompatibility: %s", plugin_name, reason)
+                self._load_errors.setdefault(plugin_name, []).append(f"Version incompatibility: {reason}")
 
         # Load Python module
         # Support two repo layouts:
@@ -323,8 +317,7 @@ class PluginLoader:
             # Verify plugin_id property
             if plugin_instance.plugin_id != manifest.id:
                 errors.append(
-                    f"Plugin class plugin_id '{plugin_instance.plugin_id}' "
-                    f"does not match manifest id '{manifest.id}'"
+                    f"Plugin class plugin_id '{plugin_instance.plugin_id}' does not match manifest id '{manifest.id}'"
                 )
                 self._load_errors[plugin_name] = errors
                 return None
@@ -508,4 +501,3 @@ class PluginLoader:
         except Exception as e:
             logger.exception("Failed to create instance of %s: %s", plugin_id, e)
             return None
-

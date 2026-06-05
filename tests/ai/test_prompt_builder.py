@@ -1,6 +1,6 @@
 """Unit tests for src/ai/prompt_builder.py."""
 
-from src.ai.prompt_builder import build_prompt, _summarize_schema
+from src.ai.prompt_builder import _summarize_schema, build_prompt
 
 
 def test_flagship_prompt_includes_dimensions():
@@ -161,9 +161,7 @@ def test_prompt_does_not_teach_fictional_degree_token():
     assert "NO `{degree}`" in ctx.system_prompt
     for ex in ctx.exemplars:
         for line in ex.get("template", []):
-            assert "{degree}" not in line, (
-                f"exemplar {ex.get('name')!r} contains fictional {{degree}}"
-            )
+            assert "{degree}" not in line, f"exemplar {ex.get('name')!r} contains fictional {{degree}}"
 
 
 def test_prompt_pins_device_type_in_output_rules():
@@ -193,15 +191,33 @@ def test_prompt_documents_full_token_set():
     sp = ctx.system_prompt
     # Color tokens — must be shown with DOUBLE braces because the
     # engine's COLOR_PATTERN only matches that form.
-    for tok in ("{{red}}", "{{orange}}", "{{yellow}}", "{{green}}",
-                "{{blue}}", "{{violet}}", "{{purple}}", "{{white}}",
-                "{{black}}"):
+    for tok in (
+        "{{red}}",
+        "{{orange}}",
+        "{{yellow}}",
+        "{{green}}",
+        "{{blue}}",
+        "{{violet}}",
+        "{{purple}}",
+        "{{white}}",
+        "{{black}}",
+    ):
         assert tok in sp, f"missing color token {tok}"
     assert "{{filled}}" not in sp, "standalone {{filled}} removed; use {{filled:X}} instead"
     # Symbol tokens — single-brace, real engine tokens only.
-    for tok in ("{sun}", "{star}", "{cloud}", "{rain}", "{snow}",
-                "{storm}", "{fog}", "{partly}", "{heart}", "{check}",
-                "{x}"):
+    for tok in (
+        "{sun}",
+        "{star}",
+        "{cloud}",
+        "{rain}",
+        "{snow}",
+        "{storm}",
+        "{fog}",
+        "{partly}",
+        "{heart}",
+        "{check}",
+        "{x}",
+    ):
         assert tok in sp, f"missing symbol token {tok}"
 
 
@@ -229,9 +245,13 @@ def test_prompt_scope_message_calls_out_current_instance():
     # The variables block should make it clear to the model that the
     # listed plugins are the ones enabled on THIS instance, not the
     # universe of FiestaBoard plugins.
-    ctx = build_prompt("x", "flagship", variables={
-        "weather": {"temperature": {"description": "F", "example": "72"}},
-    })
+    ctx = build_prompt(
+        "x",
+        "flagship",
+        variables={
+            "weather": {"temperature": {"description": "F", "example": "72"}},
+        },
+    )
     assert "THIS instance" in ctx.system_prompt
     assert "do not invent" in ctx.system_prompt.lower()
 
@@ -317,6 +337,7 @@ def test_prompt_installed_plugins_no_schema_omits_config_line():
 
 
 # --- _summarize_schema unit tests ---
+
 
 def test_summarize_schema_empty_returns_empty():
     assert _summarize_schema({}) == ""

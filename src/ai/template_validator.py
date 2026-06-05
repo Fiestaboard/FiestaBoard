@@ -90,7 +90,7 @@ def _looks_like_color_with_trailing_punct(arg: str) -> tuple[bool, str, str]:
     if stripped == arg:
         return False, "", ""
     if stripped.lower() in _COLOR_NAMES:
-        return True, stripped, arg[len(stripped):]
+        return True, stripped, arg[len(stripped) :]
     return False, "", ""
 
 
@@ -179,10 +179,7 @@ def _repair_line(line: str, idx: int) -> tuple[str, list[str]]:
         # block in stray whitespace, normalise to the canonical form
         # so downstream regex-based passes (and rendering) work.
         if match.group(0) != canonical:
-            warnings.append(
-                f"Line {line_no}: normalised whitespace in "
-                f"`{match.group(0)}` to `{canonical}`."
-            )
+            warnings.append(f"Line {line_no}: normalised whitespace in `{match.group(0)}` to `{canonical}`.")
             return canonical
         return match.group(0)
 

@@ -12,7 +12,8 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from ..text_utils import extract_alignment_from_line as _extract_alignment_from_line
+from src.text_utils import extract_alignment_from_line as _extract_alignment_from_line
+
 from .models import Page
 
 logger = logging.getLogger(__name__)
@@ -233,10 +234,7 @@ class PageStorage:
             if current_version >= target_version:
                 continue
             count = migrate_fn(pages_list)
-            logger.info(
-                f"Pages schema migration v{current_version}->v{target_version}: "
-                f"{count} page(s) processed"
-            )
+            logger.info(f"Pages schema migration v{current_version}->v{target_version}: {count} page(s) processed")
             current_version = target_version
 
         data["schema_version"] = CURRENT_SCHEMA_VERSION
@@ -249,7 +247,7 @@ class PageStorage:
             return
 
         try:
-            with open(self.storage_file) as f:
+            with self.storage_file.open() as f:
                 data = json.load(f)
 
             needs_save = self._run_migrations(data)
@@ -282,7 +280,7 @@ class PageStorage:
         try:
             data = {
                 "schema_version": CURRENT_SCHEMA_VERSION,
-                "pages": [page.model_dump() for page in self._pages.values()]
+                "pages": [page.model_dump() for page in self._pages.values()],
             }
 
             # Convert datetime objects to ISO strings for JSON serialization
@@ -292,7 +290,7 @@ class PageStorage:
                 if page_data.get("updated_at"):
                     page_data["updated_at"] = page_data["updated_at"].isoformat()
 
-            with open(self.storage_file, 'w') as f:
+            with self.storage_file.open("w") as f:
                 json.dump(data, f, indent=2)
 
             logger.debug(f"Saved {len(self._pages)} pages to storage")
@@ -418,7 +416,3 @@ class PageStorage:
     def count(self) -> int:
         """Get the number of stored pages."""
         return len(self._pages)
-
-
-
-

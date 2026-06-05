@@ -25,17 +25,14 @@ class CarouselStorage:
         self._carousels: dict[str, Carousel] = {}
         self._load()
 
-        logger.info(
-            f"CarouselStorage initialized "
-            f"(file: {self.storage_file}, carousels: {len(self._carousels)})"
-        )
+        logger.info(f"CarouselStorage initialized (file: {self.storage_file}, carousels: {len(self._carousels)})")
 
     def _load(self) -> None:
         if not self.storage_file.exists():
             self._carousels = {}
             return
         try:
-            with open(self.storage_file) as f:
+            with self.storage_file.open() as f:
                 data = json.load(f)
 
             self._carousels = {}
@@ -57,16 +54,14 @@ class CarouselStorage:
 
     def _save(self) -> None:
         try:
-            data = {
-                "carousels": [c.model_dump() for c in self._carousels.values()]
-            }
+            data = {"carousels": [c.model_dump() for c in self._carousels.values()]}
             for item in data["carousels"]:
                 if item.get("created_at"):
                     item["created_at"] = item["created_at"].isoformat()
                 if item.get("updated_at"):
                     item["updated_at"] = item["updated_at"].isoformat()
 
-            with open(self.storage_file, "w") as f:
+            with self.storage_file.open("w") as f:
                 json.dump(data, f, indent=2)
 
             logger.debug(f"Saved {len(self._carousels)} carousels to storage")

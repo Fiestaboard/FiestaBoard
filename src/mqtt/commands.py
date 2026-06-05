@@ -80,6 +80,7 @@ class CommandHandler:
 
     def _handle_schedule_enabled(self, payload: str) -> None:
         from src.settings.service import get_settings_service
+
         enabled = payload.upper() in ("ON", "1", "TRUE", "YES")
         get_settings_service().set_schedule_enabled(enabled)
 
@@ -95,6 +96,7 @@ class CommandHandler:
             return
         from src.pages.service import get_page_service
         from src.settings.service import get_settings_service
+
         page_service = get_page_service()
         payload_lower = payload.lower()
         for page in page_service.list_pages():
@@ -109,6 +111,7 @@ class CommandHandler:
             return
         from src.board_client import VALID_STRATEGIES
         from src.settings.service import get_settings_service
+
         if payload not in VALID_STRATEGIES:
             logger.warning("MQTT transition_style: invalid %r", payload)
             return
@@ -116,6 +119,7 @@ class CommandHandler:
 
     def _handle_refresh_display(self) -> None:
         from src.api_server import get_service
+
         service = get_service()
         if service and hasattr(service, "check_and_send_active_page"):
             service.check_and_send_active_page()
@@ -124,11 +128,13 @@ class CommandHandler:
 
     def _handle_blank_board(self) -> None:
         from src.api_server import _get_board_client
+
         client = _get_board_client()
         if not client:
             logger.warning("MQTT blank_board: board not configured")
             return
         from src.settings.service import get_settings_service
+
         if not get_settings_service().should_send_to_board():
             return
         blank_array = [[0] * 22 for _ in range(6)]
@@ -140,16 +146,19 @@ class CommandHandler:
         if not payload:
             return
         from src.config import Config
+
         if Config.is_silence_mode_active():
             logger.info("MQTT send_message blocked by silence mode")
             return
         from src.api_server import get_service
         from src.text_to_board import text_to_board_array
+
         service = get_service()
         if not service or not service.vb_client:
             logger.warning("MQTT send_message: service or board not ready")
             return
         from src.settings.service import get_settings_service
+
         settings = get_settings_service()
         transition = settings.get_transition_settings()
         board_array = text_to_board_array(payload)
@@ -171,6 +180,7 @@ class CommandHandler:
         # Clamp to the range defined in the entity (30–3600)
         interval = max(30, min(3600, interval))
         from src.settings.service import get_settings_service
+
         get_settings_service().set_polling_interval(interval)
 
     def _get_current_page_index(self, pages: list, active_id: str | None) -> int:
@@ -184,6 +194,7 @@ class CommandHandler:
         """Navigate to the next page in the page list."""
         from src.pages.service import get_page_service
         from src.settings.service import get_settings_service
+
         page_service = get_page_service()
         settings = get_settings_service()
         pages = page_service.list_pages()
@@ -199,6 +210,7 @@ class CommandHandler:
         """Navigate to the previous page in the page list."""
         from src.pages.service import get_page_service
         from src.settings.service import get_settings_service
+
         page_service = get_page_service()
         settings = get_settings_service()
         pages = page_service.list_pages()

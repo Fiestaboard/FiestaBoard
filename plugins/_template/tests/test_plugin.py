@@ -80,8 +80,7 @@ class TestTemplateManifestMetadata:
     def test_all_variables_have_descriptions(self, manifest_data):
         simple = manifest_data["variables"]["simple"]
         for var_name, meta in simple.items():
-            assert "description" in meta and meta["description"], \
-                f"Variable '{var_name}' missing description"
+            assert meta.get("description"), f"Variable '{var_name}' missing description"
 
     def test_groups_are_defined(self, manifest_data):
         groups = manifest_data["variables"].get("groups", {})
@@ -95,8 +94,7 @@ class TestTemplateManifestMetadata:
         for var_name, meta in simple.items():
             group = meta.get("group", "")
             if group:
-                assert group in groups, \
-                    f"Variable '{var_name}' references undefined group '{group}'"
+                assert group in groups, f"Variable '{var_name}' references undefined group '{group}'"
 
     def test_manifest_has_arrays(self, manifest_data):
         arrays = manifest_data["variables"].get("arrays", {})

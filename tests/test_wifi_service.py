@@ -15,10 +15,10 @@ import pytest
 from src.network import wifi
 from src.network.wifi import WiFiError, WiFiService
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _force_available(svc: WiFiService) -> None:
     """Skip the env/binary/dbus probe so tests can run anywhere."""
@@ -36,6 +36,7 @@ def _mock_completed(stdout: str = "", returncode: int = 0) -> MagicMock:
 # ---------------------------------------------------------------------------
 # capability()
 # ---------------------------------------------------------------------------
+
 
 class TestCapability:
     def test_unavailable_off_pi(self, monkeypatch):
@@ -68,8 +69,10 @@ class TestCapability:
 
     def test_available(self, monkeypatch):
         monkeypatch.setenv("FIESTABOARD_PROFILE", "pi")
-        with patch("src.network.wifi.shutil.which", return_value="/usr/bin/nmcli"), \
-                patch("src.network.wifi.Path") as mock_path:
+        with (
+            patch("src.network.wifi.shutil.which", return_value="/usr/bin/nmcli"),
+            patch("src.network.wifi.Path") as mock_path,
+        ):
             p = MagicMock()
             p.exists.return_value = True
             mock_path.return_value = p
@@ -93,6 +96,7 @@ class TestCapability:
 # _require_available
 # ---------------------------------------------------------------------------
 
+
 class TestRequireAvailable:
     def test_raises_when_unavailable(self, monkeypatch):
         monkeypatch.delenv("FIESTABOARD_PROFILE", raising=False)
@@ -105,12 +109,12 @@ class TestRequireAvailable:
 # _run_nmcli
 # ---------------------------------------------------------------------------
 
+
 class TestRunNmcli:
     def test_success_returns_stdout(self):
         svc = WiFiService()
         _force_available(svc)
-        with patch("src.network.wifi.subprocess.run",
-                   return_value=_mock_completed("hello\n")):
+        with patch("src.network.wifi.subprocess.run", return_value=_mock_completed("hello\n")):
             assert svc._run_nmcli(["--version"]) == "hello\n"
 
     def test_missing_binary_raises(self):
@@ -131,9 +135,7 @@ class TestRunNmcli:
     def test_nonzero_exit_surfaces_stderr(self):
         svc = WiFiService()
         _force_available(svc)
-        err = subprocess.CalledProcessError(
-            returncode=4, cmd=["nmcli"], output="", stderr="not authorized"
-        )
+        err = subprocess.CalledProcessError(returncode=4, cmd=["nmcli"], output="", stderr="not authorized")
         with patch("src.network.wifi.subprocess.run", side_effect=err):
             with pytest.raises(WiFiError, match="not authorized"):
                 svc._run_nmcli(["connection", "up", "wifi"])
@@ -143,11 +145,10 @@ class TestRunNmcli:
 # _redact_args
 # ---------------------------------------------------------------------------
 
+
 class TestRedactArgs:
     def test_psk_value_redacted(self):
-        redacted = wifi._redact_args(
-            ["nmcli", "connection", "add", "wifi-sec.psk", "hunter2", "ssid", "x"]
-        )
+        redacted = wifi._redact_args(["nmcli", "connection", "add", "wifi-sec.psk", "hunter2", "ssid", "x"])
         assert "hunter2" not in redacted
         assert "***" in redacted
 
@@ -163,6 +164,7 @@ class TestRedactArgs:
 # ---------------------------------------------------------------------------
 # _parse_terse
 # ---------------------------------------------------------------------------
+
 
 class TestParseTerse:
     def test_simple_fields(self):
@@ -181,16 +183,13 @@ class TestParseTerse:
 # scan()
 # ---------------------------------------------------------------------------
 
+
 class TestScan:
     def test_dedupe_by_ssid_keeps_strongest(self):
         svc = WiFiService()
         _force_available(svc)
         # Same SSID twice (different APs / channels) — keep signal=80, drop 40.
-        nmcli_out = (
-            "*:HomeNet:80:WPA2\n"
-            ":HomeNet:40:WPA2\n"
-            ":GuestNet:55:WPA2\n"
-        )
+        nmcli_out = "*:HomeNet:80:WPA2\n:HomeNet:40:WPA2\n:GuestNet:55:WPA2\n"
         with patch.object(svc, "_run_nmcli", return_value=nmcli_out):
             results = svc.scan()
         ssids = {n.ssid: n for n in results}
@@ -214,15 +213,12 @@ class TestScan:
 # saved_networks()
 # ---------------------------------------------------------------------------
 
+
 class TestSavedNetworks:
     def test_filters_to_wifi_profiles(self):
         svc = WiFiService()
         _force_available(svc)
-        out = (
-            "HomeNet:802-11-wireless:yes\n"
-            "Wired connection 1:802-3-ethernet:yes\n"
-            "Hotel WiFi:802-11-wireless:no\n"
-        )
+        out = "HomeNet:802-11-wireless:yes\nWired connection 1:802-3-ethernet:yes\nHotel WiFi:802-11-wireless:no\n"
         with patch.object(svc, "_run_nmcli", return_value=out):
             saved = svc.saved_networks()
         names = {s.name for s in saved}
@@ -237,14 +233,16 @@ class TestSavedNetworks:
 # status()
 # ---------------------------------------------------------------------------
 
+
 class TestStatus:
     def test_not_connected(self):
         svc = WiFiService()
         _force_available(svc)
         # No active wifi connection → connected=False, no IP/SSID.
-        with patch.object(svc, "_run_nmcli", return_value="Wired:802-3-ethernet:eth0\n"), \
-                patch("src.network.wifi.check_internet_connectivity",
-                      return_value={"ok": True}):
+        with (
+            patch.object(svc, "_run_nmcli", return_value="Wired:802-3-ethernet:eth0\n"),
+            patch("src.network.wifi.check_internet_connectivity", return_value={"ok": True}),
+        ):
             status = svc.status()
         assert status.connected is False
         assert status.ssid is None
@@ -262,9 +260,10 @@ class TestStatus:
         # Return different stdout per call: 1st = connection.show --active,
         # 2nd = connection.show <name> details, 3rd = device wifi list.
         outputs = iter([active_out, detail_out, scan_out])
-        with patch.object(svc, "_run_nmcli", side_effect=lambda *a, **kw: next(outputs)), \
-                patch("src.network.wifi.check_internet_connectivity",
-                      return_value={"ok": True}):
+        with (
+            patch.object(svc, "_run_nmcli", side_effect=lambda *a, **kw: next(outputs)),
+            patch("src.network.wifi.check_internet_connectivity", return_value={"ok": True}),
+        ):
             status = svc.status()
         assert status.connected is True
         assert status.ssid == "HomeNet"
@@ -277,6 +276,7 @@ class TestStatus:
 # connect()
 # ---------------------------------------------------------------------------
 
+
 class TestConnect:
     def test_connect_happy_path(self):
         svc = WiFiService()
@@ -284,18 +284,24 @@ class TestConnect:
 
         # connect() calls _run_nmcli several times: delete (may fail),
         # add, up. Then it calls _run_nm_online and status().
-        with patch.object(svc, "_run_nmcli") as run, \
-                patch.object(svc, "_run_nm_online", return_value=True), \
-                patch.object(svc, "status",
-                             return_value=wifi.WiFiStatus(
-                                 connected=True, ssid="HomeNet",
-                                 ip_address="192.168.1.42",
-                                 gateway="192.168.1.1", signal=80,
-                                 internet_reachable=True)):
+        with (
+            patch.object(svc, "_run_nmcli") as run,
+            patch.object(svc, "_run_nm_online", return_value=True),
+            patch.object(
+                svc,
+                "status",
+                return_value=wifi.WiFiStatus(
+                    connected=True,
+                    ssid="HomeNet",
+                    ip_address="192.168.1.42",
+                    gateway="192.168.1.1",
+                    signal=80,
+                    internet_reachable=True,
+                ),
+            ),
+        ):
             run.return_value = ""
-            result = asyncio.run(
-                svc.connect(ssid="HomeNet", password="hunter2")
-            )
+            result = asyncio.run(svc.connect(ssid="HomeNet", password="hunter2"))
         assert result.connectivity_confirmed is True
         assert result.status.ssid == "HomeNet"
         # The PSK must be inside the add call args list.
@@ -307,13 +313,17 @@ class TestConnect:
     def test_connect_without_internet_warns(self):
         svc = WiFiService()
         _force_available(svc)
-        with patch.object(svc, "_run_nmcli", return_value=""), \
-                patch.object(svc, "_run_nm_online", return_value=False), \
-                patch.object(svc, "status",
-                             return_value=wifi.WiFiStatus(
-                                 connected=True, ssid="HomeNet",
-                                 ip_address=None, gateway=None, signal=None,
-                                 internet_reachable=False)):
+        with (
+            patch.object(svc, "_run_nmcli", return_value=""),
+            patch.object(svc, "_run_nm_online", return_value=False),
+            patch.object(
+                svc,
+                "status",
+                return_value=wifi.WiFiStatus(
+                    connected=True, ssid="HomeNet", ip_address=None, gateway=None, signal=None, internet_reachable=False
+                ),
+            ),
+        ):
             result = asyncio.run(svc.connect(ssid="HomeNet", password="x"))
         assert result.connectivity_confirmed is False
         assert "could not verify" in result.message.lower()
@@ -352,12 +362,12 @@ class TestConnect:
 # disconnect() / forget()
 # ---------------------------------------------------------------------------
 
+
 class TestDisconnectForget:
     def test_disconnect_raises_when_no_wifi_active(self):
         svc = WiFiService()
         _force_available(svc)
-        with patch.object(svc, "_run_nmcli",
-                          return_value="Wired:802-3-ethernet\n"):
+        with patch.object(svc, "_run_nmcli", return_value="Wired:802-3-ethernet\n"):
             with pytest.raises(WiFiError, match="No active WiFi"):
                 asyncio.run(svc.disconnect())
 
@@ -367,13 +377,16 @@ class TestDisconnectForget:
 
         active = "HomeNet:802-11-wireless\n"
         outputs = iter([active, ""])  # show --active, then `connection down`
-        with patch.object(svc, "_run_nmcli",
-                          side_effect=lambda *a, **kw: next(outputs)), \
-                patch.object(svc, "status",
-                             return_value=wifi.WiFiStatus(
-                                 connected=False, ssid=None, ip_address=None,
-                                 gateway=None, signal=None,
-                                 internet_reachable=False)):
+        with (
+            patch.object(svc, "_run_nmcli", side_effect=lambda *a, **kw: next(outputs)),
+            patch.object(
+                svc,
+                "status",
+                return_value=wifi.WiFiStatus(
+                    connected=False, ssid=None, ip_address=None, gateway=None, signal=None, internet_reachable=False
+                ),
+            ),
+        ):
             status = asyncio.run(svc.disconnect())
         assert status.connected is False
 
@@ -394,6 +407,7 @@ class TestDisconnectForget:
 # ---------------------------------------------------------------------------
 # get_wifi_service singleton
 # ---------------------------------------------------------------------------
+
 
 def test_singleton_returns_same_instance():
     wifi._service = None  # reset for the test

@@ -25,11 +25,12 @@ def is_carousel_id(ref_id: str) -> bool:
 
 def extract_carousel_uuid(carousel_id: str) -> str:
     """Strip the prefix and return the bare UUID portion."""
-    return carousel_id[len(CAROUSEL_ID_PREFIX):]
+    return carousel_id[len(CAROUSEL_ID_PREFIX) :]
 
 
 class Carousel(BaseModel):
     """A carousel – an ordered collection of pages that cycle automatically."""
+
     id: str = Field(default_factory=make_carousel_id)
     name: str = Field(min_length=1, max_length=100)
     page_ids: list[str] = Field(min_length=1)
@@ -76,6 +77,7 @@ class Carousel(BaseModel):
 
 class CarouselCreate(BaseModel):
     """Request model for creating a new carousel."""
+
     name: str = Field(min_length=1, max_length=100)
     page_ids: list[str] = Field(min_length=1)
     interval_seconds: int = Field(default=30, ge=5, le=3600)
@@ -83,6 +85,7 @@ class CarouselCreate(BaseModel):
 
 class CarouselUpdate(BaseModel):
     """Request model for updating an existing carousel."""
+
     name: str | None = Field(default=None, min_length=1, max_length=100)
     page_ids: list[str] | None = Field(default=None, min_length=1)
     interval_seconds: int | None = Field(default=None, ge=5, le=3600)

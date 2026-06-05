@@ -12,15 +12,12 @@ import pytest
 
 from src.system import https_certs
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 OPENSSL_AVAILABLE = shutil.which("openssl") is not None
-requires_openssl = pytest.mark.skipif(
-    not OPENSSL_AVAILABLE, reason="openssl CLI not available"
-)
+requires_openssl = pytest.mark.skipif(not OPENSSL_AVAILABLE, reason="openssl CLI not available")
 
 
 @pytest.fixture
@@ -76,9 +73,7 @@ class TestBuildSanEntries:
         assert "IP:127.0.0.1" in sans
 
     def test_extra_hosts_dns_vs_ip_classification(self):
-        sans = https_certs._build_san_entries(
-            extra_hosts=["192.168.1.50", "myhost.example.com"]
-        )
+        sans = https_certs._build_san_entries(extra_hosts=["192.168.1.50", "myhost.example.com"])
         assert "IP:192.168.1.50" in sans
         assert "DNS:myhost.example.com" in sans
 
@@ -155,9 +150,7 @@ class TestGenerateCert:
         monkeypatch.setattr(https_certs, "_openssl_available", lambda: True)
 
         def fake_run(*args, **kwargs):
-            raise subprocess.CalledProcessError(
-                returncode=1, cmd=args[0], stderr="boom"
-            )
+            raise subprocess.CalledProcessError(returncode=1, cmd=args[0], stderr="boom")
 
         monkeypatch.setattr(subprocess, "run", fake_run)
         with pytest.raises(RuntimeError, match="openssl failed"):

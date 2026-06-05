@@ -5,8 +5,9 @@ the schemas the Next.js frontend expects to consume. Using Pydantic models
 as the source of truth for schema validation.
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
@@ -29,6 +30,7 @@ def mock_page_service():
 
         # create_page returns a minimal valid Page object
         from src.pages.models import Page
+
         sample_page = Page(
             id="contract-page-1",
             name="Contract Test Page",
@@ -49,6 +51,7 @@ def mock_schedule_service():
         svc = Mock()
 
         from src.schedules.models import ScheduleEntry as Schedule
+
         sample_schedule = Schedule(
             id="contract-schedule-1",
             page_id="contract-page-1",

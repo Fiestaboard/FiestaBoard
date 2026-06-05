@@ -63,7 +63,7 @@ class SurfSource:
             "daily": "wave_height_max,swell_wave_period_max",
             "wind_speed_unit": "mph",
             "timezone": "America/Los_Angeles",
-            "forecast_days": 1
+            "forecast_days": 1,
         }
 
         try:
@@ -124,7 +124,7 @@ class SurfSource:
                 "formatted_message": formatted_message,
                 "location": "Ocean Beach, SF",
                 "latitude": self.latitude,
-                "longitude": self.longitude
+                "longitude": self.longitude,
             }
 
         except requests.exceptions.RequestException as e:
@@ -153,7 +153,7 @@ class SurfSource:
             "longitude": self.longitude,
             "current": "wind_speed_10m,wind_direction_10m",
             "wind_speed_unit": "mph",
-            "timezone": "America/Los_Angeles"
+            "timezone": "America/Los_Angeles",
         }
 
         try:
@@ -171,7 +171,7 @@ class SurfSource:
             return {
                 "wind_speed_mph": wind_speed_mph,
                 "wind_speed_kmh": wind_speed_kmh,
-                "wind_direction": wind_direction
+                "wind_direction": wind_direction,
             }
 
         except Exception as e:
@@ -240,7 +240,7 @@ class SurfSource:
             Formatted message: "OB SURF: [Height]ft @ [Period]s"
         """
         # Round period to integer for cleaner display
-        period_display = int(round(swell_period)) if swell_period else 0
+        period_display = round(swell_period) if swell_period else 0
         return f"OB SURF: {wave_height}ft @ {period_display}s"
 
 
@@ -255,4 +255,3 @@ def get_surf_source() -> SurfSource | None:
         SurfSource instance
     """
     return SurfSource()
-

@@ -52,6 +52,7 @@ class EntityDefinition:
         event_types: For event entities, the list of possible event type strings
         json_attributes: Whether this entity publishes JSON attributes alongside state
     """
+
     entity_type: str
     object_id: str
     name: str
@@ -268,7 +269,9 @@ ENTITY_DEFINITIONS: list[EntityDefinition] = [
 ]
 
 
-def build_device_info(config: MQTTConfig, sw_version: str = "1.0.0", configuration_url: str | None = None) -> dict[str, Any]:
+def build_device_info(
+    config: MQTTConfig, sw_version: str = "1.0.0", configuration_url: str | None = None
+) -> dict[str, Any]:
     """Build the HA device info block shared by all entities.
 
     This block appears in every discovery payload and tells HA that all
@@ -435,9 +438,11 @@ def build_all_discovery_messages(
         topic = build_discovery_topic(config, entity)
         payload = build_discovery_payload(config, entity, device_info)
 
-        messages.append({
-            "topic": topic,
-            "payload": json.dumps(payload),
-        })
+        messages.append(
+            {
+                "topic": topic,
+                "payload": json.dumps(payload),
+            }
+        )
 
     return messages

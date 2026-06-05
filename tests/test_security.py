@@ -9,8 +9,9 @@ Covers:
 - refresh_seconds rate-limit bypass attempts
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
@@ -30,8 +31,7 @@ def client():
 @pytest.fixture
 def mock_plugin_registry_secure():
     """Mock plugin registry that returns None for unknown/traversal plugin IDs."""
-    with patch("src.api_server.get_plugin_registry") as mock_get, \
-         patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+    with patch("src.api_server.get_plugin_registry") as mock_get, patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
         reg = Mock()
         reg.get_manifest.return_value = None
         reg.get_plugin.return_value = None
@@ -46,9 +46,11 @@ def mock_plugin_registry_secure():
 @pytest.fixture
 def mock_plugin_with_sensitive_config():
     """Mock plugin registry with a plugin that has sensitive config fields."""
-    with patch("src.api_server.get_plugin_registry") as mock_get, \
-         patch("src.api_server.get_config_manager") as mock_cm_get, \
-         patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+    with (
+        patch("src.api_server.get_plugin_registry") as mock_get,
+        patch("src.api_server.get_config_manager") as mock_cm_get,
+        patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+    ):
         reg = Mock()
         manifest = Mock()
         manifest.name = "Test Plugin"
@@ -89,6 +91,7 @@ def mock_plugin_with_sensitive_config():
 # ===========================================================================
 # Path Traversal Tests
 # ===========================================================================
+
 
 class TestPathTraversal:
     """Tests that unusual/malicious plugin_id values are safely rejected."""
@@ -140,19 +143,20 @@ class TestPathTraversal:
         response = client.get("/plugins/nonexistent_plugin_xyz")
         body = response.text
         assert "Traceback" not in body
-        assert "File \"" not in body
+        assert 'File "' not in body
 
 
 # ===========================================================================
 # Sensitive Data Masking Tests
 # ===========================================================================
 
+
 class TestSensitiveDataMasking:
     """Tests that sensitive config fields are masked in API responses."""
 
     def test_get_plugin_masks_api_key(self, client, mock_plugin_with_sensitive_config):
         """GET /plugins/{id} must not return the raw api_key value."""
-        reg, cm = mock_plugin_with_sensitive_config
+        _reg, _cm = mock_plugin_with_sensitive_config
         response = client.get("/plugins/test_plugin")
         assert response.status_code == 200
         data = response.json()
@@ -160,16 +164,12 @@ class TestSensitiveDataMasking:
         assert config.get("api_key") != "super-secret-key-abc123", (
             "Raw api_key must not appear in GET /plugins/{id} response"
         )
-        assert config.get("api_key") == "***", (
-            "api_key should be masked as '***'"
-        )
-        assert config.get("location") == "New York", (
-            "Non-sensitive fields should pass through unmasked"
-        )
+        assert config.get("api_key") == "***", "api_key should be masked as '***'"
+        assert config.get("location") == "New York", "Non-sensitive fields should pass through unmasked"
 
     def test_mask_sensitive_called_on_plugin_get(self, client, mock_plugin_with_sensitive_config):
         """Verify that _mask_sensitive() is called when returning plugin config."""
-        reg, cm = mock_plugin_with_sensitive_config
+        _reg, cm = mock_plugin_with_sensitive_config
         client.get("/plugins/test_plugin")
         cm._mask_sensitive.assert_called()
 
@@ -177,6 +177,7 @@ class TestSensitiveDataMasking:
 # ===========================================================================
 # Input Validation Tests
 # ===========================================================================
+
 
 class TestInputValidation:
     """Tests for input validation and malformed request handling."""
@@ -232,6 +233,7 @@ class TestInputValidation:
 # Log Endpoint Safety Tests
 # ===========================================================================
 
+
 class TestLogEndpointSafety:
     """Tests that the log endpoint handles edge cases gracefully."""
 
@@ -258,9 +260,9 @@ class TestLogEndpointSafety:
 
     def test_logs_response_structure(self, client):
         """GET /logs returns the expected response shape."""
-        with patch("src.api_server._read_logs_from_files", return_value=(
-            [{"level": "INFO", "message": "test"}], 1, False
-        )):
+        with patch(
+            "src.api_server._read_logs_from_files", return_value=([{"level": "INFO", "message": "test"}], 1, False)
+        ):
             response = client.get("/logs")
         assert response.status_code == 200
         data = response.json()
@@ -275,6 +277,7 @@ class TestLogEndpointSafety:
 # ===========================================================================
 # Plugin Enable/Disable Tests (via API)
 # ===========================================================================
+
 
 class TestPluginEnableDisableAPI:
     """Tests for plugin enable/disable state transitions through the API."""
@@ -291,11 +294,13 @@ class TestPluginEnableDisableAPI:
 
     def test_enable_plugin_success_returns_correct_shape(self, client):
         """POST /plugins/{id}/enable for known plugin returns success shape."""
-        with patch("src.api_server.get_plugin_registry") as mock_reg_get, \
-             patch("src.api_server.get_config_manager") as mock_cm_get, \
-             patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.reset_display_service"), \
-             patch("src.api_server.reset_template_engine"):
+        with (
+            patch("src.api_server.get_plugin_registry") as mock_reg_get,
+            patch("src.api_server.get_config_manager") as mock_cm_get,
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.reset_display_service"),
+            patch("src.api_server.reset_template_engine"),
+        ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
             reg.enable_plugin.return_value = True
@@ -311,11 +316,13 @@ class TestPluginEnableDisableAPI:
 
     def test_disable_plugin_success_returns_correct_shape(self, client):
         """POST /plugins/{id}/disable for known plugin returns success shape."""
-        with patch("src.api_server.get_plugin_registry") as mock_reg_get, \
-             patch("src.api_server.get_config_manager") as mock_cm_get, \
-             patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.reset_display_service"), \
-             patch("src.api_server.reset_template_engine"):
+        with (
+            patch("src.api_server.get_plugin_registry") as mock_reg_get,
+            patch("src.api_server.get_config_manager") as mock_cm_get,
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.reset_display_service"),
+            patch("src.api_server.reset_template_engine"),
+        ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
             reg.disable_plugin.return_value = True
@@ -331,8 +338,10 @@ class TestPluginEnableDisableAPI:
 
     def test_enable_plugin_registry_failure_returns_400(self, client):
         """POST /plugins/{id}/enable when registry returns False gives 400."""
-        with patch("src.api_server.get_plugin_registry") as mock_reg_get, \
-             patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+        with (
+            patch("src.api_server.get_plugin_registry") as mock_reg_get,
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+        ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
             reg.enable_plugin.return_value = False
@@ -346,6 +355,7 @@ class TestPluginEnableDisableAPI:
 # Debug Endpoint Shape Tests
 # ===========================================================================
 
+
 class TestDebugEndpoints:
     """Tests that debug endpoints return expected shapes without exposing secrets."""
 
@@ -354,19 +364,26 @@ class TestDebugEndpoints:
         mock_ts_instance = Mock()
         mock_ts_instance.create_utc_timestamp.return_value = "2026-03-22T00:00:00Z"
 
-        with patch("src.api_server._get_server_ip", return_value="192.0.2.1"), \
-             patch("src.api_server._get_service_uptime", return_value=3600.0), \
-             patch("src.api_server._format_uptime", return_value="1h 0m"), \
-             patch("src.api_server._get_board_client", return_value=None), \
-             patch("src.time_service.get_time_service", return_value=mock_ts_instance):
-
+        with (
+            patch("src.api_server._get_server_ip", return_value="192.0.2.1"),
+            patch("src.api_server._get_service_uptime", return_value=3600.0),
+            patch("src.api_server._format_uptime", return_value="1h 0m"),
+            patch("src.api_server._get_board_client", return_value=None),
+            patch("src.time_service.get_time_service", return_value=mock_ts_instance),
+        ):
             response = client.get("/debug/system-info")
 
         assert response.status_code == 200
         data = response.json()
         expected_keys = {
-            "board_ip", "server_ip", "uptime_seconds", "uptime_formatted",
-            "connection_mode", "version", "timestamp", "board_configured",
+            "board_ip",
+            "server_ip",
+            "uptime_seconds",
+            "uptime_formatted",
+            "connection_mode",
+            "version",
+            "timestamp",
+            "board_configured",
             "service_running",
         }
         missing = expected_keys - set(data.keys())
@@ -377,12 +394,13 @@ class TestDebugEndpoints:
         mock_ts_instance = Mock()
         mock_ts_instance.create_utc_timestamp.return_value = "2026-03-22T00:00:00Z"
 
-        with patch("src.api_server._get_server_ip", return_value="192.0.2.1"), \
-             patch("src.api_server._get_service_uptime", return_value=0.0), \
-             patch("src.api_server._format_uptime", return_value="0m"), \
-             patch("src.api_server._get_board_client", return_value=None), \
-             patch("src.time_service.get_time_service", return_value=mock_ts_instance):
-
+        with (
+            patch("src.api_server._get_server_ip", return_value="192.0.2.1"),
+            patch("src.api_server._get_service_uptime", return_value=0.0),
+            patch("src.api_server._format_uptime", return_value="0m"),
+            patch("src.api_server._get_board_client", return_value=None),
+            patch("src.time_service.get_time_service", return_value=mock_ts_instance),
+        ):
             response = client.get("/debug/system-info")
 
         body = response.text
@@ -395,13 +413,16 @@ class TestDebugEndpoints:
 # Config Boundary (Rate-Limit Bypass) Tests
 # ===========================================================================
 
+
 class TestRefreshSecondsBypass:
     """Tests that the API rejects refresh_seconds values below the manifest minimum."""
 
     def test_put_config_with_below_minimum_refresh_returns_400(self, client):
         """PUT /plugins/{id}/config with refresh_seconds below minimum returns 400."""
-        with patch("src.api_server.get_plugin_registry") as mock_reg_get, \
-             patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+        with (
+            patch("src.api_server.get_plugin_registry") as mock_reg_get,
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+        ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
             reg.set_plugin_config.return_value = ["Refresh interval must be at least 30 seconds"]
@@ -417,11 +438,13 @@ class TestRefreshSecondsBypass:
 
     def test_put_config_with_valid_refresh_succeeds(self, client):
         """PUT /plugins/{id}/config with valid refresh_seconds returns 200."""
-        with patch("src.api_server.get_plugin_registry") as mock_reg_get, \
-             patch("src.api_server.get_config_manager") as mock_cm_get, \
-             patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.reset_display_service"), \
-             patch("src.api_server.reset_template_engine"):
+        with (
+            patch("src.api_server.get_plugin_registry") as mock_reg_get,
+            patch("src.api_server.get_config_manager") as mock_cm_get,
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.reset_display_service"),
+            patch("src.api_server.reset_template_engine"),
+        ):
             reg = Mock()
             reg.get_plugin.return_value = Mock()
             reg.set_plugin_config.return_value = []
@@ -443,6 +466,7 @@ class TestRefreshSecondsBypass:
 # SSRF Protection Tests
 # ===========================================================================
 
+
 class TestSSRFProtection:
     """Tests that _validate_request_url blocks SSRF targets via /generic-data/test-fetch."""
 
@@ -458,8 +482,10 @@ class TestSSRFProtection:
         return cm
 
     def _post(self, client, url: str, mock_cm):
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.get_config_manager", return_value=mock_cm):
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+        ):
             return client.post("/generic-data/test-fetch", json={"url": url})
 
     # --- Blocked: non-http(s) schemes ---
@@ -530,9 +556,11 @@ class TestSSRFProtection:
 
     def test_rejects_domain_resolving_to_private_ip(self, client, mock_cm):
         private_addr_info = _make_addr_info("10.0.0.5", 80)
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.get_config_manager", return_value=mock_cm), \
-             patch("socket.getaddrinfo", return_value=private_addr_info):
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("socket.getaddrinfo", return_value=private_addr_info),
+        ):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://internal.corp/api"})
         assert resp.status_code == 400
 
@@ -540,9 +568,12 @@ class TestSSRFProtection:
 
     def test_rejects_unresolvable_domain(self, client, mock_cm):
         import socket
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.get_config_manager", return_value=mock_cm), \
-             patch("socket.getaddrinfo", side_effect=socket.gaierror("no such host")):
+
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("socket.getaddrinfo", side_effect=socket.gaierror("no such host")),
+        ):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://no-such-host.invalid/api"})
         assert resp.status_code == 400
 
@@ -553,10 +584,12 @@ class TestSSRFProtection:
         mock_resp.raise_for_status.return_value = None
         mock_resp.content = b'{"ok": true}'
         mock_resp.json.return_value = {"ok": True}
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.get_config_manager", return_value=mock_cm), \
-             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["93.184.216.34"]), \
-             patch("requests.request", return_value=mock_resp):
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.api_server._get_generic_data_allowed_hosts", return_value=["93.184.216.34"]),
+            patch("requests.request", return_value=mock_resp),
+        ):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://93.184.216.34/api"})
         assert resp.status_code == 200
 
@@ -565,11 +598,13 @@ class TestSSRFProtection:
         mock_resp.raise_for_status.return_value = None
         mock_resp.content = b'{"ok": true}'
         mock_resp.json.return_value = {"ok": True}
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.get_config_manager", return_value=mock_cm), \
-             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]), \
-             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
-             patch("requests.request", return_value=mock_resp):
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.api_server._get_generic_data_allowed_hosts", return_value=["example.com"]),
+            patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
+            patch("requests.request", return_value=mock_resp),
+        ):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/data"})
         assert resp.status_code == 200
 
@@ -579,20 +614,24 @@ class TestSSRFProtection:
         mock_resp.raise_for_status.return_value = None
         mock_resp.content = b'{"ok": true}'
         mock_resp.json.return_value = {"ok": True}
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.get_config_manager", return_value=mock_cm), \
-             patch("src.api_server._get_generic_data_allowed_hosts", return_value=[]), \
-             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO), \
-             patch("requests.request", return_value=mock_resp):
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.api_server._get_generic_data_allowed_hosts", return_value=[]),
+            patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
+            patch("requests.request", return_value=mock_resp),
+        ):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/data"})
         assert resp.status_code == 200
 
     def test_rejects_host_not_in_allowlist(self, client, mock_cm):
         """When GENERIC_DATA_ALLOWED_HOSTS is set, hosts outside the list are rejected."""
-        with patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True), \
-             patch("src.api_server.get_config_manager", return_value=mock_cm), \
-             patch("src.api_server._get_generic_data_allowed_hosts", return_value=["myapi.com"]), \
-             patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO):
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.api_server._get_generic_data_allowed_hosts", return_value=["myapi.com"]),
+            patch("socket.getaddrinfo", return_value=self._PUBLIC_ADDR_INFO),
+        ):
             resp = client.post("/generic-data/test-fetch", json={"url": "https://api.example.com/data"})
         assert resp.status_code == 400
         assert "allowlist" in resp.json()["detail"]

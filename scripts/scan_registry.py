@@ -26,9 +26,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # Project paths
 SCRIPT_DIR = Path(__file__).parent
@@ -43,9 +42,9 @@ class PluginScanResult:
         self.plugin_id = plugin_id
         self.name = name
         self.repository = repository
-        self.bandit_findings: List[Dict] = []
-        self.dependency_findings: List[Dict] = []
-        self.clone_error: Optional[str] = None
+        self.bandit_findings: list[dict] = []
+        self.dependency_findings: list[dict] = []
+        self.clone_error: str | None = None
 
     @property
     def has_findings(self) -> bool:
@@ -56,14 +55,14 @@ class PluginScanResult:
         return self.clone_error is not None
 
 
-def load_registry() -> List[Dict]:
+def load_registry() -> list[dict]:
     """Load plugin registry and return list of plugin entries."""
     if not REGISTRY_FILE.exists():
         print(f"Error: Registry file not found: {REGISTRY_FILE}")
         sys.exit(2)
 
     try:
-        with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
+        with open(REGISTRY_FILE, encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError as exc:
         print(f"Error: Invalid JSON in registry file: {exc}")
@@ -77,7 +76,7 @@ def load_registry() -> List[Dict]:
     return plugins
 
 
-def clone_repo(repo_url: str, target_dir: str, verbose: bool) -> Optional[str]:
+def clone_repo(repo_url: str, target_dir: str, verbose: bool) -> str | None:
     """Shallow-clone a repository. Returns error message or None on success."""
     # Validate the URL from the registry JSON before passing to subprocess
     # (py/command-line-injection). Only HTTPS URLs are permitted; re-derive
@@ -107,13 +106,13 @@ def clone_repo(repo_url: str, target_dir: str, verbose: bool) -> Optional[str]:
         return f"git clone error: {exc}"
 
 
-def run_bandit(plugin_dir: str, verbose: bool) -> List[Dict]:
+def run_bandit(plugin_dir: str, verbose: bool) -> list[dict]:
     """Run bandit SAST scan on a plugin directory.
 
     Uses ``-ll`` to report only medium-severity and above findings.
     Returns a list of finding dicts.
     """
-    findings: List[Dict] = []
+    findings: list[dict] = []
     try:
         result = subprocess.run(
             ["bandit", "-r", plugin_dir, "-f", "json", "-q", "-ll"],
@@ -152,12 +151,12 @@ def run_bandit(plugin_dir: str, verbose: bool) -> List[Dict]:
     return findings
 
 
-def run_pip_audit(requirements_path: str, verbose: bool) -> List[Dict]:
+def run_pip_audit(requirements_path: str, verbose: bool) -> list[dict]:
     """Run pip-audit against a requirements file.
 
     Returns a list of finding dicts for each known vulnerability.
     """
-    findings: List[Dict] = []
+    findings: list[dict] = []
     try:
         result = subprocess.run(
             [
@@ -184,17 +183,12 @@ def run_pip_audit(requirements_path: str, verbose: bool) -> List[Dict]:
                                 "version": dep.get("version", ""),
                                 "vuln_id": vuln.get("id", ""),
                                 "fix_versions": vuln.get("fix_versions", []),
-                                "description": (
-                                    vuln.get("description", "See advisory")[:200]
-                                ),
+                                "description": (vuln.get("description", "See advisory")[:200]),
                             }
                         )
             except json.JSONDecodeError:
                 if verbose:
-                    print(
-                        f"  Warning: pip-audit produced non-JSON output "
-                        f"for {requirements_path}"
-                    )
+                    print(f"  Warning: pip-audit produced non-JSON output for {requirements_path}")
     except subprocess.TimeoutExpired:
         if verbose:
             print(f"  Warning: pip-audit timed out for {requirements_path}")
@@ -205,7 +199,7 @@ def run_pip_audit(requirements_path: str, verbose: bool) -> List[Dict]:
     return findings
 
 
-def scan_plugin(entry: Dict, workspace: str, verbose: bool) -> PluginScanResult:
+def scan_plugin(entry: dict, workspace: str, verbose: bool) -> PluginScanResult:
     """Clone and scan a single plugin repository."""
     plugin_id = entry.get("id", "unknown")
     name = entry.get("name", plugin_id)
@@ -250,9 +244,9 @@ def scan_plugin(entry: Dict, workspace: str, verbose: bool) -> PluginScanResult:
     return result
 
 
-def generate_report(results: List[PluginScanResult]) -> str:
+def generate_report(results: list[PluginScanResult]) -> str:
     """Generate a markdown report from scan results."""
-    scan_date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    scan_date = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     lines = [
         "# Plugin Registry Security Scan Results",
@@ -264,9 +258,7 @@ def generate_report(results: List[PluginScanResult]) -> str:
 
     plugins_with_findings = [r for r in results if r.has_findings]
     plugins_with_errors = [r for r in results if r.has_errors]
-    plugins_clean = [
-        r for r in results if not r.has_findings and not r.has_errors
-    ]
+    plugins_clean = [r for r in results if not r.has_findings and not r.has_errors]
 
     total_bandit = sum(len(r.bandit_findings) for r in results)
     total_deps = sum(len(r.dependency_findings) for r in results)
@@ -317,15 +309,8 @@ def generate_report(results: List[PluginScanResult]) -> str:
             lines.append("### Dependency Vulnerabilities (pip-audit)")
             lines.append("")
             for finding in result.dependency_findings:
-                fix = (
-                    ", ".join(finding["fix_versions"])
-                    if finding.get("fix_versions")
-                    else "No fix available"
-                )
-                lines.append(
-                    f"- **{finding['package']}=={finding['version']}**: "
-                    f"{finding['vuln_id']} (fix: {fix})"
-                )
+                fix = ", ".join(finding["fix_versions"]) if finding.get("fix_versions") else "No fix available"
+                lines.append(f"- **{finding['package']}=={finding['version']}**: {finding['vuln_id']} (fix: {fix})")
             lines.append("")
 
     # Clean plugins
@@ -340,9 +325,7 @@ def generate_report(results: List[PluginScanResult]) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Scan FiestaBoard plugin registry repositories for vulnerabilities"
-    )
+    parser = argparse.ArgumentParser(description="Scan FiestaBoard plugin registry repositories for vulnerabilities")
     parser.add_argument(
         "--verbose",
         "-v",
@@ -374,7 +357,7 @@ def main():
 
     try:
         # Scan each plugin
-        results: List[PluginScanResult] = []
+        results: list[PluginScanResult] = []
         for i, entry in enumerate(plugins, 1):
             plugin_id = entry.get("id", "unknown")
             name = entry.get("name", plugin_id)
@@ -386,9 +369,7 @@ def main():
             if result.clone_error:
                 print(f"  ❌ Clone failed: {result.clone_error}")
             elif result.has_findings:
-                total = len(result.bandit_findings) + len(
-                    result.dependency_findings
-                )
+                total = len(result.bandit_findings) + len(result.dependency_findings)
                 print(f"  ⚠️  {total} finding(s)")
             else:
                 print("  ✅ Clean")
@@ -410,10 +391,7 @@ def main():
 
         has_vulnerabilities = any(r.has_findings for r in results)
         plugins_with_findings = sum(1 for r in results if r.has_findings)
-        total_findings = sum(
-            len(r.bandit_findings) + len(r.dependency_findings)
-            for r in results
-        )
+        total_findings = sum(len(r.bandit_findings) + len(r.dependency_findings) for r in results)
 
         print(f"Plugins scanned: {len(results)}")
         print(f"Plugins with findings: {plugins_with_findings}")
@@ -424,10 +402,7 @@ def main():
         github_output = os.environ.get("GITHUB_OUTPUT")
         if github_output:
             with open(github_output, "a", encoding="utf-8") as f:
-                f.write(
-                    f"has_vulnerabilities="
-                    f"{'true' if has_vulnerabilities else 'false'}\n"
-                )
+                f.write(f"has_vulnerabilities={'true' if has_vulnerabilities else 'false'}\n")
                 f.write(f"plugin_count={len(results)}\n")
                 f.write(f"finding_count={total_findings}\n")
 

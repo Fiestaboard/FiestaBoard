@@ -18,6 +18,7 @@ specialised primitives.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import stat
@@ -53,8 +54,7 @@ def _load_or_generate_key() -> bytes:
             Fernet(env_value.encode("utf-8"))
         except (ValueError, TypeError) as exc:
             raise RuntimeError(
-                f"{_ENV_VAR} is set but is not a valid Fernet key "
-                "(expected 32 url-safe base64 bytes)."
+                f"{_ENV_VAR} is set but is not a valid Fernet key (expected 32 url-safe base64 bytes)."
             ) from exc
         return env_value.encode("utf-8")
 
@@ -86,13 +86,10 @@ def _load_or_generate_key() -> bytes:
             fh.write(key)
     except Exception:
         # Best-effort cleanup so we don't leave an empty key file behind.
-        try:
+        # If even the cleanup unlink fails, there's nothing useful to do —
+        # the original write failure (re-raised below) is the actionable error.
+        with contextlib.suppress(OSError):
             _KEY_PATH.unlink(missing_ok=True)
-        except OSError:
-            # If even the cleanup unlink fails, there's nothing
-            # useful to do — the original write failure (re-raised
-            # below) is the actionable error.
-            pass
         raise
 
     logger.warning(
@@ -153,14 +150,11 @@ def decrypt_secret(value: str) -> str:
         raise TypeError("decrypt_secret requires a str")
     if not is_encrypted(value):
         return value
-    token = value[len(ENCRYPTED_PREFIX):].encode("ascii")
+    token = value[len(ENCRYPTED_PREFIX) :].encode("ascii")
     try:
         return get_secret_cipher().decrypt(token).decode("utf-8")
     except InvalidToken as exc:
-        raise ValueError(
-            "Failed to decrypt secret: token is invalid or was encrypted "
-            "with a different key."
-        ) from exc
+        raise ValueError("Failed to decrypt secret: token is invalid or was encrypted with a different key.") from exc
 
 
 def rotate_key(new_key: bytes, *, values: list | None = None) -> list:

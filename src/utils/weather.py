@@ -4,7 +4,7 @@ import logging
 
 import requests
 
-from ..config import Config
+from src.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +66,7 @@ class WeatherSource:
         for loc_config in self.locations:
             try:
                 data = self._fetch_single_location(
-                    location=loc_config.get("location", ""),
-                    location_name=loc_config.get("name", "LOCATION")
+                    location=loc_config.get("location", ""), location_name=loc_config.get("name", "LOCATION")
                 )
                 if data:
                     results.append(data)
@@ -89,20 +88,15 @@ class WeatherSource:
         """
         if self.provider == "weatherapi":
             return self._fetch_weatherapi_for_location(location, location_name)
-        elif self.provider == "openweathermap":
+        if self.provider == "openweathermap":
             return self._fetch_openweathermap_for_location(location, location_name)
-        else:
-            logger.error(f"Unknown weather provider: {self.provider}")
-            return None
+        logger.error(f"Unknown weather provider: {self.provider}")
+        return None
 
     def _fetch_weatherapi_for_location(self, location: str, location_name: str) -> dict[str, any] | None:
         """Fetch weather from WeatherAPI.com for a specific location."""
         url = "http://api.weatherapi.com/v1/current.json"
-        params = {
-            "key": self.api_key,
-            "q": location,
-            "aqi": "no"
-        }
+        params = {"key": self.api_key, "q": location, "aqi": "no"}
 
         try:
             response = requests.get(url, params=params, timeout=10)
@@ -117,7 +111,7 @@ class WeatherSource:
                 "wind_mph": data["current"]["wind_mph"],
                 "wind_speed": data["current"]["wind_mph"],  # Alias for template compatibility
                 "location": data["location"]["name"],
-                "location_name": location_name  # Add display name
+                "location_name": location_name,  # Add display name
             }
 
         except requests.exceptions.RequestException as e:
@@ -130,11 +124,7 @@ class WeatherSource:
     def _fetch_openweathermap_for_location(self, location: str, location_name: str) -> dict[str, any] | None:
         """Fetch weather from OpenWeatherMap for a specific location."""
         url = "https://api.openweathermap.org/data/2.5/weather"
-        params = {
-            "q": location,
-            "appid": self.api_key,
-            "units": "imperial"
-        }
+        params = {"q": location, "appid": self.api_key, "units": "imperial"}
 
         try:
             response = requests.get(url, params=params, timeout=10)
@@ -149,7 +139,7 @@ class WeatherSource:
                 "humidity": data["main"]["humidity"],
                 "wind_mph": data["wind"]["speed"],
                 "wind_speed": data["wind"]["speed"],  # Alias for template compatibility
-                "location_name": location_name  # Add display name
+                "location_name": location_name,  # Add display name
             }
 
         except requests.exceptions.RequestException as e:
@@ -167,22 +157,14 @@ def get_weather_source() -> WeatherSource | None:
         return None
 
     # Support both new (WEATHER_LOCATIONS list) and old (WEATHER_LOCATION) config
-    locations = getattr(Config, 'WEATHER_LOCATIONS', None)
+    locations = getattr(Config, "WEATHER_LOCATIONS", None)
 
     if not locations:
         # Fall back to single location (backward compatibility)
         location = Config.WEATHER_LOCATION
         if location:
-            locations = [{
-                "location": location,
-                "name": "HOME"
-            }]
+            locations = [{"location": location, "name": "HOME"}]
         else:
             locations = []
 
-    return WeatherSource(
-        provider=Config.WEATHER_PROVIDER,
-        api_key=Config.WEATHER_API_KEY,
-        locations=locations
-    )
-
+    return WeatherSource(provider=Config.WEATHER_PROVIDER, api_key=Config.WEATHER_API_KEY, locations=locations)

@@ -7,6 +7,7 @@ Validates that for every (device_type, position) pair the indicator text:
 
 Also covers truncation for over-long text and case normalization.
 """
+
 from unittest.mock import patch
 
 import pytest
@@ -19,6 +20,7 @@ from src.main import DisplayService
 def _patch_silence_feature(feature_dict):
     """Patch Config._get_feature so SILENCE_SCHEDULE_* read from this dict."""
     from src.config import Config
+
     return patch.object(Config, "_get_feature", classmethod(lambda cls, name: feature_dict))
 
 

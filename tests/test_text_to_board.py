@@ -4,18 +4,18 @@ text_to_board contains pure, deterministic conversion logic — character
 mapping and board array construction. This addresses issue #505.
 """
 
-from src.text_to_board import (
-    text_to_board_array,
-    format_board_array_preview,
-    validate_board_array,
-    COLOR_CODES,
-)
 from src.board_chars import BoardChars
-
+from src.text_to_board import (
+    COLOR_CODES,
+    format_board_array_preview,
+    text_to_board_array,
+    validate_board_array,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_empty_board(rows=6, cols=22):
     return [[BoardChars.SPACE] * cols for _ in range(rows)]
@@ -24,6 +24,7 @@ def make_empty_board(rows=6, cols=22):
 # ---------------------------------------------------------------------------
 # text_to_board_array — basic conversion
 # ---------------------------------------------------------------------------
+
 
 class TestTextToBoardArray:
     def test_empty_string_returns_blank_board(self):
@@ -45,13 +46,13 @@ class TestTextToBoardArray:
     def test_letter_a_placed_first_column(self):
         board = text_to_board_array("A")
         # 'A' should be code 1
-        assert board[0][0] == BoardChars.get_char_code('A')
+        assert board[0][0] == BoardChars.get_char_code("A")
 
     def test_multiple_letters(self):
         board = text_to_board_array("ABC")
-        a_code = BoardChars.get_char_code('A')
-        b_code = BoardChars.get_char_code('B')
-        c_code = BoardChars.get_char_code('C')
+        a_code = BoardChars.get_char_code("A")
+        b_code = BoardChars.get_char_code("B")
+        c_code = BoardChars.get_char_code("C")
         assert board[0][0] == a_code
         assert board[0][1] == b_code
         assert board[0][2] == c_code
@@ -63,8 +64,8 @@ class TestTextToBoardArray:
 
     def test_newline_starts_new_row(self):
         board = text_to_board_array("A\nB")
-        a_code = BoardChars.get_char_code('A')
-        b_code = BoardChars.get_char_code('B')
+        a_code = BoardChars.get_char_code("A")
+        b_code = BoardChars.get_char_code("B")
         assert board[0][0] == a_code
         assert board[1][0] == b_code
 
@@ -91,6 +92,7 @@ class TestTextToBoardArray:
 # text_to_board_array — color markers
 # ---------------------------------------------------------------------------
 
+
 class TestColorMarkers:
     def test_named_color_red(self):
         board = text_to_board_array("{red}")
@@ -112,17 +114,17 @@ class TestColorMarkers:
         # {red}A should place red at col 0, A at col 1
         board = text_to_board_array("{red}A")
         assert board[0][0] == COLOR_CODES["red"]
-        assert board[0][1] == BoardChars.get_char_code('A')
+        assert board[0][1] == BoardChars.get_char_code("A")
 
     def test_end_tag_ignored(self):
         # {/red} should be skipped, not consuming a tile
         board = text_to_board_array("{/red}A")
-        assert board[0][0] == BoardChars.get_char_code('A')
+        assert board[0][0] == BoardChars.get_char_code("A")
 
     def test_use_color_tiles_false_strips_markers(self):
         board = text_to_board_array("{red}A", use_color_tiles=False)
         # Color marker is stripped; A goes to position 0
-        assert board[0][0] == BoardChars.get_char_code('A')
+        assert board[0][0] == BoardChars.get_char_code("A")
 
     def test_double_brace_color_marker_not_processed(self):
         # The formatter uses {{red}} syntax but text_to_board uses {red}
@@ -151,6 +153,7 @@ class TestColorMarkers:
 # ---------------------------------------------------------------------------
 # validate_board_array
 # ---------------------------------------------------------------------------
+
 
 class TestValidateBoardArray:
     def test_valid_default_board(self):
@@ -184,7 +187,7 @@ class TestValidateBoardArray:
 
     def test_valid_boundary_codes(self):
         board = [[0] * 22 for _ in range(6)]
-        board[0][0] = 0   # Min
+        board[0][0] = 0  # Min
         board[0][1] = 71  # Max
         assert validate_board_array(board) is True
 
@@ -195,6 +198,7 @@ class TestValidateBoardArray:
 # ---------------------------------------------------------------------------
 # format_board_array_preview
 # ---------------------------------------------------------------------------
+
 
 class TestFormatBoardArrayPreview:
     def test_returns_string(self):
@@ -242,6 +246,7 @@ class TestFormatBoardArrayPreview:
 # COLOR_CODES constants
 # ---------------------------------------------------------------------------
 
+
 class TestColorCodes:
     def test_all_colors_defined(self):
         expected = {"red", "orange", "yellow", "green", "blue", "violet", "purple", "white", "black", "filled"}
@@ -273,13 +278,13 @@ class TestNoteFillSpaceEndToEnd:
         # on a NOTE device: 6 text chars + 9 blue tiles = 15 tiles
         rendered = "LUNCH:{67}{67}{67}{67}{67}{67}{67}{67}{67}\n               \n               "
         board = text_to_board_array(rendered, rows=3, cols=15)
-        
+
         assert len(board) == 3
         assert len(board[0]) == 15
-        
+
         # First row: L=12, U=21, N=14, C=3, H=8, :=50, then 9 blue tiles (67)
         assert board[0] == [12, 21, 14, 3, 8, 50, 67, 67, 67, 67, 67, 67, 67, 67, 67]
-        
+
         # Blue tile count should be exactly 9
         blue_count = sum(1 for code in board[0] if code == 67)
         assert blue_count == 9
@@ -289,7 +294,7 @@ class TestNoteFillSpaceEndToEnd:
         # Entire line of green
         rendered = "{66}" * 15 + "\n" + " " * 15 + "\n" + " " * 15
         board = text_to_board_array(rendered, rows=3, cols=15)
-        
+
         # All 15 positions should be green (66)
         assert all(code == 66 for code in board[0])
 
@@ -297,6 +302,6 @@ class TestNoteFillSpaceEndToEnd:
         """Color code 71 (filled) should be recognized in text_to_board_array."""
         rendered = "A{71}B"
         board = text_to_board_array(rendered, rows=1, cols=3)
-        assert board[0][0] == 1   # A
+        assert board[0][0] == 1  # A
         assert board[0][1] == 71  # filled
-        assert board[0][2] == 2   # B
+        assert board[0][2] == 2  # B

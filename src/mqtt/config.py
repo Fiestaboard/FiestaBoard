@@ -31,6 +31,7 @@ class MQTTConfig:
             "Visit" link on the HA device page (e.g. http://192.168.1.50:4420).
             Omitted from discovery payloads when not set.
     """
+
     enabled: bool = False
     broker_host: str = DEFAULT_BROKER_HOST
     broker_port: int = DEFAULT_BROKER_PORT

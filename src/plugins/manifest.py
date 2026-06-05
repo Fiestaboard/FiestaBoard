@@ -50,6 +50,7 @@ def _inject_trigger_page_id(settings_schema: dict[str, Any]) -> dict[str, Any]:
         properties["trigger_page_id"] = copy.deepcopy(TRIGGER_PAGE_ID_PROPERTY)
     return enriched
 
+
 # JSON Schema for validating manifest.json files
 MANIFEST_SCHEMA = {
     "type": "object",
@@ -58,41 +59,19 @@ MANIFEST_SCHEMA = {
         "id": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9_]*$",
-            "description": "Unique plugin identifier (lowercase, underscores allowed)"
+            "description": "Unique plugin identifier (lowercase, underscores allowed)",
         },
-        "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 50,
-            "description": "Human-readable plugin name"
-        },
+        "name": {"type": "string", "minLength": 1, "maxLength": 50, "description": "Human-readable plugin name"},
         "version": {
             "type": "string",
             "pattern": "^\\d+\\.\\d+\\.\\d+$",
-            "description": "Semantic version (e.g., 1.0.0)"
+            "description": "Semantic version (e.g., 1.0.0)",
         },
-        "description": {
-            "type": "string",
-            "maxLength": 200,
-            "description": "Short description of the plugin"
-        },
-        "author": {
-            "type": "string",
-            "description": "Plugin author or maintainer"
-        },
-        "repository": {
-            "type": "string",
-            "format": "uri",
-            "description": "Source repository URL"
-        },
-        "documentation": {
-            "type": "string",
-            "description": "Path to documentation file (relative to plugin folder)"
-        },
-        "settings_schema": {
-            "type": "object",
-            "description": "JSON Schema for plugin configuration"
-        },
+        "description": {"type": "string", "maxLength": 200, "description": "Short description of the plugin"},
+        "author": {"type": "string", "description": "Plugin author or maintainer"},
+        "repository": {"type": "string", "format": "uri", "description": "Source repository URL"},
+        "documentation": {"type": "string", "description": "Path to documentation file (relative to plugin folder)"},
+        "settings_schema": {"type": "object", "description": "JSON Schema for plugin configuration"},
         "env_vars": {
             "type": "array",
             "items": {
@@ -102,34 +81,29 @@ MANIFEST_SCHEMA = {
                     "name": {"type": "string"},
                     "required": {"type": "boolean", "default": False},
                     "description": {"type": "string"},
-                    "default": {"type": "string"}
-                }
+                    "default": {"type": "string"},
+                },
             },
-            "description": "Environment variables used by the plugin"
+            "description": "Environment variables used by the plugin",
         },
         "variables": {
             "type": "object",
             "properties": {
                 "auto_discover": {
                     "type": "boolean",
-                    "description": "Auto-expose all data keys as variables (default: true when no variables declared)"
+                    "description": "Auto-expose all data keys as variables (default: true when no variables declared)",
                 },
                 "groups": {
                     "type": "object",
-                    "additionalProperties": {
-                        "type": "object",
-                        "properties": {
-                            "label": {"type": "string"}
-                        }
-                    },
-                    "description": "Named groups for organising variables in the UI"
+                    "additionalProperties": {"type": "object", "properties": {"label": {"type": "string"}}},
+                    "description": "Named groups for organising variables in the UI",
                 },
                 "simple": {
                     "oneOf": [
                         {"type": "array", "items": {"type": "string"}},
-                        {"type": "object", "additionalProperties": {"type": "object"}}
+                        {"type": "object", "additionalProperties": {"type": "object"}},
                     ],
-                    "description": "Simple key-value variables (list or dict with metadata)"
+                    "description": "Simple key-value variables (list or dict with metadata)",
                 },
                 "arrays": {
                     "type": "object",
@@ -137,10 +111,7 @@ MANIFEST_SCHEMA = {
                         "type": "object",
                         "properties": {
                             "label_field": {"type": "string"},
-                            "item_fields": {
-                                "type": "array",
-                                "items": {"type": "string"}
-                            },
+                            "item_fields": {"type": "array", "items": {"type": "string"}},
                             "sub_arrays": {
                                 "type": "object",
                                 "additionalProperties": {
@@ -148,46 +119,37 @@ MANIFEST_SCHEMA = {
                                     "properties": {
                                         "key_type": {"type": "string", "enum": ["index", "dynamic"]},
                                         "key_field": {"type": "string"},
-                                        "item_fields": {
-                                            "type": "array",
-                                            "items": {"type": "string"}
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                                        "item_fields": {"type": "array", "items": {"type": "string"}},
+                                    },
+                                },
+                            },
+                        },
                     },
-                    "description": "Array variables with indexed access"
-                }
+                    "description": "Array variables with indexed access",
+                },
             },
-            "description": "Template variables exposed by the plugin"
+            "description": "Template variables exposed by the plugin",
         },
         "max_lengths": {
             "type": "object",
             "additionalProperties": {"type": "integer"},
-            "description": "Maximum character lengths for variables"
+            "description": "Maximum character lengths for variables",
         },
-        "color_rules_schema": {
-            "type": "object",
-            "description": "Schema for configurable color rules"
-        },
-        "icon": {
-            "type": "string",
-            "description": "Icon name from Lucide icons"
-        },
+        "color_rules_schema": {"type": "object", "description": "Schema for configurable color rules"},
+        "icon": {"type": "string", "description": "Icon name from Lucide icons"},
         "category": {
             "type": "string",
             "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home"],
-            "description": "Plugin category for organization"
+            "description": "Plugin category for organization",
         },
         "fiestaboard_version": {
             "type": "string",
-            "description": "Minimum FiestaBoard version required (semver constraint, e.g. '>=2.10.0')"
+            "description": "Minimum FiestaBoard version required (semver constraint, e.g. '>=2.10.0')",
         },
         "supports_triggers": {
             "type": "boolean",
             "default": False,
-            "description": "Whether this plugin supports event-based triggers via check_triggers()"
+            "description": "Whether this plugin supports event-based triggers via check_triggers()",
         },
         "screenshots": {
             "type": "array",
@@ -197,43 +159,34 @@ MANIFEST_SCHEMA = {
                 "properties": {
                     "src": {
                         "type": "string",
-                        "description": "Relative path from plugin directory (e.g., docs/board-display.png)"
+                        "description": "Relative path from plugin directory (e.g., docs/board-display.png)",
                     },
-                    "alt": {
-                        "type": "string",
-                        "description": "Alt text for accessibility"
-                    },
-                    "caption": {
-                        "type": "string",
-                        "description": "Human-readable caption"
-                    },
+                    "alt": {"type": "string", "description": "Alt text for accessibility"},
+                    "caption": {"type": "string", "description": "Human-readable caption"},
                     "primary": {
                         "type": "boolean",
                         "default": False,
-                        "description": "Whether this is the hero image for galleries and registries"
-                    }
-                }
+                        "description": "Whether this is the hero image for galleries and registries",
+                    },
+                },
             },
-            "description": "Screenshots for plugin galleries, docs, and the registry"
+            "description": "Screenshots for plugin galleries, docs, and the registry",
         },
         "demo": {
             "type": "object",
             "required": ["name", "template"],
             "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Demo page name shown in the pages list"
-                },
+                "name": {"type": "string", "description": "Demo page name shown in the pages list"},
                 "device_type": {
                     "type": "string",
                     "enum": ["flagship", "note"],
                     "default": "flagship",
-                    "description": "Target device type for the demo page"
+                    "description": "Target device type for the demo page",
                 },
                 "template": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Template lines with {{plugin_id.var}} placeholders"
+                    "description": "Template lines with {{plugin_id.var}} placeholders",
                 },
                 "line_metadata": {
                     "type": "array",
@@ -241,21 +194,21 @@ MANIFEST_SCHEMA = {
                         "type": "object",
                         "properties": {
                             "alignment": {"type": "string", "enum": ["left", "center", "right"]},
-                            "wrap": {"type": "boolean"}
-                        }
+                            "wrap": {"type": "boolean"},
+                        },
                     },
-                    "description": "Per-line formatting (alignment, wrap)"
+                    "description": "Per-line formatting (alignment, wrap)",
                 },
                 "duration_seconds": {
                     "type": "integer",
                     "default": 300,
                     "minimum": 10,
-                    "description": "Rotation duration in seconds"
-                }
+                    "description": "Rotation duration in seconds",
+                },
             },
-            "description": "Demo page template that showcases the plugin's features"
-        }
-    }
+            "description": "Demo page template that showcases the plugin's features",
+        },
+    },
 }
 
 
@@ -267,6 +220,7 @@ class VariableMetadata:
     This powers descriptions, type hints, grouping, and examples
     shown in the editor's variable picker.
     """
+
     description: str = ""
     type: str = "string"  # "string", "number", "boolean"
     max_length: int | None = None
@@ -277,6 +231,7 @@ class VariableMetadata:
 @dataclass
 class Screenshot:
     """A plugin screenshot entry for galleries, docs, and the registry."""
+
     src: str
     alt: str
     caption: str = ""
@@ -286,6 +241,7 @@ class Screenshot:
 @dataclass
 class DemoPageSchema:
     """Bundled demo page template that showcases a plugin's features."""
+
     name: str
     template: list[str]
     device_type: str = "flagship"
@@ -296,12 +252,14 @@ class DemoPageSchema:
 @dataclass
 class VariableGroupSchema:
     """A named group used to organise variables in the UI."""
+
     label: str = ""
 
 
 @dataclass
 class VariableArraySchema:
     """Schema for array-type variables."""
+
     name: str
     label_field: str
     item_fields: list[str]
@@ -322,6 +280,7 @@ class VariablesSchema:
     ``auto_discover`` defaults to ``True`` so that every key returned
     by ``fetch_data()`` is automatically surfaced in the editor.
     """
+
     simple: list[str] = field(default_factory=list)
     arrays: dict[str, VariableArraySchema] = field(default_factory=dict)
     metadata: dict[str, VariableMetadata] = field(default_factory=dict)
@@ -361,6 +320,7 @@ class VariablesSchema:
 @dataclass
 class PluginManifest:
     """Parsed and validated plugin manifest."""
+
     id: str
     name: str
     version: str
@@ -465,12 +425,14 @@ class PluginManifest:
         screenshots: list[Screenshot] = []
         for entry in data.get("screenshots", []):
             if isinstance(entry, dict) and "src" in entry and "alt" in entry:
-                screenshots.append(Screenshot(
-                    src=entry["src"],
-                    alt=entry["alt"],
-                    caption=entry.get("caption", ""),
-                    primary=bool(entry.get("primary", False)),
-                ))
+                screenshots.append(
+                    Screenshot(
+                        src=entry["src"],
+                        alt=entry["alt"],
+                        caption=entry.get("caption", ""),
+                        primary=bool(entry.get("primary", False)),
+                    )
+                )
 
         # --- parse demo page schema ---
         demo: dict[str, DemoPageSchema] | None = None
@@ -582,10 +544,7 @@ class PluginManifest:
                 for name, m in self.variables.metadata.items()
             }
         if self.variables.groups:
-            result["variable_groups"] = {
-                gid: {"label": g.label}
-                for gid, g in self.variables.groups.items()
-            }
+            result["variable_groups"] = {gid: {"label": g.label} for gid, g in self.variables.groups.items()}
         return result
 
 
@@ -614,7 +573,7 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
         errors.append("Plugin id cannot be empty")
     elif not plugin_id[0].islower() or not plugin_id[0].isalpha():
         errors.append("Plugin id must start with a lowercase letter")
-    elif not all(c.islower() or c.isdigit() or c == '_' for c in plugin_id):
+    elif not all(c.islower() or c.isdigit() or c == "_" for c in plugin_id):
         errors.append("Plugin id must contain only lowercase letters, numbers, and underscores")
 
     # Validate version format
@@ -653,7 +612,7 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
         else:
             # Validate simple variables (list or dict format)
             simple = variables.get("simple", [])
-            if not isinstance(simple, (list, dict)):
+            if not isinstance(simple, list | dict):
                 errors.append("variables.simple must be an array or object")
 
             # Validate groups if present
@@ -729,7 +688,9 @@ def load_manifest(manifest_path: Path) -> tuple[PluginManifest | None, list[str]
         return None, [f"Manifest not found: {manifest_path}"]
 
     try:
-        with open(manifest_path, encoding="utf-8") as f:
+        # Use builtins.open (not Path.open) so existing tests can patch
+        # builtins.open to inject fake JSON / raise read errors.
+        with open(manifest_path, encoding="utf-8") as f:  # noqa: PTH123
             data = json.load(f)
     except json.JSONDecodeError as e:
         return None, [f"Invalid JSON in manifest: {e}"]
@@ -747,4 +708,3 @@ def load_manifest(manifest_path: Path) -> tuple[PluginManifest | None, list[str]
         return manifest, []
     except Exception as e:
         return None, [f"Failed to parse manifest: {e}"]
-

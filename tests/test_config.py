@@ -6,11 +6,11 @@ for isolation.
 """
 
 import json
-import pytest
 from unittest.mock import MagicMock, patch
 
-from src.config import Config, classproperty
+import pytest
 
+from src.config import Config, classproperty
 
 # ==================== Fixture ====================
 
@@ -57,6 +57,7 @@ class TestClassproperty:
 
     def test_classproperty_returns_value_on_class_access(self):
         """classproperty returns func(cls) when accessed on class."""
+
         class Foo:
             @classproperty
             def bar(cls):
@@ -79,6 +80,7 @@ class TestClassproperty:
 
     def test_classproperty_on_instance_access(self):
         """classproperty on instance access uses objtype (the class)."""
+
         class Foo:
             @classproperty
             def bar(cls):
@@ -255,12 +257,12 @@ class TestWeatherLocations:
             {"location": "Boston", "name": "Boston"},
         ]
         mock_config_manager._feature_configs["weather"] = {"locations": locations}
-        assert Config.WEATHER_LOCATIONS == locations
+        assert locations == Config.WEATHER_LOCATIONS
 
     def test_weather_locations_single_dict_wrapped_in_list(self, mock_config_manager):
         single = {"location": "SF", "name": "San Francisco"}
         mock_config_manager._feature_configs["weather"] = {"locations": single}
-        assert Config.WEATHER_LOCATIONS == [single]
+        assert [single] == Config.WEATHER_LOCATIONS
 
     def test_weather_locations_old_single_location_fallback(self, mock_config_manager):
         mock_config_manager._feature_configs["weather"] = {"location": "Chicago, IL"}
@@ -392,15 +394,11 @@ class TestHomeAssistantConfig:
         assert Config.HOME_ASSISTANT_ENABLED is True
 
     def test_home_assistant_base_url(self, mock_config_manager):
-        mock_config_manager._feature_configs["home_assistant"] = {
-            "base_url": "http://ha.local:8123"
-        }
+        mock_config_manager._feature_configs["home_assistant"] = {"base_url": "http://ha.local:8123"}
         assert Config.HOME_ASSISTANT_BASE_URL == "http://ha.local:8123"
 
     def test_home_assistant_access_token(self, mock_config_manager):
-        mock_config_manager._feature_configs["home_assistant"] = {
-            "access_token": "token-abc"
-        }
+        mock_config_manager._feature_configs["home_assistant"] = {"access_token": "token-abc"}
         assert Config.HOME_ASSISTANT_ACCESS_TOKEN == "token-abc"
 
     def test_home_assistant_entities_returns_json_string(self, mock_config_manager):
@@ -418,9 +416,7 @@ class TestHomeAssistantConfig:
         assert Config.HOME_ASSISTANT_TIMEOUT == 5
 
     def test_home_assistant_refresh_seconds(self, mock_config_manager):
-        mock_config_manager._feature_configs["home_assistant"] = {
-            "refresh_seconds": 60
-        }
+        mock_config_manager._feature_configs["home_assistant"] = {"refresh_seconds": 60}
         assert Config.HOME_ASSISTANT_REFRESH_SECONDS == 60
 
 
@@ -435,21 +431,15 @@ class TestAirFogConfig:
         assert Config.AIR_FOG_ENABLED is True
 
     def test_purpleair_api_key(self, mock_config_manager):
-        mock_config_manager._feature_configs["air_fog"] = {
-            "purpleair_api_key": "pa-key"
-        }
+        mock_config_manager._feature_configs["air_fog"] = {"purpleair_api_key": "pa-key"}
         assert Config.PURPLEAIR_API_KEY == "pa-key"
 
     def test_purpleair_sensor_id(self, mock_config_manager):
-        mock_config_manager._feature_configs["air_fog"] = {
-            "purpleair_sensor_id": "12345"
-        }
+        mock_config_manager._feature_configs["air_fog"] = {"purpleair_sensor_id": "12345"}
         assert Config.PURPLEAIR_SENSOR_ID == "12345"
 
     def test_openweathermap_api_key(self, mock_config_manager):
-        mock_config_manager._feature_configs["air_fog"] = {
-            "openweathermap_api_key": "owm-key"
-        }
+        mock_config_manager._feature_configs["air_fog"] = {"openweathermap_api_key": "owm-key"}
         assert Config.OPENWEATHERMAP_API_KEY == "owm-key"
 
     def test_air_fog_latitude(self, mock_config_manager):
@@ -480,9 +470,7 @@ class TestMuniConfig:
         assert Config.MUNI_API_KEY == "511-key"
 
     def test_muni_stop_code_returns_first_from_list(self, mock_config_manager):
-        mock_config_manager._feature_configs["muni"] = {
-            "stop_codes": ["15726", "15727"]
-        }
+        mock_config_manager._feature_configs["muni"] = {"stop_codes": ["15726", "15727"]}
         assert Config.MUNI_STOP_CODE == "15726"
 
     def test_muni_stop_code_old_format_fallback(self, mock_config_manager):
@@ -492,7 +480,7 @@ class TestMuniConfig:
     def test_muni_stop_codes_array_format(self, mock_config_manager):
         codes = ["15726", "15727"]
         mock_config_manager._feature_configs["muni"] = {"stop_codes": codes}
-        assert Config.MUNI_STOP_CODES == codes
+        assert codes == Config.MUNI_STOP_CODES
 
     def test_muni_stop_codes_single_value_wrapped(self, mock_config_manager):
         mock_config_manager._feature_configs["muni"] = {"stop_codes": "15726"}
@@ -503,9 +491,7 @@ class TestMuniConfig:
         assert Config.MUNI_STOP_CODES == ["15726"]
 
     def test_muni_stop_names(self, mock_config_manager):
-        mock_config_manager._feature_configs["muni"] = {
-            "stop_names": ["Market & Castro", "Church & Duboce"]
-        }
+        mock_config_manager._feature_configs["muni"] = {"stop_names": ["Market & Castro", "Church & Duboce"]}
         assert Config.MUNI_STOP_NAMES == ["Market & Castro", "Church & Duboce"]
 
     def test_muni_line_name(self, mock_config_manager):
@@ -521,9 +507,7 @@ class TestMuniConfig:
         assert Config.TRANSIT_CACHE_ENABLED is False
 
     def test_transit_cache_refresh_seconds(self, mock_config_manager):
-        mock_config_manager._feature_configs["muni"] = {
-            "transit_cache_refresh_seconds": 120
-        }
+        mock_config_manager._feature_configs["muni"] = {"transit_cache_refresh_seconds": 120}
         assert Config.TRANSIT_CACHE_REFRESH_SECONDS == 120
 
 
@@ -538,9 +522,7 @@ class TestBayWheelsConfig:
         assert Config.BAYWHEELS_ENABLED is True
 
     def test_baywheels_station_id_returns_first_from_list(self, mock_config_manager):
-        mock_config_manager._feature_configs["baywheels"] = {
-            "station_ids": ["123", "456"]
-        }
+        mock_config_manager._feature_configs["baywheels"] = {"station_ids": ["123", "456"]}
         assert Config.BAYWHEELS_STATION_ID == "123"
 
     def test_baywheels_station_id_old_format_fallback(self, mock_config_manager):
@@ -550,7 +532,7 @@ class TestBayWheelsConfig:
     def test_baywheels_station_ids_array_format(self, mock_config_manager):
         ids = ["123", "456"]
         mock_config_manager._feature_configs["baywheels"] = {"station_ids": ids}
-        assert Config.BAYWHEELS_STATION_IDS == ids
+        assert ids == Config.BAYWHEELS_STATION_IDS
 
     def test_baywheels_station_ids_single_string(self, mock_config_manager):
         mock_config_manager._feature_configs["baywheels"] = {"station_ids": "123"}
@@ -599,9 +581,7 @@ class TestTrafficConfig:
         assert Config.TRAFFIC_DESTINATION == "456 Oak Ave"
 
     def test_traffic_destination_name(self, mock_config_manager):
-        mock_config_manager._feature_configs["traffic"] = {
-            "destination_name": "Downtown SF"
-        }
+        mock_config_manager._feature_configs["traffic"] = {"destination_name": "Downtown SF"}
         assert Config.TRAFFIC_DESTINATION_NAME == "Downtown SF"
 
     def test_traffic_destination_name_default(self, mock_config_manager):
@@ -613,12 +593,12 @@ class TestTrafficConfig:
             {"origin": "C", "destination": "D", "destination_name": "D"},
         ]
         mock_config_manager._feature_configs["traffic"] = {"routes": routes}
-        assert Config.TRAFFIC_ROUTES == routes
+        assert routes == Config.TRAFFIC_ROUTES
 
     def test_traffic_routes_single_dict_wrapped(self, mock_config_manager):
         route = {"origin": "A", "destination": "B", "destination_name": "B"}
         mock_config_manager._feature_configs["traffic"] = {"routes": route}
-        assert Config.TRAFFIC_ROUTES == [route]
+        assert [route] == Config.TRAFFIC_ROUTES
 
     def test_traffic_routes_old_format_fallback(self, mock_config_manager):
         mock_config_manager._feature_configs["traffic"] = {
@@ -655,9 +635,7 @@ class TestSilenceScheduleConfig:
         assert Config.SILENCE_SCHEDULE_ENABLED is True
 
     def test_silence_schedule_start_time(self, mock_config_manager):
-        mock_config_manager._feature_configs["silence_schedule"] = {
-            "start_time": "22:00"
-        }
+        mock_config_manager._feature_configs["silence_schedule"] = {"start_time": "22:00"}
         assert Config.SILENCE_SCHEDULE_START_TIME == "22:00"
 
     def test_silence_schedule_start_time_default(self, mock_config_manager):
@@ -686,9 +664,7 @@ class TestStocksConfig:
         assert Config.FINNHUB_API_KEY == "fh-key"
 
     def test_stocks_symbols_list(self, mock_config_manager):
-        mock_config_manager._feature_configs["stocks"] = {
-            "symbols": ["AAPL", "GOOG", "MSFT"]
-        }
+        mock_config_manager._feature_configs["stocks"] = {"symbols": ["AAPL", "GOOG", "MSFT"]}
         assert Config.STOCKS_SYMBOLS == ["AAPL", "GOOG", "MSFT"]
 
     def test_stocks_symbols_string_converted_to_list(self, mock_config_manager):
@@ -700,9 +676,7 @@ class TestStocksConfig:
         assert Config.STOCKS_SYMBOLS == []
 
     def test_stocks_symbols_max_five(self, mock_config_manager):
-        mock_config_manager._feature_configs["stocks"] = {
-            "symbols": ["A", "B", "C", "D", "E", "F"]
-        }
+        mock_config_manager._feature_configs["stocks"] = {"symbols": ["A", "B", "C", "D", "E", "F"]}
         assert Config.STOCKS_SYMBOLS == ["A", "B", "C", "D", "E"]
 
     def test_stocks_symbols_empty_list(self, mock_config_manager):

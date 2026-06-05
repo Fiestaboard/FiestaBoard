@@ -8,7 +8,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
-from src.network import wifi as wifi_module
 from src.network.wifi import (
     SavedNetwork,
     WiFiCapability,
@@ -54,6 +53,7 @@ def force_unavailable():
 # capability
 # ---------------------------------------------------------------------------
 
+
 def test_capability_returns_unavailable_off_pi(client, force_unavailable):
     resp = client.get("/network/wifi/capability")
     assert resp.status_code == 200
@@ -71,6 +71,7 @@ def test_capability_returns_available_on_pi(client, force_available):
 # ---------------------------------------------------------------------------
 # Endpoints return 501 when unavailable
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "method,path",
@@ -99,6 +100,7 @@ def test_connect_returns_501_when_unavailable(client, force_unavailable):
 # ---------------------------------------------------------------------------
 # status
 # ---------------------------------------------------------------------------
+
 
 def test_status_returns_current_state(client, force_available):
     svc = get_wifi_service()
@@ -131,6 +133,7 @@ def test_status_translates_wifi_error_to_400(client, force_available):
 # scan
 # ---------------------------------------------------------------------------
 
+
 def test_scan_returns_networks(client, force_available):
     svc = get_wifi_service()
     fake = [
@@ -149,6 +152,7 @@ def test_scan_returns_networks(client, force_available):
 # ---------------------------------------------------------------------------
 # saved + forget
 # ---------------------------------------------------------------------------
+
 
 def test_saved_returns_profiles(client, force_available):
     svc = get_wifi_service()
@@ -175,6 +179,7 @@ def test_forget_deletes_profile(client, force_available):
 # ---------------------------------------------------------------------------
 # connect + disconnect
 # ---------------------------------------------------------------------------
+
 
 def test_connect_returns_status_and_confirmation(client, force_available):
     svc = get_wifi_service()

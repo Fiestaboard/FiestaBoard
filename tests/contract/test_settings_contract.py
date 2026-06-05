@@ -6,17 +6,18 @@ schema the Next.js frontend expects.
 Issue: #502
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
 from tests.contract.schemas import (
-    HealthResponse,
-    VersionResponse,
-    TransitionSettingsResponse,
-    OutputSettingsResponse,
     BoardSettingsResponse,
+    HealthResponse,
+    OutputSettingsResponse,
+    TransitionSettingsResponse,
+    VersionResponse,
 )
 
 
@@ -99,6 +100,7 @@ class TestTransitionSettingsContract:
     def _make_transition_mock(self, strategy="column", step_interval_ms=50, step_size=1):
         """Create a transition settings mock with concrete attribute values."""
         from types import SimpleNamespace
+
         return SimpleNamespace(
             strategy=strategy,
             step_interval_ms=step_interval_ms,
@@ -157,6 +159,7 @@ class TestTransitionSettingsContract:
 class TestOutputSettingsContract:
     def _make_output_mock(self, target="ui"):
         from types import SimpleNamespace
+
         return SimpleNamespace(target=target)
 
     def test_returns_200(self, client):

@@ -6,28 +6,29 @@ fallback. Actual zeroconf registration is mocked to avoid hardware
 dependencies. This addresses issue #505.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 import src.system.mdns as mdns_module
 from src.system.mdns import (
+    DEFAULT_MDNS_HOSTNAME,
+    DEFAULT_SERVICE_PORT,
     MDNSService,
     _get_local_ip,
     get_mdns_service,
     start_mdns,
     stop_mdns,
-    DEFAULT_MDNS_HOSTNAME,
-    DEFAULT_SERVICE_PORT,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def reset_singleton():
     """Reset global singleton state between tests."""
-    original = mdns_module._mdns_service
     mdns_module._mdns_service = None
     yield
     mdns_module._mdns_service = None
@@ -36,6 +37,7 @@ def reset_singleton():
 # ---------------------------------------------------------------------------
 # MDNSService properties
 # ---------------------------------------------------------------------------
+
 
 class TestMDNSServiceProperties:
     def test_default_hostname(self):
@@ -85,6 +87,7 @@ class TestMDNSServiceProperties:
 # MDNSService.start — with zeroconf mocked
 # ---------------------------------------------------------------------------
 
+
 class TestMDNSServiceStart:
     def test_start_success(self):
         svc = MDNSService()
@@ -92,12 +95,15 @@ class TestMDNSServiceStart:
         mock_info = MagicMock()
         mock_info.name = "FiestaBoard._http._tcp.local."
 
-        with patch.dict("sys.modules", {
-            "zeroconf": MagicMock(
-                Zeroconf=MagicMock(return_value=mock_zc),
-                ServiceInfo=MagicMock(return_value=mock_info),
-            )
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "zeroconf": MagicMock(
+                    Zeroconf=MagicMock(return_value=mock_zc),
+                    ServiceInfo=MagicMock(return_value=mock_info),
+                )
+            },
+        ):
             with patch("src.system.mdns._get_local_ip", return_value="192.168.1.100"):
                 result = svc.start()
 
@@ -127,12 +133,15 @@ class TestMDNSServiceStart:
         mock_zeroconf.Zeroconf.side_effect = Exception("network error")
         mock_service_info = MagicMock()
 
-        with patch.dict("sys.modules", {
-            "zeroconf": MagicMock(
-                Zeroconf=MagicMock(side_effect=Exception("fail")),
-                ServiceInfo=mock_service_info,
-            )
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "zeroconf": MagicMock(
+                    Zeroconf=MagicMock(side_effect=Exception("fail")),
+                    ServiceInfo=mock_service_info,
+                )
+            },
+        ):
             with patch("src.system.mdns._get_local_ip", return_value="10.0.0.1"):
                 result = svc.start()
 
@@ -143,6 +152,7 @@ class TestMDNSServiceStart:
 # ---------------------------------------------------------------------------
 # MDNSService.stop
 # ---------------------------------------------------------------------------
+
 
 class TestMDNSServiceStop:
     def test_stop_when_not_started_is_safe(self):
@@ -193,6 +203,7 @@ class TestMDNSServiceStop:
 # _get_local_ip
 # ---------------------------------------------------------------------------
 
+
 class TestGetLocalIp:
     def test_returns_string(self):
         ip = _get_local_ip()
@@ -214,6 +225,7 @@ class TestGetLocalIp:
 # ---------------------------------------------------------------------------
 # Singleton helpers: get_mdns_service, start_mdns, stop_mdns
 # ---------------------------------------------------------------------------
+
 
 class TestSingletonHelpers:
     def test_get_mdns_service_returns_instance(self):

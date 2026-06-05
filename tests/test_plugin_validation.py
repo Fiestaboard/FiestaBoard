@@ -8,9 +8,9 @@ These tests run as part of the platform test suite and verify:
 """
 
 import json
-import pytest
 from pathlib import Path
-from typing import Dict, List
+
+import pytest
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -20,206 +20,191 @@ PLUGINS_DIR = PROJECT_ROOT / "plugins"
 SKIP_DIRECTORIES = {"_template", "__pycache__"}
 
 
-def get_plugin_directories() -> List[Path]:
+def get_plugin_directories() -> list[Path]:
     """Get all plugin directories (excluding template and pycache)."""
     if not PLUGINS_DIR.exists():
         return []
-    
+
     plugins = []
     for item in PLUGINS_DIR.iterdir():
         if item.is_dir() and item.name not in SKIP_DIRECTORIES and not item.name.startswith("."):
             plugins.append(item)
-    
+
     return sorted(plugins, key=lambda p: p.name)
 
 
-def load_manifest(plugin_dir: Path) -> Dict:
+def load_manifest(plugin_dir: Path) -> dict:
     """Load a plugin's manifest.json."""
     manifest_path = plugin_dir / "manifest.json"
-    with open(manifest_path, "r", encoding="utf-8") as f:
+    with open(manifest_path, encoding="utf-8") as f:
         return json.load(f)
 
 
 class TestPluginUniqueness:
     """Tests to ensure all plugin IDs are unique."""
-    
+
     def test_all_plugin_ids_are_unique(self):
         """CI Test: Ensure no duplicate plugin IDs exist.
-        
+
         This test fails if two or more plugins share the same ID,
         which would cause conflicts in the plugin registry.
         """
         plugins = get_plugin_directories()
-        
+
         if not plugins:
             pytest.skip("No plugins found")
-        
-        ids_seen: Dict[str, str] = {}  # id -> directory name
-        duplicates: List[str] = []
-        
+
+        ids_seen: dict[str, str] = {}  # id -> directory name
+        duplicates: list[str] = []
+
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
             if not manifest_path.exists():
                 continue
-            
+
             manifest = load_manifest(plugin_dir)
             plugin_id = manifest.get("id", "")
-            
+
             if plugin_id in ids_seen:
                 duplicates.append(
-                    f"Plugin ID '{plugin_id}' is used by both "
-                    f"'{ids_seen[plugin_id]}' and '{plugin_dir.name}'"
+                    f"Plugin ID '{plugin_id}' is used by both '{ids_seen[plugin_id]}' and '{plugin_dir.name}'"
                 )
             else:
                 ids_seen[plugin_id] = plugin_dir.name
-        
-        assert not duplicates, (
-            "Duplicate plugin IDs found:\n" + "\n".join(f"  - {d}" for d in duplicates)
-        )
-    
+
+        assert not duplicates, "Duplicate plugin IDs found:\n" + "\n".join(f"  - {d}" for d in duplicates)
+
     def test_plugin_id_matches_directory_name(self):
         """CI Test: Ensure plugin ID matches its directory name.
-        
+
         This convention makes it easier to locate plugins and prevents confusion.
         """
         plugins = get_plugin_directories()
-        
+
         if not plugins:
             pytest.skip("No plugins found")
-        
-        mismatches: List[str] = []
-        
+
+        mismatches: list[str] = []
+
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
             if not manifest_path.exists():
                 continue
-            
+
             manifest = load_manifest(plugin_dir)
             plugin_id = manifest.get("id", "")
             dir_name = plugin_dir.name
-            
+
             if plugin_id != dir_name:
-                mismatches.append(
-                    f"Plugin in '{dir_name}/' has ID '{plugin_id}' "
-                    f"(expected '{dir_name}')"
-                )
-        
-        assert not mismatches, (
-            "Plugin ID/directory mismatches found:\n" + 
-            "\n".join(f"  - {m}" for m in mismatches)
-        )
+                mismatches.append(f"Plugin in '{dir_name}/' has ID '{plugin_id}' (expected '{dir_name}')")
+
+        assert not mismatches, "Plugin ID/directory mismatches found:\n" + "\n".join(f"  - {m}" for m in mismatches)
 
 
 class TestManifestValidity:
     """Tests to ensure all manifests are valid."""
-    
+
     def test_all_manifests_are_valid_json(self):
         """CI Test: All manifest.json files must be valid JSON."""
         plugins = get_plugin_directories()
-        
+
         if not plugins:
             pytest.skip("No plugins found")
-        
-        invalid: List[str] = []
-        
+
+        invalid: list[str] = []
+
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
             if not manifest_path.exists():
                 invalid.append(f"{plugin_dir.name}: manifest.json not found")
                 continue
-            
+
             try:
-                with open(manifest_path, "r", encoding="utf-8") as f:
+                with open(manifest_path, encoding="utf-8") as f:
                     json.load(f)
             except json.JSONDecodeError as e:
                 invalid.append(f"{plugin_dir.name}: Invalid JSON - {e}")
-        
-        assert not invalid, (
-            "Invalid manifest files found:\n" + "\n".join(f"  - {i}" for i in invalid)
-        )
-    
+
+        assert not invalid, "Invalid manifest files found:\n" + "\n".join(f"  - {i}" for i in invalid)
+
     def test_all_manifests_have_required_fields(self):
         """CI Test: All manifests must have required fields (id, name, version)."""
         plugins = get_plugin_directories()
-        
+
         if not plugins:
             pytest.skip("No plugins found")
-        
+
         required_fields = ["id", "name", "version"]
-        missing: List[str] = []
-        
+        missing: list[str] = []
+
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
             if not manifest_path.exists():
                 continue
-            
+
             manifest = load_manifest(plugin_dir)
-            
+
             for field in required_fields:
                 if field not in manifest:
                     missing.append(f"{plugin_dir.name}: missing '{field}'")
-        
-        assert not missing, (
-            "Manifests missing required fields:\n" + "\n".join(f"  - {m}" for m in missing)
-        )
-    
+
+        assert not missing, "Manifests missing required fields:\n" + "\n".join(f"  - {m}" for m in missing)
+
     def test_plugin_id_format(self):
         """CI Test: Plugin IDs must be valid identifiers (lowercase, underscores)."""
         plugins = get_plugin_directories()
-        
+
         if not plugins:
             pytest.skip("No plugins found")
-        
-        invalid_ids: List[str] = []
-        
+
+        invalid_ids: list[str] = []
+
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
             if not manifest_path.exists():
                 continue
-            
+
             manifest = load_manifest(plugin_dir)
             plugin_id = manifest.get("id", "")
-            
+
             if not plugin_id:
                 invalid_ids.append(f"{plugin_dir.name}: empty ID")
             elif not plugin_id[0].isalpha() or not plugin_id[0].islower():
                 invalid_ids.append(f"{plugin_dir.name}: ID '{plugin_id}' must start with lowercase letter")
-            elif not all(c.islower() or c.isdigit() or c == '_' for c in plugin_id):
+            elif not all(c.islower() or c.isdigit() or c == "_" for c in plugin_id):
                 invalid_ids.append(f"{plugin_dir.name}: ID '{plugin_id}' contains invalid characters")
-        
-        assert not invalid_ids, (
-            "Invalid plugin IDs found:\n" + "\n".join(f"  - {i}" for i in invalid_ids)
-        )
-    
+
+        assert not invalid_ids, "Invalid plugin IDs found:\n" + "\n".join(f"  - {i}" for i in invalid_ids)
+
     def test_version_format(self):
         """CI Test: Version must be semantic versioning format (X.Y.Z)."""
         plugins = get_plugin_directories()
-        
+
         if not plugins:
             pytest.skip("No plugins found")
-        
-        invalid_versions: List[str] = []
-        
+
+        invalid_versions: list[str] = []
+
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
             if not manifest_path.exists():
                 continue
-            
+
             manifest = load_manifest(plugin_dir)
             version = manifest.get("version", "")
-            
+
             if not version:
                 invalid_versions.append(f"{plugin_dir.name}: missing version")
                 continue
-            
+
             parts = version.split(".")
             if len(parts) != 3:
                 invalid_versions.append(f"{plugin_dir.name}: version '{version}' must be X.Y.Z format")
             elif not all(part.isdigit() for part in parts):
                 invalid_versions.append(f"{plugin_dir.name}: version '{version}' parts must be integers")
-        
-        assert not invalid_versions, (
-            "Invalid version formats found:\n" + "\n".join(f"  - {v}" for v in invalid_versions)
+
+        assert not invalid_versions, "Invalid version formats found:\n" + "\n".join(
+            f"  - {v}" for v in invalid_versions
         )
 
     def test_repository_url_capitalization(self):
@@ -234,7 +219,7 @@ class TestManifestValidity:
         if not plugins:
             pytest.skip("No plugins found")
 
-        wrong_urls: List[str] = []
+        wrong_urls: list[str] = []
 
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
@@ -247,81 +232,73 @@ class TestManifestValidity:
                 continue
 
             if repo != canonical_repo_url:
-                wrong_urls.append(
-                    f"{plugin_dir.name}: repository is '{repo}' "
-                    f"(expected '{canonical_repo_url}')"
-                )
+                wrong_urls.append(f"{plugin_dir.name}: repository is '{repo}' (expected '{canonical_repo_url}')")
 
-        assert not wrong_urls, (
-            "Manifests with incorrect repository URL (check capitalization):\n"
-            + "\n".join(f"  - {w}" for w in wrong_urls)
+        assert not wrong_urls, "Manifests with incorrect repository URL (check capitalization):\n" + "\n".join(
+            f"  - {w}" for w in wrong_urls
         )
 
 
 class TestPluginStructure:
     """Tests for plugin directory structure."""
-    
+
     def test_all_plugins_have_init_file(self):
         """CI Test: All plugins must have __init__.py."""
         plugins = get_plugin_directories()
-        
+
         if not plugins:
             pytest.skip("No plugins found")
-        
-        missing: List[str] = []
-        
+
+        missing: list[str] = []
+
         for plugin_dir in plugins:
             init_file = plugin_dir / "__init__.py"
             if not init_file.exists():
                 missing.append(plugin_dir.name)
-        
-        assert not missing, (
-            "Plugins missing __init__.py:\n" + "\n".join(f"  - {m}" for m in missing)
-        )
-    
+
+        assert not missing, "Plugins missing __init__.py:\n" + "\n".join(f"  - {m}" for m in missing)
+
     def test_all_plugins_have_manifest(self):
         """CI Test: All plugins must have manifest.json."""
         plugins = get_plugin_directories()
-        
+
         if not plugins:
             pytest.skip("No plugins found")
-        
-        missing: List[str] = []
-        
+
+        missing: list[str] = []
+
         for plugin_dir in plugins:
             manifest_file = plugin_dir / "manifest.json"
             if not manifest_file.exists():
                 missing.append(plugin_dir.name)
-        
-        assert not missing, (
-            "Plugins missing manifest.json:\n" + "\n".join(f"  - {m}" for m in missing)
-        )
-    
+
+        assert not missing, "Plugins missing manifest.json:\n" + "\n".join(f"  - {m}" for m in missing)
+
     def test_all_plugins_have_tests_directory(self):
         """CI Test: All plugins should have a tests/ directory.
-        
+
         Note: This is a warning-level test. New plugins must have tests,
         but this test ensures visibility of plugins without tests.
         """
         plugins = get_plugin_directories()
-        
+
         if not plugins:
             pytest.skip("No plugins found")
-        
-        missing_tests: List[str] = []
-        
+
+        missing_tests: list[str] = []
+
         for plugin_dir in plugins:
             tests_dir = plugin_dir / "tests"
             if not tests_dir.exists() or not tests_dir.is_dir():
                 missing_tests.append(plugin_dir.name)
-        
+
         # This test passes but logs warnings
         # In strict mode (via validate_plugins.py --strict), this would fail
         if missing_tests:
             pytest.warns(
                 UserWarning,
                 match="Plugins without tests directory",
-            ) if hasattr(pytest, 'warns') else None
+            ) if hasattr(pytest, "warns") else None
             # Log for visibility even if test passes
             print(f"\nWarning: Plugins without tests/: {', '.join(missing_tests)}")
 
@@ -335,7 +312,7 @@ class TestPluginRateLimits:
         if not plugins:
             pytest.skip("No plugins found")
 
-        invalid: List[str] = []
+        invalid: list[str] = []
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
             if not manifest_path.exists():
@@ -345,17 +322,12 @@ class TestPluginRateLimits:
             if floor is None:
                 continue
             if not isinstance(floor, int) or floor <= 0:
-                invalid.append(
-                    f"{plugin_dir.name}: min_refresh_seconds must be a positive integer, "
-                    f"got {floor!r}"
-                )
-        assert not invalid, (
-            "Invalid min_refresh_seconds:\n" + "\n".join(f"  - {i}" for i in invalid)
-        )
+                invalid.append(f"{plugin_dir.name}: min_refresh_seconds must be a positive integer, got {floor!r}")
+        assert not invalid, "Invalid min_refresh_seconds:\n" + "\n".join(f"  - {i}" for i in invalid)
 
     def test_min_refresh_seconds_lte_schema_minimum(self):
         """CI Test: min_refresh_seconds must be <= settings_schema minimum.
-        
+
         The schema minimum is the user-facing lower bound shown in the UI.
         The hard floor must not exceed it, otherwise users would see a
         minimum in the UI that is lower than what the runtime enforces.
@@ -364,7 +336,7 @@ class TestPluginRateLimits:
         if not plugins:
             pytest.skip("No plugins found")
 
-        inconsistent: List[str] = []
+        inconsistent: list[str] = []
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
             if not manifest_path.exists():
@@ -379,13 +351,9 @@ class TestPluginRateLimits:
             schema_min = refresh.get("minimum")
             if schema_min is not None and floor > schema_min:
                 inconsistent.append(
-                    f"{plugin_dir.name}: min_refresh_seconds ({floor}) > "
-                    f"settings_schema minimum ({schema_min})"
+                    f"{plugin_dir.name}: min_refresh_seconds ({floor}) > settings_schema minimum ({schema_min})"
                 )
-        assert not inconsistent, (
-            "Inconsistent rate-limit floors:\n"
-            + "\n".join(f"  - {i}" for i in inconsistent)
-        )
+        assert not inconsistent, "Inconsistent rate-limit floors:\n" + "\n".join(f"  - {i}" for i in inconsistent)
 
     def test_plugins_with_refresh_seconds_have_floor(self):
         """CI Test: Plugins declaring refresh_seconds should have a rate-limit floor.
@@ -399,7 +367,7 @@ class TestPluginRateLimits:
         if not plugins:
             pytest.skip("No plugins found")
 
-        missing: List[str] = []
+        missing: list[str] = []
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
             if not manifest_path.exists():
@@ -416,8 +384,7 @@ class TestPluginRateLimits:
                 missing.append(plugin_dir.name)
         assert not missing, (
             "Plugins with refresh_seconds but no rate-limit floor "
-            "(add min_refresh_seconds or a schema minimum):\n"
-            + "\n".join(f"  - {m}" for m in missing)
+            "(add min_refresh_seconds or a schema minimum):\n" + "\n".join(f"  - {m}" for m in missing)
         )
 
 
@@ -428,8 +395,7 @@ class TestManifestVariablesParsing:
         """PluginManifest.from_dict handles the legacy list format for simple variables."""
         from src.plugins.manifest import PluginManifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "variables": {"simple": ["a", "b", "c"]}}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "variables": {"simple": ["a", "b", "c"]}}
         manifest = PluginManifest.from_dict(data)
         assert manifest.variables.simple == ["a", "b", "c"]
         assert manifest.variables.metadata == {}
@@ -439,7 +405,9 @@ class TestManifestVariablesParsing:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {
                 "simple": {
                     "temperature": {
@@ -468,7 +436,9 @@ class TestManifestVariablesParsing:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {
                 "groups": {
                     "time": {"label": "Time"},
@@ -494,8 +464,7 @@ class TestManifestVariablesParsing:
         """auto_discover defaults to False when variables.simple is declared."""
         from src.plugins.manifest import PluginManifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "variables": {"simple": ["a"]}}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "variables": {"simple": ["a"]}}
         manifest = PluginManifest.from_dict(data)
         assert manifest.variables.auto_discover is False
 
@@ -503,8 +472,7 @@ class TestManifestVariablesParsing:
         """Explicit auto_discover flag overrides the smart default."""
         from src.plugins.manifest import PluginManifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "variables": {"auto_discover": True, "simple": ["a"]}}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "variables": {"auto_discover": True, "simple": ["a"]}}
         manifest = PluginManifest.from_dict(data)
         assert manifest.variables.auto_discover is True
 
@@ -524,7 +492,9 @@ class TestManifestVariablesParsing:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {
                 "simple": {
                     "temp": {"description": "Temperature", "type": "number"},
@@ -545,7 +515,9 @@ class TestManifestVariablesParsing:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {
                 "simple": {
                     "temp": {"max_length": 3},
@@ -562,7 +534,9 @@ class TestManifestVariablesParsing:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "max_lengths": {"temp": 5},
             "variables": {
                 "simple": {"temp": {"max_length": 3}},
@@ -576,7 +550,9 @@ class TestManifestVariablesParsing:
         from src.plugins.manifest import validate_manifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {"simple": {"a": {"description": "A var"}}},
         }
         is_valid, errors = validate_manifest(data)
@@ -587,7 +563,9 @@ class TestManifestVariablesParsing:
         from src.plugins.manifest import validate_manifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {"simple": "not_valid"},
         }
         is_valid, errors = validate_manifest(data)
@@ -605,7 +583,7 @@ class TestManifestScreenshots:
         if not plugins:
             pytest.skip("No plugins found")
 
-        missing_files: List[str] = []
+        missing_files: list[str] = []
 
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
@@ -622,14 +600,10 @@ class TestManifestScreenshots:
                 normalised = src.lstrip("./")
                 full_path = plugin_dir / normalised
                 if not full_path.exists():
-                    missing_files.append(
-                        f"{plugin_dir.name}: screenshots entry '{src}' "
-                        f"not found at {full_path}"
-                    )
+                    missing_files.append(f"{plugin_dir.name}: screenshots entry '{src}' not found at {full_path}")
 
-        assert not missing_files, (
-            "Screenshot files referenced in manifests do not exist:\n"
-            + "\n".join(f"  - {f}" for f in missing_files)
+        assert not missing_files, "Screenshot files referenced in manifests do not exist:\n" + "\n".join(
+            f"  - {f}" for f in missing_files
         )
 
     def test_screenshots_array_is_list_when_present(self):
@@ -639,7 +613,7 @@ class TestManifestScreenshots:
         if not plugins:
             pytest.skip("No plugins found")
 
-        invalid: List[str] = []
+        invalid: list[str] = []
 
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
@@ -649,14 +623,9 @@ class TestManifestScreenshots:
             manifest = load_manifest(plugin_dir)
             screenshots = manifest.get("screenshots")
             if screenshots is not None and not isinstance(screenshots, list):
-                invalid.append(
-                    f"{plugin_dir.name}: 'screenshots' must be an array, "
-                    f"got {type(screenshots).__name__}"
-                )
+                invalid.append(f"{plugin_dir.name}: 'screenshots' must be an array, got {type(screenshots).__name__}")
 
-        assert not invalid, (
-            "Invalid screenshots field types:\n" + "\n".join(f"  - {i}" for i in invalid)
-        )
+        assert not invalid, "Invalid screenshots field types:\n" + "\n".join(f"  - {i}" for i in invalid)
 
     def test_each_screenshot_entry_has_src(self):
         """CI Test: Each screenshot entry must have a 'src' field."""
@@ -665,7 +634,7 @@ class TestManifestScreenshots:
         if not plugins:
             pytest.skip("No plugins found")
 
-        missing_src: List[str] = []
+        missing_src: list[str] = []
 
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
@@ -677,13 +646,9 @@ class TestManifestScreenshots:
 
             for idx, screenshot in enumerate(screenshots):
                 if not isinstance(screenshot, dict) or "src" not in screenshot:
-                    missing_src.append(
-                        f"{plugin_dir.name}: screenshots[{idx}] missing 'src' field"
-                    )
+                    missing_src.append(f"{plugin_dir.name}: screenshots[{idx}] missing 'src' field")
 
-        assert not missing_src, (
-            "Screenshot entries missing 'src':\n" + "\n".join(f"  - {s}" for s in missing_src)
-        )
+        assert not missing_src, "Screenshot entries missing 'src':\n" + "\n".join(f"  - {s}" for s in missing_src)
 
     def test_at_most_one_primary_screenshot(self):
         """CI Test: At most one screenshot should have primary=true."""
@@ -692,7 +657,7 @@ class TestManifestScreenshots:
         if not plugins:
             pytest.skip("No plugins found")
 
-        multiple_primary: List[str] = []
+        multiple_primary: list[str] = []
 
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
@@ -701,18 +666,14 @@ class TestManifestScreenshots:
 
             manifest = load_manifest(plugin_dir)
             screenshots = manifest.get("screenshots", [])
-            primary_count = sum(
-                1 for s in screenshots if isinstance(s, dict) and s.get("primary") is True
-            )
+            primary_count = sum(1 for s in screenshots if isinstance(s, dict) and s.get("primary") is True)
             if primary_count > 1:
                 multiple_primary.append(
-                    f"{plugin_dir.name}: {primary_count} screenshots marked as primary "
-                    f"(only one allowed)"
+                    f"{plugin_dir.name}: {primary_count} screenshots marked as primary (only one allowed)"
                 )
 
-        assert not multiple_primary, (
-            "Plugins with multiple primary screenshots:\n"
-            + "\n".join(f"  - {m}" for m in multiple_primary)
+        assert not multiple_primary, "Plugins with multiple primary screenshots:\n" + "\n".join(
+            f"  - {m}" for m in multiple_primary
         )
 
 
@@ -726,7 +687,7 @@ class TestManifestCompleteness:
         if not plugins:
             pytest.skip("No plugins found")
 
-        missing: List[str] = []
+        missing: list[str] = []
 
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
@@ -737,10 +698,7 @@ class TestManifestCompleteness:
             if "settings_schema" not in manifest:
                 missing.append(plugin_dir.name)
 
-        assert not missing, (
-            "Plugins missing 'settings_schema':\n"
-            + "\n".join(f"  - {m}" for m in missing)
-        )
+        assert not missing, "Plugins missing 'settings_schema':\n" + "\n".join(f"  - {m}" for m in missing)
 
     def test_all_manifests_have_variables(self):
         """CI Test: All plugin manifests should define a variables section."""
@@ -749,7 +707,7 @@ class TestManifestCompleteness:
         if not plugins:
             pytest.skip("No plugins found")
 
-        missing: List[str] = []
+        missing: list[str] = []
 
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
@@ -760,10 +718,7 @@ class TestManifestCompleteness:
             if "variables" not in manifest:
                 missing.append(plugin_dir.name)
 
-        assert not missing, (
-            "Plugins missing 'variables':\n"
-            + "\n".join(f"  - {m}" for m in missing)
-        )
+        assert not missing, "Plugins missing 'variables':\n" + "\n".join(f"  - {m}" for m in missing)
 
     def test_settings_schema_is_object_type(self):
         """CI Test: settings_schema must be a JSON object with 'type': 'object'."""
@@ -772,7 +727,7 @@ class TestManifestCompleteness:
         if not plugins:
             pytest.skip("No plugins found")
 
-        invalid: List[str] = []
+        invalid: list[str] = []
 
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
@@ -787,83 +742,74 @@ class TestManifestCompleteness:
                 invalid.append(f"{plugin_dir.name}: settings_schema must be a dict")
             elif schema.get("type") != "object":
                 invalid.append(
-                    f"{plugin_dir.name}: settings_schema['type'] must be 'object', "
-                    f"got {schema.get('type')!r}"
+                    f"{plugin_dir.name}: settings_schema['type'] must be 'object', got {schema.get('type')!r}"
                 )
 
-        assert not invalid, (
-            "Manifests with invalid settings_schema:\n"
-            + "\n".join(f"  - {i}" for i in invalid)
-        )
+        assert not invalid, "Manifests with invalid settings_schema:\n" + "\n".join(f"  - {i}" for i in invalid)
 
 
 class TestPluginIconsAndCategories:
     """Tests for plugin display configuration."""
-    
+
     def test_icon_values_are_valid_strings(self):
         """CI Test: Icon field should be a valid string if present."""
         plugins = get_plugin_directories()
-        
+
         if not plugins:
             pytest.skip("No plugins found")
-        
-        invalid: List[str] = []
-        
+
+        invalid: list[str] = []
+
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
             if not manifest_path.exists():
                 continue
-            
+
             manifest = load_manifest(plugin_dir)
             icon = manifest.get("icon")
-            
+
             if icon is not None and not isinstance(icon, str):
                 invalid.append(f"{plugin_dir.name}: icon must be a string, got {type(icon).__name__}")
             elif icon is not None and len(icon) == 0:
                 invalid.append(f"{plugin_dir.name}: icon cannot be empty string")
-        
-        assert not invalid, (
-            "Invalid icon values:\n" + "\n".join(f"  - {i}" for i in invalid)
-        )
-    
+
+        assert not invalid, "Invalid icon values:\n" + "\n".join(f"  - {i}" for i in invalid)
+
     def test_category_values_are_valid(self):
         """CI Test: Category field should be a valid category if present."""
         plugins = get_plugin_directories()
-        
+
         if not plugins:
             pytest.skip("No plugins found")
-        
+
         valid_categories = {"art", "data", "transit", "weather", "entertainment", "utility", "home"}
-        invalid: List[str] = []
-        
+        invalid: list[str] = []
+
         for plugin_dir in plugins:
             manifest_path = plugin_dir / "manifest.json"
             if not manifest_path.exists():
                 continue
-            
+
             manifest = load_manifest(plugin_dir)
             category = manifest.get("category")
-            
+
             if category is not None and category not in valid_categories:
-                invalid.append(
-                    f"{plugin_dir.name}: category '{category}' not in {valid_categories}"
-                )
-        
-        assert not invalid, (
-            "Invalid category values:\n" + "\n".join(f"  - {i}" for i in invalid)
-        )
+                invalid.append(f"{plugin_dir.name}: category '{category}' not in {valid_categories}")
+
+        assert not invalid, "Invalid category values:\n" + "\n".join(f"  - {i}" for i in invalid)
 
 
 # ---------------------------------------------------------------------------
 # Unit tests for manifest.py internals (not CI plugin-directory scans)
 # ---------------------------------------------------------------------------
 
+
 class TestVariableNamesSubArrays:
     """Tests for VariablesSchema.get_all_variable_names with sub-arrays."""
 
     def test_get_all_variable_names_with_sub_arrays(self):
         """get_all_variable_names includes sub-array field patterns."""
-        from src.plugins.manifest import VariablesSchema, VariableArraySchema
+        from src.plugins.manifest import VariableArraySchema, VariablesSchema
 
         sub = VariableArraySchema(
             name="legs",
@@ -905,7 +851,9 @@ class TestFromDictEdgeCases:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {
                 "simple": {
                     "alpha": "just_a_string",
@@ -924,7 +872,9 @@ class TestFromDictEdgeCases:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {"simple": 42},
         }
         manifest = PluginManifest.from_dict(data)
@@ -935,7 +885,9 @@ class TestFromDictEdgeCases:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {
                 "groups": {
                     "misc": "Miscellaneous",
@@ -951,7 +903,9 @@ class TestFromDictEdgeCases:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {"groups": "invalid", "simple": ["a"]},
         }
         manifest = PluginManifest.from_dict(data)
@@ -962,7 +916,9 @@ class TestFromDictEdgeCases:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "screenshots": [
                 {"src": "docs/board.png", "alt": "Board", "caption": "Main", "primary": True},
                 {"src": "docs/config.png", "alt": "Config"},
@@ -981,7 +937,9 @@ class TestFromDictEdgeCases:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "screenshots": [
                 {"src": "docs/board.png"},
                 "not_a_dict",
@@ -998,7 +956,9 @@ class TestFromDictEdgeCases:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {
                 "arrays": {
                     "routes": {
@@ -1011,7 +971,7 @@ class TestFromDictEdgeCases:
                                 "item_fields": ["stop_name", "arrival"],
                                 "label_field": "stop_name",
                             }
-                        }
+                        },
                     }
                 }
             },
@@ -1036,15 +996,20 @@ class TestToDictSerialization:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test_plugin", "name": "Test Plugin", "version": "2.0.0",
-            "description": "A test", "author": "Tester",
-            "repository": "https://example.com", "documentation": "DOCS.md",
+            "id": "test_plugin",
+            "name": "Test Plugin",
+            "version": "2.0.0",
+            "description": "A test",
+            "author": "Tester",
+            "repository": "https://example.com",
+            "documentation": "DOCS.md",
             "settings_schema": {"type": "object"},
             "env_vars": [{"name": "API_KEY"}],
             "variables": {"simple": ["temp"]},
             "max_lengths": {"temp": 5},
             "color_rules_schema": {"rules": []},
-            "icon": "thermometer", "category": "weather",
+            "icon": "thermometer",
+            "category": "weather",
             "fiestaboard_version": ">=2.0.0",
             "supports_triggers": True,
             "screenshots": [
@@ -1065,15 +1030,8 @@ class TestToDictSerialization:
         # canonical `trigger_page_id` field — verify it's present and that
         # the original `type: object` marker is preserved.
         assert result["settings_schema"]["type"] == "object"
-        assert "trigger_page_id" in result["settings_schema"].get(
-            "properties", {}
-        )
-        assert (
-            result["settings_schema"]["properties"]["trigger_page_id"][
-                "ui:widget"
-            ]
-            == "page-picker"
-        )
+        assert "trigger_page_id" in result["settings_schema"].get("properties", {})
+        assert result["settings_schema"]["properties"]["trigger_page_id"]["ui:widget"] == "page-picker"
         assert result["env_vars"] == [{"name": "API_KEY"}]
         assert result["max_lengths"] == {"temp": 5}
         assert result["icon"] == "thermometer"
@@ -1089,11 +1047,18 @@ class TestToDictSerialization:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {
                 "simple": {
-                    "temp": {"description": "Temperature", "type": "number",
-                             "max_length": 5, "group": "current", "example": "72"},
+                    "temp": {
+                        "description": "Temperature",
+                        "type": "number",
+                        "max_length": 5,
+                        "group": "current",
+                        "example": "72",
+                    },
                 },
             },
         }
@@ -1113,7 +1078,9 @@ class TestToDictSerialization:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {
                 "groups": {"time": {"label": "Time Info"}},
                 "simple": ["hour"],
@@ -1130,7 +1097,9 @@ class TestToDictSerialization:
         from src.plugins.manifest import PluginManifest
 
         data = {
-            "id": "test", "name": "Test", "version": "1.0.0",
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
             "variables": {"simple": ["a"]},
         }
         manifest = PluginManifest.from_dict(data)
@@ -1194,8 +1163,7 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects non-dict settings_schema."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "settings_schema": "invalid"}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "settings_schema": "invalid"}
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("settings_schema must be an object" in e for e in errors)
@@ -1204,8 +1172,7 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects non-list env_vars."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "env_vars": "invalid"}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "env_vars": "invalid"}
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("env_vars must be an array" in e for e in errors)
@@ -1214,8 +1181,7 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects env_vars item that is not a dict."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "env_vars": ["not_a_dict"]}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "env_vars": ["not_a_dict"]}
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("must be an object" in e for e in errors)
@@ -1224,8 +1190,7 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects env_vars item missing name field."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "env_vars": [{"description": "no name"}]}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "env_vars": [{"description": "no name"}]}
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("missing required field: name" in e for e in errors)
@@ -1234,8 +1199,7 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects non-dict variables."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "variables": "invalid"}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "variables": "invalid"}
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("variables must be an object" in e for e in errors)
@@ -1244,8 +1208,7 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects non-dict variables.groups."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "variables": {"groups": "invalid"}}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "variables": {"groups": "invalid"}}
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("variables.groups must be an object" in e for e in errors)
@@ -1254,8 +1217,7 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects non-dict variables.arrays."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "variables": {"arrays": "invalid"}}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "variables": {"arrays": "invalid"}}
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("variables.arrays must be an object" in e for e in errors)
@@ -1264,8 +1226,7 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects array schema that is not a dict."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "variables": {"arrays": {"routes": "invalid"}}}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "variables": {"arrays": {"routes": "invalid"}}}
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("routes must be an object" in e for e in errors)
@@ -1274,8 +1235,12 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects array schema missing item_fields."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "variables": {"arrays": {"routes": {"label_field": "name"}}}}
+        data = {
+            "id": "test",
+            "name": "Test",
+            "version": "1.0.0",
+            "variables": {"arrays": {"routes": {"label_field": "name"}}},
+        }
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("missing item_fields" in e for e in errors)
@@ -1284,8 +1249,7 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects non-dict max_lengths."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "max_lengths": "invalid"}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "max_lengths": "invalid"}
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("max_lengths must be an object" in e for e in errors)
@@ -1294,8 +1258,7 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects max_lengths with non-positive integer values."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "max_lengths": {"temp": 0}}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "max_lengths": {"temp": 0}}
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("positive integer" in e for e in errors)
@@ -1304,8 +1267,7 @@ class TestValidateManifestEdgeCases:
         """validate_manifest rejects max_lengths with non-integer values."""
         from src.plugins.manifest import validate_manifest
 
-        data = {"id": "test", "name": "Test", "version": "1.0.0",
-                "max_lengths": {"temp": "five"}}
+        data = {"id": "test", "name": "Test", "version": "1.0.0", "max_lengths": {"temp": "five"}}
         is_valid, errors = validate_manifest(data)
         assert not is_valid
         assert any("positive integer" in e for e in errors)
@@ -1325,12 +1287,12 @@ class TestLoadManifestFunction:
 
     def test_load_manifest_invalid_json(self):
         """load_manifest returns error for invalid JSON."""
+        from unittest.mock import mock_open, patch
+
         from src.plugins.manifest import load_manifest as _load_manifest
-        from unittest.mock import patch, mock_open
 
         bad_json = "{invalid json content"
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("builtins.open", mock_open(read_data=bad_json)):
+        with patch("pathlib.Path.exists", return_value=True), patch("builtins.open", mock_open(read_data=bad_json)):
             result, errors = _load_manifest(Path("fake/manifest.json"))
 
         assert result is None
@@ -1339,11 +1301,14 @@ class TestLoadManifestFunction:
 
     def test_load_manifest_generic_read_exception(self):
         """load_manifest returns error when file read fails."""
-        from src.plugins.manifest import load_manifest as _load_manifest
         from unittest.mock import patch
 
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("builtins.open", side_effect=PermissionError("denied")):
+        from src.plugins.manifest import load_manifest as _load_manifest
+
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("builtins.open", side_effect=PermissionError("denied")),
+        ):
             result, errors = _load_manifest(Path("fake/manifest.json"))
 
         assert result is None
@@ -1352,17 +1317,18 @@ class TestLoadManifestFunction:
 
     def test_load_manifest_parse_exception(self):
         """load_manifest returns error when from_dict raises."""
+        from unittest.mock import mock_open, patch
+
         from src.plugins.manifest import load_manifest as _load_manifest
-        from unittest.mock import patch, mock_open
 
         valid_json = '{"id": "test", "name": "Test", "version": "1.0.0"}'
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("builtins.open", mock_open(read_data=valid_json)), \
-             patch("src.plugins.manifest.PluginManifest.from_dict",
-                   side_effect=KeyError("boom")):
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("builtins.open", mock_open(read_data=valid_json)),
+            patch("src.plugins.manifest.PluginManifest.from_dict", side_effect=KeyError("boom")),
+        ):
             result, errors = _load_manifest(Path("fake/manifest.json"))
 
         assert result is None
         assert len(errors) == 1
         assert "Failed to parse manifest" in errors[0]
-

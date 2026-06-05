@@ -13,14 +13,41 @@ from src.plugins.base import PluginBase, PluginResult
 logger = logging.getLogger(__name__)
 
 _HOUR_WORDS = {
-    1: "ONE", 2: "TWO", 3: "THREE", 4: "FOUR", 5: "FIVE", 6: "SIX",
-    7: "SEVEN", 8: "EIGHT", 9: "NINE", 10: "TEN", 11: "ELEVEN", 12: "TWELVE",
+    1: "ONE",
+    2: "TWO",
+    3: "THREE",
+    4: "FOUR",
+    5: "FIVE",
+    6: "SIX",
+    7: "SEVEN",
+    8: "EIGHT",
+    9: "NINE",
+    10: "TEN",
+    11: "ELEVEN",
+    12: "TWELVE",
 }
 
 _ONES = [
-    "", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT",
-    "NINE", "TEN", "ELEVEN", "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN",
-    "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN",
+    "",
+    "ONE",
+    "TWO",
+    "THREE",
+    "FOUR",
+    "FIVE",
+    "SIX",
+    "SEVEN",
+    "EIGHT",
+    "NINE",
+    "TEN",
+    "ELEVEN",
+    "TWELVE",
+    "THIRTEEN",
+    "FOURTEEN",
+    "FIFTEEN",
+    "SIXTEEN",
+    "SEVENTEEN",
+    "EIGHTEEN",
+    "NINETEEN",
 ]
 _TENS = ["", "", "TWENTY", "THIRTY", "FORTY", "FIFTY"]
 
@@ -56,14 +83,13 @@ def _time_to_english(hour: int, minute: int) -> str:
 
     if minute == 0:
         return f"IT'S {_HOUR_WORDS[h12]} O'CLOCK {period}."
-    elif minute == 30:
+    if minute == 30:
         return f"IT'S HALF PAST {_HOUR_WORDS[h12]} {period}."
-    elif minute < 30:
+    if minute < 30:
         return f"IT'S {_minute_word(minute)} PAST {_HOUR_WORDS[h12]} {period}."
-    else:
-        minutes_to = 60 - minute
-        next_h12 = h12 % 12 + 1
-        return f"IT'S {_minute_word(minutes_to)} TO {_HOUR_WORDS[next_h12]} {period}."
+    minutes_to = 60 - minute
+    next_h12 = h12 % 12 + 1
+    return f"IT'S {_minute_word(minutes_to)} TO {_HOUR_WORDS[next_h12]} {period}."
 
 
 class DateTimePlugin(PluginBase):
@@ -101,6 +127,7 @@ class DateTimePlugin(PluginBase):
             timezone_str = self.config.get("timezone")
             if not timezone_str:
                 from src.config import Config
+
                 timezone_str = Config.GENERAL_TIMEZONE or "America/Los_Angeles"
             tz = ZoneInfo(timezone_str)
             now = datetime.now(tz)
@@ -117,38 +144,29 @@ class DateTimePlugin(PluginBase):
                 "year": str(now.year),
                 "hour": str(now.hour),
                 "minute": str(now.minute).zfill(2),
-
                 # New time formats
-                "time_12h": now.strftime("%I:%M %p").lstrip("0"),  # 12-hour format without leading zero from hour, e.g., "2:30 PM"
+                "time_12h": now.strftime("%I:%M %p").lstrip(
+                    "0"
+                ),  # 12-hour format without leading zero from hour, e.g., "2:30 PM"
                 "time_24h": now.strftime("%H:%M"),  # Same as "time" but explicit
-
                 # New date formats (US format)
                 "date_us": now.strftime("%m/%d/%Y"),  # MM/DD/YYYY
                 "date_us_short": now.strftime("%m/%d/%y"),  # MM/DD/YY
-
                 # New month formats
                 "month_number": str(now.month),  # 1-12 (unpadded)
                 "month_number_padded": now.strftime("%m"),  # 01-12 (zero-padded)
                 "month_abbr": now.strftime("%b"),  # 3-letter abbreviation (Jan, Feb, etc.)
-
                 # Additional timezone info
                 "timezone": timezone_str,  # Full timezone name from config
-
                 # Spoken English time expression
                 "time_english": _time_to_english(now.hour, now.minute),
             }
 
-            return PluginResult(
-                available=True,
-                data=data
-            )
+            return PluginResult(available=True, data=data)
 
         except Exception as e:
             logger.exception("Error fetching datetime data")
-            return PluginResult(
-                available=False,
-                error=str(e)
-            )
+            return PluginResult(available=False, error=str(e))
 
     def get_formatted_display(self) -> list[str] | None:
         """Return default formatted datetime display."""
@@ -157,7 +175,7 @@ class DateTimePlugin(PluginBase):
             return None
 
         data = result.data
-        lines = [
+        return [
             "",
             data["day_of_week"].upper().center(22),
             data["date"].center(22),
@@ -166,9 +184,6 @@ class DateTimePlugin(PluginBase):
             "",
         ]
 
-        return lines
-
 
 # Export the plugin class
 Plugin = DateTimePlugin
-

@@ -4,6 +4,7 @@
 
 import re
 
+
 def validate_board_layout(board_state):
     """Validate that a board state has correct layout structure."""
     if not isinstance(board_state, dict):
@@ -20,6 +21,7 @@ def validate_board_layout(board_state):
             raise AssertionError("Board cell must be an integer")
     return True
 
+
 def validate_api_response_shape(response, expected_fields):
     """Validate that an API response has the expected fields."""
     if not isinstance(response, dict):
@@ -28,6 +30,7 @@ def validate_api_response_shape(response, expected_fields):
     if missing:
         raise AssertionError(f"API response missing fields: {missing}")
     return True
+
 
 def validate_plugin_output_format(output, expected_keys):
     """Validate that plugin output matches expected format."""
@@ -38,9 +41,10 @@ def validate_plugin_output_format(output, expected_keys):
             raise AssertionError(f"Plugin output missing key: {key}")
     return True
 
+
 def validate_template_variables(template, variables):
     """Validate that template has required variables."""
-    pattern = r'\{\{(\w+)\}\}'
+    pattern = r"\{\{(\w+)\}\}"
     found_vars = set(re.findall(pattern, template))
     missing = found_vars - set(variables.keys())
     if missing:

@@ -36,13 +36,8 @@ class MDNSService:
         hostname: str | None = None,
         port: int | None = None,
     ) -> None:
-        self._hostname = (
-            hostname
-            or os.environ.get("MDNS_HOSTNAME", DEFAULT_MDNS_HOSTNAME)
-        )
-        self._port = port or int(
-            os.environ.get("MDNS_PORT", str(DEFAULT_SERVICE_PORT))
-        )
+        self._hostname = hostname or os.environ.get("MDNS_HOSTNAME", DEFAULT_MDNS_HOSTNAME)
+        self._port = port or int(os.environ.get("MDNS_PORT", str(DEFAULT_SERVICE_PORT)))
         self._zeroconf = None
         self._service_info = None
         self._started = False
@@ -104,9 +99,7 @@ class MDNSService:
             )
             return True
         except ImportError:
-            logger.warning(
-                "zeroconf package not installed – mDNS advertisement disabled"
-            )
+            logger.warning("zeroconf package not installed – mDNS advertisement disabled")
             return False
         except Exception:
             logger.warning("Failed to start mDNS service", exc_info=True)
@@ -231,19 +224,18 @@ def scan_for_boards(timeout: float = 4.0) -> list[dict[str, Any]]:
                 port = info.port
                 hostname = (info.server or "").rstrip(".")
                 svc_name = name.lower()
-                is_vestaboard = (
-                    "vestaboard" in svc_name
-                    or port == _VESTABOARD_LOCAL_API_PORT
-                )
+                is_vestaboard = "vestaboard" in svc_name or port == _VESTABOARD_LOCAL_API_PORT
                 if is_vestaboard:
                     for addr in addresses:
                         with lock:
-                            discovered.append({
-                                "ip": addr,
-                                "port": port,
-                                "hostname": hostname,
-                                "source": "mdns",
-                            })
+                            discovered.append(
+                                {
+                                    "ip": addr,
+                                    "port": port,
+                                    "hostname": hostname,
+                                    "source": "mdns",
+                                }
+                            )
 
             def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
                 pass
@@ -253,10 +245,7 @@ def scan_for_boards(timeout: float = 4.0) -> list[dict[str, Any]]:
 
         zc = Zeroconf()
         listener = _Listener()
-        browsers = [
-            ServiceBrowser(zc, stype, listener)
-            for stype in _BROWSE_SERVICE_TYPES
-        ]
+        browsers = [ServiceBrowser(zc, stype, listener) for stype in _BROWSE_SERVICE_TYPES]
 
         time.sleep(timeout)
         for browser in browsers:
@@ -301,12 +290,14 @@ def scan_for_boards(timeout: float = 4.0) -> list[dict[str, Any]]:
             for ip in probe_results:
                 if ip not in seen_ips:
                     seen_ips.add(ip)
-                    results.append({
-                        "ip": ip,
-                        "port": _VESTABOARD_LOCAL_API_PORT,
-                        "hostname": "",
-                        "source": "port_scan",
-                    })
+                    results.append(
+                        {
+                            "ip": ip,
+                            "port": _VESTABOARD_LOCAL_API_PORT,
+                            "hostname": "",
+                            "source": "port_scan",
+                        }
+                    )
     except Exception:
         logger.warning("Subnet port-probe phase failed", exc_info=True)
 

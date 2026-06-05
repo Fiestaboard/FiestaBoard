@@ -22,8 +22,9 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 
-from ..devices import DeviceType, get_dimensions
-from ..pages.models import Page, PageCreate
+from src.devices import DeviceType, get_dimensions
+from src.pages.models import Page, PageCreate
+
 from .prompt_builder import PromptContext, build_prompt
 from .protocols import Protocol, get_protocol
 from .template_validator import repair_template_lines
@@ -82,9 +83,7 @@ def _extract_json_object(text: str) -> dict[str, Any]:
         try:
             return json.loads(candidate)
         except json.JSONDecodeError as exc:
-            raise AIGenerationError(
-                f"Model output was not valid JSON: {exc}"
-            ) from exc
+            raise AIGenerationError(f"Model output was not valid JSON: {exc}") from exc
     raise AIGenerationError("Model output did not contain a JSON object.")
 
 
@@ -128,31 +127,24 @@ def _validate_and_repair(
     name = raw.get("name")
     if not isinstance(name, str) or not name.strip():
         page["name"] = "AI Page"
-        warnings.append("Model did not return a name; using \"AI Page\".")
+        warnings.append('Model did not return a name; using "AI Page".')
     else:
         page["name"] = name.strip()[:100]
 
     # type — always template for AI pages.
     if raw.get("type") not in (None, "template"):
-        warnings.append(
-            f"Model returned type={raw.get('type')!r}; coerced to 'template'."
-        )
+        warnings.append(f"Model returned type={raw.get('type')!r}; coerced to 'template'.")
     page["type"] = "template"
 
     # device_type — force to requested.
     if raw.get("device_type") not in (None, device_type):
-        warnings.append(
-            f"Model returned device_type={raw.get('device_type')!r}; "
-            f"coerced to {device_type!r}."
-        )
+        warnings.append(f"Model returned device_type={raw.get('device_type')!r}; coerced to {device_type!r}.")
     page["device_type"] = device_type
 
     # template lines
     template = raw.get("template")
     if not isinstance(template, list) or not template:
-        raise AIGenerationError(
-            "Model output is missing the required 'template' list."
-        )
+        raise AIGenerationError("Model output is missing the required 'template' list.")
     template = [str(line) if line is not None else "" for line in template]
 
     # Repair common ``{{filled:...}}`` mistakes before length/width
@@ -164,16 +156,10 @@ def _validate_and_repair(
 
     # Pad/trim to exact device row count.
     if len(template) < dims.rows:
-        warnings.append(
-            f"Model returned {len(template)} lines; padded to {dims.rows} for "
-            f"{device_type}."
-        )
+        warnings.append(f"Model returned {len(template)} lines; padded to {dims.rows} for {device_type}.")
         template = template + [""] * (dims.rows - len(template))
     elif len(template) > dims.rows:
-        warnings.append(
-            f"Model returned {len(template)} lines; truncated to {dims.rows} "
-            f"for {device_type}."
-        )
+        warnings.append(f"Model returned {len(template)} lines; truncated to {dims.rows} for {device_type}.")
         template = template[: dims.rows]
 
     # line_metadata
@@ -222,10 +208,7 @@ def _validate_and_repair(
     # tolerates unknown vars and the user may simply enable a plugin).
     unknown = _find_unknown_variables(template, known_variables)
     for ref in unknown:
-        warnings.append(
-            f"Template references unknown variable {{{{{ref}}}}}. The "
-            "plugin may not be enabled."
-        )
+        warnings.append(f"Template references unknown variable {{{{{ref}}}}}. The plugin may not be enabled.")
 
     # Final structural validation via Pydantic.
     try:
@@ -239,16 +222,12 @@ def _validate_and_repair(
     except ValidationError as exc:
         # Pydantic ValidationError messages are curated and safe to
         # surface — they describe the field that failed, not internals.
-        raise AIGenerationError(
-            f"Model output failed validation: {exc}"
-        ) from exc
+        raise AIGenerationError(f"Model output failed validation: {exc}") from exc
     except Exception as exc:
         # Defensive: anything else here is unexpected. Log it but
         # don't expose the raw message to the API consumer.
         logger.exception("Unexpected error validating model output")
-        raise AIGenerationError(
-            "Model output failed validation."
-        ) from exc
+        raise AIGenerationError("Model output failed validation.") from exc
 
     return page, warnings
 
@@ -283,14 +262,10 @@ def _resolve_provider(
     Falls back to the configured default; raises if nothing is usable.
     """
     if not providers_block.get("enabled"):
-        raise AIGenerationError(
-            "AI providers are not enabled. Configure one in Settings first."
-        )
+        raise AIGenerationError("AI providers are not enabled. Configure one in Settings first.")
     providers = providers_block.get("providers") or []
     if not providers:
-        raise AIGenerationError(
-            "No AI providers are configured. Add one in Settings first."
-        )
+        raise AIGenerationError("No AI providers are configured. Add one in Settings first.")
 
     if provider_id:
         for provider in providers:
@@ -316,10 +291,7 @@ def _resolve_model(provider: dict[str, Any], model: str | None) -> str:
     models = provider.get("models") or []
     if models:
         return models[0]
-    raise AIGenerationError(
-        f"AI provider {provider.get('name', provider.get('id'))!r} has no "
-        "models configured."
-    )
+    raise AIGenerationError(f"AI provider {provider.get('name', provider.get('id'))!r} has no models configured.")
 
 
 def _build_request_payload(
@@ -371,9 +343,7 @@ async def _post_chat_completion(
             # Don't echo the raw httpx exception message — it can include
             # URL/host details and CodeQL flags it as stack-trace exposure.
             logger.warning("AI provider HTTP error: %s", exc)
-            raise AIGenerationError(
-                "Could not reach AI provider."
-            ) from exc
+            raise AIGenerationError("Could not reach AI provider.") from exc
         if response.status_code >= 400:
             # Try to surface the provider's own error message via the
             # protocol-specific error parser.
@@ -386,9 +356,7 @@ async def _post_chat_completion(
                 err_msg = None
             if not err_msg:
                 err_msg = response.text
-            raise AIGenerationError(
-                f"AI provider returned {response.status_code}: {err_msg}"
-            )
+            raise AIGenerationError(f"AI provider returned {response.status_code}: {err_msg}")
         try:
             return response.json()
         except Exception as exc:
@@ -396,9 +364,7 @@ async def _post_chat_completion(
             # message — only that it was non-JSON. The full exception is
             # logged for debugging.
             logger.warning("AI provider returned non-JSON response: %s", exc)
-            raise AIGenerationError(
-                "AI provider returned a non-JSON response."
-            ) from exc
+            raise AIGenerationError("AI provider returned a non-JSON response.") from exc
     finally:
         if owns_client:
             await client.aclose()
@@ -457,9 +423,7 @@ async def generate_page(
     )
 
     payload = _build_request_payload(chosen_model, context, protocol)
-    api_response = await _post_chat_completion(
-        provider, payload, protocol=protocol, client=client
-    )
+    api_response = await _post_chat_completion(provider, payload, protocol=protocol, client=client)
 
     text = _extract_message_content(api_response, protocol)
     raw = _extract_json_object(text)
@@ -520,10 +484,7 @@ async def test_provider(
         logger.exception("Unexpected error during provider test")
         return {
             "ok": False,
-            "message": (
-                "Unexpected error contacting the provider. "
-                "See server logs for details."
-            ),
+            "message": ("Unexpected error contacting the provider. See server logs for details."),
             "model_used": chosen_model,
         }
 

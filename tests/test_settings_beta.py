@@ -18,8 +18,10 @@ def _reset_beta_state():
 
 def test_get_beta_settings_returns_defaults():
     _reset_beta_state()
-    with patch("src.api_server._updater_token", return_value=""), \
-            patch("src.api_server._updater_probe", return_value=False):
+    with (
+        patch("src.api_server._updater_token", return_value=""),
+        patch("src.api_server._updater_probe", return_value=False),
+    ):
         response = client.get("/settings/beta")
     assert response.status_code == 200
     body = response.json()
@@ -42,9 +44,11 @@ def test_put_beta_enable_https_generates_cert_and_requests_restart(tmp_path, mon
         fake_key.write_text("KEY")
         return fake_cert, fake_key
 
-    with patch("src.system.https_certs.generate_cert", side_effect=fake_generate) as gen, \
-            patch("src.api_server._updater_token", return_value=""), \
-            patch("src.api_server._updater_probe", return_value=False):
+    with (
+        patch("src.system.https_certs.generate_cert", side_effect=fake_generate) as gen,
+        patch("src.api_server._updater_token", return_value=""),
+        patch("src.api_server._updater_probe", return_value=False),
+    ):
         response = client.put("/settings/beta", json={"https_enabled": True})
 
     assert response.status_code == 200
@@ -61,14 +65,18 @@ def test_put_beta_disable_https_removes_cert(tmp_path, monkeypatch):
     monkeypatch.setenv("FIESTABOARD_CERT_DIR", str(tmp_path))
 
     # Pre-enable without invoking openssl.
-    with patch("src.system.https_certs.generate_cert", return_value=(tmp_path / "c", tmp_path / "k")), \
-            patch("src.api_server._updater_token", return_value=""), \
-            patch("src.api_server._updater_probe", return_value=False):
+    with (
+        patch("src.system.https_certs.generate_cert", return_value=(tmp_path / "c", tmp_path / "k")),
+        patch("src.api_server._updater_token", return_value=""),
+        patch("src.api_server._updater_probe", return_value=False),
+    ):
         client.put("/settings/beta", json={"https_enabled": True})
 
-    with patch("src.system.https_certs.remove_cert", return_value=True) as rm, \
-            patch("src.api_server._updater_token", return_value=""), \
-            patch("src.api_server._updater_probe", return_value=False):
+    with (
+        patch("src.system.https_certs.remove_cert", return_value=True) as rm,
+        patch("src.api_server._updater_token", return_value=""),
+        patch("src.api_server._updater_probe", return_value=False),
+    ):
         response = client.put("/settings/beta", json={"https_enabled": False})
 
     assert response.status_code == 200
@@ -82,12 +90,13 @@ def test_put_beta_no_change_does_not_request_restart(tmp_path, monkeypatch):
     _reset_beta_state()
     monkeypatch.setenv("FIESTABOARD_CERT_DIR", str(tmp_path))
 
-    with patch("src.api_server._updater_token", return_value=""), \
-            patch("src.api_server._updater_probe", return_value=False):
+    with (
+        patch("src.api_server._updater_token", return_value=""),
+        patch("src.api_server._updater_probe", return_value=False),
+    ):
         # Setting to current value should not request a restart and
         # should not invoke cert generation.
-        with patch("src.system.https_certs.generate_cert") as gen, \
-                patch("src.system.https_certs.remove_cert") as rm:
+        with patch("src.system.https_certs.generate_cert") as gen, patch("src.system.https_certs.remove_cert") as rm:
             response = client.put("/settings/beta", json={"https_enabled": False})
 
     assert response.status_code == 200
@@ -101,11 +110,14 @@ def test_put_beta_cert_generation_failure_returns_warning(tmp_path, monkeypatch)
     _reset_beta_state()
     monkeypatch.setenv("FIESTABOARD_CERT_DIR", str(tmp_path))
 
-    with patch(
-        "src.system.https_certs.generate_cert",
-        side_effect=RuntimeError("openssl exploded"),
-    ), patch("src.api_server._updater_token", return_value=""), \
-            patch("src.api_server._updater_probe", return_value=False):
+    with (
+        patch(
+            "src.system.https_certs.generate_cert",
+            side_effect=RuntimeError("openssl exploded"),
+        ),
+        patch("src.api_server._updater_token", return_value=""),
+        patch("src.api_server._updater_probe", return_value=False),
+    ):
         response = client.put("/settings/beta", json={"https_enabled": True})
 
     assert response.status_code == 200
@@ -120,8 +132,10 @@ def test_put_beta_cert_generation_failure_returns_warning(tmp_path, monkeypatch)
 
 def test_put_beta_reports_updater_availability():
     _reset_beta_state()
-    with patch("src.api_server._updater_token", return_value="tok"), \
-            patch("src.api_server._updater_probe", return_value=True):
+    with (
+        patch("src.api_server._updater_token", return_value="tok"),
+        patch("src.api_server._updater_probe", return_value=True),
+    ):
         response = client.put("/settings/beta", json={})
     body = response.json()
     assert body["https"]["updater_available"] is True

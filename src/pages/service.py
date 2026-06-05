@@ -8,11 +8,12 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from ..devices import get_dimensions
-from ..displays.service import DisplayResult, get_display_service
-from ..plugins.manifest import DemoPageSchema
-from ..settings.service import get_settings_service
-from ..templates.engine import get_template_engine
+from src.devices import get_dimensions
+from src.displays.service import DisplayResult, get_display_service
+from src.plugins.manifest import DemoPageSchema
+from src.settings.service import get_settings_service
+from src.templates.engine import get_template_engine
+
 from .models import LineMetadata, Page, PageCreate, PageUpdate
 from .storage import PageStorage
 
@@ -48,6 +49,7 @@ DEFAULT_PAGE_TEMPLATE = DEFAULT_PAGE_TEMPLATES["flagship"]
 @dataclass
 class DeleteResult:
     """Result of a page deletion operation."""
+
     deleted: bool
     default_page_created: bool = False
     new_page_id: str | None = None
@@ -58,6 +60,7 @@ class DeleteResult:
 @dataclass
 class CachedPreview:
     """Cached preview result for a page."""
+
     result: DisplayResult
     page_updated_at: datetime | None  # Timestamp when page was last updated
     cached_at: float  # Unix timestamp when this was cached
@@ -136,7 +139,7 @@ class PageService:
             line_metadata=data.line_metadata,
             duration_seconds=data.duration_seconds,
             demo_plugin_id=data.demo_plugin_id,
-            created_at=datetime.now(UTC)
+            created_at=datetime.now(UTC),
         )
 
         return self.storage.create(page)
@@ -203,7 +206,7 @@ class PageService:
                 default_page_created=True,
                 new_page_id=default_page.id,
                 active_page_updated=is_active_page,
-                new_active_page_id=default_page.id if is_active_page else None
+                new_active_page_id=default_page.id if is_active_page else None,
             )
 
         # Normal deletion
@@ -221,11 +224,7 @@ class PageService:
                 settings_service.set_active_page_id(new_active_id)
                 logger.info(f"Active page updated to: {new_active_id}")
 
-        return DeleteResult(
-            deleted=True,
-            active_page_updated=is_active_page,
-            new_active_page_id=new_active_id
-        )
+        return DeleteResult(deleted=True, active_page_updated=is_active_page, new_active_page_id=new_active_id)
 
     def _create_default_page(self) -> Page:
         """Create and save a default welcome page.
@@ -238,7 +237,7 @@ class PageService:
             type="template",
             template=DEFAULT_PAGE_TEMPLATE,
             duration_seconds=300,
-            created_at=datetime.now(UTC)
+            created_at=datetime.now(UTC),
         )
         return self.storage.create(page)
 
@@ -251,9 +250,8 @@ class PageService:
         If *device_type* is provided, only pages matching that device type are returned.
         """
         for page in self.storage.list_all():
-            if page.demo_plugin_id == plugin_id:
-                if device_type is None or page.device_type == device_type:
-                    return page
+            if page.demo_plugin_id == plugin_id and (device_type is None or page.device_type == device_type):
+                return page
         return None
 
     def create_demo_page(self, plugin_id: str, demo: DemoPageSchema) -> tuple[Page, bool]:
@@ -312,18 +310,13 @@ class PageService:
         """
         if page.type == "single":
             return self._render_single(page)
-        elif page.type == "composite":
+        if page.type == "composite":
             return self._render_composite(page)
-        elif page.type == "template":
+        if page.type == "template":
             return self._render_template(page, context=context)
-        else:
-            return DisplayResult(
-                display_type="page",
-                formatted="",
-                raw={},
-                available=False,
-                error=f"Unknown page type: {page.type}"
-            )
+        return DisplayResult(
+            display_type="page", formatted="", raw={}, available=False, error=f"Unknown page type: {page.type}"
+        )
 
     def _render_single(self, page: Page) -> DisplayResult:
         """Render a single-source page."""
@@ -333,7 +326,7 @@ class PageService:
                 formatted="",
                 raw={"page_id": page.id},
                 available=False,
-                error="Single page missing display_type"
+                error="Single page missing display_type",
             )
 
         display_service = get_display_service()
@@ -345,7 +338,7 @@ class PageService:
             formatted=result.formatted,
             raw={"page_id": page.id, "source_data": result.raw},
             available=result.available,
-            error=result.error
+            error=result.error,
         )
 
     def _render_composite(self, page: Page) -> DisplayResult:
@@ -356,7 +349,7 @@ class PageService:
                 formatted="",
                 raw={"page_id": page.id},
                 available=False,
-                error="Composite page missing row configuration"
+                error="Composite page missing row configuration",
             )
 
         dims = get_dimensions(page.device_type)
@@ -375,23 +368,23 @@ class PageService:
             source_data[row_config.source] = result.raw
 
             # Split source into lines
-            source_lines = result.formatted.split('\n')
+            source_lines = result.formatted.split("\n")
 
             # Get the specified row if it exists
             if row_config.row_index < len(source_lines):
                 source_line = source_lines[row_config.row_index]
                 # Pad or truncate to device width
-                source_line = source_line[:dims.cols].ljust(dims.cols)
+                source_line = source_line[: dims.cols].ljust(dims.cols)
                 if row_config.target_row < dims.rows:
                     output_lines[row_config.target_row] = source_line
 
-        formatted = '\n'.join(output_lines)
+        formatted = "\n".join(output_lines)
 
         return DisplayResult(
             display_type="page:composite",
             formatted=formatted,
             raw={"page_id": page.id, "sources": source_data},
-            available=True
+            available=True,
         )
 
     def _render_template(self, page: Page, context: dict | None = None) -> DisplayResult:
@@ -413,7 +406,7 @@ class PageService:
                 formatted="",
                 raw={"page_id": page.id},
                 available=False,
-                error="Template page missing template content"
+                error="Template page missing template content",
             )
 
         try:
@@ -423,7 +416,9 @@ class PageService:
             # The template engine already handles tile-aware truncation in render_lines()
             # via _truncate_to_tiles() - color codes like {63} count as 1 tile each
             meta = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
-            formatted = template_engine.render_lines(page.template, context=context, line_metadata=meta, device_type=page.device_type)
+            formatted = template_engine.render_lines(
+                page.template, context=context, line_metadata=meta, device_type=page.device_type
+            )
 
             # Note: We do NOT truncate/pad by character count here because:
             # - Color codes like {63} are 4 characters but represent 1 tile
@@ -434,7 +429,7 @@ class PageService:
                 display_type="page:template",
                 formatted=formatted,
                 raw={"page_id": page.id, "template": page.template},
-                available=True
+                available=True,
             )
         except Exception as e:
             logger.error(f"Failed to render template: {e}", exc_info=True)
@@ -443,7 +438,7 @@ class PageService:
                 formatted="",
                 raw={"page_id": page.id, "template": page.template},
                 available=False,
-                error=f"Template rendering failed: {str(e)}"
+                error=f"Template rendering failed: {e!s}",
             )
 
     def preview_page(self, page_id: str, force_refresh: bool = False) -> DisplayResult | None:
@@ -477,15 +472,14 @@ class PageService:
 
         # Cache the result
         self._preview_cache[page_id] = CachedPreview(
-            result=result,
-            page_updated_at=page.updated_at,
-            cached_at=time.time()
+            result=result, page_updated_at=page.updated_at, cached_at=time.time()
         )
 
         return result
 
-    def preview_pages_batch(self, page_ids: list[str], force_refresh: bool = False,
-                            active_page_id: str | None = None) -> dict[str, DisplayResult | None]:
+    def preview_pages_batch(
+        self, page_ids: list[str], force_refresh: bool = False, active_page_id: str | None = None
+    ) -> dict[str, DisplayResult | None]:
         """Preview multiple pages, building template context once for efficiency.
 
         When rendering multiple template pages, the template context (plugin data)
@@ -538,20 +532,14 @@ class PageService:
 
                 # Cache the result
                 self._preview_cache[page_id] = CachedPreview(
-                    result=result,
-                    page_updated_at=page.updated_at,
-                    cached_at=time.time()
+                    result=result, page_updated_at=page.updated_at, cached_at=time.time()
                 )
 
                 results[page_id] = result
             except Exception as e:
                 logger.error(f"Error rendering page {page_id}: {e}")
                 results[page_id] = DisplayResult(
-                    display_type="page",
-                    formatted="",
-                    raw={"page_id": page_id},
-                    available=False,
-                    error=str(e)
+                    display_type="page", formatted="", raw={"page_id": page_id}, available=False, error=str(e)
                 )
 
         return results
@@ -576,7 +564,7 @@ class PageService:
         return {
             "cache_size": len(self._preview_cache),
             "cached_pages": list(self._preview_cache.keys()),
-            "ttl_seconds": PREVIEW_CACHE_TTL
+            "ttl_seconds": PREVIEW_CACHE_TTL,
         }
 
 
@@ -590,4 +578,3 @@ def get_page_service() -> PageService:
     if _page_service is None:
         _page_service = PageService()
     return _page_service
-
