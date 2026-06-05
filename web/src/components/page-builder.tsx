@@ -1470,7 +1470,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         const shouldIgnore = shouldIgnoreNextResponse.current;
 
                         if (isTransitioning) return true;
-                        if (preview !== null && !isTransitioning) return false;
+                        if (preview !== null) return false;
                         if (!hasContent) return false;
                         if (shouldIgnore) return false;
                         return isPending && hasContent;

@@ -408,7 +408,7 @@ export function TipTapTemplateEditor({
 
           // Handle Cut (Ctrl/Cmd + X) - copy to clipboard and delete
           if ((event.ctrlKey || event.metaKey) && event.key === "x") {
-            if (selection && !selection.empty) {
+            if (!selection.empty) {
               try {
                 // Copy selection to clipboard
                 const slice = selection.content();
