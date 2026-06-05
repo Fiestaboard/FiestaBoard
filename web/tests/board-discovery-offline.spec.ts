@@ -454,7 +454,6 @@ test.describe("Multi-Board — State Independence", () => {
     const boardRes = await fetch(`${API_URL}/settings/board`);
     const boardData = await boardRes.json();
     const board1 = boardData.boards.find((b: Record<string, unknown>) => b.id === board1Id);
-    const board2 = boardData.boards.find((b: Record<string, unknown>) => b.id === board2Id);
 
     // Change board2 from note to flagship
     const updatedBoards = boardData.boards.map((b: Record<string, unknown>) =>
