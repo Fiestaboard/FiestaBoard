@@ -479,6 +479,67 @@ class PluginBase(ABC):
         """
         return []
 
+    def fire_trigger(self, trigger: "TriggerResult") -> None:
+        """Immediately submit a trigger to the active :class:`TriggerService`.
+
+        Intended for **push-driven** plugins -- typically those overriding
+        :meth:`receive_payload` -- that need to surface an event as soon as
+        a webhook arrives instead of waiting for the next polling tick or
+        re-implementing ``check_triggers``.
+
+        The method is a no-op when:
+
+        * the plugin's manifest does not declare ``supports_triggers: true``
+          (the trigger system is intentionally opt-in), or
+        * the supplied :class:`TriggerResult` has ``triggered=False`` (matches
+          the behaviour of :meth:`TriggerService.check_plugin_triggers`).
+
+        Triggers that the user has dismissed are still suppressed by the
+        :class:`TriggerService`; ``fire_trigger`` simply delegates and does
+        not bypass user overrides.
+
+        Args:
+            trigger: The :class:`TriggerResult` to enqueue.  When ``trigger_id``
+                is omitted the plugin id is used as a fallback so simple
+                webhook handlers can fire-and-forget.
+        """
+        if not self.supports_triggers:
+            logger.debug(
+                "fire_trigger called on plugin %s which does not declare "
+                "supports_triggers; ignoring",
+                self.plugin_id,
+            )
+            return
+
+        if not getattr(trigger, "triggered", False):
+            logger.debug(
+                "fire_trigger received a non-fired TriggerResult from %s; "
+                "ignoring",
+                self.plugin_id,
+            )
+            return
+
+        # Default trigger_id to the plugin id so naive callers
+        # (``self.fire_trigger(TriggerResult(triggered=True, message="..."))``)
+        # don't end up colliding on an empty string in the service dict.
+        if not trigger.trigger_id:
+            trigger.trigger_id = self.plugin_id
+
+        try:
+            # Local import keeps the plugin base independent of the triggers
+            # subpackage at import time (avoids a circular import — the
+            # service module imports PluginBase).
+            from ..triggers.service import get_trigger_service
+        except Exception:
+            logger.exception(
+                "fire_trigger could not import TriggerService for plugin %s",
+                self.plugin_id,
+            )
+            return
+
+        service = get_trigger_service()
+        service.activate_trigger(self.plugin_id, trigger)
+
     def get_env_vars(self) -> list[dict[str, Any]]:
         """Return required/optional environment variables from manifest.
 

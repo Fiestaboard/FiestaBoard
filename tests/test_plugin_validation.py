@@ -1061,7 +1061,19 @@ class TestToDictSerialization:
         assert result["author"] == "Tester"
         assert result["repository"] == "https://example.com"
         assert result["documentation"] == "DOCS.md"
-        assert result["settings_schema"] == {"type": "object"}
+        # When supports_triggers is True the loader auto-injects a
+        # canonical `trigger_page_id` field — verify it's present and that
+        # the original `type: object` marker is preserved.
+        assert result["settings_schema"]["type"] == "object"
+        assert "trigger_page_id" in result["settings_schema"].get(
+            "properties", {}
+        )
+        assert (
+            result["settings_schema"]["properties"]["trigger_page_id"][
+                "ui:widget"
+            ]
+            == "page-picker"
+        )
         assert result["env_vars"] == [{"name": "API_KEY"}]
         assert result["max_lengths"] == {"temp": 5}
         assert result["icon"] == "thermometer"
