@@ -11,6 +11,8 @@ This page walks through wiring each client up to a self-hosted FiestaBoard.
 > clients → Generate token** (or **Rotate token**). The plaintext value is
 > shown exactly once — copy it into your client config immediately.
 
+> **Hostname tip:** Docker installs advertise as `fiestaboard.local`; the FiestaPi image advertises as `fiestapi.local`. Use whichever matches your install (or substitute the LAN IP if mDNS doesn't resolve on your network). The examples below use `fiestaboard.local`.
+
 ## Why local hosting makes this awkward
 
 The MCP ecosystem is converging on three transports — stdio, HTTP, and
