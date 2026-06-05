@@ -1,0 +1,1413 @@
+{
+  "ux_tree": "ux-tree.json",
+  "generated_at": "2026-06-04T05:34:34Z",
+  "scope": "pages,schedule,dashboard,integrations,settings,carousels,picks,profile,login,offline,debug",
+  "audited_specs": [
+    "web/tests/a11y.spec.ts",
+    "web/tests/auth.spec.ts",
+    "web/tests/board-discovery-offline.spec.ts",
+    "web/tests/calendar-alignment.spec.ts",
+    "web/tests/dashboard.spec.ts",
+    "web/tests/error-handling.spec.ts",
+    "web/tests/error-recovery.spec.ts",
+    "web/tests/home-assistant-controls.spec.ts",
+    "web/tests/home-assistant-discovery.spec.ts",
+    "web/tests/integration.spec.ts",
+    "web/tests/integrations.spec.ts",
+    "web/tests/localization.spec.ts",
+    "web/tests/mobile-critical-flows.spec.ts",
+    "web/tests/mock-board.spec.ts",
+    "web/tests/multi-board-schedule.spec.ts",
+    "web/tests/multi-board.spec.ts",
+    "web/tests/navigation.spec.ts",
+    "web/tests/note-pages.spec.ts",
+    "web/tests/page-builder.spec.ts",
+    "web/tests/pages-crud.spec.ts",
+    "web/tests/plugin-detail.spec.ts",
+    "web/tests/plugin-management.spec.ts",
+    "web/tests/schedule-crud.spec.ts",
+    "web/tests/schedule-management.spec.ts",
+    "web/tests/schedule-midnight.spec.ts",
+    "web/tests/settings-full.spec.ts",
+    "web/tests/settings.spec.ts"
+  ],
+  "coverage": {
+    "pages.list.loading": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-list.spec.ts:95"
+    },
+    "pages.list.grid-loading": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-list.spec.ts:108"
+    },
+    "pages.list.list-loading": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-list.spec.ts:122"
+    },
+    "pages.list.empty": {
+      "status": "partial",
+      "specs": [
+        "web/tests/page-builder.spec.ts:198"
+      ],
+      "missing": [
+        "explicit empty-state SVG / 'No pages created yet.' copy not asserted",
+        "Create First Page CTA not clicked",
+        "?device= query propagation untested"
+      ],
+      "stub": "web/tests/regression/pages-list.spec.ts:77"
+    },
+    "pages.list.grid-view": {
+      "status": "partial",
+      "specs": [
+        "web/tests/pages-crud.spec.ts:42",
+        "web/tests/pages-crud.spec.ts:71",
+        "web/tests/integration.spec.ts:168",
+        "web/tests/note-pages.spec.ts:208",
+        "web/tests/mobile-critical-flows.spec.ts:124",
+        "web/tests/error-recovery.spec.ts:219"
+      ],
+      "missing": [
+        "page-tile click \u2192 /pages/edit/[id] not exercised via UI",
+        "grid view-mode aria-pressed state not asserted",
+        "StaticBoardDisplay lazy IntersectionObserver preview not verified",
+        "active-page underline indicator not checked"
+      ],
+      "stub": "web/tests/regression/pages-list.spec.ts:176"
+    },
+    "pages.list.list-view": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-list.spec.ts:44"
+    },
+    "pages.list.device-tab-flagship": {
+      "status": "partial",
+      "specs": [
+        "web/tests/note-pages.spec.ts:214"
+      ],
+      "missing": [
+        "aria-pressed/active state of Flagship tab not asserted",
+        "'New Page' button does NOT add ?device=flagship verified"
+      ],
+      "stub": "web/tests/regression/pages-list.spec.ts:140"
+    },
+    "pages.list.device-tab-note": {
+      "status": "partial",
+      "specs": [
+        "web/tests/note-pages.spec.ts:226"
+      ],
+      "missing": [
+        "'New Page' navigates to /pages/new?device=note not asserted in UI flow"
+      ],
+      "stub": "web/tests/regression/pages-list.spec.ts:153"
+    },
+    "pages.list.carousels-tab": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-list.spec.ts:60"
+    },
+    "pages.import-dialog.open": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-import-dialog.spec.ts:37"
+    },
+    "pages.import-dialog.importing": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-import-dialog.spec.ts:51"
+    },
+    "pages.import-dialog.error": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-import-dialog.spec.ts:65"
+    },
+    "pages.import-dialog.success": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-import-dialog.spec.ts:80"
+    },
+    "pages.new.flagship": {
+      "status": "covered",
+      "specs": [
+        "web/tests/page-builder.spec.ts:26",
+        "web/tests/integration.spec.ts:163",
+        "web/tests/mobile-critical-flows.spec.ts:150"
+      ]
+    },
+    "pages.new.note": {
+      "status": "covered",
+      "specs": [
+        "web/tests/note-pages.spec.ts:119",
+        "web/tests/note-pages.spec.ts:148",
+        "web/tests/note-pages.spec.ts:176"
+      ]
+    },
+    "pages.new.draft-restored": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-new.spec.ts:86"
+    },
+    "pages.new.fresh-skips-draft": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-new.spec.ts:104"
+    },
+    "pages.new.editor-plain": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-new.spec.ts:71"
+    },
+    "pages.new.sync-from-board": {
+      "status": "covered",
+      "specs": [
+        "web/tests/page-builder.spec.ts:273",
+        "web/tests/page-builder.spec.ts:348"
+      ]
+    },
+    "pages.new.sync-error": {
+      "status": "covered",
+      "specs": [
+        "web/tests/page-builder.spec.ts:301"
+      ]
+    },
+    "pages.new.line-count-warning": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-new.spec.ts:42"
+    },
+    "pages.new.wrap-budget-warning": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-new.spec.ts:56"
+    },
+    "pages.new.live-output-on": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-new.spec.ts:123"
+    },
+    "pages.new.live-output-error": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-new.spec.ts:136"
+    },
+    "pages.new.save-disabled": {
+      "status": "covered",
+      "specs": [
+        "web/tests/page-builder.spec.ts:96"
+      ]
+    },
+    "pages.edit.no-id-redirect": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:253"
+    },
+    "pages.edit.legacy-query-id": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:267"
+    },
+    "pages.edit.loading": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:239"
+    },
+    "pages.edit.not-found": {
+      "status": "partial",
+      "specs": [
+        "web/tests/error-handling.spec.ts:78",
+        "web/tests/error-recovery.spec.ts:194"
+      ],
+      "missing": [
+        "actual editor body with empty defaults rendering not asserted",
+        "tests only assert non-crash, not back-arrow \u2192 /pages flow"
+      ],
+      "stub": "web/tests/regression/pages-edit.spec.ts:221"
+    },
+    "pages.edit.clean": {
+      "status": "partial",
+      "specs": [
+        "web/tests/page-builder.spec.ts:63",
+        "web/tests/note-pages.spec.ts:164"
+      ],
+      "missing": [
+        "Export button enabled state not asserted",
+        "'Edit Page' header asserted but Delete affordance only partially exercised"
+      ],
+      "stub": "web/tests/regression/pages-edit.spec.ts:165"
+    },
+    "pages.edit.dirty": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:104"
+    },
+    "pages.edit.saving": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:118"
+    },
+    "pages.edit.save-success": {
+      "status": "partial",
+      "specs": [
+        "web/tests/page-builder.spec.ts:63"
+      ],
+      "missing": [
+        "'Page updated' success toast not asserted",
+        "slide-down transition / draft-clear side-effect not verified"
+      ],
+      "stub": "web/tests/regression/pages-edit.spec.ts:179"
+    },
+    "pages.edit.save-error": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:133"
+    },
+    "pages.edit.delete-confirm": {
+      "status": "partial",
+      "specs": [
+        "web/tests/page-builder.spec.ts:158"
+      ],
+      "missing": [
+        "dialog title 'Delete Page' and named description ('Are you sure...\"<name>\"?') not asserted",
+        "Cancel path and Escape key not tested",
+        "'Deleting...' label during pending mutation not asserted"
+      ],
+      "stub": "web/tests/regression/pages-edit.spec.ts:194"
+    },
+    "pages.edit.delete-success": {
+      "status": "partial",
+      "specs": [
+        "web/tests/page-builder.spec.ts:158"
+      ],
+      "missing": [
+        "success toast variant ('Page deleted' vs 'Active page updated' vs 'Deleted; default page created') not differentiated"
+      ],
+      "stub": "web/tests/regression/pages-edit.spec.ts:207"
+    },
+    "pages.edit.delete-error": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:147"
+    },
+    "pages.edit.export-dialog": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:43"
+    },
+    "pages.edit.export-copied": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:58"
+    },
+    "pages.edit.export-error": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:72"
+    },
+    "pages.edit.export-disabled-when-dirty": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:86"
+    },
+    "pages.edit.live-output-on": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:281"
+    },
+    "pages.edit.live-output-inactivity-off": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/pages-edit.spec.ts:295"
+    },
+    "schedule.list.loading": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-list.spec.ts:162"
+    },
+    "schedule.list.empty": {
+      "status": "covered",
+      "specs": [
+        "web/tests/schedule-management.spec.ts:27"
+      ]
+    },
+    "schedule.list.with-entries": {
+      "status": "partial",
+      "specs": [
+        "web/tests/schedule-crud.spec.ts:50",
+        "web/tests/schedule-management.spec.ts:138",
+        "web/tests/schedule-management.spec.ts:173",
+        "web/tests/schedule-management.spec.ts:223",
+        "web/tests/schedule-midnight.spec.ts:62",
+        "web/tests/multi-board-schedule.spec.ts:94"
+      ],
+      "missing": [
+        "'Schedule Entries' card title not asserted",
+        "row day-pattern label (Weekdays/Weekends/All) not verified",
+        "edit/delete localized aria-labels asserted only by regex, not exact text"
+      ],
+      "stub": "web/tests/regression/schedule-list.spec.ts:124"
+    },
+    "schedule.list.row-disabled": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-list.spec.ts:60"
+    },
+    "schedule.list.row-carousel": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-list.spec.ts:74"
+    },
+    "schedule.list.row-sun-schedule": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-list.spec.ts:88"
+    },
+    "schedule.list.row-open-ended": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-list.spec.ts:101"
+    },
+    "schedule.toolbar.toggle-off": {
+      "status": "partial",
+      "specs": [
+        "web/tests/schedule-management.spec.ts:38",
+        "web/tests/multi-board-schedule.spec.ts:32"
+      ],
+      "missing": [
+        "aria-checked=false / 'Off' label not asserted",
+        "tooltip 'Enable schedule mode' not asserted",
+        "muted Power icon color not verified"
+      ],
+      "stub": "web/tests/regression/schedule-toolbar.spec.ts:164"
+    },
+    "schedule.toolbar.toggle-on": {
+      "status": "partial",
+      "specs": [
+        "web/tests/schedule-management.spec.ts:38",
+        "web/tests/schedule-management.spec.ts:363",
+        "web/tests/multi-board-schedule.spec.ts:64"
+      ],
+      "missing": [
+        "aria-checked=true not asserted (only 'On' text label)",
+        "tooltip 'Disable schedule mode' not asserted",
+        "green Power icon / pill primary background not verified"
+      ],
+      "stub": "web/tests/regression/schedule-toolbar.spec.ts:179"
+    },
+    "schedule.toolbar.toggle-pending": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-toolbar.spec.ts:99"
+    },
+    "schedule.toolbar.toggle-error": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-toolbar.spec.ts:113"
+    },
+    "schedule.toolbar.default-page-empty": {
+      "status": "partial",
+      "specs": [
+        "web/tests/schedule-management.spec.ts:253"
+      ],
+      "missing": [
+        "placeholder text 'Default Page' not asserted",
+        "tooltip 'Page shown during gaps in the schedule' not asserted",
+        "sentinel '__none__' value not exercised"
+      ],
+      "stub": "web/tests/regression/schedule-toolbar.spec.ts:198"
+    },
+    "schedule.toolbar.default-page-selected": {
+      "status": "partial",
+      "specs": [
+        "web/tests/schedule-management.spec.ts:253"
+      ],
+      "missing": [
+        "'Default page updated' success toast not asserted",
+        "'(Carousel)' suffix for carousel selection not exercised",
+        "'No Default' clear-back path not tested"
+      ],
+      "stub": "web/tests/regression/schedule-toolbar.spec.ts:213"
+    },
+    "schedule.toolbar.default-page-error": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-toolbar.spec.ts:126"
+    },
+    "schedule.toolbar.validation-dropdown-overlaps": {
+      "status": "partial",
+      "specs": [
+        "web/tests/schedule-management.spec.ts:281"
+      ],
+      "missing": [
+        "UI: AlertCircle button visibility never asserted (only API validate endpoint hit)",
+        "DropdownMenu 'Schedule Conflicts' label not opened",
+        "red badge count and destructive item rendering not verified"
+      ],
+      "stub": "web/tests/regression/schedule-toolbar.spec.ts:64"
+    },
+    "schedule.toolbar.validation-dropdown-gaps": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-toolbar.spec.ts:80"
+    },
+    "schedule.toolbar.location-warning": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-toolbar.spec.ts:145"
+    },
+    "schedule.toolbar.multi-board-selector": {
+      "status": "covered",
+      "specs": [
+        "web/tests/multi-board-schedule.spec.ts:46",
+        "web/tests/multi-board-schedule.spec.ts:154"
+      ]
+    },
+    "schedule.calendar.loading": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:239"
+    },
+    "schedule.calendar.empty": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:254"
+    },
+    "schedule.calendar.with-entries": {
+      "status": "partial",
+      "specs": [
+        "web/tests/calendar-alignment.spec.ts:145",
+        "web/tests/calendar-alignment.spec.ts:167",
+        "web/tests/schedule-midnight.spec.ts:136"
+      ],
+      "missing": [
+        "click on event to open edit sheet not tested",
+        "drag/resize event interactions never exercised",
+        "stable HSL color / left-border accent not verified",
+        "abbreviated header day names not asserted"
+      ],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:66"
+    },
+    "schedule.calendar.event-disabled": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:152"
+    },
+    "schedule.calendar.event-conflict": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:166"
+    },
+    "schedule.calendar.event-midnight-split-evening": {
+      "status": "partial",
+      "specs": [
+        "web/tests/calendar-alignment.spec.ts:219",
+        "web/tests/schedule-midnight.spec.ts:136"
+      ],
+      "missing": [
+        "dashed bottom border class not asserted",
+        "'HH:MMpm - 12:00am' display text not verified",
+        "draggableAccessor=false / resize-start-only behavior not tested"
+      ],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:185"
+    },
+    "schedule.calendar.event-midnight-split-morning": {
+      "status": "partial",
+      "specs": [
+        "web/tests/calendar-alignment.spec.ts:219"
+      ],
+      "missing": [
+        "dashed top border class not asserted",
+        "'12:00am - HH:MMam' display text not verified",
+        "silent revert when dragging start away from 00:00 not tested"
+      ],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:201"
+    },
+    "schedule.calendar.drag-pending": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:119"
+    },
+    "schedule.calendar.drag-error": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:133"
+    },
+    "schedule.calendar.zoom-changed": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:87"
+    },
+    "schedule.calendar.sun-markers": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:101"
+    },
+    "schedule.calendar.mobile-view": {
+      "status": "partial",
+      "specs": [
+        "web/tests/calendar-alignment.spec.ts:167"
+      ],
+      "missing": [
+        "Prev/Next chevron interactions never tested",
+        "7 day-dot navigation not exercised",
+        "active triple-day window highlighting / mobileStartDay state not asserted",
+        "Prev disabled at 0 / Next disabled at 4 boundary states not verified"
+      ],
+      "stub": "web/tests/regression/schedule-calendar.spec.ts:221"
+    },
+    "schedule.form.sheet-create": {
+      "status": "partial",
+      "specs": [
+        "web/tests/schedule-management.spec.ts:63"
+      ],
+      "missing": [
+        "form defaults (09:00/17:00/hasEndTime=true/all/enabled=true) not explicitly asserted",
+        "Submit-disabled-until-valid state not verified",
+        "Cancel / Escape close not tested"
+      ],
+      "stub": "web/tests/regression/schedule-form.spec.ts:194"
+    },
+    "schedule.form.sheet-create-from-slot": {
+      "status": "blocked",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-form.spec.ts:70",
+      "blocker": "react-big-calendar slot selection requires synthesized mousedown\u2192mousemove\u2192mouseup across cells; Playwright pointer-event simulation is unreliable. AI/URL prefill path covers the same prefillData state machine via schedule.form.sheet-create-from-ai."
+    },
+    "schedule.form.sheet-create-from-ai": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-form.spec.ts:265"
+    },
+    "schedule.form.sheet-edit": {
+      "status": "partial",
+      "specs": [
+        "web/tests/schedule-management.spec.ts:138",
+        "web/tests/schedule-management.spec.ts:173"
+      ],
+      "missing": [
+        "form pre-population from entity (times/day pattern) not asserted",
+        "Delete button visibility/destructive variant in edit mode not verified"
+      ],
+      "stub": "web/tests/regression/schedule-form.spec.ts:210"
+    },
+    "schedule.form.sun-start": {
+      "status": "covered",
+      "specs": [
+        "web/tests/regression/schedule-form.spec.ts:87"
+      ]
+    },
+    "schedule.form.sun-end": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-form.spec.ts:95"
+    },
+    "schedule.form.no-end-time": {
+      "status": "covered",
+      "specs": [
+        "web/tests/regression/schedule-form.spec.ts:156"
+      ]
+    },
+    "schedule.form.day-pattern-custom": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-form.spec.ts:126"
+    },
+    "schedule.form.validation-error": {
+      "status": "covered",
+      "specs": [
+        "web/tests/regression/schedule-form.spec.ts:240"
+      ]
+    },
+    "schedule.form.creating": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-form.spec.ts:229"
+    },
+    "schedule.form.create-error": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-form.spec.ts:157"
+    },
+    "schedule.form.updating": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-form.spec.ts:243"
+    },
+    "schedule.form.update-error": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-form.spec.ts:172"
+    },
+    "schedule.delete-confirm.open": {
+      "status": "partial",
+      "specs": [
+        "web/tests/schedule-management.spec.ts:223",
+        "web/tests/schedule-management.spec.ts:173"
+      ],
+      "missing": [
+        "AlertDialog title 'Delete Schedule' and description text not asserted",
+        "Cancel path and Escape key not tested"
+      ],
+      "stub": "web/tests/regression/schedule-delete-confirm.spec.ts:97"
+    },
+    "schedule.delete-confirm.open-from-form": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-delete-confirm.spec.ts:78"
+    },
+    "schedule.delete-confirm.deleting": {
+      "status": "partial",
+      "specs": [
+        "web/tests/schedule-management.spec.ts:223",
+        "web/tests/schedule-management.spec.ts:173"
+      ],
+      "missing": [
+        "'Schedule deleted' success toast not asserted",
+        "pending-button state during mutation not verified"
+      ],
+      "stub": "web/tests/regression/schedule-delete-confirm.spec.ts:112"
+    },
+    "schedule.delete-confirm.delete-error": {
+      "status": "uncovered",
+      "specs": [],
+      "stub": "web/tests/regression/schedule-delete-confirm.spec.ts:59"
+    },
+    "schedule.viewmode.persistence": {
+      "status": "partial",
+      "specs": [
+        "web/tests/schedule-management.spec.ts:331",
+        "web/tests/schedule-midnight.spec.ts:136",
+        "web/tests/calendar-alignment.spec.ts:145"
+      ],
+      "missing": [
+        "localStorage key 'schedule-view-mode' persistence across reload not verified",
+        "secondary-variant active-state on toggle not asserted"
+      ],
+      "stub": "web/tests/regression/schedule-list.spec.ts:144"
+    },
+    "dashboard.home.loading": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "dashboard.home.live": {
+      "status": "partial",
+      "specs": [
+        "web/tests/dashboard.spec.ts:31",
+        "web/tests/dashboard.spec.ts:42",
+        "web/tests/dashboard.spec.ts:56",
+        "web/tests/mobile-critical-flows.spec.ts:91",
+        "web/tests/mobile-critical-flows.spec.ts:105"
+      ],
+      "missing": [
+        "Resend button click \u2192 'Refreshed board' toast not asserted",
+        "Change Mode dialog opening from dashboard not exercised",
+        "Cancel override affordance not tested",
+        "StaticBoardDisplay preview content not verified"
+      ]
+    },
+    "dashboard.home.live-empty": {
+      "status": "partial",
+      "specs": [
+        "web/tests/dashboard.spec.ts:85"
+      ],
+      "missing": [
+        "click on 'Create First Page' link \u2192 /pages/new not exercised",
+        "'Run wizard' CTA fallback not asserted",
+        "test relies on regex 'welcome|get started|no pages|create'; explicit empty-state messaging unverified"
+      ]
+    },
+    "dashboard.home.board-not-configured": {
+      "status": "partial",
+      "specs": [
+        "web/tests/error-recovery.spec.ts:27",
+        "web/tests/error-recovery.spec.ts:109"
+      ],
+      "missing": [
+        "'No board configured' Alert title not asserted (tests only check regex 'offline|error|...')",
+        "'Run setup wizard' brand button click \u2192 wizard not exercised from this state"
+      ]
+    },
+    "dashboard.actions.switch-page-sheet": {
+      "status": "partial",
+      "specs": [
+        "web/tests/dashboard.spec.ts:56"
+      ],
+      "missing": [
+        "search field inside sheet not exercised",
+        "ESC close not tested",
+        "toast 'Switched to <name>' on selection not asserted"
+      ]
+    },
+    "dashboard.actions.change-mode-dialog": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "dashboard.actions.resend-toast": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "dashboard.actions.cancel-override": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "dashboard.wizard.welcome": {
+      "status": "partial",
+      "specs": [
+        "web/tests/multi-board.spec.ts:422",
+        "web/tests/multi-board.spec.ts:441",
+        "web/tests/multi-board.spec.ts:464",
+        "web/tests/multi-board.spec.ts:524",
+        "web/tests/multi-board.spec.ts:552"
+      ],
+      "missing": [
+        "'Welcome to FiestaBoard' heading visible but Skip path not tested",
+        "Next button advance assertion is implicit via later step heading"
+      ]
+    },
+    "dashboard.wizard.board-setup": {
+      "status": "partial",
+      "specs": [
+        "web/tests/multi-board.spec.ts:464",
+        "web/tests/multi-board.spec.ts:524"
+      ],
+      "missing": [
+        "inline validation errors when token/host missing not asserted",
+        "Back to welcome step not tested"
+      ]
+    },
+    "dashboard.wizard.easy-plugins": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.loading": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.error": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.empty": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.empty-search": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.list": {
+      "status": "partial",
+      "specs": [
+        "web/tests/integrations.spec.ts:27",
+        "web/tests/integrations.spec.ts:40",
+        "web/tests/plugin-management.spec.ts:23",
+        "web/tests/plugin-management.spec.ts:193",
+        "web/tests/mobile-critical-flows.spec.ts:164",
+        "web/tests/mobile-critical-flows.spec.ts:171"
+      ],
+      "missing": [
+        "sortable column headers (Name/Category/Status) chevron toggle not tested",
+        "row overflow menu (three-dot) not opened",
+        "search input behavior not exercised"
+      ]
+    },
+    "integrations.installed.updates-banner": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.update-all-pending": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.check-updates-pending": {
+      "status": "covered",
+      "specs": [
+        "web/tests/integrations.spec.ts:148",
+        "web/tests/integrations.spec.ts:159",
+        "web/tests/integrations.spec.ts:180",
+        "web/tests/integrations.spec.ts:201"
+      ]
+    },
+    "integrations.installed.toggle-pending": {
+      "status": "partial",
+      "specs": [
+        "web/tests/plugin-management.spec.ts:48",
+        "web/tests/plugin-management.spec.ts:144"
+      ],
+      "missing": [
+        "optimistic flip + rollback on error not verified",
+        "Switch disabled-during-mutation state not asserted"
+      ]
+    },
+    "integrations.installed.toggle-error": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.overflow-menu": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.add-instance-row": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.create-instance-pending": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.update-pending": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.plugin.config-sheet.open": {
+      "status": "partial",
+      "specs": [
+        "web/tests/plugin-management.spec.ts:87",
+        "web/tests/plugin-management.spec.ts:144"
+      ],
+      "missing": [
+        "header plugin icon/name not asserted",
+        "template-variable copy table not exercised",
+        "env-var table not asserted",
+        "color-rules editor not present-checked"
+      ]
+    },
+    "integrations.plugin.config-sheet.loading": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.plugin.config-sheet.no-config": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.plugin.config-sheet.saving": {
+      "status": "partial",
+      "specs": [
+        "web/tests/plugin-management.spec.ts:144"
+      ],
+      "missing": [
+        "Save Changes button 'Saving...' pending label not asserted",
+        "post-save toast '<name> configuration saved' not asserted"
+      ]
+    },
+    "integrations.plugin.config-sheet.with-env-vars": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.plugin.config-sheet.copy-variable": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.plugin.color-rules-editor": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.plugin.demo-page-create": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.plugin.demo-page-recreate-confirm": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.plugin.delete-confirm": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.installed.uninstall-pending": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.marketplace.card-view": {
+      "status": "partial",
+      "specs": [
+        "web/tests/integrations.spec.ts:57",
+        "web/tests/plugin-detail.spec.ts:25"
+      ],
+      "missing": [
+        "category section grouping with counts not asserted",
+        "individual plugin card (icon/author/Install badge) not verified",
+        "click card \u2192 /integrations/[id] flow only loosely tested"
+      ]
+    },
+    "integrations.marketplace.list-view": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.marketplace.empty-search": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.marketplace.empty": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.marketplace.installing": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.marketplace.git-install-dialog": {
+      "status": "covered",
+      "specs": [
+        "web/tests/integrations.spec.ts:67",
+        "web/tests/integrations.spec.ts:92",
+        "web/tests/integrations.spec.ts:113",
+        "web/tests/integrations.spec.ts:128"
+      ]
+    },
+    "integrations.marketplace.git-installing": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.detail.loading": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.detail.not-installed": {
+      "status": "covered",
+      "specs": [
+        "web/tests/plugin-detail.spec.ts:55",
+        "web/tests/plugin-detail.spec.ts:81",
+        "web/tests/plugin-detail.spec.ts:114",
+        "web/tests/plugin-detail.spec.ts:145",
+        "web/tests/plugin-detail.spec.ts:219"
+      ]
+    },
+    "integrations.detail.install-pending": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.detail.installed": {
+      "status": "partial",
+      "specs": [
+        "web/tests/plugin-detail.spec.ts:114"
+      ],
+      "missing": [
+        "Add Instance button (CopyPlus) and click path not exercised",
+        "GitHub link visibility when installed not asserted distinctly"
+      ]
+    },
+    "integrations.detail.add-instance-dialog": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "integrations.detail.readme-missing": {
+      "status": "partial",
+      "specs": [
+        "web/tests/plugin-detail.spec.ts:170",
+        "web/tests/plugin-detail.spec.ts:202"
+      ],
+      "missing": [
+        "explicit 'documentation not available' italic muted text rendering branch only conditionally hit"
+      ]
+    },
+    "settings.tab-general": {
+      "status": "partial",
+      "specs": [
+        "web/tests/settings.spec.ts:27",
+        "web/tests/multi-board.spec.ts:39"
+      ],
+      "missing": [
+        "InstanceName edit-and-save flow not tested",
+        "AppearanceSettings theme selector not exercised via Settings page (only top-bar toggle in navigation.spec)",
+        "LanguageSettings card in settings.tab-general not exercised (locale switching tested via navbar combobox in localization.spec)",
+        "TimeAndDateCard timezone select not tested",
+        "AccessibilitySettings / AnimationSettings cards not asserted"
+      ]
+    },
+    "settings.general.instance-name-saved": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.general.location-geolocating": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.general.location-error": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.tab-account.loading": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.tab-account.signed-in": {
+      "status": "partial",
+      "specs": [
+        "web/tests/auth.spec.ts:228",
+        "web/tests/auth.spec.ts:246"
+      ],
+      "missing": [
+        "Change username form submission not tested via UI",
+        "Change password form not tested via UI",
+        "Sign out button not clicked",
+        "Disable login card not exercised"
+      ]
+    },
+    "settings.tab-account.auth-disabled": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.account.change-username-success": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.account.change-password-success": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.account.change-password-error": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.account.disable-login-dialog": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.tab-hardware": {
+      "status": "partial",
+      "specs": [
+        "web/tests/settings.spec.ts:55",
+        "web/tests/multi-board.spec.ts:39",
+        "web/tests/multi-board.spec.ts:130",
+        "web/tests/multi-board.spec.ts:193",
+        "web/tests/multi-board.spec.ts:219",
+        "web/tests/multi-board.spec.ts:250",
+        "web/tests/multi-board.spec.ts:287",
+        "web/tests/multi-board.spec.ts:318",
+        "web/tests/settings-full.spec.ts:102"
+      ],
+      "missing": [
+        "enablement-token toggle mode not exercised in UI",
+        "FiestaBoard cloud registry boards path not tested"
+      ]
+    },
+    "settings.hardware.add-board-picker": {
+      "status": "covered",
+      "specs": [
+        "web/tests/multi-board.spec.ts:130",
+        "web/tests/multi-board.spec.ts:163"
+      ]
+    },
+    "settings.hardware.remove-board-confirm": {
+      "status": "partial",
+      "specs": [
+        "web/tests/multi-board.spec.ts:318",
+        "web/tests/multi-board.spec.ts:355"
+      ],
+      "missing": [
+        "'atLeastOneBoard' toast not asserted by exact i18n key",
+        "'boardRemoved' success toast not verified by text"
+      ]
+    },
+    "settings.hardware.enabling": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.tab-network.unavailable": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.tab-network.list": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.network.connect-dialog": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.network.connect-pending": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.network.disconnect-dialog": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.network.forget-dialog": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.network.scan-error": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "settings.tab-behavior": {
+      "status": "covered",
+      "specs": [
+        "web/tests/settings.spec.ts:48",
+        "web/tests/settings-full.spec.ts:152",
+        "web/tests/settings-full.spec.ts:174",
+        "web/tests/regression/settings-behavior-integrations.spec.ts:38"
+      ]
+    },
+    "settings.behavior.silence-saved": {
+      "status": "covered",
+      "specs": [
+        "web/tests/settings-full.spec.ts:174",
+        "web/tests/regression/settings-behavior-integrations.spec.ts:108"
+      ]
+    },
+    "settings.tab-integrations": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-behavior-integrations.spec.ts:173"]
+    },
+    "settings.integrations.ai-test": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-behavior-integrations.spec.ts:209"]
+    },
+    "settings.integrations.mcp-rotate-confirm": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-behavior-integrations.spec.ts:295"]
+    },
+    "settings.integrations.mcp-revoke-confirm": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-behavior-integrations.spec.ts:358"]
+    },
+    "settings.integrations.mcp-token-dialog": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-behavior-integrations.spec.ts:418"]
+    },
+    "settings.integrations.mqtt-saved": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-behavior-integrations.spec.ts:494"]
+    },
+    "settings.tab-system": {
+      "status": "covered",
+      "specs": [
+        "web/tests/settings.spec.ts:65",
+        "web/tests/settings-full.spec.ts:126",
+        "web/tests/settings-full.spec.ts:242",
+        "web/tests/regression/settings-system.spec.ts:37"
+      ]
+    },
+    "settings.system.restart-dialog": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-system.spec.ts:95"]
+    },
+    "settings.system.shutdown-dialog": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-system.spec.ts:163"]
+    },
+    "settings.system.factory-reset-dialog": {
+      "status": "blocked",
+      "specs": ["web/tests/regression/settings-system.spec.ts:236"],
+      "blocker": "No Factory Reset action exists in current System tab. system-controls.tsx only exposes Update/Restart/Shutdown. Feature appears aspirational; revisit when implemented."
+    },
+    "settings.system.restart-overlay": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-system.spec.ts:241"]
+    },
+    "settings.system.import-confirm": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-system.spec.ts:316"]
+    },
+    "settings.system.import-error": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-system.spec.ts:368"]
+    },
+    "settings.system.update-available": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-system.spec.ts:408"]
+    },
+    "settings.system.update-confirm": {
+      "status": "covered",
+      "specs": ["web/tests/regression/settings-system.spec.ts:476"]
+    },
+    "settings.tab-advanced": {
+      "status": "partial",
+      "specs": [
+        "web/tests/settings.spec.ts:59",
+        "web/tests/settings-full.spec.ts:259",
+        "web/tests/settings-full.spec.ts:281"
+      ],
+      "missing": [
+        "log-level Select not exercised",
+        "BetaSettings beta-channel toggle not tested",
+        "download-diagnostics action not clicked"
+      ]
+    },
+    "carousels.list.loading": {
+      "status": "covered",
+      "specs": ["web/tests/regression/carousels.spec.ts:133"]
+    },
+    "carousels.list.empty": {
+      "status": "covered",
+      "specs": ["web/tests/regression/carousels.spec.ts:164"]
+    },
+    "carousels.list.with-entries": {
+      "status": "covered",
+      "specs": ["web/tests/regression/carousels.spec.ts:186"]
+    },
+    "carousels.form.sheet-create": {
+      "status": "covered",
+      "specs": ["web/tests/regression/carousels.spec.ts:236"]
+    },
+    "carousels.form.sheet-edit": {
+      "status": "covered",
+      "specs": ["web/tests/regression/carousels.spec.ts:268"]
+    },
+    "carousels.form.empty-pages-warning": {
+      "status": "covered",
+      "specs": ["web/tests/regression/carousels.spec.ts:293"]
+    },
+    "carousels.form.creating": {
+      "status": "covered",
+      "specs": ["web/tests/regression/carousels.spec.ts:312"]
+    },
+    "carousels.form.create-error": {
+      "status": "covered",
+      "specs": ["web/tests/regression/carousels.spec.ts:351"]
+    },
+    "carousels.form.updating": {
+      "status": "covered",
+      "specs": ["web/tests/regression/carousels.spec.ts:394"]
+    },
+    "carousels.form.update-error": {
+      "status": "covered",
+      "specs": ["web/tests/regression/carousels.spec.ts:433"]
+    },
+    "carousels.delete-confirm": {
+      "status": "covered",
+      "specs": ["web/tests/regression/carousels.spec.ts:485"]
+    },
+    "picks.grid.loading": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "picks.grid.empty": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "picks.grid.populated": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "picks.card.missing-plugins": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "picks.card.importing": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "picks.card.import-error": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "picks.tab-flagship": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "picks.tab-note": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "profile.redirect": {
+      "status": "covered",
+      "specs": [
+        "web/tests/auth.spec.ts:246"
+      ]
+    },
+    "login.loading": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "login.api-unreachable": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "login.redirecting": {
+      "status": "partial",
+      "specs": [
+        "web/tests/auth.spec.ts:217",
+        "web/tests/auth.spec.ts:228"
+      ],
+      "missing": [
+        "explicit 'redirectingTitle'/'redirectingDescription' copy not asserted",
+        "spinner placeholder card render not verified"
+      ]
+    },
+    "login.first-run-picker": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "login.skip-pending": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "login.setup-form": {
+      "status": "covered",
+      "specs": [
+        "web/tests/auth.spec.ts:81",
+        "web/tests/auth.spec.ts:89",
+        "web/tests/auth.spec.ts:100"
+      ]
+    },
+    "login.setup-submitting": {
+      "status": "partial",
+      "specs": [
+        "web/tests/auth.spec.ts:100"
+      ],
+      "missing": [
+        "'creatingButton' pending label not asserted",
+        "409 conflict \u2192 sign-in form swap with 'adminExists' error not tested"
+      ]
+    },
+    "login.setup-validation-error": {
+      "status": "covered",
+      "specs": [
+        "web/tests/auth.spec.ts:89"
+      ]
+    },
+    "login.sign-in-form": {
+      "status": "covered",
+      "specs": [
+        "web/tests/auth.spec.ts:205",
+        "web/tests/auth.spec.ts:217",
+        "web/tests/auth.spec.ts:238"
+      ]
+    },
+    "login.sign-in-submitting": {
+      "status": "partial",
+      "specs": [
+        "web/tests/auth.spec.ts:217"
+      ],
+      "missing": [
+        "Loader2 spinner + 'submittingButton' label not asserted",
+        "409 setup-mode swap not tested from sign-in path"
+      ]
+    },
+    "login.sign-in-invalid": {
+      "status": "covered",
+      "specs": [
+        "web/tests/auth.spec.ts:205"
+      ]
+    },
+    "login.sign-in-rate-limited": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "offline.disconnected": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "offline.reconnecting": {
+      "status": "uncovered",
+      "specs": []
+    },
+    "debug.monitor-removed": {
+      "status": "uncovered",
+      "specs": []
+    }
+  },
+  "summary": {
+    "covered": 19,
+    "partial": 48,
+    "uncovered": 147,
+    "blocked": 1,
+    "total": 215,
+    "coverage_pct": 8.8
+  }
+}

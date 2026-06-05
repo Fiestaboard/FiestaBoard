@@ -10,7 +10,7 @@
  * gets its own FiestaBoard + mock board container so tests in different
  * files can run in parallel without state interference.
  */
-import type { Page } from "@playwright/test";
+import type { BrowserContext, Locator, Page } from "@playwright/test";
 import { expect, test as base } from "@playwright/test";
 
 const _workerUrls = (process.env.WORKER_URLS || "").split(",").filter(Boolean);
@@ -108,9 +108,10 @@ export async function resetMockBoard(port?: number): Promise<void> {
  * Call this in tests that need a working backend without running the wizard.
  */
 export async function configureBoard() {
+  await ensureAuthForFetch();
   await fetch(`${API_URL}/config/board`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({
       api_mode: "local",
       local_api_key: "test-key",
@@ -129,10 +130,133 @@ export async function configureBoard() {
  * with empty strings would be immediately overwritten by Config.reload().
  */
 export async function clearBoardConfig() {
-  const res = await fetch(`${API_URL}/config/board`, { method: "DELETE" });
+  const res = await fetch(`${API_URL}/config/board`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
   if (!res.ok) {
     throw new Error(`clearBoardConfig failed: ${res.status} ${await res.text()}`);
   }
+}
+
+/**
+ * If the running container has auth enabled, mint a session cookie for the
+ * existing admin via the in-container auth service and attach it to the
+ * Playwright context. No-op when auth is disabled (the standard CI path).
+ *
+ * We mint via `docker compose exec` rather than POST /auth/login because the
+ * admin password isn't available to the test runner.
+ */
+let _cachedSessionCookie: string | null = null;
+
+/**
+ * Stall a route until a release function is called, then continue. Used to
+ * observe `*.pending` / `*.saving` / `*.loading` UI states deterministically.
+ *
+ * Returns a `release` function. Call it once the assertion has captured the
+ * pending state to let the real request finish.
+ *
+ * @example
+ *   const release = await slowRoute(page, "**\/api\/pages", ["GET"]);
+ *   await page.goto("/pages");
+ *   await expect(skeleton).toBeVisible();
+ *   release();
+ */
+export async function slowRoute(
+  page: Page,
+  urlPattern: string | RegExp,
+  methods: ReadonlyArray<"GET" | "POST" | "PUT" | "DELETE" | "PATCH"> = ["GET"],
+): Promise<() => void> {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(urlPattern, async (route) => {
+    if (methods.includes(route.request().method() as typeof methods[number])) {
+      await gate;
+    }
+    await route.continue();
+  });
+  return release;
+}
+
+/**
+ * Scope a locator to the Sonner toast region. Avoids strict-mode collisions with
+ * the Next.js dev runtime-error overlay, which also surfaces via role="alert".
+ */
+export function getToastsRegion(
+  page: Page,
+): Locator {
+  return page.locator("[data-sonner-toast]").first();
+}
+
+/** Auth header pair to attach to fetch() calls when auth is on. Empty when off. */
+export function authHeaders(): Record<string, string> {
+  return _cachedSessionCookie
+    ? { Cookie: `fiestaboard_session=${_cachedSessionCookie}` }
+    : {};
+}
+
+/**
+ * Ensure the in-process fetch helpers can authenticate. Mints and caches a
+ * session cookie if auth is enabled; no-op otherwise. Safe to call repeatedly.
+ */
+export async function ensureAuthForFetch(): Promise<void> {
+  const baseUrl = (process.env.BASE_URL || "http://localhost:4420").replace(/\/$/, "");
+  const status = await fetch(`${baseUrl}/api/auth/status`)
+    .then((r) => r.json() as Promise<{ enabled: boolean }>)
+    .catch(() => ({ enabled: false }));
+  if (!status.enabled || _cachedSessionCookie) return;
+  await _mintSessionCookie();
+}
+
+async function _mintSessionCookie(): Promise<void> {
+  const { execSync } = await import("node:child_process");
+  const composeFile =
+    process.env.COMPOSE_FILE ||
+    "/Users/jeffrey/workspace/FiestaBoard/docker-compose.dev.yml";
+  const script = `
+import time
+from src.auth.service import get_auth_service, SessionToken, _remember_me_ttl_seconds
+svc = get_auth_service()
+user = svc._data["users"][0]
+now_ms = int(time.time() * 1000)
+tok = SessionToken(
+    username=user["username"],
+    issued_at=now_ms,
+    expires_at=now_ms + _remember_me_ttl_seconds() * 1000,
+)
+print(svc._sign(tok.encode()))
+`;
+  const out = execSync(
+    `docker compose -f ${composeFile} exec -T fiestaboard python -`,
+    { encoding: "utf8", input: script },
+  );
+  _cachedSessionCookie = out.trim().split("\n").pop()!.trim();
+}
+
+export async function loginIfNeeded(
+  context: BrowserContext,
+): Promise<void> {
+  const baseUrl = (process.env.BASE_URL || "http://localhost:4420").replace(/\/$/, "");
+  const status = await fetch(`${baseUrl}/api/auth/status`)
+    .then((r) => r.json() as Promise<{ enabled: boolean; authenticated: boolean }>)
+    .catch(() => ({ enabled: false, authenticated: true }));
+  if (!status.enabled) return;
+  if (!_cachedSessionCookie) await _mintSessionCookie();
+  if (!_cachedSessionCookie) return;
+
+  const url = new URL(baseUrl);
+  await context.addCookies([
+    {
+      name: "fiestaboard_session",
+      value: _cachedSessionCookie,
+      domain: url.hostname,
+      path: "/",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
 }
 
 /** Wait until the API server is ready. */
@@ -166,7 +290,7 @@ export async function createPage(
   }
   const res = await fetch(`${API_URL}/pages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`createPage failed: ${res.status}`);
@@ -181,27 +305,69 @@ export async function createNotePage(name: string, template: string[] = ["NOTE T
 
 /** Delete a page via the API. */
 export async function deletePage(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/pages/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_URL}/pages/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error(`deletePage failed: ${res.status}`);
+}
+
+/** Create a carousel via the API and return its full record. */
+export async function createCarousel(
+  name: string,
+  pageIds: string[],
+  intervalSeconds = 30,
+): Promise<{ id: string; name: string; page_ids: string[]; interval_seconds: number }> {
+  const res = await fetch(`${API_URL}/carousels`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({
+      name,
+      page_ids: pageIds,
+      interval_seconds: intervalSeconds,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`createCarousel failed: ${res.status} ${await res.text()}`);
+  }
+  const data = await res.json();
+  return data.carousel;
+}
+
+/** Delete every carousel via the API. */
+export async function deleteAllCarousels(): Promise<void> {
+  const res = await fetch(`${API_URL}/carousels`, { headers: authHeaders() });
+  if (!res.ok) return;
+  const data = await res.json();
+  for (const c of data.carousels || []) {
+    await fetch(`${API_URL}/carousels/${c.id}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+  }
 }
 
 /** Delete every page via the API. */
 export async function deleteAllPages(): Promise<void> {
-  const res = await fetch(`${API_URL}/pages`);
+  const res = await fetch(`${API_URL}/pages`, { headers: authHeaders() });
   if (!res.ok) return;
   const data = await res.json();
   for (const p of data.pages) {
-    await fetch(`${API_URL}/pages/${p.id}`, { method: "DELETE" });
+    await fetch(`${API_URL}/pages/${p.id}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
   }
 }
 
 /** Create a schedule via the API and return its ID. Optional boardId for per-board schedules. */
 export async function createSchedule(
   pageId: string,
-  startTime = "08:00",
-  endTime = "12:00",
+  startTime: string | null = "08:00",
+  endTime: string | null = "12:00",
   dayPattern = "weekdays",
   boardId?: string,
+  opts: { enabled?: boolean } = {},
 ): Promise<string> {
   const body: Record<string, unknown> = {
     page_id: pageId,
@@ -210,9 +376,10 @@ export async function createSchedule(
     day_pattern: dayPattern,
   };
   if (boardId != null && boardId !== "") body.board_id = boardId;
+  if (opts.enabled === false) body.enabled = false;
   const res = await fetch(`${API_URL}/schedules`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`createSchedule failed: ${res.status}`);
@@ -222,29 +389,41 @@ export async function createSchedule(
 
 /** Delete a schedule via the API. */
 export async function deleteSchedule(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/schedules/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_URL}/schedules/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error(`deleteSchedule failed: ${res.status}`);
 }
 
 /** Delete every schedule via the API (across all boards). */
 export async function deleteAllSchedules(): Promise<void> {
-  const res = await fetch(`${API_URL}/schedules?board_id=*`);
+  const res = await fetch(`${API_URL}/schedules?board_id=*`, { headers: authHeaders() });
   if (!res.ok) return;
   const data = await res.json();
   for (const s of data.schedules) {
-    await fetch(`${API_URL}/schedules/${s.id}`, { method: "DELETE" });
+    await fetch(`${API_URL}/schedules/${s.id}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
   }
 }
 
 /** Enable a plugin via the API. */
 export async function enablePlugin(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/plugins/${id}/enable`, { method: "POST" });
+  const res = await fetch(`${API_URL}/plugins/${id}/enable`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error(`enablePlugin failed: ${res.status}`);
 }
 
 /** Disable a plugin via the API. */
 export async function disablePlugin(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/plugins/${id}/disable`, { method: "POST" });
+  const res = await fetch(`${API_URL}/plugins/${id}/disable`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error(`disablePlugin failed: ${res.status}`);
 }
 
@@ -252,7 +431,7 @@ export async function disablePlugin(id: string): Promise<void> {
 export async function updatePluginConfig(id: string, config: Record<string, unknown>): Promise<void> {
   const res = await fetch(`${API_URL}/plugins/${id}/config`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ config }),
   });
   if (!res.ok) throw new Error(`updatePluginConfig failed: ${res.status}`);
@@ -262,7 +441,7 @@ export async function updatePluginConfig(id: string, config: Record<string, unkn
 export async function setActivePage(id: string | null): Promise<void> {
   const res = await fetch(`${API_URL}/settings/active-page`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ page_id: id }),
   });
   if (!res.ok) throw new Error(`setActivePage failed: ${res.status}`);
@@ -273,7 +452,7 @@ export async function setActivePage(id: string | null): Promise<void> {
  * Returns the two board ids for use in tests.
  */
 export async function ensureTwoBoards(): Promise<{ board1Id: string; board2Id: string }> {
-  const res = await fetch(`${API_URL}/settings/board`);
+  const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
   if (!res.ok) throw new Error(`ensureTwoBoards: failed to get board settings: ${res.status}`);
   const data = await res.json();
   const boards = data.boards ?? [];
@@ -282,26 +461,26 @@ export async function ensureTwoBoards(): Promise<{ board1Id: string; board2Id: s
   }
   if (boards.length === 0) {
     await resetToSingleBoard();
-    const r2 = await fetch(`${API_URL}/settings/board`);
+    const r2 = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
     const d2 = await r2.json();
     const b = d2.boards?.[0];
     if (!b) throw new Error("ensureTwoBoards: no board after reset");
     await fetch(`${API_URL}/settings/board/add`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ device_type: "note" }),
     });
-    const r3 = await fetch(`${API_URL}/settings/board`);
+    const r3 = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
     const d3 = await r3.json();
     const bs = d3.boards ?? [];
     return { board1Id: bs[0].id, board2Id: bs[1].id };
   }
   await fetch(`${API_URL}/settings/board/add`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ device_type: "note" }),
   });
-  const r2 = await fetch(`${API_URL}/settings/board`);
+  const r2 = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
   const d2 = await r2.json();
   const bs = d2.boards ?? [];
   return { board1Id: bs[0].id, board2Id: bs[1].id };
@@ -314,7 +493,7 @@ export async function ensureTwoBoards(): Promise<{ board1Id: string; board2Id: s
 export async function resetToSingleBoard() {
   await fetch(`${API_URL}/settings/board`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({
       boards: [
         {
@@ -345,9 +524,19 @@ export function suppressWizard(page: Page) {
  */
 export async function openSettingsTab(
   page: Page,
-  tab: "General" | "Hardware" | "Behavior" | "Integrations" | "System" | "Advanced",
+  tab:
+    | "General"
+    | "Account"
+    | "Hardware"
+    | "Network"
+    | "Behavior"
+    | "Integrations"
+    | "System"
+    | "Advanced",
 ) {
-  await page.getByRole("tab", { name: tab, exact: true }).click();
+  const trigger = page.getByRole("tab", { name: tab, exact: true });
+  await trigger.waitFor({ state: "visible", timeout: 15_000 });
+  await trigger.click();
 }
 
 /**
