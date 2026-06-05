@@ -17,7 +17,7 @@ The updater is opt-in for all non-Pi installs. Two things need to be true:
 1. The `fiestaupdater` Compose profile is enabled.
 2. `FIESTAUPDATER_TOKEN` is set in your `.env`.
 
-The install scripts (`install.sh` / `install.ps1`) ask you about this and configure it for you on a fresh install. To enable it manually after the fact, edit `.env`:
+The install scripts (`scripts/install.sh` / `scripts/install.ps1`) ask you about this and configure it for you on a fresh install. To enable it manually after the fact, edit `.env`:
 
 ```bash
 COMPOSE_PROFILES=fiestaupdater
@@ -92,4 +92,4 @@ If you'd rather not run with the Docker socket exposed at all, leave the `fiesta
 
 **Update kicked off but the page never came back** — Open the URL again after a minute. If it's still down: `docker compose logs fiestaboard` (or `docker logs fiestaboard`). Worst case, manual `docker compose up -d` will bring you back up.
 
-**I want to roll back** — Pin the previous tag in `docker-compose.yml` and `docker compose up -d`. Automated rollback is on the roadmap for 5.1.
+**I want to roll back** — Pin the previous tag in `docker-compose.yml` (replace `fiestaboard/fiestaboard:latest` with `fiestaboard/fiestaboard:<version>`, e.g. `6.10.9`) and run `docker compose up -d`. Available tags are listed on [Docker Hub](https://hub.docker.com/r/fiestaboard/fiestaboard/tags) and the [GitHub Releases](https://github.com/Fiestaboard/FiestaBoard/releases) page. Automated rollback from the UI is still a planned feature.
