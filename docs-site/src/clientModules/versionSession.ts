@@ -23,10 +23,10 @@
  *      sessionStorage so the choice survives in-session navigations.
  */
 
-const DOCUSAURUS_LS_KEY = 'docs-preferred-version-default';
-const SESSION_KEY = 'fiestaboard-docs-preferred-version';
+const DOCUSAURUS_LS_KEY = "docs-preferred-version-default";
+const SESSION_KEY = "fiestaboard-docs-preferred-version";
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   const savedVersion = sessionStorage.getItem(SESSION_KEY);
 
   if (savedVersion === null) {
@@ -45,7 +45,7 @@ if (typeof window !== 'undefined') {
  * from the dropdown) back into sessionStorage.
  */
 export function onRouteDidUpdate(): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   const currentVersion = localStorage.getItem(DOCUSAURUS_LS_KEY);
   if (currentVersion !== null) {
     sessionStorage.setItem(SESSION_KEY, currentVersion);

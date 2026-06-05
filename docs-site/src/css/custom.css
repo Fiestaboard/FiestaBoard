@@ -30,9 +30,9 @@
    * a darker shade for text, links, badges, and button fills in light mode
    * to meet WCAG 2.2 AA (4.5:1 for normal text, 3:1 for UI components).
    */
-  --fiesta-accessible-orange: #a06800;       /* 4.69:1 on white */
+  --fiesta-accessible-orange: #a06800; /* 4.69:1 on white */
   --fiesta-accessible-orange-hover: #8f5b00; /* 5.73:1 on white */
-  --fiesta-hero-gradient-end: #a04d00;       /* 5.91:1 with white text */
+  --fiesta-hero-gradient-end: #a04d00; /* 5.91:1 with white text */
 
   /* Use the accessible shade for links so body copy passes WCAG 2.2 AA. */
   --ifm-link-color: var(--fiesta-accessible-orange);
@@ -40,7 +40,7 @@
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
-[data-theme='dark'] {
+[data-theme="dark"] {
   --ifm-color-primary: #f5a623;
   --ifm-color-primary-dark: #e09510;
   --ifm-color-primary-darker: #d48d0f;
@@ -60,19 +60,17 @@
 
 /* Hero section: animated Fiesta gradient — mirrors the app sidebar palette */
 @keyframes fiesta-hero-gradient-flow {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 33.33% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 33.33% 50%;
+  }
 }
 
 /* Light mode: soft pastel coral → peach → lavender, dark text */
 .hero--primary {
-  background: repeating-linear-gradient(
-    135deg,
-    #c98a82 0,
-    #c9a070 33.33%,
-    #9b7bb0 66.66%,
-    #c98a82 100%
-  );
+  background: repeating-linear-gradient(135deg, #c98a82 0, #c9a070 33.33%, #9b7bb0 66.66%, #c98a82 100%);
   background-size: 400% 100%;
   background-position: 0% 50%;
   animation: fiesta-hero-gradient-flow 117s linear infinite;
@@ -85,28 +83,22 @@
 }
 
 /* Dark mode: deep Fiesta red → burnt orange → deep purple, white text */
-[data-theme='dark'] .hero--primary {
-  background: repeating-linear-gradient(
-    135deg,
-    #7a2a24 0,
-    #6d5014 33.33%,
-    #4e3070 66.66%,
-    #7a2a24 100%
-  );
+[data-theme="dark"] .hero--primary {
+  background: repeating-linear-gradient(135deg, #7a2a24 0, #6d5014 33.33%, #4e3070 66.66%, #7a2a24 100%);
   background-size: 400% 100%;
   background-position: 0% 50%;
   animation: fiesta-hero-gradient-flow 117s linear infinite;
   color: #fff;
 }
 
-[data-theme='dark'] .hero--primary .hero__title,
-[data-theme='dark'] .hero--primary .hero__subtitle {
+[data-theme="dark"] .hero--primary .hero__title,
+[data-theme="dark"] .hero--primary .hero__subtitle {
   color: #fff;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .hero--primary,
-  [data-theme='dark'] .hero--primary {
+  [data-theme="dark"] .hero--primary {
     animation: none;
     background-position: 25% 50%;
   }
@@ -118,7 +110,7 @@
   --hero-outline-btn-hover-bg: #000;
   --hero-outline-btn-hover-text: #fff;
 }
-[data-theme='dark'] {
+[data-theme="dark"] {
   --hero-outline-btn-color: #fff;
   --hero-outline-btn-hover-bg: #fff;
   --hero-outline-btn-hover-text: #1a1a1a;
@@ -152,14 +144,14 @@
  * orange = 4.69:1+). This fixes the contrast issue on the secondary
  * "outline" links inside the homepage highlight cards.
  */
-html[data-theme='light'] .button--outline.button--primary {
+html[data-theme="light"] .button--outline.button--primary {
   color: var(--fiesta-accessible-orange);
   border-color: var(--fiesta-accessible-orange);
 }
 
-html[data-theme='light'] .button--outline.button--primary:hover,
-html[data-theme='light'] .button--outline.button--primary:focus,
-html[data-theme='light'] .button--outline.button--primary:active {
+html[data-theme="light"] .button--outline.button--primary:hover,
+html[data-theme="light"] .button--outline.button--primary:focus,
+html[data-theme="light"] .button--outline.button--primary:active {
   background-color: var(--fiesta-accessible-orange);
   border-color: var(--fiesta-accessible-orange);
   color: #fff;
@@ -174,14 +166,14 @@ html[data-theme='light'] .button--outline.button--primary:active {
  * Excluding navbar/hero contexts so we don't override the white-on-hero
  * GitHub button (which has its own scoped styling).
  */
-html[data-theme='light'] main .button--outline:not(.button--primary):not(.button--secondary) {
+html[data-theme="light"] main .button--outline:not(.button--primary):not(.button--secondary) {
   color: var(--fiesta-accessible-orange);
   border-color: var(--fiesta-accessible-orange);
 }
 
-html[data-theme='light'] main .button--outline:not(.button--primary):not(.button--secondary):hover,
-html[data-theme='light'] main .button--outline:not(.button--primary):not(.button--secondary):focus,
-html[data-theme='light'] main .button--outline:not(.button--primary):not(.button--secondary):active {
+html[data-theme="light"] main .button--outline:not(.button--primary):not(.button--secondary):hover,
+html[data-theme="light"] main .button--outline:not(.button--primary):not(.button--secondary):focus,
+html[data-theme="light"] main .button--outline:not(.button--primary):not(.button--secondary):active {
   background-color: var(--fiesta-accessible-orange);
   border-color: var(--fiesta-accessible-orange);
   color: #fff;

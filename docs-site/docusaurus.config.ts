@@ -1,7 +1,7 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
-import type * as Preset from '@docusaurus/preset-classic';
-import versions from './versions.json';
+import { themes as prismThemes } from "prism-react-renderer";
+import type { Config } from "@docusaurus/types";
+import type * as Preset from "@docusaurus/preset-classic";
+import versions from "./versions.json";
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -9,15 +9,15 @@ import versions from './versions.json';
 // PRs (DOCS_PR_MODE=1) so docs builds don't recompile 40 historical version
 // snapshots that haven't changed. The release-time deploy via docs.yml builds
 // the full set of versions normally.
-const isPRMode = process.env.DOCS_PR_MODE === '1';
+const isPRMode = process.env.DOCS_PR_MODE === "1";
 const onlyIncludeVersions = isPRMode && versions.length > 0 ? [versions[0]] : undefined;
 
 const config: Config = {
-  clientModules: ['./src/clientModules/versionSession.ts'],
+  clientModules: ["./src/clientModules/versionSession.ts"],
 
-  title: 'FiestaBoard',
-  tagline: 'Turn your split-flap display into a living dashboard',
-  favicon: 'img/favicon.ico',
+  title: "FiestaBoard",
+  tagline: "Turn your split-flap display into a living dashboard",
+  favicon: "img/favicon.ico",
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -25,131 +25,134 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://fiestaboard.app',
+  url: "https://fiestaboard.app",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/',
+  baseUrl: "/",
 
   // GitHub pages deployment config.
-  organizationName: 'Fiestaboard',
-  projectName: 'fiestaboard.github.io',
+  organizationName: "Fiestaboard",
+  projectName: "fiestaboard.github.io",
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: "throw",
 
   markdown: {
     hooks: {
-      onBrokenMarkdownLinks: 'warn',
+      onBrokenMarkdownLinks: "warn",
     },
   },
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang.
   i18n: {
-    defaultLocale: 'en',
-    locales: ['en'],
+    defaultLocale: "en",
+    locales: ["en"],
   },
 
   headTags: [
     {
-      tagName: 'meta',
+      tagName: "meta",
       attributes: {
-        name: 'keywords',
-        content: 'split-flap display, split-flap display software, dashboard, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, Vestaboard Home Assistant, Vestaboard plugins, best software for Vestaboard, weather display, stocks display, sports scores, Docker, Raspberry Pi, home automation, smart display, open source, self-hosted, WYSIWYG editor, display scheduler, IoT display, transit times, surf report, Home Assistant display, split-flap display app, display plugins, FiestaBoard',
+        name: "keywords",
+        content:
+          "split-flap display, split-flap display software, dashboard, Vestaboard, Vestaboard software, Vestaboard app, Vestaboard dashboard, Vestaboard Home Assistant, Vestaboard plugins, best software for Vestaboard, weather display, stocks display, sports scores, Docker, Raspberry Pi, home automation, smart display, open source, self-hosted, WYSIWYG editor, display scheduler, IoT display, transit times, surf report, Home Assistant display, split-flap display app, display plugins, FiestaBoard",
       },
     },
     {
-      tagName: 'meta',
+      tagName: "meta",
       attributes: {
-        name: 'author',
-        content: 'FiestaBoard',
+        name: "author",
+        content: "FiestaBoard",
       },
     },
     {
-      tagName: 'link',
+      tagName: "link",
       attributes: {
-        rel: 'canonical',
-        href: 'https://fiestaboard.app',
+        rel: "canonical",
+        href: "https://fiestaboard.app",
       },
     },
     {
-      tagName: 'script',
+      tagName: "script",
       attributes: {
-        type: 'application/ld+json',
+        type: "application/ld+json",
       },
       innerHTML: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'SoftwareApplication',
-        name: 'FiestaBoard',
-        alternateName: ['FiestaBoard Split-Flap Display Software', 'FiestaBoard Dashboard'],
-        description: 'Open-source software for split-flap displays. Adds plugins, scheduling, and a visual page editor to your board. Compatible with Vestaboard Flagship and Note.',
-        url: 'https://fiestaboard.app',
-        applicationCategory: 'UtilitiesApplication',
-        operatingSystem: 'Linux, macOS, Windows',
-        license: 'https://opensource.org/licenses/MIT',
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        name: "FiestaBoard",
+        alternateName: ["FiestaBoard Split-Flap Display Software", "FiestaBoard Dashboard"],
+        description:
+          "Open-source software for split-flap displays. Adds plugins, scheduling, and a visual page editor to your board. Compatible with Vestaboard Flagship and Note.",
+        url: "https://fiestaboard.app",
+        applicationCategory: "UtilitiesApplication",
+        operatingSystem: "Linux, macOS, Windows",
+        license: "https://opensource.org/licenses/MIT",
         isAccessibleForFree: true,
         offers: {
-          '@type': 'Offer',
-          price: '0',
-          priceCurrency: 'USD',
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
         },
-        featureList: 'WYSIWYG page editor, Schedule mode, 26 plugins, Docker deployment, Raspberry Pi support, Weather display, Stock ticker, Sports scores, Transit times, Home Assistant integration',
-        screenshot: 'https://fiestaboard.app/img/web-ui-home.png',
-        softwareRequirements: 'Docker and Docker Compose',
-        codeRepository: 'https://github.com/Fiestaboard/FiestaBoard',
+        featureList:
+          "WYSIWYG page editor, Schedule mode, 26 plugins, Docker deployment, Raspberry Pi support, Weather display, Stock ticker, Sports scores, Transit times, Home Assistant integration",
+        screenshot: "https://fiestaboard.app/img/web-ui-home.png",
+        softwareRequirements: "Docker and Docker Compose",
+        codeRepository: "https://github.com/Fiestaboard/FiestaBoard",
         sourceOrganization: {
-          '@type': 'Organization',
-          name: 'FiestaBoard',
-          url: 'https://github.com/Fiestaboard/FiestaBoard',
+          "@type": "Organization",
+          name: "FiestaBoard",
+          url: "https://github.com/Fiestaboard/FiestaBoard",
         },
       }),
     },
     {
-      tagName: 'script',
+      tagName: "script",
       attributes: {
-        type: 'application/ld+json',
+        type: "application/ld+json",
       },
       innerHTML: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'FAQPage',
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
         mainEntity: [
           {
-            '@type': 'Question',
-            name: 'What is FiestaBoard?',
+            "@type": "Question",
+            name: "What is FiestaBoard?",
             acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'FiestaBoard is free, open-source software for split-flap displays. It adds 23 data plugins, a visual page editor, and scheduling to your board. Compatible with Vestaboard Flagship and Note.',
+              "@type": "Answer",
+              text: "FiestaBoard is free, open-source software for split-flap displays. It adds 23 data plugins, a visual page editor, and scheduling to your board. Compatible with Vestaboard Flagship and Note.",
             },
           },
           {
-            '@type': 'Question',
-            name: 'Is FiestaBoard free?',
+            "@type": "Question",
+            name: "Is FiestaBoard free?",
             acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Yes. FiestaBoard is completely free and open source under the MIT license. There are no subscriptions, paid tiers, or usage limits.',
+              "@type": "Answer",
+              text: "Yes. FiestaBoard is completely free and open source under the MIT license. There are no subscriptions, paid tiers, or usage limits.",
             },
           },
           {
-            '@type': 'Question',
-            name: 'How do I install FiestaBoard?',
+            "@type": "Question",
+            name: "How do I install FiestaBoard?",
             acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'FiestaBoard runs in Docker. Pull the image from Docker Hub and start it with docker-compose — you can be up and running in under 5 minutes. It works on Mac, Windows, Linux, and Raspberry Pi.',
+              "@type": "Answer",
+              text: "FiestaBoard runs in Docker. Pull the image from Docker Hub and start it with docker-compose — you can be up and running in under 5 minutes. It works on Mac, Windows, Linux, and Raspberry Pi.",
             },
           },
           {
-            '@type': 'Question',
-            name: 'What can FiestaBoard display on my board?',
+            "@type": "Question",
+            name: "What can FiestaBoard display on my board?",
             acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'FiestaBoard has 26 built-in plugins for weather, stocks, sports scores, transit times, Disney park wait times, aircraft tracking, surf conditions, Home Assistant integration, and more. Many plugins require no API key.',
+              "@type": "Answer",
+              text: "FiestaBoard has 26 built-in plugins for weather, stocks, sports scores, transit times, Disney park wait times, aircraft tracking, surf conditions, Home Assistant integration, and more. Many plugins require no API key.",
             },
           },
           {
-            '@type': 'Question',
-            name: 'Does FiestaBoard work with Vestaboard?',
+            "@type": "Question",
+            name: "Does FiestaBoard work with Vestaboard?",
             acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Yes. FiestaBoard is compatible with Vestaboard Flagship (22x6) and Vestaboard Note (15x3). It connects via the Vestaboard Local API (recommended, supports animations) or the Vestaboard Cloud API (works remotely). FiestaBoard runs alongside the official Vestaboard app.',
+              "@type": "Answer",
+              text: "Yes. FiestaBoard is compatible with Vestaboard Flagship (22x6) and Vestaboard Note (15x3). It connects via the Vestaboard Local API (recommended, supports animations) or the Vestaboard Cloud API (works remotely). FiestaBoard runs alongside the official Vestaboard app.",
             },
           },
         ],
@@ -159,197 +162,204 @@ const config: Config = {
 
   themes: [
     [
-      '@easyops-cn/docusaurus-search-local',
+      "@easyops-cn/docusaurus-search-local",
       {
         hashed: true,
         indexBlog: false,
-        docsRouteBasePath: '/docs',
+        docsRouteBasePath: "/docs",
       },
     ],
   ],
 
   presets: [
     [
-      'classic',
+      "classic",
       {
         docs: {
-          sidebarPath: './sidebars.ts',
-          editUrl:
-            'https://github.com/Fiestaboard/FiestaBoard/tree/main/docs-site/',
+          sidebarPath: "./sidebars.ts",
+          editUrl: "https://github.com/Fiestaboard/FiestaBoard/tree/main/docs-site/",
           includeCurrentVersion: false,
-          ...(onlyIncludeVersions ? {onlyIncludeVersions} : {}),
+          ...(onlyIncludeVersions ? { onlyIncludeVersions } : {}),
         },
         blog: false, // Disable blog for now - keep it simple
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: "./src/css/custom.css",
         },
         gtag: {
-          trackingID: 'G-5D2S6D6PNC',
+          trackingID: "G-5D2S6D6PNC",
           anonymizeIP: true,
         },
         sitemap: {
-          lastmod: 'date',
-          changefreq: 'weekly',
+          lastmod: "date",
+          changefreq: "weekly",
           priority: 0.5,
-          filename: 'sitemap.xml',
+          filename: "sitemap.xml",
         },
       } satisfies Preset.Options,
     ],
   ],
 
   themeConfig: {
-    image: 'img/logo.png',
+    image: "img/logo.png",
     metadata: [
-      {name: 'description', content: 'FiestaBoard is free, open-source software for split-flap displays. Add weather, stocks, sports scores, transit times, and more with 26 plugins, a visual editor, and scheduling. Compatible with Vestaboard.'},
-      {name: 'og:type', content: 'website'},
-      {name: 'og:site_name', content: 'FiestaBoard'},
-      {name: 'og:image', content: 'https://fiestaboard.app/img/logo.png'},
-      {name: 'twitter:card', content: 'summary_large_image'},
-      {name: 'twitter:title', content: 'FiestaBoard — Split-Flap Display Software'},
-      {name: 'twitter:description', content: 'Free, open-source software for split-flap displays. 26 plugins, visual editor, scheduling. Compatible with Vestaboard.'},
-      {name: 'twitter:image', content: 'https://fiestaboard.app/img/logo.png'},
+      {
+        name: "description",
+        content:
+          "FiestaBoard is free, open-source software for split-flap displays. Add weather, stocks, sports scores, transit times, and more with 26 plugins, a visual editor, and scheduling. Compatible with Vestaboard.",
+      },
+      { name: "og:type", content: "website" },
+      { name: "og:site_name", content: "FiestaBoard" },
+      { name: "og:image", content: "https://fiestaboard.app/img/logo.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "FiestaBoard — Split-Flap Display Software" },
+      {
+        name: "twitter:description",
+        content:
+          "Free, open-source software for split-flap displays. 26 plugins, visual editor, scheduling. Compatible with Vestaboard.",
+      },
+      { name: "twitter:image", content: "https://fiestaboard.app/img/logo.png" },
     ],
     colorMode: {
       respectPrefersColorScheme: true,
     },
     navbar: {
       logo: {
-        alt: 'FiestaBoard Logo',
-        src: 'img/branding/logo-lockup-light.png',
-        srcDark: 'img/branding/logo-lockup-dark.png',
-        style: {height: '48px'},
+        alt: "FiestaBoard Logo",
+        src: "img/branding/logo-lockup-light.png",
+        srcDark: "img/branding/logo-lockup-dark.png",
+        style: { height: "48px" },
       },
       items: [
         {
-          type: 'dropdown',
-          label: 'Documentation',
-          position: 'left',
+          type: "dropdown",
+          label: "Documentation",
+          position: "left",
           items: [
-            {type: 'doc', docId: 'intro', label: 'Getting Started'},
-            {type: 'doc', docId: 'setup/quick-start', label: 'Setup'},
-            {type: 'doc', docId: 'features/page-editor', label: 'Features'},
-            {type: 'doc', docId: 'plugins/overview', label: 'Plugins'},
-            {type: 'doc', docId: 'deployment/production', label: 'Deployment'},
-            {type: 'doc', docId: 'development/contributing', label: 'Development'},
-            {type: 'doc', docId: 'reference/api-endpoints', label: 'API Reference'},
-            {type: 'doc', docId: 'troubleshooting', label: 'Troubleshooting'},
+            { type: "doc", docId: "intro", label: "Getting Started" },
+            { type: "doc", docId: "setup/quick-start", label: "Setup" },
+            { type: "doc", docId: "features/page-editor", label: "Features" },
+            { type: "doc", docId: "plugins/overview", label: "Plugins" },
+            { type: "doc", docId: "deployment/production", label: "Deployment" },
+            { type: "doc", docId: "development/contributing", label: "Development" },
+            { type: "doc", docId: "reference/api-endpoints", label: "API Reference" },
+            { type: "doc", docId: "troubleshooting", label: "Troubleshooting" },
           ],
         },
         {
-          to: '/plugins',
-          label: 'Plugins',
-          position: 'left',
+          to: "/plugins",
+          label: "Plugins",
+          position: "left",
         },
         {
-          to: '/stats',
-          label: 'Stats',
-          position: 'left',
+          to: "/stats",
+          label: "Stats",
+          position: "left",
         },
         {
-          type: 'docsVersionDropdown',
-          position: 'left',
+          type: "docsVersionDropdown",
+          position: "left",
         },
         {
-          href: 'https://hub.docker.com/r/fiestaboard/fiestaboard',
-          label: 'Docker Hub',
-          position: 'right',
+          href: "https://hub.docker.com/r/fiestaboard/fiestaboard",
+          label: "Docker Hub",
+          position: "right",
         },
         {
-          href: 'https://discord.gg/JvN8y6ahaf',
-          label: 'Discord',
-          position: 'right',
+          href: "https://discord.gg/JvN8y6ahaf",
+          label: "Discord",
+          position: "right",
         },
         {
-          href: 'https://github.com/Fiestaboard/FiestaBoard',
-          label: 'GitHub',
-          position: 'right',
+          href: "https://github.com/Fiestaboard/FiestaBoard",
+          label: "GitHub",
+          position: "right",
         },
       ],
     },
     footer: {
-      style: 'dark',
+      style: "dark",
       links: [
         {
-          title: 'Documentation',
+          title: "Documentation",
           items: [
             {
-              label: 'Getting Started',
-              to: '/docs/intro',
+              label: "Getting Started",
+              to: "/docs/intro",
             },
             {
-              label: 'Setup Guide',
-              to: '/docs/setup/quick-start',
+              label: "Setup Guide",
+              to: "/docs/setup/quick-start",
             },
             {
-              label: 'Plugins',
-              to: '/docs/plugins/overview',
+              label: "Plugins",
+              to: "/docs/plugins/overview",
             },
             {
-              label: 'Plugin Directory',
-              to: '/plugins',
+              label: "Plugin Directory",
+              to: "/plugins",
             },
             {
-              label: 'Plugin Stats',
-              to: '/stats',
+              label: "Plugin Stats",
+              to: "/stats",
             },
           ],
         },
         {
-          title: 'Features',
+          title: "Features",
           items: [
             {
-              label: 'Page Editor',
-              to: '/docs/features/page-editor',
+              label: "Page Editor",
+              to: "/docs/features/page-editor",
             },
             {
-              label: 'Schedule Mode',
-              to: '/docs/features/schedule',
+              label: "Schedule Mode",
+              to: "/docs/features/schedule",
             },
             {
-              label: 'API Reference',
-              to: '/docs/reference/api-endpoints',
+              label: "API Reference",
+              to: "/docs/reference/api-endpoints",
             },
             {
-              label: 'Troubleshooting',
-              to: '/docs/troubleshooting',
+              label: "Troubleshooting",
+              to: "/docs/troubleshooting",
             },
           ],
         },
         {
-          title: 'Community',
+          title: "Community",
           items: [
             {
-              label: 'Docker Hub',
-              href: 'https://hub.docker.com/r/fiestaboard/fiestaboard',
+              label: "Docker Hub",
+              href: "https://hub.docker.com/r/fiestaboard/fiestaboard",
             },
             {
-              label: 'Discord',
-              href: 'https://discord.gg/JvN8y6ahaf',
+              label: "Discord",
+              href: "https://discord.gg/JvN8y6ahaf",
             },
             {
-              label: 'GitHub',
-              href: 'https://github.com/Fiestaboard/FiestaBoard',
+              label: "GitHub",
+              href: "https://github.com/Fiestaboard/FiestaBoard",
             },
             {
-              label: 'Issues',
-              href: 'https://github.com/Fiestaboard/FiestaBoard/issues',
+              label: "Issues",
+              href: "https://github.com/Fiestaboard/FiestaBoard/issues",
             },
             {
-              label: 'Contributing',
-              to: '/docs/development/contributing',
+              label: "Contributing",
+              to: "/docs/development/contributing",
             },
           ],
         },
         {
-          title: 'Support',
+          title: "Support",
           items: [
             {
-              label: 'Buy a Vestaboard ($200 off)',
-              href: 'https://fiestaboard.app/buyavestaboard',
+              label: "Buy a Vestaboard ($200 off)",
+              href: "https://fiestaboard.app/buyavestaboard",
             },
             {
-              label: 'Buy Me a Coffee',
-              href: 'https://www.buymeacoffee.com/fiestaboard',
+              label: "Buy Me a Coffee",
+              href: "https://www.buymeacoffee.com/fiestaboard",
             },
           ],
         },

@@ -1,24 +1,20 @@
-import {useState, useMemo, type ReactNode} from 'react';
-import clsx from 'clsx';
-import Link from '@docusaurus/Link';
-import Layout from '@theme/Layout';
-import Heading from '@theme/Heading';
-import {plugins, CATEGORY_LABELS, CATEGORIES, pluginBoardImagePath} from '@site/src/plugin-data';
-import type {PluginEntry} from '@site/src/plugin-data';
+import Link from "@docusaurus/Link";
+import type { PluginEntry } from "@site/src/plugin-data";
+import { CATEGORIES, CATEGORY_LABELS, pluginBoardImagePath, plugins } from "@site/src/plugin-data";
+import Heading from "@theme/Heading";
+import Layout from "@theme/Layout";
+import clsx from "clsx";
+import { type ReactNode, useMemo, useState } from "react";
 
-import styles from './index.module.css';
+import styles from "./index.module.css";
 
-function CategoryBadge({category}: {category: string}) {
+function CategoryBadge({ category }: { category: string }) {
   const label = CATEGORY_LABELS[category] ?? category;
-  return (
-    <span className={clsx(styles.categoryBadge, styles[`category_${category}`])}>
-      {label}
-    </span>
-  );
+  return <span className={clsx(styles.categoryBadge, styles[`category_${category}`])}>{label}</span>;
 }
 
-function PluginCard({plugin, boardColor}: {plugin: PluginEntry; boardColor: 'black' | 'white'}) {
-  const imgSrc = pluginBoardImagePath(plugin, boardColor === 'white' ? 'light' : 'dark');
+function PluginCard({ plugin, boardColor }: { plugin: PluginEntry; boardColor: "black" | "white" }) {
+  const imgSrc = pluginBoardImagePath(plugin, boardColor === "white" ? "light" : "dark");
 
   return (
     <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.pluginCard}>
@@ -28,7 +24,7 @@ function PluginCard({plugin, boardColor}: {plugin: PluginEntry; boardColor: 'bla
           alt={`${plugin.name} displayed on a split-flap board`}
           loading="lazy"
           onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
+            (e.target as HTMLImageElement).style.display = "none";
           }}
         />
       </div>
@@ -47,9 +43,9 @@ function PluginCard({plugin, boardColor}: {plugin: PluginEntry; boardColor: 'bla
 }
 
 export default function PluginDirectory(): ReactNode {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [boardColor, setBoardColor] = useState<'black' | 'white'>('black');
+  const [boardColor, setBoardColor] = useState<"black" | "white">("black");
 
   const filtered = useMemo(() => {
     return plugins.filter((p) => {
@@ -57,9 +53,7 @@ export default function PluginDirectory(): ReactNode {
       if (search) {
         const q = search.toLowerCase();
         return (
-          p.name.toLowerCase().includes(q) ||
-          p.description.toLowerCase().includes(q) ||
-          p.id.toLowerCase().includes(q)
+          p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)
         );
       }
       return true;
@@ -69,7 +63,8 @@ export default function PluginDirectory(): ReactNode {
   return (
     <Layout
       title="Plugin Directory"
-      description="Browse all FiestaBoard plugins — weather, stocks, transit, sports, art, and more. Explore what's available for your split-flap display.">
+      description="Browse all FiestaBoard plugins — weather, stocks, transit, sports, art, and more. Explore what's available for your split-flap display."
+    >
       <main className={styles.directoryPage}>
         <div className="container">
           {/* Header */}
@@ -78,8 +73,8 @@ export default function PluginDirectory(): ReactNode {
               Plugin Directory
             </Heading>
             <p className={styles.subtitle}>
-              Explore {plugins.length} plugins for your split-flap display — from weather and
-              stocks to Disney park wait times and generative art.
+              Explore {plugins.length} plugins for your split-flap display — from weather and stocks to Disney park wait
+              times and generative art.
             </p>
           </div>
 
@@ -96,22 +91,18 @@ export default function PluginDirectory(): ReactNode {
             <div className={styles.categoryFilters}>
               <button
                 type="button"
-                className={clsx(
-                  styles.filterButton,
-                  activeCategory === null && styles.filterButtonActive,
-                )}
-                onClick={() => setActiveCategory(null)}>
+                className={clsx(styles.filterButton, activeCategory === null && styles.filterButtonActive)}
+                onClick={() => setActiveCategory(null)}
+              >
                 All
               </button>
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   type="button"
-                  className={clsx(
-                    styles.filterButton,
-                    activeCategory === cat && styles.filterButtonActive,
-                  )}
-                  onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}>
+                  className={clsx(styles.filterButton, activeCategory === cat && styles.filterButtonActive)}
+                  onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
+                >
                   {CATEGORY_LABELS[cat]}
                 </button>
               ))}
@@ -123,23 +114,19 @@ export default function PluginDirectory(): ReactNode {
             <button
               type="button"
               role="radio"
-              className={clsx(
-                styles.boardColorOption,
-                boardColor === 'black' && styles.boardColorOptionActive,
-              )}
-              onClick={() => setBoardColor('black')}
-              aria-checked={boardColor === 'black'}>
+              className={clsx(styles.boardColorOption, boardColor === "black" && styles.boardColorOptionActive)}
+              onClick={() => setBoardColor("black")}
+              aria-checked={boardColor === "black"}
+            >
               Black Board
             </button>
             <button
               type="button"
               role="radio"
-              className={clsx(
-                styles.boardColorOption,
-                boardColor === 'white' && styles.boardColorOptionActive,
-              )}
-              onClick={() => setBoardColor('white')}
-              aria-checked={boardColor === 'white'}>
+              className={clsx(styles.boardColorOption, boardColor === "white" && styles.boardColorOptionActive)}
+              onClick={() => setBoardColor("white")}
+              aria-checked={boardColor === "white"}
+            >
               White Board
             </button>
           </div>
@@ -160,7 +147,7 @@ export default function PluginDirectory(): ReactNode {
           {/* CTA */}
           <div className={styles.cta}>
             <p>
-              Want to build your own plugin?{' '}
+              Want to build your own plugin?{" "}
               <Link to="/docs/development/plugin-guide">Check out the Plugin Development Guide →</Link>
             </p>
           </div>

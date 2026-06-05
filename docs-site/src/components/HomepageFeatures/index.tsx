@@ -1,10 +1,11 @@
-import {useState, useEffect, type ReactNode} from 'react';
-import clsx from 'clsx';
-import Link from '@docusaurus/Link';
-import {useColorMode} from '@docusaurus/theme-common';
-import Heading from '@theme/Heading';
-import styles from './styles.module.css';
-import {plugins} from '../../plugin-data';
+import Link from "@docusaurus/Link";
+import { useColorMode } from "@docusaurus/theme-common";
+import Heading from "@theme/Heading";
+import clsx from "clsx";
+import { type ReactNode, useEffect, useState } from "react";
+
+import { plugins } from "../../plugin-data";
+import styles from "./styles.module.css";
 
 /** Plugins that ship inside the container (countdown, date_time). */
 const BUNDLED_PLUGIN_COUNT = 2;
@@ -17,62 +18,62 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Plugin Architecture',
-    icon: '/img/features/plugin-architecture.png',
+    title: "Plugin Architecture",
+    icon: "/img/features/plugin-architecture.png",
     description: (
       <>
-        26 built-in plugins for weather, stocks, transit, sports scores, Disney park wait times,
-        ferry schedules, and more. Create your own plugins with our developer guide.
+        26 built-in plugins for weather, stocks, transit, sports scores, Disney park wait times, ferry schedules, and
+        more. Create your own plugins with our developer guide.
       </>
     ),
   },
   {
-    title: 'WYSIWYG Editor',
-    icon: '/img/features/wysiwyg-editor.png',
+    title: "WYSIWYG Editor",
+    icon: "/img/features/wysiwyg-editor.png",
     description: (
       <>
-        Create pages with a visual editor that shows exactly how content will appear on your 
-        board—template variables, colors, and alignment in real time.
+        Create pages with a visual editor that shows exactly how content will appear on your board—template variables,
+        colors, and alignment in real time.
       </>
     ),
   },
   {
-    title: 'Schedule Mode',
-    icon: '/img/features/schedule-mode.png',
+    title: "Schedule Mode",
+    icon: "/img/features/schedule-mode.png",
     description: (
       <>
-        Visual calendar to schedule which pages display when. Set different pages for 
-        different times and days, with a default page for gaps.
+        Visual calendar to schedule which pages display when. Set different pages for different times and days, with a
+        default page for gaps.
       </>
     ),
   },
   {
-    title: 'Docker Ready',
-    icon: '/img/features/docker-ready.png',
+    title: "Docker Ready",
+    icon: "/img/features/docker-ready.png",
     description: (
       <>
-        One-command deployment with Docker Compose. Works on Mac, Linux, Windows, 
-        and Raspberry Pi. No complex setup required.
+        One-command deployment with Docker Compose. Works on Mac, Linux, Windows, and Raspberry Pi. No complex setup
+        required.
       </>
     ),
   },
   {
-    title: 'Highly Customizable',
-    icon: '/img/features/customizable.png',
+    title: "Highly Customizable",
+    icon: "/img/features/customizable.png",
     description: (
       <>
-        Create custom pages with multiple data sources. Configure silence schedules, 
-        time zones, temperature units, and more.
+        Create custom pages with multiple data sources. Configure silence schedules, time zones, temperature units, and
+        more.
       </>
     ),
   },
   {
-    title: 'Open Source',
-    icon: '/img/features/open-source.png',
+    title: "Open Source",
+    icon: "/img/features/open-source.png",
     description: (
       <>
-        MIT licensed and community-driven. Contribute plugins, report issues, 
-        or customize it for your needs. Built with love in San Francisco.
+        MIT licensed and community-driven. Contribute plugins, report issues, or customize it for your needs. Built with
+        love in San Francisco.
       </>
     ),
   },
@@ -88,112 +89,113 @@ type ShowcaseItem = {
 
 const FeatureShowcaseList: ShowcaseItem[] = [
   {
-    title: 'Dashboard & Web UI',
-    image: '/img/web-ui-home.png',
-    alt: 'FiestaBoard web dashboard showing active display with stock ticker data',
-    description: 'Monitor your display, manage pages, and configure plugins from a modern web interface.',
-    link: '/docs/features/page-editor',
+    title: "Dashboard & Web UI",
+    image: "/img/web-ui-home.png",
+    alt: "FiestaBoard web dashboard showing active display with stock ticker data",
+    description: "Monitor your display, manage pages, and configure plugins from a modern web interface.",
+    link: "/docs/features/page-editor",
   },
   {
-    title: 'WYSIWYG Page Editor',
-    image: '/img/page-editor-wysiwyg.png',
-    alt: 'FiestaBoard WYSIWYG page editor with visual board preview',
-    description: 'Design your board layouts visually—see exactly how content will appear before sending it to your display.',
-    link: '/docs/features/page-editor',
+    title: "WYSIWYG Page Editor",
+    image: "/img/page-editor-wysiwyg.png",
+    alt: "FiestaBoard WYSIWYG page editor with visual board preview",
+    description:
+      "Design your board layouts visually—see exactly how content will appear before sending it to your display.",
+    link: "/docs/features/page-editor",
   },
   {
-    title: 'Visual Scheduling',
-    image: '/img/schedule-calendar.png',
-    alt: 'FiestaBoard schedule calendar view with time-based page scheduling',
-    description: 'Schedule different pages for different times and days with an intuitive calendar interface.',
-    link: '/docs/features/schedule',
+    title: "Visual Scheduling",
+    image: "/img/schedule-calendar.png",
+    alt: "FiestaBoard schedule calendar view with time-based page scheduling",
+    description: "Schedule different pages for different times and days with an intuitive calendar interface.",
+    link: "/docs/features/schedule",
   },
 ];
 
 const PluginShowcaseList: ShowcaseItem[] = [
   {
-    title: 'Weather',
-    image: '/img/weather-display.png',
-    alt: 'Weather conditions displayed on split-flap board',
-    description: 'Current conditions, UV index, high/low temps',
-    link: '/docs/plugins/weather',
+    title: "Weather",
+    image: "/img/weather-display.png",
+    alt: "Weather conditions displayed on split-flap board",
+    description: "Current conditions, UV index, high/low temps",
+    link: "/docs/plugins/weather",
   },
   {
-    title: 'Stocks',
-    image: '/img/stocks-display.png',
-    alt: 'Stock prices displayed on split-flap board',
-    description: 'Real-time stock prices with color indicators',
-    link: '/docs/plugins/stocks',
+    title: "Stocks",
+    image: "/img/stocks-display.png",
+    alt: "Stock prices displayed on split-flap board",
+    description: "Real-time stock prices with color indicators",
+    link: "/docs/plugins/stocks",
   },
   {
-    title: 'Sports Scores',
-    image: '/img/sports-scores-display.png',
-    alt: 'Live sports scores displayed on split-flap board',
-    description: 'NFL, Soccer, NHL, NBA live scores',
-    link: '/docs/plugins/sports-scores',
+    title: "Sports Scores",
+    image: "/img/sports-scores-display.png",
+    alt: "Live sports scores displayed on split-flap board",
+    description: "NFL, Soccer, NHL, NBA live scores",
+    link: "/docs/plugins/sports-scores",
   },
   {
-    title: 'Sun Art',
-    image: '/img/sun-art-display.png',
-    alt: 'Sun art visualization on split-flap board',
-    description: 'Beautiful time-of-day color patterns',
-    link: '/docs/plugins/sun-art',
+    title: "Sun Art",
+    image: "/img/sun-art-display.png",
+    alt: "Sun art visualization on split-flap board",
+    description: "Beautiful time-of-day color patterns",
+    link: "/docs/plugins/sun-art",
   },
   {
-    title: 'Disney Parks',
-    image: '/img/disney-parks-times-display.png',
-    alt: 'Disney park wait times on split-flap board',
-    description: 'Live ride wait times from Disney parks',
-    link: '/docs/plugins/disney-parks',
+    title: "Disney Parks",
+    image: "/img/disney-parks-times-display.png",
+    alt: "Disney park wait times on split-flap board",
+    description: "Live ride wait times from Disney parks",
+    link: "/docs/plugins/disney-parks",
   },
   {
-    title: 'Star Trek Quotes',
-    image: '/img/star-trek-quotes-display.png',
-    alt: 'Star Trek quote displayed on split-flap board',
-    description: 'Random quotes from TNG, Voyager, DS9',
-    link: '/docs/plugins/star-trek-quotes',
+    title: "Star Trek Quotes",
+    image: "/img/star-trek-quotes-display.png",
+    alt: "Star Trek quote displayed on split-flap board",
+    description: "Random quotes from TNG, Voyager, DS9",
+    link: "/docs/plugins/star-trek-quotes",
   },
   {
-    title: 'SF Muni',
-    image: '/img/muni-display.png',
-    alt: 'Muni transit arrivals on split-flap board',
-    description: 'Real-time SF Muni arrival predictions',
-    link: '/docs/plugins/muni',
+    title: "SF Muni",
+    image: "/img/muni-display.png",
+    alt: "Muni transit arrivals on split-flap board",
+    description: "Real-time SF Muni arrival predictions",
+    link: "/docs/plugins/muni",
   },
   {
-    title: 'Visual Clock',
-    image: '/img/visual-clock-display.png',
-    alt: 'Pixel-art clock on split-flap board',
-    description: 'Full-screen pixel-art clock display',
-    link: '/docs/plugins/visual-clock',
+    title: "Visual Clock",
+    image: "/img/visual-clock-display.png",
+    alt: "Pixel-art clock on split-flap board",
+    description: "Full-screen pixel-art clock display",
+    link: "/docs/plugins/visual-clock",
   },
   {
-    title: 'Nearby Aircraft',
-    image: '/img/nearby-aircraft-display.png',
-    alt: 'Aircraft tracking on split-flap board',
-    description: 'Real-time flights near your location',
-    link: '/docs/plugins/nearby-aircraft',
+    title: "Nearby Aircraft",
+    image: "/img/nearby-aircraft-display.png",
+    alt: "Aircraft tracking on split-flap board",
+    description: "Real-time flights near your location",
+    link: "/docs/plugins/nearby-aircraft",
   },
 ];
 
-function deriveThemedPath(src: string, mode: 'light' | 'dark'): string {
-  const lastSlash = src.lastIndexOf('/');
+function deriveThemedPath(src: string, mode: "light" | "dark"): string {
+  const lastSlash = src.lastIndexOf("/");
   const dir = src.substring(0, lastSlash);
   const filename = src.substring(lastSlash + 1);
   return `${dir}/${mode}/${filename}`;
 }
 
-function deriveBoardPath(src: string, colorMode: 'light' | 'dark'): string {
-  const boardDir = colorMode === 'light' ? 'white' : 'black';
-  const lastSlash = src.lastIndexOf('/');
+function deriveBoardPath(src: string, colorMode: "light" | "dark"): string {
+  const boardDir = colorMode === "light" ? "white" : "black";
+  const lastSlash = src.lastIndexOf("/");
   const dir = src.substring(0, lastSlash);
   const filename = src.substring(lastSlash + 1);
   return `${dir}/${boardDir}/${filename}`;
 }
 
-function Feature({title, icon, description}: FeatureItem) {
+function Feature({ title, icon, description }: FeatureItem) {
   return (
-    <div className={clsx('col col--4')}>
+    <div className={clsx("col col--4")}>
       <div className="text--center">
         <img className={styles.featureIcon} src={icon} alt={title} loading="lazy" />
       </div>
@@ -214,19 +216,19 @@ function ShowcaseLightbox({
 }: {
   src: string;
   alt: string;
-  activeMode: 'light' | 'dark';
-  onSetMode: (mode: 'light' | 'dark') => void;
+  activeMode: "light" | "dark";
+  onSetMode: (mode: "light" | "dark") => void;
   onClose: () => void;
 }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
-    document.addEventListener('keydown', handler);
-    document.body.style.overflow = 'hidden';
+    document.addEventListener("keydown", handler);
+    document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener('keydown', handler);
-      document.body.style.overflow = '';
+      document.removeEventListener("keydown", handler);
+      document.body.style.overflow = "";
     };
   }, [onClose]);
 
@@ -234,7 +236,15 @@ function ShowcaseLightbox({
     <div className={styles.lightboxOverlay} onClick={onClose} role="dialog" aria-modal="true">
       <div className={styles.lightboxContent} onClick={(e) => e.stopPropagation()}>
         <button type="button" className={styles.lightboxClose} onClick={onClose} aria-label="Close">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
@@ -243,9 +253,10 @@ function ShowcaseLightbox({
           <div className={styles.showcaseToggle}>
             <button
               type="button"
-              className={clsx(styles.lightboxToggleBtn, activeMode === 'light' && styles.lightboxToggleBtnActive)}
-              onClick={() => onSetMode('light')}
-              aria-label="Show light mode screenshot">
+              className={clsx(styles.lightboxToggleBtn, activeMode === "light" && styles.lightboxToggleBtnActive)}
+              onClick={() => onSetMode("light")}
+              aria-label="Show light mode screenshot"
+            >
               <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor" aria-hidden="true">
                 <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" />
               </svg>
@@ -253,9 +264,10 @@ function ShowcaseLightbox({
             </button>
             <button
               type="button"
-              className={clsx(styles.lightboxToggleBtn, activeMode === 'dark' && styles.lightboxToggleBtnActive)}
-              onClick={() => onSetMode('dark')}
-              aria-label="Show dark mode screenshot">
+              className={clsx(styles.lightboxToggleBtn, activeMode === "dark" && styles.lightboxToggleBtnActive)}
+              onClick={() => onSetMode("dark")}
+              aria-label="Show dark mode screenshot"
+            >
               <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor" aria-hidden="true">
                 <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
               </svg>
@@ -268,9 +280,9 @@ function ShowcaseLightbox({
   );
 }
 
-function FeatureShowcase({title, image, alt, description, link, reverse}: ShowcaseItem & {reverse?: boolean}) {
-  const {colorMode} = useColorMode();
-  const [activeMode, setActiveMode] = useState<'light' | 'dark'>(colorMode);
+function FeatureShowcase({ title, image, alt, description, link, reverse }: ShowcaseItem & { reverse?: boolean }) {
+  const { colorMode } = useColorMode();
+  const [activeMode, setActiveMode] = useState<"light" | "dark">(colorMode);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
@@ -288,14 +300,15 @@ function FeatureShowcase({title, image, alt, description, link, reverse}: Showca
             alt={alt}
             loading="lazy"
             onClick={() => setLightboxOpen(true)}
-            style={{cursor: 'zoom-in'}}
+            style={{ cursor: "zoom-in" }}
           />
           <div className={styles.showcaseToggle}>
             <button
               type="button"
-              className={clsx(styles.showcaseToggleBtn, activeMode === 'light' && styles.showcaseToggleBtnActive)}
-              onClick={() => setActiveMode('light')}
-              aria-label="Show light mode screenshot">
+              className={clsx(styles.showcaseToggleBtn, activeMode === "light" && styles.showcaseToggleBtnActive)}
+              onClick={() => setActiveMode("light")}
+              aria-label="Show light mode screenshot"
+            >
               <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor" aria-hidden="true">
                 <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" />
               </svg>
@@ -303,9 +316,10 @@ function FeatureShowcase({title, image, alt, description, link, reverse}: Showca
             </button>
             <button
               type="button"
-              className={clsx(styles.showcaseToggleBtn, activeMode === 'dark' && styles.showcaseToggleBtnActive)}
-              onClick={() => setActiveMode('dark')}
-              aria-label="Show dark mode screenshot">
+              className={clsx(styles.showcaseToggleBtn, activeMode === "dark" && styles.showcaseToggleBtnActive)}
+              onClick={() => setActiveMode("dark")}
+              aria-label="Show dark mode screenshot"
+            >
               <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor" aria-hidden="true">
                 <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
               </svg>
@@ -334,8 +348,8 @@ function FeatureShowcase({title, image, alt, description, link, reverse}: Showca
   );
 }
 
-function PluginCard({title, image, alt, description, link}: ShowcaseItem) {
-  const {colorMode} = useColorMode();
+function PluginCard({ title, image, alt, description, link }: ShowcaseItem) {
+  const { colorMode } = useColorMode();
   const src = deriveBoardPath(image, colorMode);
 
   return (
@@ -344,9 +358,7 @@ function PluginCard({title, image, alt, description, link}: ShowcaseItem) {
         <img src={src} alt={alt} loading="lazy" />
       </div>
       <div className={styles.pluginCardBody}>
-        <Heading as="h4">
-          {title}
-        </Heading>
+        <Heading as="h4">{title}</Heading>
         <p>{description}</p>
       </div>
     </Link>
@@ -357,42 +369,41 @@ type HighlightItem = {
   badge: string;
   title: string;
   description: ReactNode;
-  primary: {label: string; to: string};
-  secondary?: {label: string; to: string};
+  primary: { label: string; to: string };
+  secondary?: { label: string; to: string };
 };
 
 const HighlightList: HighlightItem[] = [
   {
-    badge: 'New',
-    title: 'FiestaPi — flash a Raspberry Pi, done',
+    badge: "New",
+    title: "FiestaPi — flash a Raspberry Pi, done",
     description: (
       <>
-        A pre-built Raspberry Pi OS image with FiestaBoard, Docker, and the self-update
-        sidecar all pre-installed. Flash a microSD card with Raspberry Pi Imager, boot
-        your Pi, open <code>http://fiestapi.local:4420</code> — no Docker setup, no
-        terminal, no config files. Works on Pi 3B, Pi 4, Pi 5, and Pi Zero 2 W.
+        A pre-built Raspberry Pi OS image with FiestaBoard, Docker, and the self-update sidecar all pre-installed. Flash
+        a microSD card with Raspberry Pi Imager, boot your Pi, open <code>http://fiestapi.local:4420</code> — no Docker
+        setup, no terminal, no config files. Works on Pi 3B, Pi 4, Pi 5, and Pi Zero 2 W.
       </>
     ),
-    primary: {label: 'FiestaPi Quick Start', to: '/docs/setup/raspberry-pi'},
-    secondary: {label: 'Download image', to: 'https://github.com/Fiestaboard/FiestaBoard/releases/latest'},
+    primary: { label: "FiestaPi Quick Start", to: "/docs/setup/raspberry-pi" },
+    secondary: { label: "Download image", to: "https://github.com/Fiestaboard/FiestaBoard/releases/latest" },
   },
   {
-    badge: 'New',
-    title: 'One-click in-app updates',
+    badge: "New",
+    title: "One-click in-app updates",
     description: (
       <>
-        When a new version ships, a banner appears in <strong>Settings → System</strong>.
-        Click <strong>Update Now</strong> and FiestaBoard updates itself — no SSH, no
-        <code> docker compose pull</code>. On for FiestaPi by default; opt in on Docker
-        installs by enabling the <code>fiestaupdater</code> sidecar.
+        When a new version ships, a banner appears in <strong>Settings → System</strong>. Click{" "}
+        <strong>Update Now</strong> and FiestaBoard updates itself — no SSH, no
+        <code> docker compose pull</code>. On for FiestaPi by default; opt in on Docker installs by enabling the{" "}
+        <code>fiestaupdater</code> sidecar.
       </>
     ),
-    primary: {label: 'How updates work', to: '/docs/features/updating'},
-    secondary: {label: 'FiestaUpdater reference', to: '/docs/deployment/fiestaupdater'},
+    primary: { label: "How updates work", to: "/docs/features/updating" },
+    secondary: { label: "FiestaUpdater reference", to: "/docs/deployment/fiestaupdater" },
   },
 ];
 
-function HighlightCard({badge, title, description, primary, secondary}: HighlightItem) {
+function HighlightCard({ badge, title, description, primary, secondary }: HighlightItem) {
   return (
     <div className={styles.highlightCard}>
       <span className={styles.highlightBadge}>{badge}</span>
@@ -452,9 +463,7 @@ export default function HomepageFeatures(): ReactNode {
             <Heading as="h2" className={styles.sectionTitle}>
               See It in Action
             </Heading>
-            <p className={styles.sectionSubtitle}>
-              A powerful web interface to manage your split-flap display
-            </p>
+            <p className={styles.sectionSubtitle}>A powerful web interface to manage your split-flap display</p>
           </div>
           {FeatureShowcaseList.map((props, idx) => (
             <FeatureShowcase key={props.title} {...props} reverse={idx % 2 === 1} />
@@ -479,9 +488,7 @@ export default function HomepageFeatures(): ReactNode {
             ))}
           </div>
           <div className="text--center margin-top--lg">
-            <Link
-              className="button button--primary button--lg"
-              to="/plugins">
+            <Link className="button button--primary button--lg" to="/plugins">
               Explore All Plugins
             </Link>
           </div>
@@ -495,18 +502,13 @@ export default function HomepageFeatures(): ReactNode {
             Ready to Get Started?
           </Heading>
           <p className={styles.ctaSubtitle}>
-            FiestaBoard is free, open source, and runs anywhere Docker does.
-            Get up and running in minutes.
+            FiestaBoard is free, open source, and runs anywhere Docker does. Get up and running in minutes.
           </p>
           <div className={styles.ctaButtons}>
-            <Link
-              className="button button--primary button--lg"
-              to="/docs/setup/beginners-guide">
+            <Link className="button button--primary button--lg" to="/docs/setup/beginners-guide">
               Beginner's Guide
             </Link>
-            <Link
-              className="button button--outline button--primary button--lg"
-              to="/docs/development/plugin-guide">
+            <Link className="button button--outline button--primary button--lg" to="/docs/development/plugin-guide">
               Build a Plugin
             </Link>
           </div>

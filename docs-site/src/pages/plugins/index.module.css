@@ -39,7 +39,9 @@
   background: var(--ifm-background-color);
   color: var(--ifm-font-color-base);
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   font-family: inherit;
 }
 
@@ -110,7 +112,9 @@
   border-radius: 12px;
   overflow: hidden;
   background: var(--ifm-color-emphasis-100);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   text-decoration: none;
   color: inherit;
 }
@@ -122,7 +126,7 @@
   color: inherit;
 }
 
-[data-theme='dark'] .pluginCard:hover {
+[data-theme="dark"] .pluginCard:hover {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
 }
 
@@ -189,7 +193,7 @@
   color: #2d6faa;
 }
 
-[data-theme='dark'] .category_weather {
+[data-theme="dark"] .category_weather {
   background: rgba(74, 144, 217, 0.25);
   color: #7ab3e8;
 }
@@ -199,7 +203,7 @@
   color: #4a8f10;
 }
 
-[data-theme='dark'] .category_transit {
+[data-theme="dark"] .category_transit {
   background: rgba(126, 211, 33, 0.25);
   color: #9ee04d;
 }
@@ -209,7 +213,7 @@
   color: #7d3c98;
 }
 
-[data-theme='dark'] .category_data {
+[data-theme="dark"] .category_data {
   background: rgba(155, 89, 182, 0.25);
   color: #c39bd3;
 }
@@ -219,7 +223,7 @@
   color: #c07800;
 }
 
-[data-theme='dark'] .category_entertainment {
+[data-theme="dark"] .category_entertainment {
   background: rgba(245, 166, 35, 0.25);
   color: #f5b94e;
 }
@@ -229,7 +233,7 @@
   color: #c0392b;
 }
 
-[data-theme='dark'] .category_art {
+[data-theme="dark"] .category_art {
   background: rgba(235, 64, 52, 0.25);
   color: #f1948a;
 }
@@ -239,7 +243,7 @@
   color: #5d6d7e;
 }
 
-[data-theme='dark'] .category_utility {
+[data-theme="dark"] .category_utility {
   background: rgba(149, 165, 166, 0.25);
   color: #aeb6bf;
 }
@@ -249,7 +253,7 @@
   color: #117a65;
 }
 
-[data-theme='dark'] .category_home {
+[data-theme="dark"] .category_home {
   background: rgba(22, 160, 133, 0.25);
   color: #48c9b0;
 }
