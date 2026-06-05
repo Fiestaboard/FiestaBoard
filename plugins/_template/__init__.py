@@ -13,6 +13,9 @@ from typing import Any
 
 from src.plugins.base import PluginBase, PluginResult
 
+# Uncomment when adding event-based triggers (see check_triggers stub below):
+# from src.plugins.base import TriggerResult
+
 logger = logging.getLogger(__name__)
 
 
@@ -141,4 +144,33 @@ class MyPlugin(PluginBase):
         Override this to clean up any resources (close connections, etc.)
         """
         logger.info(f"Plugin {self.plugin_id} cleanup")
+
+    # ------------------------------------------------------------------
+    # Optional: event-based triggers
+    # ------------------------------------------------------------------
+    # Uncomment and adapt the block below if your plugin needs to push a
+    # specific page to the board in response to an event (doorbell ring,
+    # weather alert, threshold crossed, etc.). You must also set
+    # `"supports_triggers": true` in manifest.json — without that flag
+    # this method is never called.
+    #
+    # Full docs: docs/development/PLUGIN_DEVELOPMENT.md
+    # ("Triggering Pages from a Plugin")
+    #
+    # def check_triggers(self) -> list["TriggerResult"]:
+    #     """Return a list of TriggerResult; entries with triggered=True activate."""
+    #     event = self._pending_event()  # your own state
+    #     if event is None:
+    #         return []
+    #     return [
+    #         TriggerResult(
+    #             triggered=True,
+    #             trigger_id=f"my_plugin_event_{event.id}",  # stable per event
+    #             priority=50,                                # higher = more important
+    #             duration_seconds=30,                        # auto-expires after this
+    #             data={"label": event.label},                # → {{my_plugin.label}}
+    #             message="Event fired",                      # fallback when no
+    #                                                         # trigger_page_id is set
+    #         )
+    #     ]
 
