@@ -2,13 +2,13 @@
 
 Display the remaining time to an event in real time on your board.
 
-![Countdown Plugin Display](./docs/board-display.png)
+![Countdown Display](./docs/board-display.png)
 
-**→ [Setup Guide](./docs/SETUP.md)** - Configuration and setup instructions
+**→ [Setup Guide](./docs/SETUP.md)**
 
 ## Overview
 
-The Countdown plugin shows the remaining days, hours, minutes, and seconds until a target date/time. It automatically updates each time the board refreshes, making it ideal for counting down to events like the last day of school, a holiday, a product launch, or any important date.
+The Countdown plugin shows the remaining days, hours, minutes, and seconds until a target date/time. Values recompute on every board refresh — useful for the last day of school, a wedding, a product launch, or any date you want to watch tick down.
 
 ## Template Variables
 
