@@ -12,7 +12,7 @@ The easiest way to run FiestaBoard is to flash a Raspberry Pi with our pre-built
 
 ## 1. Download the image
 
-Grab the latest `FiestaPi-<version>-arm64.img.xz` from the [GitHub Releases](https://github.com/Fiestaboard/FiestaBoard/releases) page.
+Grab the latest `FiestaPi-<version>-arm64.img.xz` from the [GitHub Releases](https://github.com/Fiestaboard/FiestaBoard/releases) page. The image is published by the `build-fiestapi.yml` workflow after each app release and typically lands ~45–60 minutes after the release shows up; the release page shows a "Raspberry Pi image is building" banner until it's attached.
 
 ## 2. Flash the SD card
 
@@ -82,6 +82,8 @@ ssh fiesta@fiestapi.local
 cd /opt/fiestaboard
 docker compose pull && docker compose up -d
 ```
+
+The `fiestaupdater` sidecar is enabled by default on FiestaPi (`COMPOSE_PROFILES=fiestaupdater` in `/opt/fiestaboard/.env`) and a unique `FIESTAUPDATER_TOKEN` is generated on first boot — so **Update Now** works out of the box without you having to touch any tokens.
 
 ## Troubleshooting
 
