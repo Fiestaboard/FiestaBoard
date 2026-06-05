@@ -3,7 +3,8 @@
 Uses FastAPI TestClient and mocks the SettingsService + PageService singletons
 so no real filesystem or board connection is needed.
 """
-from datetime import datetime, timezone, timedelta
+
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,10 +13,10 @@ from fastapi.testclient import TestClient
 from src.api_server import app
 from src.settings.service import SettingsService, TemporaryOverride
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def tmp_settings_file(tmp_path):
@@ -59,6 +60,7 @@ def client_with_page(settings_service, tmp_path):
 # GET /settings/temporary-override
 # ---------------------------------------------------------------------------
 
+
 class TestGetTemporaryOverride:
     def test_returns_inactive_when_no_override(self, client):
         r = client.get("/settings/temporary-override")
@@ -72,7 +74,7 @@ class TestGetTemporaryOverride:
         assert data["revert_page_id"] is None
 
     def test_returns_active_when_override_set(self, client, settings_service):
-        expires = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+        expires = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()
         settings_service.set_temporary_override(
             TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="schedule")
         )
@@ -86,11 +88,9 @@ class TestGetTemporaryOverride:
         assert data["remaining_seconds"] > 0
 
     def test_returns_inactive_when_override_expired(self, client, settings_service):
-        past = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+        past = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
         # Set directly without the auto-clear logic on get
-        settings_service._temporary_override = TemporaryOverride(
-            page_id="p1", expires_at=past, revert_mode="schedule"
-        )
+        settings_service._temporary_override = TemporaryOverride(page_id="p1", expires_at=past, revert_mode="schedule")
         r = client.get("/settings/temporary-override")
         assert r.status_code == 200
         assert r.json()["active"] is False
@@ -99,6 +99,7 @@ class TestGetTemporaryOverride:
 # ---------------------------------------------------------------------------
 # POST /settings/temporary-override
 # ---------------------------------------------------------------------------
+
 
 class TestSetTemporaryOverride:
     def test_success(self, client_with_page):
@@ -184,9 +185,10 @@ class TestSetTemporaryOverride:
 # DELETE /settings/temporary-override
 # ---------------------------------------------------------------------------
 
+
 class TestClearTemporaryOverride:
     def test_clears_active_override(self, client, settings_service):
-        expires = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+        expires = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()
         settings_service.set_temporary_override(
             TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="schedule")
         )
@@ -201,11 +203,9 @@ class TestClearTemporaryOverride:
         assert r.json()["status"] == "cleared"
 
     def test_clear_sets_active_page_for_revert_page_mode(self, client, settings_service):
-        expires = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+        expires = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()
         settings_service.set_temporary_override(
-            TemporaryOverride(
-                page_id="p1", expires_at=expires, revert_mode="page", revert_page_id="p2"
-            )
+            TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="page", revert_page_id="p2")
         )
         client.delete("/settings/temporary-override")
         assert settings_service.get_active_page_id() == "p2"
@@ -214,6 +214,7 @@ class TestClearTemporaryOverride:
 # ---------------------------------------------------------------------------
 # GET /schedules/active/page includes temporary_override field
 # ---------------------------------------------------------------------------
+
 
 class TestActiveScheduleIncludesOverride:
     def test_override_field_present_when_no_override(self, client, settings_service):
@@ -224,7 +225,7 @@ class TestActiveScheduleIncludesOverride:
         assert data["temporary_override"]["active"] is False
 
     def test_override_field_active_when_override_set(self, client, settings_service):
-        expires = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+        expires = (datetime.now(UTC) + timedelta(minutes=5)).isoformat()
         settings_service.set_temporary_override(
             TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="schedule")
         )
@@ -237,10 +238,11 @@ class TestActiveScheduleIncludesOverride:
 # SettingsService unit tests
 # ---------------------------------------------------------------------------
 
+
 class TestSettingsServiceOverride:
     def test_set_and_get_override(self, tmp_settings_file):
         svc = SettingsService(settings_file=str(tmp_settings_file))
-        expires = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+        expires = (datetime.now(UTC) + timedelta(minutes=30)).isoformat()
         override = TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="schedule")
         svc.set_temporary_override(override)
         result = svc.get_temporary_override()
@@ -249,10 +251,8 @@ class TestSettingsServiceOverride:
 
     def test_get_override_returns_none_when_expired(self, tmp_settings_file):
         svc = SettingsService(settings_file=str(tmp_settings_file))
-        past = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
-        svc._temporary_override = TemporaryOverride(
-            page_id="p1", expires_at=past, revert_mode="schedule"
-        )
+        past = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
+        svc._temporary_override = TemporaryOverride(page_id="p1", expires_at=past, revert_mode="schedule")
         result = svc.get_temporary_override()
         assert result is None
         # Also verifies auto-clear persisted
@@ -260,20 +260,16 @@ class TestSettingsServiceOverride:
 
     def test_clear_override(self, tmp_settings_file):
         svc = SettingsService(settings_file=str(tmp_settings_file))
-        expires = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
-        svc.set_temporary_override(
-            TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="blank")
-        )
+        expires = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()
+        svc.set_temporary_override(TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="blank"))
         svc.clear_temporary_override()
         assert svc.get_temporary_override() is None
 
     def test_override_survives_service_restart(self, tmp_settings_file):
         # Write override with first instance
         svc1 = SettingsService(settings_file=str(tmp_settings_file))
-        expires = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
-        svc1.set_temporary_override(
-            TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="schedule")
-        )
+        expires = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()
+        svc1.set_temporary_override(TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="schedule"))
         # Reload with second instance
         svc2 = SettingsService(settings_file=str(tmp_settings_file))
         result = svc2.get_temporary_override()
@@ -282,11 +278,9 @@ class TestSettingsServiceOverride:
 
     def test_expired_override_not_loaded_on_restart(self, tmp_settings_file):
         svc1 = SettingsService(settings_file=str(tmp_settings_file))
-        past = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+        past = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
         # Write expired override directly to the file
-        svc1._temporary_override = TemporaryOverride(
-            page_id="p1", expires_at=past, revert_mode="schedule"
-        )
+        svc1._temporary_override = TemporaryOverride(page_id="p1", expires_at=past, revert_mode="schedule")
         svc1._save_to_file()
         # Reload — expired override should be discarded
         svc2 = SettingsService(settings_file=str(tmp_settings_file))
@@ -294,10 +288,8 @@ class TestSettingsServiceOverride:
 
     def test_consume_returns_live_override(self, tmp_settings_file):
         svc = SettingsService(settings_file=str(tmp_settings_file))
-        expires = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
-        svc.set_temporary_override(
-            TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="schedule")
-        )
+        expires = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()
+        svc.set_temporary_override(TemporaryOverride(page_id="p1", expires_at=expires, revert_mode="schedule"))
         result = svc.consume_temporary_override()
         assert result is not None
         assert result.page_id == "p1"
@@ -307,10 +299,8 @@ class TestSettingsServiceOverride:
 
     def test_consume_returns_expired_override_and_clears_it(self, tmp_settings_file):
         svc = SettingsService(settings_file=str(tmp_settings_file))
-        past = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
-        svc._temporary_override = TemporaryOverride(
-            page_id="p1", expires_at=past, revert_mode="blank"
-        )
+        past = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
+        svc._temporary_override = TemporaryOverride(page_id="p1", expires_at=past, revert_mode="blank")
         result = svc.consume_temporary_override()
         # Returns the expired object so caller can apply revert logic
         assert result is not None
@@ -321,14 +311,10 @@ class TestSettingsServiceOverride:
 
     def test_second_override_replaces_first(self, tmp_settings_file):
         svc = SettingsService(settings_file=str(tmp_settings_file))
-        t1 = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
-        t2 = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
-        svc.set_temporary_override(
-            TemporaryOverride(page_id="first-page", expires_at=t1, revert_mode="schedule")
-        )
-        svc.set_temporary_override(
-            TemporaryOverride(page_id="second-page", expires_at=t2, revert_mode="blank")
-        )
+        t1 = (datetime.now(UTC) + timedelta(minutes=30)).isoformat()
+        t2 = (datetime.now(UTC) + timedelta(minutes=5)).isoformat()
+        svc.set_temporary_override(TemporaryOverride(page_id="first-page", expires_at=t1, revert_mode="schedule"))
+        svc.set_temporary_override(TemporaryOverride(page_id="second-page", expires_at=t2, revert_mode="blank"))
         result = svc.get_temporary_override()
         assert result is not None
         assert result.page_id == "second-page"

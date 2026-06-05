@@ -10,11 +10,12 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from ..formatters.message_formatter import get_message_formatter
+from src.formatters.message_formatter import get_message_formatter
 
 # Import plugin system
 try:
-    from ..plugins import PluginRegistry, get_plugin_registry
+    from src.plugins import PluginRegistry, get_plugin_registry
+
     PLUGIN_SYSTEM_AVAILABLE = True
 except ImportError:
     PLUGIN_SYSTEM_AVAILABLE = False
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DisplayResult:
     """Result from fetching a display."""
+
     display_type: str
     formatted: str
     raw: dict[str, Any]
@@ -83,12 +85,14 @@ class DisplayService:
         displays = []
         for plugin_data in self._plugin_registry.list_plugins():
             plugin_id = plugin_data["id"]
-            displays.append({
-                "type": plugin_id,
-                "available": self._plugin_registry.is_enabled(plugin_id),
-                "description": plugin_data.get("description", ""),
-                "source": "plugin",
-            })
+            displays.append(
+                {
+                    "type": plugin_id,
+                    "available": self._plugin_registry.is_enabled(plugin_id),
+                    "description": plugin_data.get("description", ""),
+                    "source": "plugin",
+                }
+            )
         return displays
 
     def get_display(self, display_type: str) -> DisplayResult:
@@ -102,11 +106,7 @@ class DisplayService:
         """
         if not self._plugin_registry:
             return DisplayResult(
-                display_type=display_type,
-                formatted="",
-                raw={},
-                available=False,
-                error="Plugin system not initialized."
+                display_type=display_type, formatted="", raw={}, available=False, error="Plugin system not initialized."
             )
 
         # Validate the display type exists as a plugin
@@ -118,7 +118,7 @@ class DisplayService:
                 formatted="",
                 raw={},
                 available=False,
-                error=f"Unknown display type: {display_type}. Valid types: {valid_types}"
+                error=f"Unknown display type: {display_type}. Valid types: {valid_types}",
             )
 
         try:
@@ -133,27 +133,15 @@ class DisplayService:
                     formatted = str(plugin_result.data.get("formatted", "")) if plugin_result.data else ""
 
                 return DisplayResult(
-                    display_type=display_type,
-                    formatted=formatted,
-                    raw=plugin_result.data or {},
-                    available=True
+                    display_type=display_type, formatted=formatted, raw=plugin_result.data or {}, available=True
                 )
-            else:
-                return DisplayResult(
-                    display_type=display_type,
-                    formatted="",
-                    raw={},
-                    available=False,
-                    error=plugin_result.error
-                )
+            return DisplayResult(
+                display_type=display_type, formatted="", raw={}, available=False, error=plugin_result.error
+            )
         except Exception as e:
             logger.error(f"Error fetching data for plugin {display_type}: {e}", exc_info=True)
             return DisplayResult(
-                display_type=display_type,
-                formatted="",
-                raw={},
-                available=False,
-                error=f"Error fetching data: {e}"
+                display_type=display_type, formatted="", raw={}, available=False, error=f"Error fetching data: {e}"
             )
 
 

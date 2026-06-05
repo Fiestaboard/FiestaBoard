@@ -192,10 +192,7 @@ def test_rotate_accessible_when_auth_disabled(client, auth_disabled):
         "source": "stored",
     }
     bare = TestClient(app, raise_server_exceptions=False)
-    assert (
-        bare.get("/mcp/", headers={"Authorization": f"Bearer {token}"}).status_code
-        != 401
-    )
+    assert bare.get("/mcp/", headers={"Authorization": f"Bearer {token}"}).status_code != 401
 
 
 def test_clear_accessible_when_auth_disabled(client, auth_disabled):

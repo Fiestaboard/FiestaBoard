@@ -1,11 +1,13 @@
 """Tests for system management endpoints (update check)."""
 
 import os
+from datetime import UTC
+from typing import Any
+from unittest.mock import Mock, patch
 from urllib.parse import urlparse
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, Mock
 
 
 def _host_is(url, expected_host):
@@ -24,6 +26,7 @@ def _host_is(url, expected_host):
 def client():
     """Create a test client."""
     from src.api_server import app
+
     return TestClient(app)
 
 
@@ -46,7 +49,7 @@ class TestUpdateCheck:
 
         with patch("src.api_server.requests.get", return_value=mock_response):
             response = client.get("/system/update-check")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["update_available"] is True
@@ -57,6 +60,7 @@ class TestUpdateCheck:
     def test_up_to_date(self, client):
         """Test when current version matches latest."""
         from src import __version__
+
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"tag_name": f"v{__version__}"}
@@ -64,7 +68,7 @@ class TestUpdateCheck:
 
         with patch("src.api_server.requests.get", return_value=mock_response):
             response = client.get("/system/update-check")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["update_available"] is False
@@ -75,7 +79,7 @@ class TestUpdateCheck:
         """Test graceful handling when GitHub API is unreachable."""
         with patch("src.api_server.requests.get", side_effect=Exception("Network error")):
             response = client.get("/system/update-check")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["update_available"] is False
@@ -90,10 +94,12 @@ class TestUpdateCheck:
         mock_response.json.return_value = {"tag_name": "v1.0.0"}
         mock_response.raise_for_status = Mock()
 
-        with patch("src.api_server.requests.get", return_value=mock_response), \
-             patch.dict("os.environ", {"PRODUCTION": "true"}):
+        with (
+            patch("src.api_server.requests.get", return_value=mock_response),
+            patch.dict("os.environ", {"PRODUCTION": "true"}),
+        ):
             response = client.get("/system/update-check")
-        
+
         assert response.status_code == 200
         assert response.json()["is_production"] is True
 
@@ -106,7 +112,7 @@ class TestUpdateCheck:
 
         with patch("src.api_server.requests.get", return_value=mock_response):
             response = client.get("/system/update-check")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["latest_version"] == "99.0.0"
@@ -123,13 +129,7 @@ class TestDockerHubCheck:
         tags_resp = Mock()
         tags_resp.status_code = 200
         tags_resp.json.return_value = {
-            "results": [
-                {"name": "latest"},
-                {"name": "2.0.0"},
-                {"name": "2.0.1"},
-                {"name": "2.1.0"},
-                {"name": "main"}
-            ]
+            "results": [{"name": "latest"}, {"name": "2.0.0"}, {"name": "2.0.1"}, {"name": "2.1.0"}, {"name": "main"}]
         }
         tags_resp.raise_for_status = Mock()
 
@@ -144,13 +144,7 @@ class TestDockerHubCheck:
 
         tags_resp = Mock()
         tags_resp.status_code = 200
-        tags_resp.json.return_value = {
-            "results": [
-                {"name": "latest"},
-                {"name": "main"},
-                {"name": "dev"}
-            ]
-        }
+        tags_resp.json.return_value = {"results": [{"name": "latest"}, {"name": "main"}, {"name": "dev"}]}
         tags_resp.raise_for_status = Mock()
 
         with patch("src.api_server.requests.get", return_value=tags_resp):
@@ -190,12 +184,7 @@ class TestDockerHubCheck:
 
         tags_resp = Mock()
         tags_resp.status_code = 200
-        tags_resp.json.return_value = {
-            "results": [
-                {"name": "99.0.0"},
-                {"name": "2.0.0"}
-            ]
-        }
+        tags_resp.json.return_value = {"results": [{"name": "99.0.0"}, {"name": "2.0.0"}]}
         tags_resp.raise_for_status = Mock()
 
         github_resp = Mock()
@@ -251,30 +240,37 @@ class TestIsNewerVersion:
 
     def test_newer_major(self):
         from src.api_server import _is_newer_version
+
         assert _is_newer_version("3.0.0", "2.0.0") is True
 
     def test_newer_minor(self):
         from src.api_server import _is_newer_version
+
         assert _is_newer_version("2.1.0", "2.0.0") is True
 
     def test_newer_patch(self):
         from src.api_server import _is_newer_version
+
         assert _is_newer_version("2.0.1", "2.0.0") is True
 
     def test_same_version(self):
         from src.api_server import _is_newer_version
+
         assert _is_newer_version("2.0.0", "2.0.0") is False
 
     def test_older_version(self):
         from src.api_server import _is_newer_version
+
         assert _is_newer_version("1.9.0", "2.0.0") is False
 
     def test_invalid_version(self):
         from src.api_server import _is_newer_version
+
         assert _is_newer_version("invalid", "2.0.0") is False
 
     def test_empty_string(self):
         from src.api_server import _is_newer_version
+
         assert _is_newer_version("", "2.0.0") is False
 
 
@@ -282,6 +278,7 @@ class TestIsNewerVersion:
 # Tests for self-update sidecar endpoints
 # (/system/update/status, /system/update, /system/update/auto)
 # =============================================================================
+
 
 class TestSystemUpdateStatus:
     """Tests for /system/update/status."""
@@ -341,10 +338,9 @@ class TestSystemUpdateApply:
     def test_sidecar_unreachable_returns_503(self, client, tmp_path, monkeypatch):
         """When the sidecar host is unreachable, we surface a manual fallback."""
         import requests as _requests
+
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
-        monkeypatch.setattr(
-            "src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps"
-        )
+        monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps")
         with patch(
             "src.api_server.requests.post",
             side_effect=_requests.exceptions.ConnectionError("nope"),
@@ -356,9 +352,7 @@ class TestSystemUpdateApply:
     def test_sidecar_rejects_token(self, client, tmp_path, monkeypatch):
         """A 401 from the sidecar means our shared token is misconfigured."""
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
-        monkeypatch.setattr(
-            "src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps"
-        )
+        monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps")
         bad = Mock(status_code=401, text="invalid_token")
         with patch("src.api_server.requests.post", return_value=bad):
             response = client.post("/system/update")
@@ -404,6 +398,7 @@ class TestSystemUpdateAutoToggle:
         # docker profile defaults to "weekly"
         assert body1["interval"] == "weekly"
         import json as _json
+
         persisted = _json.loads(state_file.read_text())
         assert persisted["auto_update_enabled"] is True
         assert persisted["auto_update_interval"] == "weekly"
@@ -495,33 +490,41 @@ class TestUpdateCheckDueHelper:
 
     def test_no_last_check_is_due(self):
         from src.api_server import _is_update_check_due
+
         assert _is_update_check_due({}, period_days=7) is True
 
     def test_recent_check_not_due(self):
+        from datetime import datetime
+
         from src.api_server import _is_update_check_due
-        from datetime import datetime, timezone
-        recent = datetime.now(timezone.utc).isoformat()
+
+        recent = datetime.now(UTC).isoformat()
         assert _is_update_check_due({"last_check": recent}, period_days=7) is False
 
     def test_old_check_is_due(self):
+        from datetime import datetime, timedelta
+
         from src.api_server import _is_update_check_due
-        from datetime import datetime, timezone, timedelta
-        old = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+
+        old = (datetime.now(UTC) - timedelta(days=30)).isoformat()
         assert _is_update_check_due({"last_check": old}, period_days=7) is True
 
     def test_manual_period_never_due(self):
         from src.api_server import _is_update_check_due
+
         # period_days <= 0 means "manual"; never run regardless of last_check
         assert _is_update_check_due({}, period_days=0) is False
 
     def test_malformed_last_check_treated_as_due(self):
         from src.api_server import _is_update_check_due
+
         assert _is_update_check_due({"last_check": "not-a-date"}, period_days=7) is True
 
 
 # =============================================================================
 # Tests for /system/restart
 # =============================================================================
+
 
 class TestSystemRestart:
     """Tests for POST /system/restart."""
@@ -534,6 +537,7 @@ class TestSystemRestart:
 
     def test_sidecar_unreachable_returns_503(self, client, monkeypatch):
         import requests as _requests
+
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
         with patch(
             "src.api_server.requests.post",
@@ -566,6 +570,7 @@ class TestSystemRestart:
 # Tests for /system/shutdown
 # =============================================================================
 
+
 class TestSystemShutdown:
     """Tests for POST /system/shutdown."""
 
@@ -577,6 +582,7 @@ class TestSystemShutdown:
 
     def test_sidecar_unreachable_returns_503(self, client, monkeypatch):
         import requests as _requests
+
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
         with patch(
             "src.api_server.requests.post",
@@ -644,6 +650,7 @@ class TestSettingsSnapshots:
     def test_take_snapshot_creates_file(self, tmp_path, monkeypatch):
         """A snapshot file lands in SETTINGS_SNAPSHOT_DIR with valid JSON."""
         from src import api_server as api
+
         snap_dir = tmp_path / "update-backups"
         monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
 
@@ -656,6 +663,7 @@ class TestSettingsSnapshots:
         assert files[0].name.endswith(".json")
         # Snapshot is a BackupService document.
         import json as _json
+
         with files[0].open() as fh:
             doc = _json.load(fh)
         assert doc.get("fiestaboard_backup") is True
@@ -664,6 +672,7 @@ class TestSettingsSnapshots:
     def test_retention_keeps_only_five(self, tmp_path, monkeypatch):
         """Six snapshots → only the newest five remain after pruning."""
         from src import api_server as api
+
         snap_dir = tmp_path / "update-backups"
         monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
 
@@ -684,6 +693,7 @@ class TestSettingsSnapshots:
     def test_resolve_rejects_path_traversal(self, tmp_path, monkeypatch):
         """``..`` and absolute paths must not escape the snapshot dir."""
         from src import api_server as api
+
         snap_dir = tmp_path / "update-backups"
         monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
         snap_dir.mkdir()
@@ -702,6 +712,7 @@ class TestSettingsSnapshots:
     def test_resolve_returns_newest_when_name_omitted(self, tmp_path, monkeypatch):
         """Calling ``_resolve_snapshot_name(None)`` returns the latest snapshot."""
         from src import api_server as api
+
         snap_dir = tmp_path / "update-backups"
         monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
         m1 = api._take_settings_snapshot()
@@ -720,12 +731,8 @@ class TestSystemUpdateStatusRollbackFields:
     def test_status_includes_sidecar_last_update(self, client, tmp_path, monkeypatch):
         """A rolled-back attempt is reflected in the status payload."""
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
-        monkeypatch.setattr(
-            "src.api_server.SYSTEM_UPDATE_STATE_FILE", tmp_path / "state.json"
-        )
-        monkeypatch.setattr(
-            "src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps"
-        )
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", tmp_path / "state.json")
+        monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps")
 
         # Mock both /healthz (probe) and /last-update with one fake `requests.get`.
         def _fake_get(url, **_kwargs):
@@ -754,17 +761,11 @@ class TestSystemUpdateStatusRollbackFields:
         assert body["last_update_previous_digest"] == "sha256:bad"
         assert body["last_update_completed_at"] == "2026-05-03T12:00:00Z"
 
-    def test_status_skips_last_update_when_sidecar_unreachable(
-        self, client, tmp_path, monkeypatch
-    ):
+    def test_status_skips_last_update_when_sidecar_unreachable(self, client, tmp_path, monkeypatch):
         """If the sidecar is down, status must not pretend to know its state."""
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
-        monkeypatch.setattr(
-            "src.api_server.SYSTEM_UPDATE_STATE_FILE", tmp_path / "state.json"
-        )
-        monkeypatch.setattr(
-            "src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps"
-        )
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", tmp_path / "state.json")
+        monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps")
         with patch("src.api_server.requests.get", side_effect=Exception("boom")):
             r = client.get("/system/update/status")
         assert r.status_code == 200
@@ -775,11 +776,10 @@ class TestSystemUpdateStatusRollbackFields:
     def test_status_lists_settings_snapshots(self, client, tmp_path, monkeypatch):
         """Status payload lists snapshots so the UI can offer rollback."""
         from src import api_server as api
+
         snap_dir = tmp_path / "snaps"
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
-        monkeypatch.setattr(
-            "src.api_server.SYSTEM_UPDATE_STATE_FILE", tmp_path / "state.json"
-        )
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", tmp_path / "state.json")
         monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
         api._take_settings_snapshot()
         api._take_settings_snapshot()
@@ -800,9 +800,7 @@ class TestSystemUpdateApplyTakesSnapshot:
 
     def test_snapshot_returned_in_apply_response(self, client, tmp_path, monkeypatch):
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
-        monkeypatch.setattr(
-            "src.api_server.SYSTEM_UPDATE_STATE_FILE", tmp_path / "state.json"
-        )
+        monkeypatch.setattr("src.api_server.SYSTEM_UPDATE_STATE_FILE", tmp_path / "state.json")
         snap_dir = tmp_path / "update-backups"
         monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", snap_dir)
 
@@ -821,9 +819,7 @@ class TestSystemUpdateRollback:
     """``POST /system/update/rollback`` rolls settings + image back."""
 
     def test_404_when_no_snapshots_exist(self, client, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "empty"
-        )
+        monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "empty")
         r = client.post("/system/update/rollback", json={"restore_image": False})
         assert r.status_code == 404
 
@@ -842,9 +838,7 @@ class TestSystemUpdateRollback:
         snap_dir.mkdir()
         monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", snap_dir)
         # Plant an actual backup-shaped file outside the snap dir.
-        (tmp_path / "secret.json").write_text(
-            '{"fiestaboard_backup":true,"schema_version":1,"data":{}}'
-        )
+        (tmp_path / "secret.json").write_text('{"fiestaboard_backup":true,"schema_version":1,"data":{}}')
         r = client.post(
             "/system/update/rollback",
             json={"snapshot": "../secret.json", "restore_image": False},
@@ -852,9 +846,7 @@ class TestSystemUpdateRollback:
         assert r.status_code == 404
 
     def test_400_when_neither_settings_nor_image_requested(self, client, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps"
-        )
+        monkeypatch.setattr("src.api_server.SETTINGS_SNAPSHOT_DIR", tmp_path / "snaps")
         r = client.post(
             "/system/update/rollback",
             json={"restore_settings": False, "restore_image": False},
@@ -863,12 +855,14 @@ class TestSystemUpdateRollback:
 
     def test_settings_only_happy_path(self, client, tmp_path, monkeypatch):
         from src import api_server as api
+
         snap_dir = tmp_path / "snaps"
         monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
 
         # Point BackupService at an isolated data dir so the test can't
         # mutate the real repository's data/.
         from src.backup import service as backup_service
+
         bs = backup_service.BackupService(data_dir=tmp_path / "data")
         monkeypatch.setattr(backup_service, "_backup_service", bs)
         # Seed a settings file so the snapshot has something to capture.
@@ -882,7 +876,7 @@ class TestSystemUpdateRollback:
 
         # Stub the post-restore service-reload helpers — the real reloads
         # touch global singletons we don't want to mess with from tests.
-        monkeypatch.setattr(backup_service, "_reload_services", lambda: [])
+        monkeypatch.setattr(backup_service, "_reload_services", list)
 
         # Settings-only rollback (restore_image=False so we don't need
         # to mock the sidecar's /rollback endpoint).
@@ -895,12 +889,11 @@ class TestSystemUpdateRollback:
         assert "settings.json" in body["settings_rollback"]["restored_files"]
         # The original value is back.
         import json as _json
+
         with (tmp_path / "data" / "settings.json").open() as fh:
             assert _json.load(fh) == {"k": "v"}
 
-    def test_image_rollback_calls_sidecar_with_snapshot_metadata(
-        self, client, tmp_path, monkeypatch
-    ):
+    def test_image_rollback_calls_sidecar_with_snapshot_metadata(self, client, tmp_path, monkeypatch):
         """When ``restore_image=True``, the sidecar /rollback is called
         with the digest+image recorded inside the snapshot.
 
@@ -908,22 +901,24 @@ class TestSystemUpdateRollback:
         full end-to-end path.
         """
         from src import api_server as api
+
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
         snap_dir = tmp_path / "snaps"
         monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
         from src.backup import service as backup_service
+
         bs = backup_service.BackupService(data_dir=tmp_path / "data")
         monkeypatch.setattr(backup_service, "_backup_service", bs)
         (tmp_path / "data").mkdir()
         (tmp_path / "data" / "settings.json").write_text('{"k":"v"}')
-        monkeypatch.setattr(backup_service, "_reload_services", lambda: [])
+        monkeypatch.setattr(backup_service, "_reload_services", list)
 
         # Take a snapshot annotated with a known digest+image.
         digest = "sha256:" + ("a" * 64)
         meta = api._take_settings_snapshot(digest, "fiestaboard/fiestaboard:latest")
         assert meta is not None
 
-        captured: Dict[str, Any] = {}
+        captured: dict[str, Any] = {}
 
         def _fake_post(url, json=None, **_kwargs):
             captured["url"] = url
@@ -944,21 +939,21 @@ class TestSystemUpdateRollback:
             "image": "fiestaboard/fiestaboard:latest",
         }
 
-    def test_image_rollback_warns_on_unannotated_snapshot(
-        self, client, tmp_path, monkeypatch
-    ):
+    def test_image_rollback_warns_on_unannotated_snapshot(self, client, tmp_path, monkeypatch):
         """A snapshot with no recorded digest/image cannot drive the
         sidecar's /rollback — we surface a warning rather than guess."""
         from src import api_server as api
+
         monkeypatch.setenv("FIESTAUPDATER_TOKEN", "tok")
         snap_dir = tmp_path / "snaps"
         monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
         from src.backup import service as backup_service
+
         bs = backup_service.BackupService(data_dir=tmp_path / "data")
         monkeypatch.setattr(backup_service, "_backup_service", bs)
         (tmp_path / "data").mkdir()
         (tmp_path / "data" / "settings.json").write_text('{"k":"v"}')
-        monkeypatch.setattr(backup_service, "_reload_services", lambda: [])
+        monkeypatch.setattr(backup_service, "_reload_services", list)
 
         # Snapshot without any digest/image annotation.
         meta = api._take_settings_snapshot()
@@ -979,6 +974,7 @@ class TestUpdaterLastUpdateHelper:
 
     def test_returns_dict_on_success(self, monkeypatch):
         from src import api_server as api
+
         ok = Mock(status_code=200)
         ok.json.return_value = {"status": "success"}
         with patch("src.api_server.requests.get", return_value=ok):
@@ -986,10 +982,12 @@ class TestUpdaterLastUpdateHelper:
 
     def test_returns_empty_on_network_error(self, monkeypatch):
         from src import api_server as api
+
         with patch("src.api_server.requests.get", side_effect=Exception("nope")):
             assert api._updater_last_update() == {}
 
     def test_returns_empty_on_non_200(self, monkeypatch):
         from src import api_server as api
+
         with patch("src.api_server.requests.get", return_value=Mock(status_code=500)):
             assert api._updater_last_update() == {}

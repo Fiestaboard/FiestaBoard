@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
 from src.plugins.loader import PluginLoader
 
 
@@ -31,9 +30,10 @@ def create_valid_plugin_dir(tmp_path: Path, plugin_id: str = "test_plugin") -> P
     plugin_dir = tmp_path / plugin_id
     plugin_dir.mkdir()
 
-    manifest = {**VALID_MANIFEST, "id": plugin_id}
     (plugin_dir / "manifest.json").write_text(
-        '{"id":"' + plugin_id + '","name":"Test","version":"1.0.0","description":"","author":"","variables":{"simple":["var1"]},"max_lengths":{}}'
+        '{"id":"'
+        + plugin_id
+        + '","name":"Test","version":"1.0.0","description":"","author":"","variables":{"simple":["var1"]},"max_lengths":{}}'
     )
 
     plugin_code = f'''
@@ -424,7 +424,6 @@ def test_reload_plugin_unloads_and_loads_again(tmp_path):
     loader = _loader_for_tests(tmp_path)
     loader.load_plugin("test_plugin")
 
-    module_name = "plugins.test_plugin"
     # Plugin was loaded so it may be in sys.modules
     reloaded = loader.reload_plugin("test_plugin")
     assert reloaded is not None

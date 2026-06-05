@@ -137,12 +137,7 @@ POPULAR_STOCKS = [
 class StocksSource:
     """Fetches stock market data using yfinance."""
 
-    def __init__(
-        self,
-        symbols: list[str],
-        time_window: str,
-        finnhub_api_key: str | None = None
-    ):
+    def __init__(self, symbols: list[str], time_window: str, finnhub_api_key: str | None = None):
         """
         Initialize stocks source.
 
@@ -272,16 +267,18 @@ class StocksSource:
             else:
                 # Create placeholder entry for failed stock to maintain index alignment
                 symbol = self.symbols[index] if index < len(self.symbols) else f"UNKNOWN_{index}"
-                results.append({
-                    "symbol": symbol,
-                    "current_price": 0.0,
-                    "previous_price": 0.0,
-                    "change_percent": 0.0,
-                    "change_direction": "none",
-                    "formatted": f"{symbol}{{white}} $0.00 +0.00%",
-                    "color_tile": "{white}",
-                    "company_name": f"Failed to fetch: {symbol}",
-                })
+                results.append(
+                    {
+                        "symbol": symbol,
+                        "current_price": 0.0,
+                        "previous_price": 0.0,
+                        "change_percent": 0.0,
+                        "change_direction": "none",
+                        "formatted": f"{symbol}{{white}} $0.00 +0.00%",
+                        "color_tile": "{white}",
+                        "company_name": f"Failed to fetch: {symbol}",
+                    }
+                )
 
         return results
 
@@ -396,11 +393,7 @@ class StocksSource:
             }
         """
         if not symbol or not symbol.strip():
-            return {
-                "valid": False,
-                "symbol": symbol,
-                "error": "Empty symbol"
-            }
+            return {"valid": False, "symbol": symbol, "error": "Empty symbol"}
 
         symbol = symbol.strip().upper()
 
@@ -410,37 +403,21 @@ class StocksSource:
 
             # Check if we got valid data (invalid symbols return empty info or error)
             if not info or "symbol" not in info:
-                return {
-                    "valid": False,
-                    "symbol": symbol,
-                    "error": "Symbol not found"
-                }
+                return {"valid": False, "symbol": symbol, "error": "Symbol not found"}
 
             # Try to get price to confirm it's valid
             current_price = info.get("regularMarketPrice") or info.get("currentPrice")
             if current_price is None:
-                return {
-                    "valid": False,
-                    "symbol": symbol,
-                    "error": "No price data available"
-                }
+                return {"valid": False, "symbol": symbol, "error": "No price data available"}
 
             # Get company name
             company_name = info.get("longName") or info.get("shortName") or symbol
 
-            return {
-                "valid": True,
-                "symbol": symbol,
-                "name": company_name
-            }
+            return {"valid": True, "symbol": symbol, "name": company_name}
 
         except Exception:
             logger.error("Symbol validation failed for %s", symbol, exc_info=True)
-            return {
-                "valid": False,
-                "symbol": symbol,
-                "error": "Unable to validate symbol at this time"
-            }
+            return {"valid": False, "symbol": symbol, "error": "Unable to validate symbol at this time"}
 
     @staticmethod
     def search_symbols(query: str, limit: int = 10, finnhub_api_key: str | None = None) -> list[dict[str, str]]:
@@ -468,6 +445,7 @@ class StocksSource:
         if finnhub_api_key:
             try:
                 import finnhub
+
                 # finnhub-python package uses Client class
                 finnhub_client = finnhub.Client(api_key=finnhub_api_key)
                 search_results = finnhub_client.symbol_lookup(query)
@@ -479,10 +457,7 @@ class StocksSource:
                             symbol = item.get("symbol", "")
                             description = item.get("description", "")
                             if symbol and description:
-                                results.append({
-                                    "symbol": symbol,
-                                    "name": description
-                                })
+                                results.append({"symbol": symbol, "name": description})
 
                 if results:
                     return results[:limit]
@@ -500,10 +475,7 @@ class StocksSource:
 
             # Match if query is in symbol or name (case-insensitive)
             if query_lower in symbol.lower() or query_lower in name.lower():
-                results.append({
-                    "symbol": symbol,
-                    "name": name
-                })
+                results.append({"symbol": symbol, "name": name})
 
         return results[:limit]
 
@@ -515,7 +487,7 @@ _stocks_source: StocksSource | None = None
 def get_stocks_source() -> StocksSource | None:
     """Get or create the stocks source singleton."""
     global _stocks_source
-    from ..config import Config
+    from src.config import Config
 
     if not Config.STOCKS_ENABLED:
         return None
@@ -524,7 +496,7 @@ def get_stocks_source() -> StocksSource | None:
         _stocks_source = StocksSource(
             symbols=Config.STOCKS_SYMBOLS,
             time_window=Config.STOCKS_TIME_WINDOW,
-            finnhub_api_key=Config.FINNHUB_API_KEY if Config.FINNHUB_API_KEY else None
+            finnhub_api_key=Config.FINNHUB_API_KEY if Config.FINNHUB_API_KEY else None,
         )
 
     return _stocks_source
@@ -534,4 +506,3 @@ def reset_stocks_source() -> None:
     """Reset the stocks source singleton."""
     global _stocks_source
     _stocks_source = None
-

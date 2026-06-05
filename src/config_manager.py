@@ -49,6 +49,7 @@ PLUGIN_ID_RENAMES: dict[str, str] = {
     "baywheels": "lyft_bike_share",
 }
 
+
 # Per-rename adjustments to the migrated settings dict. Each handler
 # receives a deep-copied settings dict and returns the adjusted dict
 # that will be written under the new plugin id. Used to drop fields
@@ -254,7 +255,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "color_rules": {
                 "change_percent": [
                     {"condition": ">", "value": 0, "color": "green"},  # Positive = green
-                    {"condition": "<", "value": 0, "color": "red"},   # Negative = red
+                    {"condition": "<", "value": 0, "color": "red"},  # Negative = red
                 ],
             },
         },
@@ -263,10 +264,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "timezone": "America/Los_Angeles",  # User's timezone for display purposes
         "refresh_interval_seconds": 300,
         "output_target": "board",
-        "instance_name": "",       # Friendly name for this FiestaBoard install
-        "time_format": "12h",      # "12h" or "24h" for web UI time display
+        "instance_name": "",  # Friendly name for this FiestaBoard install
+        "time_format": "12h",  # "12h" or "24h" for web UI time display
         "date_format": "MM/DD/YYYY",  # "MM/DD/YYYY", "DD/MM/YYYY", or "YYYY-MM-DD"
-        "welcome_message": "",     # Custom board greeting; empty = use default
+        "welcome_message": "",  # Custom board greeting; empty = use default
     },
     # AI provider configuration for the "Gen AI" page-generation feature.
     # BYO-LLM: users supply their own OpenAI-compatible endpoint, key,
@@ -346,14 +347,12 @@ class ConfigManager:
         with self._file_lock:
             if self._config_path.exists():
                 try:
-                    with open(self._config_path) as f:
+                    with self._config_path.open() as f:
                         self._config = json.load(f)
                     logger.info(f"Loaded config from {self._config_path}")
 
                     # Snapshot features actually present before merge fills in defaults
-                    self._raw_features = self._deep_copy(
-                        self._config.get("features", {})
-                    )
+                    self._raw_features = self._deep_copy(self._config.get("features", {}))
 
                     # Merge with defaults to handle missing keys
                     self._config = self._merge_with_defaults(self._config)
@@ -390,7 +389,7 @@ class ConfigManager:
         """Create a deep copy of a nested dict/list structure."""
         if isinstance(obj, dict):
             return {k: self._deep_copy(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
+        if isinstance(obj, list):
             return [self._deep_copy(item) for item in obj]
         return obj
 
@@ -448,12 +447,11 @@ class ConfigManager:
             return
 
         # Back up config before making changes
-        backup_path = self._config_path.with_suffix(
-            ".json.v1_backup"
-        )
+        backup_path = self._config_path.with_suffix(".json.v1_backup")
         if not backup_path.exists():
             try:
                 import shutil
+
                 shutil.copy2(self._config_path, backup_path)
                 logger.info(f"Created pre-migration backup at {backup_path}")
             except Exception as e:
@@ -465,20 +463,14 @@ class ConfigManager:
 
             for feature_key, plugin_id, feature_cfg in to_migrate:
                 plugin_cfg = {
-                    k: self._deep_copy(v)
-                    for k, v in feature_cfg.items()
-                    if k not in MIGRATION_EXCLUDED_FIELDS
+                    k: self._deep_copy(v) for k, v in feature_cfg.items() if k not in MIGRATION_EXCLUDED_FIELDS
                 }
                 self._config["plugins"][plugin_id] = plugin_cfg
-                logger.info(
-                    f"Auto-migrated feature '{feature_key}' -> plugin '{plugin_id}'"
-                )
+                logger.info(f"Auto-migrated feature '{feature_key}' -> plugin '{plugin_id}'")
 
             self._save_internal()
 
-        logger.info(
-            f"Auto-migration complete: {len(to_migrate)} feature(s) migrated to plugins"
-        )
+        logger.info(f"Auto-migration complete: {len(to_migrate)} feature(s) migrated to plugins")
 
     def _migrate_renamed_plugins(self) -> None:
         """Apply one-shot plugin id renames defined in PLUGIN_ID_RENAMES.
@@ -511,8 +503,7 @@ class ConfigManager:
                 # stale old entry without overwriting their config.
                 plugins.pop(old_id, None)
                 logger.info(
-                    f"Plugin rename '{old_id}' -> '{new_id}': new id already "
-                    f"present, dropping stale old config"
+                    f"Plugin rename '{old_id}' -> '{new_id}': new id already present, dropping stale old config"
                 )
                 renamed.append((old_id, new_id, False))
                 continue
@@ -540,14 +531,12 @@ class ConfigManager:
         with self._file_lock:
             self._save_internal()
 
-        logger.info(
-            f"Plugin rename migration complete: {len(renamed)} plugin(s) processed"
-        )
+        logger.info(f"Plugin rename migration complete: {len(renamed)} plugin(s) processed")
 
     def _save_internal(self) -> None:
         """Internal save without acquiring lock (called from locked context)."""
         try:
-            with open(self._config_path, "w") as f:
+            with self._config_path.open("w") as f:
                 json.dump(self._config, f, indent=2)
             logger.debug(f"Saved config to {self._config_path}")
         except OSError as e:
@@ -564,13 +553,11 @@ class ConfigManager:
         configuration.
         """
         v = value.lower().strip()
-        if v.startswith("your_") or v.startswith("your-"):
+        if v.startswith(("your_", "your-")):
             return True
-        if v.endswith("_here") or v.endswith("-here"):
+        if v.endswith(("_here", "-here")):
             return True
-        if v in ("changeme", "replace_me", "replace-me", "example", "placeholder"):
-            return True
-        return False
+        return v in ("changeme", "replace_me", "replace-me", "example", "placeholder")
 
     def _apply_env_overrides(self) -> None:
         """Apply environment variable overrides to config.
@@ -596,7 +583,7 @@ class ConfigManager:
             return self._config["features"][name]
 
         # Helper to apply string env var
-        def apply_str(config: dict, key: str, env_var: str, alt_env_var: str = None) -> bool:
+        def apply_str(config: dict, key: str, env_var: str, alt_env_var: str | None = None) -> bool:
             value = os.getenv(env_var, "").strip()
             if not value and alt_env_var:
                 value = os.getenv(alt_env_var, "").strip()
@@ -610,7 +597,7 @@ class ConfigManager:
             return False
 
         # Helper to apply int env var
-        def apply_int(config: dict, key: str, env_var: str, alt_env_var: str = None) -> bool:
+        def apply_int(config: dict, key: str, env_var: str, alt_env_var: str | None = None) -> bool:
             value = os.getenv(env_var, "").strip()
             if not value and alt_env_var:
                 value = os.getenv(alt_env_var, "").strip()
@@ -644,8 +631,12 @@ class ConfigManager:
         changed |= apply_str(board_config, "host", "BOARD_HOST", "FB_HOST")
         changed |= apply_str(board_config, "cloud_key", "BOARD_READ_WRITE_KEY", "FB_READ_WRITE_KEY")
         changed |= apply_str(board_config, "transition_strategy", "BOARD_TRANSITION_STRATEGY", "FB_TRANSITION_STRATEGY")
-        changed |= apply_int(board_config, "transition_interval_ms", "BOARD_TRANSITION_INTERVAL_MS", "FB_TRANSITION_INTERVAL_MS")
-        changed |= apply_int(board_config, "transition_step_size", "BOARD_TRANSITION_STEP_SIZE", "FB_TRANSITION_STEP_SIZE")
+        changed |= apply_int(
+            board_config, "transition_interval_ms", "BOARD_TRANSITION_INTERVAL_MS", "FB_TRANSITION_INTERVAL_MS"
+        )
+        changed |= apply_int(
+            board_config, "transition_step_size", "BOARD_TRANSITION_STEP_SIZE", "FB_TRANSITION_STEP_SIZE"
+        )
 
         # ==================== General Configuration ====================
         changed |= apply_str(general_config, "timezone", "TIMEZONE")
@@ -680,6 +671,7 @@ class ConfigManager:
         if entities_str and not home_assistant.get("entities"):
             try:
                 import json
+
                 home_assistant["entities"] = json.loads(entities_str)
                 logger.info("Applied HOME_ASSISTANT_ENTITIES from environment variable")
                 changed = True
@@ -764,7 +756,7 @@ class ConfigManager:
                 else:
                     result[key] = self._mask_sensitive(value, current_path)
             return result
-        elif isinstance(obj, list):
+        if isinstance(obj, list):
             return [self._mask_sensitive(item, path) for item in obj]
         return obj
 
@@ -857,9 +849,7 @@ class ConfigManager:
                 return False
 
             if feature_name not in self._config["features"]:
-                self._config["features"][feature_name] = self._deep_copy(
-                    DEFAULT_CONFIG["features"][feature_name]
-                )
+                self._config["features"][feature_name] = self._deep_copy(DEFAULT_CONFIG["features"][feature_name])
 
             # Only update provided fields
             for key, value in settings.items():
@@ -921,11 +911,14 @@ class ConfigManager:
         """
         with self._file_lock:
             return self._deep_copy(
-                self._config.get("ai_providers", {
-                    "enabled": False,
-                    "providers": [],
-                    "default_provider_id": None,
-                })
+                self._config.get(
+                    "ai_providers",
+                    {
+                        "enabled": False,
+                        "providers": [],
+                        "default_provider_id": None,
+                    },
+                )
             )
 
     def get_ai_providers_masked(self) -> dict[str, Any]:
@@ -960,9 +953,7 @@ class ConfigManager:
                 {"enabled": False, "providers": [], "default_provider_id": None},
             )
             existing_by_id = {
-                p.get("id"): p
-                for p in existing.get("providers", [])
-                if isinstance(p, dict) and p.get("id")
+                p.get("id"): p for p in existing.get("providers", []) if isinstance(p, dict) and p.get("id")
             }
 
             if "enabled" in settings:
@@ -1050,9 +1041,8 @@ class ConfigManager:
         # Validate features that are enabled
         features = config.get("features", {})
 
-        if features.get("weather", {}).get("enabled"):
-            if not features["weather"].get("api_key"):
-                errors.append("Weather API key is required when weather is enabled")
+        if features.get("weather", {}).get("enabled") and not features["weather"].get("api_key"):
+            errors.append("Weather API key is required when weather is enabled")
 
         if features.get("home_assistant", {}).get("enabled"):
             ha = features["home_assistant"]
@@ -1089,8 +1079,7 @@ class ConfigManager:
                 return False
 
             # Old format: "20:00" (5 chars), New format: "20:00-08:00" (11+ chars)
-            needs_migration = (len(start_time) == 5 and ":" in start_time and
-                             len(end_time) == 5 and ":" in end_time)
+            needs_migration = len(start_time) == 5 and ":" in start_time and len(end_time) == 5 and ":" in end_time
 
             if not needs_migration:
                 logger.debug("Silence schedule already in UTC format, no migration needed")
@@ -1119,7 +1108,9 @@ class ConfigManager:
             success = self.set_feature("silence_schedule", silence_config)
 
             if success:
-                logger.info(f"Successfully migrated silence schedule: {start_time} → {start_utc}, {end_time} → {end_utc}")
+                logger.info(
+                    f"Successfully migrated silence schedule: {start_time} → {start_utc}, {end_time} → {end_utc}"
+                )
             else:
                 logger.error("Failed to save migrated silence schedule")
 
@@ -1312,4 +1303,3 @@ class ConfigManager:
 def get_config_manager() -> ConfigManager:
     """Get the singleton ConfigManager instance."""
     return ConfigManager()
-

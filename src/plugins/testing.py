@@ -45,8 +45,7 @@ class PluginTestCase:
         """Create a plugin instance with configuration."""
         if self.plugin_class is None:
             pytest.skip("plugin_class not defined")
-        plugin = self.plugin_class()
-        return plugin
+        return self.plugin_class()
 
     @pytest.fixture
     def mock_config(self):
@@ -59,7 +58,7 @@ class PluginTestCase:
         assert result.error is None
         assert result.data is not None
 
-    def assert_plugin_result_failure(self, result: PluginResult, expected_error: str = None):
+    def assert_plugin_result_failure(self, result: PluginResult, expected_error: str | None = None):
         """Assert that a plugin result indicates failure."""
         assert not result.available
         if expected_error:
@@ -75,13 +74,7 @@ class PluginTestCase:
 class MockResponse:
     """Mock HTTP response for testing API calls."""
 
-    def __init__(
-        self,
-        json_data: Any = None,
-        status_code: int = 200,
-        text: str = "",
-        raise_for_status: bool = True
-    ):
+    def __init__(self, json_data: Any = None, status_code: int = 200, text: str = "", raise_for_status: bool = True):
         self._json_data = json_data
         self.status_code = status_code
         self.text = text or json.dumps(json_data) if json_data else ""
@@ -95,14 +88,11 @@ class MockResponse:
         """Raise exception if status indicates error."""
         if not self._raise_for_status or self.status_code >= 400:
             from requests.exceptions import HTTPError
+
             raise HTTPError(f"HTTP {self.status_code}")
 
 
-def create_mock_response(
-    data: Any = None,
-    status_code: int = 200,
-    raise_error: bool = False
-) -> MockResponse:
+def create_mock_response(data: Any = None, status_code: int = 200, raise_error: bool = False) -> MockResponse:
     """Create a mock HTTP response.
 
     Args:
@@ -113,11 +103,7 @@ def create_mock_response(
     Returns:
         MockResponse instance
     """
-    return MockResponse(
-        json_data=data,
-        status_code=status_code,
-        raise_for_status=not raise_error
-    )
+    return MockResponse(json_data=data, status_code=status_code, raise_for_status=not raise_error)
 
 
 def mock_requests_get(url_responses: dict[str, Any]):
@@ -136,6 +122,7 @@ def mock_requests_get(url_responses: dict[str, Any]):
         })):
             # test code
     """
+
     def mock_get(url, **kwargs):
         for pattern, response_data in url_responses.items():
             if pattern in url:
@@ -160,7 +147,7 @@ def load_plugin_manifest(plugin_dir: Path) -> dict[str, Any]:
     if not manifest_path.exists():
         raise FileNotFoundError(f"Manifest not found: {manifest_path}")
 
-    with open(manifest_path) as f:
+    with manifest_path.open() as f:
         return json.load(f)
 
 
@@ -197,37 +184,19 @@ class PluginTestFixtures:
     def weather_api_response():
         """Sample weather API response."""
         return {
-            "current": {
-                "temp_f": 72,
-                "condition": {"text": "Sunny"},
-                "humidity": 45,
-                "wind_mph": 5
-            },
-            "location": {
-                "name": "San Francisco",
-                "region": "California"
-            }
+            "current": {"temp_f": 72, "condition": {"text": "Sunny"}, "humidity": 45, "wind_mph": 5},
+            "location": {"name": "San Francisco", "region": "California"},
         }
 
     @staticmethod
     def stock_api_response():
         """Sample stock API response."""
-        return {
-            "symbol": "GOOG",
-            "price": 150.25,
-            "change": 1.18,
-            "changePercent": 0.79
-        }
+        return {"symbol": "GOOG", "price": 150.25, "change": 1.18, "changePercent": 0.79}
 
     @staticmethod
     def transit_api_response():
         """Sample transit API response."""
-        return {
-            "predictions": [
-                {"minutes": 5, "line": "N"},
-                {"minutes": 12, "line": "N"}
-            ]
-        }
+        return {"predictions": [{"minutes": 5, "line": "N"}, {"minutes": 12, "line": "N"}]}
 
     @staticmethod
     def empty_plugin_result():
@@ -272,4 +241,3 @@ def create_plugin_conftest(plugin_dir: Path) -> str:
         conftest.py content string
     """
     return PLUGIN_CONFTEST_TEMPLATE
-

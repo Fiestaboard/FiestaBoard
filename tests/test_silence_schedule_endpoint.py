@@ -6,6 +6,7 @@ endpoint at `PUT /settings/silence-schedule` backed by
 happy path, validation errors, round-trip via `get_feature`, and that
 `/silence-status` reflects writes made through this endpoint.
 """
+
 from unittest.mock import Mock, patch
 
 import pytest

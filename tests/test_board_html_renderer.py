@@ -11,8 +11,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from src.board_html_renderer import (
     DEVICE_DIMS,
     render_board_html,
@@ -109,9 +107,7 @@ class TestColorTokens:
 
 class TestHtmlEscaping:
     def test_page_name_is_escaped(self):
-        html = render_board_html(
-            "HI", device_type="flagship", page_name="<script>x</script>"
-        )
+        html = render_board_html("HI", device_type="flagship", page_name="<script>x</script>")
         assert "<script>x</script>" not in html
         assert "&lt;script&gt;" in html
 
@@ -135,9 +131,7 @@ class TestDocumentShell:
         assert "flap-in" in html
 
     def test_page_name_appears_in_label(self):
-        html = render_board_html(
-            "HI", device_type="flagship", page_name="Weather Today"
-        )
+        html = render_board_html("HI", device_type="flagship", page_name="Weather Today")
         assert "Weather Today" in html
 
 

@@ -106,11 +106,11 @@ class TimeService:
             offset_part = time_str[5:]  # +/-HH:MM
 
             # Parse time
-            hour, minute = map(int, time_part.split(':'))
+            hour, minute = map(int, time_part.split(":"))
 
             # Parse offset
-            offset_sign = 1 if offset_part[0] == '+' else -1
-            offset_hours, offset_minutes = map(int, offset_part[1:].split(':'))
+            offset_sign = 1 if offset_part[0] == "+" else -1
+            offset_hours, offset_minutes = map(int, offset_part[1:].split(":"))
             offset_total_minutes = offset_sign * (offset_hours * 60 + offset_minutes)
 
             # Create a datetime for today at this time in the specified timezone
@@ -122,12 +122,11 @@ class TimeService:
             # If time is 20:00-08:00 (PST), that's 20:00 in a timezone 8 hours behind UTC
             # So UTC time is 20:00 + 8:00 = 04:00 next day (but we handle date separately)
             from datetime import timedelta
+
             utc_dt = naive_dt - timedelta(minutes=offset_total_minutes)
 
             # Make it timezone aware (UTC)
-            utc_dt = utc_dt.replace(tzinfo=UTC)
-
-            return utc_dt
+            return utc_dt.replace(tzinfo=UTC)
 
         except (ValueError, IndexError) as e:
             logger.warning(f"Failed to parse ISO time '{time_str}': {e}")
@@ -161,9 +160,8 @@ class TimeService:
         if start_time > end_time:
             # Window spans midnight: current must be >= start OR <= end
             return current_time >= start_time or current_time <= end_time
-        else:
-            # Same-day window: current must be >= start AND <= end
-            return start_time <= current_time <= end_time
+        # Same-day window: current must be >= start AND <= end
+        return start_time <= current_time <= end_time
 
     # Timezone conversions
 
@@ -187,10 +185,10 @@ class TimeService:
 
         try:
             # Parse local time
-            if ':' not in local_time:
+            if ":" not in local_time:
                 raise ValueError(f"Invalid time format: {local_time}")
 
-            parts = local_time.split(':')
+            parts = local_time.split(":")
             if len(parts) != 2:
                 raise ValueError(f"Invalid time format: {local_time}")
 
@@ -271,7 +269,7 @@ class TimeService:
         """
         try:
             # Parse UTC timestamp
-            utc_dt = datetime.fromisoformat(utc_timestamp.replace('Z', '+00:00'))
+            utc_dt = datetime.fromisoformat(utc_timestamp.replace("Z", "+00:00"))
 
             # Ensure it's UTC-aware
             if utc_dt.tzinfo is None:
@@ -304,6 +302,7 @@ def _get_configured_timezone() -> str:
     """
     try:
         from .config import Config
+
         return Config.GENERAL_TIMEZONE
     except Exception:
         return "UTC"

@@ -29,15 +29,17 @@ class StarTrekQuotesSource:
         self.voyager_weight = voyager_weight
         self.ds9_weight = ds9_weight
         self.quotes = self._load_quotes()
-        logger.info(f"Loaded Star Trek quotes: TNG={len(self.quotes.get('tng', []))}, "
-                   f"Voyager={len(self.quotes.get('voyager', []))}, "
-                   f"DS9={len(self.quotes.get('ds9', []))}")
+        logger.info(
+            f"Loaded Star Trek quotes: TNG={len(self.quotes.get('tng', []))}, "
+            f"Voyager={len(self.quotes.get('voyager', []))}, "
+            f"DS9={len(self.quotes.get('ds9', []))}"
+        )
 
     def _load_quotes(self) -> dict:
         """Load quotes from JSON file."""
         try:
             quotes_file = Path(__file__).parent / "star_trek_quotes.json"
-            with open(quotes_file) as f:
+            with quotes_file.open() as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Error loading Star Trek quotes: {e}")
@@ -54,11 +56,7 @@ class StarTrekQuotesSource:
             return None
 
         # Create weighted list of series
-        series_pool = (
-            ['tng'] * self.tng_weight +
-            ['voyager'] * self.voyager_weight +
-            ['ds9'] * self.ds9_weight
-        )
+        series_pool = ["tng"] * self.tng_weight + ["voyager"] * self.voyager_weight + ["ds9"] * self.ds9_weight
 
         # Select random series based on weights
         selected_series = random.choice(series_pool)
@@ -69,13 +67,13 @@ class StarTrekQuotesSource:
             # Fallback to any available series
             all_quotes = []
             for series, quotes_list in self.quotes.items():
-                all_quotes.extend([{**q, 'series': series} for q in quotes_list])
+                all_quotes.extend([{**q, "series": series} for q in quotes_list])
             if not all_quotes:
                 return None
             quote_data = random.choice(all_quotes)
         else:
             quote_data = random.choice(series_quotes)
-            quote_data = {**quote_data, 'series': selected_series}
+            quote_data = {**quote_data, "series": selected_series}
 
         logger.debug(f"Selected quote from {selected_series}: {quote_data['quote'][:30]}...")
         return quote_data
@@ -88,14 +86,14 @@ def get_star_trek_quotes_source() -> StarTrekQuotesSource | None:
     Returns:
         StarTrekQuotesSource instance or None if disabled
     """
-    from ..config import Config
+    from src.config import Config
 
     if not Config.STAR_TREK_QUOTES_ENABLED:
         return None
 
     try:
         # Parse ratio from config
-        ratio_parts = Config.STAR_TREK_QUOTES_RATIO.split(':')
+        ratio_parts = Config.STAR_TREK_QUOTES_RATIO.split(":")
         if len(ratio_parts) == 3:
             tng_weight = int(ratio_parts[0])
             voyager_weight = int(ratio_parts[1])
@@ -108,4 +106,3 @@ def get_star_trek_quotes_source() -> StarTrekQuotesSource | None:
     except Exception as e:
         logger.error(f"Error creating Star Trek quotes source: {e}")
         return None
-

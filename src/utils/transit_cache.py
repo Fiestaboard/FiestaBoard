@@ -142,11 +142,7 @@ class TransitCache:
         start_time = time.time()
 
         try:
-            params = {
-                "api_key": self._api_key,
-                "agency": self.REGIONAL_AGENCY,
-                "format": "json"
-            }
+            params = {"api_key": self._api_key, "agency": self.REGIONAL_AGENCY, "format": "json"}
 
             logger.debug(f"Fetching regional transit data from 511.org (agency={self.REGIONAL_AGENCY})")
             response = requests.get(self.API_BASE_URL, params=params, timeout=15)
@@ -154,7 +150,7 @@ class TransitCache:
 
             # Handle BOM if present
             content = response.text
-            if content.startswith('\ufeff'):
+            if content.startswith("\ufeff"):
                 content = content[1:]
 
             data = json.loads(content)
@@ -177,8 +173,10 @@ class TransitCache:
                 self._error_count += 1
 
             if e.response.status_code == 429:
-                logger.error(f"Rate limited by 511.org API! This shouldn't happen with regional caching. "
-                           f"Refresh interval may be too short ({self._refresh_interval}s)")
+                logger.error(
+                    f"Rate limited by 511.org API! This shouldn't happen with regional caching. "
+                    f"Refresh interval may be too short ({self._refresh_interval}s)"
+                )
             else:
                 logger.error(f"HTTP error fetching regional transit data: {e}")
 
@@ -281,7 +279,7 @@ class TransitCache:
             self._cache_hits += 1
 
             # Check cache age and warn if stale
-            age = time.time() - self._last_success if self._last_success > 0 else float('inf')
+            age = time.time() - self._last_success if self._last_success > 0 else float("inf")
             if age > self.STALE_WARNING_THRESHOLD:
                 logger.warning(f"TransitCache is stale (age: {age:.0f}s). Data may be outdated.")
 
@@ -359,4 +357,3 @@ def get_transit_cache() -> TransitCache:
     if _cache_instance is None:
         _cache_instance = TransitCache()
     return _cache_instance
-

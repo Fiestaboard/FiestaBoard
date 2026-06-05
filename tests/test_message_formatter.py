@@ -5,6 +5,7 @@ MessageFormatter contains pure formatting logic that is highly testable
 """
 
 import pytest
+
 from src.formatters.message_formatter import MessageFormatter, get_message_formatter
 
 
@@ -16,6 +17,7 @@ def fmt():
 # ---------------------------------------------------------------------------
 # format_weather
 # ---------------------------------------------------------------------------
+
 
 class TestFormatWeather:
     def test_empty_data_returns_unavailable(self, fmt):
@@ -74,6 +76,7 @@ class TestFormatWeather:
 # format_datetime
 # ---------------------------------------------------------------------------
 
+
 class TestFormatDatetime:
     def test_empty_data_returns_unavailable(self, fmt):
         assert fmt.format_datetime({}) == "Date/Time: Unavailable"
@@ -117,6 +120,7 @@ class TestFormatDatetime:
 # format_guest_wifi
 # ---------------------------------------------------------------------------
 
+
 class TestFormatGuestWifi:
     def test_contains_ssid_and_password(self, fmt):
         result = fmt.format_guest_wifi("MyNetwork", "s3cr3t")
@@ -141,15 +145,19 @@ class TestFormatGuestWifi:
 # _get_temp_color
 # ---------------------------------------------------------------------------
 
+
 class TestGetTempColor:
-    @pytest.mark.parametrize("temp,expected_color", [
-        (95, "red"),
-        (85, "orange"),
-        (75, "yellow"),
-        (65, "green"),
-        (50, "blue"),
-        (30, "violet"),
-    ])
+    @pytest.mark.parametrize(
+        "temp,expected_color",
+        [
+            (95, "red"),
+            (85, "orange"),
+            (75, "yellow"),
+            (65, "green"),
+            (50, "blue"),
+            (30, "violet"),
+        ],
+    )
     def test_temp_ranges(self, fmt, temp, expected_color):
         result = fmt._get_temp_color(temp)
         assert expected_color in result
@@ -176,6 +184,7 @@ class TestGetTempColor:
 # ---------------------------------------------------------------------------
 # split_into_lines
 # ---------------------------------------------------------------------------
+
 
 class TestSplitIntoLines:
     def test_short_text_unchanged(self, fmt):
@@ -208,6 +217,7 @@ class TestSplitIntoLines:
 # ---------------------------------------------------------------------------
 # format_star_trek_quote
 # ---------------------------------------------------------------------------
+
 
 class TestFormatStarTrekQuote:
     def test_tng_uses_yellow(self, fmt):
@@ -243,6 +253,7 @@ class TestFormatStarTrekQuote:
 # ---------------------------------------------------------------------------
 # format_house_status
 # ---------------------------------------------------------------------------
+
 
 class TestFormatHouseStatus:
     def test_header_present(self, fmt):
@@ -280,6 +291,7 @@ class TestFormatHouseStatus:
 # format_stocks
 # ---------------------------------------------------------------------------
 
+
 class TestFormatStocks:
     def test_empty_data(self, fmt):
         assert fmt.format_stocks({}) == "Stocks: Unavailable"
@@ -308,6 +320,7 @@ class TestFormatStocks:
 # ---------------------------------------------------------------------------
 # format_muni
 # ---------------------------------------------------------------------------
+
 
 class TestFormatMuni:
     def test_empty_data(self, fmt):
@@ -364,6 +377,7 @@ class TestFormatMuni:
 # format_combined
 # ---------------------------------------------------------------------------
 
+
 class TestFormatCombined:
     def test_date_and_weather(self, fmt):
         weather = {
@@ -399,6 +413,7 @@ class TestFormatCombined:
 # ---------------------------------------------------------------------------
 # get_message_formatter factory
 # ---------------------------------------------------------------------------
+
 
 def test_get_message_formatter_returns_instance():
     instance = get_message_formatter()

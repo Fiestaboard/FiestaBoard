@@ -1,7 +1,8 @@
 # tests/conftest.py
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -30,12 +31,9 @@ def mock_board_client():
     """Mock client for Vestaboard API interactions."""
     client = Mock()
     client.post_message.return_value = {"success": True}
-    client.get_board.return_value = {
-        "id": "test_board",
-        "title": "Test Board",
-        "layout": [[0] * 22 for _ in range(6)]
-    }
+    client.get_board.return_value = {"id": "test_board", "title": "Test Board", "layout": [[0] * 22 for _ in range(6)]}
     return client
+
 
 @pytest.fixture
 def mock_api_client():
@@ -45,6 +43,7 @@ def mock_api_client():
     client.post.return_value = {"status": 201, "data": {}}
     return client
 
+
 @pytest.fixture
 def sample_page():
     """Sample page data for testing."""
@@ -52,11 +51,9 @@ def sample_page():
         "id": "test_page",
         "title": "Test Page",
         "content": "Hello, World!",
-        "variables": {
-            "weather": {"temperature": 72, "condition": "Sunny"},
-            "time": "12:00 PM"
-        }
+        "variables": {"weather": {"temperature": 72, "condition": "Sunny"}, "time": "12:00 PM"},
     }
+
 
 @pytest.fixture
 def sample_schedule():
@@ -64,19 +61,11 @@ def sample_schedule():
     return {
         "id": "test_schedule",
         "name": "Test Schedule",
-        "entries": [
-            {"day": "Monday", "page_id": "test_page", "time": "09:00"}
-        ]
+        "entries": [{"day": "Monday", "page_id": "test_page", "time": "09:00"}],
     }
+
 
 @pytest.fixture
 def sample_plugin():
     """Sample plugin config for testing."""
-    return {
-        "name": "weather",
-        "enabled": True,
-        "config": {
-            "api_key": "test_key",
-            "location": "San Francisco"
-        }
-    }
+    return {"name": "weather", "enabled": True, "config": {"api_key": "test_key", "location": "San Francisco"}}

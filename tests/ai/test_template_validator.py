@@ -6,7 +6,6 @@ import pytest
 
 from src.ai.template_validator import repair_template_lines
 
-
 # ---------------------------------------------------------------------------
 # The reported bug.
 # ---------------------------------------------------------------------------
@@ -60,9 +59,7 @@ def test_applies_to_fill_space_repeat_alias():
 
 
 def test_repairs_multiple_occurrences_on_same_line():
-    repaired, warnings = repair_template_lines(
-        ["{{filled:red.}}A{{filled:blue,}}"]
-    )
+    repaired, warnings = repair_template_lines(["{{filled:red.}}A{{filled:blue,}}"])
     assert repaired == ["{{filled:red}}A{{filled:blue}}"]
     assert len(warnings) == 2
 

@@ -5,7 +5,6 @@ rather than pre-scheduled time slots.
 """
 
 from datetime import datetime, timedelta
-from typing import List
 
 import pytest
 
@@ -14,7 +13,6 @@ from src.plugins.base import (
     PluginResult,
     TriggerResult,
 )
-
 
 # -- Test fixtures: concrete plugins with/without trigger support ----------
 
@@ -56,7 +54,7 @@ class TriggerPlugin(PluginBase):
     def fetch_data(self) -> PluginResult:
         return PluginResult(available=True, data={"value": 42})
 
-    def check_triggers(self) -> List[TriggerResult]:
+    def check_triggers(self) -> list[TriggerResult]:
         return self._triggers
 
 
@@ -81,7 +79,7 @@ class ErrorTriggerPlugin(PluginBase):
     def fetch_data(self) -> PluginResult:
         return PluginResult(available=True, data={})
 
-    def check_triggers(self) -> List[TriggerResult]:
+    def check_triggers(self) -> list[TriggerResult]:
         raise RuntimeError("trigger check failed")
 
 
@@ -229,6 +227,7 @@ class TestTriggerService:
     @pytest.fixture
     def trigger_service(self):
         from src.triggers.service import TriggerService
+
         return TriggerService()
 
     def test_no_active_triggers_initially(self, trigger_service):
@@ -327,12 +326,18 @@ class TestTriggerService:
         design review.
         """
         first = TriggerResult(
-            triggered=True, trigger_id="event_a", message="Event A",
-            priority=5, duration_seconds=900,
+            triggered=True,
+            trigger_id="event_a",
+            message="Event A",
+            priority=5,
+            duration_seconds=900,
         )
         second = TriggerResult(
-            triggered=True, trigger_id="event_b", message="Event B",
-            priority=5, duration_seconds=900,
+            triggered=True,
+            trigger_id="event_b",
+            message="Event B",
+            priority=5,
+            duration_seconds=900,
         )
         trigger_service.activate_trigger("calendar_sub", first)
         trigger_service.dismiss_trigger("event_a", suppress=True)
@@ -348,16 +353,17 @@ class TestTriggerService:
         from datetime import datetime, timedelta
 
         trigger = TriggerResult(
-            triggered=True, trigger_id="lapsing", message="X",
-            priority=1, duration_seconds=60,
+            triggered=True,
+            trigger_id="lapsing",
+            message="X",
+            priority=1,
+            duration_seconds=60,
         )
         trigger_service.activate_trigger("plugin", trigger)
         trigger_service.dismiss_trigger("lapsing", suppress=True)
 
         # Rewind suppression entry into the past.
-        trigger_service._suppressed_until["lapsing"] = (
-            datetime.now() - timedelta(seconds=1)
-        )
+        trigger_service._suppressed_until["lapsing"] = datetime.now() - timedelta(seconds=1)
 
         trigger_service.activate_trigger("plugin", trigger)
         assert trigger_service.get_active_trigger() is not None
@@ -368,8 +374,11 @@ class TestTriggerService:
             trigger_service.activate_trigger(
                 "plugin",
                 TriggerResult(
-                    triggered=True, trigger_id=tid, message=tid,
-                    priority=1, duration_seconds=300,
+                    triggered=True,
+                    trigger_id=tid,
+                    message=tid,
+                    priority=1,
+                    duration_seconds=300,
                 ),
             )
         assert len(trigger_service.list_active_triggers()) == 3
@@ -383,8 +392,11 @@ class TestTriggerService:
             trigger_service.activate_trigger(
                 "plugin",
                 TriggerResult(
-                    triggered=True, trigger_id=tid, message=tid,
-                    priority=1, duration_seconds=300,
+                    triggered=True,
+                    trigger_id=tid,
+                    message=tid,
+                    priority=1,
+                    duration_seconds=300,
                 ),
             )
         assert trigger_service.get_active_trigger() is None
@@ -392,8 +404,11 @@ class TestTriggerService:
     def test_clear_all_resets_suppressions_too(self, trigger_service):
         """clear_all must wipe suppression entries so post-clear triggers fire normally."""
         trigger = TriggerResult(
-            triggered=True, trigger_id="cleared", message="X",
-            priority=1, duration_seconds=60,
+            triggered=True,
+            trigger_id="cleared",
+            message="X",
+            priority=1,
+            duration_seconds=60,
         )
         trigger_service.activate_trigger("plugin", trigger)
         trigger_service.dismiss_trigger("cleared", suppress=True)
@@ -413,9 +428,7 @@ class TestTriggerService:
         trigger_service.activate_trigger("plugin_a", trigger)
 
         # Manually set activation time to the past
-        trigger_service._active_triggers["expires_soon"].activated_at = (
-            datetime.now() - timedelta(seconds=10)
-        )
+        trigger_service._active_triggers["expires_soon"].activated_at = datetime.now() - timedelta(seconds=10)
 
         trigger_service.clear_expired()
         assert trigger_service.get_active_trigger() is None
@@ -496,12 +509,14 @@ class TestTriggerService:
 
     def test_check_plugin_triggers_handles_errors_gracefully(self, trigger_service):
         """If check_triggers raises, the service logs and continues."""
-        plugin = ErrorTriggerPlugin({
-            "id": "error_trigger_plugin",
-            "name": "Error Plugin",
-            "version": "1.0.0",
-            "supports_triggers": True,
-        })
+        plugin = ErrorTriggerPlugin(
+            {
+                "id": "error_trigger_plugin",
+                "name": "Error Plugin",
+                "version": "1.0.0",
+                "supports_triggers": True,
+            }
+        )
         plugin.enabled = True
 
         # Should not raise
@@ -517,9 +532,7 @@ class TestTriggerService:
             duration_seconds=1,
         )
         trigger_service.activate_trigger("p1", trigger)
-        trigger_service._active_triggers["temp"].activated_at = (
-            datetime.now() - timedelta(seconds=10)
-        )
+        trigger_service._active_triggers["temp"].activated_at = datetime.now() - timedelta(seconds=10)
         # get_active_trigger should auto-clear expired
         assert trigger_service.get_active_trigger() is None
 
@@ -530,6 +543,7 @@ class TestTriggerService:
 class TestActiveTrigger:
     def test_is_expired(self):
         from src.triggers.service import ActiveTrigger
+
         trigger = ActiveTrigger(
             trigger_id="t1",
             plugin_id="p1",
@@ -544,6 +558,7 @@ class TestActiveTrigger:
 
     def test_is_not_expired(self):
         from src.triggers.service import ActiveTrigger
+
         trigger = ActiveTrigger(
             trigger_id="t1",
             plugin_id="p1",
@@ -558,6 +573,7 @@ class TestActiveTrigger:
 
     def test_remaining_seconds(self):
         from src.triggers.service import ActiveTrigger
+
         trigger = ActiveTrigger(
             trigger_id="t1",
             plugin_id="p1",
@@ -573,6 +589,7 @@ class TestActiveTrigger:
 
     def test_to_dict(self):
         from src.triggers.service import ActiveTrigger
+
         now = datetime.now()
         trigger = ActiveTrigger(
             trigger_id="t1",
@@ -602,6 +619,7 @@ class TestActiveTrigger:
 class TestTriggerServiceSingleton:
     def test_get_trigger_service_returns_singleton(self):
         from src.triggers.service import get_trigger_service, reset_trigger_service
+
         reset_trigger_service()
         svc1 = get_trigger_service()
         svc2 = get_trigger_service()
@@ -610,6 +628,7 @@ class TestTriggerServiceSingleton:
 
     def test_reset_trigger_service(self):
         from src.triggers.service import get_trigger_service, reset_trigger_service
+
         svc1 = get_trigger_service()
         reset_trigger_service()
         svc2 = get_trigger_service()
@@ -625,6 +644,7 @@ class TestTriggerPageConfig:
 
     def _make_active_trigger(self, plugin_id="cal_plugin", data=None):
         from src.triggers.service import ActiveTrigger
+
         return ActiveTrigger(
             trigger_id="evt_abc",
             plugin_id=plugin_id,
@@ -653,6 +673,7 @@ class TestTriggerPageConfig:
     def test_renders_configured_page_when_trigger_page_id_set(self):
         """When trigger_page_id is set, the page is rendered with trigger data as context."""
         from unittest.mock import MagicMock
+
         from src.pages.models import Page
 
         active = self._make_active_trigger(
@@ -712,6 +733,7 @@ class TestTriggerPageConfig:
     def test_falls_back_when_render_unavailable(self):
         """If the page renders unavailable, fall back to formatted_lines."""
         from unittest.mock import MagicMock
+
         from src.pages.models import Page
 
         active = self._make_active_trigger()
@@ -741,6 +763,7 @@ class TestTriggerPageConfig:
     def test_only_template_pages_are_used(self):
         """Non-template pages (single, composite) are skipped; fall back to formatted_lines."""
         from unittest.mock import MagicMock
+
         from src.pages.models import Page
 
         active = self._make_active_trigger()

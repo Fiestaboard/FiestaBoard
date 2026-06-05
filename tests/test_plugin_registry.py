@@ -104,7 +104,22 @@ def test_enabled_plugins_returns_only_enabled(registry, mock_loader, mock_plugin
     plugin2 = MagicMock(spec=PluginBase)
     plugin2.plugin_id = "plugin2"
     mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin, "plugin2": plugin2}
-    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else MagicMock(id=pid, name=pid, version="1.0.0", description="", author="", icon="puzzle", category="utility", variables=MagicMock(get_all_variable_names=lambda _: []), max_lengths={}, raw={})
+    mock_loader.get_manifest.side_effect = (
+        lambda pid: mock_manifest
+        if pid == "test_plugin"
+        else MagicMock(
+            id=pid,
+            name=pid,
+            version="1.0.0",
+            description="",
+            author="",
+            icon="puzzle",
+            category="utility",
+            variables=MagicMock(get_all_variable_names=lambda _: []),
+            max_lengths={},
+            raw={},
+        )
+    )
 
     # Patch config manager so the migration doesn't pull in configs from the
     # developer's real data/config.json and auto-install external plugins.
@@ -533,9 +548,7 @@ def test_reload_plugin_preserves_config_when_new_version_fails_validation(
     mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
     with patch("src.config_manager.get_config_manager") as mock_cm:
         # Plugin is DISABLED but has stored config — the path where the bug bites.
-        mock_cm.return_value.get_all_plugin_configs.return_value = {
-            "test_plugin": {"enabled": False, **stored_config}
-        }
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": False, **stored_config}}
         registry.initialize()
 
     # Verify the stored config was applied during initialization.
@@ -674,9 +687,7 @@ def test_auto_discover_introspects_data_keys(registry, mock_loader, mock_plugin)
     manifest = _make_autodiscover_manifest(auto_discover=True, simple=[])
     mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
     mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "test_plugin" else None
-    mock_plugin.get_data.return_value = PluginResult(
-        available=True, data={"discovered_a": "hello", "discovered_b": 42}
-    )
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"discovered_a": "hello", "discovered_b": 42})
     with patch("src.config_manager.get_config_manager") as mock_cm:
         mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
         registry.initialize()
@@ -692,9 +703,7 @@ def test_auto_discover_merges_with_manifest(registry, mock_loader, mock_plugin):
     manifest = _make_autodiscover_manifest(auto_discover=True, simple=["declared"])
     mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
     mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "test_plugin" else None
-    mock_plugin.get_data.return_value = PluginResult(
-        available=True, data={"declared": "val", "extra": "bonus"}
-    )
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"declared": "val", "extra": "bonus"})
     with patch("src.config_manager.get_config_manager") as mock_cm:
         mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
         registry.initialize()
@@ -709,9 +718,7 @@ def test_auto_discover_off_hides_undeclared_keys(registry, mock_loader, mock_plu
     manifest = _make_autodiscover_manifest(auto_discover=False, simple=["declared"])
     mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
     mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "test_plugin" else None
-    mock_plugin.get_data.return_value = PluginResult(
-        available=True, data={"declared": "val", "hidden": "secret"}
-    )
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"declared": "val", "hidden": "secret"})
     with patch("src.config_manager.get_config_manager") as mock_cm:
         mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
         registry.initialize()
@@ -726,9 +733,7 @@ def test_auto_discover_on_when_no_variables_section(registry, mock_loader, mock_
     manifest = _make_autodiscover_manifest(auto_discover=True, simple=[])
     mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
     mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "test_plugin" else None
-    mock_plugin.get_data.return_value = PluginResult(
-        available=True, data={"auto_field": "value"}
-    )
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"auto_field": "value"})
     with patch("src.config_manager.get_config_manager") as mock_cm:
         mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
         registry.initialize()
@@ -739,7 +744,7 @@ def test_auto_discover_on_when_no_variables_section(registry, mock_loader, mock_
 
 def test_get_all_variables_with_metadata(registry, mock_loader, mock_plugin):
     """get_all_variables_with_metadata returns metadata and preview values."""
-    from src.plugins.manifest import VariablesSchema, VariableMetadata
+    from src.plugins.manifest import VariableMetadata, VariablesSchema
 
     manifest = MagicMock(spec=PluginManifest)
     manifest.id = "test_plugin"
@@ -762,9 +767,7 @@ def test_get_all_variables_with_metadata(registry, mock_loader, mock_plugin):
 
     mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
     mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "test_plugin" else None
-    mock_plugin.get_data.return_value = PluginResult(
-        available=True, data={"temp": "72"}
-    )
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"temp": "72"})
     with patch("src.config_manager.get_config_manager") as mock_cm:
         mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
         registry.initialize()
@@ -782,9 +785,7 @@ def test_clear_discovered_cache(registry, mock_loader, mock_plugin):
     manifest = _make_autodiscover_manifest(auto_discover=True, simple=[])
     mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
     mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "test_plugin" else None
-    mock_plugin.get_data.return_value = PluginResult(
-        available=True, data={"field": "val"}
-    )
+    mock_plugin.get_data.return_value = PluginResult(available=True, data={"field": "val"})
     with patch("src.config_manager.get_config_manager") as mock_cm:
         mock_cm.return_value.get_all_plugin_configs.return_value = {"test_plugin": {"enabled": True}}
         registry.initialize()
@@ -904,10 +905,14 @@ def test_get_registry_entries_marks_installed(mock_load, registry, mock_loader, 
 @patch("src.plugins.registry.get_external_plugins_dir")
 @patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
 @patch("src.plugins.registry.load_registry")
-def test_install_from_registry_success(mock_load, mock_install, mock_dir, registry, mock_loader, mock_plugin, mock_manifest):
+def test_install_from_registry_success(
+    mock_load, mock_install, mock_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
     """install_from_registry installs and loads the plugin."""
     mock_load.return_value = [
-        RegistryEntry(plugin_id="weather", name="Weather", repository="https://github.com/Org/fiestaboard-plugin--weather"),
+        RegistryEntry(
+            plugin_id="weather", name="Weather", repository="https://github.com/Org/fiestaboard-plugin--weather"
+        ),
     ]
     mock_loader.load_plugin.return_value = mock_plugin
     mock_loader.get_manifest.return_value = mock_manifest
@@ -931,7 +936,9 @@ def test_install_from_registry_not_found(mock_load, registry):
 def test_install_from_registry_clone_failure(mock_load, mock_install, registry):
     """install_from_registry returns error when clone fails."""
     mock_load.return_value = [
-        RegistryEntry(plugin_id="weather", name="Weather", repository="https://github.com/Org/fiestaboard-plugin--weather"),
+        RegistryEntry(
+            plugin_id="weather", name="Weather", repository="https://github.com/Org/fiestaboard-plugin--weather"
+        ),
     ]
     errors = registry.install_from_registry("weather")
     assert errors == ["clone failed"]
@@ -980,11 +987,11 @@ def test_auto_migrate_noop_when_all_configs_are_loaded(registry, mock_loader, mo
     mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "weather" else None
     mock_manifest.id = "weather"
 
-    with patch("src.plugins.registry.load_registry") as mock_load_reg, \
-         patch("src.config_manager.get_config_manager") as mock_cm:
-        mock_cm.return_value.get_all_plugin_configs.return_value = {
-            "weather": {"enabled": True, "api_key": "key"}
-        }
+    with (
+        patch("src.plugins.registry.load_registry") as mock_load_reg,
+        patch("src.config_manager.get_config_manager") as mock_cm,
+    ):
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": {"enabled": True, "api_key": "key"}}
         registry.initialize()
 
     # No orphans → load_registry should never be called
@@ -995,8 +1002,10 @@ def test_auto_migrate_noop_when_stored_configs_empty(registry, mock_loader):
     """_auto_migrate_v2_plugins does nothing when there are no stored plugin configs."""
     mock_loader.load_all_plugins.return_value = {}
 
-    with patch("src.plugins.registry.load_registry") as mock_load_reg, \
-         patch("src.config_manager.get_config_manager") as mock_cm:
+    with (
+        patch("src.plugins.registry.load_registry") as mock_load_reg,
+        patch("src.config_manager.get_config_manager") as mock_cm,
+    ):
         mock_cm.return_value.get_all_plugin_configs.return_value = {}
         registry.initialize()
 
@@ -1072,9 +1081,7 @@ def test_auto_migrate_skips_plugin_not_in_registry(mock_load_reg, registry, mock
     mock_load_reg.return_value = []  # registry is empty
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
-        mock_cm.return_value.get_all_plugin_configs.return_value = {
-            "custom_builtin": {"enabled": True}
-        }
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"custom_builtin": {"enabled": True}}
         registry.initialize()
 
     assert "custom_builtin" not in registry._plugins
@@ -1086,9 +1093,7 @@ def test_auto_migrate_handles_registry_load_error_gracefully(mock_load_reg, regi
     mock_loader.load_all_plugins.return_value = {}
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
-        mock_cm.return_value.get_all_plugin_configs.return_value = {
-            "weather": {"enabled": True, "api_key": "key"}
-        }
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": {"enabled": True, "api_key": "key"}}
         # Should not raise despite registry failure
         registry.initialize()
 
@@ -1097,9 +1102,7 @@ def test_auto_migrate_handles_registry_load_error_gracefully(mock_load_reg, regi
 
 @patch("src.plugins.registry.install_registry_plugin", return_value=(False, "git clone failed"))
 @patch("src.plugins.registry.load_registry")
-def test_auto_migrate_handles_install_failure_gracefully(
-    mock_load_reg, mock_install, registry, mock_loader
-):
+def test_auto_migrate_handles_install_failure_gracefully(mock_load_reg, mock_install, registry, mock_loader):
     """_auto_migrate_v2_plugins logs an error and continues when install fails."""
     mock_loader.load_all_plugins.return_value = {}
     mock_load_reg.return_value = [
@@ -1111,9 +1114,7 @@ def test_auto_migrate_handles_install_failure_gracefully(
     ]
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
-        mock_cm.return_value.get_all_plugin_configs.return_value = {
-            "stocks": {"enabled": True, "symbols": ["AAPL"]}
-        }
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"stocks": {"enabled": True, "symbols": ["AAPL"]}}
         registry.initialize()
 
     assert "stocks" not in registry._plugins
@@ -1185,9 +1186,7 @@ def test_auto_migrate_skips_already_installed_on_subsequent_boots(
     mock_loader.get_manifest.return_value = mock_manifest
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
-        mock_cm.return_value.get_all_plugin_configs.return_value = {
-            "weather": {"enabled": True, "api_key": "key"}
-        }
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": {"enabled": True, "api_key": "key"}}
         registry.initialize()
 
     # load_registry should never be called (no orphans to process)

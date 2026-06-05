@@ -4,7 +4,7 @@ import logging
 
 import requests
 
-from ..config import Config
+from src.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +21,10 @@ class HomeAssistantSource:
             access_token: Long-lived access token
             timeout: Request timeout in seconds
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.access_token = access_token
         self.timeout = timeout
-        self.headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
+        self.headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
         self.api_url = f"{self.base_url}/api"
 
     def get_entity_state(self, entity_id: str) -> dict | None:
@@ -85,14 +82,10 @@ class HomeAssistantSource:
                     "entity_id": entity_id,
                     "state": state,
                     "attributes": attributes,
-                    "friendly_name": attributes.get("friendly_name", name)
+                    "friendly_name": attributes.get("friendly_name", name),
                 }
             else:
-                status[name] = {
-                    "entity_id": entity_id,
-                    "state": "unavailable",
-                    "error": True
-                }
+                status[name] = {"entity_id": entity_id, "state": "unavailable", "error": True}
 
         return status
 
@@ -116,7 +109,7 @@ class HomeAssistantSource:
                 result[entity_id] = {
                     "state": entity["state"],
                     "attributes": entity.get("attributes", {}),
-                    "friendly_name": entity.get("attributes", {}).get("friendly_name", entity_id)
+                    "friendly_name": entity.get("attributes", {}).get("friendly_name", entity_id),
                 }
             return result
         except Exception as e:
@@ -154,7 +147,8 @@ def get_home_assistant_source() -> HomeAssistantSource | None:
     # Fall back to plugin config when features are empty (e.g. user only set plugin in UI)
     if (not base_url or not access_token) or not enabled:
         try:
-            from ..config_manager import get_config_manager
+            from src.config_manager import get_config_manager
+
             cm = get_config_manager()
             plugin_cfg = cm.get_plugin_config("home_assistant") or {}
             if plugin_cfg.get("enabled") and plugin_cfg.get("base_url") and plugin_cfg.get("access_token"):
@@ -171,9 +165,4 @@ def get_home_assistant_source() -> HomeAssistantSource | None:
         logger.warning("Home Assistant enabled but URL or access token not configured")
         return None
 
-    return HomeAssistantSource(
-        base_url=base_url,
-        access_token=access_token,
-        timeout=timeout
-    )
-
+    return HomeAssistantSource(base_url=base_url, access_token=access_token, timeout=timeout)

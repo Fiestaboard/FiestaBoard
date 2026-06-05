@@ -27,21 +27,21 @@ def service_factory():
 
     def _make(is_silence: bool):
         patches = {
-            'config': patch('src.main.Config'),
-            'settings': patch('src.main.get_settings_service'),
-            'page': patch('src.main.get_page_service'),
-            'schedule': patch('src.main.get_schedule_service'),
-            'carousel': patch('src.main.get_carousel_service'),
-            'trigger': patch('src.main.get_trigger_service'),
+            "config": patch("src.main.Config"),
+            "settings": patch("src.main.get_settings_service"),
+            "page": patch("src.main.get_page_service"),
+            "schedule": patch("src.main.get_schedule_service"),
+            "carousel": patch("src.main.get_carousel_service"),
+            "trigger": patch("src.main.get_trigger_service"),
         }
         mocks = {name: p.start() for name, p in patches.items()}
 
-        mocks['config'].is_silence_mode_active.return_value = is_silence
-        mocks['config'].get_transition_settings.return_value = {"strategy": None}
-        mocks['config'].SILENCE_SCHEDULE_MODE = "indicator"
-        mocks['config'].SILENCE_SCHEDULE_INDICATOR_TEXT = "SNOOZING"
-        mocks['config'].SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
-        mocks['config'].SILENCE_SCHEDULE_PAGE_ID = None
+        mocks["config"].is_silence_mode_active.return_value = is_silence
+        mocks["config"].get_transition_settings.return_value = {"strategy": None}
+        mocks["config"].SILENCE_SCHEDULE_MODE = "indicator"
+        mocks["config"].SILENCE_SCHEDULE_INDICATOR_TEXT = "SNOOZING"
+        mocks["config"].SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
+        mocks["config"].SILENCE_SCHEDULE_PAGE_ID = None
 
         settings_service = Mock()
         settings_service.is_schedule_enabled.return_value = False
@@ -55,7 +55,7 @@ def service_factory():
         transition.step_interval_ms = 0
         transition.step_size = 1
         settings_service.get_transition_settings.return_value = transition
-        mocks['settings'].return_value = settings_service
+        mocks["settings"].return_value = settings_service
 
         page_service = Mock()
         mock_page = Mock()
@@ -69,9 +69,10 @@ def service_factory():
         preview.available = True
         preview.formatted = "Hello World"
         page_service.preview_page.return_value = preview
-        mocks['page'].return_value = page_service
+        mocks["page"].return_value = page_service
 
         from src.main import DisplayService
+
         svc = DisplayService()
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
@@ -120,7 +121,7 @@ class TestSilenceModeShortCircuit:
         svc._last_silence_mode_active = True
         svc._snoozing_message_sent = True
 
-        with patch.object(svc, '_check_trigger_override') as trig:
+        with patch.object(svc, "_check_trigger_override") as trig:
             svc.check_and_send_active_page()
             trig.assert_not_called()
 
@@ -136,7 +137,7 @@ class TestEnteringSilence:
         svc._last_silence_mode_active = False
         svc._snoozing_message_sent = False
 
-        with patch.object(svc, '_check_trigger_override', return_value=None):
+        with patch.object(svc, "_check_trigger_override", return_value=None):
             result = svc.check_and_send_active_page()
 
         assert result is True
@@ -147,9 +148,7 @@ class TestEnteringSilence:
         # Verify SNOOZING was stamped on the board array (center row by default).
         sent_array = svc.vb_client.send_characters.call_args.args[0]
         center_row = sent_array[len(sent_array) // 2]
-        center_row_text = "".join(
-            chr(c + 64) if 1 <= c <= 26 else "?" for c in center_row
-        )
+        center_row_text = "".join(chr(c + 64) if 1 <= c <= 26 else "?" for c in center_row)
         assert "SNOOZING" in center_row_text
 
     def test_second_tick_after_entering_silence_is_a_noop(self, service_factory):
@@ -158,7 +157,7 @@ class TestEnteringSilence:
         svc._last_silence_mode_active = False
         svc._snoozing_message_sent = False
 
-        with patch.object(svc, '_check_trigger_override', return_value=None):
+        with patch.object(svc, "_check_trigger_override", return_value=None):
             svc.check_and_send_active_page()
         page_service.preview_page.reset_mock()
         svc.vb_client.send_characters.reset_mock()
@@ -175,9 +174,7 @@ class TestExitingSilence:
     rendered content matches the cached content (the board still shows the
     SNOOZING indicator and needs to be repainted)."""
 
-    def test_exiting_silence_forces_resend_even_if_content_unchanged(
-        self, service_factory
-    ):
+    def test_exiting_silence_forces_resend_even_if_content_unchanged(self, service_factory):
         svc, mocks, page_service = service_factory(is_silence=False)
 
         # Prior tick: in silence, indicator was on the board, content cached.
@@ -186,7 +183,7 @@ class TestExitingSilence:
         svc._last_active_page_id = "page-1"
         svc._last_active_page_content = "Hello World"  # same as preview.formatted
 
-        with patch.object(svc, '_check_trigger_override', return_value=None):
+        with patch.object(svc, "_check_trigger_override", return_value=None):
             result = svc.check_and_send_active_page()
 
         # MUST re-send to clear the SNOOZING indicator.
@@ -197,7 +194,5 @@ class TestExitingSilence:
 
         # Indicator should NOT be present on the freshly-sent board.
         sent_array = svc.vb_client.send_characters.call_args.args[0]
-        last_row_text = "".join(
-            chr(c + 64) if 1 <= c <= 26 else "?" for c in sent_array[-1]
-        )
+        last_row_text = "".join(chr(c + 64) if 1 <= c <= 26 else "?" for c in sent_array[-1])
         assert "SNOOZING" not in last_row_text

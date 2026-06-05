@@ -1,20 +1,21 @@
 """Tests for carousels module (models, storage, service, API)."""
 
 import math
+
 import pytest
+from pydantic import ValidationError
 
 from src.carousels.models import (
+    CAROUSEL_ID_PREFIX,
     Carousel,
     CarouselCreate,
     CarouselUpdate,
-    make_carousel_id,
-    is_carousel_id,
     extract_carousel_uuid,
-    CAROUSEL_ID_PREFIX,
+    is_carousel_id,
+    make_carousel_id,
 )
-from src.carousels.storage import CarouselStorage
 from src.carousels.service import CarouselService
-
+from src.carousels.storage import CarouselStorage
 
 # =============================================================================
 # Model Tests
@@ -83,9 +84,9 @@ class TestCarouselModels:
 
     def test_carousel_interval_range(self):
         """interval_seconds must be between 5 and 3600."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Carousel(name="Too Low", page_ids=["p1"], interval_seconds=1)
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Carousel(name="Too High", page_ids=["p1"], interval_seconds=7200)
 
     # --- Cycling Logic -------------------------------------------------------
@@ -93,7 +94,7 @@ class TestCarouselModels:
     def test_current_page_index_wraps(self):
         """current_page_index wraps around the page list."""
         c = Carousel(name="Cycle", page_ids=["a", "b", "c"], interval_seconds=10)
-        assert c.current_page_index(0) == 0   # t=0  → index 0
+        assert c.current_page_index(0) == 0  # t=0  → index 0
         assert c.current_page_index(10) == 1  # t=10 → index 1
         assert c.current_page_index(20) == 2  # t=20 → index 2
         assert c.current_page_index(30) == 0  # wraps
@@ -294,7 +295,7 @@ class TestCarouselStorage:
         s1 = CarouselStorage(str(path))
         c = Carousel(name="DT", page_ids=["p1"])
         created = s1.create(c)
-        updated = s1.update(created.id, {"name": "DT2"})
+        s1.update(created.id, {"name": "DT2"})
 
         s2 = CarouselStorage(str(path))
         fetched = s2.get(created.id)
@@ -367,9 +368,7 @@ class TestCarouselService:
 
     def test_resolve_page_id_specific_time(self, service):
         """resolve_page_id at a known timestamp is deterministic."""
-        created = service.create_carousel(
-            CarouselCreate(name="Fixed", page_ids=["a", "b", "c"], interval_seconds=10)
-        )
+        created = service.create_carousel(CarouselCreate(name="Fixed", page_ids=["a", "b", "c"], interval_seconds=10))
         assert service.resolve_page_id(created.id, now_unix=0.0) == "a"
         assert service.resolve_page_id(created.id, now_unix=10.0) == "b"
         assert service.resolve_page_id(created.id, now_unix=20.0) == "c"
@@ -383,25 +382,19 @@ class TestCarouselService:
 
     def test_seconds_until_next_page_single(self, service):
         """Single-page carousels return None (no cycling)."""
-        created = service.create_carousel(
-            CarouselCreate(name="One", page_ids=["p1"], interval_seconds=10)
-        )
+        created = service.create_carousel(CarouselCreate(name="One", page_ids=["p1"], interval_seconds=10))
         assert service.seconds_until_next_page(created.id) is None
 
     def test_seconds_until_next_page_multi(self, service):
         """Multi-page carousel returns a positive value."""
-        created = service.create_carousel(
-            CarouselCreate(name="Multi", page_ids=["a", "b"], interval_seconds=10)
-        )
+        created = service.create_carousel(CarouselCreate(name="Multi", page_ids=["a", "b"], interval_seconds=10))
         secs = service.seconds_until_next_page(created.id)
         assert secs is not None
         assert 1 <= secs <= 10
 
     def test_seconds_until_next_page_fixed_time(self, service):
         """At a known time, seconds_until_next_page is predictable."""
-        created = service.create_carousel(
-            CarouselCreate(name="Fixed", page_ids=["a", "b"], interval_seconds=10)
-        )
+        created = service.create_carousel(CarouselCreate(name="Fixed", page_ids=["a", "b"], interval_seconds=10))
         secs = service.seconds_until_next_page(created.id, now_unix=3.0)
         assert secs == 7  # 10 - 3 = 7
 
@@ -409,9 +402,7 @@ class TestCarouselService:
 
     def test_seconds_until_next_page_fractional_timestamp(self, service):
         """Fractional timestamps produce correct ceiling of remaining seconds."""
-        created = service.create_carousel(
-            CarouselCreate(name="Frac", page_ids=["a", "b"], interval_seconds=10)
-        )
+        created = service.create_carousel(CarouselCreate(name="Frac", page_ids=["a", "b"], interval_seconds=10))
         # At t=3.5, remaining is 6.5s -> should ceil to 7
         assert service.seconds_until_next_page(created.id, now_unix=3.5) == 7
         # At t=3.9, remaining is 6.1s -> should ceil to 7
@@ -421,34 +412,26 @@ class TestCarouselService:
 
     def test_seconds_until_next_page_at_boundary(self, service):
         """At exact interval boundary, a full interval remains."""
-        created = service.create_carousel(
-            CarouselCreate(name="Boundary", page_ids=["a", "b"], interval_seconds=10)
-        )
+        created = service.create_carousel(CarouselCreate(name="Boundary", page_ids=["a", "b"], interval_seconds=10))
         # At exactly t=10 (boundary), the next page is at t=20: 10 seconds away
         assert service.seconds_until_next_page(created.id, now_unix=10.0) == 10
 
     def test_seconds_until_next_page_just_before_boundary(self, service):
         """Just before a transition, minimum of 1 second is returned."""
-        created = service.create_carousel(
-            CarouselCreate(name="JustBefore", page_ids=["a", "b"], interval_seconds=10)
-        )
+        created = service.create_carousel(CarouselCreate(name="JustBefore", page_ids=["a", "b"], interval_seconds=10))
         # At t=9.999, remaining is 0.001s -> ceil to 1, max(1,1) = 1
         assert service.seconds_until_next_page(created.id, now_unix=9.999) == 1
 
     def test_seconds_until_next_page_never_zero(self, service):
         """seconds_until_next_page never returns 0 due to max(1, ...) guard."""
-        created = service.create_carousel(
-            CarouselCreate(name="NonZero", page_ids=["a", "b"], interval_seconds=10)
-        )
+        created = service.create_carousel(CarouselCreate(name="NonZero", page_ids=["a", "b"], interval_seconds=10))
         for ts in [0.0, 5.0, 9.9, 9.999, 10.0, 15.5]:
             secs = service.seconds_until_next_page(created.id, now_unix=ts)
             assert secs >= 1, f"Expected >= 1 at t={ts}, got {secs}"
 
     def test_seconds_until_next_page_decreases_within_interval(self, service):
         """Remaining seconds monotonically decreases within a single interval."""
-        created = service.create_carousel(
-            CarouselCreate(name="Monotonic", page_ids=["a", "b"], interval_seconds=10)
-        )
+        created = service.create_carousel(CarouselCreate(name="Monotonic", page_ids=["a", "b"], interval_seconds=10))
         prev = service.seconds_until_next_page(created.id, now_unix=0.0)
         for t in range(1, 10):
             curr = service.seconds_until_next_page(created.id, now_unix=float(t))
@@ -471,9 +454,7 @@ class TestCarouselService:
 
     def test_resolve_page_changes_after_interval(self, service):
         """resolve_page_id returns different pages after interval_seconds elapses."""
-        created = service.create_carousel(
-            CarouselCreate(name="Resolve", page_ids=["a", "b", "c"], interval_seconds=10)
-        )
+        created = service.create_carousel(CarouselCreate(name="Resolve", page_ids=["a", "b", "c"], interval_seconds=10))
         page_at_0 = service.resolve_page_id(created.id, now_unix=0.0)
         page_at_10 = service.resolve_page_id(created.id, now_unix=10.0)
         page_at_20 = service.resolve_page_id(created.id, now_unix=20.0)
@@ -503,8 +484,8 @@ class TestCarouselAPI:
         page_storage_file = str(tmp_path / "pages.json")
         carousel_storage_file = str(tmp_path / "carousels.json")
 
-        from src.pages.storage import PageStorage
         from src.pages.service import PageService
+        from src.pages.storage import PageStorage
 
         page_storage = PageStorage(page_storage_file)
         page_service = PageService(page_storage)
@@ -518,6 +499,7 @@ class TestCarouselAPI:
         cs_mod._carousel_service = carousel_service
 
         from fastapi.testclient import TestClient
+
         from src.api_server import app
 
         yield TestClient(app), page_service, carousel_service
@@ -528,13 +510,16 @@ class TestCarouselAPI:
     def _create_pages(self, page_service, count=3):
         """Helper: create test pages and return their IDs."""
         from src.pages.models import PageCreate
+
         ids = []
         for i in range(count):
-            p = page_service.create_page(PageCreate(
-                name=f"Page {i+1}",
-                type="template",
-                template=[f"Content {i+1}"],
-            ))
+            p = page_service.create_page(
+                PageCreate(
+                    name=f"Page {i + 1}",
+                    type="template",
+                    template=[f"Content {i + 1}"],
+                )
+            )
             ids.append(p.id)
         return ids
 
@@ -549,11 +534,14 @@ class TestCarouselAPI:
     def test_create_carousel(self, client):
         c, ps, _ = client
         page_ids = self._create_pages(ps, 2)
-        resp = c.post("/carousels", json={
-            "name": "API Carousel",
-            "page_ids": page_ids,
-            "interval_seconds": 15,
-        })
+        resp = c.post(
+            "/carousels",
+            json={
+                "name": "API Carousel",
+                "page_ids": page_ids,
+                "interval_seconds": 15,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "success"
@@ -562,18 +550,19 @@ class TestCarouselAPI:
 
     def test_create_carousel_invalid_page(self, client):
         c, _, _ = client
-        resp = c.post("/carousels", json={
-            "name": "Bad",
-            "page_ids": ["nonexistent-page-id"],
-        })
+        resp = c.post(
+            "/carousels",
+            json={
+                "name": "Bad",
+                "page_ids": ["nonexistent-page-id"],
+            },
+        )
         assert resp.status_code == 400
 
     def test_get_carousel(self, client):
         c, ps, cs = client
         page_ids = self._create_pages(ps, 2)
-        created = cs.create_carousel(
-            CarouselCreate(name="Fetch", page_ids=page_ids)
-        )
+        created = cs.create_carousel(CarouselCreate(name="Fetch", page_ids=page_ids))
         resp = c.get(f"/carousels/{created.id}")
         assert resp.status_code == 200
         assert resp.json()["name"] == "Fetch"
@@ -586,9 +575,7 @@ class TestCarouselAPI:
     def test_update_carousel(self, client):
         c, ps, cs = client
         page_ids = self._create_pages(ps, 2)
-        created = cs.create_carousel(
-            CarouselCreate(name="Before", page_ids=page_ids)
-        )
+        created = cs.create_carousel(CarouselCreate(name="Before", page_ids=page_ids))
         resp = c.put(f"/carousels/{created.id}", json={"name": "After"})
         assert resp.status_code == 200
         assert resp.json()["carousel"]["name"] == "After"
@@ -601,20 +588,14 @@ class TestCarouselAPI:
     def test_update_carousel_invalid_page(self, client):
         c, ps, cs = client
         page_ids = self._create_pages(ps, 1)
-        created = cs.create_carousel(
-            CarouselCreate(name="UpdBad", page_ids=page_ids)
-        )
-        resp = c.put(f"/carousels/{created.id}", json={
-            "page_ids": ["nonexistent"]
-        })
+        created = cs.create_carousel(CarouselCreate(name="UpdBad", page_ids=page_ids))
+        resp = c.put(f"/carousels/{created.id}", json={"page_ids": ["nonexistent"]})
         assert resp.status_code == 400
 
     def test_delete_carousel(self, client):
         c, ps, cs = client
         page_ids = self._create_pages(ps, 1)
-        created = cs.create_carousel(
-            CarouselCreate(name="Del", page_ids=page_ids)
-        )
+        created = cs.create_carousel(CarouselCreate(name="Del", page_ids=page_ids))
         resp = c.delete(f"/carousels/{created.id}")
         assert resp.status_code == 200
         assert resp.json()["status"] == "success"

@@ -15,7 +15,6 @@ no plugin discovery / filesystem state leaks across runs. They follow
 the fixture style established in ``tests/test_plugin_triggers.py``.
 """
 
-from typing import List
 from unittest.mock import Mock, patch
 
 import pytest
@@ -26,7 +25,6 @@ from src.pages.service import PageService
 from src.pages.storage import PageStorage
 from src.plugins.base import PluginBase, PluginResult, TriggerResult
 from src.triggers.service import TriggerService
-
 
 # -- Shared plugin fixtures --------------------------------------------------
 
@@ -68,7 +66,7 @@ class _RecordingTriggerPlugin(PluginBase):
     def fetch_data(self) -> PluginResult:
         return PluginResult(available=True, data={})
 
-    def check_triggers(self) -> List[TriggerResult]:
+    def check_triggers(self) -> list[TriggerResult]:
         return self._triggers
 
 
@@ -86,11 +84,7 @@ class _FakeRegistry:
     @property
     def trigger_plugins(self):
         # Mirror real registry: only enabled, trigger-supporting plugins.
-        return {
-            pid: p
-            for pid, p in self._plugins.items()
-            if p.enabled and p.supports_triggers
-        }
+        return {pid: p for pid, p in self._plugins.items() if p.enabled and p.supports_triggers}
 
     def get_plugin(self, plugin_id):
         return self._plugins.get(plugin_id)
@@ -135,9 +129,11 @@ def patch_services(trigger_service, page_service):
     """
     registry = _FakeRegistry()
 
-    with patch("src.plugins.registry.get_plugin_registry", return_value=registry), \
-         patch("src.main.get_trigger_service", return_value=trigger_service), \
-         patch("src.pages.service.get_page_service", return_value=page_service):
+    with (
+        patch("src.plugins.registry.get_plugin_registry", return_value=registry),
+        patch("src.main.get_trigger_service", return_value=trigger_service),
+        patch("src.pages.service.get_page_service", return_value=page_service),
+    ):
         yield registry
 
 
@@ -200,9 +196,7 @@ class TestTriggerPageIdPath:
 
         content = display_service._check_trigger_override()
 
-        assert content is not None, (
-            "Expected the configured page to render, not None"
-        )
+        assert content is not None, "Expected the configured page to render, not None"
         # The template references {{trigger_plugin.event_name}} — proves
         # that data is namespaced under the plugin id, not flattened.
         assert "STANDUP" in content
@@ -217,9 +211,7 @@ class TestTriggerPageIdPath:
 class TestFallbackToFormattedLines:
     """Without a configured trigger page, formatted_lines win."""
 
-    def test_no_trigger_page_id_uses_formatted_lines_verbatim(
-        self, display_service, patch_services, trigger_service
-    ):
+    def test_no_trigger_page_id_uses_formatted_lines_verbatim(self, display_service, patch_services, trigger_service):
         plugin = _RecordingTriggerPlugin(MANIFEST_TRIGGER_PLUGIN)
         plugin.enabled = True
         plugin.config = {}  # no trigger_page_id
@@ -252,9 +244,7 @@ class TestFallbackToMessage:
     """If neither trigger_page_id nor formatted_lines are present, the
     plain ``message`` is rendered."""
 
-    def test_message_rendered_when_no_formatted_lines(
-        self, display_service, patch_services, trigger_service
-    ):
+    def test_message_rendered_when_no_formatted_lines(self, display_service, patch_services, trigger_service):
         plugin = _RecordingTriggerPlugin(MANIFEST_TRIGGER_PLUGIN)
         plugin.enabled = True
         plugin.config = {}
@@ -275,9 +265,7 @@ class TestFallbackToMessage:
         content = display_service._check_trigger_override()
         assert content == "AQI ABOVE 150"
 
-    def test_returns_none_when_no_content_at_all(
-        self, display_service, patch_services, trigger_service
-    ):
+    def test_returns_none_when_no_content_at_all(self, display_service, patch_services, trigger_service):
         """A trigger with neither formatted_lines nor message returns None.
 
         This is the documented behavior of ``_check_trigger_override``:
@@ -313,9 +301,7 @@ class TestMissingPage:
     should fall back gracefully to the trigger's formatted_lines/message.
     """
 
-    def test_missing_page_falls_back_to_formatted_lines(
-        self, display_service, patch_services, trigger_service
-    ):
+    def test_missing_page_falls_back_to_formatted_lines(self, display_service, patch_services, trigger_service):
         plugin = _RecordingTriggerPlugin(MANIFEST_TRIGGER_PLUGIN)
         plugin.enabled = True
         plugin.config = {"trigger_page_id": "page-does-not-exist"}
@@ -388,15 +374,11 @@ class TestPluginIdNamespacing:
         # Both plugins have the same trigger_page_id wired up so we can
         # observe which plugin's data ends up in the context regardless
         # of which one wins.
-        winning_plugin = _RecordingTriggerPlugin(
-            MANIFEST_TRIGGER_PLUGIN, plugin_id="trigger_plugin"
-        )
+        winning_plugin = _RecordingTriggerPlugin(MANIFEST_TRIGGER_PLUGIN, plugin_id="trigger_plugin")
         winning_plugin.enabled = True
         winning_plugin.config = {"trigger_page_id": page.id}
 
-        losing_plugin = _RecordingTriggerPlugin(
-            MANIFEST_OTHER_TRIGGER_PLUGIN, plugin_id="other_trigger_plugin"
-        )
+        losing_plugin = _RecordingTriggerPlugin(MANIFEST_OTHER_TRIGGER_PLUGIN, plugin_id="other_trigger_plugin")
         losing_plugin.enabled = True
         losing_plugin.config = {"trigger_page_id": page.id}
 
@@ -449,9 +431,7 @@ class TestSilenceMode:
     that level by patching ``Config.is_silence_mode_active``.
     """
 
-    def test_active_trigger_is_skipped_during_silence(
-        self, display_service, patch_services, trigger_service
-    ):
+    def test_active_trigger_is_skipped_during_silence(self, display_service, patch_services, trigger_service):
         plugin = _RecordingTriggerPlugin(MANIFEST_TRIGGER_PLUGIN)
         plugin.enabled = True
         plugin.config = {}
@@ -504,9 +484,7 @@ class TestManualPageChangeDismissesTriggers:
     same contract the API endpoint depends on.
     """
 
-    def test_manual_change_dismisses_and_records_suppression(
-        self, display_service, patch_services, trigger_service
-    ):
+    def test_manual_change_dismisses_and_records_suppression(self, display_service, patch_services, trigger_service):
         plugin = _RecordingTriggerPlugin(MANIFEST_TRIGGER_PLUGIN)
         plugin.enabled = True
         plugin.config = {}
@@ -528,8 +506,7 @@ class TestManualPageChangeDismissesTriggers:
         dismissed = trigger_service.dismiss_active_for_user_override()
         assert dismissed == 1
         assert "evt_sticky" in trigger_service._suppressed_until, (
-            "Manual page change must record the dismissal in _suppressed_until "
-            "so re-emissions are suppressed"
+            "Manual page change must record the dismissal in _suppressed_until so re-emissions are suppressed"
         )
 
         # Override now returns None — no trigger is active.
@@ -550,17 +527,11 @@ class TestSendTriggerContent:
     actually skips identical sends and that successful sends update the
     cache."""
 
-    def test_sends_content_when_different_from_cache(
-        self, display_service
-    ):
+    def test_sends_content_when_different_from_cache(self, display_service):
         with patch("src.main.get_settings_service") as settings_svc:
             inst = Mock()
-            inst.get_board_settings.return_value = Mock(
-                boards=[{"device_type": "flagship"}]
-            )
-            inst.get_transition_settings.return_value = Mock(
-                strategy=None, step_interval_ms=500, step_size=1
-            )
+            inst.get_board_settings.return_value = Mock(boards=[{"device_type": "flagship"}])
+            inst.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
             settings_svc.return_value = inst
 
             sent = display_service._send_trigger_content("HELLO TRIGGER")

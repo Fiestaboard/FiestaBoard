@@ -21,9 +21,7 @@ from .triggers.service import get_trigger_service
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
 )
 
 logger = logging.getLogger(__name__)
@@ -99,7 +97,7 @@ class DisplayService:
     def _get_board_read_interval(self) -> int:
         """Return the board-state read poll interval in seconds based on API mode."""
         polling = get_settings_service().get_polling_settings()
-        use_cloud = getattr(self.vb_client, 'use_cloud', False) if self.vb_client else False
+        use_cloud = getattr(self.vb_client, "use_cloud", False) if self.vb_client else False
         return polling.board_read_interval_cloud if use_cloud else polling.board_read_interval_local
 
     def _board_poll_loop(self) -> None:
@@ -159,7 +157,9 @@ class DisplayService:
             # Log transition settings if configured
             transition = Config.get_transition_settings()
             if transition["strategy"]:
-                logger.info(f"Default transition: {transition['strategy']} (interval={transition['step_interval_ms']}ms, step_size={transition['step_size']})")
+                logger.info(
+                    f"Default transition: {transition['strategy']} (interval={transition['step_interval_ms']}ms, step_size={transition['step_size']})"
+                )
         except Exception as e:
             logger.error(f"Failed to initialize board client: {e}")
             return False
@@ -250,7 +250,7 @@ class DisplayService:
                         logger.info(f"Temporary override expired, applying revert: {override.revert_mode}")
                         if override.revert_mode == "blank":
                             return self._send_blank_board()
-                        elif override.revert_mode == "page" and override.revert_page_id:
+                        if override.revert_mode == "page" and override.revert_page_id:
                             settings_service.set_active_page_id(override.revert_page_id)
                         # "schedule" (and fallback): clear content cache so next tick rerenders
                         self._last_active_page_content = None
@@ -260,6 +260,7 @@ class DisplayService:
                 # Schedule mode: Use schedule service to determine page
                 # Use TimeService to get current time in configured timezone
                 from .time_service import get_time_service
+
                 time_service = get_time_service()
                 now = time_service.get_current_time()
                 current_time = now.time()
@@ -272,7 +273,9 @@ class DisplayService:
                 if active_page_id:
                     logger.debug(f"Schedule mode: Active page determined by schedule: {active_page_id}")
                 else:
-                    logger.debug(f"Schedule mode: No matching schedule for {current_day} {current_time.strftime('%H:%M')}")
+                    logger.debug(
+                        f"Schedule mode: No matching schedule for {current_day} {current_time.strftime('%H:%M')}"
+                    )
             elif active_page_id is None:
                 # Manual mode: Use manual active page setting
                 active_page_id = settings_service.get_active_page_id()
@@ -342,8 +345,7 @@ class DisplayService:
             content_to_send = current_content
 
             # Normal mode (not in silence) - check if content changed
-            if (current_content == self._last_active_page_content and
-                    active_page_id == self._last_active_page_id):
+            if current_content == self._last_active_page_content and active_page_id == self._last_active_page_id:
                 logger.debug("Active page content unchanged, skipping send")
                 return False
             logger.info(f"Active page content changed, sending to board: {active_page_id}")
@@ -357,18 +359,21 @@ class DisplayService:
             # Get transition settings - use page-level if set, otherwise system defaults
             system_transition = settings_service.get_transition_settings()
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-            interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
-            step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
+            interval_ms = (
+                page.transition_interval_ms
+                if page.transition_interval_ms is not None
+                else system_transition.step_interval_ms
+            )
+            step_size = (
+                page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
+            )
 
             # Send to board
             dims = get_dimensions(page.device_type)
             board_array = text_to_board_array(content_to_send, rows=dims.rows, cols=dims.cols)
 
             success, was_sent = self.vb_client.send_characters(
-                board_array,
-                strategy=strategy,
-                step_interval_ms=interval_ms,
-                step_size=step_size
+                board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
             )
 
             if success:
@@ -376,16 +381,14 @@ class DisplayService:
                 self._last_active_page_id = active_page_id
                 self._last_silence_mode_active = silence_mode_active
 
-
                 if was_sent:
                     logger.info(f"Active page sent to board: {active_page_id}")
                     self.request_board_refresh()
                 else:
                     logger.debug("Active page unchanged at board level")
                 return was_sent
-            else:
-                logger.error(f"Failed to send active page to board: {active_page_id}")
-                return False
+            logger.error(f"Failed to send active page to board: {active_page_id}")
+            return False
 
         except Exception as e:
             logger.error(f"Error checking active page: {e}")
@@ -533,9 +536,7 @@ class DisplayService:
 
         result = page_service.preview_page(page.id, force_refresh=True)
         if not result or not result.available:
-            logger.warning(
-                "Silence page %s could not be rendered - falling back to indicator", page.id
-            )
+            logger.warning("Silence page %s could not be rendered - falling back to indicator", page.id)
             return self._send_silence_indicator(page.device_type)
 
         settings_service = get_settings_service()
@@ -546,11 +547,7 @@ class DisplayService:
             if page.transition_interval_ms is not None
             else system_transition.step_interval_ms
         )
-        step_size = (
-            page.transition_step_size
-            if page.transition_step_size is not None
-            else system_transition.step_size
-        )
+        step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
 
         dims = get_dimensions(page.device_type)
         board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
@@ -582,6 +579,7 @@ class DisplayService:
         """
         try:
             from .plugins.registry import get_plugin_registry
+
             registry = get_plugin_registry()
             trigger_service = get_trigger_service()
 
@@ -600,6 +598,7 @@ class DisplayService:
                 trigger_page_id = plugin.config.get("trigger_page_id")
                 if trigger_page_id:
                     from .pages.service import get_page_service
+
                     page_service = get_page_service()
                     page = page_service.get_page(trigger_page_id)
                     if page and page.type == "template":
@@ -651,15 +650,15 @@ class DisplayService:
             if was_sent:
                 logger.info("Triggered message sent to board")
             return was_sent
-        else:
-            logger.error("Failed to send triggered message to board")
-            return False
+        logger.error("Failed to send triggered message to board")
+        return False
 
     def _get_active_ref_id(self) -> str | None:
         """Return the raw active-page/carousel reference (before carousel resolution)."""
         settings_service = get_settings_service()
         if settings_service.is_schedule_enabled():
             from .time_service import get_time_service
+
             ts = get_time_service()
             now = ts.get_current_time()
             # Pass the first board's ID so schedules scoped to that board are found

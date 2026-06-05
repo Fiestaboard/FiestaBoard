@@ -147,7 +147,7 @@ def load_registry(registry_path: Path | None = None) -> list[RegistryEntry]:
         return []
 
     try:
-        with open(registry_path, encoding="utf-8") as fh:
+        with registry_path.open(encoding="utf-8") as fh:
             data = json.load(fh)
     except (json.JSONDecodeError, OSError) as exc:
         logger.error("Failed to read plugin registry %s: %s", registry_path, exc)
@@ -186,8 +186,7 @@ def validate_registry_repo_name(repo_url: str) -> tuple[bool, str]:
     if not REGISTRY_NAME_RE.match(repo_name):
         return (
             False,
-            f"Repository name '{repo_name}' does not follow the required "
-            f"'{REGISTRY_PREFIX}{{name}}' naming convention",
+            f"Repository name '{repo_name}' does not follow the required '{REGISTRY_PREFIX}{{name}}' naming convention",
         )
     return True, ""
 
@@ -202,7 +201,7 @@ def plugin_id_from_repo_name(repo_name: str) -> str:
     'my_weather'
     """
     if repo_name.startswith(REGISTRY_PREFIX):
-        suffix = repo_name[len(REGISTRY_PREFIX):]
+        suffix = repo_name[len(REGISTRY_PREFIX) :]
         return suffix.replace("-", "_")
     return repo_name.replace("-", "_")
 
@@ -261,10 +260,7 @@ def _validate_git_url(url: str) -> tuple[bool, str]:
 def _validate_plugin_id(plugin_id: str) -> tuple[bool, str]:
     """Validate that *plugin_id* is safe to use as a single path segment."""
     if not isinstance(plugin_id, str) or not PLUGIN_ID_RE.match(plugin_id):
-        return False, (
-            f"Invalid plugin id {plugin_id!r}: must match "
-            f"{PLUGIN_ID_RE.pattern}"
-        )
+        return False, (f"Invalid plugin id {plugin_id!r}: must match {PLUGIN_ID_RE.pattern}")
     return True, ""
 
 
@@ -273,9 +269,7 @@ def _validate_git_ref(ref: str) -> tuple[bool, str]:
     if not isinstance(ref, str):
         return False, "Invalid branch/tag: must be a string"
     if not GIT_REF_RE.fullmatch(ref):
-        return False, (
-            f"Invalid branch/tag {ref!r}: must match {GIT_REF_RE.pattern}"
-        )
+        return False, (f"Invalid branch/tag {ref!r}: must match {GIT_REF_RE.pattern}")
     return True, ""
 
 
@@ -339,7 +333,7 @@ def clone_or_update_repo(
     # the check below, _candidate is the CodeQL-sanitised destination string
     # used for all subsequent path operations and subprocess -C arguments.
     _ext_root = os.path.realpath(str(_ext_dir))
-    _candidate = os.path.realpath(os.path.join(_ext_root, _safe_id))
+    _candidate = os.path.realpath(os.path.join(_ext_root, _safe_id))  # noqa: PTH118  (os.path.join required for CodeQL py/path-injection barrier)
     # os.path.commonpath is the CodeQL-recognised py/path-injection barrier.
     # It must appear as a plain if-guard (not inside try/except) so the
     # control-flow graph shows the barrier on every path to the sinks below.
@@ -350,19 +344,25 @@ def clone_or_update_repo(
     # _candidate is now verified to be strictly inside _ext_root.
 
     # ── Update path (no URL required) ─────────────────────────────────────────
-    if os.path.isdir(os.path.join(_candidate, ".git")):
+    if os.path.isdir(os.path.join(_candidate, ".git")):  # noqa: PTH112, PTH118  (os.path required for CodeQL barrier scope)
         try:
             subprocess.run(
                 ["git", "fetch", "--depth=1", "origin", "HEAD"],
                 cwd=_candidate,
-                check=True, capture_output=True, text=True,
-                timeout=120, env=env,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env,
             )
             subprocess.run(
                 ["git", "reset", "--hard", "FETCH_HEAD"],
                 cwd=_candidate,
-                check=True, capture_output=True, text=True,
-                timeout=30, env=env,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                env=env,
             )
             logger.info("Updated existing plugin clone at %s", _candidate)
             return True, ""
@@ -384,21 +384,20 @@ def clone_or_update_repo(
     # ── git init + write remote URL to config + git fetch ─────────────────────
     # Writing repo_url to .git/config (a normal file write) avoids passing a
     # user-controlled value as a subprocess argument (py/command-line-injection).
-    os.makedirs(_candidate, exist_ok=True)
+    os.makedirs(_candidate, exist_ok=True)  # noqa: PTH103  (uses CodeQL-validated _candidate string path)
     try:
         subprocess.run(
             ["git", "init", "--quiet"],
             cwd=_candidate,
-            check=True, capture_output=True, text=True,
-            timeout=30, env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
         )
-        _git_config_path = os.path.join(_candidate, ".git", "config")
-        with open(_git_config_path, "a") as _cfg:
-            _cfg.write(
-                '[remote "origin"]\n'
-                f"\turl = {repo_url}\n"
-                "\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
-            )
+        _git_config_path = os.path.join(_candidate, ".git", "config")  # noqa: PTH118  (uses CodeQL-validated _candidate string path)
+        with open(_git_config_path, "a") as _cfg:  # noqa: PTH123  (string path retained for CodeQL barrier scope)
+            _cfg.write(f'[remote "origin"]\n\turl = {repo_url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n')
         _fetch_cmd = ["git", "fetch", "--depth=1", "origin"]
         if branch:
             _fetch_cmd.append(branch)
@@ -407,14 +406,20 @@ def clone_or_update_repo(
         subprocess.run(
             _fetch_cmd,
             cwd=_candidate,
-            check=True, capture_output=True, text=True,
-            timeout=120, env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=env,
         )
         subprocess.run(
             ["git", "reset", "--hard", "FETCH_HEAD"],
             cwd=_candidate,
-            check=True, capture_output=True, text=True,
-            timeout=30, env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
         )
         logger.info("Installed external plugin repository to %s", _candidate)
         return True, ""
@@ -441,7 +446,9 @@ def get_remote_head_sha(dest_dir: Path) -> str | None:
         # Get the remote URL from the local clone
         result = subprocess.run(
             ["git", "-C", str(dest_dir), "remote", "get-url", "origin"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         if result.returncode != 0:
             return None
@@ -461,14 +468,16 @@ def get_remote_head_sha(dest_dir: Path) -> str | None:
         # Determine the default branch name tracked locally
         branch_result = subprocess.run(
             ["git", "-C", str(dest_dir), "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         branch = branch_result.stdout.strip() or "main"
         # Allow only characters that are legal in git branch names and safe
         # as subprocess arguments (prevents argument injection).
         # Re-derive branch from the match result so the subprocess sink
         # does not see it as tainted (CodeQL py/command-line-injection).
-        _branch_m = re.match(r'^[A-Za-z0-9_./-]+$', branch)
+        _branch_m = re.match(r"^[A-Za-z0-9_./-]+$", branch)
         if not _branch_m:
             return None
         branch = _branch_m.group(0)
@@ -476,7 +485,9 @@ def get_remote_head_sha(dest_dir: Path) -> str | None:
         # Query the remote for the latest SHA
         ls_result = subprocess.run(
             ["git", "ls-remote", "--heads", remote_url, branch],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
         )
         if ls_result.returncode == 0 and ls_result.stdout.strip():
@@ -490,7 +501,9 @@ def get_remote_head_sha(dest_dir: Path) -> str | None:
         # detected correctly regardless of local/remote branch name mismatch.
         ls_result = subprocess.run(
             ["git", "ls-remote", remote_url, "HEAD"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
         )
         if ls_result.returncode != 0 or not ls_result.stdout.strip():
@@ -507,7 +520,9 @@ def get_local_head_sha(dest_dir: Path) -> str | None:
     try:
         result = subprocess.run(
             ["git", "-C", str(dest_dir), "rev-parse", "HEAD"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         return result.stdout.strip() if result.returncode == 0 else None
     except (subprocess.SubprocessError, OSError):
@@ -551,9 +566,7 @@ def get_external_plugins_dir(project_root: Path | None = None) -> Path:
     return ext_dir
 
 
-def _safe_external_dest(
-    external_dir: Path, plugin_id: str
-) -> tuple[Path | None, str]:
+def _safe_external_dest(external_dir: Path, plugin_id: str) -> tuple[Path | None, str]:
     """Compute a safe destination path inside `external_dir` for a plugin.
 
     The plugin id flows through three independent CodeQL-recognized
@@ -586,7 +599,7 @@ def _safe_external_dest(
     # with ``os.path.commonpath`` *before* returning the path.  This is
     # the CodeQL-recognised path-injection barrier.
     external_root = os.path.realpath(str(external_dir))
-    raw_candidate = os.path.join(external_root, safe_id)
+    raw_candidate = os.path.join(external_root, safe_id)  # noqa: PTH118  (os.path.join required for CodeQL py/path-injection barrier)
     candidate_real = os.path.realpath(raw_candidate)
     try:
         common = os.path.commonpath([external_root, candidate_real])

@@ -1,11 +1,12 @@
 """Tests for MQTT state publisher."""
 
 import json
-import pytest
 from unittest.mock import MagicMock, patch
 
-from src.mqtt.config import MQTTConfig
+import pytest
+
 from src.mqtt.client import MQTTClient
+from src.mqtt.config import MQTTConfig
 from src.mqtt.state import StatePublisher
 
 
@@ -122,9 +123,7 @@ class TestStatePublisherDiagnostics:
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
-    def test_gather_publishes_uptime(
-        self, mock_config, get_settings, get_page, mock_board, mock_cm, mock_client
-    ):
+    def test_gather_publishes_uptime(self, mock_config, get_settings, get_page, mock_board, mock_cm, mock_client):
         mock_config.is_silence_mode_active.return_value = False
         settings = MagicMock()
         settings.is_schedule_enabled.return_value = False
@@ -331,9 +330,7 @@ class TestStatePublisherAttributes:
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
-    def test_gather_publishes_current_page_attributes(
-        self, mock_config, get_settings, get_page, mock_client
-    ):
+    def test_gather_publishes_current_page_attributes(self, mock_config, get_settings, get_page, mock_client):
         mock_config.is_silence_mode_active.return_value = False
         settings = MagicMock()
         settings.is_schedule_enabled.return_value = False

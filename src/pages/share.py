@@ -62,10 +62,7 @@ def decode_page(share_string: str) -> dict:
     if not isinstance(v, int) or v < 1:
         raise ValueError("Invalid share string — bad version field.")
     if v > SHARE_VERSION:
-        raise ValueError(
-            f"This share string requires FiestaBoard v{v} or later. "
-            "Please update your installation."
-        )
+        raise ValueError(f"This share string requires FiestaBoard v{v} or later. Please update your installation.")
 
     page_data = envelope["page"]
     if not isinstance(page_data, dict):

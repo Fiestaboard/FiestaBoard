@@ -1,10 +1,11 @@
 """Tests for MQTT client."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from src.mqtt.client import MQTTClient, get_mqtt_client, set_mqtt_client_instance
 from src.mqtt.config import MQTTConfig
-from src.mqtt.client import MQTTClient, set_mqtt_client_instance, get_mqtt_client
 
 
 @pytest.fixture
@@ -38,9 +39,7 @@ class TestMQTTClientStart:
         get_paho.return_value = mock_module
         client = MQTTClient(mqtt_config)
         client.start()
-        mock_client.connect_async.assert_called_once_with(
-            "broker.test", 1883, keepalive=60
-        )
+        mock_client.connect_async.assert_called_once_with("broker.test", 1883, keepalive=60)
         mock_client.loop_start.assert_called_once()
         assert client.is_running()
 
@@ -92,7 +91,7 @@ class TestMQTTClientOnConnect:
         assert "fiestaboard/status" in topics
         mock_client.subscribe.assert_called_once()
         sub_call = mock_client.subscribe.call_args[0][0]
-        assert "fiestaboard/+/set" == sub_call
+        assert sub_call == "fiestaboard/+/set"
 
 
 class TestMQTTClientStop:
@@ -156,6 +155,7 @@ class TestGetPahoClient:
 
     def test_get_paho_client_returns_module(self):
         from src.mqtt.client import _get_paho_client
+
         mod = _get_paho_client()
         assert hasattr(mod, "Client")
 
@@ -394,6 +394,7 @@ class TestSyncLoop:
 
         def stop_after_one(*args, **kwargs):
             client._running = False
+
         publisher.gather_and_publish.side_effect = stop_after_one
 
         with patch("src.mqtt.client.time.sleep"):

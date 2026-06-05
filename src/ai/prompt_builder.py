@@ -14,8 +14,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from ..devices import DeviceType, get_dimensions
-from ..templates.expressions import function_signatures
+from src.devices import DeviceType, get_dimensions
+from src.templates.expressions import function_signatures
 
 # Which caller is building the prompt. The shared core (device limits,
 # character set, syntax, available variables, exemplars) is identical
@@ -156,8 +156,7 @@ class PromptContext:
                     "role": "user",
                     "content": (
                         "The user is refining an existing page. Current page "
-                        "JSON:\n"
-                        + json.dumps(self.current_page, indent=2)
+                        "JSON:\n" + json.dumps(self.current_page, indent=2)
                     ),
                 }
             )
@@ -187,9 +186,7 @@ def _format_builtins() -> str:
     sigs = function_signatures()
     by_cat: dict[str, list[str]] = {}
     for _name, info in sigs.items():
-        by_cat.setdefault(info["category"], []).append(
-            f"  {info['signature']:<40} — {info['summary']}"
-        )
+        by_cat.setdefault(info["category"], []).append(f"  {info['signature']:<40} — {info['summary']}")
     order = ["logic", "math", "text", "convert", "color"]
     lines: list[str] = []
     for cat in order:
@@ -265,10 +262,7 @@ def _format_available_pages(pages: list[dict[str, Any]]) -> str:
     """Render a compact list of pages the user can navigate to."""
     if not pages:
         return "(no pages yet)"
-    return "\n".join(
-        f'  - "{p.get("name", "Untitled")}" (id: {p.get("id", "?")})'
-        for p in pages
-    )
+    return "\n".join(f'  - "{p.get("name", "Untitled")}" (id: {p.get("id", "?")})' for p in pages)
 
 
 def _summarize_schema(schema: dict[str, Any] | None) -> str:
@@ -311,7 +305,7 @@ def _format_installed_plugins(plugins: list[dict[str, Any]]) -> str:
         status = "enabled" if p.get("enabled") else "disabled"
         schema_line = _summarize_schema(p.get("settings_schema"))
         schema_part = f"\n    config schema: {schema_line}" if schema_line else ""
-        lines.append(f'  - {p.get("id", "?")} ({p.get("name", "?")}) — {status}{schema_part}')
+        lines.append(f"  - {p.get('id', '?')} ({p.get('name', '?')}) — {status}{schema_part}")
     return "\n".join(lines)
 
 
@@ -324,7 +318,7 @@ def _format_registry_plugins(plugins: list[dict[str, Any]]) -> str:
         installed = " [already installed]" if p.get("installed") else ""
         desc = p.get("description", "")
         desc_part = f" — {desc}" if desc else ""
-        lines.append(f'  - {p.get("id", "?")} ({p.get("name", "?")!r}){desc_part}{installed}')
+        lines.append(f"  - {p.get('id', '?')} ({p.get('name', '?')!r}){desc_part}{installed}")
     return "\n".join(lines)
 
 
@@ -340,9 +334,7 @@ def _format_available_schedules(schedules: list[dict[str, Any]]) -> str:
         enabled = "enabled" if s.get("enabled", True) else "disabled"
         page_id = s.get("page_id", "?")
         sid = s.get("id", "?")
-        lines.append(
-            f"  - id: {sid} | page: {page_id} | {start}-{end} | {pattern} | {enabled}"
-        )
+        lines.append(f"  - id: {sid} | page: {page_id} | {start}-{end} | {pattern} | {enabled}")
     return "\n".join(lines)
 
 
@@ -356,9 +348,7 @@ def _format_available_carousels(carousels: list[dict[str, Any]]) -> str:
         cid = c.get("id", "?")
         pages = c.get("page_ids", [])
         interval = c.get("interval_seconds", 30)
-        lines.append(
-            f'  - "{name}" (id: {cid}) | {len(pages)} pages | {interval}s interval'
-        )
+        lines.append(f'  - "{name}" (id: {cid}) | {len(pages)} pages | {interval}s interval')
     return "\n".join(lines)
 
 
@@ -447,8 +437,8 @@ def build_prompt(
         f"  the number of other rows accordingly).\n"
         f"- `line_metadata` must have the same length as `template`.\n"
         f"  Each entry is `{{alignment, wrap}}`:\n"
-        f"    - `alignment`: \"left\" | \"center\" | \"right\" (no\n"
-        f"      \"justify\"). Drives how the line is positioned within\n"
+        f'    - `alignment`: "left" | "center" | "right" (no\n'
+        f'      "justify"). Drives how the line is positioned within\n'
         f"      the {cols}-column row.\n"
         f"    - `wrap`: boolean. When true, content longer than {cols}\n"
         f"      columns flows onto subsequent rows; the wrapped lines\n"
@@ -494,7 +484,7 @@ def build_prompt(
         "EXPRESSIONS / FORMULAS\n"
         "- Inline formula syntax: `{{= expression }}`. The expression is\n"
         "  evaluated at render time and replaced by its result. Example:\n"
-        "    `{{= IF(weather.temperature > 80, \"HOT\", \"OK\") }}`\n"
+        '    `{{= IF(weather.temperature > 80, "HOT", "OK") }}`\n'
         "- Inside a formula, reference variables by their plain dotted\n"
         "  path (no surrounding `{{ }}`): `weather.temperature`,\n"
         "  `date_time.hour`, etc. Only variables listed in AVAILABLE\n"
@@ -503,22 +493,20 @@ def build_prompt(
         "    arithmetic: + - * / %\n"
         "    comparison: =  ==  !=  <>  <  >  <=  >=\n"
         "    logical:    AND  OR  NOT  (also && || !)\n"
-        "    string:     &  (concatenation, e.g. \"H\" & \"I\" -> \"HI\")\n"
-        "- String literals use double quotes: \"text\". `{` and `}` may\n"
+        '    string:     &  (concatenation, e.g. "H" & "I" -> "HI")\n'
+        '- String literals use double quotes: "text". `{` and `}` may\n'
         "  not appear inside an expression body.\n"
         "- Errors short-circuit (e.g. divide-by-zero -> `#DIV/0`,\n"
         "  missing variable -> `#REF`). Wrap risky lookups with\n"
         "  `IFERROR(expr, fallback)` or `DEFAULT(expr, fallback)` to\n"
         "  render a sane value instead.\n"
-        "- Built-in functions (uppercase, no space before parens):\n"
-        + _format_builtins()
-        + "\n"
+        "- Built-in functions (uppercase, no space before parens):\n" + _format_builtins() + "\n"
         "- Examples:\n"
-        "    `{{= IF(weather.temperature > 80, \"HOT\", \"MILD\") }}`\n"
-        "    `{{= ROUND(weather.temperature) & \"F\" }}`\n"
-        "    `{{= IFERROR(weather.temperature, \"--\") }}`\n"
+        '    `{{= IF(weather.temperature > 80, "HOT", "MILD") }}`\n'
+        '    `{{= ROUND(weather.temperature) & "F" }}`\n'
+        '    `{{= IFERROR(weather.temperature, "--") }}`\n'
         "    `{{= UPPER(LEFT(weather.condition, 6)) }}`\n"
-        "    `{{= COLOR(IF(weather.temperature > 80, \"red\", \"blue\")) }}`\n"
+        '    `{{= COLOR(IF(weather.temperature > 80, "red", "blue")) }}`\n'
         "- Limitations: no user-defined functions, no loops, no\n"
         "  arbitrary code. Prefer plain `{{plugin.field}}` substitution\n"
         "  when no logic is required — only reach for `{{= ... }}` when\n"
@@ -529,16 +517,14 @@ def build_prompt(
         output_rules = (
             "OUTPUT\n"
             "Return ONLY a single JSON object that matches this schema. Do\n"
-            "not include markdown, comments, or extra prose:\n"
-            + json.dumps(_OUTPUT_SCHEMA, indent=2)
-            + "\n\nRules:\n"
+            "not include markdown, comments, or extra prose:\n" + json.dumps(_OUTPUT_SCHEMA, indent=2) + "\n\nRules:\n"
             "- Only use variables that appear in the AVAILABLE VARIABLES\n"
             "  section above. Do not invent plugin or field names.\n"
             "- If the user requests something that requires a variable\n"
             "  that does not exist, prefer plain static text or omit that\n"
             "  detail.\n"
-            f"- `device_type` must be \"{device_type}\".\n"
-            "- `type` must be \"template\".\n"
+            f'- `device_type` must be "{device_type}".\n'
+            '- `type` must be "template".\n'
         )
     else:
         # Chat mode appends its own tool-grammar addendum after this
@@ -556,7 +542,7 @@ def build_prompt(
             "  or summarize your own actions after every block.\n"
             "- Only use variables listed in AVAILABLE VARIABLES above.\n"
             "  Do not invent plugin or field names.\n"
-            f"- Pages you propose must target device_type \"{device_type}\".\n"
+            f'- Pages you propose must target device_type "{device_type}".\n'
         )
 
     exemplars_block = json.dumps(
@@ -575,17 +561,13 @@ def build_prompt(
 
     pages_section = ""
     if available_pages is not None:
-        pages_section = (
-            "\n\nAVAILABLE PAGES (pages the user can navigate to):\n"
-            + _format_available_pages(available_pages)
+        pages_section = "\n\nAVAILABLE PAGES (pages the user can navigate to):\n" + _format_available_pages(
+            available_pages
         )
 
     plugins_section = ""
     if installed_plugins is not None:
-        plugins_section = (
-            "\n\nINSTALLED PLUGINS:\n"
-            + _format_installed_plugins(installed_plugins)
-        )
+        plugins_section = "\n\nINSTALLED PLUGINS:\n" + _format_installed_plugins(installed_plugins)
 
     schedules_section = ""
     if available_schedules is not None:
@@ -605,8 +587,7 @@ def build_prompt(
     if registry_plugins is not None:
         registry_section = (
             "\n\nPLUGIN REGISTRY (plugins available to install; use the `id` "
-            "field as plugin_id when proposing install_plugin):\n"
-            + _format_registry_plugins(registry_plugins)
+            "field as plugin_id when proposing install_plugin):\n" + _format_registry_plugins(registry_plugins)
         )
 
     scope_intro = (
@@ -623,15 +604,13 @@ def build_prompt(
     )
     if mode == "generate":
         scope_rules = (
-            scope_intro
-            + "If the user's request is off-topic, output ONLY this JSON\n"
+            scope_intro + "If the user's request is off-topic, output ONLY this JSON\n"
             "object (no page, no prose):\n"
             '  {"refusal": true, "reason": "<one sentence why + what you can help with>"}\n'
         )
     else:
         scope_rules = (
-            scope_intro
-            + "If the user's request is off-topic, reply with a brief,\n"
+            scope_intro + "If the user's request is off-topic, reply with a brief,\n"
             "friendly message explaining that you only help with\n"
             "FiestaBoard, and ask what they would like to show on their\n"
             "board. Do not emit any tool block in that case.\n"

@@ -532,9 +532,7 @@ def parse_tool_call(payload: object) -> ToolCall:
         raise ToolCallValidationError("Tool call must be a JSON object.")
     op = payload.get("op")
     if not isinstance(op, str):
-        raise ToolCallValidationError(
-            "Tool call is missing the required 'op' string."
-        )
+        raise ToolCallValidationError("Tool call is missing the required 'op' string.")
     model_cls = _OP_REGISTRY.get(op)
     if model_cls is None:
         raise ToolCallValidationError(f"Unknown tool op: {op!r}")

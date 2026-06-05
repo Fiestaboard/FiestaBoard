@@ -7,11 +7,10 @@ and hallucinated-variable paths without hitting any real LLM.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
-
-import pytest
+from typing import Any
 
 import httpx
+import pytest
 
 from src.ai.generator import (
     AIGenerationError,
@@ -22,9 +21,10 @@ from src.ai.generator import (
     _resolve_provider,
     _validate_and_repair,
     generate_page,
+)
+from src.ai.generator import (
     test_provider as ai_test_provider,
 )
-
 
 # ---------------------------------------------------------------------------
 # Provider / model resolution
@@ -104,12 +104,12 @@ def test_extract_json_object_strict():
 
 
 def test_extract_json_object_handles_markdown_fence():
-    text = "```json\n{\"a\": 2}\n```"
+    text = '```json\n{"a": 2}\n```'
     assert _extract_json_object(text) == {"a": 2}
 
 
 def test_extract_json_object_handles_preamble():
-    text = "Here you go!\n\n{\"name\": \"X\", \"template\": []}\nThanks"
+    text = 'Here you go!\n\n{"name": "X", "template": []}\nThanks'
     assert _extract_json_object(text) == {"name": "X", "template": []}
 
 
@@ -224,9 +224,7 @@ def test_validate_and_repair_flags_unknown_variables():
         "device_type": "flagship",
         "template": ["{{ghost.field}}", "", "", "", "", ""],
     }
-    known: Dict[str, Dict[str, Dict[str, Any]]] = {
-        "weather": {"temperature": {"description": "x"}}
-    }
+    known: dict[str, dict[str, dict[str, Any]]] = {"weather": {"temperature": {"description": "x"}}}
     _page, warnings = _validate_and_repair(raw, "flagship", known)
     assert any("ghost.field" in w for w in warnings)
 
@@ -361,7 +359,7 @@ class _MockAsyncClient:
         self._responder = responder
         self.calls = []
 
-    async def post(self, url, headers=None, json=None):  # noqa: A002
+    async def post(self, url, headers=None, json=None):
         self.calls.append({"url": url, "headers": headers, "json": json})
         return self._responder(url, headers, json)
 
@@ -369,14 +367,13 @@ class _MockAsyncClient:
         pass
 
 
-def _make_chat_response(content: str, usage: Optional[Dict[str, int]] = None):
+def _make_chat_response(content: str, usage: dict[str, int] | None = None):
     return _MockResponse(
         200,
         {
-            "choices": [
-                {"message": {"role": "assistant", "content": content}}
-            ],
-            "usage": usage or {
+            "choices": [{"message": {"role": "assistant", "content": content}}],
+            "usage": usage
+            or {
                 "prompt_tokens": 10,
                 "completion_tokens": 5,
                 "total_tokens": 15,
@@ -408,9 +405,7 @@ async def test_generate_page_happy_path():
         "type": "template",
         "device_type": "flagship",
         "template": ["", "{{date_time.time_12h}}", "", "", "", ""],
-        "line_metadata": [
-            {"alignment": "center", "wrap": False} for _ in range(6)
-        ],
+        "line_metadata": [{"alignment": "center", "wrap": False} for _ in range(6)],
         "duration_seconds": 60,
     }
 
@@ -443,9 +438,7 @@ async def test_generate_page_repairs_oversized_lines():
         "type": "template",
         "device_type": "flagship",
         "template": ["X" * 50, "", "", "", "", ""],
-        "line_metadata": [
-            {"alignment": "left", "wrap": False} for _ in range(6)
-        ],
+        "line_metadata": [{"alignment": "left", "wrap": False} for _ in range(6)],
     }
 
     def responder(url, headers, body):
@@ -538,9 +531,7 @@ async def test_test_provider_returns_ok_on_success():
         return _make_chat_response("ok")
 
     client = _MockAsyncClient(responder)
-    result = await ai_test_provider(
-        _PROVIDERS_BLOCK["providers"][0], client=client
-    )
+    result = await ai_test_provider(_PROVIDERS_BLOCK["providers"][0], client=client)
     assert result["ok"] is True
     assert result["model_used"] == "test-model"
 
@@ -555,9 +546,7 @@ async def test_test_provider_returns_failure_on_error():
         )
 
     client = _MockAsyncClient(responder)
-    result = await ai_test_provider(
-        _PROVIDERS_BLOCK["providers"][0], client=client
-    )
+    result = await ai_test_provider(_PROVIDERS_BLOCK["providers"][0], client=client)
     assert result["ok"] is False
     assert "boom" in result["message"]
 
@@ -603,9 +592,7 @@ async def test_generate_page_refusal_uses_fallback_message_when_reason_missing()
 @pytest.mark.asyncio
 async def test_generate_page_raises_on_network_error():
     """A transport-level failure (connection refused, timeout) raises AIGenerationError."""
-    transport = httpx.MockTransport(
-        lambda req: (_ for _ in ()).throw(httpx.ConnectError("connection refused"))
-    )
+    transport = httpx.MockTransport(lambda req: (_ for _ in ()).throw(httpx.ConnectError("connection refused")))
     async with httpx.AsyncClient(transport=transport) as client:
         with pytest.raises(AIGenerationError, match="Could not reach AI provider"):
             await generate_page(

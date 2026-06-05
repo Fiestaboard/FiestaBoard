@@ -7,16 +7,14 @@ every failure mode instead of a generic error.
 
 import json
 import re
-from urllib.parse import urlparse
-
 from unittest.mock import Mock, patch
+from urllib.parse import urlparse
 
 import pytest
 import requests
 from fastapi.testclient import TestClient
 
 from src.api_server import app
-
 
 _URL_RE = re.compile(r"https?://[^\s'\"<>]+")
 
@@ -46,6 +44,7 @@ def client():
 # Successful connection
 # ---------------------------------------------------------------------------
 
+
 class TestBoardTestSuccess:
     """Test successful board connection responses."""
 
@@ -63,11 +62,14 @@ class TestBoardTestSuccess:
         mock_resp.json.return_value = {"message": [[0] * 22] * 6}
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.10",
+            },
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -88,11 +90,14 @@ class TestBoardTestSuccess:
         mock_resp.json.return_value = [[0] * 22] * 6
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         assert data["success"] is True
@@ -111,10 +116,13 @@ class TestBoardTestSuccess:
         mock_resp.json.return_value = {"message": [[0] * 22] * 6}
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "cloud",
-            "cloud_key": "rw-key",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "cloud",
+                "cloud_key": "rw-key",
+            },
+        )
 
         data = response.json()
         assert data["success"] is True
@@ -123,6 +131,7 @@ class TestBoardTestSuccess:
 # ---------------------------------------------------------------------------
 # Authentication failures (401 / 403)
 # ---------------------------------------------------------------------------
+
 
 class TestBoardTestAuthFailure:
     """Test auth rejection error messages with troubleshooting steps."""
@@ -139,11 +148,14 @@ class TestBoardTestAuthFailure:
         mock_resp.status_code = 401
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "bad-key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "bad-key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -163,11 +175,14 @@ class TestBoardTestAuthFailure:
         mock_resp.status_code = 403
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "bad-key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "bad-key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -185,10 +200,13 @@ class TestBoardTestAuthFailure:
         mock_resp.status_code = 401
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "cloud",
-            "cloud_key": "bad-rw-key",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "cloud",
+                "cloud_key": "bad-rw-key",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -199,6 +217,7 @@ class TestBoardTestAuthFailure:
 # ---------------------------------------------------------------------------
 # Server errors (500+)
 # ---------------------------------------------------------------------------
+
 
 class TestBoardTestServerError:
     """Test server error messages with troubleshooting steps."""
@@ -215,11 +234,14 @@ class TestBoardTestServerError:
         mock_resp.status_code = 500
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -239,11 +261,14 @@ class TestBoardTestServerError:
         mock_resp.status_code = 502
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -253,6 +278,7 @@ class TestBoardTestServerError:
 # ---------------------------------------------------------------------------
 # Connection errors
 # ---------------------------------------------------------------------------
+
 
 class TestBoardTestConnectionError:
     """Test connection error messages with troubleshooting steps."""
@@ -267,11 +293,14 @@ class TestBoardTestConnectionError:
 
         mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -289,10 +318,13 @@ class TestBoardTestConnectionError:
 
         mock_get.side_effect = requests.exceptions.ConnectionError("no route")
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "cloud",
-            "cloud_key": "rw-key",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "cloud",
+                "cloud_key": "rw-key",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -303,6 +335,7 @@ class TestBoardTestConnectionError:
 # ---------------------------------------------------------------------------
 # Timeout errors
 # ---------------------------------------------------------------------------
+
 
 class TestBoardTestTimeout:
     """Test timeout error messages with troubleshooting steps."""
@@ -317,11 +350,14 @@ class TestBoardTestTimeout:
 
         mock_get.side_effect = requests.exceptions.Timeout("timed out")
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -339,10 +375,13 @@ class TestBoardTestTimeout:
 
         mock_get.side_effect = requests.exceptions.Timeout("timed out")
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "cloud",
-            "cloud_key": "rw-key",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "cloud",
+                "cloud_key": "rw-key",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -353,6 +392,7 @@ class TestBoardTestTimeout:
 # ---------------------------------------------------------------------------
 # Unexpected response formats
 # ---------------------------------------------------------------------------
+
 
 class TestBoardTestUnexpectedResponse:
     """Test unexpected response format messages."""
@@ -371,11 +411,14 @@ class TestBoardTestUnexpectedResponse:
         mock_resp.json.return_value = {"status": "ok"}  # No "message" key, not a list
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -446,11 +489,14 @@ class TestBoardTestUnexpectedResponse:
         mock_resp.json.side_effect = ValueError("Invalid JSON")
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -469,11 +515,14 @@ class TestBoardTestUnexpectedResponse:
         mock_resp.status_code = 404
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -493,11 +542,14 @@ class TestBoardTestUnexpectedResponse:
         mock_resp.json.return_value = []  # Empty list
         mock_get.return_value = mock_resp
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         # Empty list → characters is None → unexpected format
@@ -507,6 +559,7 @@ class TestBoardTestUnexpectedResponse:
 # ---------------------------------------------------------------------------
 # General exception handling
 # ---------------------------------------------------------------------------
+
 
 class TestBoardTestGeneralError:
     """Test the catch-all exception handler."""
@@ -521,11 +574,14 @@ class TestBoardTestGeneralError:
 
         mock_get.side_effect = RuntimeError("unexpected error")
 
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "key",
-            "host": "192.168.1.10",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "key",
+                "host": "192.168.1.10",
+            },
+        )
 
         data = response.json()
         assert data["success"] is False
@@ -535,6 +591,7 @@ class TestBoardTestGeneralError:
 # ---------------------------------------------------------------------------
 # Troubleshooting field structure
 # ---------------------------------------------------------------------------
+
 
 class TestBoardTestTroubleshootingStructure:
     """Verify troubleshooting field is always a list of strings."""
@@ -554,14 +611,17 @@ class TestBoardTestTroubleshootingStructure:
             requests.exceptions.Timeout("timed out"),
         ]:
             mock_get.side_effect = exc
-            response = client.post("/config/board/test", json={
-                "api_mode": "local",
-                "local_api_key": "key",
-                "host": "192.168.1.10",
-            })
+            response = client.post(
+                "/config/board/test",
+                json={
+                    "api_mode": "local",
+                    "local_api_key": "key",
+                    "host": "192.168.1.10",
+                },
+            )
             data = response.json()
-            assert isinstance(data.get("troubleshooting"), list), \
+            assert isinstance(data.get("troubleshooting"), list), (
                 f"troubleshooting should be a list for {type(exc).__name__}"
+            )
             for step in data["troubleshooting"]:
-                assert isinstance(step, str), \
-                    f"Each troubleshooting step should be a string for {type(exc).__name__}"
+                assert isinstance(step, str), f"Each troubleshooting step should be a string for {type(exc).__name__}"

@@ -33,12 +33,12 @@ _VAR_PATTERN = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_.:%/-]*)\s*\}\}")
 
 # Common date formats that are pre-computed for convenience.
 _COMMON_DATE_FORMATS: list[str] = [
-    "%Y%m%d",       # 20250615
-    "%m/%d/%Y",     # 06/15/2025
-    "%m-%d",        # 06-15
-    "%Y-%m",        # 2025-06
-    "%d-%m-%Y",     # 15-06-2025
-    "%Y/%m/%d",     # 2025/06/15
+    "%Y%m%d",  # 20250615
+    "%m/%d/%Y",  # 06/15/2025
+    "%m-%d",  # 06-15
+    "%Y-%m",  # 2025-06
+    "%d-%m-%Y",  # 15-06-2025
+    "%Y/%m/%d",  # 2025/06/15
 ]
 
 
@@ -58,11 +58,13 @@ def get_builtin_variables(timezone: str | None = None) -> dict[str, str]:
     """
     try:
         if timezone:
-            from ..utils.datetime import DateTimeSource
+            from src.utils.datetime import DateTimeSource
+
             source = DateTimeSource(timezone=timezone)
             now = source.time_service.get_current_time(timezone)
         else:
-            from ..utils.datetime import get_datetime_source
+            from src.utils.datetime import get_datetime_source
+
             source = get_datetime_source()
             now = source.time_service.get_current_time(source.timezone)
     except Exception:
@@ -122,7 +124,8 @@ def interpolate_string(
             fmt = var_name[5:]  # strip "date:" prefix
             try:
                 # Use the same time source as builtin variables.
-                from ..utils.datetime import get_datetime_source
+                from src.utils.datetime import get_datetime_source
+
                 source = get_datetime_source()
                 now = source.time_service.get_current_time(source.timezone)
                 return now.strftime(fmt)

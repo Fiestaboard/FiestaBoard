@@ -11,10 +11,10 @@ from pathlib import Path
 import pytest
 
 from src.config_manager import (
-    ConfigManager,
     DEFAULT_CONFIG,
     FEATURE_TO_PLUGIN_MAP,
     MIGRATION_EXCLUDED_FIELDS,
+    ConfigManager,
 )
 
 
@@ -199,7 +199,7 @@ class TestAutoMigration:
 
     def test_backup_created(self, v1_config_path):
         """A .v1_backup file should be created before migration."""
-        cm = ConfigManager(config_path=v1_config_path)
+        ConfigManager(config_path=v1_config_path)
 
         backup = Path(v1_config_path).with_suffix(".json.v1_backup")
         assert backup.exists()
@@ -209,7 +209,7 @@ class TestAutoMigration:
 
     def test_backup_not_overwritten_on_restart(self, v1_config_path):
         """The backup should not be overwritten on subsequent starts."""
-        cm = ConfigManager(config_path=v1_config_path)
+        ConfigManager(config_path=v1_config_path)
         backup = Path(v1_config_path).with_suffix(".json.v1_backup")
         first_content = backup.read_text()
 
@@ -219,7 +219,7 @@ class TestAutoMigration:
         config_data["general"]["timezone"] = "Europe/London"
         Path(v1_config_path).write_text(json.dumps(config_data))
 
-        cm2 = ConfigManager(config_path=v1_config_path)
+        ConfigManager(config_path=v1_config_path)
         assert backup.read_text() == first_content
 
 
@@ -348,7 +348,7 @@ class TestConfigPersistence:
     """Verify migrated config is persisted to disk."""
 
     def test_migration_saved_to_disk(self, v1_config_path):
-        cm = ConfigManager(config_path=v1_config_path)
+        ConfigManager(config_path=v1_config_path)
 
         on_disk = json.loads(Path(v1_config_path).read_text())
         assert "plugins" in on_disk
@@ -357,7 +357,7 @@ class TestConfigPersistence:
 
     def test_migration_survives_restart(self, v1_config_path):
         """After migration + restart, plugins should still be there."""
-        cm = ConfigManager(config_path=v1_config_path)
+        ConfigManager(config_path=v1_config_path)
         _reset_singleton()
 
         cm2 = ConfigManager(config_path=v1_config_path)

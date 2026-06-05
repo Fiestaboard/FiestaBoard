@@ -23,12 +23,10 @@ Exit codes:
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -114,11 +112,12 @@ Thumbs.db
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def log(msg: str) -> None:
     print(msg, flush=True)
 
 
-def run(cmd: list[str], cwd: Optional[Path] = None, check: bool = True) -> subprocess.CompletedProcess:
+def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess:
     """Run a command, streaming output to stdout."""
     return subprocess.run(cmd, cwd=cwd, check=check, text=True)
 
@@ -135,7 +134,7 @@ def repo_name_to_url(repo_name: str) -> str:
 def load_registry() -> dict:
     if not REGISTRY_FILE.exists():
         return {"version": "1.0.0", "plugins": []}
-    with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
+    with open(REGISTRY_FILE, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -151,7 +150,7 @@ def registry_has_plugin(data: dict, plugin_id: str) -> bool:
 
 def load_plugin_manifest(plugin_dir: Path) -> dict:
     manifest_path = plugin_dir / "manifest.json"
-    with open(manifest_path, "r", encoding="utf-8") as f:
+    with open(manifest_path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -159,7 +158,8 @@ def gh_repo_exists(repo_name: str) -> bool:
     """Return True if the GitHub repo already exists."""
     result = subprocess.run(
         ["gh", "repo", "view", f"{ORG}/{repo_name}"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     return result.returncode == 0
 
@@ -168,15 +168,16 @@ def gh_repo_exists(repo_name: str) -> bool:
 # Core extraction logic
 # ---------------------------------------------------------------------------
 
+
 def extract_plugin(plugin_id: str, dry_run: bool = False) -> bool:
     """
     Extract a single plugin into its own GitHub repository.
 
     Returns True on success, False on failure.
     """
-    log(f"\n{'='*60}")
+    log(f"\n{'=' * 60}")
     log(f"Extracting: {plugin_id}")
-    log(f"{'='*60}")
+    log(f"{'=' * 60}")
 
     plugin_dir = PLUGINS_DIR / plugin_id
     if not plugin_dir.exists():
@@ -208,22 +209,28 @@ def extract_plugin(plugin_id: str, dry_run: bool = False) -> bool:
 
     # 1. Create GitHub repo (skip if already exists)
     if gh_repo_exists(repo_name):
-        log(f"  Repo already exists, skipping creation.")
+        log("  Repo already exists, skipping creation.")
     else:
         log(f"  Creating GitHub repo {ORG}/{repo_name}...")
         try:
-            run([
-                "gh", "repo", "create", f"{ORG}/{repo_name}",
-                "--public",
-                "--description", f"FiestaBoard plugin: {manifest.get('name', plugin_id)}",
-            ])
+            run(
+                [
+                    "gh",
+                    "repo",
+                    "create",
+                    f"{ORG}/{repo_name}",
+                    "--public",
+                    "--description",
+                    f"FiestaBoard plugin: {manifest.get('name', plugin_id)}",
+                ]
+            )
         except subprocess.CalledProcessError as e:
             log(f"  ERROR: Failed to create repo: {e}")
             return False
 
     # 2. Clone repo locally
     if clone_dir.exists():
-        log(f"  Clone dir already exists, pulling latest...")
+        log("  Clone dir already exists, pulling latest...")
         try:
             run(["git", "pull", "--ff-only"], cwd=clone_dir)
         except subprocess.CalledProcessError as e:
@@ -238,7 +245,7 @@ def extract_plugin(plugin_id: str, dry_run: bool = False) -> bool:
             return False
 
     # 3. Copy plugin files into cloned repo
-    log(f"  Copying plugin files...")
+    log("  Copying plugin files...")
     for item in plugin_dir.iterdir():
         dest = clone_dir / item.name
         if item.is_dir():
@@ -255,32 +262,35 @@ def extract_plugin(plugin_id: str, dry_run: bool = False) -> bool:
     with open(manifest_dest, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    log(f"  Updated manifest.json")
+    log("  Updated manifest.json")
 
     # 5. Add .gitignore
     gitignore_path = clone_dir / ".gitignore"
     if not gitignore_path.exists():
         gitignore_path.write_text(GITIGNORE_CONTENT)
-        log(f"  Added .gitignore")
+        log("  Added .gitignore")
 
     # 6. Add LICENSE (copy from main repo)
     license_dest = clone_dir / "LICENSE"
     if LICENSE_FILE.exists() and not license_dest.exists():
         shutil.copy2(LICENSE_FILE, license_dest)
-        log(f"  Added LICENSE")
+        log("  Added LICENSE")
 
     # 7. Commit and push
-    log(f"  Committing and pushing...")
+    log("  Committing and pushing...")
     try:
         run(["git", "add", "-A"], cwd=clone_dir)
 
         # Check if there's anything to commit
         status = subprocess.run(
             ["git", "status", "--porcelain"],
-            cwd=clone_dir, capture_output=True, text=True, check=True,
+            cwd=clone_dir,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         if not status.stdout.strip():
-            log(f"  Nothing to commit, already up to date.")
+            log("  Nothing to commit, already up to date.")
         else:
             run(
                 ["git", "commit", "-m", f"feat: initial extraction of {plugin_id} plugin from FiestaBoard"],
@@ -299,21 +309,23 @@ def extract_plugin(plugin_id: str, dry_run: bool = False) -> bool:
         log(f"  Registry entry already exists for {plugin_id}, updating...")
         registry["plugins"] = [e for e in registry["plugins"] if e.get("id") != plugin_id]
 
-    registry["plugins"].append({
-        "id": plugin_id,
-        "name": manifest.get("name", plugin_id),
-        "description": manifest.get("description", ""),
-        "repository": repo_url,
-        "author": manifest.get("author", "FiestaBoard Team"),
-        "fiestaboard_version": FIESTABOARD_VERSION_CONSTRAINT,
-        "icon": manifest.get("icon", "puzzle"),
-        "category": manifest.get("category", "utility"),
-    })
+    registry["plugins"].append(
+        {
+            "id": plugin_id,
+            "name": manifest.get("name", plugin_id),
+            "description": manifest.get("description", ""),
+            "repository": repo_url,
+            "author": manifest.get("author", "FiestaBoard Team"),
+            "fiestaboard_version": FIESTABOARD_VERSION_CONSTRAINT,
+            "icon": manifest.get("icon", "puzzle"),
+            "category": manifest.get("category", "utility"),
+        }
+    )
 
     # Keep registry sorted by id for clean diffs
     registry["plugins"].sort(key=lambda e: e["id"])
     save_registry(registry)
-    log(f"  Registered in plugin-registry.json")
+    log("  Registered in plugin-registry.json")
 
     log(f"  Done: {plugin_id} -> {repo_url}")
     return True
@@ -323,10 +335,9 @@ def extract_plugin(plugin_id: str, dry_run: bool = False) -> bool:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Extract FiestaBoard plugins into standalone GitHub repositories."
-    )
+    parser = argparse.ArgumentParser(description="Extract FiestaBoard plugins into standalone GitHub repositories.")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
         "--plugin-id",
@@ -365,9 +376,9 @@ def main() -> int:
         if not ok:
             failed.append(plugin_id)
 
-    log(f"\n{'='*60}")
-    log(f"SUMMARY")
-    log(f"{'='*60}")
+    log(f"\n{'=' * 60}")
+    log("SUMMARY")
+    log(f"{'=' * 60}")
     log(f"  Succeeded: {len(plugins) - len(failed)}/{len(plugins)}")
     if failed:
         log(f"  Failed:    {', '.join(failed)}")
@@ -375,7 +386,7 @@ def main() -> int:
 
     if not args.dry_run:
         log(f"\nplugin-registry.json now has {len(load_registry().get('plugins', []))} entries.")
-        log(f"Remember to commit plugin-registry.json to the branch.")
+        log("Remember to commit plugin-registry.json to the branch.")
 
     return 0
 

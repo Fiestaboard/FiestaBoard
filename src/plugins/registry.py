@@ -104,9 +104,7 @@ class PluginRegistry:
 
     # ── instance CRUD ───────────────────────────────────────────────────
 
-    def create_instance(
-        self, plugin_id: str, instance_label: str
-    ) -> list[str]:
+    def create_instance(self, plugin_id: str, instance_label: str) -> list[str]:
         """Create a new instance of an existing plugin.
 
         A new :class:`PluginBase` object of the same class is instantiated
@@ -203,13 +201,15 @@ class PluginRegistry:
 
         for key in sorted(self._plugins):
             if key.startswith(prefix):
-                label = key[len(prefix):]
-                instances.append({
-                    "label": label,
-                    "key": key,
-                    "enabled": self._enabled.get(key, False),
-                    "has_config": bool(self._configs.get(key)),
-                })
+                label = key[len(prefix) :]
+                instances.append(
+                    {
+                        "label": label,
+                        "key": key,
+                        "enabled": self._enabled.get(key, False),
+                        "has_config": bool(self._configs.get(key)),
+                    }
+                )
 
         return instances
 
@@ -221,11 +221,7 @@ class PluginRegistry:
     @property
     def enabled_plugins(self) -> dict[str, PluginBase]:
         """Return only enabled plugins."""
-        return {
-            pid: plugin
-            for pid, plugin in self._plugins.items()
-            if self._enabled.get(pid, False)
-        }
+        return {pid: plugin for pid, plugin in self._plugins.items() if self._enabled.get(pid, False)}
 
     def initialize(self) -> None:
         """Load all discovered plugins.
@@ -240,7 +236,8 @@ class PluginRegistry:
         # Try to get stored configs from config manager
         stored_configs: dict[str, dict[str, Any]] = {}
         try:
-            from ..config_manager import get_config_manager
+            from src.config_manager import get_config_manager
+
             config_manager = get_config_manager()
             # Get all plugin configs
             stored_configs = config_manager.get_all_plugin_configs()
@@ -305,7 +302,8 @@ class PluginRegistry:
             if base_id not in self._plugins:
                 logger.warning(
                     "Cannot restore instance '%s': base plugin '%s' not loaded",
-                    config_key, base_id,
+                    config_key,
+                    base_id,
                 )
                 continue
 
@@ -317,9 +315,7 @@ class PluginRegistry:
 
             errors = self.create_instance(base_id, label)
             if errors:
-                logger.warning(
-                    "Failed to restore instance '%s': %s", config_key, errors
-                )
+                logger.warning("Failed to restore instance '%s': %s", config_key, errors)
                 continue
 
             # Apply stored config via the proper pipeline so any future
@@ -327,9 +323,9 @@ class PluginRegistry:
             config_errors = self.set_plugin_config(normalized_key, config)
             if config_errors:
                 logger.warning(
-                    "Instance '%s' config failed validation on restore: %s — "
-                    "applying raw config to avoid data loss",
-                    normalized_key, config_errors,
+                    "Instance '%s' config failed validation on restore: %s — applying raw config to avoid data loss",
+                    normalized_key,
+                    config_errors,
                 )
                 # Fall back to direct assignment so we don't silently discard config
                 self._configs[normalized_key] = config
@@ -345,18 +341,21 @@ class PluginRegistry:
             # subsequent restarts don't carry a stale duplicate.
             if config_key != normalized_key:
                 try:
-                    from ..config_manager import get_config_manager
+                    from src.config_manager import get_config_manager
+
                     config_manager = get_config_manager()
                     config_manager.set_plugin_config(normalized_key, config)
                     config_manager.delete_plugin_config(config_key)
                     logger.info(
                         "Migrated instance key '%s' -> '%s' (lowercase normalization)",
-                        config_key, normalized_key,
+                        config_key,
+                        normalized_key,
                     )
                 except Exception:
                     logger.exception(
                         "Failed to migrate instance key '%s' to '%s'",
-                        config_key, normalized_key,
+                        config_key,
+                        normalized_key,
                     )
 
             restored += 1
@@ -394,9 +393,7 @@ class PluginRegistry:
             registry_entries = load_registry()
             registry_map = {e.plugin_id: e for e in registry_entries}
         except Exception as exc:
-            logger.warning(
-                "V3 migration: could not load plugin registry — skipping auto-install: %s", exc
-            )
+            logger.warning("V3 migration: could not load plugin registry — skipping auto-install: %s", exc)
             return
 
         migrated: list[str] = []
@@ -430,9 +427,7 @@ class PluginRegistry:
                 plugin.config = cfg
                 plugin.enabled = is_enabled
                 migrated.append(plugin_id)
-                logger.info(
-                    "V3 migration: restored '%s' (enabled=%s)", plugin_id, is_enabled
-                )
+                logger.info("V3 migration: restored '%s' (enabled=%s)", plugin_id, is_enabled)
 
         if migrated:
             logger.info(
@@ -566,16 +561,10 @@ class PluginRegistry:
             PluginResult with data or error
         """
         if plugin_id not in self._plugins:
-            return PluginResult(
-                available=False,
-                error=f"Plugin not found: {plugin_id}"
-            )
+            return PluginResult(available=False, error=f"Plugin not found: {plugin_id}")
 
         if not self._enabled.get(plugin_id, False):
-            return PluginResult(
-                available=False,
-                error=f"Plugin not enabled: {plugin_id}"
-            )
+            return PluginResult(available=False, error=f"Plugin not enabled: {plugin_id}")
 
         plugin = self._plugins[plugin_id]
 
@@ -583,10 +572,7 @@ class PluginRegistry:
             return plugin.get_data()
         except Exception as e:
             logger.exception(f"Error fetching data from {plugin_id}")
-            return PluginResult(
-                available=False,
-                error=str(e)
-            )
+            return PluginResult(available=False, error=str(e))
 
     def _discover_variables(self, plugin_id: str) -> list[str]:
         """Introspect a plugin's live data to discover top-level variable names.
@@ -602,10 +588,7 @@ class PluginRegistry:
         try:
             result = self.fetch_plugin_data(plugin_id)
             if result.available and result.data:
-                discovered = [
-                    key for key, val in result.data.items()
-                    if isinstance(val, (str, int, float, bool))
-                ]
+                discovered = [key for key, val in result.data.items() if isinstance(val, str | int | float | bool)]
                 self._discovered_vars[plugin_id] = discovered
                 return discovered
         except Exception:
@@ -680,14 +663,10 @@ class PluginRegistry:
                 if manifest and name in manifest.variables.arrays:
                     continue
 
-                meta = (
-                    manifest.variables.get_variable_metadata(name)
-                    if manifest
-                    else VariableMetadata()
-                )
+                meta = manifest.variables.get_variable_metadata(name) if manifest else VariableMetadata()
                 preview = ""
                 raw_val = plugin_data.get(name)
-                if raw_val is not None and isinstance(raw_val, (str, int, float, bool)):
+                if raw_val is not None and isinstance(raw_val, str | int | float | bool):
                     preview = str(raw_val)
 
                 var_dict[name] = {
@@ -716,10 +695,7 @@ class PluginRegistry:
                 continue
             manifest = self._manifests.get(plugin_id)
             if manifest and manifest.variables.groups:
-                result[plugin_id] = {
-                    gid: {"label": g.label}
-                    for gid, g in manifest.variables.groups.items()
-                }
+                result[plugin_id] = {gid: {"label": g.label} for gid, g in manifest.variables.groups.items()}
         return result
 
     def get_all_max_lengths(self) -> dict[str, int]:
@@ -841,7 +817,8 @@ class PluginRegistry:
                         logger.warning(
                             "Config validation failed after reload for '%s': %s"
                             " — applying raw config to avoid data loss",
-                            plugin_id, errors,
+                            plugin_id,
+                            errors,
                         )
                         self._configs[plugin_id] = config
                         plugin.config = config
@@ -956,9 +933,7 @@ class PluginRegistry:
 
         return []
 
-    def install_from_git(
-        self, repo_url: str, plugin_id: str | None = None, branch: str = ""
-    ) -> list[str]:
+    def install_from_git(self, repo_url: str, plugin_id: str | None = None, branch: str = "") -> list[str]:
         """Install a plugin from an arbitrary public git repository.
 
         Custom git plugins do **not** need to follow the
@@ -979,6 +954,7 @@ class PluginRegistry:
         # Determine the id if not given
         if plugin_id is None:
             from .sources import plugin_id_from_repo_name, repo_name_from_url
+
             repo_name = repo_name_from_url(repo_url)
             plugin_id = plugin_id_from_repo_name(repo_name)
 
@@ -1070,10 +1046,7 @@ class PluginRegistry:
         # unbounded number of threads when many plugins are enabled.
         max_workers = min(len(enabled), 8)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
-                executor.submit(self.fetch_plugin_data, plugin_id): plugin_id
-                for plugin_id in enabled
-            }
+            futures = {executor.submit(self.fetch_plugin_data, plugin_id): plugin_id for plugin_id in enabled}
             done, not_done = futures_wait(futures, timeout=15)
 
             if not_done:
@@ -1117,4 +1090,3 @@ def reset_plugin_registry() -> None:
     global _registry
     _registry = None
     logger.info("Plugin registry reset")
-

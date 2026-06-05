@@ -6,11 +6,11 @@ Usage: python3 scripts/seed_screenshot_data.py [--reset]
   --reset  Remove all seeded data and restore to defaults
 """
 
-import sys
 import json
-import urllib.request
-import urllib.error
+import sys
 import time
+import urllib.error
+import urllib.request
 
 BASE_URL = "http://localhost:4420/api"
 

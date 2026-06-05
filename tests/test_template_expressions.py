@@ -6,14 +6,13 @@ template engine via ``{{= ... }}`` blocks.
 
 import pytest
 
+from src.templates.engine import TemplateEngine
 from src.templates.expressions import (
     ErrorValue,
     evaluate,
     list_builtins,
     render_expressions,
 )
-from src.templates.engine import TemplateEngine
-
 
 # --------------------------------------------------------------------------- #
 # Standalone evaluator
@@ -254,12 +253,7 @@ class TestVariables:
                 }
             }
         }
-        assert (
-            evaluate(
-                "home_assistant.sensor_outdoor_temp.attributes.friendly_name", ctx
-            )
-            == "Outdoor Temp"
-        )
+        assert evaluate("home_assistant.sensor_outdoor_temp.attributes.friendly_name", ctx) == "Outdoor Temp"
 
     def test_home_assistant_missing_entity_returns_ref(self):
         ctx = {"home_assistant": {"sensor.outdoor_temp": {"state": "72"}}}
@@ -271,10 +265,7 @@ class TestVariables:
 
     def test_home_assistant_in_iferror(self):
         ctx = {"home_assistant": {}}
-        assert (
-            evaluate('IFERROR(home_assistant.missing_entity.state, "n/a")', ctx)
-            == "n/a"
-        )
+        assert evaluate('IFERROR(home_assistant.missing_entity.state, "n/a")', ctx) == "n/a"
 
     def test_home_assistant_direct_key_still_works(self):
         # If the context already stores the entity under an underscore key
@@ -414,9 +405,7 @@ class TestRenderExpressions:
 
     def test_formula_alongside_plain_var(self):
         assert (
-            render_expressions(
-                "{{= UPPER(\"hi\") }} - {{w.t}}", {"w": {"t": 1}}
-            )
+            render_expressions('{{= UPPER("hi") }} - {{w.t}}', {"w": {"t": 1}})
             == "HI - {{w.t}}"  # plain {{var}} is left for the next pass
         )
 
@@ -446,14 +435,12 @@ class TestEngineIntegration:
 
     def test_render_variable_in_formula(self, engine):
         ctx = {"weather": {"temperature": 72}}
-        out = engine.render("{{= weather.temperature & \"F\" }}", ctx)
+        out = engine.render('{{= weather.temperature & "F" }}', ctx)
         assert out == "72F"
 
     def test_render_if(self, engine):
         ctx = {"weather": {"temperature": 90}}
-        out = engine.render(
-            '{{= IF(weather.temperature > 80, "HOT", "OK") }}', ctx
-        )
+        out = engine.render('{{= IF(weather.temperature > 80, "HOT", "OK") }}', ctx)
         assert out == "HOT"
 
     def test_render_color_function_produces_tile(self, engine):
@@ -474,7 +461,7 @@ class TestEngineIntegration:
         ctx = {"weather": {"temperature": 72}}
         # Mix old-style and new-style.
         out = engine.render(
-            'old={{weather.temperature}} new={{= weather.temperature + 1 }}',
+            "old={{weather.temperature}} new={{= weather.temperature + 1 }}",
             ctx,
         )
         assert out == "old=72 new=73"
@@ -485,15 +472,13 @@ class TestEngineIntegration:
 
     def test_formula_and_named_color_together(self, engine):
         ctx = {"weather": {"temperature": 72}}
-        out = engine.render(
-            "{{red}}{{= weather.temperature }}", ctx
-        )
+        out = engine.render("{{red}}{{= weather.temperature }}", ctx)
         assert out == "{63}72"
 
     def test_formula_render_lines(self, engine):
         ctx = {"weather": {"temperature": 72}}
         rendered = engine.render_lines(
-            ["{{= \"Temp \" & weather.temperature & \"F\" }}"],
+            ['{{= "Temp " & weather.temperature & "F" }}'],
             context=ctx,
             line_metadata=[{"alignment": "left", "wrap": False}],
             device_type="flagship",
@@ -518,8 +503,7 @@ class TestPublicAPI:
         names = list_builtins()
         assert names == tuple(sorted(set(names)))
         # Spot-check a few that absolutely must be present.
-        for required in ("IF", "IFS", "AND", "OR", "NOT", "COLOR", "UPPER",
-                         "ROUND", "IFERROR", "CONCAT"):
+        for required in ("IF", "IFS", "AND", "OR", "NOT", "COLOR", "UPPER", "ROUND", "IFERROR", "CONCAT"):
             assert required in names
 
     def test_list_builtins_matches_signatures(self):
@@ -527,6 +511,7 @@ class TestPublicAPI:
         # function picker is never missing entries. This is the test that
         # would have caught COALESCE/PROPER/etc. being added without docs.
         from src.templates.expressions import function_signatures
+
         assert set(list_builtins()) == set(function_signatures().keys())
 
     def test_error_value_repr(self):
@@ -654,11 +639,13 @@ class TestRoundUpDown:
 class TestValidateExpression:
     def test_clean_expression(self):
         from src.templates.expressions import validate_expression
+
         assert validate_expression("1 + 2") == []
         assert validate_expression('IF(1 > 0, "y", "n")') == []
 
     def test_syntax_error_reports_position(self):
         from src.templates.expressions import validate_expression
+
         issues = validate_expression("1 + @")
         assert len(issues) == 1
         assert issues[0].code == "#SYNTAX"
@@ -666,43 +653,46 @@ class TestValidateExpression:
 
     def test_unknown_function(self):
         from src.templates.expressions import validate_expression
+
         issues = validate_expression("BOGUS(1)")
         assert any(i.code == "#NAME?" for i in issues)
 
     def test_arity_too_few(self):
         from src.templates.expressions import validate_expression
+
         issues = validate_expression("IF(TRUE)")
-        assert any(i.code == "#VALUE" and "expected at least 2" in i.message
-                   for i in issues)
+        assert any(i.code == "#VALUE" and "expected at least 2" in i.message for i in issues)
 
     def test_arity_too_many(self):
         from src.templates.expressions import validate_expression
+
         issues = validate_expression("ABS(1, 2, 3)")
-        assert any(i.code == "#VALUE" and "expected at most 1" in i.message
-                   for i in issues)
+        assert any(i.code == "#VALUE" and "expected at most 1" in i.message for i in issues)
 
     def test_unknown_source_with_known_set(self):
         from src.templates.expressions import validate_expression
+
         issues = validate_expression("missing.field", known_sources={"weather"})
         assert any(i.code == "#REF" for i in issues)
 
     def test_known_source_no_issue(self):
         from src.templates.expressions import validate_expression
-        issues = validate_expression("weather.temperature",
-                                     known_sources={"weather"})
+
+        issues = validate_expression("weather.temperature", known_sources={"weather"})
         assert issues == []
 
     def test_plugin_instance_with_colon(self):
         from src.templates.expressions import validate_expression
+
         # ``weather:home.temperature`` -- the source is "weather".
-        issues = validate_expression("weather:home.temperature",
-                                     known_sources={"weather"})
+        issues = validate_expression("weather:home.temperature", known_sources={"weather"})
         assert issues == []
 
 
 class TestFindFormulas:
     def test_single_formula(self):
         from src.templates.expressions import find_formulas
+
         out = find_formulas("Hi {{= 1 + 1 }} there")
         assert len(out) == 1
         start, end, body = out[0]
@@ -711,17 +701,20 @@ class TestFindFormulas:
 
     def test_multiple_formulas(self):
         from src.templates.expressions import find_formulas
+
         out = find_formulas("{{= 1 }} and {{= 2 }}")
         assert [o[2] for o in out] == ["1", "2"]
 
     def test_ignores_plain_vars(self):
         from src.templates.expressions import find_formulas
+
         assert find_formulas("hi {{plugin.field}} there") == []
 
 
 class TestFunctionSignatures:
     def test_returns_dict(self):
         from src.templates.expressions import function_signatures, list_builtins
+
         sigs = function_signatures()
         # Every built-in is documented.
         assert set(sigs.keys()) == set(list_builtins())
@@ -730,11 +723,11 @@ class TestFunctionSignatures:
             assert set(info.keys()) == {"category", "signature", "summary"}
             assert info["signature"].startswith(name)
             assert info["summary"]
-            assert info["category"] in {"logic", "math", "text",
-                                         "convert", "color"}
+            assert info["category"] in {"logic", "math", "text", "convert", "color"}
 
     def test_categories_balance(self):
         from src.templates.expressions import function_signatures
+
         sigs = function_signatures()
         # A sanity check that we have a useful spread.
         cats = {info["category"] for info in sigs.values()}
@@ -748,6 +741,7 @@ class TestEngineValidationIntegration:
         # Pretend "weather" is a known plugin so unknown-source errors
         # actually trigger.
         from unittest.mock import Mock
+
         e._plugin_registry = Mock()
         e._plugin_registry.plugins = {"weather": object()}
         e._plugin_registry._manifests = {}
@@ -767,8 +761,7 @@ class TestEngineValidationIntegration:
 
     def test_formula_unknown_source_surfaced(self, engine):
         errs = engine.validate_template("{{= mystery.thing }}")
-        assert any("Formula #REF" in e.message and "mystery" in e.message
-                   for e in errs)
+        assert any("Formula #REF" in e.message and "mystery" in e.message for e in errs)
 
     def test_formula_arity_error_surfaced(self, engine):
         errs = engine.validate_template("{{= IF(TRUE) }}")
@@ -795,7 +788,7 @@ class TestRenderLinesIntegration:
     def test_left_aligned_formula(self, engine):
         ctx = {"weather": {"temperature": 72}}
         out = engine.render_lines(
-            ["{{= weather.temperature & \"F\" }}"],
+            ['{{= weather.temperature & "F" }}'],
             context=ctx,
             line_metadata=[{"alignment": "left", "wrap": False}],
             device_type="flagship",
@@ -874,7 +867,9 @@ class TestNullAndBlankSemantics:
 class TestExpressionIssueShape:
     def test_is_serializable_friendly(self):
         from dataclasses import asdict
+
         from src.templates.expressions import validate_expression
+
         issues = validate_expression("@@@")
         assert issues
         d = asdict(issues[0])

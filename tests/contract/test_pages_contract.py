@@ -6,17 +6,18 @@ schema the Next.js frontend expects to consume.
 Issue: #502
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
+from src.pages.models import Page
 from tests.contract.schemas import (
-    PagesListResponse,
     CreatePageResponse,
     GetPageResponse,
+    PagesListResponse,
 )
-from src.pages.models import Page
 
 
 @pytest.fixture
@@ -241,6 +242,7 @@ class TestDeletePageContract:
     def test_returns_200_on_delete(self, client, sample_page):
         with patch("src.api_server.get_page_service") as mock_svc:
             from src.pages.service import DeleteResult
+
             svc = Mock()
             svc.delete_page.return_value = DeleteResult(deleted=True)
             mock_svc.return_value = svc
@@ -252,6 +254,7 @@ class TestDeletePageContract:
     def test_response_has_status_field(self, client, sample_page):
         with patch("src.api_server.get_page_service") as mock_svc:
             from src.pages.service import DeleteResult
+
             svc = Mock()
             svc.delete_page.return_value = DeleteResult(deleted=True)
             mock_svc.return_value = svc

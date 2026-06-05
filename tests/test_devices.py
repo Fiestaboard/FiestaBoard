@@ -3,11 +3,11 @@
 import pytest
 
 from src.devices import (
-    BoardInstance,
-    DeviceDimensions,
     DEVICE_DIMENSIONS,
     DEVICE_TYPES,
     VALID_API_MODES,
+    BoardInstance,
+    DeviceDimensions,
     get_dimensions,
 )
 

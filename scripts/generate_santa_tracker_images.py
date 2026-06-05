@@ -5,19 +5,17 @@ This script generates visual representations of the Santa Tracker plugin
 in different states and saves them as PNG images in the plugin's docs directory.
 """
 
-import sys
-import os
 import json
+import sys
 from pathlib import Path
-from datetime import datetime, timedelta
-from unittest.mock import patch
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from PIL import Image, ImageDraw, ImageFont
-import importlib.util
+import importlib.util  # noqa: E402  (must follow sys.path setup above)
+
+from PIL import Image, ImageDraw, ImageFont  # noqa: E402
 
 # Load the plugin module
 plugin_path = project_root / "plugins" / "santa_tracker" / "__init__.py"
@@ -29,10 +27,10 @@ SantaTrackerPlugin = santa_tracker_module.SantaTrackerPlugin
 
 # Load manifest
 manifest_path = project_root / "plugins" / "santa_tracker" / "manifest.json"
-with open(manifest_path, 'r') as f:
+with manifest_path.open() as f:
     manifest = json.load(f)
 
-from src.board_chars import BoardChars
+from src.board_chars import BoardChars  # noqa: E402  (depends on sys.path setup above)
 
 # Official FiestaBoard color hex values
 COLOR_HEX = {
@@ -47,99 +45,94 @@ COLOR_HEX = {
     BoardChars.SPACE: "#0d0d0d",
 }
 
+
 def hex_to_rgb(hex_color):
     """Convert hex color to RGB tuple."""
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+
 
 def code_to_char(code: int) -> str:
     """Convert character code to character."""
     if 1 <= code <= 26:
-        return chr(ord('A') + code - 1)
-    elif 27 <= code <= 35:
+        return chr(ord("A") + code - 1)
+    if 27 <= code <= 35:
         return str(code - 26)
-    elif code == 36:
+    if code == 36:
         return "0"
-    else:
-        return " "
+    return " "
+
 
 def render_pattern(pattern_array, tile_size=40, gap=3):
     """Render a pattern array as an image matching the web UI style."""
     rows = len(pattern_array)
     cols = len(pattern_array[0]) if rows > 0 else 0
-    
+
     # Calculate image dimensions
     width = cols * tile_size + (cols - 1) * gap
     height = rows * tile_size + (rows - 1) * gap
-    
+
     # Create image with dark background
-    img = Image.new('RGB', (width, height), color=hex_to_rgb("#0d0d0d"))
+    img = Image.new("RGB", (width, height), color=hex_to_rgb("#0d0d0d"))
     draw = ImageDraw.Draw(img)
-    
+
     # Color tile margins
     color_margin_top = 3
     color_margin_bottom = 4
     color_margin_h = 1
-    
+
     # Draw each tile
     for row_idx, row in enumerate(pattern_array):
         for col_idx, code in enumerate(row):
             x = col_idx * (tile_size + gap)
             y = row_idx * (tile_size + gap)
-            
+
             if code in COLOR_HEX:
                 # Color tile
                 hex_color = COLOR_HEX[code]
                 color_rgb = hex_to_rgb(hex_color)
-                
+
                 color_x = x + color_margin_h
                 color_y = y + color_margin_top
                 color_w = tile_size - (color_margin_h * 2)
                 color_h = tile_size - (color_margin_top + color_margin_bottom)
-                
+
                 draw.rectangle(
-                    [color_x, color_y, color_x + color_w - 1, color_y + color_h - 1],
-                    fill=color_rgb,
-                    outline=None
+                    [color_x, color_y, color_x + color_w - 1, color_y + color_h - 1], fill=color_rgb, outline=None
                 )
-                
+
                 # Add subtle shadow effect
                 draw.rectangle(
                     [color_x, color_y, color_x + color_w - 1, color_y + 1],
-                    fill=tuple(min(255, c + 30) for c in color_rgb)
+                    fill=tuple(min(255, c + 30) for c in color_rgb),
                 )
                 draw.rectangle(
                     [color_x, color_y, color_x + 1, color_y + color_h - 1],
-                    fill=tuple(min(255, c + 20) for c in color_rgb)
+                    fill=tuple(min(255, c + 20) for c in color_rgb),
                 )
                 draw.rectangle(
                     [color_x, color_y + color_h - 2, color_x + color_w - 1, color_y + color_h - 1],
-                    fill=tuple(max(0, c - 40) for c in color_rgb)
+                    fill=tuple(max(0, c - 40) for c in color_rgb),
                 )
                 draw.rectangle(
                     [color_x + color_w - 2, color_y, color_x + color_w - 1, color_y + color_h - 1],
-                    fill=tuple(max(0, c - 30) for c in color_rgb)
+                    fill=tuple(max(0, c - 30) for c in color_rgb),
                 )
-                
+
                 # Center line (split-flap effect)
                 center_y = color_y + color_h // 2
                 draw.rectangle(
-                    [color_x, center_y, color_x + color_w - 1, center_y],
-                    fill=tuple(max(0, c - 20) for c in color_rgb)
+                    [color_x, center_y, color_x + color_w - 1, center_y], fill=tuple(max(0, c - 20) for c in color_rgb)
                 )
-                
+
             elif code == BoardChars.SPACE:
                 pass
             else:
                 # Character tile
                 bg_color = hex_to_rgb("#0d0d0d")
-                
-                draw.rectangle(
-                    [x, y, x + tile_size - 1, y + tile_size - 1],
-                    fill=bg_color,
-                    outline=None
-                )
-                
+
+                draw.rectangle([x, y, x + tile_size - 1, y + tile_size - 1], fill=bg_color, outline=None)
+
                 # Draw the character
                 char = code_to_char(code)
                 try:
@@ -155,13 +148,13 @@ def render_pattern(pattern_array, tile_size=40, gap=3):
                         try:
                             font = ImageFont.truetype(path, size=int(tile_size * 0.6))
                             break
-                        except:
+                        except Exception:
                             continue
                     if font is None:
                         font = ImageFont.load_default()
-                except:
+                except Exception:
                     font = ImageFont.load_default()
-                
+
                 if font:
                     bbox = draw.textbbox((0, 0), char, font=font)
                     text_width = bbox[2] - bbox[0]
@@ -169,13 +162,14 @@ def render_pattern(pattern_array, tile_size=40, gap=3):
                 else:
                     text_width = tile_size // 2
                     text_height = tile_size // 2
-                
+
                 text_x = x + (tile_size - text_width) // 2
                 text_y = y + (tile_size - text_height) // 2
-                
+
                 draw.text((text_x, text_y), char, fill=hex_to_rgb("#f0f0e8"), font=font)
-    
+
     return img
+
 
 def create_simple_display(text_lines, tile_size=35, gap=3):
     """Create a simple text display for Santa Tracker states."""
@@ -186,34 +180,31 @@ def create_simple_display(text_lines, tile_size=35, gap=3):
             line = text_lines[i].upper()[:22].ljust(22)
             row = []
             for char in line:
-                if char == ' ':
+                if char == " ":
                     row.append(BoardChars.SPACE)
-                elif 'A' <= char <= 'Z':
-                    row.append(ord(char) - ord('A') + 1)
-                elif '1' <= char <= '9':
-                    row.append(ord(char) - ord('1') + 27)
-                elif char == '0':
+                elif "A" <= char <= "Z":
+                    row.append(ord(char) - ord("A") + 1)
+                elif "1" <= char <= "9":
+                    row.append(ord(char) - ord("1") + 27)
+                elif char == "0":
                     row.append(36)
-                elif char == '%':
+                elif char == "%":
                     row.append(BoardChars.SPACE)  # Use space for special chars
-                elif char == ':':
-                    row.append(BoardChars.SPACE)
-                elif char == ',':
-                    row.append(BoardChars.SPACE)
-                elif char == '!':
+                elif char == ":" or char == "," or char == "!":
                     row.append(BoardChars.SPACE)
                 else:
                     row.append(BoardChars.SPACE)
             pattern.append(row)
         else:
             pattern.append([BoardChars.SPACE] * 22)
-    
+
     return render_pattern(pattern, tile_size, gap)
+
 
 def generate_screenshot(scenario: str, output_path: Path):
     """Generate a screenshot for a specific scenario."""
     print(f"Generating {scenario} screenshot...")
-    
+
     if scenario == "before-christmas":
         # Before Christmas state
         lines = [
@@ -267,31 +258,32 @@ def generate_screenshot(scenario: str, output_path: Path):
     else:
         print(f"  ERROR: Unknown scenario '{scenario}'")
         return False
-    
+
     # Create the image
     img = create_simple_display(lines, tile_size=35, gap=3)
-    
+
     # Add padding (bezel)
     padding = 30
     final_width = img.width + padding * 2
     final_height = img.height + padding * 2
-    
-    final_img = Image.new('RGB', (final_width, final_height), color=hex_to_rgb("#050505"))
+
+    final_img = Image.new("RGB", (final_width, final_height), color=hex_to_rgb("#050505"))
     final_img.paste(img, (padding, padding))
-    
+
     # Save image
     final_img.save(output_path, "PNG", optimize=True)
     print(f"  Saved to {output_path}")
     return True
 
+
 def main():
     """Generate all Santa Tracker screenshots."""
     docs_dir = project_root / "plugins" / "santa_tracker" / "docs"
     docs_dir.mkdir(parents=True, exist_ok=True)
-    
+
     print("Generating Santa Tracker screenshots...")
     print(f"Output directory: {docs_dir}\n")
-    
+
     scenarios = [
         ("display", "santa-tracker-display.png"),
         ("in-action", "santa-tracker-in-action.png"),
@@ -299,22 +291,22 @@ def main():
         ("during-delivery", "santa-during-delivery.png"),
         ("after-christmas", "santa-after-christmas.png"),
     ]
-    
+
     success_count = 0
     for scenario, filename in scenarios:
         output_path = docs_dir / filename
         if generate_screenshot(scenario, output_path):
             success_count += 1
         print()
-    
+
     print(f"Generated {success_count}/{len(scenarios)} images successfully")
-    
+
     if success_count == len(scenarios):
         print("\nAll images generated successfully!")
         return 0
-    else:
-        print("\nSome images failed to generate.")
-        return 1
+    print("\nSome images failed to generate.")
+    return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

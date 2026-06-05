@@ -4,9 +4,11 @@ Covers config endpoints, plugin endpoints, template endpoints, settings endpoint
 pages endpoints, schedule endpoints, cache, service lifecycle, and error paths.
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from fastapi.testclient import TestClient
+
 from src.api_server import app
 
 
@@ -60,7 +62,10 @@ def mock_settings_service():
 
         board_settings = Mock()
         board_settings.boards = [{"id": "b1", "device_type": "flagship"}]
-        board_settings.to_dict.return_value = {"board_type": "black", "boards": [{"id": "b1", "device_type": "flagship"}]}
+        board_settings.to_dict.return_value = {
+            "board_type": "black",
+            "boards": [{"id": "b1", "device_type": "flagship"}],
+        }
         ss.get_board_settings.return_value = board_settings
 
         polling = Mock()
@@ -220,6 +225,7 @@ def mock_display_service():
             {"type": "weather", "available": True, "description": "Weather", "source": "plugin"},
         ]
         from src.displays.service import DisplayResult
+
         ds.get_display.return_value = DisplayResult(
             display_type="weather",
             formatted="Sunny 72F",
@@ -247,8 +253,7 @@ def mock_template_engine():
 @pytest.fixture
 def mock_plugin_registry():
     """Mock the plugin registry."""
-    with patch("src.api_server.get_plugin_registry") as mock_get, \
-         patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
+    with patch("src.api_server.get_plugin_registry") as mock_get, patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True):
         reg = Mock()
         reg.list_plugins.return_value = [
             {"id": "weather", "name": "Weather", "enabled": True},
@@ -274,6 +279,7 @@ def mock_plugin_registry():
         reg.disable_plugin.return_value = True
         reg.set_plugin_config.return_value = []
         from src.plugins.base import PluginResult
+
         reg.fetch_plugin_data.return_value = PluginResult(
             available=True,
             data={"temperature": 72},
@@ -309,6 +315,7 @@ def mock_service():
 # ============================================================
 # Root / Health / Version / Status
 # ============================================================
+
 
 class TestRootAndHealth:
     def test_root(self, client):
@@ -363,6 +370,7 @@ class TestRootAndHealth:
 # ============================================================
 # Config Endpoints
 # ============================================================
+
 
 class TestConfigEndpoints:
     def test_get_config(self, client):
@@ -429,29 +437,38 @@ class TestConfigEndpoints:
 
 class TestBoardConnectionTest:
     def test_test_board_local_missing_key(self, client):
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "host": "192.168.1.100",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "host": "192.168.1.100",
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is False
         assert "API key is required" in data["message"]
 
     def test_test_board_local_missing_host(self, client):
-        response = client.post("/config/board/test", json={
-            "api_mode": "local",
-            "local_api_key": "test_key_123",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "local",
+                "local_api_key": "test_key_123",
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is False
         assert "host" in data["message"].lower()
 
     def test_test_board_cloud_missing_key(self, client):
-        response = client.post("/config/board/test", json={
-            "api_mode": "cloud",
-        })
+        response = client.post(
+            "/config/board/test",
+            json={
+                "api_mode": "cloud",
+            },
+        )
         assert response.status_code == 200
         assert response.json()["success"] is False
 
@@ -459,6 +476,7 @@ class TestBoardConnectionTest:
 # ============================================================
 # Settings Endpoints
 # ============================================================
+
 
 class TestSettingsEndpoints:
     def test_get_transition_settings(self, client, mock_settings_service):
@@ -642,6 +660,7 @@ class TestSettingsEndpoints:
 # Plugin Endpoints
 # ============================================================
 
+
 class TestPluginEndpoints:
     def test_list_plugins(self, client, mock_plugin_registry, mock_config_manager):
         response = client.get("/plugins")
@@ -677,11 +696,8 @@ class TestPluginEndpoints:
         assert response.status_code == 404
 
     def test_update_plugin_config(self, client, mock_plugin_registry, mock_config_manager):
-        with patch("src.api_server.reset_display_service"), \
-             patch("src.api_server.reset_template_engine"):
-            response = client.put("/plugins/weather/config", json={
-                "config": {"api_key": "test_key_abc123"}
-            })
+        with patch("src.api_server.reset_display_service"), patch("src.api_server.reset_template_engine"):
+            response = client.put("/plugins/weather/config", json={"config": {"api_key": "test_key_abc123"}})
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
@@ -702,8 +718,7 @@ class TestPluginEndpoints:
         assert response.status_code == 503
 
     def test_enable_plugin(self, client, mock_plugin_registry, mock_config_manager):
-        with patch("src.api_server.reset_display_service"), \
-             patch("src.api_server.reset_template_engine"):
+        with patch("src.api_server.reset_display_service"), patch("src.api_server.reset_template_engine"):
             response = client.post("/plugins/weather/enable")
         assert response.status_code == 200
         assert response.json()["enabled"] is True
@@ -719,8 +734,7 @@ class TestPluginEndpoints:
         assert response.status_code == 400
 
     def test_disable_plugin(self, client, mock_plugin_registry, mock_config_manager):
-        with patch("src.api_server.reset_display_service"), \
-             patch("src.api_server.reset_template_engine"):
+        with patch("src.api_server.reset_display_service"), patch("src.api_server.reset_template_engine"):
             response = client.post("/plugins/weather/disable")
         assert response.status_code == 200
         assert response.json()["enabled"] is False
@@ -809,9 +823,11 @@ class TestPluginEndpoints:
             response = client.post("/plugins/weather/receive", json={"message": "hello"})
         assert response.status_code == 503
 
+
 # ============================================================
 # Template Endpoints
 # ============================================================
+
 
 class TestTemplateEndpoints:
     def test_get_template_variables(self, client, mock_template_engine):
@@ -894,9 +910,12 @@ class TestTemplateEndpoints:
             mock_board_client = Mock()
             mock_board_client.send_characters.return_value = (True, True)
             mock_bcfbd.return_value = mock_board_client
-            response = client.post("/templates/render/live", json={
-                "template": "Hello World",
-            })
+            response = client.post(
+                "/templates/render/live",
+                json={
+                    "template": "Hello World",
+                },
+            )
         assert response.status_code == 200
         data = response.json()
         assert "rendered" in data
@@ -921,18 +940,26 @@ class TestTemplateEndpoints:
     def test_render_template_live_board_not_found(self, client, mock_template_engine, mock_settings_service):
         mock_settings_service.get_board_settings.return_value = Mock(boards=[{"id": "b1", "device_type": "flagship"}])
         with patch("src.api_server.board_client_from_board_dict", return_value=None):
-            response = client.post("/templates/render/live", json={
-                "template": "Hello",
-                "board_id": "b1",
-            })
+            response = client.post(
+                "/templates/render/live",
+                json={
+                    "template": "Hello",
+                    "board_id": "b1",
+                },
+            )
         assert response.status_code == 200
 
-    def test_render_template_live_specified_board_id_not_found(self, client, mock_template_engine, mock_settings_service):
+    def test_render_template_live_specified_board_id_not_found(
+        self, client, mock_template_engine, mock_settings_service
+    ):
         mock_settings_service.get_board_settings.return_value = Mock(boards=[])
-        response = client.post("/templates/render/live", json={
-            "template": "Hello",
-            "board_id": "nonexistent",
-        })
+        response = client.post(
+            "/templates/render/live",
+            json={
+                "template": "Hello",
+                "board_id": "nonexistent",
+            },
+        )
         assert response.status_code == 404
 
     def test_render_template_live_render_error(self, client, mock_template_engine, mock_settings_service):
@@ -945,6 +972,7 @@ class TestTemplateEndpoints:
 # Pages Endpoints
 # ============================================================
 
+
 class TestPagesEndpoints:
     def test_list_pages(self, client, mock_page_service):
         response = client.get("/pages")
@@ -954,11 +982,14 @@ class TestPagesEndpoints:
         assert data["total"] == 1
 
     def test_create_page(self, client, mock_page_service):
-        response = client.post("/pages", json={
-            "name": "Test Page",
-            "type": "template",
-            "template": ["Hello"],
-        })
+        response = client.post(
+            "/pages",
+            json={
+                "name": "Test Page",
+                "type": "template",
+                "template": ["Hello"],
+            },
+        )
         assert response.status_code == 200
         assert response.json()["status"] == "success"
 
@@ -1032,9 +1063,12 @@ class TestPagesEndpoints:
         assert response.status_code == 503
 
     def test_preview_pages_batch(self, client, mock_page_service, mock_settings_service):
-        response = client.post("/pages/preview/batch", json={
-            "page_ids": ["page1"],
-        })
+        response = client.post(
+            "/pages/preview/batch",
+            json={
+                "page_ids": ["page1"],
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert "previews" in data
@@ -1105,6 +1139,7 @@ class TestPagesEndpoints:
 # ============================================================
 # Schedule Endpoints
 # ============================================================
+
 
 class TestScheduleEndpoints:
     def test_list_schedules(self, client, mock_schedule_service, mock_settings_service):
@@ -1207,6 +1242,7 @@ class TestScheduleEndpoints:
 # Cache / Force Refresh
 # ============================================================
 
+
 class TestCacheEndpoints:
     def test_get_cache_status(self, client, mock_service):
         response = client.get("/cache-status")
@@ -1252,6 +1288,7 @@ class TestCacheEndpoints:
 # ============================================================
 # Service Start / Stop / Refresh / Send Message
 # ============================================================
+
 
 class TestServiceLifecycle:
     def test_start_already_running(self, client, mock_service):
@@ -1323,6 +1360,7 @@ class TestServiceLifecycle:
 # Board Current Message
 # ============================================================
 
+
 class TestBoardCurrentMessage:
     def test_no_service(self, client):
         with patch("src.api_server.get_service", return_value=None):
@@ -1359,6 +1397,7 @@ class TestBoardCurrentMessage:
     def test_success_cached(self, client, mock_service):
         """When polled cache is populated, serves from it without calling read_current_message."""
         import time
+
         grid = [[0] * 22 for _ in range(6)]
         grid[0][0:3] = [8, 9, 10]
         mock_service._polled_characters = grid
@@ -1373,6 +1412,7 @@ class TestBoardCurrentMessage:
     def test_force_bypasses_cache(self, client, mock_service):
         """?force=true makes a live call even when cache is populated."""
         import time
+
         cached_grid = [[1] * 22 for _ in range(6)]
         fresh_grid = [[2] * 22 for _ in range(6)]
         mock_service._polled_characters = cached_grid
@@ -1406,8 +1446,8 @@ class TestBoardCurrentMessage:
 
     def test_color_tiles_in_message(self, client, mock_service):
         grid = [[0] * 22 for _ in range(6)]
-        grid[0][0] = 63   # RED tile
-        grid[0][1] = 64   # ORANGE tile
+        grid[0][0] = 63  # RED tile
+        grid[0][1] = 64  # ORANGE tile
         mock_service.vb_client.read_current_message.return_value = grid
         response = client.get("/board/current-message")
         assert response.status_code == 200
@@ -1421,6 +1461,7 @@ class TestCharactersToMessage:
 
     def _call(self, grid):
         from src.api_server import _characters_to_message
+
         return _characters_to_message(grid)
 
     def test_blank_board(self):
@@ -1469,11 +1510,15 @@ class TestCharactersToMessage:
 # Display Batch Operations
 # ============================================================
 
+
 class TestDisplayBatchEndpoints:
     def test_displays_raw_batch(self, client, mock_display_service):
-        response = client.post("/displays/raw/batch", json={
-            "display_types": ["weather"],
-        })
+        response = client.post(
+            "/displays/raw/batch",
+            json={
+                "display_types": ["weather"],
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert "displays" in data
@@ -1489,9 +1534,12 @@ class TestDisplayBatchEndpoints:
 
     def test_displays_raw_batch_exception_handling(self, client, mock_display_service):
         mock_display_service.get_display.side_effect = Exception("Plugin error")
-        response = client.post("/displays/raw/batch", json={
-            "display_types": ["weather"],
-        })
+        response = client.post(
+            "/displays/raw/batch",
+            json={
+                "display_types": ["weather"],
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["displays"]["weather"]["available"] is False
@@ -1507,6 +1555,7 @@ class TestDisplayBatchEndpoints:
 
     def test_send_display_unknown_type(self, client, mock_display_service, mock_settings_service, mock_service):
         from src.displays.service import DisplayResult
+
         mock_display_service.get_display.return_value = DisplayResult(
             display_type="fake",
             formatted="",
@@ -1522,6 +1571,7 @@ class TestDisplayBatchEndpoints:
 # Welcome Message
 # ============================================================
 
+
 class TestWelcomeMessage:
     def test_send_welcome_silence_mode(self, client):
         with patch("src.api_server.Config.is_silence_mode_active", return_value=True):
@@ -1529,24 +1579,32 @@ class TestWelcomeMessage:
         assert response.status_code == 200
         assert response.json()["silence_mode"] is True
 
+
 # ============================================================
 # Enable Local API
 # ============================================================
 
+
 class TestEnableLocalAPI:
     def test_missing_host(self, client):
-        response = client.post("/config/board/enable-local-api", json={
-            "host": "",
-            "enablement_token": "test_token_xyz",
-        })
+        response = client.post(
+            "/config/board/enable-local-api",
+            json={
+                "host": "",
+                "enablement_token": "test_token_xyz",
+            },
+        )
         assert response.status_code == 200
         assert response.json()["success"] is False
 
     def test_missing_token(self, client):
-        response = client.post("/config/board/enable-local-api", json={
-            "host": "192.168.1.100",
-            "enablement_token": "",
-        })
+        response = client.post(
+            "/config/board/enable-local-api",
+            json={
+                "host": "192.168.1.100",
+                "enablement_token": "",
+            },
+        )
         assert response.status_code == 200
         assert response.json()["success"] is False
 
@@ -1554,11 +1612,14 @@ class TestEnableLocalAPI:
         mock_resp = Mock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"apiKey": "generated_api_key_abc"}
-        with patch("src.api_server.requests.post", return_value=mock_resp) as mock_post:
-            response = client.post("/config/board/enable-local-api", json={
-                "host": "192.168.1.100",
-                "enablement_token": "test_enablement_token_xyz",
-            })
+        with patch("src.api_server.requests.post", return_value=mock_resp):
+            response = client.post(
+                "/config/board/enable-local-api",
+                json={
+                    "host": "192.168.1.100",
+                    "enablement_token": "test_enablement_token_xyz",
+                },
+            )
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -1569,10 +1630,13 @@ class TestEnableLocalAPI:
         mock_resp.status_code = 200
         mock_resp.json.return_value = {}
         with patch("src.api_server.requests.post", return_value=mock_resp):
-            response = client.post("/config/board/enable-local-api", json={
-                "host": "192.168.1.100",
-                "enablement_token": "test_token_xyz",
-            })
+            response = client.post(
+                "/config/board/enable-local-api",
+                json={
+                    "host": "192.168.1.100",
+                    "enablement_token": "test_token_xyz",
+                },
+            )
         assert response.status_code == 200
         assert response.json()["success"] is False
 
@@ -1581,10 +1645,13 @@ class TestEnableLocalAPI:
         mock_resp.status_code = 401
         mock_resp.text = "Unauthorized"
         with patch("src.api_server.requests.post", return_value=mock_resp):
-            response = client.post("/config/board/enable-local-api", json={
-                "host": "192.168.1.100",
-                "enablement_token": "test_bad_token",
-            })
+            response = client.post(
+                "/config/board/enable-local-api",
+                json={
+                    "host": "192.168.1.100",
+                    "enablement_token": "test_bad_token",
+                },
+            )
         assert response.status_code == 200
         assert response.json()["success"] is False
 
@@ -1593,41 +1660,53 @@ class TestEnableLocalAPI:
         mock_resp.status_code = 500
         mock_resp.text = "Internal Server Error"
         with patch("src.api_server.requests.post", return_value=mock_resp):
-            response = client.post("/config/board/enable-local-api", json={
-                "host": "192.168.1.100",
-                "enablement_token": "test_token_xyz",
-            })
+            response = client.post(
+                "/config/board/enable-local-api",
+                json={
+                    "host": "192.168.1.100",
+                    "enablement_token": "test_token_xyz",
+                },
+            )
         assert response.status_code == 200
         assert response.json()["success"] is False
 
     def test_connection_error(self, client):
         import requests as http_requests
-        with patch("src.api_server.requests.post",
-                    side_effect=http_requests.exceptions.ConnectionError("refused")):
-            response = client.post("/config/board/enable-local-api", json={
-                "host": "192.168.1.100",
-                "enablement_token": "test_token_xyz",
-            })
+
+        with patch("src.api_server.requests.post", side_effect=http_requests.exceptions.ConnectionError("refused")):
+            response = client.post(
+                "/config/board/enable-local-api",
+                json={
+                    "host": "192.168.1.100",
+                    "enablement_token": "test_token_xyz",
+                },
+            )
         assert response.status_code == 200
         assert response.json()["success"] is False
 
     def test_timeout_error(self, client):
         import requests as http_requests
-        with patch("src.api_server.requests.post",
-                    side_effect=http_requests.exceptions.Timeout("timed out")):
-            response = client.post("/config/board/enable-local-api", json={
-                "host": "192.168.1.100",
-                "enablement_token": "test_token_xyz",
-            })
+
+        with patch("src.api_server.requests.post", side_effect=http_requests.exceptions.Timeout("timed out")):
+            response = client.post(
+                "/config/board/enable-local-api",
+                json={
+                    "host": "192.168.1.100",
+                    "enablement_token": "test_token_xyz",
+                },
+            )
         assert response.status_code == 200
         assert response.json()["success"] is False
 
     def test_generic_error(self, client):
         with patch("src.api_server.requests.post", side_effect=RuntimeError("unexpected")):
-            response = client.post("/config/board/enable-local-api", json={
-                "host": "192.168.1.100",
-                "enablement_token": "test_token_xyz",
-            })
+            response = client.post(
+                "/config/board/enable-local-api",
+                json={
+                    "host": "192.168.1.100",
+                    "enablement_token": "test_token_xyz",
+                },
+            )
         assert response.status_code == 200
         assert response.json()["success"] is False
 
@@ -1635,6 +1714,7 @@ class TestEnableLocalAPI:
 # ============================================================
 # Stocks Endpoints
 # ============================================================
+
 
 class TestStocksEndpoints:
     def test_validate_stock_missing_symbol(self, client):
@@ -1645,6 +1725,7 @@ class TestStocksEndpoints:
 # ============================================================
 # Traffic Geocode
 # ============================================================
+
 
 class TestTrafficGeocode:
     def test_geocode_success(self, client):
@@ -1676,6 +1757,7 @@ class TestTrafficGeocode:
 # Queue Times Proxy
 # ============================================================
 
+
 class TestQueueTimes:
     def test_list_disney_parks(self, client):
         with patch("src.api_server._queue_times_get") as mock_qt:
@@ -1699,9 +1781,7 @@ class TestQueueTimes:
 
     def test_list_park_rides(self, client):
         with patch("src.api_server._queue_times_get") as mock_qt:
-            mock_qt.return_value = {
-                "lands": [{"rides": [{"id": 1, "name": "Space Mountain"}]}]
-            }
+            mock_qt.return_value = {"lands": [{"rides": [{"id": 1, "name": "Space Mountain"}]}]}
             response = client.get("/queue-times/parks/1/rides")
         assert response.status_code == 200
 
@@ -1709,4 +1789,3 @@ class TestQueueTimes:
         with patch("src.api_server._queue_times_get", side_effect=Exception("fail")):
             response = client.get("/queue-times/parks/1/rides")
         assert response.status_code == 502
-

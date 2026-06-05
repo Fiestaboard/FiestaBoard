@@ -14,7 +14,6 @@ Run from anywhere:
 """
 
 import os
-import shutil
 import subprocess
 import sys
 
@@ -23,35 +22,34 @@ BASE_DIR = os.path.expanduser("~/workspace")
 # Repos where docs/black/ and docs/white/ contain {name}-display.png
 # Maps repo name → old image stem (the part before -display.png)
 PLUGINS_TO_FIX = {
-    "air-fog":             "air-fog",
-    "baywheels":           "baywheels",
-    "dad-jokes":           "dad-jokes",
-    "disney-parks-times":  "disney-parks-times",
-    "generic-data":        "generic-data",
-    "guest-wifi":          "guest-wifi",
-    "home-assistant":      "home-assistant",
-    "last-fm":             "last-fm",
-    "muni":                "muni",
-    "nearby-aircraft":     "nearby-aircraft",
-    "santa-tracker":       "santa-tracker",
+    "air-fog": "air-fog",
+    "baywheels": "baywheels",
+    "dad-jokes": "dad-jokes",
+    "disney-parks-times": "disney-parks-times",
+    "generic-data": "generic-data",
+    "guest-wifi": "guest-wifi",
+    "home-assistant": "home-assistant",
+    "last-fm": "last-fm",
+    "muni": "muni",
+    "nearby-aircraft": "nearby-aircraft",
+    "santa-tracker": "santa-tracker",
     "spacecraft-launches": "spacecraft-launches",
-    "sports-scores":       "sports-scores",
-    "star-trek-quotes":    "star-trek-quotes",
-    "stardate":            "stardate",
-    "stocks":              "stocks",
-    "sun-art":             "sun-art",
-    "surf":                "surf",
-    "traffic":             "traffic",
-    "visual-clock":        "visual-clock",
-    "weather":             "weather",
-    "white-noise":         "white-noise",
-    "wsdot":               "wsdot",
+    "sports-scores": "sports-scores",
+    "star-trek-quotes": "star-trek-quotes",
+    "stardate": "stardate",
+    "stocks": "stocks",
+    "sun-art": "sun-art",
+    "surf": "surf",
+    "traffic": "traffic",
+    "visual-clock": "visual-clock",
+    "weather": "weather",
+    "white-noise": "white-noise",
+    "wsdot": "wsdot",
 }
 
 
 def run(cmd, cwd):
-    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-    return result
+    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
 
 
 def fix_repo(name, stem):
@@ -73,8 +71,9 @@ def fix_repo(name, stem):
             print(f"  ✗ WARN — source not found: docs/{color_dir}/{stem}-display.png")
             continue
 
-        r = run(["git", "mv", f"docs/{color_dir}/{stem}-display.png",
-                 f"docs/{color_dir}/board-display.png"], cwd=repo_dir)
+        r = run(
+            ["git", "mv", f"docs/{color_dir}/{stem}-display.png", f"docs/{color_dir}/board-display.png"], cwd=repo_dir
+        )
         if r.returncode != 0:
             print(f"  ✗ git mv failed for {color_dir}: {r.stderr.strip()}")
             return False
@@ -83,15 +82,21 @@ def fix_repo(name, stem):
         changed = True
 
     if not changed:
-        print(f"  — nothing to do")
+        print("  — nothing to do")
         return True
 
-    r = run(["git", "commit", "-m",
-             "fix: rename board screenshots to board-display.png\n\n"
-             "The docs-site pluginBoardImagePath() now expects\n"
-             "docs/black/board-display.png and docs/white/board-display.png.\n"
-             "Rename from the legacy {plugin-name}-display.png convention."],
-            cwd=repo_dir)
+    r = run(
+        [
+            "git",
+            "commit",
+            "-m",
+            "fix: rename board screenshots to board-display.png\n\n"
+            "The docs-site pluginBoardImagePath() now expects\n"
+            "docs/black/board-display.png and docs/white/board-display.png.\n"
+            "Rename from the legacy {plugin-name}-display.png convention.",
+        ],
+        cwd=repo_dir,
+    )
     if r.returncode != 0:
         print(f"  ✗ git commit failed: {r.stderr.strip()}")
         return False
@@ -101,7 +106,7 @@ def fix_repo(name, stem):
         print(f"  ✗ git push failed: {r.stderr.strip()}")
         return False
 
-    print(f"  ✓ pushed")
+    print("  ✓ pushed")
     return True
 
 
@@ -118,7 +123,7 @@ def main():
         else:
             skipped.append(name)
 
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"Done. {len(passed)} pushed, {len(failed)} failed, {len(skipped)} skipped.")
     if failed:
         print(f"\nFailed: {failed}")

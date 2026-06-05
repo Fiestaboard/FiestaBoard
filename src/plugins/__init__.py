@@ -25,23 +25,22 @@ from .sources import (
 )
 
 __all__ = [
-    "PluginBase",
-    "PluginResult",
-    "TriggerResult",
-    "PluginRegistry",
-    "get_plugin_registry",
     "INSTANCE_SEPARATOR",
+    "DemoPageSchema",
+    "PluginBase",
     "PluginLoader",
     "PluginManifest",
-    "DemoPageSchema",
-    "validate_manifest",
+    "PluginRegistry",
+    "PluginResult",
     "PluginSource",
     "RegistryEntry",
+    "TriggerResult",
+    "get_plugin_registry",
     "load_registry",
-    "validate_registry_repo_name",
     "plugin_id_from_repo_name",
+    "validate_manifest",
+    "validate_registry_repo_name",
 ]
 
 # Testing utilities (imported separately to avoid test dependencies in production)
 # Usage: from src.plugins.testing import PluginTestCase
-

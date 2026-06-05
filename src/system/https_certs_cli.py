@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "ensure":
         try:
             https_certs.generate_cert()
-        except Exception as e:  # noqa: BLE001 - surface to shell
+        except Exception as e:
             print(f"failed to generate cert: {e}", file=sys.stderr)
             return 1
         return 0

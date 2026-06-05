@@ -2,14 +2,12 @@
 
 from datetime import datetime, timedelta
 
-
 from src.plugins.base import (
     DEFAULT_REFRESH_SECONDS,
     MIN_REFRESH_SECONDS,
     PluginBase,
     PluginResult,
 )
-
 
 MANIFEST_WITH_REFRESH = {
     "id": "test_plugin",
@@ -53,9 +51,7 @@ MANIFEST_WITHOUT_REFRESH = {
     "version": "1.0.0",
     "settings_schema": {
         "type": "object",
-        "properties": {
-            "enabled": {"type": "boolean", "default": False}
-        },
+        "properties": {"enabled": {"type": "boolean", "default": False}},
     },
 }
 
@@ -145,9 +141,7 @@ class TestRefreshSecondsProperty:
             "version": "1.0.0",
             "settings_schema": {
                 "type": "object",
-                "properties": {
-                    "refresh_seconds": {"type": "integer", "minimum": 10}
-                },
+                "properties": {"refresh_seconds": {"type": "integer", "minimum": 10}},
             },
         }
         plugin = ConcretePlugin(manifest)
@@ -357,9 +351,7 @@ class TestValidateRefreshSeconds:
             "version": "1.0.0",
             "settings_schema": {
                 "type": "object",
-                "properties": {
-                    "refresh_seconds": {"type": "integer"}
-                },
+                "properties": {"refresh_seconds": {"type": "integer"}},
             },
         }
         plugin = ConcretePlugin(manifest)
@@ -397,9 +389,7 @@ class TestMinRefreshSecondsProperty:
             "version": "1.0.0",
             "settings_schema": {
                 "type": "object",
-                "properties": {
-                    "refresh_seconds": {"type": "integer", "minimum": 60}
-                },
+                "properties": {"refresh_seconds": {"type": "integer", "minimum": 60}},
             },
         }
         plugin = ConcretePlugin(manifest)
@@ -412,9 +402,7 @@ class TestMinRefreshSecondsProperty:
             "version": "1.0.0",
             "settings_schema": {
                 "type": "object",
-                "properties": {
-                    "refresh_seconds": {"type": "integer"}
-                },
+                "properties": {"refresh_seconds": {"type": "integer"}},
             },
         }
         plugin = ConcretePlugin(manifest)
@@ -432,9 +420,7 @@ class TestMinRefreshSecondsProperty:
             "min_refresh_seconds": 120,
             "settings_schema": {
                 "type": "object",
-                "properties": {
-                    "refresh_seconds": {"type": "integer", "minimum": 60}
-                },
+                "properties": {"refresh_seconds": {"type": "integer", "minimum": 60}},
             },
         }
         plugin = ConcretePlugin(manifest)

@@ -227,9 +227,7 @@ def test_auth_file_perms(tmp_path):
 def test_is_auth_enabled(monkeypatch, tmp_path):
     """The env var pins the mode regardless of stored preference."""
     # Isolate the singleton + stored preference from any leftover state.
-    monkeypatch.setattr(auth_service, "_service", auth_service.AuthService(
-        auth_file=tmp_path / "auth.json"
-    ))
+    monkeypatch.setattr(auth_service, "_service", auth_service.AuthService(auth_file=tmp_path / "auth.json"))
 
     # Truthy env var -> always enabled.
     for v in ("true", "True", "1", "yes", "on"):

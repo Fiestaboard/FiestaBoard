@@ -6,24 +6,24 @@ that manages runtime settings persisted to JSON.
 """
 
 import json
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from src.settings.service import (
+    VALID_OUTPUT_TARGETS,
+    ActivePageSettings,
+    BetaSettings,
+    BoardSettings,
+    DisplaySettings,
+    OutputSettings,
+    PollingSettings,
+    ScheduleSettings,
     SettingsService,
     TransitionSettings,
-    OutputSettings,
-    ActivePageSettings,
-    PollingSettings,
-    BoardSettings,
-    ScheduleSettings,
-    BetaSettings,
-    DisplaySettings,
     get_settings_service,
-    VALID_OUTPUT_TARGETS,
 )
-
 
 # ==================== TransitionSettings ====================
 
@@ -296,7 +296,7 @@ class TestSettingsServiceInit:
 
     def test_load_from_file_handles_io_error(self, settings_file, mock_config):
         Path(settings_file).write_text("{}")
-        with patch("builtins.open", side_effect=IOError("read error")):
+        with patch("builtins.open", side_effect=OSError("read error")):
             svc = SettingsService(settings_file=settings_file)
             result = svc._load_from_file()
         assert result == {}
@@ -309,7 +309,7 @@ class TestSettingsServiceInit:
         assert "board" in data
 
     def test_save_to_file_handles_io_error(self, settings_service):
-        with patch("builtins.open", side_effect=IOError("write error")):
+        with patch("builtins.open", side_effect=OSError("write error")):
             settings_service._save_to_file()  # Should not raise
 
 
@@ -325,9 +325,7 @@ class TestSettingsServiceTransitions:
         assert result.strategy == "random"
 
     def test_update_transition_settings_step_interval_only(self, settings_service):
-        result = settings_service.update_transition_settings(
-            strategy=..., step_interval_ms=150, step_size=...
-        )
+        result = settings_service.update_transition_settings(strategy=..., step_interval_ms=150, step_size=...)
         assert result.step_interval_ms == 150
 
     def test_update_transition_settings_invalid_strategy_raises(self, settings_service):
@@ -418,9 +416,9 @@ class TestSettingsServiceBoard:
 
     def test_set_boards_preserves_masked_sensitive_fields(self, settings_service):
         settings_service.set_boards([{"device_type": "flagship", "local_api_key": "secret"}])
-        settings_service.set_boards([
-            {"device_type": "flagship", "id": settings_service._board.boards[0]["id"], "local_api_key": "***"}
-        ])
+        settings_service.set_boards(
+            [{"device_type": "flagship", "id": settings_service._board.boards[0]["id"], "local_api_key": "***"}]
+        )
         assert settings_service._board.boards[0]["local_api_key"] == "secret"
 
     def test_set_boards_empty_raises(self, settings_service):
@@ -504,9 +502,7 @@ class TestSettingsServiceLoadFromFile:
     """Test loading each setting type from file."""
 
     def test_load_transition_from_file(self, settings_file, mock_config):
-        Path(settings_file).write_text(json.dumps({
-            "transitions": {"strategy": "row", "step_interval_ms": 50}
-        }))
+        Path(settings_file).write_text(json.dumps({"transitions": {"strategy": "row", "step_interval_ms": 50}}))
         svc = SettingsService(settings_file=settings_file)
         assert svc.get_transition_settings().strategy == "row"
 
@@ -534,15 +530,17 @@ class TestSettingsServiceLoadFromFile:
 class TestSettingsServiceMigration:
     """Test _apply_global_connection migration."""
 
-    def test_apply_global_connection_migrates_when_first_board_empty(
-        self, settings_file, mock_config
-    ):
-        Path(settings_file).write_text(json.dumps({
-            "board": {
-                "board_type": "black",
-                "boards": [{"name": "B", "device_type": "flagship"}],
-            }
-        }))
+    def test_apply_global_connection_migrates_when_first_board_empty(self, settings_file, mock_config):
+        Path(settings_file).write_text(
+            json.dumps(
+                {
+                    "board": {
+                        "board_type": "black",
+                        "boards": [{"name": "B", "device_type": "flagship"}],
+                    }
+                }
+            )
+        )
         mock_cm = MagicMock()
         mock_cm.get_board.return_value = {
             "local_api_key": "migrated-key",
@@ -554,36 +552,30 @@ class TestSettingsServiceMigration:
             svc = SettingsService(settings_file=settings_file)
         assert svc._board.boards[0]["local_api_key"] == "migrated-key"
 
-    def test_apply_global_connection_skips_when_board_has_keys(
-        self, settings_file, mock_config
-    ):
-        Path(settings_file).write_text(json.dumps({
-            "board": {
-                "boards": [{"name": "B", "device_type": "flagship", "local_api_key": "existing"}],
-            }
-        }))
+    def test_apply_global_connection_skips_when_board_has_keys(self, settings_file, mock_config):
+        Path(settings_file).write_text(
+            json.dumps(
+                {
+                    "board": {
+                        "boards": [{"name": "B", "device_type": "flagship", "local_api_key": "existing"}],
+                    }
+                }
+            )
+        )
         with patch("src.config_manager.get_config_manager") as mock_get:
-            svc = SettingsService(settings_file=settings_file)
+            SettingsService(settings_file=settings_file)
             mock_get.assert_not_called()
 
-    def test_apply_global_connection_skips_when_global_empty(
-        self, settings_file, mock_config
-    ):
-        Path(settings_file).write_text(json.dumps({
-            "board": {"boards": [{"name": "B", "device_type": "flagship"}]}
-        }))
+    def test_apply_global_connection_skips_when_global_empty(self, settings_file, mock_config):
+        Path(settings_file).write_text(json.dumps({"board": {"boards": [{"name": "B", "device_type": "flagship"}]}}))
         mock_cm = MagicMock()
         mock_cm.get_board.return_value = {"local_api_key": "", "cloud_key": ""}
         with patch("src.config_manager.get_config_manager", return_value=mock_cm):
             svc = SettingsService(settings_file=settings_file)
         assert svc._board.boards[0].get("local_api_key", "") == ""
 
-    def test_apply_global_connection_handles_exception(
-        self, settings_file, mock_config
-    ):
-        Path(settings_file).write_text(json.dumps({
-            "board": {"boards": [{"name": "B", "device_type": "flagship"}]}
-        }))
+    def test_apply_global_connection_handles_exception(self, settings_file, mock_config):
+        Path(settings_file).write_text(json.dumps({"board": {"boards": [{"name": "B", "device_type": "flagship"}]}}))
         with patch("src.config_manager.get_config_manager", side_effect=Exception("err")):
             svc = SettingsService(settings_file=settings_file)
         assert "local_api_key" not in svc._board.boards[0] or svc._board.boards[0].get("local_api_key") == ""
@@ -594,6 +586,7 @@ class TestGetSettingsService:
 
     def test_get_settings_service_returns_singleton(self, mock_config):
         from src.settings import service as settings_module
+
         settings_module._settings_service = None
         svc1 = get_settings_service()
         svc2 = get_settings_service()
@@ -601,6 +594,7 @@ class TestGetSettingsService:
 
     def test_get_settings_service_creates_with_defaults_when_none(self, mock_config):
         from src.settings import service as settings_module
+
         settings_module._settings_service = None
         svc = get_settings_service()
         assert svc is not None
@@ -687,11 +681,13 @@ class TestDisplaySettings:
         assert ds.site_animations == "on"
 
     def test_from_dict_with_all_fields(self):
-        ds = DisplaySettings.from_dict({
-            "reduce_motion": True,
-            "board_animations": "desktop",
-            "site_animations": "off",
-        })
+        ds = DisplaySettings.from_dict(
+            {
+                "reduce_motion": True,
+                "board_animations": "desktop",
+                "site_animations": "off",
+            }
+        )
         assert ds.reduce_motion is True
         assert ds.board_animations == "desktop"
         assert ds.site_animations == "off"
@@ -705,10 +701,12 @@ class TestDisplaySettings:
         assert ds.site_animations == "on"
 
     def test_from_dict_case_insensitive(self):
-        ds = DisplaySettings.from_dict({
-            "board_animations": "DESKTOP",
-            "site_animations": "OFF",
-        })
+        ds = DisplaySettings.from_dict(
+            {
+                "board_animations": "DESKTOP",
+                "site_animations": "OFF",
+            }
+        )
         assert ds.board_animations == "desktop"
         assert ds.site_animations == "off"
 
@@ -740,10 +738,12 @@ class TestSettingsServiceDisplay:
         assert ds.site_animations == "off"
 
     def test_update_display_settings_partial_preserves_others(self, settings_service):
-        settings_service.update_display_settings({
-            "board_animations": "off",
-            "site_animations": "off",
-        })
+        settings_service.update_display_settings(
+            {
+                "board_animations": "off",
+                "site_animations": "off",
+            }
+        )
         # Only touch reduce_motion — other keys must stick around.
         ds = settings_service.update_display_settings({"reduce_motion": True})
         assert ds.reduce_motion is True
@@ -758,10 +758,12 @@ class TestSettingsServiceDisplay:
 
     def test_display_settings_persist_across_reload(self, settings_file, mock_config):
         svc1 = SettingsService(settings_file=settings_file)
-        svc1.update_display_settings({
-            "board_animations": "desktop",
-            "site_animations": "off",
-        })
+        svc1.update_display_settings(
+            {
+                "board_animations": "desktop",
+                "site_animations": "off",
+            }
+        )
 
         svc2 = SettingsService(settings_file=settings_file)
         ds = svc2.get_display_settings()

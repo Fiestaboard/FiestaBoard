@@ -20,6 +20,7 @@ def _reset_plugin_settings():
 # PluginSettings dataclass
 # ---------------------------------------------------------------------------
 
+
 class TestPluginSettingsDataclass:
     def test_defaults(self):
         s = PluginSettings()
@@ -54,6 +55,7 @@ class TestPluginSettingsDataclass:
 # GET /settings/plugins
 # ---------------------------------------------------------------------------
 
+
 class TestGetPluginSettings:
     def setup_method(self):
         _reset_plugin_settings()
@@ -77,6 +79,7 @@ class TestGetPluginSettings:
 # ---------------------------------------------------------------------------
 # PUT /settings/plugins
 # ---------------------------------------------------------------------------
+
 
 class TestPutPluginSettings:
     def setup_method(self):
@@ -109,6 +112,7 @@ class TestPutPluginSettings:
 # /settings/all includes plugins section
 # ---------------------------------------------------------------------------
 
+
 def test_settings_all_includes_plugins_section():
     _reset_plugin_settings()
     response = client.get("/settings/all")
@@ -116,6 +120,7 @@ def test_settings_all_includes_plugins_section():
     data = response.json()
     assert "plugins" in data
     assert "auto_update" in data["plugins"]
+
 
 def test_settings_all_plugins_consistent_with_dedicated_endpoint():
     _reset_plugin_settings()
@@ -127,6 +132,7 @@ def test_settings_all_plugins_consistent_with_dedicated_endpoint():
 # ---------------------------------------------------------------------------
 # _auto_apply_plugin_updates helper
 # ---------------------------------------------------------------------------
+
 
 def _make_registry(plugin_ids, local_path_exists=True, has_git=True):
     """Build a minimal mock registry for _auto_apply_plugin_updates tests."""
@@ -160,8 +166,10 @@ def test_auto_apply_updates_external_plugin(tmp_path):
     registry.reload_plugin.return_value = MagicMock()
     registry._update_status = {plugin_id: True}
 
-    with patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path), \
-         patch("src.plugins.sources.clone_or_update_repo", return_value=(True, "")) as mock_clone:
+    with (
+        patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path),
+        patch("src.plugins.sources.clone_or_update_repo", return_value=(True, "")) as mock_clone,
+    ):
         asyncio.run(_auto_apply_plugin_updates(registry, [plugin_id]))
 
     mock_clone.assert_called_once_with("", plugin_id, external_dir=tmp_path)
@@ -228,8 +236,10 @@ def test_auto_apply_handles_git_fetch_failure(tmp_path):
     registry.get_plugin_source.return_value = source
     registry._update_status = {plugin_id: True}
 
-    with patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path), \
-         patch("src.plugins.sources.clone_or_update_repo", return_value=(False, "network error")):
+    with (
+        patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path),
+        patch("src.plugins.sources.clone_or_update_repo", return_value=(False, "network error")),
+    ):
         asyncio.run(_auto_apply_plugin_updates(registry, [plugin_id]))
 
     registry.reload_plugin.assert_not_called()
@@ -249,8 +259,10 @@ def test_auto_apply_handles_reload_failure(tmp_path):
     registry.reload_plugin.return_value = None  # reload failed
     registry._update_status = {plugin_id: True}
 
-    with patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path), \
-         patch("src.plugins.sources.clone_or_update_repo", return_value=(True, "")):
+    with (
+        patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path),
+        patch("src.plugins.sources.clone_or_update_repo", return_value=(True, "")),
+    ):
         asyncio.run(_auto_apply_plugin_updates(registry, [plugin_id]))
 
     assert registry._update_status[plugin_id] is True
@@ -282,8 +294,10 @@ def test_auto_apply_multiple_plugins_partial_success(tmp_path):
     def fake_clone(url, pid, external_dir):
         return (True, "") if pid == good_id else (False, "fetch error")
 
-    with patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path), \
-         patch("src.plugins.sources.clone_or_update_repo", side_effect=fake_clone):
+    with (
+        patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path),
+        patch("src.plugins.sources.clone_or_update_repo", side_effect=fake_clone),
+    ):
         asyncio.run(_auto_apply_plugin_updates(registry, [good_id, bad_id]))
 
     assert good_id not in registry._update_status

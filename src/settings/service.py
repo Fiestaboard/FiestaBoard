@@ -15,22 +15,17 @@ from typing import Literal, Optional
 logger = logging.getLogger(__name__)
 
 # Valid values
-VALID_STRATEGIES = [
-    "column", "reverse-column", "edges-to-center",
-    "row", "diagonal", "random"
-]
+VALID_STRATEGIES = ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
 VALID_OUTPUT_TARGETS = ["ui", "board", "both"]
 
 OutputTarget = Literal["ui", "board", "both"]
-TransitionStrategy = Literal[
-    "column", "reverse-column", "edges-to-center",
-    "row", "diagonal", "random"
-]
+TransitionStrategy = Literal["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
 
 
 @dataclass
 class TransitionSettings:
     """Transition animation settings."""
+
     strategy: str | None = None
     step_interval_ms: int | None = None
     step_size: int | None = None
@@ -43,13 +38,14 @@ class TransitionSettings:
         return cls(
             strategy=data.get("strategy"),
             step_interval_ms=data.get("step_interval_ms"),
-            step_size=data.get("step_size")
+            step_size=data.get("step_size"),
         )
 
 
 @dataclass
 class OutputSettings:
     """Output target settings."""
+
     target: OutputTarget = "board"
 
     def to_dict(self) -> dict:
@@ -66,6 +62,7 @@ class OutputSettings:
 @dataclass
 class ActivePageSettings:
     """Active page settings for display."""
+
     page_id: str | None = None
 
     def to_dict(self) -> dict:
@@ -78,11 +75,13 @@ class ActivePageSettings:
 
 BOARD_READ_INTERVAL_MIN = 20  # Hard floor: no faster than once every 20 seconds
 
+
 @dataclass
 class PollingSettings:
     """Polling interval settings for board updates."""
+
     interval_seconds: int = 15  # Default to 15 seconds
-    board_read_interval_local: int = 30   # How often to read board state in local mode
+    board_read_interval_local: int = 30  # How often to read board state in local mode
     board_read_interval_cloud: int = 180  # How often to read board state in cloud mode (3 min)
 
     def to_dict(self) -> dict:
@@ -117,22 +116,27 @@ class BoardSettings:
     board color, and connection settings. The `devices` property provides
     backward-compatible access to the list of unique device types.
     """
+
     board_type: Literal["black", "white"] | None = "black"
     boards: list[dict] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.boards:
-            from ..devices import BoardInstance
-            self.boards = [BoardInstance(
-                name="My Board",
-                device_type="flagship",
-                board_color=self.board_type or "black",
-            ).to_dict()]
+            from src.devices import BoardInstance
+
+            self.boards = [
+                BoardInstance(
+                    name="My Board",
+                    device_type="flagship",
+                    board_color=self.board_type or "black",
+                ).to_dict()
+            ]
 
     @property
     def devices(self) -> list[str]:
         """Backward-compatible list of unique device types across all boards."""
-        from ..devices import DEVICE_TYPES
+        from src.devices import DEVICE_TYPES
+
         seen: set[str] = set()
         result = []
         for b in self.boards:
@@ -169,16 +173,19 @@ class BoardSettings:
 
         # Migrate from legacy devices-only format
         if not boards and "devices" in data:
-            from ..devices import BoardInstance
+            from src.devices import BoardInstance
+
             devices = data["devices"]
             if isinstance(devices, list):
                 for i, dt in enumerate(devices):
                     name = "My Board" if i == 0 else f"My Board {i + 1}"
-                    boards.append(BoardInstance(
-                        name=name,
-                        device_type=dt,
-                        board_color=board_type or "black",
-                    ).to_dict())
+                    boards.append(
+                        BoardInstance(
+                            name=name,
+                            device_type=dt,
+                            board_color=board_type or "black",
+                        ).to_dict()
+                    )
 
         return cls(board_type=board_type, boards=boards)
 
@@ -198,9 +205,10 @@ class TemporaryOverride:
       - "blank": clear override, board is blanked
       - "page": clear override, active page is set to revert_page_id
     """
+
     page_id: str
-    expires_at: str          # ISO 8601 UTC timestamp (e.g. "2026-05-16T21:30:00+00:00")
-    revert_mode: str         # "schedule" | "blank" | "page"
+    expires_at: str  # ISO 8601 UTC timestamp (e.g. "2026-05-16T21:30:00+00:00")
+    revert_mode: str  # "schedule" | "blank" | "page"
     revert_page_id: str | None = None
 
     def is_expired(self) -> bool:
@@ -245,6 +253,7 @@ class TemporaryOverride:
 @dataclass
 class ScheduleSettings:
     """Schedule system settings."""
+
     enabled: bool = False  # Schedule mode disabled by default
 
     def to_dict(self) -> dict:
@@ -258,6 +267,7 @@ class ScheduleSettings:
 @dataclass
 class LocationSettings:
     """Location settings for sun-based schedule features (sunrise/sunset)."""
+
     latitude: float | None = None
     longitude: float | None = None
 
@@ -291,6 +301,7 @@ def _coerce_site_animations(value: object) -> str:
 @dataclass
 class DisplaySettings:
     """Web UI display preferences."""
+
     reduce_motion: bool = False
     # Split-flap board animation. "on" = animate everywhere, "desktop" =
     # animate on desktop but skip on mobile (saves battery / avoids motion
@@ -315,6 +326,7 @@ class DisplaySettings:
 @dataclass
 class PluginSettings:
     """Plugin system settings."""
+
     auto_update: bool = True
 
     def to_dict(self) -> dict:
@@ -337,6 +349,7 @@ class BetaSettings:
       generated at container startup. Toggling this requires a restart
       to take effect.
     """
+
     https_enabled: bool = False
 
     def to_dict(self) -> dict:
@@ -363,6 +376,7 @@ class MQTTSettings:
         external_url: Public URL of this FiestaBoard instance shown as the
             "Visit" link on the HA device page.  None omits the link.
     """
+
     enabled: bool = False
     broker_host: str = "localhost"
     broker_port: int = 1883
@@ -438,7 +452,9 @@ class SettingsService:
         """Load settings from JSON file."""
         if self.settings_file.exists():
             try:
-                with open(self.settings_file) as f:
+                # Use builtins.open (not Path.open) so existing tests can
+                # patch builtins.open to inject read errors.
+                with open(self.settings_file) as f:  # noqa: PTH123
                     return json.load(f)
             except (OSError, json.JSONDecodeError) as e:
                 logger.warning(f"Failed to load settings file: {e}")
@@ -461,7 +477,9 @@ class SettingsService:
                 "plugins": self._plugins.to_dict(),
                 "temporary_override": self._temporary_override.to_dict() if self._temporary_override else None,
             }
-            with open(self.settings_file, 'w') as f:
+            # Use builtins.open (not Path.open) so existing tests can
+            # patch builtins.open to inject write errors.
+            with open(self.settings_file, "w") as f:  # noqa: PTH123
                 json.dump(data, f, indent=2)
             logger.debug("Settings saved to file")
         except OSError as e:
@@ -475,11 +493,12 @@ class SettingsService:
             return TransitionSettings.from_dict(file_data["transitions"])
 
         # Fall back to env
-        from ..config import Config
+        from src.config import Config
+
         return TransitionSettings(
             strategy=Config.FB_TRANSITION_STRATEGY,
             step_interval_ms=Config.FB_TRANSITION_INTERVAL_MS,
-            step_size=Config.FB_TRANSITION_STEP_SIZE
+            step_size=Config.FB_TRANSITION_STEP_SIZE,
         )
 
     def _load_output_settings(self) -> OutputSettings:
@@ -490,7 +509,8 @@ class SettingsService:
             return OutputSettings.from_dict(file_data["output"])
 
         # Fall back to env
-        from ..config import Config
+        from src.config import Config
+
         return OutputSettings(target=Config.OUTPUT_TARGET)
 
     def _load_active_page_settings(self) -> ActivePageSettings:
@@ -537,7 +557,8 @@ class SettingsService:
             return False
 
         try:
-            from ..config_manager import get_config_manager
+            from src.config_manager import get_config_manager
+
             global_cfg = get_config_manager().get_board()
         except Exception:
             return False
@@ -623,10 +644,7 @@ class SettingsService:
         return self._transition
 
     def update_transition_settings(
-        self,
-        strategy: str | None = ...,
-        step_interval_ms: int | None = ...,
-        step_size: int | None = ...
+        self, strategy: str | None = ..., step_interval_ms: int | None = ..., step_size: int | None = ...
     ) -> TransitionSettings:
         """Update transition settings.
 
@@ -813,7 +831,8 @@ class SettingsService:
         Returns:
             Updated BoardSettings
         """
-        from ..devices import DEVICE_TYPES, BoardInstance
+        from src.devices import DEVICE_TYPES, BoardInstance
+
         valid_devices = [d for d in devices if d in DEVICE_TYPES]
         if not valid_devices:
             raise ValueError(f"At least one valid device required. Valid types: {DEVICE_TYPES}")
@@ -836,11 +855,13 @@ class SettingsService:
                 while name in existing_names:
                     name = f"My Board {n}"
                     n += 1
-                new_boards.append(BoardInstance(
-                    name=name,
-                    device_type=dt,
-                    board_color=self._board.board_type or "black",
-                ).to_dict())
+                new_boards.append(
+                    BoardInstance(
+                        name=name,
+                        device_type=dt,
+                        board_color=self._board.board_type or "black",
+                    ).to_dict()
+                )
 
         self._board.boards = new_boards
         self._save_to_file()
@@ -860,7 +881,8 @@ class SettingsService:
         Returns:
             Updated BoardSettings
         """
-        from ..devices import BoardInstance
+        from src.devices import BoardInstance
+
         if not boards:
             raise ValueError("At least one board instance is required")
 
@@ -894,7 +916,8 @@ class SettingsService:
         Returns:
             Updated BoardSettings
         """
-        from ..devices import BoardInstance
+        from src.devices import BoardInstance
+
         if not board.get("name"):
             board["name"] = self._next_board_name()
         instance = BoardInstance.from_dict(board)
@@ -991,7 +1014,7 @@ class SettingsService:
         """
         if "enabled" in updates:
             self._mqtt.enabled = bool(updates["enabled"])
-        if "broker_host" in updates and updates["broker_host"]:
+        if updates.get("broker_host"):
             self._mqtt.broker_host = updates["broker_host"]
         if "broker_port" in updates:
             self._mqtt.broker_port = int(updates["broker_port"] or 1883)
@@ -1016,13 +1039,9 @@ class SettingsService:
         if "reduce_motion" in updates:
             self._display.reduce_motion = bool(updates["reduce_motion"])
         if "board_animations" in updates:
-            self._display.board_animations = _coerce_board_animations(
-                updates["board_animations"]
-            )
+            self._display.board_animations = _coerce_board_animations(updates["board_animations"])
         if "site_animations" in updates:
-            self._display.site_animations = _coerce_site_animations(
-                updates["site_animations"]
-            )
+            self._display.site_animations = _coerce_site_animations(updates["site_animations"])
         self._save_to_file()
         logger.info(f"Display settings updated: {self._display}")
         return self._display
@@ -1137,4 +1156,3 @@ def get_settings_service() -> SettingsService:
     if _settings_service is None:
         _settings_service = SettingsService()
     return _settings_service
-

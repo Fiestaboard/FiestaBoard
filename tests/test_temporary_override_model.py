@@ -1,15 +1,16 @@
 """Unit tests for the TemporaryOverride dataclass."""
-from datetime import datetime, timezone, timedelta
+
+from datetime import UTC, datetime, timedelta
 
 from src.settings.service import TemporaryOverride
 
 
 def _future_iso(minutes: int = 10) -> str:
-    return (datetime.now(timezone.utc) + timedelta(minutes=minutes)).isoformat()
+    return (datetime.now(UTC) + timedelta(minutes=minutes)).isoformat()
 
 
 def _past_iso(minutes: int = 1) -> str:
-    return (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+    return (datetime.now(UTC) - timedelta(minutes=minutes)).isoformat()
 
 
 class TestTemporaryOverrideExpiry:
@@ -23,7 +24,7 @@ class TestTemporaryOverrideExpiry:
 
     def test_is_expired_handles_naive_datetime(self):
         # Naive ISO string (no tz) should be treated as UTC
-        naive = (datetime.now(timezone.utc) - timedelta(minutes=1)).replace(tzinfo=None).isoformat()
+        naive = (datetime.now(UTC) - timedelta(minutes=1)).replace(tzinfo=None).isoformat()
         o = TemporaryOverride(page_id="p1", expires_at=naive, revert_mode="schedule")
         assert o.is_expired()
 

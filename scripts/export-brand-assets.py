@@ -61,9 +61,7 @@ def main():
             )
             page.goto(url, wait_until="networkidle")
             # Wait for Geist font to load
-            page.wait_for_function(
-                "document.fonts.check('900 36px Geist') && document.fonts.check('300 36px Geist')"
-            )
+            page.wait_for_function("document.fonts.check('900 36px Geist') && document.fonts.check('300 36px Geist')")
 
             for variant in ("light", "dark"):
                 el = page.locator(f"#{variant}-lockup")

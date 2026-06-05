@@ -12,7 +12,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..devices import DEFAULT_DEVICE_TYPE, DeviceType, get_dimensions
+from src.devices import DEFAULT_DEVICE_TYPE, DeviceType, get_dimensions
 
 PageType = Literal["single", "composite", "template"]
 
@@ -25,6 +25,7 @@ class LineMetadata(BaseModel):
     Stores alignment and wrap settings that were previously encoded as
     inline prefixes ({center}, {wrap}, etc.) in the template strings.
     """
+
     alignment: LineAlignment = "left"
     wrap: bool = False
 
@@ -35,6 +36,7 @@ class RowConfig(BaseModel):
     Specifies which row from which source should be placed at which position.
     Row limits depend on the device type of the parent page.
     """
+
     source: str  # Display type (weather, datetime, etc.)
     row_index: int = Field(ge=0)  # Which row from source
     target_row: int = Field(ge=0)  # Where to place in output
@@ -50,6 +52,7 @@ class Page(BaseModel):
 
     Each page targets a specific device type (flagship: 22x6, note: 15x3).
     """
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str = Field(min_length=1, max_length=100)
     type: PageType
@@ -121,9 +124,8 @@ class Page(BaseModel):
                     if r.target_row > max_row:
                         errors.append(f"Target row {r.target_row} exceeds max {max_row} for {self.device_type}")
 
-        elif self.type == "template":
-            if not self.template or len(self.template) == 0:
-                errors.append("Template page requires template content")
+        elif self.type == "template" and (not self.template or len(self.template) == 0):
+            errors.append("Template page requires template content")
 
         return errors
 
@@ -134,6 +136,7 @@ class Page(BaseModel):
 
 class PageCreate(BaseModel):
     """Request model for creating a new page."""
+
     name: str = Field(min_length=1, max_length=100)
     type: PageType
     device_type: DeviceType = Field(default=DEFAULT_DEVICE_TYPE)
@@ -152,6 +155,7 @@ class PageCreate(BaseModel):
 
 class PageUpdate(BaseModel):
     """Request model for updating an existing page."""
+
     name: str | None = Field(default=None, min_length=1, max_length=100)
     display_type: str | None = None
     rows: list[RowConfig] | None = None
@@ -162,4 +166,3 @@ class PageUpdate(BaseModel):
     transition_strategy: str | None = None
     transition_interval_ms: int | None = Field(default=None, ge=0, le=5000)
     transition_step_size: int | None = Field(default=None, ge=1)
-

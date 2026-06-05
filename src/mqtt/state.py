@@ -139,24 +139,36 @@ class StatePublisher:
 
         if self._prev_silence_mode is not None and self._prev_silence_mode != silence_active:
             event_type = "silence_mode_changed"
-            self.publish_event("settings_changed", event_type, {
-                "active": silence_active,
-                "timestamp": now,
-            })
+            self.publish_event(
+                "settings_changed",
+                event_type,
+                {
+                    "active": silence_active,
+                    "timestamp": now,
+                },
+            )
         self._prev_silence_mode = silence_active
 
         if self._prev_schedule_enabled is not None and self._prev_schedule_enabled != schedule_enabled:
-            self.publish_event("settings_changed", "schedule_toggled", {
-                "enabled": schedule_enabled,
-                "timestamp": now,
-            })
+            self.publish_event(
+                "settings_changed",
+                "schedule_toggled",
+                {
+                    "enabled": schedule_enabled,
+                    "timestamp": now,
+                },
+            )
         self._prev_schedule_enabled = schedule_enabled
 
         if self._prev_display_running is not None and self._prev_display_running != display_running:
-            self.publish_event("settings_changed", "service_toggled", {
-                "running": display_running,
-                "timestamp": now,
-            })
+            self.publish_event(
+                "settings_changed",
+                "service_toggled",
+                {
+                    "running": display_running,
+                    "timestamp": now,
+                },
+            )
         self._prev_display_running = display_running
 
     def _gather_attributes(self) -> dict[str, dict]:
@@ -190,6 +202,7 @@ class StatePublisher:
             import time
 
             from src.api_server import _service_start_time
+
             if _service_start_time is not None:
                 return str(int(time.time() - _service_start_time))
         except Exception:
@@ -201,6 +214,7 @@ class StatePublisher:
         """Get the board API mode (Local API or Cloud API)."""
         try:
             from src.api_server import _get_board_client
+
             client = _get_board_client()
             if client and hasattr(client, "use_cloud"):
                 return "Cloud API" if client.use_cloud else "Local API"
@@ -213,12 +227,10 @@ class StatePublisher:
         """Get the count of active (enabled) plugins."""
         try:
             from src.config_manager import ConfigManager
+
             cm = ConfigManager()
             plugins = cm._config.get("plugins", {})
-            count = sum(
-                1 for p in plugins.values()
-                if isinstance(p, dict) and p.get("enabled", False)
-            )
+            count = sum(1 for p in plugins.values() if isinstance(p, dict) and p.get("enabled", False))
             return str(count)
         except Exception:
             logger.debug("Could not get active plugin count")
@@ -229,10 +241,9 @@ class StatePublisher:
         """Get the current output target setting (ui, board, or both)."""
         try:
             from src.settings.service import get_settings_service
+
             output = get_settings_service().get_output_settings()
             return output.target or "both"
         except Exception:
             logger.debug("Could not get output target")
         return "both"
-
-

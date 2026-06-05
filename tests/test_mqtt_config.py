@@ -1,6 +1,5 @@
 """Tests for MQTT configuration."""
 
-
 from src.mqtt.config import (
     DEFAULT_BASE_TOPIC,
     DEFAULT_BROKER_HOST,

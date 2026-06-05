@@ -292,8 +292,7 @@ class TestCountdownManifestMetadata:
 
         simple = manifest["variables"]["simple"]
         for var_name, meta in simple.items():
-            assert "description" in meta and meta["description"], \
-                f"Variable '{var_name}' missing description"
+            assert meta.get("description"), f"Variable '{var_name}' missing description"
 
     def test_all_variables_have_valid_groups(self):
         """Every variable references a group that is defined."""
@@ -306,8 +305,7 @@ class TestCountdownManifestMetadata:
         for var_name, meta in simple.items():
             group = meta.get("group", "")
             if group:
-                assert group in groups, \
-                    f"Variable '{var_name}' references undefined group '{group}'"
+                assert group in groups, f"Variable '{var_name}' references undefined group '{group}'"
 
     def test_groups_are_defined(self):
         """Manifest defines variable groups."""

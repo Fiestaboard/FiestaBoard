@@ -1,21 +1,22 @@
 """Tests for sun time calculation and sun-based schedule matching."""
 
-import pytest
 from datetime import date, time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from src.schedules.models import ScheduleCreate, ScheduleEntry
+from src.schedules.service import ScheduleService
+from src.schedules.storage import ScheduleStorage
 from src.schedules.sun_times import (
     get_effective_timezone,
     get_sun_times,
-    resolve_sun_time,
     resolve_schedule_sun_times,
+    resolve_sun_time,
 )
-from src.schedules.models import ScheduleEntry, ScheduleCreate
-from src.schedules.service import ScheduleService
-from src.schedules.storage import ScheduleStorage
-
 
 # ---- Sun times computation ----
+
 
 class TestGetSunTimes:
     """Test basic sun time computation via astral."""
@@ -107,10 +108,16 @@ class TestResolveScheduleSunTimes:
     def test_fixed_times_unchanged(self):
         """Fixed-type schedule should return fallback values unchanged."""
         start, end = resolve_schedule_sun_times(
-            start_type="fixed", start_sun_offset=0, start_time_fallback="09:00",
-            end_type="fixed", end_sun_offset=0, end_time_fallback="17:00",
-            latitude=40.7128, longitude=-74.0060,
-            target_date=date(2026, 6, 21), timezone_str="America/New_York",
+            start_type="fixed",
+            start_sun_offset=0,
+            start_time_fallback="09:00",
+            end_type="fixed",
+            end_sun_offset=0,
+            end_time_fallback="17:00",
+            latitude=40.7128,
+            longitude=-74.0060,
+            target_date=date(2026, 6, 21),
+            timezone_str="America/New_York",
         )
         assert start == "09:00"
         assert end == "17:00"
@@ -118,10 +125,16 @@ class TestResolveScheduleSunTimes:
     def test_sunrise_start_resolved(self):
         """Sunrise start_type should resolve to a computed time."""
         start, end = resolve_schedule_sun_times(
-            start_type="sunrise", start_sun_offset=0, start_time_fallback="06:00",
-            end_type="fixed", end_sun_offset=0, end_time_fallback="10:00",
-            latitude=40.7128, longitude=-74.0060,
-            target_date=date(2026, 6, 21), timezone_str="America/New_York",
+            start_type="sunrise",
+            start_sun_offset=0,
+            start_time_fallback="06:00",
+            end_type="fixed",
+            end_sun_offset=0,
+            end_time_fallback="10:00",
+            latitude=40.7128,
+            longitude=-74.0060,
+            target_date=date(2026, 6, 21),
+            timezone_str="America/New_York",
         )
         # Should be a valid HH:MM string
         assert len(start) == 5 and start[2] == ":"
@@ -133,10 +146,16 @@ class TestResolveScheduleSunTimes:
     def test_sunset_end_resolved(self):
         """Sunset end_type should resolve to a computed time."""
         start, end = resolve_schedule_sun_times(
-            start_type="fixed", start_sun_offset=0, start_time_fallback="18:00",
-            end_type="sunset", end_sun_offset=30, end_time_fallback="21:00",
-            latitude=40.7128, longitude=-74.0060,
-            target_date=date(2026, 6, 21), timezone_str="America/New_York",
+            start_type="fixed",
+            start_sun_offset=0,
+            start_time_fallback="18:00",
+            end_type="sunset",
+            end_sun_offset=30,
+            end_time_fallback="21:00",
+            latitude=40.7128,
+            longitude=-74.0060,
+            target_date=date(2026, 6, 21),
+            timezone_str="America/New_York",
         )
         assert start == "18:00"  # Fixed start unchanged
         assert end is not None  # Resolved sunset + 30min
@@ -144,12 +163,16 @@ class TestResolveScheduleSunTimes:
     def test_both_sun_based(self):
         """Both start and end can be sun-based."""
         start, end = resolve_schedule_sun_times(
-            start_type="sunrise", start_sun_offset=-30,
+            start_type="sunrise",
+            start_sun_offset=-30,
             start_time_fallback="05:30",
-            end_type="sunset", end_sun_offset=30,
+            end_type="sunset",
+            end_sun_offset=30,
             end_time_fallback="20:30",
-            latitude=40.7128, longitude=-74.0060,
-            target_date=date(2026, 6, 21), timezone_str="America/New_York",
+            latitude=40.7128,
+            longitude=-74.0060,
+            target_date=date(2026, 6, 21),
+            timezone_str="America/New_York",
         )
         assert start is not None
         assert end is not None
@@ -161,10 +184,16 @@ class TestResolveScheduleSunTimes:
     def test_no_location_uses_fallback(self):
         """Without location, sun-based times should fall back to stored values."""
         start, end = resolve_schedule_sun_times(
-            start_type="sunrise", start_sun_offset=0, start_time_fallback="06:00",
-            end_type="sunset", end_sun_offset=0, end_time_fallback="20:00",
-            latitude=None, longitude=None,
-            target_date=date(2026, 6, 21), timezone_str="UTC",
+            start_type="sunrise",
+            start_sun_offset=0,
+            start_time_fallback="06:00",
+            end_type="sunset",
+            end_sun_offset=0,
+            end_time_fallback="20:00",
+            latitude=None,
+            longitude=None,
+            target_date=date(2026, 6, 21),
+            timezone_str="UTC",
         )
         assert start == "06:00"
         assert end == "20:00"
@@ -172,10 +201,16 @@ class TestResolveScheduleSunTimes:
     def test_none_end_time_preserved(self):
         """None end_time (open-ended) should be preserved for fixed types."""
         start, end = resolve_schedule_sun_times(
-            start_type="fixed", start_sun_offset=0, start_time_fallback="09:00",
-            end_type="fixed", end_sun_offset=0, end_time_fallback=None,
-            latitude=40.7128, longitude=-74.0060,
-            target_date=date(2026, 6, 21), timezone_str="America/New_York",
+            start_type="fixed",
+            start_sun_offset=0,
+            start_time_fallback="09:00",
+            end_type="fixed",
+            end_sun_offset=0,
+            end_time_fallback=None,
+            latitude=40.7128,
+            longitude=-74.0060,
+            target_date=date(2026, 6, 21),
+            timezone_str="America/New_York",
         )
         assert start == "09:00"
         assert end is None
@@ -183,14 +218,17 @@ class TestResolveScheduleSunTimes:
 
 # ---- Model tests for sun fields ----
 
+
 class TestScheduleEntrySunFields:
     """Test that ScheduleEntry properly handles sun schedule fields."""
 
     def test_default_sun_fields(self):
         """New schedule should have fixed sun fields by default."""
         entry = ScheduleEntry(
-            id="test-id", page_id="page-1",
-            start_time="09:00", end_time="17:00",
+            id="test-id",
+            page_id="page-1",
+            start_time="09:00",
+            end_time="17:00",
             day_pattern="all",
         )
         assert entry.start_type == "fixed"
@@ -201,11 +239,15 @@ class TestScheduleEntrySunFields:
     def test_sun_schedule_creation(self):
         """Schedule with sun-based start should store the fields."""
         entry = ScheduleEntry(
-            id="sun-id", page_id="page-1",
-            start_time="06:00", end_time="20:00",
+            id="sun-id",
+            page_id="page-1",
+            start_time="06:00",
+            end_time="20:00",
             day_pattern="all",
-            start_type="sunrise", start_sun_offset=-30,
-            end_type="sunset", end_sun_offset=30,
+            start_type="sunrise",
+            start_sun_offset=-30,
+            end_type="sunset",
+            end_sun_offset=30,
         )
         assert entry.start_type == "sunrise"
         assert entry.start_sun_offset == -30
@@ -215,9 +257,11 @@ class TestScheduleEntrySunFields:
     def test_schedule_create_model_sun_fields(self):
         """ScheduleCreate should accept sun fields."""
         create = ScheduleCreate(
-            page_id="page-1", start_time="06:00",
+            page_id="page-1",
+            start_time="06:00",
             day_pattern="all",
-            start_type="sunrise", start_sun_offset=15,
+            start_type="sunrise",
+            start_sun_offset=15,
         )
         assert create.start_type == "sunrise"
         assert create.start_sun_offset == 15
@@ -226,9 +270,12 @@ class TestScheduleEntrySunFields:
     def test_model_dump_includes_sun_fields(self):
         """model_dump() should include sun fields."""
         entry = ScheduleEntry(
-            id="test-id", page_id="page-1",
-            start_time="06:00", day_pattern="all",
-            start_type="sunrise", start_sun_offset=-15,
+            id="test-id",
+            page_id="page-1",
+            start_time="06:00",
+            day_pattern="all",
+            start_type="sunrise",
+            start_sun_offset=-15,
         )
         data = entry.model_dump()
         assert data["start_type"] == "sunrise"
@@ -253,6 +300,7 @@ class TestScheduleEntrySunFields:
 
 # ---- Schedule service sun resolution tests ----
 
+
 class TestScheduleServiceSunResolution:
     """Test that ScheduleService resolves sun times when checking active page."""
 
@@ -269,8 +317,11 @@ class TestScheduleServiceSunResolution:
     def test_fixed_schedule_works_as_before(self, service):
         """Fixed schedule should behave exactly as before (regression)."""
         create_data = ScheduleCreate(
-            page_id="page-1", start_time="09:00", end_time="17:00",
-            day_pattern="all", enabled=True,
+            page_id="page-1",
+            start_time="09:00",
+            end_time="17:00",
+            day_pattern="all",
+            enabled=True,
         )
         service.create_schedule(create_data)
 
@@ -296,11 +347,16 @@ class TestScheduleServiceSunResolution:
 
         # Create a sunrise-based schedule
         entry = ScheduleEntry(
-            id="sun-sched", page_id="sunrise-page",
-            start_time="06:00", end_time="08:00",
-            day_pattern="all", enabled=True,
-            start_type="sunrise", start_sun_offset=0,
-            end_type="fixed", end_sun_offset=0,
+            id="sun-sched",
+            page_id="sunrise-page",
+            start_time="06:00",
+            end_time="08:00",
+            day_pattern="all",
+            enabled=True,
+            start_type="sunrise",
+            start_sun_offset=0,
+            end_type="fixed",
+            end_sun_offset=0,
         )
         service.storage.create(entry)
 
@@ -330,10 +386,14 @@ class TestScheduleServiceSunResolution:
 
         # Create a sunrise schedule with fallback 06:00
         entry = ScheduleEntry(
-            id="fallback-sched", page_id="fallback-page",
-            start_time="06:00", end_time="08:00",
-            day_pattern="all", enabled=True,
-            start_type="sunrise", start_sun_offset=0,
+            id="fallback-sched",
+            page_id="fallback-page",
+            start_time="06:00",
+            end_time="08:00",
+            day_pattern="all",
+            enabled=True,
+            start_type="sunrise",
+            start_sun_offset=0,
         )
         service.storage.create(entry)
 
@@ -343,6 +403,7 @@ class TestScheduleServiceSunResolution:
 
 
 # ---- Storage persistence tests ----
+
 
 class TestStorageSunFields:
     """Test that sun fields persist correctly through save/load cycle."""
@@ -354,11 +415,15 @@ class TestStorageSunFields:
     def test_sun_fields_persist(self, temp_storage):
         """Sun fields should survive save and reload."""
         entry = ScheduleEntry(
-            id="persist-test", page_id="page-1",
-            start_time="06:00", end_time="20:00",
+            id="persist-test",
+            page_id="page-1",
+            start_time="06:00",
+            end_time="20:00",
             day_pattern="all",
-            start_type="sunrise", start_sun_offset=-30,
-            end_type="sunset", end_sun_offset=45,
+            start_type="sunrise",
+            start_sun_offset=-30,
+            end_type="sunset",
+            end_sun_offset=45,
         )
         temp_storage.create(entry)
 
@@ -374,15 +439,20 @@ class TestStorageSunFields:
     def test_update_sun_fields(self, temp_storage):
         """Sun fields should be updatable."""
         entry = ScheduleEntry(
-            id="update-test", page_id="page-1",
-            start_time="06:00", day_pattern="all",
+            id="update-test",
+            page_id="page-1",
+            start_time="06:00",
+            day_pattern="all",
         )
         temp_storage.create(entry)
 
-        updated = temp_storage.update("update-test", {
-            "start_type": "sunrise",
-            "start_sun_offset": 15,
-        })
+        updated = temp_storage.update(
+            "update-test",
+            {
+                "start_type": "sunrise",
+                "start_sun_offset": 15,
+            },
+        )
         assert updated is not None
         assert updated.start_type == "sunrise"
         assert updated.start_sun_offset == 15
@@ -390,18 +460,21 @@ class TestStorageSunFields:
     def test_old_schedule_data_without_sun_fields(self, tmp_path):
         """Loading data without sun fields should use defaults."""
         import json
+
         storage_file = tmp_path / "schedules.json"
         data = {
-            "schedules": [{
-                "id": "old-entry",
-                "page_id": "page-1",
-                "start_time": "09:00",
-                "end_time": "17:00",
-                "day_pattern": "all",
-                "board_id": "",
-                "enabled": True,
-                "created_at": "2025-01-01T00:00:00+00:00",
-            }],
+            "schedules": [
+                {
+                    "id": "old-entry",
+                    "page_id": "page-1",
+                    "start_time": "09:00",
+                    "end_time": "17:00",
+                    "day_pattern": "all",
+                    "board_id": "",
+                    "enabled": True,
+                    "created_at": "2025-01-01T00:00:00+00:00",
+                }
+            ],
             "default_page_id": None,
         }
         with open(storage_file, "w") as f:
@@ -417,6 +490,7 @@ class TestStorageSunFields:
 
 
 # ---- Effective timezone selection (regression for issue #814) ----
+
 
 class TestEffectiveTimezone:
     """Sun-time resolution must share the timezone used by time_service.
@@ -449,12 +523,20 @@ class TestEffectiveTimezone:
         """Sanity check that demonstrates the original bug: Lakewood, CO sunset
         on a DST day comes out 1 hour later in America/Denver than in MST."""
         denver = resolve_sun_time(
-            "sunset", 0, 39.7047, -105.0814,
-            date(2026, 5, 30), "America/Denver",
+            "sunset",
+            0,
+            39.7047,
+            -105.0814,
+            date(2026, 5, 30),
+            "America/Denver",
         )
         mst = resolve_sun_time(
-            "sunset", 0, 39.7047, -105.0814,
-            date(2026, 5, 30), "MST",
+            "sunset",
+            0,
+            39.7047,
+            -105.0814,
+            date(2026, 5, 30),
+            "MST",
         )
         assert denver is not None and mst is not None
         denver_mins = int(denver[:2]) * 60 + int(denver[3:])

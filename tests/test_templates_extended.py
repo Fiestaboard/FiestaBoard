@@ -1,7 +1,8 @@
 """Extended tests for template engine - covering additional code paths."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from src.templates.engine import (
     TemplateEngine,
@@ -20,10 +21,10 @@ def engine():
 # Init / Singleton / Cache (lines 107-109, 113-116, 121-124, 1467-1469)
 # ---------------------------------------------------------------------------
 
-class TestInitAndSingleton:
 
+class TestInitAndSingleton:
     def test_init_failure_raises_runtime_error(self):
-        with patch('src.templates.engine.get_plugin_registry', side_effect=Exception("boom")):
+        with patch("src.templates.engine.get_plugin_registry", side_effect=Exception("boom")):
             with pytest.raises(RuntimeError, match="Plugin system is required"):
                 TemplateEngine()
 
@@ -43,6 +44,7 @@ class TestInitAndSingleton:
 
     def test_get_template_engine_creates_singleton(self):
         import src.templates.engine as mod
+
         original = mod._template_engine
         try:
             mod._template_engine = None
@@ -54,6 +56,7 @@ class TestInitAndSingleton:
 
     def test_reset_template_engine_resets_cache(self):
         import src.templates.engine as mod
+
         original = mod._template_engine
         try:
             eng = TemplateEngine()
@@ -66,6 +69,7 @@ class TestInitAndSingleton:
 
     def test_reset_template_engine_when_none_is_safe(self):
         import src.templates.engine as mod
+
         original = mod._template_engine
         try:
             mod._template_engine = None
@@ -78,8 +82,8 @@ class TestInitAndSingleton:
 # _count_tiles (lines 190-198)
 # ---------------------------------------------------------------------------
 
-class TestCountTiles:
 
+class TestCountTiles:
     def test_regular_chars(self, engine):
         assert engine._count_tiles("ABC") == 3
 
@@ -104,8 +108,8 @@ class TestCountTiles:
 # _truncate_to_tiles (lines 224-245)
 # ---------------------------------------------------------------------------
 
-class TestTruncateToTiles:
 
+class TestTruncateToTiles:
     def test_truncate_plain_text(self, engine):
         assert engine._truncate_to_tiles("ABCDEF", 3) == "ABC"
 
@@ -126,8 +130,8 @@ class TestTruncateToTiles:
 # _word_wrap (lines 433-468)
 # ---------------------------------------------------------------------------
 
-class TestWordWrap:
 
+class TestWordWrap:
     def test_empty_text(self, engine):
         assert engine._word_wrap("", 22, 22, 3) == [""]
 
@@ -155,8 +159,8 @@ class TestWordWrap:
 # _split_into_tokens (lines 497-506)
 # ---------------------------------------------------------------------------
 
-class TestSplitIntoTokens:
 
+class TestSplitIntoTokens:
     def test_plain_chars(self, engine):
         assert engine._split_into_tokens("ABC") == ["A", "B", "C"]
 
@@ -179,8 +183,8 @@ class TestSplitIntoTokens:
 #                   673, 677)
 # ---------------------------------------------------------------------------
 
-class TestWordWrapTiles:
 
+class TestWordWrapTiles:
     def test_empty_text(self, engine):
         assert engine._word_wrap_tiles("", 22, 22, 3) == [""]
 
@@ -233,8 +237,8 @@ class TestWordWrapTiles:
 # _render_with_wrap (lines 362-419)
 # ---------------------------------------------------------------------------
 
-class TestRenderWithWrap:
 
+class TestRenderWithWrap:
     def test_variable_level_wrap(self, engine):
         context = {"test": {"long": "A B C D E F G H I J K"}}
         result = engine._render_with_wrap("{{test.long|wrap}}", context, max_lines=3)
@@ -253,9 +257,7 @@ class TestRenderWithWrap:
 
     def test_line_level_wrap(self, engine):
         context = {"test": {"val": "SHORT"}}
-        result = engine._render_with_wrap(
-            "{{test.val}} some extra text here now", context, max_lines=2
-        )
+        result = engine._render_with_wrap("{{test.val}} some extra text here now", context, max_lines=2)
         assert len(result) >= 1
 
 
@@ -263,27 +265,27 @@ class TestRenderWithWrap:
 # render_lines with wrap (lines 295-319)
 # ---------------------------------------------------------------------------
 
-class TestRenderLinesWrap:
 
+class TestRenderLinesWrap:
     def test_wrap_prefix(self, engine):
         context = {"test": {"val": "A B C D E F G H I J K L M"}}
         lines = ["{wrap}{{test.val}}", "", "", "", "", ""]
         result = engine.render_lines(lines, context)
-        output = result.split('\n')
+        output = result.split("\n")
         assert len(output) == 6
 
     def test_wrap_respects_non_empty_boundary(self, engine):
         context = {"test": {"val": "A B C D E F G H I J K L M N O P Q R"}}
         lines = ["{wrap}{{test.val}}", "", "FIXED", "", "", ""]
         result = engine.render_lines(lines, context)
-        output = result.split('\n')
+        output = result.split("\n")
         assert "FIXED" in output[2]
 
     def test_pipe_wrap_filter_in_lines(self, engine):
         context = {"test": {"val": "A B C D E F G H I J K L M"}}
         lines = ["{{test.val|wrap}}", "", "", "", "", ""]
         result = engine.render_lines(lines, context)
-        assert len(result.split('\n')) == 6
+        assert len(result.split("\n")) == 6
 
 
 # ---------------------------------------------------------------------------
@@ -296,8 +298,8 @@ class TestRenderLinesWrap:
 # (preserving the existing test_wrap_respects_non_empty_boundary contract).
 # ---------------------------------------------------------------------------
 
-class TestRenderLinesWrapRegion:
 
+class TestRenderLinesWrapRegion:
     def test_wrap_region_consecutive_wrap_lines_merge(self, engine):
         """wrap=true on rows 0,1,2 each with non-empty content; row 3 is the
         non-wrap boundary 'BOUNDARY'. Existing engine breaks at row 1's
@@ -315,7 +317,7 @@ class TestRenderLinesWrapRegion:
             {"alignment": "left", "wrap": False},
         ]
         result = engine.render_lines(lines, context, line_metadata=metadata)
-        output = result.split('\n')
+        output = result.split("\n")
         # Rows 0-2 must be word-bounded fragments from the value (no PLACEHOLDER
         # leftovers because wrap clobbers wrap-region members).
         value_tokens = context["test"]["val"].split()
@@ -325,9 +327,7 @@ class TestRenderLinesWrapRegion:
                 f"Row {row_idx} kept its placeholder; wrap region didn't merge: {output}"
             )
             for tok in row_tokens:
-                assert tok in value_tokens, (
-                    f"Row {row_idx} token {tok!r} is not a whole word from source: {output}"
-                )
+                assert tok in value_tokens, f"Row {row_idx} token {tok!r} is not a whole word from source: {output}"
         # Wrap must have produced content on at least 2 rows (otherwise the
         # value fit in one row and we proved nothing).
         non_empty_in_region = sum(1 for r in output[:3] if r.strip())
@@ -348,7 +348,7 @@ class TestRenderLinesWrapRegion:
             {"alignment": "left", "wrap": False},
         ]
         result = engine.render_lines(lines, context, line_metadata=metadata)
-        output = result.split('\n')
+        output = result.split("\n")
         # Row 0 must be word-bounded (NOT mid-word "A TOURIST BOAT CAPSIZE")
         # Row 1 must still contain the tile decoration
         row0 = output[0].rstrip()
@@ -356,8 +356,7 @@ class TestRenderLinesWrapRegion:
         value_tokens = context["test"]["val"].split()
         for tok in row0_tokens:
             assert tok in value_tokens, (
-                f"Row 0 token {tok!r} is mid-word truncation; expected whole-word boundary. "
-                f"Full row: {row0!r}"
+                f"Row 0 token {tok!r} is mid-word truncation; expected whole-word boundary. Full row: {row0!r}"
             )
         # And row 1 should still have the tile codes (decoration not clobbered)
         assert "{63}" in output[1], f"Row 1 decoration was clobbered: {output[1]!r}"
@@ -380,12 +379,10 @@ class TestRenderLinesWrapRegion:
             {"alignment": "left", "wrap": False},
         ]
         result = engine.render_lines(lines, context, line_metadata=metadata)
-        output = result.split('\n')
+        output = result.split("\n")
         assert "FIXED" in output[2], f"FIXED was clobbered: {output}"
         # PLACEHOLDER must be gone from row 1 (wrap extended into wrap=True row)
-        assert "PLACEHOLDER" not in output[1], (
-            f"PLACEHOLDER still on row 1; wrap region didn't extend: {output[1]!r}"
-        )
+        assert "PLACEHOLDER" not in output[1], f"PLACEHOLDER still on row 1; wrap region didn't extend: {output[1]!r}"
         # Row 1 should contain wrap overflow.
         value_tokens = context["test"]["val"].split()
         row1_tokens = output[1].split()
@@ -406,18 +403,14 @@ class TestRenderLinesWrapRegion:
             {"alignment": "left", "wrap": False},
         ]
         result = engine.render_lines(lines, context, line_metadata=metadata, device_type="note")
-        output = result.split('\n')
+        output = result.split("\n")
         assert len(output) == 3
         for row in output:
             assert len(row) <= 15, f"Row exceeds Note width: {row!r}"
-        assert "PLACEHOLDER" not in output[1], (
-            f"PLACEHOLDER survived wrap region on Note device: {output[1]!r}"
-        )
+        assert "PLACEHOLDER" not in output[1], f"PLACEHOLDER survived wrap region on Note device: {output[1]!r}"
         value_tokens = context["test"]["val"].split()
         row1_tokens = output[1].split()
-        assert any(tok in value_tokens for tok in row1_tokens), (
-            f"Wrap did not expand on Note device: {output}"
-        )
+        assert any(tok in value_tokens for tok in row1_tokens), f"Wrap did not expand on Note device: {output}"
 
     def test_wrap_on_last_line(self, engine):
         """Wrap on the final row with no rows below: single word-bounded line, no exception."""
@@ -432,15 +425,13 @@ class TestRenderLinesWrapRegion:
             {"alignment": "left", "wrap": True},
         ]
         result = engine.render_lines(lines, context, line_metadata=metadata)
-        output = result.split('\n')
+        output = result.split("\n")
         assert len(output) == 6
         # Row 5 should be word-bounded
         row5_tokens = output[5].split()
         value_tokens = context["test"]["val"].split()
         for tok in row5_tokens:
-            assert tok in value_tokens, (
-                f"Last-line wrap produced mid-word truncation: {output[5]!r}"
-            )
+            assert tok in value_tokens, f"Last-line wrap produced mid-word truncation: {output[5]!r}"
 
     def test_wrap_region_empty_wrap_line_does_not_pull_content_up(self, engine):
         """wrap=true on rows 0+1, content only on row 1: row 0 stays empty."""
@@ -455,7 +446,7 @@ class TestRenderLinesWrapRegion:
             {"alignment": "left", "wrap": False},
         ]
         result = engine.render_lines(lines, context, line_metadata=metadata)
-        output = result.split('\n')
+        output = result.split("\n")
         # Row 0 stays blank (just padding), row 1 has the value
         assert output[0].strip() == "", f"Row 0 should be empty: {output[0]!r}"
         assert "HELLO" in output[1], f"Row 1 should contain value: {output[1]!r}"
@@ -471,11 +462,9 @@ class TestRenderLinesWrapRegion:
         lines = ["{wrap}{{test.val}}", "{wrap}PLACEHOLDER", "FIXED", "", "", ""]
         # No line_metadata: forces _extract_alignment to populate wraps[]
         result = engine.render_lines(lines, context)
-        output = result.split('\n')
+        output = result.split("\n")
         assert "FIXED" in output[2], f"FIXED clobbered: {output}"
-        assert "PLACEHOLDER" not in output[1], (
-            f"PLACEHOLDER survived wrap region (legacy path): {output[1]!r}"
-        )
+        assert "PLACEHOLDER" not in output[1], f"PLACEHOLDER survived wrap region (legacy path): {output[1]!r}"
         value_tokens = context["test"]["val"].split()
         row1_tokens = output[1].split()
         assert any(tok in value_tokens for tok in row1_tokens), (
@@ -491,18 +480,16 @@ class TestRenderLinesWrapRegion:
         lines = ["{{test.val|wrap}}", "PLACEHOLDER", "FIXED", "", "", ""]
         metadata = [
             {"alignment": "left", "wrap": False},  # has_wrap from |wrap filter
-            {"alignment": "left", "wrap": True},   # extends region (non-empty content)
+            {"alignment": "left", "wrap": True},  # extends region (non-empty content)
             {"alignment": "left", "wrap": False},  # hard boundary
             {"alignment": "left", "wrap": False},
             {"alignment": "left", "wrap": False},
             {"alignment": "left", "wrap": False},
         ]
         result = engine.render_lines(lines, context, line_metadata=metadata)
-        output = result.split('\n')
+        output = result.split("\n")
         assert "FIXED" in output[2], f"FIXED clobbered: {output}"
-        assert "PLACEHOLDER" not in output[1], (
-            f"PLACEHOLDER survived |wrap region: {output[1]!r}"
-        )
+        assert "PLACEHOLDER" not in output[1], f"PLACEHOLDER survived |wrap region: {output[1]!r}"
         value_tokens = context["test"]["val"].split()
         row1_tokens = output[1].split()
         assert any(tok in value_tokens for tok in row1_tokens), (
@@ -525,13 +512,11 @@ class TestRenderLinesWrapRegion:
             {"alignment": "left", "wrap": False},
         ]
         result = engine.render_lines(lines, context, line_metadata=metadata)
-        output = result.split('\n')
+        output = result.split("\n")
         # Wrap should have expanded into row 1 because plugin.maybe renders to ""
         value_tokens = context["test"]["val"].split()
         row1_tokens = output[1].split()
-        assert any(tok in value_tokens for tok in row1_tokens), (
-            f"Wrap did not flow into rendered-empty line: {output}"
-        )
+        assert any(tok in value_tokens for tok in row1_tokens), f"Wrap did not flow into rendered-empty line: {output}"
 
     def test_wrap_region_blocked_by_rendered_visible_line(self, engine):
         """Row 1 is {{plugin.label}} where label = 'FOOTER': region stops at row 0."""
@@ -549,24 +534,22 @@ class TestRenderLinesWrapRegion:
             {"alignment": "left", "wrap": False},
         ]
         result = engine.render_lines(lines, context, line_metadata=metadata)
-        output = result.split('\n')
+        output = result.split("\n")
         # Row 1 should still show "FOOTER" (rendered-visible content blocks the region)
         assert "FOOTER" in output[1], f"FOOTER was clobbered: {output[1]!r}"
         # And row 0 must be word-bounded (budget=1 with word-wrapping)
         row0_tokens = output[0].split()
         value_tokens = context["test"]["val"].split()
         for tok in row0_tokens:
-            assert tok in value_tokens, (
-                f"Row 0 token {tok!r} is mid-word truncation: {output[0]!r}"
-            )
+            assert tok in value_tokens, f"Row 0 token {tok!r} is mid-word truncation: {output[0]!r}"
 
 
 # ---------------------------------------------------------------------------
 # render with context=None (line 146)
 # ---------------------------------------------------------------------------
 
-class TestRenderContextNone:
 
+class TestRenderContextNone:
     def test_render_builds_context_when_none(self, engine):
         result = engine.render("Hello", context=None)
         assert "Hello" in result
@@ -580,8 +563,8 @@ class TestRenderContextNone:
 # Variable edge cases (lines 717-720, 724, 863-864, 976-991, 995)
 # ---------------------------------------------------------------------------
 
-class TestVariableEdgeCases:
 
+class TestVariableEdgeCases:
     def test_single_part_returns_error(self, engine):
         result = engine.render("{{noperiod}}", context={})
         assert "???" in result
@@ -600,11 +583,11 @@ class TestVariableEdgeCases:
 
     def test_fill_space_variable(self, engine):
         result = engine.render("{{fill_space}}", context={})
-        assert '\x00FILL_SPACE\x00' in result
+        assert "\x00FILL_SPACE\x00" in result
 
     def test_fill_space_repeat_variable(self, engine):
         result = engine.render("{{fill_space_repeat:-}}", context={})
-        assert '\x00FILL_SPACE_REPEAT:-\x00' in result
+        assert "\x00FILL_SPACE_REPEAT:-\x00" in result
 
     def test_array_access_by_index(self, engine):
         context = {"test": {"items": ["A", "B", "C"]}}
@@ -628,204 +611,83 @@ class TestVariableEdgeCases:
 # Home Assistant entity handling (lines 880-945)
 # ---------------------------------------------------------------------------
 
-class TestHomeAssistantVariables:
 
+class TestHomeAssistantVariables:
     def test_entity_state(self, engine):
-        context = {
-            "home_assistant": {
-                "sensor.temperature": {"state": "72", "attributes": {}}
-            }
-        }
-        assert engine.render(
-            "{{home_assistant.sensor_temperature.state}}", context
-        ) == "72"
+        context = {"home_assistant": {"sensor.temperature": {"state": "72", "attributes": {}}}}
+        assert engine.render("{{home_assistant.sensor_temperature.state}}", context) == "72"
 
     def test_entity_attribute(self, engine):
         context = {
-            "home_assistant": {
-                "sensor.temperature": {
-                    "state": "72",
-                    "attributes": {"unit_of_measurement": "F"}
-                }
-            }
+            "home_assistant": {"sensor.temperature": {"state": "72", "attributes": {"unit_of_measurement": "F"}}}
         }
-        assert engine.render(
-            "{{home_assistant.sensor_temperature.unit_of_measurement}}", context
-        ) == "F"
+        assert engine.render("{{home_assistant.sensor_temperature.unit_of_measurement}}", context) == "F"
 
     def test_entity_not_found(self, engine):
         context = {"home_assistant": {}}
-        assert "???" in engine.render(
-            "{{home_assistant.sensor_missing.state}}", context
-        )
+        assert "???" in engine.render("{{home_assistant.sensor_missing.state}}", context)
 
     def test_attribute_not_found(self, engine):
-        context = {
-            "home_assistant": {
-                "sensor.temperature": {"state": "72", "attributes": {}}
-            }
-        }
-        assert "???" in engine.render(
-            "{{home_assistant.sensor_temperature.nonexistent}}", context
-        )
+        context = {"home_assistant": {"sensor.temperature": {"state": "72", "attributes": {}}}}
+        assert "???" in engine.render("{{home_assistant.sensor_temperature.nonexistent}}", context)
 
     def test_multi_underscore_domain(self, engine):
         context = {
-            "home_assistant": {
-                "media_player.living_room": {
-                    "state": "playing",
-                    "attributes": {"media_title": "Song"}
-                }
-            }
+            "home_assistant": {"media_player.living_room": {"state": "playing", "attributes": {"media_title": "Song"}}}
         }
-        assert engine.render(
-            "{{home_assistant.media_player_living_room.state}}", context
-        ) == "playing"
+        assert engine.render("{{home_assistant.media_player_living_room.state}}", context) == "playing"
 
     def test_boolean_attribute(self, engine):
-        context = {
-            "home_assistant": {
-                "switch.light": {
-                    "state": "on",
-                    "attributes": {"is_on": True}
-                }
-            }
-        }
-        assert engine.render(
-            "{{home_assistant.switch_light.is_on}}", context
-        ) == "Yes"
+        context = {"home_assistant": {"switch.light": {"state": "on", "attributes": {"is_on": True}}}}
+        assert engine.render("{{home_assistant.switch_light.is_on}}", context) == "Yes"
 
     def test_boolean_false_attribute(self, engine):
-        context = {
-            "home_assistant": {
-                "switch.light": {
-                    "state": "off",
-                    "attributes": {"is_on": False}
-                }
-            }
-        }
-        assert engine.render(
-            "{{home_assistant.switch_light.is_on}}", context
-        ) == "No"
+        context = {"home_assistant": {"switch.light": {"state": "off", "attributes": {"is_on": False}}}}
+        assert engine.render("{{home_assistant.switch_light.is_on}}", context) == "No"
 
     def test_numeric_attribute(self, engine):
-        context = {
-            "home_assistant": {
-                "sensor.temp": {
-                    "state": "72",
-                    "attributes": {"current": 72.5}
-                }
-            }
-        }
-        assert engine.render(
-            "{{home_assistant.sensor_temp.current}}", context
-        ) == "72.5"
+        context = {"home_assistant": {"sensor.temp": {"state": "72", "attributes": {"current": 72.5}}}}
+        assert engine.render("{{home_assistant.sensor_temp.current}}", context) == "72.5"
 
     def test_integer_attribute(self, engine):
-        context = {
-            "home_assistant": {
-                "sensor.temp": {
-                    "state": "72",
-                    "attributes": {"current": 72.0}
-                }
-            }
-        }
-        assert engine.render(
-            "{{home_assistant.sensor_temp.current}}", context
-        ) == "72"
+        context = {"home_assistant": {"sensor.temp": {"state": "72", "attributes": {"current": 72.0}}}}
+        assert engine.render("{{home_assistant.sensor_temp.current}}", context) == "72"
 
     def test_none_attribute(self, engine):
-        context = {
-            "home_assistant": {
-                "sensor.temp": {
-                    "state": "unknown",
-                    "attributes": {"current": None}
-                }
-            }
-        }
-        assert "???" in engine.render(
-            "{{home_assistant.sensor_temp.current}}", context
-        )
+        context = {"home_assistant": {"sensor.temp": {"state": "unknown", "attributes": {"current": None}}}}
+        assert "???" in engine.render("{{home_assistant.sensor_temp.current}}", context)
 
     def test_no_underscore_entity(self, engine):
-        context = {
-            "home_assistant": {
-                "sensor": {"state": "ok", "attributes": {}}
-            }
-        }
-        assert engine.render(
-            "{{home_assistant.sensor.state}}", context
-        ) == "ok"
+        context = {"home_assistant": {"sensor": {"state": "ok", "attributes": {}}}}
+        assert engine.render("{{home_assistant.sensor.state}}", context) == "ok"
 
     def test_top_level_attribute(self, engine):
-        context = {
-            "home_assistant": {
-                "sensor.temp": {
-                    "state": "72",
-                    "last_updated": "2024-01-01",
-                    "attributes": {}
-                }
-            }
-        }
-        assert engine.render(
-            "{{home_assistant.sensor_temp.last_updated}}", context
-        ) == "2024-01-01"
+        context = {"home_assistant": {"sensor.temp": {"state": "72", "last_updated": "2024-01-01", "attributes": {}}}}
+        assert engine.render("{{home_assistant.sensor_temp.last_updated}}", context) == "2024-01-01"
 
     def test_top_level_bool_attribute(self, engine):
-        context = {
-            "home_assistant": {
-                "sensor.temp": {
-                    "state": "72",
-                    "is_available": True,
-                    "attributes": {}
-                }
-            }
-        }
-        assert engine.render(
-            "{{home_assistant.sensor_temp.is_available}}", context
-        ) == "Yes"
+        context = {"home_assistant": {"sensor.temp": {"state": "72", "is_available": True, "attributes": {}}}}
+        assert engine.render("{{home_assistant.sensor_temp.is_available}}", context) == "Yes"
 
     def test_top_level_numeric_attribute(self, engine):
-        context = {
-            "home_assistant": {
-                "sensor.temp": {
-                    "state": "72",
-                    "battery": 85.0,
-                    "attributes": {}
-                }
-            }
-        }
-        assert engine.render(
-            "{{home_assistant.sensor_temp.battery}}", context
-        ) == "85"
+        context = {"home_assistant": {"sensor.temp": {"state": "72", "battery": 85.0, "attributes": {}}}}
+        assert engine.render("{{home_assistant.sensor_temp.battery}}", context) == "85"
 
     def test_top_level_none_attribute(self, engine):
-        context = {
-            "home_assistant": {
-                "sensor.temp": {
-                    "state": "72",
-                    "friendly_name": None,
-                    "attributes": {}
-                }
-            }
-        }
-        assert "???" in engine.render(
-            "{{home_assistant.sensor_temp.friendly_name}}", context
-        )
+        context = {"home_assistant": {"sensor.temp": {"state": "72", "friendly_name": None, "attributes": {}}}}
+        assert "???" in engine.render("{{home_assistant.sensor_temp.friendly_name}}", context)
 
     def test_fallback_first_underscore_replace(self, engine):
         context = {"home_assistant": {}}
-        assert "???" in engine.render(
-            "{{home_assistant.nonexistent_entity.state}}", context
-        )
+        assert "???" in engine.render("{{home_assistant.nonexistent_entity.state}}", context)
 
 
 # ---------------------------------------------------------------------------
 # _color suffix (lines 952-955)
 # ---------------------------------------------------------------------------
 
-class TestColorSuffix:
 
+class TestColorSuffix:
     def test_color_suffix_no_rules(self, engine):
         context = {"test": {"temperature": 72}}
         result = engine.render("{{test.temperature_color}}", context)
@@ -836,8 +698,8 @@ class TestColorSuffix:
 # _evaluate_condition (lines 805-836)
 # ---------------------------------------------------------------------------
 
-class TestEvaluateCondition:
 
+class TestEvaluateCondition:
     def test_greater_than(self, engine):
         assert engine._evaluate_condition(10, ">", 5) is True
         assert engine._evaluate_condition(5, ">", 10) is False
@@ -878,8 +740,8 @@ class TestEvaluateCondition:
 # _get_color_for_value (lines 763-792)
 # ---------------------------------------------------------------------------
 
-class TestGetColorForValue:
 
+class TestGetColorForValue:
     def test_no_dot_returns_empty(self, engine):
         assert engine._get_color_for_value("nodot", {}) == ""
 
@@ -921,9 +783,7 @@ class TestGetColorForValue:
         engine._config_manager = mock_config
 
         mock_manifest = Mock()
-        mock_manifest.color_rules_schema = {
-            "aqi": {"default_rules": [{"condition": ">", "value": 50, "color": "red"}]}
-        }
+        mock_manifest.color_rules_schema = {"aqi": {"default_rules": [{"condition": ">", "value": 50, "color": "red"}]}}
         engine._plugin_registry = Mock()
         engine._plugin_registry.get_manifest.return_value = mock_manifest
 
@@ -944,13 +804,11 @@ class TestGetColorForValue:
 # _get_color_only (lines 1014-1050)
 # ---------------------------------------------------------------------------
 
-class TestGetColorOnly:
 
+class TestGetColorOnly:
     def test_returns_color_tile(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = [
-            {"condition": ">=", "value": 0, "color": "green"}
-        ]
+        mock_config.get_color_rules.return_value = [{"condition": ">=", "value": 0, "color": "green"}]
         engine._config_manager = mock_config
         context = {"test": {"val": 10}}
         assert engine._get_color_only("test", "val", context) == "{66}"
@@ -965,9 +823,7 @@ class TestGetColorOnly:
 
     def test_null_raw_value_returns_empty(self, engine):
         mock_config = Mock()
-        mock_config.get_color_rules.return_value = [
-            {"condition": ">", "value": 0, "color": "red"}
-        ]
+        mock_config.get_color_rules.return_value = [{"condition": ">", "value": 0, "color": "red"}]
         engine._config_manager = mock_config
         context = {"test": {}}
         assert engine._get_color_only("test", "val", context) == ""
@@ -1001,8 +857,8 @@ class TestGetColorOnly:
 # _map_field_for_data_lookup (lines 1067-1070)
 # ---------------------------------------------------------------------------
 
-class TestMapFieldForDataLookup:
 
+class TestMapFieldForDataLookup:
     def test_weather_temp_maps_to_temperature(self, engine):
         assert engine._map_field_for_data_lookup("weather", "temp") == "temperature"
 
@@ -1015,8 +871,8 @@ class TestMapFieldForDataLookup:
 # Filter edge cases (lines 1087-1088, 1094-1097)
 # ---------------------------------------------------------------------------
 
-class TestFilterEdgeCases:
 
+class TestFilterEdgeCases:
     def test_pad_invalid_arg(self, engine):
         assert engine._apply_filter("hello", "pad:abc") == "hello"
 
@@ -1036,8 +892,8 @@ class TestFilterEdgeCases:
 # _normalize_colors (line 1120)
 # ---------------------------------------------------------------------------
 
-class TestNormalizeColors:
 
+class TestNormalizeColors:
     def test_named_color_to_numeric(self, engine):
         assert engine._normalize_colors("{{red}}") == "{63}"
 
@@ -1052,8 +908,8 @@ class TestNormalizeColors:
 # _extract_alignment with wrap (lines 1141-1142)
 # ---------------------------------------------------------------------------
 
-class TestExtractAlignmentWrap:
 
+class TestExtractAlignmentWrap:
     def test_wrap_prefix_detected(self, engine):
         alignment, wrap_enabled, content = engine._extract_alignment("{wrap}Hello")
         assert wrap_enabled is True
@@ -1071,8 +927,8 @@ class TestExtractAlignmentWrap:
 # _build_context with no registry (line 688)
 # ---------------------------------------------------------------------------
 
-class TestBuildContextNoRegistry:
 
+class TestBuildContextNoRegistry:
     def test_no_registry_returns_empty(self, engine):
         engine._plugin_registry = None
         assert engine._build_context() == {}
@@ -1082,8 +938,8 @@ class TestBuildContextNoRegistry:
 # Methods with no registry (lines 1266, 1275-1277, 1336, 1417, 1433)
 # ---------------------------------------------------------------------------
 
-class TestNoRegistryPaths:
 
+class TestNoRegistryPaths:
     def test_get_available_variables_empty(self, engine):
         engine._plugin_registry = None
         assert engine.get_available_variables() == {}
@@ -1109,8 +965,8 @@ class TestNoRegistryPaths:
 # strip_formatting (lines 1442-1445)
 # ---------------------------------------------------------------------------
 
-class TestStripFormatting:
 
+class TestStripFormatting:
     def test_removes_unresolved_variables(self, engine):
         assert engine.strip_formatting("Hello {{world}}") == "Hello "
 
@@ -1125,10 +981,10 @@ class TestStripFormatting:
 # fill_space repeat patterns (line 1240, 1250)
 # ---------------------------------------------------------------------------
 
-class TestFillSpaceRepeat:
 
+class TestFillSpaceRepeat:
     def test_repeat_dash(self, engine):
-        marker = '\x00FILL_SPACE_REPEAT:-\x00'
+        marker = "\x00FILL_SPACE_REPEAT:-\x00"
         result = engine._process_fill_space(f"A{marker}B", width=10)
         assert result.startswith("A")
         assert result.endswith("B")
@@ -1136,14 +992,14 @@ class TestFillSpaceRepeat:
         assert "--------" in result
 
     def test_repeat_color(self, engine):
-        marker = '\x00FILL_SPACE_REPEAT:blue\x00'
+        marker = "\x00FILL_SPACE_REPEAT:blue\x00"
         result = engine._process_fill_space(f"A{marker}B", width=6)
         assert result.startswith("A")
         assert result.endswith("B")
         assert "{67}" in result
 
     def test_repeat_multi_char_pattern(self, engine):
-        marker = '\x00FILL_SPACE_REPEAT:=-\x00'
+        marker = "\x00FILL_SPACE_REPEAT:=-\x00"
         result = engine._process_fill_space(f"A{marker}B", width=10)
         assert result.startswith("A")
         assert result.endswith("B")
@@ -1154,8 +1010,8 @@ class TestFillSpaceRepeat:
 # _calculate_max_line_length (lines 1356, 1399-1400)
 # ---------------------------------------------------------------------------
 
-class TestCalculateMaxLineLength:
 
+class TestCalculateMaxLineLength:
     def test_wrap_filter_returns_22(self, engine):
         assert engine._calculate_max_line_length("{{test.val|wrap}}") == 22
 

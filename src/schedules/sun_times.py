@@ -29,7 +29,8 @@ def get_effective_timezone() -> str:
     DST while "now" is computed with DST.
     """
     try:
-        from ..config import Config
+        from src.config import Config
+
         return Config.GENERAL_TIMEZONE or Config.TIMEZONE or "UTC"
     except Exception:
         logger.debug("Could not read timezone from Config, using UTC", exc_info=True)
@@ -48,6 +49,7 @@ def get_today_in_timezone(timezone_str: str) -> date:
     except (ZoneInfoNotFoundError, ValueError):
         tz = ZoneInfo("UTC")
     return datetime.now(tz).date()
+
 
 # Sun event types that can be used in schedule start/end
 SUN_EVENT_TYPES = ("sunrise", "sunset")
@@ -179,34 +181,35 @@ def resolve_schedule_sun_times(
     if latitude is not None and longitude is not None:
         if start_type in SUN_EVENT_TYPES:
             computed = resolve_sun_time(
-                start_type, start_sun_offset,
-                latitude, longitude, target_date, timezone_str,
+                start_type,
+                start_sun_offset,
+                latitude,
+                longitude,
+                target_date,
+                timezone_str,
             )
             if computed is not None:
                 resolved_start = computed
             else:
                 logger.debug(
-                    f"Sun time resolution failed for start ({start_type}), "
-                    f"using fallback: {start_time_fallback}"
+                    f"Sun time resolution failed for start ({start_type}), using fallback: {start_time_fallback}"
                 )
 
         if end_type in SUN_EVENT_TYPES:
             computed = resolve_sun_time(
-                end_type, end_sun_offset,
-                latitude, longitude, target_date, timezone_str,
+                end_type,
+                end_sun_offset,
+                latitude,
+                longitude,
+                target_date,
+                timezone_str,
             )
             if computed is not None:
                 resolved_end = computed
             else:
-                logger.debug(
-                    f"Sun time resolution failed for end ({end_type}), "
-                    f"using fallback: {end_time_fallback}"
-                )
+                logger.debug(f"Sun time resolution failed for end ({end_type}), using fallback: {end_time_fallback}")
     else:
         if start_type in SUN_EVENT_TYPES or end_type in SUN_EVENT_TYPES:
-            logger.debug(
-                "Location not configured; sun-based schedule times "
-                "will use stored fallback values"
-            )
+            logger.debug("Location not configured; sun-based schedule times will use stored fallback values")
 
     return resolved_start, resolved_end

@@ -15,20 +15,20 @@ and DISCONNECT.
 
 import argparse
 import json
+import os
 import socket
 import struct
 import sys
-import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.mqtt.config import MQTTConfig
 from src.mqtt.discovery import build_all_discovery_messages
 
-
 # ---------------------------------------------------------------------------
 # Minimal MQTT 3.1.1 helpers (only what we need: CONNECT, PUBLISH, DISCONNECT)
 # ---------------------------------------------------------------------------
+
 
 def _encode_utf8(s: str) -> bytes:
     encoded = s.encode("utf-8")
@@ -50,10 +50,10 @@ def _encode_remaining_length(length: int) -> bytes:
 
 def _make_connect(client_id: str = "fiestaboard-test") -> bytes:
     variable = (
-        _encode_utf8("MQTT")           # Protocol name
-        + struct.pack("!B", 4)         # Protocol level 4 = MQTT 3.1.1
-        + struct.pack("!B", 0x02)      # Connect flags: clean session
-        + struct.pack("!H", 60)        # Keep alive 60s
+        _encode_utf8("MQTT")  # Protocol name
+        + struct.pack("!B", 4)  # Protocol level 4 = MQTT 3.1.1
+        + struct.pack("!B", 0x02)  # Connect flags: clean session
+        + struct.pack("!H", 60)  # Keep alive 60s
     )
     payload = _encode_utf8(client_id)
     remaining = variable + payload

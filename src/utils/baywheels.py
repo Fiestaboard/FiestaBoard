@@ -11,7 +11,7 @@ import time
 
 import requests
 
-from ..config import Config
+from src.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> f
     dlat = lat2_rad - lat1_rad
     dlon = lon2_rad - lon1_rad
 
-    a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     return R * c
@@ -296,16 +296,11 @@ class BayWheelsSource:
             return None
 
         # Find station with most electric bikes
-        best = max(stations, key=lambda s: s.get("electric_bikes", 0))
-        return best
+        return max(stations, key=lambda s: s.get("electric_bikes", 0))
 
     @classmethod
     def find_stations_near_location(
-        cls,
-        lat: float,
-        lng: float,
-        radius_km: float = 2.0,
-        limit: int = 10
+        cls, lat: float, lng: float, radius_km: float = 2.0, limit: int = 10
     ) -> list[dict[str, any]]:
         """
         Find stations near a given location.
@@ -336,15 +331,17 @@ class BayWheelsSource:
             distance = _haversine_distance(lat, lng, station_lat, station_lon)
 
             if distance <= radius_km:
-                stations_with_distance.append({
-                    "station_id": station_id,
-                    "name": info.get("name", station_id),
-                    "lat": station_lat,
-                    "lon": station_lon,
-                    "address": info.get("address", ""),
-                    "capacity": info.get("capacity", 0),
-                    "distance_km": round(distance, 2),
-                })
+                stations_with_distance.append(
+                    {
+                        "station_id": station_id,
+                        "name": info.get("name", station_id),
+                        "lat": station_lat,
+                        "lon": station_lon,
+                        "address": info.get("address", ""),
+                        "capacity": info.get("capacity", 0),
+                        "distance_km": round(distance, 2),
+                    }
+                )
 
         # Sort by distance and limit results
         stations_with_distance.sort(key=lambda x: x["distance_km"])
@@ -362,10 +359,9 @@ class BayWheelsSource:
         """
         if electric_bikes < 2:
             return "red"
-        elif electric_bikes > 5:
+        if electric_bikes > 5:
             return "green"
-        else:
-            return "yellow"
+        return "yellow"
 
 
 def get_baywheels_source() -> BayWheelsSource | None:
@@ -382,4 +378,3 @@ def get_baywheels_source() -> BayWheelsSource | None:
         return None
 
     return BayWheelsSource(station_ids=station_ids)
-

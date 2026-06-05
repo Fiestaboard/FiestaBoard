@@ -4,7 +4,7 @@ import json
 import subprocess
 from unittest import mock
 
-
+from src.plugins.loader import _check_version_constraint, _parse_version
 from src.plugins.sources import (
     PluginSource,
     RegistryEntry,
@@ -21,8 +21,6 @@ from src.plugins.sources import (
     repo_name_from_url,
     validate_registry_repo_name,
 )
-from src.plugins.loader import _check_version_constraint, _parse_version
-
 
 # ── PluginSource ─────────────────────────────────────────────────────────────
 
@@ -74,52 +72,34 @@ class TestRegistryEntry:
 
 class TestNamingConvention:
     def test_valid_names(self):
-        ok, _ = validate_registry_repo_name(
-            "https://github.com/FiestaBoard/fiestaboard-plugin--weather"
-        )
+        ok, _ = validate_registry_repo_name("https://github.com/FiestaBoard/fiestaboard-plugin--weather")
         assert ok
 
     def test_valid_name_with_dashes(self):
-        ok, _ = validate_registry_repo_name(
-            "https://github.com/FiestaBoard/fiestaboard-plugin--my-cool-plugin"
-        )
+        ok, _ = validate_registry_repo_name("https://github.com/FiestaBoard/fiestaboard-plugin--my-cool-plugin")
         assert ok
 
     def test_invalid_missing_prefix(self):
-        ok, reason = validate_registry_repo_name(
-            "https://github.com/someone/my-plugin"
-        )
+        ok, reason = validate_registry_repo_name("https://github.com/someone/my-plugin")
         assert not ok
         assert "fiestaboard-plugin--" in reason
 
     def test_invalid_uppercase(self):
-        ok, _ = validate_registry_repo_name(
-            "https://github.com/FiestaBoard/Fiestaboard-plugin--Weather"
-        )
+        ok, _ = validate_registry_repo_name("https://github.com/FiestaBoard/Fiestaboard-plugin--Weather")
         assert not ok
 
     def test_repo_name_extraction(self):
         assert (
-            repo_name_from_url(
-                "https://github.com/FiestaBoard/fiestaboard-plugin--foo.git"
-            )
+            repo_name_from_url("https://github.com/FiestaBoard/fiestaboard-plugin--foo.git")
             == "fiestaboard-plugin--foo"
         )
 
     def test_repo_name_no_git_suffix(self):
-        assert (
-            repo_name_from_url(
-                "https://github.com/FiestaBoard/fiestaboard-plugin--bar"
-            )
-            == "fiestaboard-plugin--bar"
-        )
+        assert repo_name_from_url("https://github.com/FiestaBoard/fiestaboard-plugin--bar") == "fiestaboard-plugin--bar"
 
     def test_repo_name_trailing_slash(self):
         assert (
-            repo_name_from_url(
-                "https://github.com/FiestaBoard/fiestaboard-plugin--baz/"
-            )
-            == "fiestaboard-plugin--baz"
+            repo_name_from_url("https://github.com/FiestaBoard/fiestaboard-plugin--baz/") == "fiestaboard-plugin--baz"
         )
 
 
@@ -341,13 +321,13 @@ class TestCloneOrUpdateRepoPathSafety:
     def test_rejects_invalid_plugin_id_characters(self):
         """Plugin ids with path separators or shell chars are rejected."""
         import tempfile
+
         with tempfile.TemporaryDirectory() as tmp:
             from pathlib import Path
+
             ext_dir = Path(tmp) / "external_plugins"
             ext_dir.mkdir()
-            ok, err = clone_or_update_repo(
-                "https://github.com/Org/repo", "../../etc/passwd", external_dir=ext_dir
-            )
+            ok, err = clone_or_update_repo("https://github.com/Org/repo", "../../etc/passwd", external_dir=ext_dir)
             assert not ok
 
     def test_accepts_valid_plugin_id(self, tmp_path):
@@ -363,9 +343,7 @@ class TestCloneOrUpdateRepoPathSafety:
             return mock.MagicMock()
 
         with mock.patch("src.plugins.sources.subprocess.run", side_effect=_fake_run):
-            ok, err = clone_or_update_repo(
-                "https://github.com/Org/repo", "my_plugin", external_dir=allowed_root
-            )
+            ok, err = clone_or_update_repo("https://github.com/Org/repo", "my_plugin", external_dir=allowed_root)
         assert ok
         assert err == ""
 
@@ -484,14 +462,16 @@ class TestGetExternalPluginsDir:
 
 class TestRegistryEntryVersionField:
     def test_from_dict_with_version(self):
-        entry = RegistryEntry.from_dict({
-            "id": "weather",
-            "name": "Weather",
-            "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--weather",
-            "fiestaboard_version": ">=2.10.0",
-            "icon": "cloud-sun",
-            "category": "weather",
-        })
+        entry = RegistryEntry.from_dict(
+            {
+                "id": "weather",
+                "name": "Weather",
+                "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--weather",
+                "fiestaboard_version": ">=2.10.0",
+                "icon": "cloud-sun",
+                "category": "weather",
+            }
+        )
         assert entry.fiestaboard_version == ">=2.10.0"
         assert entry.icon == "cloud-sun"
         assert entry.category == "weather"

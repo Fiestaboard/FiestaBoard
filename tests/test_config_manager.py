@@ -32,7 +32,7 @@ def reset_singleton(tmp_path, monkeypatch):
     monkeypatch.delenv("FB_LOCAL_API_KEY", raising=False)
     monkeypatch.delenv("BOARD_HOST", raising=False)
     monkeypatch.delenv("FB_HOST", raising=False)
-    
+
     ConfigManager._instance = None
     ConfigManager._lock = threading.Lock()
     yield tmp_path
@@ -46,7 +46,7 @@ def test_creates_default_config_when_no_file_exists(tmp_path):
     """Creates default config when no file exists."""
     config_path = tmp_path / "config.json"
     assert not config_path.exists()
-    cm = ConfigManager(config_path=str(config_path))
+    ConfigManager(config_path=str(config_path))
     assert config_path.exists()
     loaded = json.loads(config_path.read_text())
     assert "board" in loaded
@@ -78,11 +78,15 @@ def test_pi_profile_does_not_overwrite_existing_instance_name(tmp_path, monkeypa
     """Existing config (e.g. user renamed) is not stomped on next start."""
     monkeypatch.setenv("FIESTABOARD_PROFILE", "pi")
     config_path = tmp_path / "config.json"
-    config_path.write_text(json.dumps({
-        "board": {"api_mode": "local"},
-        "features": {},
-        "general": {"instance_name": "Kitchen Board"},
-    }))
+    config_path.write_text(
+        json.dumps(
+            {
+                "board": {"api_mode": "local"},
+                "features": {},
+                "general": {"instance_name": "Kitchen Board"},
+            }
+        )
+    )
     cm = ConfigManager(config_path=str(config_path))
     assert cm.get_general()["instance_name"] == "Kitchen Board"
 
@@ -767,11 +771,13 @@ def test_reload_reloads_from_file(tmp_path):
     cm = ConfigManager(config_path=str(config_path))
     cm.set_board({"host": "original.com"})
     config_path.write_text(
-        json.dumps({
-            "board": {"api_mode": "local", "host": "reloaded.com"},
-            "features": {},
-            "general": {},
-        })
+        json.dumps(
+            {
+                "board": {"api_mode": "local", "host": "reloaded.com"},
+                "features": {},
+                "general": {},
+            }
+        )
     )
     cm.reload()
     assert cm.get_board()["host"] == "reloaded.com"

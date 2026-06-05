@@ -8,26 +8,26 @@ Covers:
 - Manifest validation of the demo section
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 
+import pytest
+
+from src.pages.models import Page, PageCreate
+from src.pages.service import PageService
+from src.pages.storage import CURRENT_SCHEMA_VERSION, PageStorage, _migrate_v1_to_v2
 from src.plugins.manifest import (
     DemoPageSchema,
     PluginManifest,
     validate_manifest,
 )
-from src.pages.models import Page, PageCreate
-from src.pages.storage import PageStorage, _migrate_v1_to_v2, CURRENT_SCHEMA_VERSION
-from src.pages.service import PageService
-
 
 # ---------------------------------------------------------------------------
 # DemoPageSchema + manifest parsing
 # ---------------------------------------------------------------------------
 
-class TestDemoPageSchema:
 
+class TestDemoPageSchema:
     def test_parse_old_format_from_manifest(self):
         """Old flat demo format is normalised to a dict keyed by device_type."""
         data = {
@@ -170,8 +170,8 @@ class TestDemoPageSchema:
 # Manifest validation
 # ---------------------------------------------------------------------------
 
-class TestDemoValidation:
 
+class TestDemoValidation:
     def test_valid_demo_section(self):
         """A well-formed demo section passes validation."""
         data = {
@@ -299,8 +299,8 @@ class TestDemoValidation:
 # Page model – demo_plugin_id
 # ---------------------------------------------------------------------------
 
-class TestPageDemoField:
 
+class TestPageDemoField:
     def test_page_has_demo_plugin_id(self):
         page = Page(
             name="Test",
@@ -339,8 +339,8 @@ class TestPageDemoField:
 # Schema migration v1 -> v2
 # ---------------------------------------------------------------------------
 
-class TestSchemaMigrationV1ToV2:
 
+class TestSchemaMigrationV1ToV2:
     def test_adds_demo_plugin_id(self):
         pages = [
             {"id": "1", "name": "A", "type": "template", "template": ["X"]},
@@ -374,8 +374,8 @@ class TestSchemaMigrationV1ToV2:
 # PageService – demo page operations
 # ---------------------------------------------------------------------------
 
-class TestPageServiceDemo:
 
+class TestPageServiceDemo:
     @pytest.fixture
     def temp_storage_file(self):
         fd, path = tempfile.mkstemp(suffix=".json")

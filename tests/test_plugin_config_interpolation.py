@@ -6,14 +6,12 @@ are correctly resolved to their dynamic values at runtime.
 
 import re
 
-
 from src.plugins.base import PluginBase, PluginResult
 from src.plugins.config_interpolation import (
     get_builtin_variables,
     interpolate_config,
     interpolate_string,
 )
-
 
 # ── Test fixtures ──────────────────────────────────────────────
 
@@ -234,13 +232,7 @@ class TestInterpolateConfig:
         ]
 
     def test_deeply_nested(self):
-        config = {
-            "level1": {
-                "level2": {
-                    "level3": "value-{{key}}"
-                }
-            }
-        }
+        config = {"level1": {"level2": {"level3": "value-{{key}}"}}}
         variables = {"key": "resolved"}
         result = interpolate_config(config, variables)
         assert result["level1"]["level2"]["level3"] == "value-resolved"
@@ -360,24 +352,20 @@ class TestPluginBaseResolveConfigVariables:
     def test_returns_copy_not_original(self):
         plugin = InterpolatingPlugin()
         plugin._config = {"url": "https://api.example.com/{{date}}"}
-        resolved = plugin.resolve_config_variables()
+        plugin.resolve_config_variables()
         # Original should not be mutated
         assert "{{date}}" in plugin._config["url"]
 
     def test_with_extra_context(self):
         plugin = InterpolatingPlugin()
         plugin._config = {"url": "https://api.example.com/{{custom_var}}"}
-        resolved = plugin.resolve_config_variables(
-            extra_variables={"custom_var": "hello"}
-        )
+        resolved = plugin.resolve_config_variables(extra_variables={"custom_var": "hello"})
         assert resolved["url"] == "https://api.example.com/hello"
 
     def test_extra_context_overrides_builtin(self):
         plugin = InterpolatingPlugin()
         plugin._config = {"url": "https://api.example.com/{{date}}"}
-        resolved = plugin.resolve_config_variables(
-            extra_variables={"date": "custom-date"}
-        )
+        resolved = plugin.resolve_config_variables(extra_variables={"date": "custom-date"})
         assert resolved["url"] == "https://api.example.com/custom-date"
 
     def test_empty_config(self):
@@ -469,31 +457,21 @@ class TestCrossPluginVariables:
 
     def test_reference_other_plugin_variable(self):
         plugin = InterpolatingPlugin()
-        plugin._config = {
-            "url": "https://api.example.com/{{weather.location}}"
-        }
-        resolved = plugin.resolve_config_variables(
-            extra_variables={"weather.location": "san-francisco"}
-        )
+        plugin._config = {"url": "https://api.example.com/{{weather.location}}"}
+        resolved = plugin.resolve_config_variables(extra_variables={"weather.location": "san-francisco"})
         assert resolved["url"] == "https://api.example.com/san-francisco"
 
     def test_mixed_builtin_and_cross_plugin(self):
         plugin = InterpolatingPlugin()
-        plugin._config = {
-            "url": "https://api.example.com/{{date}}/{{weather.location}}"
-        }
-        resolved = plugin.resolve_config_variables(
-            extra_variables={"weather.location": "sf"}
-        )
+        plugin._config = {"url": "https://api.example.com/{{date}}/{{weather.location}}"}
+        resolved = plugin.resolve_config_variables(extra_variables={"weather.location": "sf"})
         # date should be resolved from builtin, location from extra
         assert "sf" in resolved["url"]
         assert re.search(r"\d{4}-\d{2}-\d{2}", resolved["url"])
 
     def test_unknown_cross_plugin_variable_preserved(self):
         plugin = InterpolatingPlugin()
-        plugin._config = {
-            "url": "https://api.example.com/{{nonexistent.var}}"
-        }
+        plugin._config = {"url": "https://api.example.com/{{nonexistent.var}}"}
         resolved = plugin.resolve_config_variables()
         assert resolved["url"] == "https://api.example.com/{{nonexistent.var}}"
 

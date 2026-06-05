@@ -8,6 +8,7 @@ access to all plugin repos. Run from the repo root:
 
   python3 scripts/fetch_plugin_stats.py
 """
+
 import base64
 import datetime
 import json
@@ -67,7 +68,7 @@ def main() -> None:
         plugins_out = list(executor.map(fetch_plugin, registry["plugins"]))
 
     output = {
-        "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "window_days": 14,
         "plugins": plugins_out,
     }

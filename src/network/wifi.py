@@ -19,6 +19,7 @@ and reboots even if the API container is destroyed.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import shutil
@@ -159,10 +160,7 @@ class WiFiService:
         elif not Path(_DBUS_SOCKET).exists():
             cap = WiFiCapability(
                 available=False,
-                reason=(
-                    "The host D-Bus socket is not mounted into the "
-                    "container; cannot reach NetworkManager."
-                ),
+                reason=("The host D-Bus socket is not mounted into the container; cannot reach NetworkManager."),
             )
         else:
             cap = WiFiCapability(available=True)
@@ -184,7 +182,7 @@ class WiFiService:
         secrets in log messages, and translates failures into ``WiFiError``
         with the stderr message so the API can return a useful response.
         """
-        cmd = ["nmcli"] + args
+        cmd = ["nmcli", *args]
         logger.debug("nmcli: %s", " ".join(_redact_args(cmd)))
         try:
             result = subprocess.run(
@@ -197,9 +195,7 @@ class WiFiService:
         except FileNotFoundError as exc:
             raise WiFiError("nmcli binary not found") from exc
         except subprocess.TimeoutExpired as exc:
-            raise WiFiError(
-                f"nmcli timed out after {timeout}s: {' '.join(_redact_args(cmd))}"
-            ) from exc
+            raise WiFiError(f"nmcli timed out after {timeout}s: {' '.join(_redact_args(cmd))}") from exc
         except subprocess.CalledProcessError as exc:
             stderr = (exc.stderr or "").strip()
             raise WiFiError(stderr or f"nmcli exited with status {exc.returncode}") from exc
@@ -267,9 +263,7 @@ class WiFiService:
         """
         self._require_available()
 
-        active_out = self._run_nmcli(
-            ["-t", "-f", "NAME,TYPE,DEVICE", "connection", "show", "--active"]
-        )
+        active_out = self._run_nmcli(["-t", "-f", "NAME,TYPE,DEVICE", "connection", "show", "--active"])
         active_ssid: str | None = None
         active_name: str | None = None
         for line in active_out.splitlines():
@@ -285,9 +279,7 @@ class WiFiService:
 
         if active_name:
             try:
-                detail = self._run_nmcli(
-                    ["-t", "-f", "IP4.ADDRESS,IP4.GATEWAY", "connection", "show", active_name]
-                )
+                detail = self._run_nmcli(["-t", "-f", "IP4.ADDRESS,IP4.GATEWAY", "connection", "show", active_name])
                 for line in detail.splitlines():
                     parts = self._parse_terse(line)
                     if len(parts) < 2:
@@ -304,16 +296,12 @@ class WiFiService:
             # in-use, which is the active AP. Best-effort — missing signal
             # isn't an error.
             try:
-                scan_out = self._run_nmcli(
-                    ["-t", "-f", "IN-USE,SSID,SIGNAL", "device", "wifi", "list"]
-                )
+                scan_out = self._run_nmcli(["-t", "-f", "IN-USE,SSID,SIGNAL", "device", "wifi", "list"])
                 for line in scan_out.splitlines():
                     parts = self._parse_terse(line)
                     if len(parts) >= 3 and parts[0] == "*" and parts[1] == active_ssid:
-                        try:
+                        with contextlib.suppress(ValueError):
                             signal = int(parts[2])
-                        except ValueError:
-                            pass
                         break
             except WiFiError:
                 pass
@@ -376,9 +364,7 @@ class WiFiService:
     def saved_networks(self) -> list[SavedNetwork]:
         """List persisted wifi profiles (the ones NM will autoconnect)."""
         self._require_available()
-        out = self._run_nmcli(
-            ["-t", "-f", "NAME,TYPE,AUTOCONNECT", "connection", "show"]
-        )
+        out = self._run_nmcli(["-t", "-f", "NAME,TYPE,AUTOCONNECT", "connection", "show"])
         saved: list[SavedNetwork] = []
         for line in out.splitlines():
             parts = self._parse_terse(line)
@@ -417,12 +403,9 @@ class WiFiService:
         async with self._lock:
             # Idempotent delete first — same reasoning as firstboot.sh
             # comment about preventing silent failures on con-name reuse.
-            try:
-                await asyncio.to_thread(
-                    self._run_nmcli, ["connection", "delete", ssid]
-                )
-            except WiFiError:
-                pass  # not found is fine
+            # Not-found is fine.
+            with contextlib.suppress(WiFiError):
+                await asyncio.to_thread(self._run_nmcli, ["connection", "delete", ssid])
 
             add_args = [
                 "connection",
@@ -459,22 +442,14 @@ class WiFiService:
                 # The activation failed (bad password, AP gone). Clean up
                 # the profile we just created so a retry isn't blocked by
                 # the stale entry. Failure of the cleanup itself is non-fatal.
-                try:
-                    await asyncio.to_thread(
-                        self._run_nmcli, ["connection", "delete", ssid]
-                    )
-                except WiFiError:
-                    pass
+                with contextlib.suppress(WiFiError):
+                    await asyncio.to_thread(self._run_nmcli, ["connection", "delete", ssid])
                 raise WiFiError(f"Could not join '{ssid}': {exc}") from exc
 
             confirmed = await asyncio.to_thread(self._run_nm_online)
             status = await asyncio.to_thread(self.status)
 
-        message = (
-            f"Connected to {ssid}."
-            if confirmed
-            else f"Joined {ssid} but could not verify internet connectivity."
-        )
+        message = f"Connected to {ssid}." if confirmed else f"Joined {ssid} but could not verify internet connectivity."
         return WiFiConnectResult(
             status=status,
             connectivity_confirmed=confirmed,
@@ -506,9 +481,7 @@ class WiFiService:
         if not con_name:
             raise WiFiError("Connection name is required")
         async with self._lock:
-            await asyncio.to_thread(
-                self._run_nmcli, ["connection", "delete", con_name]
-            )
+            await asyncio.to_thread(self._run_nmcli, ["connection", "delete", con_name])
 
 
 # Singleton — there's only one NetworkManager per host.
