@@ -115,6 +115,15 @@ target-version = "py311"
 quote-style = "double"
 indent-style = "space"
 line-ending = "lf"
+exclude = [
+    # CodeQL data-flow barriers in these files are sensitive to line/scope
+    # changes (e.g. py/path-injection, py/full-ssrf). Reformatting shifts
+    # alert line numbers and can cause CodeQL's PR-diff analysis to
+    # mis-classify pre-existing alerts as new. Pin them at the upstream
+    # layout; fix bigger refactors in a dedicated security PR.
+    "src/plugins/sources.py",
+    "src/api_server.py",
+]
 
 [tool.ruff.lint]
 select = [
@@ -157,3 +166,8 @@ ignore = [
     "PTH",  # CLI scripts use os.path freely
     "T201", # allow print()
 ]
+# CodeQL-sensitive files: see the matching [tool.ruff.format].exclude entry
+# above for the rationale. Any rule fix here would shift line numbers and
+# re-trigger CodeQL's "new alert" false positives on pre-existing findings.
+"src/plugins/sources.py" = ["PTH", "SIM", "RET", "PIE"]
+"src/api_server.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF100"]

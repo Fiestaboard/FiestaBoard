@@ -99,7 +99,9 @@ def _validate_request_url(
     if not parsed.hostname:
         raise HTTPException(status_code=400, detail="URL is missing a host")
     if parsed.username is not None or parsed.password is not None:
-        raise HTTPException(status_code=400, detail="URL must not contain credentials")
+        raise HTTPException(
+            status_code=400, detail="URL must not contain credentials"
+        )
     # Block requests targeting private/loopback/link-local addresses to
     # prevent SSRF against internal services.
     _h = parsed.hostname.lower().rstrip(".")
@@ -110,7 +112,13 @@ def _validate_request_url(
         )
     try:
         _addr = ipaddress.ip_address(_h)
-        if _addr.is_private or _addr.is_loopback or _addr.is_link_local or _addr.is_reserved or _addr.is_multicast:
+        if (
+            _addr.is_private
+            or _addr.is_loopback
+            or _addr.is_link_local
+            or _addr.is_reserved
+            or _addr.is_multicast
+        ):
             raise HTTPException(
                 status_code=400,
                 detail="URL must not target internal network resources",
@@ -119,7 +127,7 @@ def _validate_request_url(
         pass  # Not an IP literal; hostname-based domains are permitted
 
     host = parsed.hostname.strip().lower()
-    if host == "localhost" or host.endswith((".localhost", ".local")):
+    if host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
         raise HTTPException(status_code=400, detail="URL host is not allowed")
 
     def _is_non_public_ip(ip_str: str) -> bool:
@@ -166,7 +174,10 @@ def _get_generic_data_allowed_hosts() -> list[str]:
 def _is_host_allowed(host: str, allowed_hosts: list[str]) -> bool:
     """Check whether host is exactly allowed or a subdomain of an allowed host."""
     h = (host or "").strip().lower().rstrip(".")
-    return any(h == allowed or h.endswith("." + allowed) for allowed in allowed_hosts)
+    for allowed in allowed_hosts:
+        if h == allowed or h.endswith("." + allowed):
+            return True
+    return False
 
 
 # Hostnames are restricted to RFC 1123 labels (letters, digits, hyphens) and
@@ -189,8 +200,6 @@ def _sanitize_optional_plugin_id(plugin_id: str | None) -> str | None:
             detail="plugin_id may contain only lowercase letters, digits, and underscores",
         )
     return plugin_id
-
-
 # IPv4 dotted-quad notation.  This rejects exotic forms (URL-encoded chars,
 # ``user:pass@host``, schemes embedded in the host, etc.) before we ever try
 # to connect to a board over HTTP.
@@ -242,7 +251,11 @@ def _validate_board_host_is_local_network(host: str) -> None:
     import socket
 
     def _is_allowed_ipv4(addr: ipaddress.IPv4Address) -> bool:
-        return addr.is_private or addr.is_loopback or addr.is_link_local
+        return (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_link_local
+        )
 
     try:
         ip = ipaddress.IPv4Address(host)
@@ -260,7 +273,11 @@ def _validate_board_host_is_local_network(host: str) -> None:
     except socket.gaierror:
         raise HTTPException(status_code=400, detail="host could not be resolved") from None
 
-    resolved_ips = {ipaddress.IPv4Address(info[4][0]) for info in addrinfo if info and len(info) >= 5 and info[4]}
+    resolved_ips = {
+        ipaddress.IPv4Address(info[4][0])
+        for info in addrinfo
+        if info and len(info) >= 5 and info[4]
+    }
     if not resolved_ips:
         raise HTTPException(status_code=400, detail="host did not resolve to an IPv4 address")
 
@@ -283,18 +300,16 @@ _shutting_down = False  # Set during app shutdown to suppress auto-restart
 _log_buffer: deque = deque(maxlen=500)
 _log_lock = threading.Lock()
 
-
 def _create_log_entry(record: logging.LogRecord, formatted_message: str) -> dict[str, Any]:
     """Create a structured log entry from a log record with UTC timestamp."""
     from .time_service import get_time_service
-
     time_service = get_time_service()
 
     return {
         "timestamp": time_service.create_utc_timestamp(),
         "level": record.levelname,
         "logger": record.name,
-        "message": formatted_message,
+        "message": formatted_message
     }
 
 
@@ -317,7 +332,7 @@ class JSONFileHandler(logging.handlers.RotatingFileHandler):
         try:
             log_entry = _create_log_entry(record, self.format(record))
             # Write as JSON line
-            msg = json.dumps(log_entry) + "\n"
+            msg = json.dumps(log_entry) + '\n'
             stream = self.stream
             stream.write(msg)
             self.flush()
@@ -346,9 +361,12 @@ def _setup_file_logging():
 
         # Create JSON file handler with rotation
         file_handler = JSONFileHandler(
-            str(LOG_FILE), maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT, encoding="utf-8"
+            str(LOG_FILE),
+            maxBytes=LOG_MAX_BYTES,
+            backupCount=LOG_BACKUP_COUNT,
+            encoding='utf-8'
         )
-        file_handler.setFormatter(logging.Formatter("%(message)s"))
+        file_handler.setFormatter(logging.Formatter('%(message)s'))
         file_handler.setLevel(logging.INFO)
 
         # Add to root logger
@@ -359,7 +377,10 @@ def _setup_file_logging():
 
 
 def _read_logs_from_files(
-    limit: int = 100, offset: int = 0, level: str | None = None, search: str | None = None
+    limit: int = 100,
+    offset: int = 0,
+    level: str | None = None,
+    search: str | None = None
 ) -> tuple[list[dict[str, Any]], int, bool]:
     """
     Read logs from log files with filtering and pagination.
@@ -380,7 +401,7 @@ def _read_logs_from_files(
         if not log_file.exists():
             continue
         try:
-            with log_file.open(encoding="utf-8") as f:
+            with open(log_file, encoding='utf-8') as f:
                 lines = f.readlines()
                 for line in reversed(lines):
                     line = line.strip()
@@ -404,13 +425,13 @@ def _read_logs_from_files(
     merged_logs = []
 
     for log in reversed(memory_logs):
-        key = (log.get("timestamp"), log.get("message"))
+        key = (log.get('timestamp'), log.get('message'))
         if key not in seen:
             seen.add(key)
             merged_logs.append(log)
 
     for log in all_logs:
-        key = (log.get("timestamp"), log.get("message"))
+        key = (log.get('timestamp'), log.get('message'))
         if key not in seen:
             seen.add(key)
             merged_logs.append(log)
@@ -420,14 +441,14 @@ def _read_logs_from_files(
 
     if level:
         level_upper = level.upper()
-        filtered_logs = [log for log in filtered_logs if log.get("level") == level_upper]
+        filtered_logs = [log for log in filtered_logs if log.get('level') == level_upper]
 
     if search:
         search_lower = search.lower()
         filtered_logs = [
-            log
-            for log in filtered_logs
-            if search_lower in log.get("message", "").lower() or search_lower in log.get("logger", "").lower()
+            log for log in filtered_logs
+            if search_lower in log.get('message', '').lower() or
+               search_lower in log.get('logger', '').lower()
         ]
 
     total_matching = len(filtered_logs)
@@ -443,13 +464,11 @@ def _read_logs_from_files(
 
 class MessageRequest(BaseModel):
     """Request model for sending a custom message."""
-
     text: str
 
 
 class StatusResponse(BaseModel):
     """Response model for service status."""
-
     running: bool
     initialized: bool
     config_summary: dict[str, Any]
@@ -457,7 +476,6 @@ class StatusResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Response model for health check."""
-
     status: str
     service_running: bool
     version: str
@@ -465,7 +483,6 @@ class HealthResponse(BaseModel):
 
 class VersionResponse(BaseModel):
     """Response model for version information."""
-
     package_version: str
     build_version: str
     is_dev: bool
@@ -474,7 +491,6 @@ class VersionResponse(BaseModel):
 
 class UpdateCheckResponse(BaseModel):
     """Response model for update check."""
-
     current_version: str
     latest_version: str | None
     update_available: bool
@@ -485,7 +501,6 @@ class UpdateCheckResponse(BaseModel):
 
 class UpdateStatusResponse(BaseModel):
     """Response model for system update status (sidecar availability + auto-update flag)."""
-
     updater_available: bool
     auto_update_enabled: bool  # derived: True when interval != "manual"
     auto_update_interval: str  # "daily" | "weekly" | "monthly" | "manual"
@@ -515,7 +530,6 @@ class UpdateStatusResponse(BaseModel):
 
 class UpdateApplyResponse(BaseModel):
     """Response model for triggering an update."""
-
     status: str  # "queued" | "manual"
     mode: str  # "sidecar" | "manual"
     previous_digest: str | None = None
@@ -542,7 +556,6 @@ class RollbackRequest(BaseModel):
     * ``restore_image`` — when False, only the settings are rolled back
       (image is left untouched).  Defaults to True.
     """
-
     snapshot: str | None = None
     restore_settings: bool = True
     restore_image: bool = True
@@ -550,7 +563,6 @@ class RollbackRequest(BaseModel):
 
 class RollbackResponse(BaseModel):
     """Response model for the user-initiated rollback endpoint."""
-
     status: str  # "success" | "queued" | "partial"
     snapshot: str | None = None
     image_rollback: dict[str, Any] | None = None  # {target_digest, target_image, queued} or None
@@ -566,23 +578,20 @@ class AutoUpdateRequest(BaseModel):
     is mapped to the install's default interval and False is mapped to
     ``manual``.  At least one of the two must be provided.
     """
-
     enabled: bool | None = None
     interval: str | None = None
 
 
 class AutoUpdateResponse(BaseModel):
     """Response model for auto-update toggle."""
-
     enabled: bool  # derived: True when interval != "manual"
     interval: str  # "daily" | "weekly" | "monthly" | "manual"
 
 
 class SystemActionResponse(BaseModel):
     """Response model for restart / shutdown system actions."""
-
-    status: str  # "queued"
-    action: str  # "restart" | "shutdown"
+    status: str   # "queued"
+    action: str   # "restart" | "shutdown"
 
 
 # ── WiFi / NetworkManager models ─────────────────────────────────────────────
@@ -645,7 +654,6 @@ async def lifespan(app: FastAPI):
     _mcp_ctx = None
     try:
         from .mcp_server import mcp_server as _mcp_for_lifespan
-
         if _mcp_for_lifespan is not None:
             _mcp_ctx = _mcp_for_lifespan.session_manager.run()
     except Exception as _mcp_exc:  # pragma: no cover — defensive
@@ -677,9 +685,7 @@ async def lifespan(app: FastAPI):
             if _service_running:
                 logger.info("Background service auto-started successfully")
             else:
-                logger.warning(
-                    "Background service failed to start - likely due to configuration issues. Use the /start endpoint or UI to start it manually after fixing configuration."
-                )
+                logger.warning("Background service failed to start - likely due to configuration issues. Use the /start endpoint or UI to start it manually after fixing configuration.")
         except Exception as e:
             logger.error(f"Failed to auto-start background service: {e}", exc_info=True)
             logger.warning("Service can be started manually via /start endpoint after configuration is fixed")
@@ -689,10 +695,8 @@ async def lifespan(app: FastAPI):
     # Start mDNS/Bonjour advertisement (fiestaboard.local)
     try:
         from .system.mdns import start_mdns
-
         if start_mdns():
             from .system.mdns import get_mdns_service
-
             logger.info("Access FiestaBoard at %s", get_mdns_service().local_url)
     except Exception as e:
         logger.warning(f"mDNS service could not be started: {e}")
@@ -700,7 +704,6 @@ async def lifespan(app: FastAPI):
     # Start MQTT client for Home Assistant discovery/control (optional)
     try:
         from .settings.service import get_settings_service
-
         mqtt_cfg = get_settings_service().get_mqtt_settings()
         if mqtt_cfg.enabled:
             _apply_mqtt_config(mqtt_cfg)
@@ -721,7 +724,9 @@ async def lifespan(app: FastAPI):
                 try:
                     if PLUGIN_SYSTEM_AVAILABLE:
                         registry = get_plugin_registry()
-                        results = await _asyncio.get_event_loop().run_in_executor(None, registry.check_for_updates)
+                        results = await _asyncio.get_event_loop().run_in_executor(
+                            None, registry.check_for_updates
+                        )
                         updates = [p for p, v in results.items() if v]
                         if updates:
                             auto_update = get_settings_service().get_plugin_settings().auto_update
@@ -749,7 +754,6 @@ async def lifespan(app: FastAPI):
     # the user having to open Settings and click Refresh.
     system_update_task = None
     try:
-
         async def _system_update_check_loop():
             # Tick once an hour.  Even on the longest interval (monthly) this
             # is plenty granular and keeps the work the loop does tiny.
@@ -801,7 +805,6 @@ async def lifespan(app: FastAPI):
     # Stop MQTT client
     try:
         from .mqtt import get_mqtt_client, set_mqtt_client_instance
-
         mqtt_client = get_mqtt_client()
         if mqtt_client:
             mqtt_client.stop()
@@ -813,7 +816,6 @@ async def lifespan(app: FastAPI):
     # Stop mDNS advertisement
     try:
         from .system.mdns import stop_mdns
-
         stop_mdns()
     except Exception:
         logger.debug("Failed to stop mDNS during shutdown", exc_info=True)
@@ -845,7 +847,6 @@ app.add_middleware(
 # Gracefully skipped if the mcp package is not installed.
 try:
     from .mcp_server import mcp_server as _mcp_server_instance
-
     if _mcp_server_instance is not None:
         app.mount("/mcp", _mcp_server_instance.streamable_http_app())
         logger.info("FiestaBoard MCP server mounted at /mcp (public: /api/mcp)")
@@ -863,12 +864,14 @@ app.include_router(auth_router)
 if is_auth_enabled():
     logger.info("Authentication is ENABLED (FIESTABOARD_AUTH_ENABLED=true)")
 else:
-    logger.info("Authentication is disabled (set FIESTABOARD_AUTH_ENABLED=true to require login)")
+    logger.info(
+        "Authentication is disabled (set FIESTABOARD_AUTH_ENABLED=true to require login)"
+    )
 
 
 # Set up log buffer handler
 log_buffer_handler = LogBufferHandler()
-log_buffer_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+log_buffer_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logging.getLogger().addHandler(log_buffer_handler)
 
 
@@ -881,9 +884,7 @@ def get_service() -> DisplayService | None:
                 try:
                     _service = DisplayService()
                     if not _service.initialize():
-                        logger.warning(
-                            "Service initialization failed - service can be started later when configuration is fixed"
-                        )
+                        logger.warning("Service initialization failed - service can be started later when configuration is fixed")
                         # Keep the service instance but mark it as uninitialized
                         # This allows the /start endpoint to retry initialization
                         return _service
@@ -968,14 +969,22 @@ def stop_display_service_sync() -> bool:
 @app.get("/", response_model=dict[str, str])
 async def root():
     """Root endpoint with API information."""
-    return {"name": "FiestaBoard Display API", "version": "1.0.0", "status": "running"}
+    return {
+        "name": "FiestaBoard Display API",
+        "version": "1.0.0",
+        "status": "running"
+    }
 
 
 @app.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
 async def health():
     """Health check endpoint."""
     service = get_service()
-    return HealthResponse(status="ok", service_running=_service_running and service is not None, version=__version__)
+    return HealthResponse(
+        status="ok",
+        service_running=_service_running and service is not None,
+        version=__version__
+    )
 
 
 @app.get("/mqtt/status")
@@ -988,7 +997,6 @@ async def get_mqtt_status():
     """
     try:
         from .mqtt import get_mqtt_client
-
         client = get_mqtt_client()
         if client is None:
             return {"enabled": False, "connected": False, "running": False}
@@ -1011,7 +1019,6 @@ async def mqtt_republish_discovery():
     """
     try:
         from .mqtt import get_mqtt_client
-
         client = get_mqtt_client()
         if client is None or not client.is_connected():
             raise HTTPException(status_code=503, detail="MQTT client not connected")
@@ -1041,7 +1048,6 @@ def _apply_mqtt_config(mqtt_cfg) -> None:
         return
 
     from .mqtt.config import MQTTConfig
-
     config = MQTTConfig(
         enabled=mqtt_cfg.enabled,
         broker_host=mqtt_cfg.broker_host,
@@ -1077,7 +1083,6 @@ def _apply_mqtt_config(mqtt_cfg) -> None:
 async def get_mqtt_settings():
     """Return current MQTT integration settings (password masked)."""
     from .settings.service import get_settings_service
-
     s = get_settings_service().get_mqtt_settings()
     return s.to_dict(mask_secrets=True)
 
@@ -1092,7 +1097,6 @@ async def update_mqtt_settings(request: Request):
     """
     body = await request.json()
     from .settings.service import get_settings_service
-
     svc = get_settings_service()
     updated = svc.set_mqtt_settings(body)
     _apply_mqtt_config(updated)
@@ -1125,7 +1129,10 @@ def _ai_generate_throttle_check() -> None:
         if wait > 0:
             raise HTTPException(
                 status_code=429,
-                detail=("AI generation is rate-limited. Please wait a moment and try again."),
+                detail=(
+                    "AI generation is rate-limited. Please wait a moment "
+                    "and try again."
+                ),
             )
         _ai_generate_last_call = now
 
@@ -1204,11 +1211,14 @@ async def test_ai_provider(request: Request):
                 )
         else:
             default_id = block.get("default_provider_id")
-            provider = (cm.get_ai_provider(default_id) if default_id else None) or block["providers"][0]
+            provider = (
+                cm.get_ai_provider(default_id) if default_id else None
+            ) or block["providers"][0]
 
     from .ai.generator import test_provider as ai_test_provider
 
-    return await ai_test_provider(provider, model=model)
+    result = await ai_test_provider(provider, model=model)
+    return result
 
 
 @app.get("/pages/ai/context")
@@ -1265,9 +1275,13 @@ async def generate_ai_page(request: Request):
     if not isinstance(prompt, str) or not prompt.strip():
         raise HTTPException(status_code=400, detail="`prompt` is required.")
     if device_type not in ("flagship", "note"):
-        raise HTTPException(status_code=400, detail=f"Invalid device_type: {device_type!r}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid device_type: {device_type!r}"
+        )
     if current_page is not None and not isinstance(current_page, dict):
-        raise HTTPException(status_code=400, detail="`current_page` must be an object.")
+        raise HTTPException(
+            status_code=400, detail="`current_page` must be an object."
+        )
 
     cm = get_config_manager()
     providers_block = cm.get_ai_providers()
@@ -1299,7 +1313,9 @@ async def generate_ai_page(request: Request):
         logger.exception("Unexpected error in /pages/ai/generate")
         raise HTTPException(
             status_code=500,
-            detail=("Unexpected AI generation error. See server logs for details."),
+            detail=(
+                "Unexpected AI generation error. See server logs for details."
+            ),
         ) from None
 
     return result
@@ -1361,21 +1377,37 @@ async def chat_ai_page(request: Request):
         )
 
     if not isinstance(messages, list) or not messages:
-        raise HTTPException(status_code=400, detail="`messages` must be a non-empty array.")
+        raise HTTPException(
+            status_code=400, detail="`messages` must be a non-empty array."
+        )
     if device_type not in ("flagship", "note"):
-        raise HTTPException(status_code=400, detail=f"Invalid device_type: {device_type!r}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid device_type: {device_type!r}"
+        )
     if current_page is not None and not isinstance(current_page, dict):
-        raise HTTPException(status_code=400, detail="`current_page` must be an object.")
+        raise HTTPException(
+            status_code=400, detail="`current_page` must be an object."
+        )
     if available_pages is not None and not isinstance(available_pages, list):
-        raise HTTPException(status_code=400, detail="`available_pages` must be an array.")
+        raise HTTPException(
+            status_code=400, detail="`available_pages` must be an array."
+        )
     if installed_plugins is not None and not isinstance(installed_plugins, list):
-        raise HTTPException(status_code=400, detail="`installed_plugins` must be an array.")
+        raise HTTPException(
+            status_code=400, detail="`installed_plugins` must be an array."
+        )
     if available_schedules is not None and not isinstance(available_schedules, list):
-        raise HTTPException(status_code=400, detail="`available_schedules` must be an array.")
+        raise HTTPException(
+            status_code=400, detail="`available_schedules` must be an array."
+        )
     if available_carousels is not None and not isinstance(available_carousels, list):
-        raise HTTPException(status_code=400, detail="`available_carousels` must be an array.")
+        raise HTTPException(
+            status_code=400, detail="`available_carousels` must be an array."
+        )
     if registry_plugins is not None and not isinstance(registry_plugins, list):
-        raise HTTPException(status_code=400, detail="`registry_plugins` must be an array.")
+        raise HTTPException(
+            status_code=400, detail="`registry_plugins` must be an array."
+        )
 
     cm = get_config_manager()
     providers_block = cm.get_ai_providers()
@@ -1394,7 +1426,9 @@ async def chat_ai_page(request: Request):
         try:
             await _AI_GENERATE_SEMAPHORE.acquire()
         except Exception:
-            yield _format_sse_event("error", {"message": "Could not acquire AI lock."})
+            yield _format_sse_event(
+                "error", {"message": "Could not acquire AI lock."}
+            )
             return
         try:
             try:
@@ -1419,7 +1453,12 @@ async def chat_ai_page(request: Request):
                 logger.exception("Unexpected error in /pages/ai/chat")
                 yield _format_sse_event(
                     "error",
-                    {"message": ("Unexpected AI chat error. See server logs for details.")},
+                    {
+                        "message": (
+                            "Unexpected AI chat error. See server logs for "
+                            "details."
+                        )
+                    },
                 )
         finally:
             _AI_GENERATE_SEMAPHORE.release()
@@ -1490,7 +1529,9 @@ def _collect_plugin_demos() -> list[dict[str, Any]]:
                     "name": getattr(demo, "name", plugin_id),
                     "device_type": getattr(demo, "device_type", "flagship"),
                     "template": list(getattr(demo, "template", []) or []),
-                    "line_metadata": list(getattr(demo, "line_metadata", []) or []),
+                    "line_metadata": list(
+                        getattr(demo, "line_metadata", []) or []
+                    ),
                     "duration_seconds": getattr(demo, "duration_seconds", 300),
                 }
             )
@@ -1508,7 +1549,7 @@ def _detect_hardware_model() -> str | None:
     UI suppresses the row when this returns None.
     """
     try:
-        with Path("/proc/device-tree/model").open("rb") as f:
+        with open("/proc/device-tree/model", "rb") as f:
             raw = f.read(256)
     except (FileNotFoundError, PermissionError, OSError):
         return None
@@ -1663,13 +1704,11 @@ def _is_newer_version(latest: str, current: str) -> bool:
     Handles version strings with varying component counts (e.g. "2.0" vs "2.0.1").
     """
     try:
-
         def parse_version(v: str):
             parts = v.split(".")
             if not parts or not all(p.isdigit() for p in parts):
                 raise ValueError(f"Invalid version: {v}")
             return tuple(int(x) for x in parts)
-
         return parse_version(latest) > parse_version(current)
     except (ValueError, AttributeError):
         return False
@@ -1888,7 +1927,9 @@ SETTINGS_SNAPSHOT_RETENTION = 5
 #: accept the exact ``pre-update-YYYYMMDDTHHMMSS[.fff]Z.json`` shape we
 #: produce (sub-second component optional for back-compat), so the restore
 #: endpoint cannot be coaxed into reading arbitrary files.
-_SETTINGS_SNAPSHOT_NAME_RE = re.compile(r"^pre-update-\d{8}T\d{6}(?:\.\d{3})?Z\.json$")
+_SETTINGS_SNAPSHOT_NAME_RE = re.compile(
+    r"^pre-update-\d{8}T\d{6}(?:\.\d{3})?Z\.json$"
+)
 
 
 def _take_settings_snapshot(
@@ -1915,7 +1956,6 @@ def _take_settings_snapshot(
     """
     try:
         from .backup.service import get_backup_service
-
         service = get_backup_service()
         document = service.export_to_json()
     except Exception:
@@ -2207,10 +2247,7 @@ async def system_update_apply():
     if resp.status_code == 401:
         raise HTTPException(
             status_code=500,
-            detail={
-                "status": "error",
-                "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
-            },
+            detail={"status": "error", "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services"},
         )
     if resp.status_code >= 400:
         raise HTTPException(
@@ -2316,7 +2353,9 @@ async def system_update_rollback(req: RollbackRequest):
         try:
             # Don't reinstall plugins from a settings-only snapshot: the user is
             # rolling back configuration, not reshaping their plugin set.
-            result = await asyncio.to_thread(service.import_from_json, raw, reinstall_plugins=False)
+            result = await asyncio.to_thread(
+                service.import_from_json, raw, reinstall_plugins=False
+            )
         except BackupError as e:
             raise HTTPException(
                 status_code=400,
@@ -2338,9 +2377,13 @@ async def system_update_rollback(req: RollbackRequest):
             # Old snapshot taken before we started annotating.  We can't
             # safely guess the digest, so report partial success rather
             # than guessing.
-            warnings.append("Snapshot does not record a previous image digest; image was not rolled back.")
+            warnings.append(
+                "Snapshot does not record a previous image digest; image was not rolled back."
+            )
         elif not _DIGEST_RE.fullmatch(digest) or not _IMAGE_REF_RE.fullmatch(image_ref):
-            warnings.append("Snapshot's recorded image identity is malformed; image was not rolled back.")
+            warnings.append(
+                "Snapshot's recorded image identity is malformed; image was not rolled back."
+            )
         elif not _updater_token():
             warnings.append(
                 "FIESTAUPDATER_TOKEN is not set; image rollback is unavailable. "
@@ -2379,10 +2422,7 @@ async def system_update_rollback(req: RollbackRequest):
             if resp.status_code >= 400:
                 raise HTTPException(
                     status_code=502,
-                    detail={
-                        "status": "error",
-                        "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}",
-                    },
+                    detail={"status": "error", "error": f"fiestaupdater returned {resp.status_code}: {resp.text[:200]}"},
                 )
 
             image_result = {
@@ -2418,7 +2458,10 @@ async def system_update_set_auto(req: AutoUpdateRequest):
         if req.interval not in AUTO_UPDATE_INTERVALS:
             raise HTTPException(
                 status_code=422,
-                detail=(f"Invalid interval {req.interval!r}; must be one of: {sorted(AUTO_UPDATE_INTERVALS.keys())}"),
+                detail=(
+                    f"Invalid interval {req.interval!r}; "
+                    f"must be one of: {sorted(AUTO_UPDATE_INTERVALS.keys())}"
+                ),
             )
         interval = req.interval
     elif req.enabled is not None:
@@ -2464,10 +2507,7 @@ def _handle_updater_response(resp: requests.Response, action: str) -> SystemActi
     if resp.status_code == 401:
         raise HTTPException(
             status_code=500,
-            detail={
-                "status": "error",
-                "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services",
-            },
+            detail={"status": "error", "error": "fiestaupdater rejected our token; check FIESTAUPDATER_TOKEN matches in both services"},
         )
     if resp.status_code >= 400:
         raise HTTPException(
@@ -2602,7 +2642,9 @@ async def wifi_connect(payload: WiFiConnectRequest):
     if not cap.available:
         raise _wifi_unavailable(cap.reason)
     try:
-        result = await svc.connect(ssid=payload.ssid, password=payload.password, hidden=payload.hidden)
+        result = await svc.connect(
+            ssid=payload.ssid, password=payload.password, hidden=payload.hidden
+        )
     except WiFiError as exc:
         raise _wifi_error(exc) from exc
     return WiFiConnectResponse(
@@ -2643,7 +2685,7 @@ async def get_logs(
     limit: int = Query(default=50, ge=1, le=500, description="Number of log entries to return"),
     offset: int = Query(default=0, ge=0, description="Offset for pagination"),
     level: str | None = Query(default=None, description="Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"),
-    search: str | None = Query(default=None, description="Search in log message or logger name"),
+    search: str | None = Query(default=None, description="Search in log message or logger name")
 ):
     """Get application logs with pagination, filtering, and search.
 
@@ -2659,9 +2701,17 @@ async def get_logs(
     # Validate level if provided
     valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
     if level and level.upper() not in valid_levels:
-        raise HTTPException(status_code=400, detail=f"Invalid log level: {level}. Valid levels: {valid_levels}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid log level: {level}. Valid levels: {valid_levels}"
+        )
 
-    logs, total, has_more = _read_logs_from_files(limit=limit, offset=offset, level=level, search=search)
+    logs, total, has_more = _read_logs_from_files(
+        limit=limit,
+        offset=offset,
+        level=level,
+        search=search
+    )
 
     return {
         "logs": logs,
@@ -2669,7 +2719,10 @@ async def get_logs(
         "limit": limit,
         "offset": offset,
         "has_more": has_more,
-        "filters": {"level": level.upper() if level else None, "search": search},
+        "filters": {
+            "level": level.upper() if level else None,
+            "search": search
+        }
     }
 
 
@@ -2683,7 +2736,9 @@ async def get_status():
     settings_service = get_settings_service()
 
     status = StatusResponse(
-        running=_service_running, initialized=service is not None, config_summary=Config.get_summary()
+        running=_service_running,
+        initialized=service is not None,
+        config_summary=Config.get_summary()
     )
     # Add active page ID to config summary
     status.config_summary["active_page_id"] = settings_service.get_active_page_id()
@@ -2711,7 +2766,7 @@ async def start_service(background_tasks: BackgroundTasks):
         if not service.initialize():
             raise HTTPException(
                 status_code=503,
-                detail="Service initialization failed - check board configuration (API key, host, etc.)",
+                detail="Service initialization failed - check board configuration (API key, host, etc.)"
             )
         logger.info("Service initialization successful on retry")
 
@@ -2724,7 +2779,8 @@ async def start_service(background_tasks: BackgroundTasks):
 
     if _service_running:
         return {"status": "started", "message": "Service started successfully"}
-    raise HTTPException(status_code=500, detail="Service failed to start - check logs for details")
+    else:
+        raise HTTPException(status_code=500, detail="Service failed to start - check logs for details")
 
 
 @app.post("/stop")
@@ -2755,7 +2811,7 @@ async def refresh_display():
         return {"status": "success", "message": "Display refreshed successfully"}
     except Exception as e:
         logger.error(f"Error refreshing display: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to refresh display: {e!s}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to refresh display: {str(e)}") from e
 
 
 def _characters_to_message(characters: list) -> str:
@@ -2773,69 +2829,22 @@ def _characters_to_message(characters: list) -> str:
     """
     # Index-aligned lookup table for codes 0–62
     _LOOKUP = [
-        " ",  # 0
-        "A",
-        "B",
-        "C",
-        "D",
-        "E",
-        "F",
-        "G",
-        "H",
-        "I",
-        "J",  # 1–10
-        "K",
-        "L",
-        "M",
-        "N",
-        "O",
-        "P",
-        "Q",
-        "R",
-        "S",
-        "T",  # 11–20
-        "U",
-        "V",
-        "W",
-        "X",
-        "Y",
-        "Z",  # 21–26
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "0",  # 27–36
-        "!",
-        "@",
-        "#",
-        "$",
-        "(",
-        ")",  # 37–42
-        " ",  # 43 – undefined
-        "-",  # 44
-        " ",  # 45 – undefined
-        "+",
-        "&",
-        "=",
-        ";",
-        ":",  # 46–50
-        " ",  # 51 – undefined
-        "'",
-        '"',
-        "%",
-        ",",
-        ".",  # 52–56
-        " ",
-        " ",  # 57–58 – undefined
-        "/",
-        "?",  # 59–60
-        " ",  # 61 – undefined
-        "°",  # 62
+        ' ',  # 0
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',  # 1–10
+        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',  # 11–20
+        'U', 'V', 'W', 'X', 'Y', 'Z',                        # 21–26
+        '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',   # 27–36
+        '!', '@', '#', '$', '(', ')',                         # 37–42
+        ' ',                                                   # 43 – undefined
+        '-',                                                   # 44
+        ' ',                                                   # 45 – undefined
+        '+', '&', '=', ';', ':',                              # 46–50
+        ' ',                                                   # 51 – undefined
+        "'", '"', '%', ',', '.',                              # 52–56
+        ' ', ' ',                                              # 57–58 – undefined
+        '/', '?',                                              # 59–60
+        ' ',                                                   # 61 – undefined
+        '°',                                                   # 62
     ]
 
     lines = []
@@ -2843,13 +2852,13 @@ def _characters_to_message(characters: list) -> str:
         chars = []
         for code in row:
             if 63 <= code <= 71:
-                chars.append(f"{{{code}}}")
+                chars.append(f'{{{code}}}')
             elif 0 <= code < len(_LOOKUP):
                 chars.append(_LOOKUP[code])
             else:
-                chars.append(" ")
-        lines.append("".join(chars))
-    return "\n".join(lines)
+                chars.append(' ')
+        lines.append(''.join(chars))
+    return '\n'.join(lines)
 
 
 @app.get("/board/current-message")
@@ -2916,7 +2925,7 @@ async def send_message(request: MessageRequest):
         return {
             "status": "blocked",
             "message": "Manual sends blocked during silence mode to prevent wake-ups",
-            "silence_mode": True,
+            "silence_mode": True
         }
 
     if not service.vb_client:
@@ -2932,17 +2941,19 @@ async def send_message(request: MessageRequest):
             board_array,
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
-            step_size=transition.step_size,
+            step_size=transition.step_size
         )
         if success:
             if was_sent:
                 service.request_board_refresh()
                 return {"status": "success", "message": "Message sent successfully"}
-            return {"status": "success", "message": "Message unchanged, no update needed", "skipped": True}
-        raise HTTPException(status_code=500, detail="Failed to send message")
+            else:
+                return {"status": "success", "message": "Message unchanged, no update needed", "skipped": True}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send message")
     except Exception as e:
         logger.error(f"Error sending message: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send message: {e!s}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}") from e
 
 
 @app.get("/config")
@@ -3001,9 +3012,7 @@ def _build_welcome_template(device_type: str, custom_msg: str) -> list:
     if custom_msg and len(custom_msg) > cols:
         logger.debug(
             "Welcome message truncated from %d to %d characters for %s device",
-            len(custom_msg),
-            cols,
-            device_type,
+            len(custom_msg), cols, device_type,
         )
     return [row.replace("{center}", center_text) for row in rows]
 
@@ -3024,7 +3033,11 @@ async def send_welcome_message():
     # Check silence mode
     if Config.is_silence_mode_active():
         logger.info("Silence mode is active - blocking welcome message to prevent wake-up")
-        return {"status": "blocked", "message": "Welcome message blocked during silence mode", "silence_mode": True}
+        return {
+            "status": "blocked",
+            "message": "Welcome message blocked during silence mode",
+            "silence_mode": True
+        }
 
     # Create a fresh board client with current config values
     # This ensures any config changes from the setup wizard are used
@@ -3034,11 +3047,11 @@ async def send_welcome_message():
             api_key=Config.get_board_api_key(),
             host=Config.BOARD_HOST if not use_cloud else None,
             use_cloud=use_cloud,
-            skip_unchanged=False,  # Always send the welcome message
+            skip_unchanged=False  # Always send the welcome message
         )
     except ValueError as e:
         logger.error(f"Failed to create board client: {e}")
-        raise HTTPException(status_code=503, detail=f"Board not configured: {e!s}") from e
+        raise HTTPException(status_code=503, detail=f"Board not configured: {str(e)}") from e
 
     try:
         # Use custom welcome message if set, otherwise use the default
@@ -3079,25 +3092,26 @@ async def send_welcome_message():
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
-            force=True,  # Force send even if cached
+            force=True  # Force send even if cached
         )
 
         if success:
             if was_sent:
                 logger.info("Welcome message sent to board")
                 return {"status": "success", "message": "Welcome message sent to your board!"}
-            return {"status": "success", "message": "Welcome message unchanged", "skipped": True}
-        raise HTTPException(status_code=500, detail="Failed to send welcome message")
+            else:
+                return {"status": "success", "message": "Welcome message unchanged", "skipped": True}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send welcome message")
 
     except Exception as e:
         logger.error(f"Error sending welcome message: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send welcome message: {e!s}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to send welcome message: {str(e)}") from e
 
 
 # =============================================================================
 # Configuration Management Endpoints
 # =============================================================================
-
 
 @app.get("/config/full")
 async def get_full_config():
@@ -3118,7 +3132,10 @@ async def get_board_config():
     board_config = config_manager.get_board()
     masked = config_manager._mask_sensitive(board_config)
 
-    return {"config": masked, "api_modes": ["local", "cloud"]}
+    return {
+        "config": masked,
+        "api_modes": ["local", "cloud"]
+    }
 
 
 # Deprecated backward compatibility endpoint - redirects to /config/board
@@ -3158,7 +3175,10 @@ async def update_board_config(request: dict):
     updated = config_manager.get_board()
     masked = config_manager._mask_sensitive(updated)
 
-    return {"status": "success", "config": masked}
+    return {
+        "status": "success",
+        "config": masked
+    }
 
 
 # Deprecated backward compatibility endpoint - redirects to /config/board
@@ -3192,22 +3212,17 @@ async def reset_board_config():
     # detects first-run mode regardless of which storage path is checked.
     try:
         from .devices import BoardInstance
-
         settings_svc = get_settings_service()
-        settings_svc.set_boards(
-            [
-                BoardInstance(
-                    name="My Board",
-                    device_type="flagship",
-                    board_color="black",
-                    enabled=True,
-                    api_mode="local",
-                    host="",
-                    local_api_key="",
-                    cloud_key="",
-                ).to_dict()
-            ]
-        )
+        settings_svc.set_boards([BoardInstance(
+            name="My Board",
+            device_type="flagship",
+            board_color="black",
+            enabled=True,
+            api_mode="local",
+            host="",
+            local_api_key="",
+            cloud_key="",
+        ).to_dict()])
     except Exception:  # pragma: no cover - defensive
         logger.exception("Failed to reset multi-board settings during board config reset")
 
@@ -3264,7 +3279,6 @@ async def validate_config():
     has_configured_board_instance = False
     try:
         from .devices import BoardInstance
-
         board_settings = get_settings_service().get_board_settings()
         for b in board_settings.boards or []:
             try:
@@ -3284,12 +3298,16 @@ async def validate_config():
         errors = [e for e in errors if not e.startswith(board_error_prefixes)]
         is_valid = len(errors) == 0
 
-    return {"valid": is_valid, "is_first_run": is_first_run, "errors": errors, "missing_fields": missing_fields}
+    return {
+        "valid": is_valid,
+        "is_first_run": is_first_run,
+        "errors": errors,
+        "missing_fields": missing_fields
+    }
 
 
 class BoardTestRequest(BaseModel):
     """Request model for testing board connection."""
-
     api_mode: str = "local"
     local_api_key: str | None = None
     cloud_key: str | None = None
@@ -3328,7 +3346,11 @@ async def test_board_connection(request: BoardTestRequest):
     # Validate required fields based on mode
     if api_mode == "cloud":
         if not request.cloud_key:
-            return {"success": False, "message": "Cloud API key is required", "error": "Missing cloud_key parameter"}
+            return {
+                "success": False,
+                "message": "Cloud API key is required",
+                "error": "Missing cloud_key parameter"
+            }
         api_key = request.cloud_key
         use_cloud = True
         host = None
@@ -3337,13 +3359,13 @@ async def test_board_connection(request: BoardTestRequest):
             return {
                 "success": False,
                 "message": "Local API key is required",
-                "error": "Missing local_api_key parameter",
+                "error": "Missing local_api_key parameter"
             }
         if not request.host:
             return {
                 "success": False,
                 "message": "Board host/IP is required for Local API",
-                "error": "Missing host parameter",
+                "error": "Missing host parameter"
             }
         api_key = request.local_api_key
         use_cloud = False
@@ -3359,11 +3381,18 @@ async def test_board_connection(request: BoardTestRequest):
 
     try:
         # Create temporary client with provided credentials
-        client = BoardClient(api_key=api_key, host=host, use_cloud=use_cloud, skip_unchanged=False)
+        client = BoardClient(
+            api_key=api_key,
+            host=host,
+            use_cloud=use_cloud,
+            skip_unchanged=False
+        )
 
         # Test the connection directly so we can inspect HTTP status codes
         # (read_current_message() swallows errors and returns None, losing details)
-        response = await asyncio.to_thread(requests.get, client.base_url, headers=client.headers, timeout=10)
+        response = await asyncio.to_thread(
+            requests.get, client.base_url, headers=client.headers, timeout=10
+        )
 
         if response.status_code == 200:
             # Parse the response to verify it's valid board data
@@ -3381,7 +3410,9 @@ async def test_board_connection(request: BoardTestRequest):
                     if isinstance(data, dict)
                     else f"body type: {type(data).__name__}"
                 )
-                logger.warning(f"Board connection test: HTTP 200 but unrecognized response ({api_mode} mode): {detail}")
+                logger.warning(
+                    f"Board connection test: HTTP 200 but unrecognized response ({api_mode} mode): {detail}"
+                )
                 return {
                     "success": False,
                     "message": "Connected to Vestaboard but the response shape was not recognized.",
@@ -3400,7 +3431,7 @@ async def test_board_connection(request: BoardTestRequest):
                     "troubleshooting": [
                         "Wait 30 seconds and try again — the board may still be starting up.",
                         "Try unplugging the board for 10 seconds and plugging it back in.",
-                    ],
+                    ]
                 }
 
         elif response.status_code == 401 or response.status_code == 403:
@@ -3414,19 +3445,20 @@ async def test_board_connection(request: BoardTestRequest):
                         "Go to https://web.vestaboard.com and sign in to your account.",
                         "Make sure you are copying the Read/Write API key (not the subscription key or installable key).",
                         "Paste the key into the Cloud API Key field and try again.",
-                    ],
+                    ]
                 }
-            return {
-                "success": False,
-                "message": f"Your API key was rejected by the board (HTTP {response.status_code}).",
-                "error": f"HTTP {response.status_code}",
-                "troubleshooting": [
-                    "Verify your Local API key is correct — it was provided when you enabled the Local API with your enablement token.",
-                    "If you need a new key, request an enablement token at https://www.vestaboard.com/local-api",
-                    "Paste the correct key into the Local API Key field and try again.",
-                    "If the key was recently regenerated, the old key will no longer work.",
-                ],
-            }
+            else:
+                return {
+                    "success": False,
+                    "message": f"Your API key was rejected by the board (HTTP {response.status_code}).",
+                    "error": f"HTTP {response.status_code}",
+                    "troubleshooting": [
+                        "Verify your Local API key is correct — it was provided when you enabled the Local API with your enablement token.",
+                        "If you need a new key, request an enablement token at https://www.vestaboard.com/local-api",
+                        "Paste the correct key into the Local API Key field and try again.",
+                        "If the key was recently regenerated, the old key will no longer work.",
+                    ]
+                }
 
         elif response.status_code >= 500:
             logger.warning(f"Board connection test: server error HTTP {response.status_code} ({api_mode} mode)")
@@ -3438,7 +3470,7 @@ async def test_board_connection(request: BoardTestRequest):
                     "Try unplugging the Vestaboard for 10 seconds and plugging it back in.",
                     "Wait about a minute for the board to restart, then try again.",
                     "If the problem continues, check for firmware updates in the Vestaboard app.",
-                ],
+                ]
             }
 
         else:
@@ -3451,7 +3483,7 @@ async def test_board_connection(request: BoardTestRequest):
                     "Try unplugging the Vestaboard for 10 seconds and plugging it back in.",
                     "Check for firmware updates in the Vestaboard app.",
                     "If the problem continues, try using the other connection mode (Local or Cloud).",
-                ],
+                ]
             }
 
     except ValueError:
@@ -3460,7 +3492,7 @@ async def test_board_connection(request: BoardTestRequest):
         return {
             "success": False,
             "message": "Board connection configuration is invalid.",
-            "error": "Configuration error",
+            "error": "Configuration error"
         }
     except requests.exceptions.ConnectionError as e:
         logger.error(f"Board connection test error: {e}")
@@ -3473,19 +3505,20 @@ async def test_board_connection(request: BoardTestRequest):
                     "Make sure the device running FiestaBoard has a working internet connection.",
                     "Try opening https://rw.vestaboard.com in a browser to verify the service is reachable.",
                     "If you use a VPN or corporate network, make sure it allows connections to rw.vestaboard.com.",
-                ],
+                ]
             }
-        return {
-            "success": False,
-            "message": "Could not connect to the board. The board may be off or not on the same network.",
-            "error": "Connection error",
-            "troubleshooting": [
-                "Make sure the Vestaboard is powered on (check for the LED on the back).",
-                "Make sure both FiestaBoard and the Vestaboard are on the same Wi-Fi network.",
-                "Double-check the board's IP address — you can find it on your router's admin page or use FiestaBoard's network scan.",
-                "Make sure the Local API is enabled on your board (see https://docs.vestaboard.com/docs/local-api/authentication).",
-            ],
-        }
+        else:
+            return {
+                "success": False,
+                "message": "Could not connect to the board. The board may be off or not on the same network.",
+                "error": "Connection error",
+                "troubleshooting": [
+                    "Make sure the Vestaboard is powered on (check for the LED on the back).",
+                    "Make sure both FiestaBoard and the Vestaboard are on the same Wi-Fi network.",
+                    "Double-check the board's IP address — you can find it on your router's admin page or use FiestaBoard's network scan.",
+                    "Make sure the Local API is enabled on your board (see https://docs.vestaboard.com/docs/local-api/authentication).",
+                ]
+            }
     except requests.exceptions.Timeout as e:
         logger.error(f"Board connection test timeout: {e}")
         if use_cloud:
@@ -3496,19 +3529,20 @@ async def test_board_connection(request: BoardTestRequest):
                 "troubleshooting": [
                     "Check that the device running FiestaBoard has a stable internet connection.",
                     "The Vestaboard cloud service may be experiencing issues — try again in a few minutes.",
-                ],
+                ]
             }
-        return {
-            "success": False,
-            "message": "Connection to the board timed out. The board may be off or the IP address may be wrong.",
-            "error": "Timeout",
-            "troubleshooting": [
-                "Make sure the Vestaboard is powered on.",
-                "Double-check the IP address in the Vestaboard app under Settings.",
-                "Make sure both devices are on the same network.",
-                "Try using the board's IP address instead of a hostname.",
-            ],
-        }
+        else:
+            return {
+                "success": False,
+                "message": "Connection to the board timed out. The board may be off or the IP address may be wrong.",
+                "error": "Timeout",
+                "troubleshooting": [
+                    "Make sure the Vestaboard is powered on.",
+                    "Double-check the IP address in the Vestaboard app under Settings.",
+                    "Make sure both devices are on the same network.",
+                    "Try using the board's IP address instead of a hostname.",
+                ]
+            }
     except Exception as e:
         logger.error(f"Board connection test error: {e}", exc_info=True)
         return {
@@ -3519,20 +3553,18 @@ async def test_board_connection(request: BoardTestRequest):
                 "Make sure the Vestaboard is powered on and connected to your network.",
                 "Try restarting FiestaBoard and the Vestaboard.",
                 "Visit the Network Diagnostics page for a detailed connection check.",
-            ],
+            ]
         }
 
 
 class EnablementTokenRequest(BaseModel):
     """Request model for exchanging enablement token for API key."""
-
     host: str
     enablement_token: str
 
 
 class BoardScanRequest(BaseModel):
     """Request model for network board scanning."""
-
     timeout: float | None = 4.0
 
 
@@ -3558,13 +3590,17 @@ async def enable_local_api(request: EnablementTokenRequest):
     import requests as http_requests
 
     if not request.host:
-        return {"success": False, "message": "Board IP address is required", "error": "Missing host parameter"}
+        return {
+            "success": False,
+            "message": "Board IP address is required",
+            "error": "Missing host parameter"
+        }
 
     if not request.enablement_token:
         return {
             "success": False,
             "message": "Enablement token is required",
-            "error": "Missing enablement_token parameter",
+            "error": "Missing enablement_token parameter"
         }
 
     # Validate the host before composing the URL so an attacker can't
@@ -3593,7 +3629,9 @@ async def enable_local_api(request: EnablementTokenRequest):
     _safe_host = _hm.group(0)
     # Build the URL for the local enablement endpoint
     url = f"http://{_safe_host}:7000/local-api/enablement"
-    headers = {"X-Vestaboard-Local-Api-Enablement-Token": request.enablement_token}
+    headers = {
+        "X-Vestaboard-Local-Api-Enablement-Token": request.enablement_token
+    }
 
     try:
         logger.info(f"Attempting to enable local API on {request.host}")
@@ -3608,27 +3646,29 @@ async def enable_local_api(request: EnablementTokenRequest):
                 return {
                     "success": True,
                     "api_key": api_key,
-                    "message": "Local API enabled successfully! Your API key has been retrieved.",
+                    "message": "Local API enabled successfully! Your API key has been retrieved."
                 }
-            logger.warning(f"Local API enablement response missing apiKey: {data}")
-            return {
-                "success": False,
-                "message": "Received response but no API key was provided",
-                "error": "Board response did not include an apiKey",
-            }
-        if response.status_code == 401 or response.status_code == 403:
+            else:
+                logger.warning(f"Local API enablement response missing apiKey: {data}")
+                return {
+                    "success": False,
+                    "message": "Received response but no API key was provided",
+                    "error": "Board response did not include an apiKey",
+                }
+        elif response.status_code == 401 or response.status_code == 403:
             logger.warning("Local API enablement failed - invalid token")
             return {
                 "success": False,
                 "message": "Invalid enablement token. Please check the token and try again.",
-                "error": f"HTTP {response.status_code}: Unauthorized",
+                "error": f"HTTP {response.status_code}: Unauthorized"
             }
-        logger.warning(f"Local API enablement failed - HTTP {response.status_code}")
-        return {
-            "success": False,
-            "message": f"Board returned an error (HTTP {response.status_code})",
-            "error": f"HTTP {response.status_code}",
-        }
+        else:
+            logger.warning(f"Local API enablement failed - HTTP {response.status_code}")
+            return {
+                "success": False,
+                "message": f"Board returned an error (HTTP {response.status_code})",
+                "error": f"HTTP {response.status_code}",
+            }
 
     except http_requests.exceptions.ConnectionError as e:
         logger.error(f"Local API enablement connection error: {e}")
@@ -3725,7 +3765,10 @@ async def update_general_config(request: dict):
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update general configuration")
 
-    return {"status": "success", "general": general_config}
+    return {
+        "status": "success",
+        "general": general_config
+    }
 
 
 @app.get("/silence-status")
@@ -3786,7 +3829,6 @@ async def get_silence_status():
 
 class SilenceScheduleRequest(BaseModel):
     """Request body for updating the silence schedule feature."""
-
     enabled: bool
     start_time: str
     end_time: str
@@ -3876,7 +3918,6 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
 # Display Source Endpoints
 # =============================================================================
 
-
 @app.get("/displays")
 async def list_displays():
     """
@@ -3887,7 +3928,11 @@ async def list_displays():
     """
     display_service = get_display_service()
     displays = display_service.get_available_displays()
-    return {"displays": displays, "total": len(displays), "available_count": sum(1 for d in displays if d["available"])}
+    return {
+        "displays": displays,
+        "total": len(displays),
+        "available_count": sum(1 for d in displays if d["available"])
+    }
 
 
 @app.get("/displays/{display_type}")
@@ -3915,9 +3960,9 @@ async def get_display(display_type: str):
     return {
         "display_type": result.display_type,
         "message": result.formatted,
-        "lines": result.formatted.split("\n") if result.formatted else [],
-        "line_count": len(result.formatted.split("\n")) if result.formatted else 0,
-        "available": result.available,
+        "lines": result.formatted.split('\n') if result.formatted else [],
+        "line_count": len(result.formatted.split('\n')) if result.formatted else 0,
+        "available": result.available
     }
 
 
@@ -3950,7 +3995,7 @@ async def get_display_raw(display_type: str, response: Response):
         "display_type": result.display_type,
         "data": result.raw,
         "available": result.available,
-        "error": result.error,
+        "error": result.error
     }
 
 
@@ -4002,20 +4047,31 @@ async def get_displays_raw_batch(request: dict):
             if enabled_only and not result.available:
                 continue
 
-            results[display_type] = {"data": result.raw, "available": result.available, "error": result.error}
+            results[display_type] = {
+                "data": result.raw,
+                "available": result.available,
+                "error": result.error
+            }
         except Exception as e:
             logger.error(f"Error fetching display {display_type}: {e}", exc_info=True)
-            results[display_type] = {"data": {}, "available": False, "error": str(e)}
+            results[display_type] = {
+                "data": {},
+                "available": False,
+                "error": str(e)
+            }
 
     return {
         "displays": results,
         "total": len(display_types),
-        "successful": sum(1 for r in results.values() if r.get("available", False)),
+        "successful": sum(1 for r in results.values() if r.get("available", False))
     }
 
 
 @app.post("/displays/{display_type}/send")
-async def send_display(display_type: str, target: str | None = None):
+async def send_display(
+    display_type: str,
+    target: str | None = None
+):
     """
     Send a display to the configured target (ui, board, or both).
 
@@ -4028,7 +4084,10 @@ async def send_display(display_type: str, target: str | None = None):
         Result of the send operation.
     """
     if target is not None and target not in VALID_OUTPUT_TARGETS:
-        raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}"
+        )
 
     display_service = get_display_service()
     settings_service = get_settings_service()
@@ -4067,7 +4126,7 @@ async def send_display(display_type: str, target: str | None = None):
             board_array,
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
-            step_size=transition.step_size,
+            step_size=transition.step_size
         )
         sent_to_board = was_sent
         if not success:
@@ -4085,7 +4144,6 @@ async def send_display(display_type: str, target: str | None = None):
 # =============================================================================
 # Bay Wheels Station Search Endpoints
 # =============================================================================
-
 
 @app.get("/baywheels/stations")
 async def list_all_baywheels_stations():
@@ -4126,23 +4184,24 @@ async def list_all_baywheels_stations():
                 else:
                     classic += count
 
-            result.append(
-                {
-                    "station_id": station_id,
-                    "name": info.get("name", station_id),
-                    "lat": info.get("lat"),
-                    "lon": info.get("lon"),
-                    "address": info.get("address", ""),
-                    "capacity": info.get("capacity", 0),
-                    "num_bikes_available": status.get("num_bikes_available", 0),
-                    "electric_bikes": electric,
-                    "classic_bikes": classic,
-                    "num_docks_available": status.get("num_docks_available", 0),
-                    "is_renting": status.get("is_renting", 1) == 1,
-                }
-            )
+            result.append({
+                "station_id": station_id,
+                "name": info.get("name", station_id),
+                "lat": info.get("lat"),
+                "lon": info.get("lon"),
+                "address": info.get("address", ""),
+                "capacity": info.get("capacity", 0),
+                "num_bikes_available": status.get("num_bikes_available", 0),
+                "electric_bikes": electric,
+                "classic_bikes": classic,
+                "num_docks_available": status.get("num_docks_available", 0),
+                "is_renting": status.get("is_renting", 1) == 1,
+            })
 
-        return {"stations": result, "total": len(result)}
+        return {
+            "stations": result,
+            "total": len(result)
+        }
     except Exception as e:
         logger.error(f"Error listing Bay Wheels stations: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -4153,7 +4212,7 @@ async def find_nearby_baywheels_stations(
     lat: float = Query(..., description="Latitude"),
     lng: float = Query(..., description="Longitude"),
     radius: float = Query(2.0, description="Search radius in kilometers"),
-    limit: int = Query(10, description="Maximum number of results"),
+    limit: int = Query(10, description="Maximum number of results")
 ):
     """
     Find Bay Wheels stations near a location.
@@ -4210,7 +4269,7 @@ async def find_nearby_baywheels_stations(
             "stations": stations,
             "count": len(stations),
             "search_location": {"lat": lat, "lng": lng},
-            "radius_km": radius,
+            "radius_km": radius
         }
     except Exception as e:
         logger.error(f"Error finding nearby Bay Wheels stations: {e}", exc_info=True)
@@ -4221,7 +4280,7 @@ async def find_nearby_baywheels_stations(
 async def search_baywheels_stations_by_address(
     address: str = Query(..., description="Address to search near"),
     radius: float = Query(2.0, description="Search radius in kilometers"),
-    limit: int = Query(10, description="Maximum number of results"),
+    limit: int = Query(10, description="Maximum number of results")
 ):
     """
     Find Bay Wheels stations near an address.
@@ -4243,8 +4302,14 @@ async def search_baywheels_stations_by_address(
     try:
         # Geocode address using Nominatim
         geocode_url = "https://nominatim.openstreetmap.org/search"
-        geocode_params = {"q": address, "format": "json", "limit": 1}
-        geocode_headers = {"User-Agent": "FiestaBoard-Service/1.0"}
+        geocode_params = {
+            "q": address,
+            "format": "json",
+            "limit": 1
+        }
+        geocode_headers = {
+            "User-Agent": "FiestaBoard-Service/1.0"
+        }
 
         geocode_response = await asyncio.to_thread(
             requests.get, geocode_url, params=geocode_params, headers=geocode_headers, timeout=10
@@ -4299,13 +4364,13 @@ async def search_baywheels_stations_by_address(
             "count": len(stations),
             "search_address": address,
             "geocoded_location": {"lat": lat, "lng": lng, "display_name": location.get("display_name", "")},
-            "radius_km": radius,
+            "radius_km": radius
         }
     except HTTPException:
         raise
     except requests.exceptions.RequestException as e:
         logger.error(f"Error geocoding address: {e}", exc_info=True)
-        raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {e!s}") from e
+        raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {str(e)}") from e
     except Exception as e:
         logger.error(f"Error searching Bay Wheels stations: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -4353,10 +4418,7 @@ async def list_disney_parks():
         for group in data:
             if group.get("id") == DISNEY_GROUP_ID:
                 parks = group.get("parks", [])
-                out = [
-                    {"id": p["id"], "name": p["name"], "country": p.get("country"), "timezone": p.get("timezone")}
-                    for p in parks
-                ]
+                out = [{"id": p["id"], "name": p["name"], "country": p.get("country"), "timezone": p.get("timezone")} for p in parks]
                 out.sort(key=lambda x: (x.get("name") or "").lower())
                 return out
         return []
@@ -4388,7 +4450,6 @@ async def list_park_rides(park_id: int):
 # MUNI Endpoints
 # =============================================================================
 
-
 @app.get("/muni/stops")
 async def list_all_muni_stops():
     """
@@ -4416,25 +4477,27 @@ async def list_all_muni_stops():
         # Note: 511.org requires an API key for most endpoints
         # We'll use the configured MUNI API key
         from src.config import Config
-
         api_key = Config.MUNI_API_KEY
 
         if not api_key:
             raise HTTPException(status_code=400, detail="MUNI API key not configured")
 
         url = "http://api.511.org/transit/stops"
-        params = {"api_key": api_key, "operator_id": "SF", "format": "json"}
+        params = {
+            "api_key": api_key,
+            "operator_id": "SF",
+            "format": "json"
+        }
 
         response = await asyncio.to_thread(requests.get, url, params=params, timeout=15)
         response.raise_for_status()
 
         # Handle BOM if present
         content = response.text
-        if content.startswith("\ufeff"):
+        if content.startswith('\ufeff'):
             content = content[1:]
 
         import json
-
         data = json.loads(content)
 
         # Parse stops from the Contents.dataObjects.ScheduledStopPoint array
@@ -4453,17 +4516,18 @@ async def list_all_muni_stops():
             # Get stop name
             name = stop.get("Name", stop_code)
 
-            stops.append(
-                {
-                    "stop_code": stop_code,
-                    "stop_id": stop_id,
-                    "name": name,
-                    "lat": float(lat) if lat else None,
-                    "lon": float(lon) if lon else None,
-                }
-            )
+            stops.append({
+                "stop_code": stop_code,
+                "stop_id": stop_id,
+                "name": name,
+                "lat": float(lat) if lat else None,
+                "lon": float(lon) if lon else None,
+            })
 
-        result = {"stops": stops, "total": len(stops)}
+        result = {
+            "stops": stops,
+            "total": len(stops)
+        }
 
         # Update cache
         with _muni_stops_cache_lock:
@@ -4482,7 +4546,7 @@ async def find_nearby_muni_stops(
     lat: float = Query(..., description="Latitude"),
     lng: float = Query(..., description="Longitude"),
     radius: float = Query(0.5, description="Search radius in kilometers"),
-    limit: int = Query(10, description="Maximum number of results"),
+    limit: int = Query(10, description="Maximum number of results")
 ):
     """
     Find Muni stops near a location.
@@ -4516,7 +4580,7 @@ async def find_nearby_muni_stops(
             dlat = lat2_rad - lat1_rad
             dlon = lon2_rad - lon1_rad
 
-            a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
+            a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
             c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
             return R * c
@@ -4541,7 +4605,6 @@ async def find_nearby_muni_stops(
         # Try to get routes serving each stop from regional transit cache
         try:
             from src.utils.transit_cache import get_transit_cache
-
             cache = get_transit_cache()
 
             if cache.is_ready():
@@ -4580,7 +4643,7 @@ async def find_nearby_muni_stops(
             "stops": nearby_stops,
             "count": len(nearby_stops),
             "search_location": {"lat": lat, "lng": lng},
-            "radius_km": radius,
+            "radius_km": radius
         }
 
     except Exception as e:
@@ -4592,7 +4655,7 @@ async def find_nearby_muni_stops(
 async def search_muni_stops_by_address(
     address: str = Query(..., description="Address to search near"),
     radius: float = Query(0.5, description="Search radius in kilometers"),
-    limit: int = Query(10, description="Maximum number of results"),
+    limit: int = Query(10, description="Maximum number of results")
 ):
     """
     Find Muni stops near an address.
@@ -4612,8 +4675,14 @@ async def search_muni_stops_by_address(
     try:
         # Geocode address using Nominatim
         geocode_url = "https://nominatim.openstreetmap.org/search"
-        geocode_params = {"q": address, "format": "json", "limit": 1}
-        geocode_headers = {"User-Agent": "FiestaBoard-Service/1.0"}
+        geocode_params = {
+            "q": address,
+            "format": "json",
+            "limit": 1
+        }
+        geocode_headers = {
+            "User-Agent": "FiestaBoard-Service/1.0"
+        }
 
         geocode_response = await asyncio.to_thread(
             requests.get, geocode_url, params=geocode_params, headers=geocode_headers, timeout=10
@@ -4636,14 +4705,14 @@ async def search_muni_stops_by_address(
             "count": stops_data["count"],
             "search_address": address,
             "geocoded_location": {"lat": lat, "lng": lng, "display_name": location.get("display_name", "")},
-            "radius_km": radius,
+            "radius_km": radius
         }
 
     except HTTPException:
         raise
     except requests.exceptions.RequestException as e:
         logger.error(f"Error geocoding address: {e}", exc_info=True)
-        raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {e!s}") from e
+        raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {str(e)}") from e
     except Exception as e:
         logger.error(f"Error searching Muni stops: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -4662,7 +4731,6 @@ async def get_transit_cache_status():
     """
     try:
         from src.utils.transit_cache import get_transit_cache
-
         cache = get_transit_cache()
         status = cache.get_status()
 
@@ -4687,11 +4755,10 @@ async def get_transit_cache_status():
 # Stocks Endpoints
 # =============================================================================
 
-
 @app.get("/stocks/search")
 async def search_stock_symbols(
     query: str = Query(..., description="Search query (symbol or company name)"),
-    limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of results")
 ):
     """
     Search for stock symbols by symbol or company name.
@@ -4713,9 +4780,17 @@ async def search_stock_symbols(
         # Get Finnhub API key if configured
         finnhub_api_key = Config.FINNHUB_API_KEY if Config.FINNHUB_API_KEY else None
 
-        results = StocksSource.search_symbols(query=query, limit=limit, finnhub_api_key=finnhub_api_key)
+        results = StocksSource.search_symbols(
+            query=query,
+            limit=limit,
+            finnhub_api_key=finnhub_api_key
+        )
 
-        return {"symbols": results, "count": len(results), "query": query}
+        return {
+            "symbols": results,
+            "count": len(results),
+            "query": query
+        }
     except Exception as e:
         logger.error(f"Error searching stock symbols: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -4747,7 +4822,8 @@ async def validate_stock_symbol(request: dict):
     try:
         from src.utils.stocks import StocksSource
 
-        return StocksSource.validate_symbol(symbol)
+        result = StocksSource.validate_symbol(symbol)
+        return result
     except Exception as e:
         logger.error(f"Error validating stock symbol: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to validate stock symbol") from e
@@ -4756,7 +4832,6 @@ async def validate_stock_symbol(request: dict):
 # =============================================================================
 # Traffic Endpoints
 # =============================================================================
-
 
 @app.post("/traffic/routes/geocode")
 async def geocode_address(request: dict):
@@ -4778,8 +4853,14 @@ async def geocode_address(request: dict):
     try:
         # Try Nominatim (free, no key needed)
         geocode_url = "https://nominatim.openstreetmap.org/search"
-        geocode_params = {"q": address, "format": "json", "limit": 1}
-        geocode_headers = {"User-Agent": "FiestaBoard-Service/1.0"}
+        geocode_params = {
+            "q": address,
+            "format": "json",
+            "limit": 1
+        }
+        geocode_headers = {
+            "User-Agent": "FiestaBoard-Service/1.0"
+        }
 
         response = await asyncio.to_thread(
             requests.get, geocode_url, params=geocode_params, headers=geocode_headers, timeout=10
@@ -4794,7 +4875,7 @@ async def geocode_address(request: dict):
         return {
             "lat": float(location["lat"]),
             "lng": float(location["lon"]),
-            "formatted_address": location.get("display_name", address),
+            "formatted_address": location.get("display_name", address)
         }
 
     except HTTPException:
@@ -4828,23 +4909,24 @@ async def validate_traffic_route(request: dict):
         raise HTTPException(status_code=400, detail="origin and destination required")
 
     # Get API key from config
-    api_key = getattr(Config, "GOOGLE_ROUTES_API_KEY", None)
+    api_key = getattr(Config, 'GOOGLE_ROUTES_API_KEY', None)
     if not api_key:
         raise HTTPException(status_code=400, detail="Google Routes API key not configured")
 
     try:
         # Create a temporary TrafficSource to test the route
         # Pass as a list of routes (expected format)
-        routes = [
-            {
-                "origin": origin,
-                "destination": destination,
-                "destination_name": destination_name,
-                "travel_mode": request.get("travel_mode", "DRIVE"),
-            }
-        ]
+        routes = [{
+            "origin": origin,
+            "destination": destination,
+            "destination_name": destination_name,
+            "travel_mode": request.get("travel_mode", "DRIVE")
+        }]
 
-        traffic_source = TrafficSource(api_key=api_key, routes=routes)
+        traffic_source = TrafficSource(
+            api_key=api_key,
+            routes=routes
+        )
 
         # Fetch traffic data to validate (blocking HTTP call - run in thread pool)
         data = await asyncio.to_thread(traffic_source.fetch_traffic_data)
@@ -4852,7 +4934,7 @@ async def validate_traffic_route(request: dict):
         if not data:
             return {
                 "valid": False,
-                "error": "Failed to validate route. This could be due to: 1) Invalid addresses, 2) Google Routes API not enabled, 3) API key issues. Check the API logs for details.",
+                "error": "Failed to validate route. This could be due to: 1) Invalid addresses, 2) Google Routes API not enabled, 3) API key issues. Check the API logs for details."
             }
 
         # Extract coordinates if available
@@ -4867,18 +4949,20 @@ async def validate_traffic_route(request: dict):
             "destination": destination,
             "destination_name": destination_name,
             "origin_coords": origin_coords,
-            "destination_coords": destination_coords,
+            "destination_coords": destination_coords
         }
 
     except Exception as e:
         logger.error(f"Error validating traffic route: {e}", exc_info=True)
-        return {"valid": False, "error": "Failed to validate route"}
+        return {
+            "valid": False,
+            "error": "Failed to validate route"
+        }
 
 
 # =============================================================================
 # Settings Endpoints
 # =============================================================================
-
 
 @app.get("/settings/transitions")
 async def get_transition_settings():
@@ -4889,7 +4973,7 @@ async def get_transition_settings():
         "strategy": transition.strategy,
         "step_interval_ms": transition.step_interval_ms,
         "step_size": transition.step_size,
-        "available_strategies": VALID_STRATEGIES,
+        "available_strategies": VALID_STRATEGIES
     }
 
 
@@ -4912,10 +4996,15 @@ async def update_transition_settings(request: dict):
         step_size = request.get("step_size", ...)
 
         transition = settings_service.update_transition_settings(
-            strategy=strategy, step_interval_ms=step_interval_ms, step_size=step_size
+            strategy=strategy,
+            step_interval_ms=step_interval_ms,
+            step_size=step_size
         )
 
-        return {"status": "success", "settings": transition.to_dict()}
+        return {
+            "status": "success",
+            "settings": transition.to_dict()
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -4925,7 +5014,11 @@ async def get_output_settings():
     """Get current output target settings."""
     settings_service = get_settings_service()
     output = settings_service.get_output_settings()
-    return {"target": output.target, "effective_target": output.target, "available_targets": VALID_OUTPUT_TARGETS}
+    return {
+        "target": output.target,
+        "effective_target": output.target,
+        "available_targets": VALID_OUTPUT_TARGETS
+    }
 
 
 @app.put("/settings/output")
@@ -4943,7 +5036,10 @@ async def update_output_settings(request: dict):
 
     try:
         output = settings_service.set_output_target(request["target"])
-        return {"status": "success", "settings": output.to_dict()}
+        return {
+            "status": "success",
+            "settings": output.to_dict()
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -4953,7 +5049,9 @@ async def get_active_page():
     """Get the currently active page ID."""
     settings_service = get_settings_service()
     page_id = settings_service.get_active_page_id()
-    return {"page_id": page_id}
+    return {
+        "page_id": page_id
+    }
 
 
 @app.put("/settings/active-page")
@@ -4995,7 +5093,6 @@ async def set_active_page(request: dict):
     # would silently overwrite the user's selection. See issue #856.
     if PLUGIN_SYSTEM_AVAILABLE:
         from .triggers.service import get_trigger_service
-
         get_trigger_service().dismiss_active_for_user_override()
 
     # Set the active page (stores the carousel ID or page ID as-is)
@@ -5008,19 +5105,16 @@ async def set_active_page(request: dict):
         if result and result.available:
             system_transition = settings_service.get_transition_settings()
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-            interval_ms = (
-                page.transition_interval_ms
-                if page.transition_interval_ms is not None
-                else system_transition.step_interval_ms
-            )
-            step_size = (
-                page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-            )
+            interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
+            step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
 
             dims = get_dimensions(page.device_type)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
-                board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
+                board_array,
+                strategy=strategy,
+                step_interval_ms=interval_ms,
+                step_size=step_size
             )
             sent_to_board = was_sent
             if not success:
@@ -5107,8 +5201,9 @@ async def set_temporary_override(request: dict):
     if revert_mode == "page":
         if not revert_page_id:
             raise HTTPException(status_code=422, detail="revert_page_id is required when revert_mode is 'page'")
-        if not is_carousel_id(revert_page_id) and not page_service.get_page(revert_page_id):
-            raise HTTPException(status_code=404, detail=f"Revert page not found: {revert_page_id}")
+        if not is_carousel_id(revert_page_id):
+            if not page_service.get_page(revert_page_id):
+                raise HTTPException(status_code=404, detail=f"Revert page not found: {revert_page_id}")
 
     expires_at = (datetime.now(UTC) + timedelta(minutes=duration_minutes)).isoformat()
     override = TemporaryOverride(
@@ -5341,7 +5436,6 @@ async def get_location_sun_times(date: str | None = None):
             target_date = date_cls.fromisoformat(date)
         except ValueError:
             from fastapi import HTTPException
-
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.") from None
     else:
         target_date = get_today_in_timezone(timezone_str)
@@ -5384,7 +5478,6 @@ async def get_location_sun_times_week(week_start: str):
         start = date_cls.fromisoformat(week_start)
     except ValueError:
         from fastapi import HTTPException
-
         raise HTTPException(status_code=400, detail="Invalid week_start format. Use YYYY-MM-DD.") from None
 
     result: dict = {}
@@ -5463,7 +5556,7 @@ async def update_beta_settings(request: dict):
             # persisting the user's preference, but we surface the error.
             try:
                 await asyncio.to_thread(https_certs.generate_cert)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - report to caller
                 logger.error("Failed to generate HTTPS certificate: %s", e)
                 cert_error = str(e)
         elif previous and not requested:
@@ -5471,7 +5564,7 @@ async def update_beta_settings(request: dict):
             # falls back to HTTP on next restart.
             try:
                 await asyncio.to_thread(https_certs.remove_cert)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("Failed to remove HTTPS certificate: %s", e)
 
     updated = settings_service.update_beta_settings(request or {})
@@ -5560,17 +5653,15 @@ async def get_all_settings():
         "plugins": plugins.to_dict(),
         "status": {
             "running": _service_running,
-        },
+        }
     }
 
 
 # ==================== Debug Endpoints ====================
 
-
 def _get_server_ip() -> str:
     """Get the server's IP address."""
     import socket
-
     try:
         # Create a socket to determine the IP
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -5626,7 +5717,10 @@ async def debug_blank_board():
 
     settings_service = get_settings_service()
     if not settings_service.should_send_to_board():
-        return {"status": "success", "message": "Board blank (output target is UI only)"}
+        return {
+            "status": "success",
+            "message": "Board blank (output target is UI only)"
+        }
 
     try:
         # Create a 6x22 array filled with spaces (code 0)
@@ -5634,8 +5728,12 @@ async def debug_blank_board():
         success, was_sent = client.send_characters(blank_array, force=True)
 
         if success:
-            return {"status": "success", "message": "Board blanked successfully"}
-        raise HTTPException(status_code=500, detail="Failed to blank board")
+            return {
+                "status": "success",
+                "message": "Board blanked successfully"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to blank board")
     except Exception as e:
         logger.error(f"Error blanking board: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -5662,7 +5760,7 @@ async def debug_fill_board(request: dict):
     if not settings_service.should_send_to_board():
         return {
             "status": "success",
-            "message": f"Board filled with character {character_code} (output target is UI only)",
+            "message": f"Board filled with character {character_code} (output target is UI only)"
         }
 
     try:
@@ -5671,8 +5769,12 @@ async def debug_fill_board(request: dict):
         success, was_sent = client.send_characters(fill_array, force=True)
 
         if success:
-            return {"status": "success", "message": f"Board filled with character {character_code}"}
-        raise HTTPException(status_code=500, detail="Failed to fill board")
+            return {
+                "status": "success",
+                "message": f"Board filled with character {character_code}"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to fill board")
     except Exception as e:
         logger.error(f"Error filling board: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -5698,7 +5800,6 @@ async def debug_show_info():
 
     # Get current timestamp
     from .time_service import get_time_service
-
     time_service = get_time_service()
     now = time_service.get_current_time()
     timestamp = now.strftime("%H:%M")
@@ -5715,20 +5816,24 @@ V{version[:7]} {timestamp}"""
         return {
             "status": "success",
             "message": "Debug info displayed (output target is UI only)",
-            "debug_info": debug_text,
+            "debug_info": debug_text
         }
 
     try:
         # Convert text to board array
         from .text_to_board import text_to_board_array
-
         board_array = text_to_board_array(debug_text, use_color_tiles=False)
 
         success, was_sent = client.send_characters(board_array, force=True)
 
         if success:
-            return {"status": "success", "message": "Debug info sent to board", "debug_info": debug_text}
-        raise HTTPException(status_code=500, detail="Failed to send debug info")
+            return {
+                "status": "success",
+                "message": "Debug info sent to board",
+                "debug_info": debug_text
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send debug info")
     except Exception as e:
         logger.error(f"Error sending debug info: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -5751,12 +5856,23 @@ async def debug_test_connection():
                 "status": "success",
                 "message": f"Connection successful (latency: {latency}ms)",
                 "connected": True,
-                "latency_ms": latency,
+                "latency_ms": latency
             }
-        return {"status": "error", "message": "Connection failed", "connected": False, "latency_ms": None}
+        else:
+            return {
+                "status": "error",
+                "message": "Connection failed",
+                "connected": False,
+                "latency_ms": None
+            }
     except Exception as e:
         logger.error(f"Error testing connection: {e}", exc_info=True)
-        return {"status": "error", "message": "Connection test failed", "connected": False, "latency_ms": None}
+        return {
+            "status": "error",
+            "message": "Connection test failed",
+            "connected": False,
+            "latency_ms": None
+        }
 
 
 @app.post("/debug/clear-cache")
@@ -5768,7 +5884,10 @@ async def debug_clear_cache():
 
     try:
         client.clear_cache()
-        return {"status": "success", "message": "Cache cleared - next message will be sent regardless of content"}
+        return {
+            "status": "success",
+            "message": "Cache cleared - next message will be sent regardless of content"
+        }
     except Exception as e:
         logger.error(f"Error clearing cache: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -5783,7 +5902,10 @@ async def debug_get_cache_status():
 
     try:
         cache_status = client.get_cache_status()
-        return {"status": "success", "cache": cache_status}
+        return {
+            "status": "success",
+            "cache": cache_status
+        }
     except Exception as e:
         logger.error(f"Error getting cache status: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -5802,7 +5924,6 @@ async def debug_get_system_info():
 
     # Get current timestamp
     from .time_service import get_time_service
-
     time_service = get_time_service()
     timestamp = time_service.create_utc_timestamp()
 
@@ -5811,13 +5932,10 @@ async def debug_get_system_info():
     cache_status = client.get_cache_status() if client else None
 
     # Check if board is configured
-    board_configured = bool(
-        board_ip
-        and (
-            (connection_mode == "local" and Config.BOARD_LOCAL_API_KEY)
-            or (connection_mode == "cloud" and Config.BOARD_READ_WRITE_KEY)
-        )
-    )
+    board_configured = bool(board_ip and (
+        (connection_mode == "local" and Config.BOARD_LOCAL_API_KEY) or
+        (connection_mode == "cloud" and Config.BOARD_READ_WRITE_KEY)
+    ))
 
     return {
         "board_ip": board_ip,
@@ -5865,14 +5983,16 @@ async def debug_network_diagnostics():
 # Pages Endpoints
 # =============================================================================
 
-
 @app.get("/pages")
 async def list_pages():
     """List all saved pages."""
     page_service = get_page_service()
     pages = page_service.list_pages()
 
-    return {"pages": [p.model_dump() for p in pages], "total": len(pages)}
+    return {
+        "pages": [p.model_dump() for p in pages],
+        "total": len(pages)
+    }
 
 
 @app.get("/pages/current-display")
@@ -5893,7 +6013,6 @@ async def get_current_display():
     # Determine the active page ID (schedule-aware)
     if settings_service.is_schedule_enabled():
         from .time_service import get_time_service
-
         time_service = get_time_service()
         now = time_service.get_current_time()
         current_time = now.time()
@@ -5927,7 +6046,11 @@ async def get_current_display():
     if page.type == "template" and page.template:
         # Return raw template so variables like {{weather.temp}} are preserved
         response["template"] = page.template
-        response["line_metadata"] = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
+        response["line_metadata"] = (
+            [m.model_dump() for m in page.line_metadata]
+            if page.line_metadata
+            else None
+        )
     else:
         # For single/composite pages, return the rendered output as template lines
         result = page_service.preview_page(active_page_id, force_refresh=True)
@@ -5955,7 +6078,10 @@ async def create_page(page_data: PageCreate):
 
     try:
         page = page_service.create_page(page_data)
-        return {"status": "success", "page": page.model_dump()}
+        return {
+            "status": "success",
+            "page": page.model_dump()
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -5982,7 +6108,10 @@ async def update_page(page_id: str, page_data: PageUpdate):
         if not page:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
-        return {"status": "success", "page": page.model_dump()}
+        return {
+            "status": "success",
+            "page": page.model_dump()
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -6071,7 +6200,7 @@ _STAFF_PICKS_PATH = Path(__file__).parent.parent / "staff-picks" / "picks.json"
 
 def _load_staff_picks() -> list:
     try:
-        with _STAFF_PICKS_PATH.open() as f:
+        with open(_STAFF_PICKS_PATH) as f:
             return json.load(f)
     except FileNotFoundError:
         return []
@@ -6081,7 +6210,11 @@ def _load_staff_picks() -> list:
 async def list_staff_picks():
     """Return all staff picks (without share strings)."""
     picks = _load_staff_picks()
-    return [{k: v for k, v in pick.items() if k != "share_string"} for pick in picks]
+    return [
+        {k: v for k, v in pick.items() if k != "share_string"}
+        for pick in picks
+    ]
+
 
 
 @app.get("/staff-picks/{pick_id}/share")
@@ -6096,7 +6229,8 @@ async def get_staff_pick_share(pick_id: str):
 
 @app.post("/pages/{page_id}/preview")
 async def preview_page(
-    page_id: str, force_refresh: bool = Query(default=False, description="Force fresh render, bypass cache")
+    page_id: str,
+    force_refresh: bool = Query(default=False, description="Force fresh render, bypass cache")
 ):
     """
     Preview a page's rendered output.
@@ -6130,9 +6264,9 @@ async def preview_page(
     return {
         "page_id": page_id,
         "message": result.formatted,
-        "lines": result.formatted.split("\n"),
+        "lines": result.formatted.split('\n'),
         "display_type": result.display_type,
-        "raw": result.raw,
+        "raw": result.raw
     }
 
 
@@ -6173,23 +6307,29 @@ async def preview_pages_batch(request: dict):
     for page_id in page_ids:
         result = batch_results.get(page_id)
         if result is None:
-            results[page_id] = {"error": "Page not found", "available": False}
+            results[page_id] = {
+                "error": "Page not found",
+                "available": False
+            }
         elif not result.available:
-            results[page_id] = {"error": result.error or "Page rendering failed", "available": False}
+            results[page_id] = {
+                "error": result.error or "Page rendering failed",
+                "available": False
+            }
         else:
             results[page_id] = {
                 "page_id": page_id,
                 "message": result.formatted,
-                "lines": result.formatted.split("\n"),
+                "lines": result.formatted.split('\n'),
                 "display_type": result.display_type,
                 "raw": result.raw,
-                "available": True,
+                "available": True
             }
 
     return {
         "previews": results,
         "total": len(page_ids),
-        "successful": sum(1 for r in results.values() if r.get("available", False)),
+        "successful": sum(1 for r in results.values() if r.get("available", False))
     }
 
 
@@ -6206,7 +6346,7 @@ async def get_page_cache_stats():
 
 
 @app.post("/pages/cache/clear")
-async def clear_page_cache(request: dict | None = None):
+async def clear_page_cache(request: dict = None):
     """
     Clear preview cache.
 
@@ -6227,8 +6367,15 @@ async def clear_page_cache(request: dict | None = None):
     page_service._invalidate_cache(page_id)
 
     if page_id:
-        return {"status": "success", "message": f"Cache cleared for page {page_id}"}
-    return {"status": "success", "message": "All preview caches cleared"}
+        return {
+            "status": "success",
+            "message": f"Cache cleared for page {page_id}"
+        }
+    else:
+        return {
+            "status": "success",
+            "message": "All preview caches cleared"
+        }
 
 
 @app.post("/pages/{page_id}/send")
@@ -6241,7 +6388,10 @@ async def send_page(page_id: str, target: str | None = None):
         target: Override output target (ui, board, both)
     """
     if target is not None and target not in VALID_OUTPUT_TARGETS:
-        raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}"
+        )
 
     page_service = get_page_service()
     settings_service = get_settings_service()
@@ -6281,20 +6431,17 @@ async def send_page(page_id: str, target: str | None = None):
             # Use page-level transitions if set, otherwise fall back to system defaults
             system_transition = settings_service.get_transition_settings()
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-            interval_ms = (
-                page.transition_interval_ms
-                if page.transition_interval_ms is not None
-                else system_transition.step_interval_ms
-            )
-            step_size = (
-                page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-            )
+            interval_ms = page.transition_interval_ms if page.transition_interval_ms is not None else system_transition.step_interval_ms
+            step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
 
             # Convert to board array with dimensions for page's device type (flagship vs note)
             dims = get_dimensions(page.device_type)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
-                board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
+                board_array,
+                strategy=strategy,
+                step_interval_ms=interval_ms,
+                step_size=step_size
             )
             sent_to_board = was_sent
             if not success:
@@ -6314,7 +6461,6 @@ async def send_page(page_id: str, target: str | None = None):
 # =============================================================================
 # Schedule Endpoints
 # =============================================================================
-
 
 def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
     """Add resolved_start_time / resolved_end_time to a schedule dict.
@@ -6356,7 +6502,6 @@ def _enrich_schedule_with_sun_times(schedule_dict: dict) -> dict:
     schedule_dict["resolved_start_time"] = resolved_start
     schedule_dict["resolved_end_time"] = resolved_end
     return schedule_dict
-
 
 @app.get("/schedules")
 async def list_schedules(board_id: str | None = None):
@@ -6407,7 +6552,6 @@ async def create_schedule(schedule_data: ScheduleCreate):
 # Specific routes must come BEFORE parameterized routes
 # to avoid /schedules/{schedule_id} matching everything
 
-
 @app.get("/schedules/active/page")
 async def get_active_schedule(board_id: str | None = None):
     """Get the currently active page based on schedule (optional query: board_id=)."""
@@ -6434,7 +6578,6 @@ async def get_active_schedule(board_id: str | None = None):
             "temporary_override": temporary_override_payload,
         }
     from .time_service import get_time_service
-
     time_service = get_time_service()
     now = time_service.get_current_time()
     current_time = now.time()
@@ -6515,7 +6658,6 @@ async def set_schedule_enabled(request: dict):
 
 # Parameterized routes come LAST to avoid matching specific paths
 
-
 @app.get("/schedules/{schedule_id}")
 async def get_schedule(schedule_id: str):
     """Get a schedule entry by ID.
@@ -6573,13 +6715,15 @@ async def delete_schedule(schedule_id: str):
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
 
-    return {"status": "success", "message": f"Schedule {schedule_id} deleted"}
+    return {
+        "status": "success",
+        "message": f"Schedule {schedule_id} deleted"
+    }
 
 
 # =============================================================================
 # Carousel Endpoints
 # =============================================================================
-
 
 @app.get("/carousels")
 async def list_carousels():
@@ -6653,7 +6797,6 @@ async def delete_carousel(carousel_id: str):
 # Template Endpoints
 # =============================================================================
 
-
 @app.get("/templates/variables")
 async def get_template_variables():
     """
@@ -6667,7 +6810,7 @@ async def get_template_variables():
     template_engine = get_template_engine()
     registry = get_plugin_registry()
 
-    return {
+    result = {
         "variables": template_engine.get_available_variables(),
         "max_lengths": template_engine.get_variable_max_lengths(),
         "variable_metadata": registry.get_all_variables_with_metadata(),
@@ -6687,12 +6830,12 @@ async def get_template_variables():
         "formatting": {
             "fill_space": {
                 "syntax": "{{fill_space}}",
-                "description": "Expands to fill remaining space on the line. Use multiple for multi-column layouts.",
+                "description": "Expands to fill remaining space on the line. Use multiple for multi-column layouts."
             },
             "fill_space_repeat": {
                 "syntax": "{{fill_space_repeat:pattern}}",
-                "description": "Fills remaining space with repeating colors or characters. Examples: {{fill_space_repeat:red}} or {{fill_space_repeat:-}}",
-            },
+                "description": "Fills remaining space with repeating colors or characters. Examples: {{fill_space_repeat:red}} or {{fill_space_repeat:-}}"
+            }
         },
         "syntax_examples": {
             "variable": "{{weather.temperature}}",
@@ -6703,8 +6846,9 @@ async def get_template_variables():
             "wrap": "{{star_trek.quote|wrap}}",
             "fill_space": "Left{{fill_space}}Right",
             "fill_space_three_columns": "A{{fill_space}}B{{fill_space}}C",
-        },
+        }
     }
+    return result
 
 
 @app.post("/templates/validate")
@@ -6724,14 +6868,17 @@ async def validate_template(request: dict):
 
     # Handle both string and list input
     if isinstance(template, list):
-        template = "\n".join(template)
+        template = '\n'.join(template)
 
     template_engine = get_template_engine()
     errors = template_engine.validate_template(template)
 
     return {
         "valid": len(errors) == 0,
-        "errors": [{"line": e.line, "column": e.column, "message": e.message} for e in errors],
+        "errors": [
+            {"line": e.line, "column": e.column, "message": e.message}
+            for e in errors
+        ]
     }
 
 
@@ -6766,16 +6913,24 @@ async def render_template(request: dict):
 
     # Determine line count from device type
     from .devices import DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS
-
-    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
+                                  DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
     num_rows = dims.rows
 
     # Early return for empty templates to avoid unnecessary processing
     if isinstance(template, list):
         if not template or all(not line.strip() for line in template):
-            return {"rendered": "\n".join([""] * num_rows), "lines": [""] * num_rows, "line_count": num_rows}
+            return {
+                "rendered": "\n".join([""] * num_rows),
+                "lines": [""] * num_rows,
+                "line_count": num_rows
+            }
     elif isinstance(template, str) and not template.strip():
-        return {"rendered": "\n".join([""] * num_rows), "lines": [""] * num_rows, "line_count": num_rows}
+        return {
+            "rendered": "\n".join([""] * num_rows),
+            "lines": [""] * num_rows,
+            "line_count": num_rows
+        }
 
     template_engine = get_template_engine()
     line_metadata = request.get("line_metadata")
@@ -6788,10 +6943,14 @@ async def render_template(request: dict):
             logger.info(f"Rendering template string: {template}")
             rendered = template_engine.render(template)
 
-        return {"rendered": rendered, "lines": rendered.split("\n"), "line_count": len(rendered.split("\n"))}
+        return {
+            "rendered": rendered,
+            "lines": rendered.split('\n'),
+            "line_count": len(rendered.split('\n'))
+        }
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Template rendering failed: {e!s}") from e
+        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
 
 
 @app.post("/templates/render/live")
@@ -6818,8 +6977,8 @@ async def render_template_live(request: dict):
 
     # Determine line count from device type
     from .devices import DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS
-
-    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+    dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE,
+                                  DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
     num_rows = dims.rows
 
     # Render the template
@@ -6846,7 +7005,7 @@ async def render_template_live(request: dict):
             rendered = template_engine.render(template)
     except Exception as e:
         logger.error(f"Template rendering error: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Template rendering failed: {e!s}") from e
+        raise HTTPException(status_code=400, detail=f"Template rendering failed: {str(e)}") from e
 
     # Find the target board
     board_settings = settings_service.get_board_settings()
@@ -6887,8 +7046,8 @@ async def render_template_live(request: dict):
 
     return {
         "rendered": rendered,
-        "lines": rendered.split("\n"),
-        "line_count": len(rendered.split("\n")),
+        "lines": rendered.split('\n'),
+        "line_count": len(rendered.split('\n')),
         "sent_to_board": sent_to_board,
         "board_id": target_board.get("id") if target_board else None,
     }
@@ -6920,6 +7079,7 @@ async def clear_cache():
     return {"status": "success", "message": "Cache cleared - next update will be sent to board"}
 
 
+
 @app.post("/force-refresh")
 async def force_refresh():
     """
@@ -6941,13 +7101,12 @@ async def force_refresh():
         return {"status": "success", "message": "Display force-refreshed successfully"}
     except Exception as e:
         logger.error(f"Error force-refreshing display: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to force refresh: {e!s}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to force refresh: {str(e)}") from e
 
 
 # =============================================================================
 # Home Assistant Endpoints
 # =============================================================================
-
 
 @app.get("/home-assistant/entities")
 async def get_home_assistant_entities():
@@ -6978,17 +7137,15 @@ async def get_home_assistant_entities():
         result_entities = []
         for e in entities:
             attrs = e.get("attributes") or {}
-            result_entities.append(
-                {
-                    "entity_id": e["entity_id"],
-                    "state": e["state"],
-                    "attributes": attrs,
-                    "friendly_name": attrs.get("friendly_name", e["entity_id"]),
-                }
-            )
+            result_entities.append({
+                "entity_id": e["entity_id"],
+                "state": e["state"],
+                "attributes": attrs,
+                "friendly_name": attrs.get("friendly_name", e["entity_id"]),
+            })
         return {"entities": result_entities}
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Failed to fetch entities: {e!s}") from e
+        raise HTTPException(status_code=503, detail=f"Failed to fetch entities: {str(e)}") from e
 
 
 # Legacy endpoints /preview and /publish-preview have been removed.
@@ -7003,7 +7160,6 @@ async def get_home_assistant_entities():
 # Import plugin system
 try:
     from .plugins import get_plugin_registry
-
     PLUGIN_SYSTEM_AVAILABLE = True
 except ImportError:
     PLUGIN_SYSTEM_AVAILABLE = False
@@ -7012,13 +7168,11 @@ except ImportError:
 
 class PluginConfigRequest(BaseModel):
     """Request body for plugin configuration updates."""
-
     config: dict[str, Any]
 
 
 class PluginEnableRequest(BaseModel):
     """Request body for enabling/disabling a plugin."""
-
     enabled: bool
 
 
@@ -7030,7 +7184,10 @@ async def list_plugins():
     Returns plugins with their status, metadata, and whether they're enabled.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
     plugins = registry.list_plugins()
@@ -7051,7 +7208,7 @@ async def list_plugins():
         "plugins": plugins,
         "plugin_system_enabled": True,
         "total": len(plugins),
-        "enabled_count": sum(1 for p in plugins if p.get("enabled", False)),
+        "enabled_count": sum(1 for p in plugins if p.get("enabled", False))
     }
 
 
@@ -7068,7 +7225,7 @@ async def get_all_plugin_variables():
         return {
             "variables": template_engine.get_available_variables(),
             "max_lengths": template_engine.get_variable_max_lengths(),
-            "plugin_system_enabled": False,
+            "plugin_system_enabled": False
         }
 
     registry = get_plugin_registry()
@@ -7076,7 +7233,7 @@ async def get_all_plugin_variables():
     return {
         "variables": registry.get_all_variables(),
         "max_lengths": registry.get_all_max_lengths(),
-        "plugin_system_enabled": True,
+        "plugin_system_enabled": True
     }
 
 
@@ -7088,11 +7245,17 @@ async def get_plugin_errors():
     Returns errors from plugins that failed to load.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        return {"errors": {}, "plugin_system_enabled": False}
+        return {
+            "errors": {},
+            "plugin_system_enabled": False
+        }
 
     registry = get_plugin_registry()
 
-    return {"errors": registry.get_load_errors(), "plugin_system_enabled": True}
+    return {
+        "errors": registry.get_load_errors(),
+        "plugin_system_enabled": True
+    }
 
 
 @app.get("/plugins/registry")
@@ -7103,7 +7266,9 @@ async def list_registry_plugins():
     Returns registry entries with their installation status.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
 
@@ -7122,7 +7287,9 @@ async def get_plugin_updates():
     ``POST /plugins/updates/check`` to trigger an immediate check.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
     return {"updates": registry.get_update_status()}
@@ -7136,13 +7303,19 @@ async def get_plugin(plugin_id: str):
     Returns the plugin's manifest, configuration, and status.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
     manifest = registry.get_manifest(plugin_id)
 
     if not manifest:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {plugin_id}"
+        )
 
     # Get configuration
     config_manager = get_config_manager()
@@ -7153,9 +7326,8 @@ async def get_plugin(plugin_id: str):
     demo_page_id = None
     if has_demo:
         page_service = get_page_service()
-        demo_page = page_service.get_demo_page(plugin_id, device_type="flagship") or page_service.get_demo_page(
-            plugin_id
-        )
+        demo_page = page_service.get_demo_page(plugin_id, device_type="flagship") \
+            or page_service.get_demo_page(plugin_id)
         if demo_page:
             demo_page_id = demo_page.id
 
@@ -7194,13 +7366,19 @@ async def get_plugin_manifest(plugin_id: str):
     Returns the raw manifest data for UI rendering.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
     manifest = registry.get_manifest(plugin_id)
 
     if not manifest:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {plugin_id}"
+        )
 
     return manifest.raw
 
@@ -7224,19 +7402,28 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
     }
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
 
     # Check if plugin exists
     if not registry.get_plugin(plugin_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {plugin_id}"
+        )
 
     # Validate configuration against manifest schema
     errors = registry.set_plugin_config(plugin_id, request.config)
     if errors:
         logger.error(f"Plugin '{plugin_id}' config validation failed: {errors}")
-        raise HTTPException(status_code=400, detail={"errors": errors})
+        raise HTTPException(
+            status_code=400,
+            detail={"errors": errors}
+        )
 
     # Save to config file
     config_manager = get_config_manager()
@@ -7254,7 +7441,7 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
     return {
         "status": "success",
         "plugin_id": plugin_id,
-        "config": config_manager._mask_sensitive(updated) if updated else {},
+        "config": config_manager._mask_sensitive(updated) if updated else {}
     }
 
 
@@ -7266,17 +7453,26 @@ async def enable_plugin(plugin_id: str):
     Enables the plugin in both the registry and persists to config.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
 
     if not registry.get_plugin(plugin_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {plugin_id}"
+        )
 
     # Enable in registry
     success = registry.enable_plugin(plugin_id)
     if not success:
-        raise HTTPException(status_code=400, detail=f"Failed to enable plugin: {plugin_id}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to enable plugin: {plugin_id}"
+        )
 
     # Persist to config
     config_manager = get_config_manager()
@@ -7288,7 +7484,11 @@ async def enable_plugin(plugin_id: str):
 
     logger.info(f"Plugin '{plugin_id}' enabled")
 
-    return {"status": "success", "plugin_id": plugin_id, "enabled": True}
+    return {
+        "status": "success",
+        "plugin_id": plugin_id,
+        "enabled": True
+    }
 
 
 @app.post("/plugins/{plugin_id}/disable")
@@ -7299,17 +7499,26 @@ async def disable_plugin(plugin_id: str):
     Disables the plugin in both the registry and persists to config.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
 
     if not registry.get_plugin(plugin_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {plugin_id}"
+        )
 
     # Disable in registry
     success = registry.disable_plugin(plugin_id)
     if not success:
-        raise HTTPException(status_code=400, detail=f"Failed to disable plugin: {plugin_id}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to disable plugin: {plugin_id}"
+        )
 
     # Persist to config
     config_manager = get_config_manager()
@@ -7321,7 +7530,11 @@ async def disable_plugin(plugin_id: str):
 
     logger.info(f"Plugin '{plugin_id}' disabled")
 
-    return {"status": "success", "plugin_id": plugin_id, "enabled": False}
+    return {
+        "status": "success",
+        "plugin_id": plugin_id,
+        "enabled": False
+    }
 
 
 @app.get("/plugins/{plugin_id}/data")
@@ -7332,29 +7545,41 @@ async def get_plugin_data(plugin_id: str):
     Returns the plugin's latest data, formatted output, and status.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
 
     if not registry.get_plugin(plugin_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {plugin_id}"
+        )
 
     if not registry.is_enabled(plugin_id):
-        raise HTTPException(status_code=400, detail=f"Plugin not enabled: {plugin_id}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin not enabled: {plugin_id}"
+        )
 
     result = registry.fetch_plugin_data(plugin_id)
 
     # Return 503 when plugin data is unavailable (e.g. not configured, auth failure)
     # so monitoring (Grafana) and request log show it as an error for triage
     if not result.available:
-        raise HTTPException(status_code=503, detail=result.error or "Plugin data not available")
+        raise HTTPException(
+            status_code=503,
+            detail=result.error or "Plugin data not available"
+        )
 
     return {
         "plugin_id": plugin_id,
         "available": result.available,
         "data": result.data,
         "formatted_lines": result.formatted_lines,
-        "error": result.error,
+        "error": result.error
     }
 
 
@@ -7366,19 +7591,25 @@ async def get_plugin_variables(plugin_id: str):
     Returns the variables schema for use in the template editor.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503,
+            detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
     manifest = registry.get_manifest(plugin_id)
 
     if not manifest:
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {plugin_id}"
+        )
 
     return {
         "plugin_id": plugin_id,
         "variables": manifest.raw.get("variables", {}),
         "max_lengths": manifest.max_lengths,
-        "color_rules_schema": manifest.raw.get("color_rules_schema", {}),
+        "color_rules_schema": manifest.raw.get("color_rules_schema", {})
     }
 
 
@@ -7449,12 +7680,15 @@ async def create_plugin_demo_page(plugin_id: str, device_type: str = "flagship")
     if required_fields:
         config_manager = get_config_manager()
         plugin_config = config_manager.get_plugin_config(plugin_id) or {}
-        missing = [f for f in required_fields if f != "enabled" and not plugin_config.get(f)]
+        missing = [
+            f for f in required_fields
+            if f != "enabled" and not plugin_config.get(f)
+        ]
         if missing:
             raise HTTPException(
                 status_code=400,
                 detail=f"Required settings not configured: {', '.join(missing)}. "
-                f"Configure them first before creating a demo page.",
+                       f"Configure them first before creating a demo page.",
             )
 
     page_service = get_page_service()
@@ -7471,7 +7705,6 @@ async def create_plugin_demo_page(plugin_id: str, device_type: str = "flagship")
 
 class PluginInstanceCreateRequest(BaseModel):
     """Request body for creating a new plugin instance."""
-
     label: str
 
 
@@ -7483,7 +7716,9 @@ async def list_plugin_instances(plugin_id: str):
     Returns the instances (excluding the base) for the given plugin.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
 
@@ -7491,7 +7726,10 @@ async def list_plugin_instances(plugin_id: str):
     base_id, _ = registry.parse_instance_key(plugin_id)
 
     if not registry.get_plugin(base_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {base_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {base_id}"
+        )
 
     instances = registry.list_instances(base_id)
 
@@ -7513,7 +7751,9 @@ async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRe
     ``{plugin_id}:{label}``.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
 
@@ -7521,7 +7761,10 @@ async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRe
     base_id, _ = registry.parse_instance_key(plugin_id)
 
     if not registry.get_plugin(base_id):
-        raise HTTPException(status_code=404, detail=f"Plugin not found: {base_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plugin not found: {base_id}"
+        )
 
     errors = registry.create_instance(base_id, request.label)
     if errors:
@@ -7556,7 +7799,9 @@ async def delete_plugin_instance(plugin_id: str, instance_label: str):
     Removes the instance from the registry and its persisted configuration.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
 
@@ -7640,7 +7885,6 @@ async def receive_plugin_payload(plugin_id: str, request: Request):
 
 class ExternalPluginInstallRequest(BaseModel):
     """Request body for installing an external plugin."""
-
     repository: str
     plugin_id: str | None = None
     branch: str = ""
@@ -7652,7 +7896,9 @@ async def install_registry_plugin(plugin_id: str):
     Install a plugin from the curated registry by its id.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
     errors = registry.install_from_registry(plugin_id)
@@ -7676,12 +7922,13 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
     naming convention (that requirement only applies to registry plugins).
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     safe_branch = request.branch or ""
     if safe_branch:
         from .plugins.sources import _validate_git_ref
-
         _ok, _err = _validate_git_ref(safe_branch)
         if not _ok:
             raise HTTPException(status_code=400, detail=_err)
@@ -7702,7 +7949,6 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
     pid = safe_plugin_id
     if pid is None:
         from .plugins.sources import plugin_id_from_repo_name, repo_name_from_url
-
         pid = plugin_id_from_repo_name(repo_name_from_url(request.repository))
 
     return {
@@ -7720,13 +7966,17 @@ async def uninstall_external_plugin(plugin_id: str):
     Built-in plugins shipped with FiestaBoard cannot be uninstalled.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
 
     # Collect instance compound keys before uninstall so we can purge their configs
     instance_keys = [
-        p["id"] for p in registry.list_plugins() if p.get("base_plugin_id") == plugin_id and p.get("instance_label")
+        p["id"]
+        for p in registry.list_plugins()
+        if p.get("base_plugin_id") == plugin_id and p.get("instance_label")
     ]
 
     errors = registry.uninstall_external_plugin(plugin_id)
@@ -7754,7 +8004,9 @@ async def trigger_plugin_update_check():
     pool so the event loop is not blocked.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
     loop = asyncio.get_event_loop()
@@ -7774,7 +8026,9 @@ async def update_plugin(plugin_id: str):
     Built-in plugins cannot be updated via this endpoint.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
     source = registry.get_plugin_source(plugin_id)
@@ -7848,10 +8102,14 @@ async def apply_all_plugin_updates():
     inspect partial results.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     registry = get_plugin_registry()
-    pending = [pid for pid, has_update in registry.get_update_status().items() if has_update]
+    pending = [
+        pid for pid, has_update in registry.get_update_status().items() if has_update
+    ]
 
     if not pending:
         return {"updated": [], "failed": {}, "message": "No updates available."}
@@ -7913,12 +8171,10 @@ async def apply_all_plugin_updates():
 # Triggers — Event-based plugin messages
 # =============================================================================
 
-
 @app.get("/triggers")
 async def list_triggers():
     """List all active triggers with their status."""
     from .triggers.service import get_trigger_service
-
     trigger_service = get_trigger_service()
     active = trigger_service.list_active_triggers()
     return {
@@ -7931,7 +8187,6 @@ async def list_triggers():
 async def get_active_trigger():
     """Get the current highest-priority active trigger, if any."""
     from .triggers.service import get_trigger_service
-
     trigger_service = get_trigger_service()
     active = trigger_service.get_active_trigger()
     if active is None:
@@ -7943,7 +8198,6 @@ async def get_active_trigger():
 async def dismiss_trigger(trigger_id: str):
     """Dismiss (remove) a specific trigger by its id."""
     from .triggers.service import get_trigger_service
-
     trigger_service = get_trigger_service()
     dismissed = trigger_service.dismiss_trigger(trigger_id)
     if not dismissed:
@@ -7955,7 +8209,6 @@ async def dismiss_trigger(trigger_id: str):
 async def clear_triggers():
     """Clear all active triggers."""
     from .triggers.service import get_trigger_service
-
     trigger_service = get_trigger_service()
     trigger_service.clear_all()
     return {"status": "cleared"}
@@ -7969,10 +8222,11 @@ async def check_triggers():
     endpoint allows the UI or external systems to force an immediate check.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Plugin system is not available.")
+        raise HTTPException(
+            status_code=503, detail="Plugin system is not available."
+        )
 
     from .triggers.service import get_trigger_service
-
     registry = get_plugin_registry()
     trigger_service = get_trigger_service()
 
@@ -7992,7 +8246,6 @@ async def check_triggers():
 # =============================================================================
 # Generic Data Plugin — Test Fetch
 # =============================================================================
-
 
 @app.post("/generic-data/test-fetch")
 async def generic_data_test_fetch(request: dict):
@@ -8072,7 +8325,11 @@ async def generic_data_test_fetch(request: dict):
     try:
         kwargs: dict = {"headers": headers, "timeout": 15, "allow_redirects": False}
         if method == "POST" and body:
-            kwargs["data"] = interpolate_string(body, _interp_vars) if isinstance(body, str) else body
+            kwargs["data"] = (
+                interpolate_string(body, _interp_vars)
+                if isinstance(body, str)
+                else body
+            )
 
         resp = req.request(method, url, **kwargs)
         resp.raise_for_status()
@@ -8082,7 +8339,6 @@ async def generic_data_test_fetch(request: dict):
 
         if fmt == "xml":
             from plugins.generic_data import _xml_to_dict
-
             # ``defusedxml`` disables external entity expansion, DTDs and
             # entity bombs by default, mitigating XXE attacks.
             root = DefusedET.fromstring(resp.text)
@@ -8150,7 +8406,9 @@ async def import_backup(
     from .backup import BackupError, get_backup_service
 
     try:
-        result = get_backup_service().import_from_dict(payload, reinstall_plugins=reinstall_plugins)
+        result = get_backup_service().import_from_dict(
+            payload, reinstall_plugins=reinstall_plugins
+        )
     except BackupError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception:
@@ -8162,5 +8420,4 @@ async def import_backup(
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)
