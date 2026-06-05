@@ -11,7 +11,7 @@ This document describes the design tokens and usage conventions for the FiestaBo
 
 ## Contrast and accessibility
 
-Semantic colors are chosen for WCAG AA contrast where text is used: primary-foreground on primary, sidebar-accent-foreground on sidebar-accent, brand-foreground on brand. Muted-foreground is used for secondary text on background/card and meets contrast in both light and dark themes. Spot-check new tokens (e.g. after Design Pass 2) in both themes.
+Semantic colors are chosen for WCAG AA contrast where text is used: primary-foreground on primary, sidebar-accent-foreground on sidebar-accent, brand-foreground on brand. Muted-foreground is used for secondary text on background/card and meets contrast in both light and dark themes. Spot-check new tokens in both themes when you add or change one.
 
 ## Semantic colors
 
@@ -120,3 +120,9 @@ Brand warmth continues to come from the orange accent (`--brand`) and board pale
 The Settings page was refactored from custom `bg-muted/20` / `bg-muted/30` rounded sections to standard `Card` components, matching the surface treatment used on all other pages (Pages, Carousels, Integrations, Schedule). Redundant section titles that duplicated titles already inside child Card components were removed.
 
 Hardcoded warm oklch values in `.card-interactive:hover` were replaced with achromatic neutrals.
+
+## Related files
+
+- Theme tokens: [`web/src/app/globals.css`](../web/src/app/globals.css)
+- Empty-state component: [`web/src/components/ui/empty-state.tsx`](../web/src/components/ui/empty-state.tsx)
+- Tailwind config is inline in `globals.css` under `@theme inline { ... }` (Tailwind v4 — no separate `tailwind.config.ts`).
