@@ -188,7 +188,11 @@ describe("ActivePageDisplay", () => {
               id: "collection:test-collection-id",
               name: "Test Collection",
               page_ids: ["page-1"],
-              interval_seconds: 30,
+              selection_mode: "time",
+
+              time: { interval_seconds: 30 },
+
+              variable: null,
               created_at: "2025-01-01T00:00:00Z",
             },
           ],

@@ -220,7 +220,9 @@ test.describe("regression: collections.form", () => {
    * Expected: sheet has name input, page-picker, interval control; Submit disabled until valid
    * Source refs: web/src/app/collections/page.tsx (CollectionForm)
    */
-  test("collections.form.sheet-create — sheet opens with controls and submit-disabled-until-valid", async ({ page }) => {
+  test("collections.form.sheet-create — sheet opens with controls and submit-disabled-until-valid", async ({
+    page,
+  }) => {
     await createPage(`E2E Page ${Date.now()}`);
 
     await page.goto("/collections");

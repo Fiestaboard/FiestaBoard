@@ -366,14 +366,22 @@ describe("PageGridSelector", () => {
           id: "collection:c1",
           name: "My Collection",
           page_ids: ["page-1", "page-2"],
-          interval_seconds: 30,
+          selection_mode: "time",
+
+          time: { interval_seconds: 30 },
+
+          variable: null,
           created_at: "2025-01-01T00:00:00Z",
         },
         {
           id: "collection:c2",
           name: "Single Collection",
           page_ids: ["page-3"],
-          interval_seconds: 60,
+          selection_mode: "time",
+
+          time: { interval_seconds: 60 },
+
+          variable: null,
           created_at: "2025-01-01T00:00:00Z",
         },
       ],
@@ -403,7 +411,11 @@ describe("PageGridSelector", () => {
           id: "collection:c1",
           name: "Active Collection",
           page_ids: ["page-1", "page-2"],
-          interval_seconds: 30,
+          selection_mode: "time",
+
+          time: { interval_seconds: 30 },
+
+          variable: null,
           created_at: "2025-01-01T00:00:00Z",
         },
       ],

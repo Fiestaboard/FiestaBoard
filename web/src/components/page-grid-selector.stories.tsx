@@ -266,7 +266,9 @@ export const WithCollections: Story = {
   },
   decorators: [
     (Story, context) => (
-      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCollections)}>
+      <QueryClientProvider
+        client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCollections)}
+      >
         <div className="max-w-4xl">
           <Story />
         </div>
@@ -285,7 +287,9 @@ export const WithActiveCollection: Story = {
   },
   decorators: [
     (Story, context) => (
-      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCollections)}>
+      <QueryClientProvider
+        client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCollections)}
+      >
         <div className="max-w-4xl">
           <Story />
         </div>
@@ -303,7 +307,9 @@ export const CollectionsHidden: Story = {
   },
   decorators: [
     (Story, context) => (
-      <QueryClientProvider client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCollections)}>
+      <QueryClientProvider
+        client={createQueryClient(mockPages, context.args.activePageId || undefined, mockCollections)}
+      >
         <div className="max-w-4xl">
           <Story />
         </div>

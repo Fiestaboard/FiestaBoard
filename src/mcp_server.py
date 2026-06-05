@@ -819,8 +819,7 @@ def _build_mcp_server() -> Any:
             )
             collection = svc.create_collection(data)
             return _ok(
-                f"Collection '{name}' created with {len(page_ids)} pages "
-                f"in {selection_mode} mode.",
+                f"Collection '{name}' created with {len(page_ids)} pages in {selection_mode} mode.",
                 collection_id=collection.id,
                 name=collection.name,
             )
@@ -866,9 +865,7 @@ def _build_mcp_server() -> Any:
             svc = get_collection_service()
 
             time_cfg: TimeModeConfig | None = (
-                TimeModeConfig(interval_seconds=interval_seconds)
-                if interval_seconds is not None
-                else None
+                TimeModeConfig(interval_seconds=interval_seconds) if interval_seconds is not None else None
             )
             variable_cfg: VariableModeConfig | None = None
             if rules is not None or default_page_id is not None or poll_seconds is not None:
@@ -1121,9 +1118,7 @@ def _build_mcp_server() -> Any:
                 else:
                     poll = getattr(getattr(c, "variable", None), "poll_seconds", "?")
                     tail = f"variable mode, polls every {poll}s"
-                lines.append(
-                    f"- **{c.name}** (`{c.id}`) — {page_count} pages, {tail}"
-                )
+                lines.append(f"- **{c.name}** (`{c.id}`) — {page_count} pages, {tail}")
             return "\n".join(lines)
         except Exception as exc:
             return f"Error: {exc}"

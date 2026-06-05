@@ -87,7 +87,17 @@ describe("PagePickerDialog", () => {
   });
 
   it("shows tabs when collections are provided", () => {
-    const collections = [{ id: COLLECTION_ID, name: "Rotating Display", page_ids: ["page-1", "page-2"] }];
+    const collections = [
+      {
+        id: COLLECTION_ID,
+        name: "Rotating Display",
+        page_ids: ["page-1", "page-2"],
+        selection_mode: "time" as const,
+        time: { interval_seconds: 30 },
+        variable: null,
+        created_at: "2025-01-01T00:00:00Z",
+      },
+    ];
     render(<PagePickerDialog pages={PAGES} collections={collections} selectedPageId={null} onSelect={vi.fn()} />);
 
     expect(screen.getByRole("tab", { name: /pages/i })).toBeInTheDocument();
@@ -95,7 +105,17 @@ describe("PagePickerDialog", () => {
   });
 
   it("renders collection tab with correct count when collections are provided", () => {
-    const collections = [{ id: COLLECTION_ID, name: "Morning Collection", page_ids: ["page-1"] }];
+    const collections = [
+      {
+        id: COLLECTION_ID,
+        name: "Morning Collection",
+        page_ids: ["page-1"],
+        selection_mode: "time" as const,
+        time: { interval_seconds: 30 },
+        variable: null,
+        created_at: "2025-01-01T00:00:00Z",
+      },
+    ];
     render(<PagePickerDialog pages={PAGES} collections={collections} selectedPageId={null} onSelect={vi.fn()} />);
 
     const collectionsTab = screen.getByRole("tab", { name: /collections/i });
@@ -105,8 +125,20 @@ describe("PagePickerDialog", () => {
   });
 
   it("defaults to collections tab when a collection id is selected", () => {
-    const collections = [{ id: COLLECTION_ID, name: "Morning Collection", page_ids: ["page-1"] }];
-    render(<PagePickerDialog pages={PAGES} collections={collections} selectedPageId={COLLECTION_ID} onSelect={vi.fn()} />);
+    const collections = [
+      {
+        id: COLLECTION_ID,
+        name: "Morning Collection",
+        page_ids: ["page-1"],
+        selection_mode: "time" as const,
+        time: { interval_seconds: 30 },
+        variable: null,
+        created_at: "2025-01-01T00:00:00Z",
+      },
+    ];
+    render(
+      <PagePickerDialog pages={PAGES} collections={collections} selectedPageId={COLLECTION_ID} onSelect={vi.fn()} />,
+    );
 
     // When a collection ID is selected, the collections tab should be active
     const collectionsTab = screen.getByRole("tab", { name: /collections/i });

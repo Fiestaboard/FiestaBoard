@@ -469,7 +469,7 @@ class SettingsService:
 
         def _rewrite(value):
             if isinstance(value, str) and value.startswith(legacy_prefix):
-                return new_prefix + value[len(legacy_prefix):], True
+                return new_prefix + value[len(legacy_prefix) :], True
             return value, False
 
         try:
@@ -502,9 +502,7 @@ class SettingsService:
         try:
             with open(self.settings_file, "w") as f:  # noqa: PTH123
                 json.dump(data, f, indent=2)
-            logger.info(
-                f"Migrated {changed} carousel: -> collection: reference(s) in settings.json"
-            )
+            logger.info(f"Migrated {changed} carousel: -> collection: reference(s) in settings.json")
         except OSError as e:
             logger.warning(f"Could not write migrated settings: {e}")
 

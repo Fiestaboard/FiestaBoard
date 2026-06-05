@@ -27,7 +27,7 @@ def _rewrite_carousel_ref(ref: str | None) -> tuple[str | None, bool]:
     Returns ``(new_ref, changed)``. Non-carousel and falsy refs pass through.
     """
     if isinstance(ref, str) and ref.startswith(_LEGACY_CAROUSEL_PREFIX):
-        return _COLLECTION_PREFIX + ref[len(_LEGACY_CAROUSEL_PREFIX):], True
+        return _COLLECTION_PREFIX + ref[len(_LEGACY_CAROUSEL_PREFIX) :], True
     return ref, False
 
 

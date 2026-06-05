@@ -23,14 +23,22 @@ const mockCollections: Collection[] = [
     id: "collection:c1",
     name: "Morning Rotation",
     page_ids: ["page-1", "page-2"],
-    interval_seconds: 30,
+    selection_mode: "time",
+
+    time: { interval_seconds: 30 },
+
+    variable: null,
     created_at: "2025-01-01T00:00:00Z",
   },
   {
     id: "collection:c2",
     name: "Evening Rotation",
     page_ids: ["page-1"],
-    interval_seconds: 60,
+    selection_mode: "time",
+
+    time: { interval_seconds: 60 },
+
+    variable: null,
     created_at: "2025-01-01T00:00:00Z",
   },
 ];
@@ -41,52 +49,25 @@ const mockCollections: Collection[] = [
 
 describe("ScheduleEntryForm - Collection Integration", () => {
   it("renders collection section label when collections are provided", async () => {
-    render(
-      <ScheduleEntryForm
-        pages={mockPages}
-        collections={mockCollections}
-        onSubmit={vi.fn()}
-        onCancel={vi.fn()}
-      />
-    );
+    render(<ScheduleEntryForm pages={mockPages} collections={mockCollections} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.getByText("Page or Collection")).toBeInTheDocument();
   });
 
   it("renders without collection section when collections array is empty", () => {
-    render(
-      <ScheduleEntryForm
-        pages={mockPages}
-        collections={[]}
-        onSubmit={vi.fn()}
-        onCancel={vi.fn()}
-      />
-    );
+    render(<ScheduleEntryForm pages={mockPages} collections={[]} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.getByText("Page or Collection")).toBeInTheDocument();
   });
 
   it("renders without collection section when collections prop is undefined", () => {
-    render(
-      <ScheduleEntryForm
-        pages={mockPages}
-        onSubmit={vi.fn()}
-        onCancel={vi.fn()}
-      />
-    );
+    render(<ScheduleEntryForm pages={mockPages} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.getByText("Page or Collection")).toBeInTheDocument();
   });
 
   it("shows placeholder text that references collections when collections exist", () => {
-    render(
-      <ScheduleEntryForm
-        pages={mockPages}
-        collections={mockCollections}
-        onSubmit={vi.fn()}
-        onCancel={vi.fn()}
-      />
-    );
+    render(<ScheduleEntryForm pages={mockPages} collections={mockCollections} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     expect(screen.getByText("Select a page or collection")).toBeInTheDocument();
   });
@@ -110,7 +91,7 @@ describe("ScheduleEntryForm - Collection Integration", () => {
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
         onDelete={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByText("Update Schedule")).toBeInTheDocument();
@@ -135,7 +116,7 @@ describe("ScheduleEntryForm - Collection Integration", () => {
         collections={mockCollections}
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByText("Update Schedule")).toBeInTheDocument();
@@ -152,11 +133,11 @@ describe("PagePickerDialog - Collection Integration", () => {
 
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         collections={mockCollections}
         selectedPageId={null}
         onSelect={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByRole("tab", { name: /Collections/i })).toBeInTheDocument();
@@ -170,11 +151,11 @@ describe("PagePickerDialog - Collection Integration", () => {
   it("does not render collection section when no collections", () => {
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         collections={[]}
         selectedPageId={null}
         onSelect={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.queryByRole("tab", { name: /Collections/i })).not.toBeInTheDocument();
@@ -185,11 +166,11 @@ describe("PagePickerDialog - Collection Integration", () => {
   it("highlights selected collection", () => {
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         collections={mockCollections}
         selectedPageId="collection:c1"
         onSelect={vi.fn()}
-      />
+      />,
     );
 
     // When a collection is selected, the collections tab is default
@@ -204,11 +185,11 @@ describe("PagePickerDialog - Collection Integration", () => {
 
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         collections={mockCollections}
         selectedPageId={null}
         onSelect={onSelect}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("tab", { name: /Collections/i }));
@@ -221,11 +202,11 @@ describe("PagePickerDialog - Collection Integration", () => {
 
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         collections={mockCollections}
         selectedPageId={null}
         onSelect={vi.fn()}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("tab", { name: /Collections/i }));
@@ -236,12 +217,12 @@ describe("PagePickerDialog - Collection Integration", () => {
   it("renders with allowNone and collections", () => {
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         collections={mockCollections}
         selectedPageId={null}
         onSelect={vi.fn()}
         allowNone={true}
-      />
+      />,
     );
 
     expect(screen.getByText("None (no default)")).toBeInTheDocument();
@@ -252,10 +233,10 @@ describe("PagePickerDialog - Collection Integration", () => {
   it("renders without collections prop (undefined)", () => {
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         selectedPageId="page-1"
         onSelect={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.queryByRole("tab", { name: /Collections/i })).not.toBeInTheDocument();
@@ -267,12 +248,12 @@ describe("PagePickerDialog - Collection Integration", () => {
     const user = userEvent.setup();
     render(
       <PagePickerDialog
-        pages={mockPages.map(p => ({ ...p, type: "template" }))}
+        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
         collections={mockCollections}
         selectedPageId="collection:c1"
         onSelect={onSelect}
         allowNone={true}
-      />
+      />,
     );
 
     await user.click(screen.getByText("None (no default)"));

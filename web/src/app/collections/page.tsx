@@ -1,21 +1,24 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+  Clock,
+  FileText,
+  GalleryHorizontalEnd,
+  GripVertical,
+  Loader2,
+  Pencil,
+  Plus,
+  Sigma,
+  Trash2,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
+import { PageToolbar } from "@/components/page-toolbar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,29 +29,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Plus,
-  GalleryHorizontalEnd,
-  Trash2,
-  GripVertical,
-  FileText,
-  Loader2,
-  Pencil,
-  Clock,
-  Sigma,
-} from "lucide-react";
-import { toast } from "sonner";
-import { api } from "@/lib/api";
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
-import { PageToolbar } from "@/components/page-toolbar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { queryKeys } from "@/hooks/use-board";
 import type {
   Collection,
   CollectionCreate,
@@ -57,8 +47,7 @@ import type {
   Page,
   VariableRule,
 } from "@/lib/api";
-import { queryKeys } from "@/hooks/use-board";
-import { useTranslations } from "next-intl";
+import { api } from "@/lib/api";
 
 const INTERVAL_PRESETS = [
   { labelKey: "interval5s", value: 5 },
@@ -102,27 +91,16 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
 
   const [name, setName] = useState(collection?.name || "");
   const [selectedPageIds, setSelectedPageIds] = useState<string[]>(collection?.page_ids || []);
-  const [selectionMode, setSelectionMode] = useState<CollectionSelectionMode>(
-    collection?.selection_mode || "time"
-  );
-  const [intervalSeconds, setIntervalSeconds] = useState(
-    collection?.time?.interval_seconds || 30
-  );
+  const [selectionMode, setSelectionMode] = useState<CollectionSelectionMode>(collection?.selection_mode || "time");
+  const [intervalSeconds, setIntervalSeconds] = useState(collection?.time?.interval_seconds || 30);
   const [rules, setRules] = useState<VariableRule[]>(collection?.variable?.rules || []);
-  const [defaultPageId, setDefaultPageId] = useState<string>(
-    collection?.variable?.default_page_id || ""
-  );
-  const [pollSeconds, setPollSeconds] = useState(
-    collection?.variable?.poll_seconds || 10
-  );
+  const [defaultPageId, setDefaultPageId] = useState<string>(collection?.variable?.default_page_id || "");
+  const [pollSeconds, setPollSeconds] = useState(collection?.variable?.poll_seconds || 10);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
-  const availablePages = useMemo(
-    () => pages.filter((p) => !selectedPageIds.includes(p.id)),
-    [pages, selectedPageIds]
-  );
+  const availablePages = useMemo(() => pages.filter((p) => !selectedPageIds.includes(p.id)), [pages, selectedPageIds]);
 
   const handleAddPage = useCallback(
     (pageId: string) => {
@@ -130,22 +108,25 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
         setSelectedPageIds((prev) => [...prev, pageId]);
       }
     },
-    [selectedPageIds]
+    [selectedPageIds],
   );
 
-  const handleRemovePage = useCallback((index: number) => {
-    setSelectedPageIds((prev) => {
-      const removed = prev[index];
-      const next = prev.filter((_, i) => i !== index);
-      // Drop any variable-mode references to the removed page so we don't
-      // leave dangling rules or a default that points at a non-member.
-      if (removed === defaultPageId) {
-        setDefaultPageId("");
-      }
-      setRules((rs) => rs.filter((r) => r.page_id !== removed));
-      return next;
-    });
-  }, [defaultPageId]);
+  const handleRemovePage = useCallback(
+    (index: number) => {
+      setSelectedPageIds((prev) => {
+        const removed = prev[index];
+        const next = prev.filter((_, i) => i !== index);
+        // Drop any variable-mode references to the removed page so we don't
+        // leave dangling rules or a default that points at a non-member.
+        if (removed === defaultPageId) {
+          setDefaultPageId("");
+        }
+        setRules((rs) => rs.filter((r) => r.page_id !== removed));
+        return next;
+      });
+    },
+    [defaultPageId],
+  );
 
   const handleDragStart = useCallback((index: number) => {
     setDragIndex(index);
@@ -163,7 +144,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
       });
       setDragIndex(targetIndex);
     },
-    [dragIndex]
+    [dragIndex],
   );
 
   const handleDragEnd = useCallback(() => setDragIndex(null), []);
@@ -172,14 +153,9 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
     setRules((prev) => [...prev, { expression: "", page_id: selectedPageIds[0] || "" }]);
   }, [selectedPageIds]);
 
-  const handleUpdateRule = useCallback(
-    (index: number, patch: Partial<VariableRule>) => {
-      setRules((prev) =>
-        prev.map((r, i) => (i === index ? { ...r, ...patch } : r))
-      );
-    },
-    []
-  );
+  const handleUpdateRule = useCallback((index: number, patch: Partial<VariableRule>) => {
+    setRules((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  }, []);
 
   const handleRemoveRule = useCallback((index: number) => {
     setRules((prev) => prev.filter((_, i) => i !== index));
@@ -223,8 +199,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
     name.trim().length > 0 &&
     selectedPageIds.length >= 1 &&
     (selectionMode === "time" ||
-      (defaultPageId.length > 0 &&
-        rules.every((r) => r.expression.trim().length > 0 && r.page_id.length > 0)));
+      (defaultPageId.length > 0 && rules.every((r) => r.expression.trim().length > 0 && r.page_id.length > 0)));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 mt-4">
@@ -244,11 +219,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
       <div className="space-y-2">
         <Label htmlFor="collection-mode">{t("selectionModeLabel")}</Label>
         <p className="text-xs text-muted-foreground">{t("selectionModeDescription")}</p>
-        <Select
-          value={selectionMode}
-          onValueChange={(v) => setSelectionMode(v as CollectionSelectionMode)}
-          modal={false}
-        >
+        <Select value={selectionMode} onValueChange={(v) => setSelectionMode(v as CollectionSelectionMode)}>
           <SelectTrigger id="collection-mode">
             <SelectValue />
           </SelectTrigger>
@@ -274,11 +245,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
         <div className="space-y-2">
           <Label htmlFor="collection-interval">{t("pageDurationLabel")}</Label>
           <p className="text-xs text-muted-foreground">{t("pageDurationDescription")}</p>
-          <Select
-            value={String(intervalSeconds)}
-            onValueChange={(v) => setIntervalSeconds(Number(v))}
-            modal={false}
-          >
+          <Select value={String(intervalSeconds)} onValueChange={(v) => setIntervalSeconds(Number(v))}>
             <SelectTrigger id="collection-interval">
               <SelectValue />
             </SelectTrigger>
@@ -319,18 +286,14 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                     selectionMode === "time" ? "cursor-grab active:cursor-grabbing" : ""
                   } ${dragIndex === index ? "opacity-50" : ""}`}
                 >
-                  {selectionMode === "time" && (
-                    <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  )}
+                  {selectionMode === "time" && <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
                   {selectionMode === "time" && (
                     <Badge variant="outline" className="text-xs tabular-nums flex-shrink-0">
                       {index + 1}
                     </Badge>
                   )}
                   <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-sm truncate flex-1">
-                    {page?.name || pid}
-                  </span>
+                  <span className="text-sm truncate flex-1">{page?.name || pid}</span>
                   <Button
                     type="button"
                     variant="ghost"
@@ -368,12 +331,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
           <div className="space-y-2">
             <Label htmlFor="collection-default">{t("variableDefaultLabel")}</Label>
             <p className="text-xs text-muted-foreground">{t("variableDefaultDescription")}</p>
-            <Select
-              value={defaultPageId}
-              onValueChange={setDefaultPageId}
-              disabled={selectedPageIds.length === 0}
-              modal={false}
-            >
+            <Select value={defaultPageId} onValueChange={setDefaultPageId} disabled={selectedPageIds.length === 0}>
               <SelectTrigger id="collection-default">
                 <SelectValue placeholder={t("variableDefaultPlaceholder")} />
               </SelectTrigger>
@@ -423,10 +381,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                       placeholder={t("variableExpressionPlaceholder")}
                       className="font-mono text-sm min-h-[64px]"
                     />
-                    <Select
-                      value={rule.page_id}
-                      onValueChange={(v) => handleUpdateRule(index, { page_id: v })}
-                    >
+                    <Select value={rule.page_id} onValueChange={(v) => handleUpdateRule(index, { page_id: v })}>
                       <SelectTrigger>
                         <SelectValue placeholder={t("variableRuleTargetPlaceholder")} />
                       </SelectTrigger>
@@ -462,11 +417,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
           <div className="space-y-2">
             <Label htmlFor="collection-poll">{t("variablePollLabel")}</Label>
             <p className="text-xs text-muted-foreground">{t("variablePollDescription")}</p>
-            <Select
-              value={String(pollSeconds)}
-              onValueChange={(v) => setPollSeconds(Number(v))}
-              modal={false}
-            >
+            <Select value={String(pollSeconds)} onValueChange={(v) => setPollSeconds(Number(v))}>
               <SelectTrigger id="collection-poll">
                 <SelectValue />
               </SelectTrigger>
@@ -543,8 +494,7 @@ export default function CollectionsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: CollectionUpdate }) =>
-      api.updateCollection(id, data),
+    mutationFn: ({ id, data }: { id: string; data: CollectionUpdate }) => api.updateCollection(id, data),
     onSuccess: () => {
       invalidateAll();
       toast.success(t("toastUpdated"));
@@ -588,8 +538,7 @@ export default function CollectionsPage() {
   const collections = collectionsData?.collections || [];
   const pages = pagesData?.pages || [];
 
-  const getPageName = (pageId: string) =>
-    pages.find((p) => p.id === pageId)?.name || pageId.slice(0, 8);
+  const getPageName = (pageId: string) => pages.find((p) => p.id === pageId)?.name || pageId.slice(0, 8);
 
   const describeMode = (c: Collection): string => {
     if (c.selection_mode === "time") {
@@ -634,9 +583,7 @@ export default function CollectionsPage() {
           <CardContent className="py-12 text-center">
             <GalleryHorizontalEnd className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-2">{t("noCollectionsTitle")}</p>
-            <p className="text-sm text-muted-foreground mb-4">
-              {t("noCollectionsDescription")}
-            </p>
+            <p className="text-sm text-muted-foreground mb-4">{t("noCollectionsDescription")}</p>
             <Button
               variant="brand"
               onClick={() => {
@@ -665,10 +612,7 @@ export default function CollectionsPage() {
                     <div className="min-w-0">
                       <CardTitle className="text-base truncate flex items-center gap-2">
                         {collection.name}
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] uppercase tracking-wide"
-                        >
+                        <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
                           {collection.selection_mode === "time" ? (
                             <Clock className="h-3 w-3 mr-1" />
                           ) : (
@@ -679,17 +623,11 @@ export default function CollectionsPage() {
                       </CardTitle>
                       <CardDescription className="text-xs">
                         {collection.page_ids.length} page
-                        {collection.page_ids.length !== 1 ? "s" : ""} &middot;{" "}
-                        {describeMode(collection)}
+                        {collection.page_ids.length !== 1 ? "s" : ""} &middot; {describeMode(collection)}
                       </CardDescription>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex-shrink-0"
-                    onClick={() => handleEdit(collection)}
-                  >
+                  <Button variant="ghost" size="sm" className="flex-shrink-0" onClick={() => handleEdit(collection)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
                 </div>
@@ -712,15 +650,16 @@ export default function CollectionsPage() {
       )}
 
       {/* Form Sheet */}
-      <Sheet open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); }}>
+      <Sheet
+        open={showForm}
+        onOpenChange={(open) => {
+          if (!open) handleCloseForm();
+        }}
+      >
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>
-              {editingCollection ? t("editCollection") : t("newCollection")}
-            </SheetTitle>
-            <SheetDescription>
-              {editingCollection ? t("editDescription") : t("createDescription")}
-            </SheetDescription>
+            <SheetTitle>{editingCollection ? t("editCollection") : t("newCollection")}</SheetTitle>
+            <SheetDescription>{editingCollection ? t("editDescription") : t("createDescription")}</SheetDescription>
           </SheetHeader>
           <CollectionForm
             collection={editingCollection || undefined}

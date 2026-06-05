@@ -590,7 +590,8 @@ export function GlobalAiChatDrawer() {
       await api.createCollection({
         name: args.name,
         page_ids: args.page_ids,
-        interval_seconds: args.interval_seconds,
+        selection_mode: "time",
+        time: { interval_seconds: args.interval_seconds },
       });
       await queryClient.invalidateQueries({ queryKey: ["collections"] });
       toast.success(`Collection "${args.name}" created.`);
@@ -604,7 +605,10 @@ export function GlobalAiChatDrawer() {
       await api.updateCollection(collection_id, {
         ...(update.name != null && { name: update.name }),
         ...(update.page_ids != null && { page_ids: update.page_ids }),
-        ...(update.interval_seconds != null && { interval_seconds: update.interval_seconds }),
+        ...(update.interval_seconds != null && {
+          selection_mode: "time",
+          time: { interval_seconds: update.interval_seconds },
+        }),
       });
       await queryClient.invalidateQueries({ queryKey: ["collections"] });
       toast.success("Collection updated.");

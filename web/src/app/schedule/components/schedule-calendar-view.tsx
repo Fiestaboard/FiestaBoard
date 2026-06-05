@@ -14,7 +14,7 @@ import withDragAndDrop, { type EventInteractionArgs } from "react-big-calendar/l
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import type { Carousel, Overlap, Page, ScheduleEntry } from "@/lib/api";
+import type { Collection, Overlap, Page, ScheduleEntry } from "@/lib/api";
 import { api } from "@/lib/api";
 import { type CalendarEvent, extractTimeFromDate, schedulesToCalendarEvents } from "@/lib/schedule-calendar";
 

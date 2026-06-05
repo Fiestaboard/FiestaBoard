@@ -9,11 +9,11 @@ legacy ``data/carousels.json`` file (carousel: prefixed IDs, flat
 import json
 import logging
 import shutil
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
 
-from .models import Collection, COLLECTION_ID_PREFIX
+from .models import COLLECTION_ID_PREFIX, Collection
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +28,11 @@ def _legacy_to_collection_id(ref_id: str) -> str:
     Returns the input unchanged if it is not a legacy carousel ID.
     """
     if ref_id and ref_id.startswith(LEGACY_CAROUSEL_ID_PREFIX):
-        return COLLECTION_ID_PREFIX + ref_id[len(LEGACY_CAROUSEL_ID_PREFIX):]
+        return COLLECTION_ID_PREFIX + ref_id[len(LEGACY_CAROUSEL_ID_PREFIX) :]
     return ref_id
 
 
-def import_legacy_carousels(raw_carousels: List[dict]) -> List[dict]:
+def import_legacy_carousels(raw_carousels: list[dict]) -> list[dict]:
     """Convert legacy carousel records into collection records.
 
     For each legacy entry:
@@ -40,7 +40,7 @@ def import_legacy_carousels(raw_carousels: List[dict]) -> List[dict]:
     - wrap the flat ``interval_seconds`` into a ``time`` block
     - default ``selection_mode`` to ``"time"``
     """
-    collections: List[dict] = []
+    collections: list[dict] = []
     for item in raw_carousels:
         new_item = dict(item)
         if "id" in new_item and isinstance(new_item["id"], str):
@@ -56,13 +56,13 @@ def import_legacy_carousels(raw_carousels: List[dict]) -> List[dict]:
 
 # Schema migrations operate on the raw ``collections`` list.
 # Each function returns the count of records it modified.
-MIGRATIONS: List[Tuple[int, Callable[[List[dict]], int]]] = []
+MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = []
 
 
 class CollectionStorage:
     """JSON file-based storage for collections."""
 
-    def __init__(self, storage_file: Optional[str] = None):
+    def __init__(self, storage_file: str | None = None):
         if storage_file is None:
             project_root = Path(__file__).parent.parent.parent
             data_dir = project_root / "data"
@@ -71,13 +71,10 @@ class CollectionStorage:
         else:
             self.storage_file = Path(storage_file)
 
-        self._collections: Dict[str, Collection] = {}
+        self._collections: dict[str, Collection] = {}
         self._load()
 
-        logger.info(
-            f"CollectionStorage initialized "
-            f"(file: {self.storage_file}, collections: {len(self._collections)})"
-        )
+        logger.info(f"CollectionStorage initialized (file: {self.storage_file}, collections: {len(self._collections)})")
 
     # --- migrations ------------------------------------------------------
 
@@ -93,9 +90,7 @@ class CollectionStorage:
         records = data.get("collections", [])
 
         if self.storage_file.exists():
-            backup_path = self.storage_file.with_suffix(
-                f".json.v{current_version}_backup"
-            )
+            backup_path = self.storage_file.with_suffix(f".json.v{current_version}_backup")
             if not backup_path.exists():
                 try:
                     shutil.copy2(self.storage_file, backup_path)
@@ -108,8 +103,7 @@ class CollectionStorage:
                 continue
             count = migrate_fn(records)
             logger.info(
-                f"Collections schema migration v{current_version}->v{target_version}: "
-                f"{count} record(s) processed"
+                f"Collections schema migration v{current_version}->v{target_version}: {count} record(s) processed"
             )
             current_version = target_version
 
@@ -131,9 +125,9 @@ class CollectionStorage:
             return False
 
         try:
-            with open(legacy_path, "r") as f:
+            with open(legacy_path) as f:  # noqa: PTH123
                 legacy_data = json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Could not read legacy carousels file: {e}")
             return False
 
@@ -143,9 +137,7 @@ class CollectionStorage:
             return False
 
         converted = import_legacy_carousels(raw_carousels)
-        logger.info(
-            f"Imported {len(converted)} legacy carousel(s) into collections"
-        )
+        logger.info(f"Imported {len(converted)} legacy carousel(s) into collections")
 
         # Hydrate in-memory cache directly from the converted records so the
         # caller does not have to re-read the file we are about to write.
@@ -160,9 +152,7 @@ class CollectionStorage:
         try:
             backup = legacy_path.with_suffix(".json.pre-collections-backup")
             legacy_path.rename(backup)
-            logger.info(
-                f"Renamed legacy carousels file to {backup} (one-shot import complete)"
-            )
+            logger.info(f"Renamed legacy carousels file to {backup} (one-shot import complete)")
         except OSError as e:
             logger.warning(f"Could not rename legacy carousels file: {e}")
 
@@ -190,9 +180,9 @@ class CollectionStorage:
             return
 
         try:
-            with open(self.storage_file, "r") as f:
+            with open(self.storage_file) as f:  # noqa: PTH123
                 data = json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load collections file: {e}")
             self._collections = {}
             return
@@ -227,22 +217,22 @@ class CollectionStorage:
                 "schema_version": CURRENT_SCHEMA_VERSION,
                 "collections": records,
             }
-            with open(self.storage_file, "w") as f:
+            with open(self.storage_file, "w") as f:  # noqa: PTH123
                 json.dump(data, f, indent=2)
 
             logger.debug(f"Saved {len(self._collections)} collections to storage")
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to save collections file: {e}")
             raise
 
     # --- CRUD ------------------------------------------------------------
 
-    def list_all(self) -> List[Collection]:
+    def list_all(self) -> list[Collection]:
         items = list(self._collections.values())
         items.sort(key=lambda c: c.name.lower())
         return items
 
-    def get(self, collection_id: str) -> Optional[Collection]:
+    def get(self, collection_id: str) -> Collection | None:
         return self._collections.get(collection_id)
 
     def create(self, collection: Collection) -> Collection:
@@ -256,7 +246,7 @@ class CollectionStorage:
         logger.info(f"Created collection: {collection.id} ({collection.name})")
         return collection
 
-    def update(self, collection_id: str, updates: dict) -> Optional[Collection]:
+    def update(self, collection_id: str, updates: dict) -> Collection | None:
         if collection_id not in self._collections:
             return None
 

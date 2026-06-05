@@ -9,26 +9,27 @@ Covers both selection modes:
 """
 
 import math
+
 import pytest
+from pydantic import ValidationError
 
 from src.collections.models import (
+    COLLECTION_ID_PREFIX,
     Collection,
     CollectionCreate,
     CollectionUpdate,
     TimeModeConfig,
     VariableModeConfig,
     VariableRule,
-    make_collection_id,
-    is_collection_id,
     extract_collection_uuid,
-    COLLECTION_ID_PREFIX,
+    is_collection_id,
+    make_collection_id,
 )
+from src.collections.service import CollectionService
 from src.collections.storage import (
     CollectionStorage,
     import_legacy_carousels,
 )
-from src.collections.service import CollectionService
-
 
 # =============================================================================
 # Model Tests
@@ -87,13 +88,13 @@ class TestCollectionModels:
         assert c.variable is None
 
     def test_time_interval_range(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Collection(
                 name="Too Low",
                 page_ids=["p1"],
                 time=TimeModeConfig(interval_seconds=1),
             )
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Collection(
                 name="Too High",
                 page_ids=["p1"],
@@ -185,7 +186,7 @@ class TestCollectionModels:
     # --- Variable-mode validation -------------------------------------------
 
     def test_variable_mode_requires_variable_block(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Collection(
                 name="MissingVar",
                 page_ids=["p1", "p2"],
@@ -297,11 +298,13 @@ class TestCollectionStorage:
     def test_persistence_survives_reload(self, tmp_path):
         path = tmp_path / "collections.json"
         s1 = CollectionStorage(str(path))
-        created = s1.create(Collection(
-            name="Persist",
-            page_ids=["p1"],
-            time=TimeModeConfig(interval_seconds=15),
-        ))
+        created = s1.create(
+            Collection(
+                name="Persist",
+                page_ids=["p1"],
+                time=TimeModeConfig(interval_seconds=15),
+            )
+        )
 
         s2 = CollectionStorage(str(path))
         fetched = s2.get(created.id)
@@ -312,16 +315,18 @@ class TestCollectionStorage:
     def test_variable_mode_round_trip(self, tmp_path):
         path = tmp_path / "collections.json"
         s1 = CollectionStorage(str(path))
-        created = s1.create(Collection(
-            name="Var",
-            page_ids=["hot", "cold"],
-            selection_mode="variable",
-            variable=VariableModeConfig(
-                rules=[VariableRule(expression="weather.temp > 70", page_id="hot")],
-                default_page_id="cold",
-                poll_seconds=5,
-            ),
-        ))
+        created = s1.create(
+            Collection(
+                name="Var",
+                page_ids=["hot", "cold"],
+                selection_mode="variable",
+                variable=VariableModeConfig(
+                    rules=[VariableRule(expression="weather.temp > 70", page_id="hot")],
+                    default_page_id="cold",
+                    poll_seconds=5,
+                ),
+            )
+        )
 
         s2 = CollectionStorage(str(path))
         fetched = s2.get(created.id)
@@ -338,6 +343,7 @@ class TestCollectionStorage:
         s = CollectionStorage(str(path))
         s.create(Collection(name="V", page_ids=["p1"]))
         import json
+
         with open(path) as f:
             data = json.load(f)
         assert data["schema_version"] == 1
@@ -370,18 +376,23 @@ class TestLegacyCarouselImport:
     def test_first_run_import_moves_legacy_file(self, tmp_path):
         """If carousels.json exists but collections.json does not, import once."""
         import json
+
         legacy_path = tmp_path / "carousels.json"
         collections_path = tmp_path / "collections.json"
-        legacy_path.write_text(json.dumps({
-            "carousels": [
+        legacy_path.write_text(
+            json.dumps(
                 {
-                    "id": "carousel:zzz",
-                    "name": "Legacy",
-                    "page_ids": ["p1", "p2"],
-                    "interval_seconds": 20,
+                    "carousels": [
+                        {
+                            "id": "carousel:zzz",
+                            "name": "Legacy",
+                            "page_ids": ["p1", "p2"],
+                            "interval_seconds": 20,
+                        }
+                    ]
                 }
-            ]
-        }))
+            )
+        )
 
         storage = CollectionStorage(str(collections_path))
 
@@ -431,17 +442,13 @@ class TestCollectionServiceTimeMode:
         assert service.get_collection("collection:nonexistent") is None
 
     def test_update_collection(self, service):
-        created = service.create_collection(
-            CollectionCreate(name="Old", page_ids=["p1"])
-        )
+        created = service.create_collection(CollectionCreate(name="Old", page_ids=["p1"]))
         updated = service.update_collection(created.id, CollectionUpdate(name="New"))
         assert updated is not None
         assert updated.name == "New"
 
     def test_delete_collection(self, service):
-        created = service.create_collection(
-            CollectionCreate(name="Del", page_ids=["p1"])
-        )
+        created = service.create_collection(CollectionCreate(name="Del", page_ids=["p1"]))
         assert service.delete_collection(created.id) is True
         assert service.list_collections() == []
 
@@ -468,9 +475,7 @@ class TestCollectionServiceTimeMode:
         assert service.seconds_until_next_check("page-id") is None
 
     def test_seconds_until_next_check_single(self, service):
-        created = service.create_collection(
-            CollectionCreate(name="One", page_ids=["p1"])
-        )
+        created = service.create_collection(CollectionCreate(name="One", page_ids=["p1"]))
         assert service.seconds_until_next_check(created.id) is None
 
     def test_seconds_until_next_check_multi_time(self, service):
@@ -539,16 +544,18 @@ class TestCollectionServiceVariableMode:
     def _make_variable_collection(
         self, service, rules, default_page_id, page_ids=("hot", "cold", "mild"), poll_seconds=10
     ):
-        return service.create_collection(CollectionCreate(
-            name="Var",
-            page_ids=list(page_ids),
-            selection_mode="variable",
-            variable=VariableModeConfig(
-                rules=[VariableRule(expression=e, page_id=p) for (e, p) in rules],
-                default_page_id=default_page_id,
-                poll_seconds=poll_seconds,
-            ),
-        ))
+        return service.create_collection(
+            CollectionCreate(
+                name="Var",
+                page_ids=list(page_ids),
+                selection_mode="variable",
+                variable=VariableModeConfig(
+                    rules=[VariableRule(expression=e, page_id=p) for (e, p) in rules],
+                    default_page_id=default_page_id,
+                    poll_seconds=poll_seconds,
+                ),
+            )
+        )
 
     def test_first_truthy_rule_wins(self, service):
         c = self._make_variable_collection(

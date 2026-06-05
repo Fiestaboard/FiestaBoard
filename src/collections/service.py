@@ -13,7 +13,7 @@ import logging
 import math
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .models import (
     Collection,
@@ -55,16 +55,16 @@ class CollectionService:
     a given collection ID, dispatching on ``selection_mode``.
     """
 
-    def __init__(self, storage: Optional[CollectionStorage] = None):
+    def __init__(self, storage: CollectionStorage | None = None):
         self.storage = storage or CollectionStorage()
         logger.info("CollectionService initialized")
 
     # --- CRUD ------------------------------------------------------------
 
-    def list_collections(self) -> List[Collection]:
+    def list_collections(self) -> list[Collection]:
         return self.storage.list_all()
 
-    def get_collection(self, collection_id: str) -> Optional[Collection]:
+    def get_collection(self, collection_id: str) -> Collection | None:
         return self.storage.get(collection_id)
 
     def create_collection(self, data: CollectionCreate) -> Collection:
@@ -78,9 +78,7 @@ class CollectionService:
         )
         return self.storage.create(collection)
 
-    def update_collection(
-        self, collection_id: str, data: CollectionUpdate
-    ) -> Optional[Collection]:
+    def update_collection(self, collection_id: str, data: CollectionUpdate) -> Collection | None:
         updates = data.model_dump(exclude_unset=True)
         return self.storage.update(collection_id, updates)
 
@@ -95,9 +93,9 @@ class CollectionService:
     def resolve_page_id(
         self,
         ref_id: str,
-        now_unix: Optional[float] = None,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> Optional[str]:
+        now_unix: float | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> str | None:
         """If *ref_id* is a collection, return the page that should be shown.
 
         - Plain page IDs are returned unchanged.
@@ -123,14 +121,10 @@ class CollectionService:
             return self._resolve_variable(collection, context)
 
         # Unknown selection mode (shouldn't happen given the Literal type).
-        logger.warning(
-            f"Unknown selection_mode {collection.selection_mode!r} for {ref_id}"
-        )
+        logger.warning(f"Unknown selection_mode {collection.selection_mode!r} for {ref_id}")
         return collection.page_ids[0]
 
-    def seconds_until_next_check(
-        self, ref_id: str, now_unix: Optional[float] = None
-    ) -> Optional[int]:
+    def seconds_until_next_check(self, ref_id: str, now_unix: float | None = None) -> int | None:
         """Return how many seconds until the active-page loop should
         re-check this collection.
 
@@ -158,21 +152,22 @@ class CollectionService:
 
     # --- variable-mode internals -----------------------------------------
 
-    def _build_variable_context(self) -> Dict[str, Any]:
+    def _build_variable_context(self) -> dict[str, Any]:
         """Build the plugin template context for variable-mode evaluation.
 
         Imported lazily to avoid a hard dependency from this module on the
         plugin registry — useful for tests that pass an explicit context.
         """
-        from ..plugins.registry import get_plugin_registry  # local import
+        from src.plugins.registry import get_plugin_registry  # local import
+
         return get_plugin_registry().build_template_context()
 
     def _resolve_variable(
         self,
         collection: Collection,
-        context: Optional[Dict[str, Any]],
-    ) -> Optional[str]:
-        from ..templates.expressions import evaluate  # local import
+        context: dict[str, Any] | None,
+    ) -> str | None:
+        from src.templates.expressions import evaluate  # local import
 
         if collection.variable is None:
             # Should be caught by validation; defend anyway.
@@ -184,14 +179,10 @@ class CollectionService:
             try:
                 result = evaluate(rule.expression, ctx)
             except Exception as e:  # safety net — evaluate() catches FormulaError
-                logger.warning(
-                    f"Collection {collection.id} rule {idx} raised: {e}"
-                )
+                logger.warning(f"Collection {collection.id} rule {idx} raised: {e}")
                 continue
             if result.startswith("#"):
-                logger.debug(
-                    f"Collection {collection.id} rule {idx} returned error {result}"
-                )
+                logger.debug(f"Collection {collection.id} rule {idx} returned error {result}")
                 continue
             if _is_truthy(result):
                 return rule.page_id
@@ -199,7 +190,7 @@ class CollectionService:
         return collection.variable.default_page_id
 
 
-_collection_service: Optional[CollectionService] = None
+_collection_service: CollectionService | None = None
 
 
 def get_collection_service() -> CollectionService:

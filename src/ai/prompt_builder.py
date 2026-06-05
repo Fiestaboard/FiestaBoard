@@ -355,9 +355,7 @@ def _format_available_collections(collections: list[dict[str, Any]]) -> str:
             poll = (c.get("variable") or {}).get("poll_seconds", 10)
             n_rules = len((c.get("variable") or {}).get("rules", []))
             tail = f"variable mode, {n_rules} rule(s), polls every {poll}s"
-        lines.append(
-            f'  - "{name}" (id: {cid}) | {len(pages)} pages | {tail}'
-        )
+        lines.append(f'  - "{name}" (id: {cid}) | {len(pages)} pages | {tail}')
     return "\n".join(lines)
 
 

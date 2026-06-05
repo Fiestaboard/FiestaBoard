@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import type { Carousel, ScheduleEntry } from "@/lib/api";
+import type { Collection, ScheduleEntry } from "@/lib/api";
 
 import { ScheduleEntryForm } from "./schedule-entry-form";
 
