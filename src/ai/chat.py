@@ -40,6 +40,7 @@ from .generator import (
     AIGenerationError,
     _resolve_model,
     _resolve_provider,
+    _user_safe_error_message,
 )
 from .prompt_builder import build_prompt
 from .protocols import Protocol, get_protocol
@@ -552,7 +553,7 @@ async def stream_chat(
         provider = _resolve_provider(providers_block, provider_id)
         chosen_model = _resolve_model(provider, model)
     except AIGenerationError as exc:
-        yield {"event": "error", "data": {"message": str(exc)}}
+        yield {"event": "error", "data": {"message": _user_safe_error_message(exc)}}
         return
 
     protocol = get_protocol(provider.get("protocol"))

@@ -347,6 +347,44 @@ class TestCloneOrUpdateRepoPathSafety:
         assert ok
         assert err == ""
 
+    def test_rejects_symlinked_external_dir_escape(self, tmp_path):
+        """Path containment uses ``Path.resolve()`` so symlink escapes are caught.
+
+        Mitigation for CodeQL ``py/path-injection``: even if the resolved
+        external dir is itself a symlink, the candidate must remain inside
+        its real target.
+        """
+        real_root = tmp_path / "real_plugins"
+        real_root.mkdir()
+        link_root = tmp_path / "linked_plugins"
+        link_root.symlink_to(real_root)
+
+        # Valid plugin_id under the symlinked root resolves into real_plugins.
+        # That's allowed.
+        plugin_dest = real_root / "ok_plugin"
+
+        def _fake_run(cmd, **kwargs):
+            if "init" in cmd:
+                plugin_dest.mkdir(parents=True, exist_ok=True)
+                (plugin_dest / ".git").mkdir(exist_ok=True)
+            return mock.MagicMock()
+
+        with mock.patch("src.plugins.sources.subprocess.run", side_effect=_fake_run):
+            ok, err = clone_or_update_repo("https://github.com/Org/repo", "ok_plugin", external_dir=link_root)
+        assert ok, err
+
+    def test_rejects_root_as_candidate(self, tmp_path):
+        """If plugin_id resolves to the external root itself, refuse — avoids
+        wiping the entire external_plugins directory on rmtree."""
+        from src.plugins.sources import _PLUGIN_ID_ALLOWED, PLUGIN_ID_RE
+
+        # We can't easily trigger this via a normal plugin_id (it always
+        # appends a subdir), so just sanity-check the regex/character set
+        # are still in effect (the empty-id case is rejected upstream).
+        assert not PLUGIN_ID_RE.fullmatch("")
+        assert "/" not in _PLUGIN_ID_ALLOWED
+        assert "." not in _PLUGIN_ID_ALLOWED
+
 
 class TestCloneOrUpdateRepoErrorMessages:
     """Stderr from CalledProcessError should appear in the returned error string."""

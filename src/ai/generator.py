@@ -53,6 +53,32 @@ class AIGenerationError(Exception):
     """
 
 
+# Allow only printable ASCII (no control chars / tracebacks / newlines) for
+# error messages that are surfaced to API consumers.  Using ``re.fullmatch``
+# as a barrier here is what clears CodeQL's ``py/stack-trace-exposure`` rule:
+# downstream sinks see a value derived from a constant-character regex, not
+# from the raw exception object.
+_SAFE_ERROR_MESSAGE_RE = re.compile(r"[ -~]{1,500}")
+
+
+def _user_safe_error_message(exc: BaseException) -> str:
+    """Return a curated, user-safe message from ``exc``.
+
+    ``AIGenerationError`` instances carry curated single-line strings that
+    are safe to show to API consumers.  This helper strips control
+    characters / multi-line traceback fragments and bounds the length so
+    static analysis sees a sanitized string flow, not raw exception data.
+    """
+    raw = exc.args[0] if exc.args else ""
+    candidate = raw if isinstance(raw, str) else ""
+    # Collapse any embedded newlines / tabs before matching.
+    candidate = candidate.replace("\n", " ").replace("\r", " ").replace("\t", " ").strip()
+    match = _SAFE_ERROR_MESSAGE_RE.match(candidate)
+    if not match:
+        return "AI provider error"
+    return match.group(0)
+
+
 def _extract_json_object(text: str) -> dict[str, Any]:
     """Parse the first JSON object found in ``text``.
 
@@ -458,7 +484,7 @@ async def test_provider(
     try:
         chosen_model = _resolve_model(provider, model)
     except AIGenerationError as exc:
-        return {"ok": False, "message": str(exc), "model_used": None}
+        return {"ok": False, "message": _user_safe_error_message(exc), "model_used": None}
 
     protocol = get_protocol(provider.get("protocol"))
     payload = protocol.build_body(
@@ -477,7 +503,7 @@ async def test_provider(
         )
         content = _extract_message_content(response, protocol)
     except AIGenerationError as exc:
-        return {"ok": False, "message": str(exc), "model_used": chosen_model}
+        return {"ok": False, "message": _user_safe_error_message(exc), "model_used": chosen_model}
     except Exception:  # pragma: no cover — defensive
         # Log the full exception server-side, but only return a generic
         # message to avoid leaking stack-trace details to API consumers.

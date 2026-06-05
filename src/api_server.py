@@ -1278,7 +1278,7 @@ async def generate_ai_page(request: Request):
     variables = _collect_ai_variables()
     demos = _collect_plugin_demos()
 
-    from .ai.generator import AIGenerationError
+    from .ai.generator import AIGenerationError, _user_safe_error_message
     from .ai.generator import generate_page as ai_generate_page
 
     try:
@@ -1295,8 +1295,10 @@ async def generate_ai_page(request: Request):
             )
     except AIGenerationError as exc:
         # Predictable, user-visible failures: 400 with the message in
-        # the body so the UI can render it as a warning.
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        # the body so the UI can render it as a warning.  Funnel the message
+        # through a sanitizer so static analysis (py/stack-trace-exposure)
+        # sees a constant-character flow, not raw exception data.
+        raise HTTPException(status_code=400, detail=_user_safe_error_message(exc)) from exc
     except HTTPException:
         raise
     except Exception:
@@ -3591,18 +3593,43 @@ async def enable_local_api(request: EnablementTokenRequest):
             "error": exc.detail,
         }
 
-    # Re-derive the host from a regex match so the downstream HTTP call is
-    # not tracked as tainted by static-analysis tools (py/full-ssrf).
-    # _validate_board_host already confirmed it is a bare IPv4 or hostname,
-    # so the fullmatch is guaranteed to succeed.
-    _hm = re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9.\-]{0,252}", request.host)
-    if not _hm:
+    # Resolve the host to a concrete IPv4 address and ensure it is a private/
+    # loopback/link-local address.  Using the ``ipaddress`` module's
+    # ``is_private``/``is_loopback``/``is_link_local`` checks is the
+    # CodeQL-recognised sanitiser for ``py/full-ssrf``: downstream sinks see
+    # a value derived from an ``IPv4Address`` object, not from raw user input.
+    import ipaddress as _ipaddress_mod
+    import socket as _socket_mod
+
+    try:
+        _ip_obj = _ipaddress_mod.IPv4Address(request.host)
+    except ValueError:
+        try:
+            _addrinfo = _socket_mod.getaddrinfo(
+                request.host, None, family=_socket_mod.AF_INET, type=_socket_mod.SOCK_STREAM
+            )
+        except _socket_mod.gaierror:
+            return {
+                "success": False,
+                "message": "Invalid board host",
+                "error": "host could not be resolved",
+            }
+        _resolved = [info[4][0] for info in _addrinfo if info and len(info) >= 5 and info[4]]
+        if not _resolved:
+            return {
+                "success": False,
+                "message": "Invalid board host",
+                "error": "host did not resolve to an IPv4 address",
+            }
+        _ip_obj = _ipaddress_mod.IPv4Address(_resolved[0])
+
+    if not (_ip_obj.is_private or _ip_obj.is_loopback or _ip_obj.is_link_local):
         return {
             "success": False,
             "message": "Invalid board host",
-            "error": "Host format rejected after validation",
+            "error": "host must be on a private network",
         }
-    _safe_host = _hm.group(0)
+    _safe_host = _ip_obj.compressed
     # Build the URL for the local enablement endpoint
     url = f"http://{_safe_host}:7000/local-api/enablement"
     headers = {"X-Vestaboard-Local-Api-Enablement-Token": request.enablement_token}
@@ -8116,6 +8143,30 @@ async def generic_data_test_fetch(request: dict):
     if not _safe_url_m:
         raise HTTPException(status_code=400, detail="URL contains unexpected characters")
     url = _safe_url_m.group(0)
+
+    # Resolve the URL host and confirm it is a public/global IPv4 address.
+    # CodeQL's ``py/full-ssrf`` sanitiser recognises ``ipaddress.IPv4Address``
+    # paired with ``is_private``/``is_loopback`` checks; gating the request
+    # on a ``ipaddress`` object derived from ``getaddrinfo`` ensures static
+    # analysis sees the URL host as sanitised before reaching ``req.request``.
+    import ipaddress as _ipaddress_mod
+    import socket as _socket_mod
+
+    _parsed_url = urlparse(url)
+    _host_for_check = (_parsed_url.hostname or "").strip()
+    try:
+        _resolved_ip = _ipaddress_mod.ip_address(_host_for_check)
+    except ValueError:
+        try:
+            _addrinfo = _socket_mod.getaddrinfo(_host_for_check, _parsed_url.port or (443 if _parsed_url.scheme == "https" else 80))
+        except _socket_mod.gaierror:
+            raise HTTPException(status_code=400, detail="URL host could not be resolved") from None
+        _resolved_ips = [info[4][0] for info in _addrinfo if info and len(info) >= 5 and info[4]]
+        if not _resolved_ips:
+            raise HTTPException(status_code=400, detail="URL host did not resolve") from None
+        _resolved_ip = _ipaddress_mod.ip_address(_resolved_ips[0])
+    if _resolved_ip.is_private or _resolved_ip.is_loopback or _resolved_ip.is_link_local or _resolved_ip.is_multicast or _resolved_ip.is_reserved or _resolved_ip.is_unspecified:
+        raise HTTPException(status_code=400, detail="URL host resolves to a non-public IP")
 
     host = urlparse(url).hostname or ""
     allowed_hosts = _get_generic_data_allowed_hosts()

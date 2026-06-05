@@ -333,20 +333,20 @@ def clone_or_update_repo(
     if _safe_id != plugin_id:
         return False, f"Invalid plugin id {plugin_id!r}"
 
-    # ── Compute destination with inline os.path.commonpath barrier ────────────
-    # CodeQL recognises os.path.commonpath as a py/path-injection barrier only
-    # when the guard and the path operations are in the *same* scope.  After
-    # the check below, _candidate is the CodeQL-sanitised destination string
-    # used for all subsequent path operations and subprocess -C arguments.
-    _ext_root = os.path.realpath(str(_ext_dir))
-    _candidate = os.path.realpath(os.path.join(_ext_root, _safe_id))
-    # os.path.commonpath is the CodeQL-recognised py/path-injection barrier.
-    # It must appear as a plain if-guard (not inside try/except) so the
-    # control-flow graph shows the barrier on every path to the sinks below.
-    if os.path.commonpath([_ext_root, _candidate]) != _ext_root:
+    # ── Compute destination with inline pathlib barrier ───────────────────────
+    # CodeQL recognises ``Path.resolve()`` + ``Path.is_relative_to`` as a
+    # py/path-injection barrier when the guard and the path operations live
+    # in the *same* scope.  After the check below, ``_candidate`` is the
+    # CodeQL-sanitised destination string used for all subsequent path
+    # operations and subprocess -C arguments.
+    _ext_root_path = Path(str(_ext_dir)).resolve()
+    _candidate_path = (_ext_root_path / _safe_id).resolve()
+    if not _candidate_path.is_relative_to(_ext_root_path):
         return False, "Plugin path is outside the external plugins directory"
-    if _candidate == _ext_root:
+    if _candidate_path == _ext_root_path:
         return False, "Refusing to install plugin at root directory"
+    _ext_root = str(_ext_root_path)
+    _candidate = str(_candidate_path)
     # _candidate is now verified to be strictly inside _ext_root.
 
     # ── Update path (no URL required) ─────────────────────────────────────────
