@@ -623,12 +623,14 @@ describe("Live Output - Cleanup on unmount", () => {
     // shared live-output channel via localStorage. The page builder should
     // observe the storage event and turn off its own toggle so it stops
     // re-establishing live mode.
-    window.dispatchEvent(
-      new StorageEvent("storage", {
-        key: "fiestaboard:liveOutputMessage",
-        newValue: null,
-      }),
-    );
+    // Use Event + defineProperty rather than `new StorageEvent("storage", { ... })`
+    // — CodeQL flags the StorageEvent init-dict overload as superfluous
+    // trailing arguments in the env, and jsdom's StorageEvent constructor
+    // can be unreliable across versions.
+    const storageEvent = new Event("storage");
+    Object.defineProperty(storageEvent, "key", { value: "fiestaboard:liveOutputMessage" });
+    Object.defineProperty(storageEvent, "newValue", { value: null });
+    window.dispatchEvent(storageEvent);
 
     await waitFor(() => {
       expect(toggle).toHaveAttribute("data-state", "unchecked");
