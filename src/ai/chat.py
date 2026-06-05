@@ -582,7 +582,7 @@ async def stream_chat(
     if history:
         # Keep history right after the system prompt so the model sees
         # the conversation in order.
-        full_messages = [base_messages[0]] + history + base_messages[1:]
+        full_messages = [base_messages[0], *history, *base_messages[1:]]
     else:
         full_messages = base_messages
 

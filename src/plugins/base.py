@@ -494,16 +494,14 @@ class PluginBase(ABC):
         """
         if not self.supports_triggers:
             logger.debug(
-                "fire_trigger called on plugin %s which does not declare "
-                "supports_triggers; ignoring",
+                "fire_trigger called on plugin %s which does not declare supports_triggers; ignoring",
                 self.plugin_id,
             )
             return
 
         if not getattr(trigger, "triggered", False):
             logger.debug(
-                "fire_trigger received a non-fired TriggerResult from %s; "
-                "ignoring",
+                "fire_trigger received a non-fired TriggerResult from %s; ignoring",
                 self.plugin_id,
             )
             return
@@ -518,7 +516,7 @@ class PluginBase(ABC):
             # Local import keeps the plugin base independent of the triggers
             # subpackage at import time (avoids a circular import — the
             # service module imports PluginBase).
-            from ..triggers.service import get_trigger_service
+            from src.triggers.service import get_trigger_service
         except Exception:
             logger.exception(
                 "fire_trigger could not import TriggerService for plugin %s",

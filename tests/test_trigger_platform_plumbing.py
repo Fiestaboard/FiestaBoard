@@ -9,8 +9,6 @@ Covers the three platform improvements introduced for plugin authors:
 3. The :class:`TriggerPriority` published priority scale.
 """
 
-from typing import List
-
 import pytest
 
 from src.plugins.base import PluginBase, PluginResult, TriggerResult
@@ -25,7 +23,6 @@ from src.triggers.service import (
     get_trigger_service,
     reset_trigger_service,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -42,7 +39,7 @@ class _TriggerPlugin(PluginBase):
     def fetch_data(self) -> PluginResult:
         return PluginResult(available=True, data={})
 
-    def check_triggers(self) -> List[TriggerResult]:
+    def check_triggers(self) -> list[TriggerResult]:
         return []
 
 
@@ -99,9 +96,7 @@ class TestTriggerPageIdInjection:
     def test_field_not_injected_when_supports_triggers_false(self):
         data = _make_manifest(supports_triggers=False)
         manifest = PluginManifest.from_dict(data)
-        assert "trigger_page_id" not in manifest.settings_schema.get(
-            "properties", {}
-        )
+        assert "trigger_page_id" not in manifest.settings_schema.get("properties", {})
 
     def test_author_override_wins(self):
         """If a plugin author declares ``trigger_page_id`` themselves, keep it."""
@@ -226,9 +221,7 @@ class TestFireTrigger:
         """A TriggerResult with triggered=False must be ignored."""
         plugin = _TriggerPlugin(_make_manifest(supports_triggers=True))
         plugin.enabled = True
-        plugin.fire_trigger(
-            TriggerResult(triggered=False, trigger_id="not_yet")
-        )
+        plugin.fire_trigger(TriggerResult(triggered=False, trigger_id="not_yet"))
         assert get_trigger_service().list_active_triggers() == []
 
     def test_fire_trigger_defaults_trigger_id_to_plugin_id(self):
@@ -236,9 +229,7 @@ class TestFireTrigger:
         the service dict key stays stable (rather than ``""``)."""
         plugin = _TriggerPlugin(_make_manifest(supports_triggers=True))
         plugin.enabled = True
-        plugin.fire_trigger(
-            TriggerResult(triggered=True, message="No ID supplied")
-        )
+        plugin.fire_trigger(TriggerResult(triggered=True, message="No ID supplied"))
         service = get_trigger_service()
         active = service.list_active_triggers()
         assert len(active) == 1

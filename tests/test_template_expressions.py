@@ -695,7 +695,7 @@ class TestFindFormulas:
 
         out = find_formulas("Hi {{= 1 + 1 }} there")
         assert len(out) == 1
-        start, end, body = out[0]
+        start, _end, body = out[0]
         assert body == "1 + 1"
         assert start == 3
 

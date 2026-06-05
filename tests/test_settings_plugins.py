@@ -149,7 +149,7 @@ def _make_registry(plugin_ids, local_path_exists=True, has_git=True):
         return MagicMock()
 
     registry.reload_plugin.side_effect = reload
-    registry._update_status = {pid: True for pid in plugin_ids}
+    registry._update_status = dict.fromkeys(plugin_ids, True)
     return registry
 
 

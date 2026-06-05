@@ -98,7 +98,7 @@ class TestSilenceModeShortCircuit:
     board or plugin APIs again until silence ends."""
 
     def test_steady_silence_skips_render_and_send(self, service_factory):
-        svc, mocks, page_service = service_factory(is_silence=True)
+        svc, _mocks, page_service = service_factory(is_silence=True)
 
         # Simulate prior tick: we are already in silence and the SNOOZING
         # indicator has been pushed to the board.
@@ -117,7 +117,7 @@ class TestSilenceModeShortCircuit:
 
     def test_steady_silence_does_not_evaluate_triggers(self, service_factory):
         """Trigger plugins must not be polled during silence."""
-        svc, mocks, page_service = service_factory(is_silence=True)
+        svc, _mocks, _page_service = service_factory(is_silence=True)
         svc._last_silence_mode_active = True
         svc._snoozing_message_sent = True
 
@@ -131,7 +131,7 @@ class TestEnteringSilence:
     SNOOZING indicator stamped on the board."""
 
     def test_entering_silence_sends_once_with_indicator(self, service_factory):
-        svc, mocks, page_service = service_factory(is_silence=True)
+        svc, _mocks, _page_service = service_factory(is_silence=True)
 
         # Prior tick: not silenced.
         svc._last_silence_mode_active = False
@@ -153,7 +153,7 @@ class TestEnteringSilence:
 
     def test_second_tick_after_entering_silence_is_a_noop(self, service_factory):
         """After the entering-silence send, subsequent polls must not send."""
-        svc, mocks, page_service = service_factory(is_silence=True)
+        svc, _mocks, page_service = service_factory(is_silence=True)
         svc._last_silence_mode_active = False
         svc._snoozing_message_sent = False
 
@@ -175,7 +175,7 @@ class TestExitingSilence:
     SNOOZING indicator and needs to be repainted)."""
 
     def test_exiting_silence_forces_resend_even_if_content_unchanged(self, service_factory):
-        svc, mocks, page_service = service_factory(is_silence=False)
+        svc, _mocks, _page_service = service_factory(is_silence=False)
 
         # Prior tick: in silence, indicator was on the board, content cached.
         svc._last_silence_mode_active = True

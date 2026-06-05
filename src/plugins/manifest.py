@@ -50,6 +50,7 @@ def _inject_trigger_page_id(settings_schema: dict[str, Any]) -> dict[str, Any]:
         properties["trigger_page_id"] = copy.deepcopy(TRIGGER_PAGE_ID_PROPERTY)
     return enriched
 
+
 # JSON Schema for validating manifest.json files
 MANIFEST_SCHEMA = {
     "type": "object",

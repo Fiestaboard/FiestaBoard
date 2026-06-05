@@ -597,7 +597,7 @@ def test_validate_valid_local_config(tmp_path):
     }
     config_path.write_text(json.dumps(config_data))
     cm = ConfigManager(config_path=str(config_path))
-    valid, errors = cm.validate()
+    valid, _errors = cm.validate()
     assert valid is True
 
 

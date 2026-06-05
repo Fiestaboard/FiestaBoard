@@ -104,8 +104,8 @@ def test_enabled_plugins_returns_only_enabled(registry, mock_loader, mock_plugin
     plugin2 = MagicMock(spec=PluginBase)
     plugin2.plugin_id = "plugin2"
     mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin, "plugin2": plugin2}
-    mock_loader.get_manifest.side_effect = (
-        lambda pid: mock_manifest
+    mock_loader.get_manifest.side_effect = lambda pid: (
+        mock_manifest
         if pid == "test_plugin"
         else MagicMock(
             id=pid,

@@ -265,7 +265,7 @@ class TestCloneOrUpdateRepo:
         dest = tmp_path / "my_plugin"
         dest.mkdir()
         (dest / ".git").mkdir()
-        ok, err = clone_or_update_repo("git@github.com:Org/repo.git", "my_plugin", external_dir=tmp_path)
+        ok, _err = clone_or_update_repo("git@github.com:Org/repo.git", "my_plugin", external_dir=tmp_path)
         assert ok, "Update path should succeed regardless of URL"
 
     @mock.patch(
@@ -301,7 +301,7 @@ class TestCloneOrUpdateRepo:
     @mock.patch("src.plugins.sources.subprocess.run")
     def test_rejects_invalid_plugin_id(self, mock_run, tmp_path):
         """A plugin_id with path separators or invalid characters is rejected."""
-        ok, err = clone_or_update_repo("https://github.com/Org/repo", "../escaped", external_dir=tmp_path)
+        ok, _err = clone_or_update_repo("https://github.com/Org/repo", "../escaped", external_dir=tmp_path)
         assert not ok
         mock_run.assert_not_called()
 
@@ -310,7 +310,7 @@ class TestCloneOrUpdateRepo:
         """A plugin_id that would escape via '..' is caught by _safe_external_dest."""
         ext_dir = tmp_path / "external_plugins"
         ext_dir.mkdir()
-        ok, err = clone_or_update_repo("https://github.com/Org/repo", "../../escaped", external_dir=ext_dir)
+        ok, _err = clone_or_update_repo("https://github.com/Org/repo", "../../escaped", external_dir=ext_dir)
         assert not ok
         mock_run.assert_not_called()
 
@@ -327,7 +327,7 @@ class TestCloneOrUpdateRepoPathSafety:
 
             ext_dir = Path(tmp) / "external_plugins"
             ext_dir.mkdir()
-            ok, err = clone_or_update_repo("https://github.com/Org/repo", "../../etc/passwd", external_dir=ext_dir)
+            ok, _err = clone_or_update_repo("https://github.com/Org/repo", "../../etc/passwd", external_dir=ext_dir)
             assert not ok
 
     def test_accepts_valid_plugin_id(self, tmp_path):
@@ -421,7 +421,7 @@ class TestInstallGitPlugin:
 
     @mock.patch("src.plugins.sources.clone_or_update_repo", return_value=(True, ""))
     def test_install_with_override_id(self, mock_clone, tmp_path):
-        ok, err = install_git_plugin(
+        ok, _err = install_git_plugin(
             "https://github.com/someone/repo",
             plugin_id="custom_id",
             external_dir=tmp_path,

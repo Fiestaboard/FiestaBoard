@@ -205,7 +205,7 @@ class TestSendCharacters:
 
         for strategy in VALID_STRATEGIES:
             client.clear_cache()  # Clear cache between tests
-            success, was_sent = client.send_characters(valid_grid, strategy=strategy)
+            success, _was_sent = client.send_characters(valid_grid, strategy=strategy)
             assert success is True, f"Strategy {strategy} failed"
 
     def test_send_characters_invalid_strategy(self, client, valid_grid):

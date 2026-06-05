@@ -273,7 +273,7 @@ class TestExtractAlignmentFromLine:
         assert content == "Hello"
 
     def test_center(self):
-        align, wrap, content = _extract_alignment_from_line("{center}Hello")
+        align, _wrap, content = _extract_alignment_from_line("{center}Hello")
         assert align == "center"
         assert content == "Hello"
 
@@ -290,7 +290,7 @@ class TestExtractAlignmentFromLine:
         assert content == "Hello"
 
     def test_case_insensitive(self):
-        align, wrap, content = _extract_alignment_from_line("{CENTER}Hello")
+        align, _wrap, content = _extract_alignment_from_line("{CENTER}Hello")
         assert align == "center"
         assert content == "Hello"
 

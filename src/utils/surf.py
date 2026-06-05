@@ -240,7 +240,7 @@ class SurfSource:
             Formatted message: "OB SURF: [Height]ft @ [Period]s"
         """
         # Round period to integer for cleaner display
-        period_display = int(round(swell_period)) if swell_period else 0
+        period_display = round(swell_period) if swell_period else 0
         return f"OB SURF: {wave_height}ft @ {period_display}s"
 
 

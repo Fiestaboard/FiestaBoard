@@ -366,7 +366,7 @@ def test_parse_tool_call_unknown_op():
 
 
 def test_parse_tool_call_missing_op():
-    with pytest.raises(ToolCallValidationError, match="missing.*op"):
+    with pytest.raises(ToolCallValidationError, match=r"missing.*op"):
         parse_tool_call({"args": {}})
 
 

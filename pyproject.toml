@@ -170,4 +170,4 @@ ignore = [
 # above for the rationale. Any rule fix here would shift line numbers and
 # re-trigger CodeQL's "new alert" false positives on pre-existing findings.
 "src/plugins/sources.py" = ["PTH", "SIM", "RET", "PIE"]
-"src/api_server.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF100"]
+"src/api_server.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]

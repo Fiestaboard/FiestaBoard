@@ -112,7 +112,7 @@ class TestManifestValidationEdgeCases:
         """Empty plugin ID should be rejected."""
         manifest_path = temp_plugin_dir / "manifest.json"
         manifest_path.write_text(json.dumps({"id": "", "name": "Test Plugin", "version": "1.0.0"}))
-        manifest, errors = load_manifest(manifest_path)
+        manifest, _errors = load_manifest(manifest_path)
         assert manifest is None or manifest.id == ""
 
     def test_manifest_invalid_version_format(self, temp_plugin_dir):
@@ -147,7 +147,7 @@ class TestManifestValidationEdgeCases:
             "description": "日本語 설명",
         }
         manifest_path.write_text(json.dumps(manifest_data, ensure_ascii=False))
-        manifest, errors = load_manifest(manifest_path)
+        manifest, _errors = load_manifest(manifest_path)
         assert manifest is not None
         assert "🎉" in manifest.name
 
@@ -155,7 +155,7 @@ class TestManifestValidationEdgeCases:
         """Manifests with circular JSON references should be rejected."""
         manifest_path = temp_plugin_dir / "manifest.json"
         manifest_path.write_text(json.dumps({"id": "test", "name": "Test", "version": "1.0.0"}))
-        manifest, errors = load_manifest(manifest_path)
+        manifest, _errors = load_manifest(manifest_path)
         assert manifest is not None
         assert manifest.id == "test"
 
@@ -166,7 +166,7 @@ class TestManifestValidationEdgeCases:
         manifest_path.write_text(
             json.dumps({"id": "test", "name": "Test", "version": "1.0.0", "description": malicious_description})
         )
-        manifest, errors = load_manifest(manifest_path)
+        manifest, _errors = load_manifest(manifest_path)
         assert manifest is not None
         assert malicious_description in manifest.description
 

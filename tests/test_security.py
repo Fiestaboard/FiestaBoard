@@ -156,7 +156,7 @@ class TestSensitiveDataMasking:
 
     def test_get_plugin_masks_api_key(self, client, mock_plugin_with_sensitive_config):
         """GET /plugins/{id} must not return the raw api_key value."""
-        reg, cm = mock_plugin_with_sensitive_config
+        _reg, _cm = mock_plugin_with_sensitive_config
         response = client.get("/plugins/test_plugin")
         assert response.status_code == 200
         data = response.json()
@@ -169,7 +169,7 @@ class TestSensitiveDataMasking:
 
     def test_mask_sensitive_called_on_plugin_get(self, client, mock_plugin_with_sensitive_config):
         """Verify that _mask_sensitive() is called when returning plugin config."""
-        reg, cm = mock_plugin_with_sensitive_config
+        _reg, cm = mock_plugin_with_sensitive_config
         client.get("/plugins/test_plugin")
         cm._mask_sensitive.assert_called()
 
