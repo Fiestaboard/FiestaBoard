@@ -324,30 +324,15 @@ def clone_or_update_repo(
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
     _ext_dir = external_dir if external_dir is not None else get_external_plugins_dir()
 
-    # ── Validate plugin_id ────────────────────────────────────────────────────
-    if not PLUGIN_ID_RE.fullmatch(plugin_id):
-        return False, f"Invalid plugin id {plugin_id!r}"
-    # Rebuild from the literal allowed-character set so the value is sourced
-    # from a constant, not from the user-provided parameter.
-    _safe_id = "".join(c for c in plugin_id if c in _PLUGIN_ID_ALLOWED)
-    if _safe_id != plugin_id:
-        return False, f"Invalid plugin id {plugin_id!r}"
-
-    # ── Compute destination with inline pathlib barrier ───────────────────────
-    # CodeQL recognises ``Path.resolve()`` + ``Path.is_relative_to`` as a
-    # py/path-injection barrier when the guard and the path operations live
-    # in the *same* scope.  After the check below, ``_candidate`` is the
-    # CodeQL-sanitised destination string used for all subsequent path
-    # operations and subprocess -C arguments.
-    _ext_root_path = Path(str(_ext_dir)).resolve()
-    _candidate_path = (_ext_root_path / _safe_id).resolve()
-    if not _candidate_path.is_relative_to(_ext_root_path):
-        return False, "Plugin path is outside the external plugins directory"
-    if _candidate_path == _ext_root_path:
-        return False, "Refusing to install plugin at root directory"
-    _ext_root = str(_ext_root_path)
-    _candidate = str(_candidate_path)
-    # _candidate is now verified to be strictly inside _ext_root.
+    # Delegate validation + path resolution to the canonical sanitizer
+    # (`re.fullmatch` + allow-list rebuild + ``os.path.realpath`` +
+    # ``os.path.commonpath`` containment check).  This is the CodeQL-recognised
+    # py/path-injection barrier, after which ``_candidate`` is safe to use in
+    # all subsequent filesystem and subprocess -C arguments.
+    _dest_path, _err = _safe_external_dest(_ext_dir, plugin_id)
+    if _dest_path is None:
+        return False, _err
+    _candidate = str(_dest_path)
 
     # ── Update path (no URL required) ─────────────────────────────────────────
     if os.path.isdir(os.path.join(_candidate, ".git")):
