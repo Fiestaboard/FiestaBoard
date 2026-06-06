@@ -19,7 +19,6 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
 import { PageToolbar } from "@/components/page-toolbar";
-import { VariableRuleRow } from "@/components/variable-rule-row";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +37,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { VariableRuleRow } from "@/components/variable-rule-row";
 import { queryKeys } from "@/hooks/use-board";
 import type {
   Collection,
