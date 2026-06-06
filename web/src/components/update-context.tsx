@@ -1,6 +1,5 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { createContext, Fragment, useCallback, useContext, useEffect, useRef, useState } from "react";
 
@@ -229,11 +228,7 @@ function UpdateOverlay({ currentVersion, onDone }: { currentVersion?: string; on
     <div className="fixed inset-0 z-[200] bg-black text-white flex items-center justify-center">
       <div className="text-center space-y-6 max-w-xs mx-auto px-4">
         {/* Spinner */}
-        {phase === "ready" ? (
-          <RefreshCw className="h-12 w-12 mx-auto animate-spin text-white" />
-        ) : (
-          <div className="h-12 w-12 mx-auto rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
-        )}
+        <div className="h-12 w-12 mx-auto rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
 
         {/* Title + current phase message */}
         <div className="space-y-2">
