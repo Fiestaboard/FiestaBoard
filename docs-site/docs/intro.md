@@ -57,10 +57,10 @@ If you don't have a Pi yet, any model from the Raspberry Pi 3B onwards works. Th
 
 ## Other Ways to Run FiestaBoard
 
-Don't have a Pi, or already have a home server? FiestaBoard runs anywhere Docker runs — and if you already use **Home Assistant OS** or **Supervised**, you can install it from the HA Add-on Store ([beta](/docs/setup/home-assistant-addon)).
+Don't have a Pi, or already have a home server? FiestaBoard runs anywhere Docker runs — and if you already use Home Assistant OS or Supervised, you can install it from the HA Add-on Store.
 
 <div className="row">
-<div className="col col--6">
+<div className="col col--4">
 
 ### I'm new to all this
 
@@ -69,13 +69,22 @@ Never used Docker or the command line? No problem.
 **[Beginner's Guide](/docs/setup/beginners-guide)** walks you through every step with clear instructions — including the easy Pi-flash path and a Docker fallback.
 
 </div>
-<div className="col col--6">
+<div className="col col--4">
 
 ### I'm comfortable with Docker
 
 Know your way around `docker-compose`? Run FiestaBoard on a laptop, NAS, or home server.
 
 **[Docker Quick Start](/docs/setup/quick-start)** gets you running in under 5 minutes.
+
+</div>
+<div className="col col--4">
+
+### I run Home Assistant 🏠
+
+On Home Assistant OS or Supervised? Install FiestaBoard from the **HA Add-on Store** with one click — Ingress, MQTT auto-discovery, and HA backups all wired up.
+
+**[Home Assistant Add-on](/docs/setup/home-assistant-addon)** — currently in beta, feedback welcome via [GitHub issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues) or [Discord](https://discord.gg/JvN8y6ahaf).
 
 </div>
 </div>

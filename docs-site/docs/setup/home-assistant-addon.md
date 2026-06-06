@@ -6,8 +6,13 @@ keywords: [FiestaBoard Home Assistant add-on, HAOS, Home Assistant Supervisor, V
 
 # Home Assistant Add-on (Beta)
 
-:::warning Beta
-The Home Assistant add-on is in **beta**. End-to-end install works (Ingress, MQTT auto-discovery, HA core API, backups, updates through the add-on store), but the wrapper is still maturing — please [file issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues) if anything misbehaves.
+:::warning Beta — feedback wanted
+The Home Assistant add-on is in **beta**. End-to-end install works (Ingress, MQTT auto-discovery, HA core API, backups, updates through the add-on store), but the wrapper is still maturing and we'd love to hear from you:
+
+- 🐛 **Found a bug or have a suggestion?** [Open an issue](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues) on the add-on repo.
+- 💬 **Want to chat or get help?** [Join us on Discord](https://discord.gg/JvN8y6ahaf) — there's a community of FiestaBoard users (including Home Assistant power users) happy to help.
+
+Even "it just worked" reports are useful while we're stabilizing the beta — let us know what HA install type you're on (OS / Supervised) and which features you tried.
 :::
 
 If you already run **Home Assistant OS** or **Home Assistant Supervised**, you can install FiestaBoard from the HA Add-on Store. The add-on wraps the standard `fiestaboard/fiestaboard` image and adds the integration glue HA expects:
@@ -66,12 +71,18 @@ A couple of things work differently under the add-on compared to a standalone Do
 - **The in-app "Update Now" button is hidden.** Updates flow through HA's add-on store, not FiestaBoard's own [in-app updater](/docs/features/updating). The companion [fiestaupdater](/docs/deployment/fiestaupdater) sidecar would race HA Supervisor's update flow and isn't safe under HA, so the shim disables it.
 - **MQTT is auto-wired.** Install the Mosquitto broker add-on first; FiestaBoard picks up the broker host and credentials through the HA services API with no manual config.
 
-## Reporting issues
+## Help us shape the beta
 
-The add-on lives in its own repository:
+This integration is new and we want your feedback — what works, what doesn't, what's confusing, what's missing. Two ways to reach us:
 
-- **Source and issues**: <https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App>
-- **Add-on documentation**: <https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/blob/main/fiestaboard/DOCS.md>
-- **FiestaBoard core (not specific to HA)**: <https://github.com/Fiestaboard/FiestaBoard/issues>
+- 🐛 **[Open an issue on the add-on repo](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues)** for bugs, feature requests, or anything reproducible. Please include your HA installation type (OS / Supervised), the add-on version, and the relevant snippet from the add-on **Log** tab.
+- 💬 **[Join our Discord](https://discord.gg/JvN8y6ahaf)** to chat, ask questions, share what you've built, or just say hi. There's a community of FiestaBoard users (including Home Assistant folks) happy to help.
 
-When filing an HA-add-on issue, please include your HA installation type (OS / Supervised), the add-on version, and the relevant snippet from the add-on **Log** tab.
+### Where things live
+
+| Concern | Repo / link |
+| --- | --- |
+| Add-on bugs, feature requests, install issues | [`FiestaBoard-Home-Assistant-App` issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues) |
+| Add-on source and config docs | [`FiestaBoard-Home-Assistant-App`](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App) ([DOCS.md](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/blob/main/fiestaboard/DOCS.md)) |
+| FiestaBoard core (everything not HA-specific) | [`FiestaBoard` issues](https://github.com/Fiestaboard/FiestaBoard/issues) |
+| Chat, help, show-and-tell | [Discord](https://discord.gg/JvN8y6ahaf) |

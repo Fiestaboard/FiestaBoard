@@ -51,7 +51,9 @@ If you have **Home Assistant OS** or **Home Assistant Supervised**, you can inst
 
 [![Open your Home Assistant instance and show the app store with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_store.svg)](https://my.home-assistant.io/redirect/supervisor_store/?repository_url=https%3A%2F%2Fgithub.com%2FFiestaboard%2FFiestaBoard-Home-Assistant-App)
 
-**→ [Home Assistant Add-on setup guide](https://fiestaboard.app/docs/setup/home-assistant-addon)** — currently in beta; report issues at the [add-on repo](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues).
+**→ [Home Assistant Add-on setup guide](https://fiestaboard.app/docs/setup/home-assistant-addon)**
+
+> 🧪 **The HA add-on is in beta and we want your feedback.** Report bugs or feature requests at the [add-on repo issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues), or come say hi on [Discord](https://discord.gg/JvN8y6ahaf) — even "it just worked" reports help us stabilize the beta.
 
 ### Alternative: Run on a computer with Docker
 
