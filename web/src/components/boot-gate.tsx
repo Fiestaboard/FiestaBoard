@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, WifiOff } from "lucide-react";
+import { WifiOff } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
@@ -100,7 +100,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
         ) : (
           /* ── Waiting state ── */
           <>
-            <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" strokeWidth={1.5} />
+            <div className="h-8 w-8 rounded-full border-[2.5px] border-muted-foreground/25 border-t-muted-foreground animate-spin" />
             <p className="text-sm text-muted-foreground">Waiting to start…</p>
           </>
         )}
