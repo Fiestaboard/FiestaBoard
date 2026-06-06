@@ -139,16 +139,51 @@ class TestMDNSServiceLifecycle:
         assert result is False
         assert svc.is_running is False
 
-    def test_start_handles_generic_exception(self):
-        """If zeroconf raises during registration, start returns False."""
+    def test_start_handles_generic_exception(self, caplog):
+        """If zeroconf raises during registration, start returns False and logs a WARNING with traceback."""
+        import logging
+
         from src.system.mdns import MDNSService
 
         with patch("zeroconf.Zeroconf", side_effect=OSError("Network error")):
             svc = MDNSService()
-            result = svc.start()
+            with caplog.at_level(logging.WARNING, logger="src.system.mdns"):
+                result = svc.start()
 
         assert result is False
         assert svc.is_running is False
+        warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert any("Failed to start mDNS service" in r.getMessage() for r in warning_records)
+        # Unexpected errors should include the traceback for debugging.
+        assert any(r.exc_info is not None for r in warning_records)
+
+    def test_start_handles_event_loop_blocked(self, caplog):
+        """EventLoopBlocked is a benign slow-hardware timeout — log INFO, not WARNING, and no traceback."""
+        import logging
+
+        from src.system.mdns import MDNSService
+
+        class EventLoopBlocked(Exception):
+            """Stand-in for zeroconf._exceptions.EventLoopBlocked."""
+
+        mock_zc = MagicMock()
+        mock_zc.register_service.side_effect = EventLoopBlocked()
+
+        with patch("zeroconf.Zeroconf", return_value=mock_zc), patch("zeroconf.ServiceInfo", MagicMock()):
+            svc = MDNSService(hostname="testboard")
+            with caplog.at_level(logging.INFO, logger="src.system.mdns"):
+                result = svc.start()
+
+        assert result is False
+        assert svc.is_running is False
+
+        mdns_records = [r for r in caplog.records if r.name == "src.system.mdns"]
+        # No scary WARNING/ERROR or traceback for this known-benign case.
+        assert all(r.levelno < logging.WARNING for r in mdns_records)
+        assert all(r.exc_info is None for r in mdns_records)
+        # Friendly explanation names the host and points users at the IP fallback.
+        info_messages = [r.getMessage() for r in mdns_records if r.levelno == logging.INFO]
+        assert any("testboard.local" in msg and "reachable by IP" in msg for msg in info_messages)
 
 
 class TestGetLocalIp:

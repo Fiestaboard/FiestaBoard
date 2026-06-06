@@ -101,7 +101,19 @@ class MDNSService:
         except ImportError:
             logger.warning("zeroconf package not installed – mDNS advertisement disabled")
             return False
-        except Exception:
+        except Exception as exc:
+            # zeroconf raises EventLoopBlocked when its internal asyncio loop
+            # can't process the registration within its timeout. On slow
+            # hardware (e.g. Raspberry Pi 3) this happens during a busy
+            # startup. The app is fine — users just lose the .local URL and
+            # can still reach FiestaBoard by IP.
+            if type(exc).__name__ == "EventLoopBlocked":
+                logger.info(
+                    "mDNS registration timed out during startup; "
+                    "%s.local will be unavailable but FiestaBoard is reachable by IP",
+                    self._hostname,
+                )
+                return False
             logger.warning("Failed to start mDNS service", exc_info=True)
             return False
 
