@@ -8144,11 +8144,9 @@ async def generic_data_test_fetch(request: dict):
         raise HTTPException(status_code=400, detail="URL contains unexpected characters")
     url = _safe_url_m.group(0)
 
-    # Resolve the URL host and confirm it is a public/global IPv4 address.
-    # CodeQL's ``py/full-ssrf`` sanitiser recognises ``ipaddress.IPv4Address``
-    # paired with ``is_private``/``is_loopback`` checks; gating the request
-    # on a ``ipaddress`` object derived from ``getaddrinfo`` ensures static
-    # analysis sees the URL host as sanitised before reaching ``req.request``.
+    # Resolve the URL host and confirm it is a public/global IP address.
+    # CodeQL's ``py/full-ssrf`` IpAddressSanitizer recognises an
+    # ``ipaddress`` object gated by a positive ``is_global`` check.
     import ipaddress as _ipaddress_mod
     import socket as _socket_mod
 
@@ -8158,17 +8156,21 @@ async def generic_data_test_fetch(request: dict):
         _resolved_ip = _ipaddress_mod.ip_address(_host_for_check)
     except ValueError:
         try:
-            _addrinfo = _socket_mod.getaddrinfo(_host_for_check, _parsed_url.port or (443 if _parsed_url.scheme == "https" else 80))
+            _addrinfo = _socket_mod.getaddrinfo(
+                _host_for_check,
+                _parsed_url.port or (443 if _parsed_url.scheme == "https" else 80),
+            )
         except _socket_mod.gaierror:
             raise HTTPException(status_code=400, detail="URL host could not be resolved") from None
         _resolved_ips = [info[4][0] for info in _addrinfo if info and len(info) >= 5 and info[4]]
         if not _resolved_ips:
             raise HTTPException(status_code=400, detail="URL host did not resolve") from None
         _resolved_ip = _ipaddress_mod.ip_address(_resolved_ips[0])
-    if _resolved_ip.is_private or _resolved_ip.is_loopback or _resolved_ip.is_link_local or _resolved_ip.is_multicast or _resolved_ip.is_reserved or _resolved_ip.is_unspecified:
+    # Positive ``is_global`` check — the CodeQL-recognised IpAddressSanitizer.
+    if not _resolved_ip.is_global:
         raise HTTPException(status_code=400, detail="URL host resolves to a non-public IP")
 
-    host = urlparse(url).hostname or ""
+    host = _host_for_check
     allowed_hosts = _get_generic_data_allowed_hosts()
     # When GENERIC_DATA_ALLOWED_HOSTS is set, enforce the allowlist.
     # When it is unset, _validate_request_url above already blocks SSRF
