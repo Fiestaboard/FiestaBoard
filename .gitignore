@@ -108,3 +108,6 @@ docs-site/.cache-loader/
 
 # Claude Code worktrees (per-user, ephemeral isolated checkouts).
 .claude/worktrees/
+
+# Supervisor runtime PID file (created when supervisord runs locally).
+supervisord.pid
