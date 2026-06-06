@@ -170,7 +170,8 @@ Custom user‑defined functions are intentionally **not supported**.
 | `CONTAINS(s, sub)` | `TRUE` if `s` contains `sub`. |
 | `STARTSWITH(s, p)` / `ENDSWITH(s, p)` | Prefix/suffix test. |
 | `PAD(s, w)` | Right‑pad to `w` chars (truncates if longer). |
-| `PADLEFT(s, w)` | Left‑pad to `w` chars. |
+| `PADLEFT(s, w)` | Left‑pad to `w` chars with spaces. |
+| `ZEROPAD(s, w)` | Left‑pad to `w` chars with zeros (e.g. `ZEROPAD(1, 2)` → `"01"`). A leading `-` sign is preserved (`ZEROPAD(-1, 3)` → `"-01"`). Values longer than `w` are returned unchanged. |
 | `CENTER(s, w)` | Center within `w` chars. |
 
 ### Conversion / formatting

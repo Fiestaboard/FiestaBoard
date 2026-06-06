@@ -100,6 +100,36 @@ class TestFilters:
         result = engine.render("{{weather.condition|truncate:6}}", context)
         assert result == "Partly"
 
+    def test_zeropad_filter_single_digit(self, engine):
+        """|zeropad:2 turns 1 into 01."""
+        context = {"date_time": {"month": 1}}
+        result = engine.render("{{date_time.month|zeropad:2}}", context)
+        assert result == "01"
+
+    def test_zeropad_filter_no_padding_needed(self, engine):
+        """|zeropad:2 leaves 12 unchanged."""
+        context = {"date_time": {"month": 12}}
+        result = engine.render("{{date_time.month|zeropad:2}}", context)
+        assert result == "12"
+
+    def test_zeropad_filter_value_longer_than_width(self, engine):
+        """|zeropad:N leaves longer values alone (no truncation)."""
+        context = {"x": {"v": 123}}
+        result = engine.render("{{x.v|zeropad:2}}", context)
+        assert result == "123"
+
+    def test_zeropad_filter_preserves_negative_sign(self, engine):
+        """Negative numbers keep the sign and zero-pad the digits."""
+        context = {"x": {"v": -1}}
+        result = engine.render("{{x.v|zeropad:3}}", context)
+        assert result == "-01"
+
+    def test_zeropad_filter_invalid_arg(self, engine):
+        """Non-integer width falls back to the raw value."""
+        context = {"x": {"v": 1}}
+        result = engine.render("{{x.v|zeropad:abc}}", context)
+        assert result == "1"
+
 
 class TestColors:
     """Tests for color code handling."""
