@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
 import { PageToolbar } from "@/components/page-toolbar";
+import { VariableRuleRow } from "@/components/variable-rule-row";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +38,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
 import { queryKeys } from "@/hooks/use-board";
 import type {
   Collection,
@@ -100,6 +100,16 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
+  // Rule-editor state: only one rule is editable at a time.
+  const [editingRuleIndex, setEditingRuleIndex] = useState<number | null>(null);
+  const [editingRuleDirty, setEditingRuleDirty] = useState(false);
+  const [pendingSwitchIndex, setPendingSwitchIndex] = useState<number | null>(null);
+  // Track a freshly-added rule so we can drop it from the list if the user cancels
+  // without ever saving.
+  const [newRuleIndex, setNewRuleIndex] = useState<number | null>(null);
+  // Separate drag index for the rules list so it doesn't collide with page dragging.
+  const [ruleDragIndex, setRuleDragIndex] = useState<number | null>(null);
+
   const availablePages = useMemo(() => pages.filter((p) => !selectedPageIds.includes(p.id)), [pages, selectedPageIds]);
 
   const handleAddPage = useCallback(
@@ -122,6 +132,10 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
           setDefaultPageId("");
         }
         setRules((rs) => rs.filter((r) => r.page_id !== removed));
+        // Editing state may now point at a removed rule — reset to be safe.
+        setEditingRuleIndex(null);
+        setEditingRuleDirty(false);
+        setNewRuleIndex(null);
         return next;
       });
     },
@@ -150,16 +164,128 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
   const handleDragEnd = useCallback(() => setDragIndex(null), []);
 
   const handleAddRule = useCallback(() => {
-    setRules((prev) => [...prev, { expression: "", page_id: selectedPageIds[0] || "" }]);
-  }, [selectedPageIds]);
+    // Opening a fresh rule counts as a "switch" too; if the current edit is
+    // dirty, ask before discarding.
+    if (editingRuleIndex !== null && editingRuleDirty) {
+      setPendingSwitchIndex(-1); // sentinel: -1 means "open a new rule after discard"
+      return;
+    }
+    setRules((prev) => {
+      const idx = prev.length;
+      setEditingRuleIndex(idx);
+      setNewRuleIndex(idx);
+      return [...prev, { expression: "", page_id: "" }];
+    });
+  }, [editingRuleIndex, editingRuleDirty]);
 
-  const handleUpdateRule = useCallback((index: number, patch: Partial<VariableRule>) => {
-    setRules((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  const handleRequestEditRule = useCallback(
+    (index: number): boolean => {
+      if (editingRuleIndex === index) return true;
+      if (editingRuleIndex !== null && editingRuleDirty) {
+        setPendingSwitchIndex(index);
+        return false;
+      }
+      setEditingRuleIndex(index);
+      return true;
+    },
+    [editingRuleIndex, editingRuleDirty],
+  );
+
+  const handleSaveRule = useCallback(
+    (index: number, next: VariableRule) => {
+      setRules((prev) => prev.map((r, i) => (i === index ? next : r)));
+      setEditingRuleIndex(null);
+      setEditingRuleDirty(false);
+      setNewRuleIndex((n) => (n === index ? null : n));
+    },
+    [],
+  );
+
+  const handleCancelEditRule = useCallback(() => {
+    // If cancelling a never-saved fresh rule, drop it from the list entirely.
+    if (newRuleIndex !== null && newRuleIndex === editingRuleIndex) {
+      const idx = newRuleIndex;
+      setRules((prev) => prev.filter((_, i) => i !== idx));
+      setNewRuleIndex(null);
+    }
+    setEditingRuleIndex(null);
+    setEditingRuleDirty(false);
+  }, [newRuleIndex, editingRuleIndex]);
+
+  const handleRemoveRule = useCallback(
+    (index: number) => {
+      setRules((prev) => prev.filter((_, i) => i !== index));
+      // If we removed the rule currently being edited, exit edit mode.
+      if (editingRuleIndex === index) {
+        setEditingRuleIndex(null);
+        setEditingRuleDirty(false);
+      } else if (editingRuleIndex !== null && index < editingRuleIndex) {
+        setEditingRuleIndex(editingRuleIndex - 1);
+      }
+    },
+    [editingRuleIndex],
+  );
+
+  const handleConfirmDiscardSwitch = useCallback(() => {
+    if (pendingSwitchIndex === null) return;
+    const target = pendingSwitchIndex;
+    // Drop the unsaved fresh rule (if any) before switching.
+    if (newRuleIndex !== null && newRuleIndex === editingRuleIndex) {
+      const droppedIdx = newRuleIndex;
+      setRules((prev) => prev.filter((_, i) => i !== droppedIdx));
+      setNewRuleIndex(null);
+      // If user wanted to open another existing rule whose index shifts after drop:
+      if (target >= 0 && target > droppedIdx) {
+        setEditingRuleIndex(target - 1);
+      } else if (target === -1) {
+        // open a brand-new rule at the end (after drop)
+        setRules((prev) => {
+          const idx = prev.length;
+          setEditingRuleIndex(idx);
+          setNewRuleIndex(idx);
+          return [...prev, { expression: "", page_id: "" }];
+        });
+      } else {
+        setEditingRuleIndex(target);
+      }
+    } else if (target === -1) {
+      setRules((prev) => {
+        const idx = prev.length;
+        setEditingRuleIndex(idx);
+        setNewRuleIndex(idx);
+        return [...prev, { expression: "", page_id: "" }];
+      });
+    } else {
+      setEditingRuleIndex(target);
+    }
+    setEditingRuleDirty(false);
+    setPendingSwitchIndex(null);
+  }, [pendingSwitchIndex, newRuleIndex, editingRuleIndex]);
+
+  const handleCancelDiscardSwitch = useCallback(() => {
+    setPendingSwitchIndex(null);
   }, []);
 
-  const handleRemoveRule = useCallback((index: number) => {
-    setRules((prev) => prev.filter((_, i) => i !== index));
+  const handleRuleDragStart = useCallback((index: number) => {
+    setRuleDragIndex(index);
   }, []);
+
+  const handleRuleDragOver = useCallback(
+    (e: React.DragEvent, targetIndex: number) => {
+      e.preventDefault();
+      if (ruleDragIndex === null || ruleDragIndex === targetIndex) return;
+      setRules((prev) => {
+        const next = [...prev];
+        const [moved] = next.splice(ruleDragIndex, 1);
+        next.splice(targetIndex, 0, moved);
+        return next;
+      });
+      setRuleDragIndex(targetIndex);
+    },
+    [ruleDragIndex],
+  );
+
+  const handleRuleDragEnd = useCallback(() => setRuleDragIndex(null), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,6 +360,9 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
               <div className="flex items-center gap-2">
                 <Sigma className="h-4 w-4" />
                 <span>{t("modeVariableLabel")}</span>
+                <Badge variant="outline" className="text-[10px] uppercase tracking-wide ml-1 py-0">
+                  {t("betaBadge")}
+                </Badge>
               </div>
             </SelectItem>
           </SelectContent>
@@ -328,6 +457,12 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
       {/* Variable-mode controls */}
       {selectionMode === "variable" && (
         <div className="space-y-4 border-t pt-4">
+          <div className="flex items-start gap-2 rounded-md border border-dashed bg-muted/40 p-2.5 text-xs text-muted-foreground">
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wide py-0">
+              {t("betaBadge")}
+            </Badge>
+            <span>{t("variableModeBetaNote")}</span>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="collection-default">{t("variableDefaultLabel")}</Label>
             <p className="text-xs text-muted-foreground">{t("variableDefaultDescription")}</p>
@@ -359,44 +494,26 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
             ) : (
               <div className="space-y-2">
                 {rules.map((rule, index) => (
-                  <div key={index} className="rounded-lg border p-3 space-y-2 bg-background">
-                    <div className="flex items-center justify-between gap-2">
-                      <Badge variant="outline" className="text-xs tabular-nums">
-                        {index + 1}
-                      </Badge>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => handleRemoveRule(index)}
-                        aria-label={t("variableRemoveRule")}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                    </div>
-                    <Textarea
-                      value={rule.expression}
-                      onChange={(e) => handleUpdateRule(index, { expression: e.target.value })}
-                      placeholder={t("variableExpressionPlaceholder")}
-                      className="font-mono text-sm min-h-[64px]"
-                    />
-                    <Select value={rule.page_id} onValueChange={(v) => handleUpdateRule(index, { page_id: v })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("variableRuleTargetPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {selectedPageIds.map((pid) => {
-                          const page = pages.find((p) => p.id === pid);
-                          return (
-                            <SelectItem key={pid} value={pid}>
-                              {page?.name || pid}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <VariableRuleRow
+                    key={index}
+                    rule={rule}
+                    index={index}
+                    pages={pages}
+                    selectablePageIds={selectedPageIds}
+                    isEditing={editingRuleIndex === index}
+                    isDragging={ruleDragIndex === index}
+                    onRequestEdit={() => handleRequestEditRule(index)}
+                    onSave={(next) => handleSaveRule(index, next)}
+                    onCancelEdit={handleCancelEditRule}
+                    onRemove={() => handleRemoveRule(index)}
+                    onDirtyChange={(dirty) => {
+                      if (editingRuleIndex === index) setEditingRuleDirty(dirty);
+                    }}
+                    onDragStart={() => handleRuleDragStart(index)}
+                    onDragOver={(e) => handleRuleDragOver(e, index)}
+                    onDragEnd={handleRuleDragEnd}
+                    t={t}
+                  />
                 ))}
               </div>
             )}
@@ -412,6 +529,23 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
               <Plus className="h-4 w-4 mr-1" />
               {t("variableAddRule")}
             </Button>
+
+            <AlertDialog open={pendingSwitchIndex !== null} onOpenChange={(open) => !open && handleCancelDiscardSwitch()}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t("variableDiscardTitle")}</AlertDialogTitle>
+                  <AlertDialogDescription>{t("variableDiscardDescription")}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={handleCancelDiscardSwitch}>
+                    {tc("cancel")}
+                  </AlertDialogCancel>
+                  <AlertDialogAction onClick={handleConfirmDiscardSwitch}>
+                    {t("variableDiscardConfirm")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
 
           <div className="space-y-2">
@@ -620,6 +754,11 @@ export default function CollectionsPage() {
                           )}
                           {collection.selection_mode}
                         </Badge>
+                        {collection.selection_mode === "variable" && (
+                          <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                            {t("betaBadge")}
+                          </Badge>
+                        )}
                       </CardTitle>
                       <CardDescription className="text-xs">
                         {collection.page_ids.length} page
@@ -656,7 +795,16 @@ export default function CollectionsPage() {
           if (!open) handleCloseForm();
         }}
       >
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetContent
+          className="w-full sm:max-w-xl overflow-y-auto"
+          onEscapeKeyDown={(e) => {
+            // If the variable-autocomplete popover is open, let it handle Escape
+            // and keep the Sheet open.
+            if (document.documentElement.getAttribute("data-variable-autocomplete-open") === "1") {
+              e.preventDefault();
+            }
+          }}
+        >
           <SheetHeader>
             <SheetTitle>{editingCollection ? t("editCollection") : t("newCollection")}</SheetTitle>
             <SheetDescription>{editingCollection ? t("editDescription") : t("createDescription")}</SheetDescription>
