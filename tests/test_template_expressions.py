@@ -108,6 +108,12 @@ class TestStringOps:
     def test_padleft(self):
         assert evaluate('PADLEFT("7", 3)') == "  7"
 
+    def test_zeropad(self):
+        assert evaluate("ZEROPAD(1, 2)") == "01"
+        assert evaluate("ZEROPAD(12, 2)") == "12"
+        assert evaluate("ZEROPAD(123, 2)") == "123"
+        assert evaluate("ZEROPAD(-1, 3)") == "-01"
+
     def test_center(self):
         assert evaluate('CENTER("hi", 6)') == "  hi  "
 

@@ -7,7 +7,7 @@ Template syntax:
   the user-facing reference docs at ``docs-site/docs/reference/template-formulas.md``.
 - Colors: {{red}}, {{blue}}, etc. - Single colored tile (not text wrapping)
 - Symbols: {sun}, {cloud}, {rain}
-- Formatting: {{value|pad:3}}, {{value|upper}}, {{value|lower}}, {{value|wrap}}
+- Formatting: {{value|pad:3}}, {{value|zeropad:2}}, {{value|upper}}, {{value|lower}}, {{value|wrap}}
 
 Color tiles (each produces one solid color tile):
 - {{red}} or {{63}} - Red tile
@@ -1147,8 +1147,10 @@ class TemplateEngine:
         """Apply a filter to a value.
 
         Supported filters:
-        - pad:N - Pad to N characters
+        - pad:N - Right-pad with spaces to N characters
         - truncate:N - Truncate to N characters
+        - zeropad:N - Left-pad with zeros to N characters (e.g., 1 -> 01).
+          For numeric values, a leading '-' sign is preserved (e.g., -1 -> -01).
         """
         if ":" in filter_expr:
             filter_name, arg = filter_expr.split(":", 1)
@@ -1167,6 +1169,17 @@ class TemplateEngine:
                     return value[:length]
                 except ValueError:
                     return value
+
+            elif filter_name == "zeropad":
+                try:
+                    width = int(arg)
+                except ValueError:
+                    return value
+                if width <= 0:
+                    return value
+                if value.startswith("-"):
+                    return "-" + value[1:].rjust(width - 1, "0")
+                return value.rjust(width, "0")
 
         return value
 

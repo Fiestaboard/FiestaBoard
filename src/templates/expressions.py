@@ -13,7 +13,7 @@ Highlights:
       AND, OR, NOT, IFERROR, ISERROR, ISBLANK, DEFAULT, ABS, ROUND, FLOOR,
       CEIL, MIN, MAX, SUM, AVG, MOD, INT, SIGN, UPPER, LOWER, LEN, LEFT,
       RIGHT, MID, TRIM, CONCAT, REPLACE, REPT, CONTAINS, STARTSWITH,
-      ENDSWITH, PAD, PADLEFT, CENTER, TEXT, NUM, FIXED, COLOR.
+      ENDSWITH, PAD, PADLEFT, ZEROPAD, CENTER, TEXT, NUM, FIXED, COLOR.
     * Excel-like error values: ``#REF``, ``#VALUE``, ``#DIV/0``, ``#NAME?``,
       ``#NUM``, ``#SYNTAX`` -- trappable with ``IFERROR``.
 
@@ -1018,6 +1018,20 @@ def _fn_padleft(args: list[Any]) -> Any:
     return s.rjust(width) if len(s) <= width else s[-width:]
 
 
+def _fn_zeropad(args: list[Any]) -> Any:
+    _expect_args("ZEROPAD", args, 2, 2)
+    err = _propagate(*args)
+    if err is not None:
+        return err
+    width = int(_to_number(args[1]))
+    if width <= 0:
+        return _to_string(args[0])
+    s = _to_string(args[0])
+    if s.startswith("-"):
+        return "-" + s[1:].rjust(width - 1, "0")
+    return s.rjust(width, "0")
+
+
 def _fn_center(args: list[Any]) -> Any:
     _expect_args("CENTER", args, 2, 2)
     err = _propagate(*args)
@@ -1147,6 +1161,7 @@ _BUILTINS: dict[str, Callable[[list[Any]], Any]] = {
     "ENDSWITH": _fn_endswith,
     "PAD": _fn_pad,
     "PADLEFT": _fn_padleft,
+    "ZEROPAD": _fn_zeropad,
     "CENTER": _fn_center,
     # Conversion / format
     "TEXT": _fn_text,
@@ -1211,6 +1226,7 @@ _SIGNATURES: dict[str, tuple[str, str, str]] = {
     "ENDSWITH": ("text", "ENDSWITH(s, suffix)", "True if s ends with suffix"),
     "PAD": ("text", "PAD(s, width)", "Right-pad to width"),
     "PADLEFT": ("text", "PADLEFT(s, width)", "Left-pad to width"),
+    "ZEROPAD": ("text", "ZEROPAD(s, width)", "Left-pad with zeros to width (e.g. 1 -> 01)"),
     "CENTER": ("text", "CENTER(s, width)", "Center within width"),
     # Conversion
     "TEXT": ("convert", "TEXT(x)", "Convert to string"),
@@ -1542,6 +1558,7 @@ _ARITY: dict[str, tuple[int, int | None]] = {
     "ENDSWITH": (2, 2),
     "PAD": (2, 2),
     "PADLEFT": (2, 2),
+    "ZEROPAD": (2, 2),
     "CENTER": (2, 2),
     "TEXT": (1, 1),
     "NUM": (1, 1),
