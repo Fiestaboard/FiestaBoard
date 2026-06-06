@@ -6,7 +6,7 @@
  *  2. Custom day abbreviation lookup is case-insensitive and robust
  *  3. Aria-labels on Edit/Delete buttons include the page name for accessibility
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ScheduleListView } from "@/app/schedule/components/schedule-list-view";
@@ -183,5 +183,45 @@ describe("ScheduleListView – accessibility aria-labels", () => {
 
     screen.getByRole("button", { name: "Delete schedule for Morning Board" }).click();
     expect(onDelete).toHaveBeenCalledWith("sched-1");
+  });
+});
+
+describe("ScheduleListView – enabled toggle", () => {
+  it("does not render toggle when onToggleEnabled is not provided", () => {
+    render(<ScheduleListView schedules={[makeSchedule({})]} pages={MOCK_PAGES} onEdit={vi.fn()} onDelete={vi.fn()} />);
+    expect(screen.queryByRole("switch", { name: /Toggle enabled/ })).not.toBeInTheDocument();
+  });
+
+  it("renders toggle reflecting the schedule.enabled state when handler provided", () => {
+    render(
+      <ScheduleListView
+        schedules={[makeSchedule({ enabled: false })]}
+        pages={MOCK_PAGES}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onToggleEnabled={vi.fn()}
+      />,
+    );
+    const toggle = screen.getByRole("switch", {
+      name: "Toggle enabled for Morning Board",
+    });
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("invokes onToggleEnabled with the schedule and new value on click", () => {
+    const onToggleEnabled = vi.fn();
+    const schedule = makeSchedule({ enabled: true });
+    render(
+      <ScheduleListView
+        schedules={[schedule]}
+        pages={MOCK_PAGES}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onToggleEnabled={onToggleEnabled}
+      />,
+    );
+    fireEvent.click(screen.getByRole("switch", { name: "Toggle enabled for Morning Board" }));
+    expect(onToggleEnabled).toHaveBeenCalledWith(schedule, false);
   });
 });
