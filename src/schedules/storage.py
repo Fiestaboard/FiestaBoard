@@ -113,9 +113,7 @@ class ScheduleStorage:
         # Load existing schedules
         self._load()
 
-        logger.info(
-            f"ScheduleStorage initialized (file: {self.storage_file}, schedules: {len(self._schedules)})"
-        )
+        logger.info(f"ScheduleStorage initialized (file: {self.storage_file}, schedules: {len(self._schedules)})")
 
     def _run_migrations(self, data: dict) -> bool:
         """Run any pending schema migrations on raw JSON data.
@@ -128,9 +126,7 @@ class ScheduleStorage:
             return False
 
         if self.storage_file.exists():
-            backup_path = self.storage_file.with_suffix(
-                f".json.v{current_version}_backup"
-            )
+            backup_path = self.storage_file.with_suffix(f".json.v{current_version}_backup")
             if not backup_path.exists():
                 try:
                     shutil.copy2(self.storage_file, backup_path)
@@ -142,9 +138,7 @@ class ScheduleStorage:
             if current_version >= target_version:
                 continue
             count = migrate_fn(data)
-            logger.info(
-                f"Schedules schema migration v{current_version}->v{target_version}: {count} change(s) applied"
-            )
+            logger.info(f"Schedules schema migration v{current_version}->v{target_version}: {count} change(s) applied")
             current_version = target_version
 
         data["schema_version"] = CURRENT_SCHEMA_VERSION
@@ -171,18 +165,10 @@ class ScheduleStorage:
                 try:
                     if "board_id" not in schedule_data:
                         schedule_data["board_id"] = DEFAULT_BOARD_ID
-                    if "created_at" in schedule_data and isinstance(
-                        schedule_data["created_at"], str
-                    ):
-                        schedule_data["created_at"] = datetime.fromisoformat(
-                            schedule_data["created_at"]
-                        )
-                    if "updated_at" in schedule_data and isinstance(
-                        schedule_data["updated_at"], str
-                    ):
-                        schedule_data["updated_at"] = datetime.fromisoformat(
-                            schedule_data["updated_at"]
-                        )
+                    if "created_at" in schedule_data and isinstance(schedule_data["created_at"], str):
+                        schedule_data["created_at"] = datetime.fromisoformat(schedule_data["created_at"])
+                    if "updated_at" in schedule_data and isinstance(schedule_data["updated_at"], str):
+                        schedule_data["updated_at"] = datetime.fromisoformat(schedule_data["updated_at"])
 
                     schedule = ScheduleEntry(**schedule_data)
                     self._schedules[schedule.id] = schedule
@@ -209,9 +195,7 @@ class ScheduleStorage:
         try:
             data = {
                 "schema_version": CURRENT_SCHEMA_VERSION,
-                "schedules": [
-                    schedule.model_dump() for schedule in self._schedules.values()
-                ],
+                "schedules": [schedule.model_dump() for schedule in self._schedules.values()],
                 "default_page_id": self._default_page_id,
                 "default_page_by_board": self._default_page_by_board,
             }
@@ -219,13 +203,9 @@ class ScheduleStorage:
             # Convert datetime objects to ISO strings for JSON serialization
             for schedule_data in data["schedules"]:
                 if schedule_data.get("created_at"):
-                    schedule_data["created_at"] = schedule_data[
-                        "created_at"
-                    ].isoformat()
+                    schedule_data["created_at"] = schedule_data["created_at"].isoformat()
                 if schedule_data.get("updated_at"):
-                    schedule_data["updated_at"] = schedule_data[
-                        "updated_at"
-                    ].isoformat()
+                    schedule_data["updated_at"] = schedule_data["updated_at"].isoformat()
 
             # Use builtins.open (not Path.open) so existing tests can
             # patch builtins.open to inject I/O errors.
@@ -254,9 +234,7 @@ class ScheduleStorage:
         else:
             bid = board_id if board_id is not None else DEFAULT_BOARD_ID
             schedules = [
-                s
-                for s in self._schedules.values()
-                if (s.board_id or DEFAULT_BOARD_ID) == (bid or DEFAULT_BOARD_ID)
+                s for s in self._schedules.values() if (s.board_id or DEFAULT_BOARD_ID) == (bid or DEFAULT_BOARD_ID)
             ]
         schedules.sort(key=lambda s: s.created_at)
         return schedules
@@ -372,9 +350,7 @@ class ScheduleStorage:
             return self._default_page_by_board[bid] or None
         return self._default_page_id
 
-    def set_default_page_id(
-        self, page_id: str | None, board_id: str | None = None
-    ) -> None:
+    def set_default_page_id(self, page_id: str | None, board_id: str | None = None) -> None:
         """Set the default page ID for schedule gaps for the given board."""
         bid = board_id or DEFAULT_BOARD_ID
         if bid == DEFAULT_BOARD_ID:

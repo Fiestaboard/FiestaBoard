@@ -191,15 +191,12 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
     [editingRuleIndex, editingRuleDirty],
   );
 
-  const handleSaveRule = useCallback(
-    (index: number, next: VariableRule) => {
-      setRules((prev) => prev.map((r, i) => (i === index ? next : r)));
-      setEditingRuleIndex(null);
-      setEditingRuleDirty(false);
-      setNewRuleIndex((n) => (n === index ? null : n));
-    },
-    [],
-  );
+  const handleSaveRule = useCallback((index: number, next: VariableRule) => {
+    setRules((prev) => prev.map((r, i) => (i === index ? next : r)));
+    setEditingRuleIndex(null);
+    setEditingRuleDirty(false);
+    setNewRuleIndex((n) => (n === index ? null : n));
+  }, []);
 
   const handleCancelEditRule = useCallback(() => {
     // If cancelling a never-saved fresh rule, drop it from the list entirely.
@@ -530,16 +527,17 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
               {t("variableAddRule")}
             </Button>
 
-            <AlertDialog open={pendingSwitchIndex !== null} onOpenChange={(open) => !open && handleCancelDiscardSwitch()}>
+            <AlertDialog
+              open={pendingSwitchIndex !== null}
+              onOpenChange={(open) => !open && handleCancelDiscardSwitch()}
+            >
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>{t("variableDiscardTitle")}</AlertDialogTitle>
                   <AlertDialogDescription>{t("variableDiscardDescription")}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel onClick={handleCancelDiscardSwitch}>
-                    {tc("cancel")}
-                  </AlertDialogCancel>
+                  <AlertDialogCancel onClick={handleCancelDiscardSwitch}>{tc("cancel")}</AlertDialogCancel>
                   <AlertDialogAction onClick={handleConfirmDiscardSwitch}>
                     {t("variableDiscardConfirm")}
                   </AlertDialogAction>

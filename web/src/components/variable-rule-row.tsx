@@ -135,13 +135,7 @@ export function VariableRuleRow({
               </Button>
             </div>
             <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={onCancelEdit}
-              >
+              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onCancelEdit}>
                 <X className="h-3.5 w-3.5 mr-1" />
                 {t("variableRuleCancel")}
               </Button>
@@ -217,15 +211,10 @@ export function VariableRuleRow({
           {hasUnknownVars && (
             <div className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
               <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-              <span>
-                {t("variableRuleUnknownVars", { vars: unknownVars.slice(0, 3).join(", ") })}
-              </span>
+              <span>{t("variableRuleUnknownVars", { vars: unknownVars.slice(0, 3).join(", ") })}</span>
             </div>
           )}
-          <Select
-            value={draft.page_id}
-            onValueChange={(v) => setDraft((d) => ({ ...d, page_id: v }))}
-          >
+          <Select value={draft.page_id} onValueChange={(v) => setDraft((d) => ({ ...d, page_id: v }))}>
             <SelectTrigger>
               <SelectValue placeholder={t("variableRuleTargetPlaceholder")} />
             </SelectTrigger>

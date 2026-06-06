@@ -289,7 +289,7 @@ export function lintExpression(expression: string): ExpressionLintFinding[] {
   if (inSingle || inDouble) {
     findings.push({
       kind: "unterminated-string",
-      message: `Unterminated ${inDouble ? "\"" : "'"} string literal`,
+      message: `Unterminated ${inDouble ? '"' : "'"} string literal`,
     });
   }
 
