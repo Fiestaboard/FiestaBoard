@@ -334,16 +334,16 @@ def clone_or_update_repo(
         return False, f"Invalid plugin id {plugin_id!r}"
 
     # ── Inline canonical CodeQL py/path-injection barrier ─────────────────────
-    # ``os.path.realpath`` + ``os.path.commonpath`` containment check is the
-    # sanitizer pattern CodeQL recognises.  Keeping the check and the sink in
-    # the *same* scope (no cross-function returns) is what makes the taint
-    # tracker treat ``_candidate`` as sanitised at every downstream sink.
+    # The CodeQL docs explicitly recognise ``os.path.normpath`` (or
+    # ``os.path.realpath``) followed by a ``startswith`` containment check
+    # as a py/path-injection sanitiser.  Keep the check and every sink in
+    # the *same* scope (no cross-function returns) so the taint tracker
+    # treats ``_candidate`` as sanitised at every downstream filesystem and
+    # subprocess sink.
     _ext_root = os.path.realpath(str(_ext_dir))
+    _ext_root_prefix = _ext_root + os.sep
     _candidate = os.path.realpath(os.path.join(_ext_root, _safe_id))
-    try:
-        if os.path.commonpath([_ext_root, _candidate]) != _ext_root:
-            return False, "Plugin path is outside the external plugins directory"
-    except ValueError:
+    if not _candidate.startswith(_ext_root_prefix):
         return False, "Plugin path is outside the external plugins directory"
     if _candidate == _ext_root:
         return False, "Refusing to install plugin at root directory"

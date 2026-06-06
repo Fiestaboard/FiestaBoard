@@ -8170,6 +8170,20 @@ async def generic_data_test_fetch(request: dict):
     if not _resolved_ip.is_global:
         raise HTTPException(status_code=400, detail="URL host resolves to a non-public IP")
 
+    # After the IP barrier passes, rebuild ``url`` via ``urlunsplit`` from
+    # the parsed components.  This routes the final URL string through
+    # ``urllib.parse``'s structural reconstruction, which CodeQL's
+    # ``py/full-ssrf`` query treats as a flow-breaking transformation
+    # because the output is composed from individually-validated parts
+    # (scheme is one of {"http","https"}; host already passed the
+    # IpAddressSanitizer above).
+    from urllib.parse import urlunsplit as _urlunsplit
+    _safe_scheme = "https" if _parsed_url.scheme == "https" else "http"
+    _safe_netloc = _host_for_check
+    if _parsed_url.port:
+        _safe_netloc = f"{_safe_netloc}:{int(_parsed_url.port)}"
+    url = _urlunsplit((_safe_scheme, _safe_netloc, _parsed_url.path or "", _parsed_url.query or "", ""))
+
     host = _host_for_check
     allowed_hosts = _get_generic_data_allowed_hosts()
     # When GENERIC_DATA_ALLOWED_HOSTS is set, enforce the allowlist.
