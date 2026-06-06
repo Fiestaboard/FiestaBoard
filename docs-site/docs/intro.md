@@ -57,7 +57,7 @@ If you don't have a Pi yet, any model from the Raspberry Pi 3B onwards works. Th
 
 ## Other Ways to Run FiestaBoard
 
-Don't have a Pi, or already have a home server? FiestaBoard runs anywhere Docker runs.
+Don't have a Pi, or already have a home server? FiestaBoard runs anywhere Docker runs — and if you already use **Home Assistant OS** or **Supervised**, you can install it from the HA Add-on Store ([beta](/docs/setup/home-assistant-addon)).
 
 <div className="row">
 <div className="col col--6">
@@ -92,6 +92,7 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 |---------|---------------|
 | **[FiestaPi Quick Start](/docs/setup/raspberry-pi)** | Flash a Pi image and be running in minutes |
 | **[Quick Start](/docs/setup/quick-start)** | Installation and first run (Docker) |
+| **[Home Assistant Add-on](/docs/setup/home-assistant-addon)** | Install from the HA Add-on Store (beta) — Ingress, MQTT auto-discovery, HA backups |
 | **[Beginner's Guide](/docs/setup/beginners-guide)** | Step-by-step for non-technical users |
 | **[Your First 10 Minutes](/docs/setup/first-10-minutes)** | What to do right after setup |
 | **[Plugins Overview](/docs/plugins/overview)** | All 26 plugins and what they do |
