@@ -502,6 +502,7 @@ export interface BoardSettings {
 // Schedule types
 export type DayPattern = "all" | "weekdays" | "weekends" | "custom";
 export type TimeType = "fixed" | "sunrise" | "sunset";
+export type RecurrenceType = "weekly" | "annual_date" | "one_off_date";
 
 export interface ScheduleEntry {
   id: string;
@@ -512,6 +513,13 @@ export interface ScheduleEntry {
   day_pattern: DayPattern;
   custom_days?: string[]; // Only used when day_pattern is "custom"
   enabled: boolean;
+  // Recurrence: "weekly" (day-of-week, default) | "annual_date" (MM-DD, repeats yearly)
+  // | "one_off_date" (YYYY-MM-DD). Date-specific recurrences override weekly.
+  recurrence_type?: RecurrenceType;
+  annual_date?: string | null; // "MM-DD"
+  annual_end_date?: string | null; // "MM-DD" (optional, for multi-day windows)
+  one_off_date?: string | null; // "YYYY-MM-DD"
+  one_off_end_date?: string | null; // "YYYY-MM-DD" (optional)
   // Sun schedule fields
   start_type?: TimeType; // "fixed" | "sunrise" | "sunset" (default: "fixed")
   start_sun_offset?: number; // minutes (positive=after, negative=before)
@@ -529,9 +537,14 @@ export interface ScheduleCreate {
   page_id: string;
   start_time: string;
   end_time?: string | null; // null for open-ended schedule
-  day_pattern: DayPattern;
+  day_pattern?: DayPattern; // defaults to "all" server-side
   custom_days?: string[];
   enabled?: boolean; // Defaults to true
+  recurrence_type?: RecurrenceType;
+  annual_date?: string | null;
+  annual_end_date?: string | null;
+  one_off_date?: string | null;
+  one_off_end_date?: string | null;
   start_type?: TimeType;
   start_sun_offset?: number;
   end_type?: TimeType;
@@ -546,6 +559,11 @@ export interface ScheduleUpdate {
   day_pattern?: DayPattern;
   custom_days?: string[];
   enabled?: boolean;
+  recurrence_type?: RecurrenceType;
+  annual_date?: string | null;
+  annual_end_date?: string | null;
+  one_off_date?: string | null;
+  one_off_end_date?: string | null;
   start_type?: TimeType;
   start_sun_offset?: number;
   end_type?: TimeType;

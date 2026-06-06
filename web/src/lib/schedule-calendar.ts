@@ -127,6 +127,36 @@ function getApplicableDays(schedule: ScheduleEntry): number[] {
 }
 
 /**
+ * Check whether a date falls in an MM-DD range, handling year-boundary wrap.
+ */
+function mmddInRange(todayMMDD: string, startMMDD: string, endMMDD?: string | null): boolean {
+  if (!endMMDD || endMMDD === startMMDD) return todayMMDD === startMMDD;
+  if (startMMDD <= endMMDD) return startMMDD <= todayMMDD && todayMMDD <= endMMDD;
+  return todayMMDD >= startMMDD || todayMMDD <= endMMDD;
+}
+
+/**
+ * Decide whether a schedule applies on the given calendar day, accounting for
+ * the recurrence type (weekly day-of-week, annual MM-DD, or one-off YYYY-MM-DD).
+ */
+function scheduleAppliesOnDay(schedule: ScheduleEntry, day: Date): boolean {
+  const recurrence = schedule.recurrence_type || "weekly";
+  if (recurrence === "annual_date") {
+    if (!schedule.annual_date) return false;
+    const mm = String(day.getMonth() + 1).padStart(2, "0");
+    const dd = String(day.getDate()).padStart(2, "0");
+    return mmddInRange(`${mm}-${dd}`, schedule.annual_date, schedule.annual_end_date);
+  }
+  if (recurrence === "one_off_date") {
+    if (!schedule.one_off_date) return false;
+    const iso = format(day, "yyyy-MM-dd");
+    const end = schedule.one_off_end_date || schedule.one_off_date;
+    return schedule.one_off_date <= iso && iso <= end;
+  }
+  return getApplicableDays(schedule).includes(getDay(day));
+}
+
+/**
  * Get page name by ID from pages array
  */
 function getPageName(pageId: string, pages: Page[], carousels?: Carousel[]): string {
@@ -149,7 +179,6 @@ export function scheduleToCalendarEvents(
   sunTimesMap?: Record<string, { sunrise: string; sunset: string }>,
 ): CalendarEvent[] {
   const events: CalendarEvent[] = [];
-  const applicableDays = getApplicableDays(schedule);
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
@@ -157,7 +186,7 @@ export function scheduleToCalendarEvents(
 
   for (const day of daysInWeek) {
     const dayOfWeek = getDay(day);
-    if (!applicableDays.includes(dayOfWeek)) continue;
+    if (!scheduleAppliesOnDay(schedule, day)) continue;
 
     const dateStr = format(day, "yyyy-MM-dd");
 
@@ -187,8 +216,11 @@ export function scheduleToCalendarEvents(
       const nextDay = addDays(day, 1);
 
       // For a repeating weekly schedule, Saturday's morning continuation
-      // should wrap to this week's Sunday instead of next week's Sunday
-      const morningDay = dayOfWeek === 6 ? weekStart : nextDay;
+      // should wrap to this week's Sunday instead of next week's Sunday.
+      // Date-specific (annual / one-off) events don't repeat, so the wrap
+      // is just the actual next calendar day.
+      const recurrence = schedule.recurrence_type || "weekly";
+      const morningDay = recurrence === "weekly" && dayOfWeek === 6 ? weekStart : nextDay;
 
       // Evening part: start_time → end of day (23:59:59.999)
       // Use endOfDay instead of midnight-next-day so react-big-calendar
@@ -300,6 +332,16 @@ export function formatWeekRange(weekStart: Date): string {
  * Format day pattern for display
  */
 export function formatDayPattern(schedule: ScheduleEntry): string {
+  if (schedule.recurrence_type === "annual_date" && schedule.annual_date) {
+    return schedule.annual_end_date
+      ? `${schedule.annual_date} – ${schedule.annual_end_date} (annual)`
+      : `${schedule.annual_date} (annual)`;
+  }
+  if (schedule.recurrence_type === "one_off_date" && schedule.one_off_date) {
+    return schedule.one_off_end_date
+      ? `${schedule.one_off_date} – ${schedule.one_off_end_date}`
+      : schedule.one_off_date;
+  }
   switch (schedule.day_pattern) {
     case "all":
       return "Every day";

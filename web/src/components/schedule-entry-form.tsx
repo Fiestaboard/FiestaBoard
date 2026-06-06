@@ -11,7 +11,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import type { Carousel, DayPattern, ScheduleCreate, ScheduleEntry, ScheduleUpdate, TimeType } from "@/lib/api";
+import type {
+  Carousel,
+  DayPattern,
+  RecurrenceType,
+  ScheduleCreate,
+  ScheduleEntry,
+  ScheduleUpdate,
+  TimeType,
+} from "@/lib/api";
 
 interface ScheduleEntryFormProps {
   schedule?: ScheduleEntry;
@@ -43,6 +51,37 @@ const generateTimeOptions = () => {
 const TIME_OPTIONS = generateTimeOptions();
 
 const TIME_TYPE_OPTIONS: TimeType[] = ["fixed", "sunrise", "sunset"];
+
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
+const DAYS_IN_MONTH: Record<string, number> = {
+  "01": 31,
+  "02": 29,
+  "03": 31,
+  "04": 30,
+  "05": 31,
+  "06": 30,
+  "07": 31,
+  "08": 31,
+  "09": 30,
+  "10": 31,
+  "11": 30,
+  "12": 31,
+};
+
+const splitMMDD = (value: string | null | undefined): { month: string; day: string } => {
+  if (!value) return { month: "", day: "" };
+  const [m, d] = value.split("-");
+  return { month: m || "", day: d || "" };
+};
+
+const joinMMDD = (month: string, day: string): string | null => (month && day ? `${month}-${day}` : null);
+
+const todayISO = (): string => {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+};
 
 export function ScheduleEntryForm({
   schedule,
@@ -76,6 +115,19 @@ export function ScheduleEntryForm({
   const [endType, setEndType] = useState<TimeType>(schedule?.end_type || "fixed");
   const [endSunOffset, setEndSunOffset] = useState<number>(schedule?.end_sun_offset || 0);
 
+  // Recurrence state
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>(schedule?.recurrence_type || "weekly");
+  const initialAnnual = splitMMDD(schedule?.annual_date);
+  const initialAnnualEnd = splitMMDD(schedule?.annual_end_date);
+  const [annualMonth, setAnnualMonth] = useState<string>(initialAnnual.month);
+  const [annualDay, setAnnualDay] = useState<string>(initialAnnual.day);
+  const [annualEndMonth, setAnnualEndMonth] = useState<string>(initialAnnualEnd.month);
+  const [annualEndDay, setAnnualEndDay] = useState<string>(initialAnnualEnd.day);
+  const [annualHasRange, setAnnualHasRange] = useState<boolean>(Boolean(schedule?.annual_end_date));
+  const [oneOffDate, setOneOffDate] = useState<string>(schedule?.one_off_date || "");
+  const [oneOffEndDate, setOneOffEndDate] = useState<string>(schedule?.one_off_end_date || "");
+  const [oneOffHasRange, setOneOffHasRange] = useState<boolean>(Boolean(schedule?.one_off_end_date));
+
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -100,13 +152,52 @@ export function ScheduleEntryForm({
       }
     }
 
-    // Validate custom days
-    if (dayPattern === "custom" && customDays.length === 0) {
+    // Validate custom days (weekly only)
+    if (recurrenceType === "weekly" && dayPattern === "custom" && customDays.length === 0) {
       errors.push(t("scheduleEntryForm.validationSelectDay"));
     }
 
+    // Validate date-specific recurrences
+    if (recurrenceType === "annual_date") {
+      if (!annualMonth || !annualDay) {
+        errors.push(t("scheduleEntryForm.validationAnnualDateRequired"));
+      }
+      if (annualHasRange && (!annualEndMonth || !annualEndDay)) {
+        errors.push(t("scheduleEntryForm.validationAnnualDateRequired"));
+      }
+    } else if (recurrenceType === "one_off_date") {
+      if (!oneOffDate) {
+        errors.push(t("scheduleEntryForm.validationOneOffDateRequired"));
+      }
+      if (oneOffHasRange) {
+        if (!oneOffEndDate) {
+          errors.push(t("scheduleEntryForm.validationOneOffDateRequired"));
+        } else if (oneOffDate && oneOffEndDate < oneOffDate) {
+          errors.push(t("scheduleEntryForm.validationEndDateBeforeStart"));
+        }
+      }
+    }
+
     setValidationErrors(errors);
-  }, [pageId, startTime, endTime, hasEndTime, dayPattern, customDays, startType, endType]);
+  }, [
+    pageId,
+    startTime,
+    endTime,
+    hasEndTime,
+    dayPattern,
+    customDays,
+    startType,
+    endType,
+    recurrenceType,
+    annualMonth,
+    annualDay,
+    annualEndMonth,
+    annualEndDay,
+    annualHasRange,
+    oneOffDate,
+    oneOffEndDate,
+    oneOffHasRange,
+  ]);
 
   const timeToMinutes = (time: string): number => {
     const [h, m] = time.split(":").map(Number);
@@ -135,18 +226,50 @@ export function ScheduleEntryForm({
     setError(null);
 
     try {
-      const data = {
+      const baseData = {
         page_id: pageId,
         start_time: startTime,
         end_time: hasEndTime ? endTime : null,
-        day_pattern: dayPattern,
-        custom_days: dayPattern === "custom" ? customDays : undefined,
         enabled,
         start_type: startType,
         start_sun_offset: startType !== "fixed" ? startSunOffset : 0,
         end_type: endType,
         end_sun_offset: endType !== "fixed" ? endSunOffset : 0,
       };
+
+      let data: ScheduleCreate | ScheduleUpdate;
+      if (recurrenceType === "weekly") {
+        data = {
+          ...baseData,
+          recurrence_type: "weekly",
+          day_pattern: dayPattern,
+          custom_days: dayPattern === "custom" ? customDays : undefined,
+          annual_date: null,
+          annual_end_date: null,
+          one_off_date: null,
+          one_off_end_date: null,
+        };
+      } else if (recurrenceType === "annual_date") {
+        data = {
+          ...baseData,
+          recurrence_type: "annual_date",
+          day_pattern: "all",
+          annual_date: joinMMDD(annualMonth, annualDay),
+          annual_end_date: annualHasRange ? joinMMDD(annualEndMonth, annualEndDay) : null,
+          one_off_date: null,
+          one_off_end_date: null,
+        };
+      } else {
+        data = {
+          ...baseData,
+          recurrence_type: "one_off_date",
+          day_pattern: "all",
+          one_off_date: oneOffDate || null,
+          one_off_end_date: oneOffHasRange ? oneOffEndDate || null : null,
+          annual_date: null,
+          annual_end_date: null,
+        };
+      }
 
       await onSubmit(data);
     } catch (err) {
@@ -340,8 +463,141 @@ export function ScheduleEntryForm({
         </div>
       </div>
 
-      {/* Day Pattern Selection */}
-      <DaySelector value={dayPattern} customDays={customDays} onChange={handleDayChange} />
+      {/* Recurrence Selection */}
+      <div className="space-y-2">
+        <Label htmlFor="recurrence">{t("scheduleEntryForm.recurrenceLabel")}</Label>
+        <Select value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as RecurrenceType)}>
+          <SelectTrigger id="recurrence">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="weekly">{t("scheduleEntryForm.recurrenceWeekly")}</SelectItem>
+            <SelectItem value="annual_date">{t("scheduleEntryForm.recurrenceAnnual")}</SelectItem>
+            <SelectItem value="one_off_date">{t("scheduleEntryForm.recurrenceOneOff")}</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          {recurrenceType === "weekly"
+            ? t("scheduleEntryForm.recurrenceWeeklyDescription")
+            : recurrenceType === "annual_date"
+              ? t("scheduleEntryForm.recurrenceAnnualDescription")
+              : t("scheduleEntryForm.recurrenceOneOffDescription")}
+        </p>
+      </div>
+
+      {recurrenceType === "weekly" && (
+        <DaySelector value={dayPattern} customDays={customDays} onChange={handleDayChange} />
+      )}
+
+      {recurrenceType === "annual_date" && (
+        <div className="space-y-3 rounded-lg border p-4">
+          <div className="space-y-2">
+            <Label>{t("scheduleEntryForm.annualDateLabel")}</Label>
+            <div className="flex gap-2">
+              <Select value={annualMonth} onValueChange={setAnnualMonth}>
+                <SelectTrigger className="flex-1" aria-label="Month">
+                  <SelectValue placeholder="MM" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {MONTH_OPTIONS.map((m) => (
+                    <SelectItem key={`annual-m-${m}`} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={annualDay} onValueChange={setAnnualDay}>
+                <SelectTrigger className="flex-1" aria-label="Day">
+                  <SelectValue placeholder="DD" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {Array.from({ length: DAYS_IN_MONTH[annualMonth] || 31 }, (_, i) =>
+                    String(i + 1).padStart(2, "0"),
+                  ).map((d) => (
+                    <SelectItem key={`annual-d-${d}`} value={d}>
+                      {d}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch id="annual-has-range" checked={annualHasRange} onCheckedChange={setAnnualHasRange} />
+            <Label htmlFor="annual-has-range" className="text-sm text-muted-foreground">
+              {t("scheduleEntryForm.useDateRange")}
+            </Label>
+          </div>
+          {annualHasRange && (
+            <div className="space-y-2">
+              <Label>{t("scheduleEntryForm.annualEndDateLabel")}</Label>
+              <div className="flex gap-2">
+                <Select value={annualEndMonth} onValueChange={setAnnualEndMonth}>
+                  <SelectTrigger className="flex-1" aria-label="End month">
+                    <SelectValue placeholder="MM" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {MONTH_OPTIONS.map((m) => (
+                      <SelectItem key={`annual-em-${m}`} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={annualEndDay} onValueChange={setAnnualEndDay}>
+                  <SelectTrigger className="flex-1" aria-label="End day">
+                    <SelectValue placeholder="DD" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {Array.from({ length: DAYS_IN_MONTH[annualEndMonth] || 31 }, (_, i) =>
+                      String(i + 1).padStart(2, "0"),
+                    ).map((d) => (
+                      <SelectItem key={`annual-ed-${d}`} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">{t("scheduleEntryForm.dateOverrideHint")}</p>
+        </div>
+      )}
+
+      {recurrenceType === "one_off_date" && (
+        <div className="space-y-3 rounded-lg border p-4">
+          <div className="space-y-2">
+            <Label htmlFor="one-off-date">{t("scheduleEntryForm.oneOffDateLabel")}</Label>
+            <Input
+              id="one-off-date"
+              type="date"
+              value={oneOffDate}
+              min={todayISO()}
+              onChange={(e) => setOneOffDate(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch id="one-off-has-range" checked={oneOffHasRange} onCheckedChange={setOneOffHasRange} />
+            <Label htmlFor="one-off-has-range" className="text-sm text-muted-foreground">
+              {t("scheduleEntryForm.useDateRange")}
+            </Label>
+          </div>
+          {oneOffHasRange && (
+            <div className="space-y-2">
+              <Label htmlFor="one-off-end-date">{t("scheduleEntryForm.oneOffEndDateLabel")}</Label>
+              <Input
+                id="one-off-end-date"
+                type="date"
+                value={oneOffEndDate}
+                min={oneOffDate || undefined}
+                onChange={(e) => setOneOffEndDate(e.target.value)}
+              />
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">{t("scheduleEntryForm.dateOverrideHint")}</p>
+        </div>
+      )}
 
       {/* Enabled Toggle */}
       <div className="flex items-center justify-between rounded-lg border p-4">

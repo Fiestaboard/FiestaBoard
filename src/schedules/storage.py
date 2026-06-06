@@ -1,16 +1,41 @@
 """JSON file-based storage for schedule entries.
 
 Provides simple persistence for schedule configurations that survives restarts.
+Includes schema versioning and automatic migration on startup.
 """
 
 import json
 import logging
+import shutil
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 from .models import DEFAULT_BOARD_ID, ScheduleEntry
 
 logger = logging.getLogger(__name__)
+
+CURRENT_SCHEMA_VERSION = 1
+
+
+def _migrate_v0_to_v1(schedules_data: list[dict]) -> int:
+    """Migration 0 -> 1: introduce recurrence_type field (defaults to 'weekly').
+
+    Pre-existing entries had no recurrence concept, so they all map to weekly.
+    Date-override fields default to None and don't need to be written explicitly,
+    but we set recurrence_type so reload + resave produces consistent JSON.
+    """
+    migrated = 0
+    for entry in schedules_data:
+        if "recurrence_type" not in entry:
+            entry["recurrence_type"] = "weekly"
+            migrated += 1
+    return migrated
+
+
+MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
+    (1, _migrate_v0_to_v1),
+]
 
 
 class ScheduleStorage:
@@ -44,8 +69,41 @@ class ScheduleStorage:
 
         logger.info(f"ScheduleStorage initialized (file: {self.storage_file}, schedules: {len(self._schedules)})")
 
+    def _run_migrations(self, data: dict) -> bool:
+        """Run any pending schema migrations on raw JSON data.
+
+        Returns True if any migrations were applied (caller should resave).
+        """
+        current_version = data.get("schema_version", 0)
+
+        if current_version >= CURRENT_SCHEMA_VERSION:
+            return False
+
+        schedules_list = data.get("schedules", [])
+
+        if self.storage_file.exists():
+            backup_path = self.storage_file.with_suffix(f".json.v{current_version}_backup")
+            if not backup_path.exists():
+                try:
+                    shutil.copy2(self.storage_file, backup_path)
+                    logger.info(f"Created pre-migration backup at {backup_path}")
+                except Exception as e:
+                    logger.warning(f"Could not create backup: {e}")
+
+        for target_version, migrate_fn in MIGRATIONS:
+            if current_version >= target_version:
+                continue
+            count = migrate_fn(schedules_list)
+            logger.info(
+                f"Schedules schema migration v{current_version}->v{target_version}: {count} schedule(s) processed"
+            )
+            current_version = target_version
+
+        data["schema_version"] = CURRENT_SCHEMA_VERSION
+        return True
+
     def _load(self) -> None:
-        """Load schedules from storage file."""
+        """Load schedules from storage file, running migrations if needed."""
         if not self.storage_file.exists():
             self._schedules = {}
             self._default_page_id = None
@@ -57,6 +115,8 @@ class ScheduleStorage:
             # patch builtins.open to inject I/O errors.
             with open(self.storage_file) as f:  # noqa: PTH123
                 data = json.load(f)
+
+            needs_save = self._run_migrations(data)
 
             self._schedules = {}
             for schedule_data in data.get("schedules", []):
@@ -78,6 +138,10 @@ class ScheduleStorage:
 
             logger.info(f"Loaded {len(self._schedules)} schedules from storage")
 
+            if needs_save:
+                self._save()
+                logger.info("Saved migrated schedules to storage")
+
         except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load schedules file: {e}")
             self._schedules = {}
@@ -88,6 +152,7 @@ class ScheduleStorage:
         """Save schedules to storage file."""
         try:
             data = {
+                "schema_version": CURRENT_SCHEMA_VERSION,
                 "schedules": [schedule.model_dump() for schedule in self._schedules.values()],
                 "default_page_id": self._default_page_id,
                 "default_page_by_board": self._default_page_by_board,
@@ -175,7 +240,7 @@ class ScheduleStorage:
         # Apply updates
         schedule_dict = schedule.model_dump()
         # Fields that are allowed to be set to None explicitly
-        nullable_fields = {"end_time"}
+        nullable_fields = {"end_time", "annual_date", "annual_end_date", "one_off_date", "one_off_end_date"}
         for key, value in updates.items():
             if key in schedule_dict and (value is not None or key in nullable_fields):
                 schedule_dict[key] = value

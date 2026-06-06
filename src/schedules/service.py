@@ -97,6 +97,11 @@ class ScheduleService:
             day_pattern=data.day_pattern,
             custom_days=data.custom_days,
             enabled=data.enabled,
+            recurrence_type=data.recurrence_type,
+            annual_date=data.annual_date,
+            annual_end_date=data.annual_end_date,
+            one_off_date=data.one_off_date,
+            one_off_end_date=data.one_off_end_date,
             start_type=data.start_type,
             start_sun_offset=data.start_sun_offset,
             end_type=data.end_type,
@@ -140,6 +145,12 @@ class ScheduleService:
 
         Sun-based schedules (start_type/end_type of "sunrise" or "sunset") have
         their times dynamically resolved using the configured location settings.
+
+        Priority order (highest wins):
+        1. one_off_date matches (most specific — single calendar date or range)
+        2. annual_date matches (recurs each year on MM-DD)
+        3. weekly matches (existing day-of-week behavior)
+        Within a priority tier, the most recently created entry wins.
         """
         bid = board_id or DEFAULT_BOARD_ID
         schedules = [s for s in self.list_schedules(board_id=bid) if s.enabled]
@@ -151,15 +162,31 @@ class ScheduleService:
         location = self._get_location()
         today = get_today_in_timezone(location[2])
 
-        matches = []
+        tiers: dict[str, list[ScheduleEntry]] = {
+            "one_off_date": [],
+            "annual_date": [],
+            "weekly": [],
+        }
         for schedule in schedules:
             effective_schedule = self._resolve_effective_times(schedule, today, location)
-            if effective_schedule.applies_to_day(current_day) and effective_schedule.applies_to_time(time_str):
-                matches.append(schedule)
-        if matches:
-            matches.sort(key=lambda s: s.created_at, reverse=True)
-            logger.debug(f"Active schedule: {matches[0].id} for {current_day} {time_str} (board={bid})")
-            return matches[0].page_id
+            if not effective_schedule.applies_to_date(today):
+                continue
+            if effective_schedule.recurrence_type == "weekly" and not effective_schedule.applies_to_day(current_day):
+                continue
+            if not effective_schedule.applies_to_time(time_str):
+                continue
+            tiers[schedule.recurrence_type].append(schedule)
+
+        for tier_name in ("one_off_date", "annual_date", "weekly"):
+            tier_matches = tiers[tier_name]
+            if tier_matches:
+                tier_matches.sort(key=lambda s: s.created_at, reverse=True)
+                logger.debug(
+                    f"Active schedule: {tier_matches[0].id} ({tier_name}) "
+                    f"for {today.isoformat()} {time_str} (board={bid})"
+                )
+                return tier_matches[0].page_id
+
         default_page_id = self.storage.get_default_page_id(board_id=bid)
         if default_page_id:
             logger.debug(f"No schedule match for {current_day} {time_str}, using default: {default_page_id}")
@@ -226,11 +253,19 @@ class ScheduleService:
     # Validation
 
     def validate_schedules(self, board_id: str | None = None) -> ScheduleValidationResult:
-        """Validate schedules for overlaps and gaps (optionally for one board)."""
-        schedules = [s for s in self.list_schedules(board_id=board_id) if s.enabled]
+        """Validate schedules for overlaps and gaps (optionally for one board).
 
-        overlaps = self._detect_overlaps(schedules)
-        gaps = self._detect_gaps(schedules)
+        Date-specific recurrences (annual_date / one_off_date) are intentional
+        overrides and are excluded from overlap/gap detection in v1: they're
+        expected to "overlap" the weekly schedule and we don't want to surface
+        that as a conflict.
+        """
+        weekly_schedules = [
+            s for s in self.list_schedules(board_id=board_id) if s.enabled and s.recurrence_type == "weekly"
+        ]
+
+        overlaps = self._detect_overlaps(weekly_schedules)
+        gaps = self._detect_gaps(weekly_schedules)
 
         return ScheduleValidationResult(valid=len(overlaps) == 0, overlaps=overlaps, gaps=gaps)
 

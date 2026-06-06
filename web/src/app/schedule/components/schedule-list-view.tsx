@@ -42,6 +42,14 @@ function useFormatters() {
   const tDays = useTranslations("daySelector.dayLabels");
 
   function formatDays(schedule: ScheduleEntry): string {
+    if (schedule.recurrence_type === "annual_date" && schedule.annual_date) {
+      const range = schedule.annual_end_date ? ` – ${schedule.annual_end_date}` : "";
+      return `${schedule.annual_date}${range} (annual)`;
+    }
+    if (schedule.recurrence_type === "one_off_date" && schedule.one_off_date) {
+      const range = schedule.one_off_end_date ? ` – ${schedule.one_off_end_date}` : "";
+      return `${schedule.one_off_date}${range}`;
+    }
     if (schedule.day_pattern === "all") return t("dayLabels.allDays");
     if (schedule.day_pattern === "weekdays") return t("dayLabels.monFri");
     if (schedule.day_pattern === "weekends") return t("dayLabels.satSun");
