@@ -74,12 +74,6 @@ asyncio_mode = "strict"
 
 [tool.coverage.run]
 source = ["src", "plugins"]
-# Record paths relative to the project root so pytest-xdist workers and the
-# report process always agree on file locations. Required because src/collections
-# shadows Python's stdlib `collections` package, which trips path resolution
-# in coverage's parse phase under parallel runs (couldnt-parse warnings + 0%
-# attribution on src/collections/*).
-relative_files = true
 omit = [
     "*/tests/*",
     "*/__pycache__/*",
