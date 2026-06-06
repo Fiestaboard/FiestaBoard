@@ -23,7 +23,7 @@ class TestCheckAndSendActivePageBoardId:
             patch("src.main.get_settings_service") as mock_get_settings,
             patch("src.main.get_page_service") as mock_get_page,
             patch("src.main.get_schedule_service") as mock_get_schedule,
-            patch("src.main.get_carousel_service"),
+            patch("src.main.get_collection_service"),
             patch("src.main.get_trigger_service") as mock_get_trigger,
         ):
             mock_config.validate.return_value = True

@@ -173,11 +173,11 @@ describe("NavigationSidebar primary/secondary sections", () => {
     expect(secondaryNav.length).toBeGreaterThan(0);
   });
 
-  it("shows Carousels item in primary navigation", () => {
+  it("shows Collections item in primary navigation", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    const carouselsLinks = screen.getAllByText("Carousels");
-    expect(carouselsLinks.length).toBeGreaterThan(0);
+    const collectionsLinks = screen.getAllByText("Collections");
+    expect(collectionsLinks.length).toBeGreaterThan(0);
   });
 
   it("shows Settings in secondary navigation", () => {
@@ -201,18 +201,18 @@ describe("NavigationSidebar primary/secondary sections", () => {
   });
 });
 
-describe("NavigationSidebar carousels link", () => {
+describe("NavigationSidebar collections link", () => {
   beforeEach(() => {
     mockPathname.mockReturnValue("/");
   });
 
-  it("Carousels is a direct link to /carousels", () => {
+  it("Collections is a direct link to /collections", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    const carouselsLinks = screen.getAllByText("Carousels");
-    const carouselsLink = carouselsLinks[0].closest("a");
-    expect(carouselsLink).toBeInTheDocument();
-    expect(carouselsLink).toHaveAttribute("href", "/carousels");
+    const collectionsLinks = screen.getAllByText("Collections");
+    const collectionsLink = collectionsLinks[0].closest("a");
+    expect(collectionsLink).toBeInTheDocument();
+    expect(collectionsLink).toHaveAttribute("href", "/collections");
   });
 });
 

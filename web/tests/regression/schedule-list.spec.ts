@@ -77,11 +77,11 @@ test.describe("regression: schedule.list", () => {
     }
   });
 
-  /** UX node: schedule.list.row-carousel */
-  test("schedule.list.row-carousel — schedule list renders carousel-bound entries via mocked payload", async ({
+  /** UX node: schedule.list.row-collection */
+  test("schedule.list.row-collection — schedule list renders collection-bound entries via mocked payload", async ({
     page,
   }) => {
-    // Mock /schedules to inject a synthetic row whose page_id resolves to a carousel.
+    // Mock /schedules to inject a synthetic row whose page_id resolves to a collection.
     await page.route("**/api/schedules*", (route) => {
       if (route.request().method() !== "GET") return route.continue();
       return route.fulfill({
@@ -90,8 +90,8 @@ test.describe("regression: schedule.list", () => {
         body: JSON.stringify({
           schedules: [
             {
-              id: "mock-carousel-sched",
-              page_id: "mock-carousel-1",
+              id: "mock-collection-sched",
+              page_id: "mock-collection-1",
               start_time: "09:00",
               end_time: "10:00",
               day_pattern: "weekdays",
@@ -102,13 +102,13 @@ test.describe("regression: schedule.list", () => {
         }),
       });
     });
-    await page.route("**/api/carousels", (route) => {
+    await page.route("**/api/collections", (route) => {
       if (route.request().method() !== "GET") return route.continue();
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          carousels: [{ id: "mock-carousel-1", name: "Mock Carousel", page_ids: [], interval_seconds: 30 }],
+          collections: [{ id: "mock-collection-1", name: "Mock Collection", page_ids: [], interval_seconds: 30 }],
         }),
       });
     });

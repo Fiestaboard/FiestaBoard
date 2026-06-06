@@ -9,8 +9,8 @@ import schedule
 
 from .board_chars import BoardChars
 from .board_client import BoardClient, board_client_from_board_dict
-from .carousels.models import is_carousel_id
-from .carousels.service import get_carousel_service
+from .collections.models import is_collection_id
+from .collections.service import get_collection_service
 from .config import Config
 from .devices import get_dimensions
 from .pages.service import get_page_service
@@ -201,7 +201,7 @@ class DisplayService:
 
             # --- Silence mode short-circuit (evaluated FIRST) ---
             # Important: we evaluate silence before doing ANY plugin/API work
-            # (trigger evaluation, page rendering, carousel resolution) so a
+            # (trigger evaluation, page rendering, collection resolution) so a
             # "snoozed" board doesn't cause weather/transit/stocks/etc. APIs
             # to be hit on every poll. We send exactly one update when entering
             # silence (with the SNOOZING indicator) and then go quiet until
@@ -297,15 +297,15 @@ class DisplayService:
                 logger.debug("No active page available (schedule gap with no default)")
                 return False
 
-            # Resolve carousels: if the active ref is a carousel, determine
+            # Resolve collections: if the active ref is a collection, determine
             # which underlying page should be shown right now.
-            carousel_service = get_carousel_service()
-            if is_carousel_id(active_page_id):
-                resolved = carousel_service.resolve_page_id(active_page_id)
+            collection_service = get_collection_service()
+            if is_collection_id(active_page_id):
+                resolved = collection_service.resolve_page_id(active_page_id)
                 if not resolved:
-                    logger.warning(f"Carousel not found or empty: {active_page_id}")
+                    logger.warning(f"Collection not found or empty: {active_page_id}")
                     return False
-                logger.debug(f"Carousel {active_page_id} resolved to page {resolved}")
+                logger.debug(f"Collection {active_page_id} resolved to page {resolved}")
                 active_page_id = resolved
 
             # Get the page for transition settings
@@ -654,7 +654,7 @@ class DisplayService:
         return False
 
     def _get_active_ref_id(self) -> str | None:
-        """Return the raw active-page/carousel reference (before carousel resolution)."""
+        """Return the raw active-page/collection reference (before collection resolution)."""
         settings_service = get_settings_service()
         if settings_service.is_schedule_enabled():
             from .time_service import get_time_service
@@ -686,24 +686,26 @@ class DisplayService:
         self.check_and_send_active_page()
 
         logger.info("Service started, waiting for scheduled updates...")
-        _next_carousel_check: float = time.time()
+        _next_collection_check: float = time.time()
         try:
             while self.running:
                 schedule.run_pending()
-                # When a carousel is active, poll at the carousel's interval
+                # When a collection is active, poll at its mode-specific cadence:
+                # time-mode aligns with the next page boundary; variable-mode uses
+                # the configured poll_seconds.
                 now = time.time()
-                if now >= _next_carousel_check:
+                if now >= _next_collection_check:
                     ref_id = self._get_active_ref_id()
-                    if ref_id and is_carousel_id(ref_id):
-                        carousel_service = get_carousel_service()
-                        secs = carousel_service.seconds_until_next_page(ref_id, now)
+                    if ref_id and is_collection_id(ref_id):
+                        collection_service = get_collection_service()
+                        secs = collection_service.seconds_until_next_check(ref_id, now)
                         if secs is not None:
                             self.check_and_send_active_page()
-                            _next_carousel_check = now + max(1, secs)
+                            _next_collection_check = now + max(1, secs)
                         else:
-                            _next_carousel_check = now + polling_interval
+                            _next_collection_check = now + polling_interval
                     else:
-                        _next_carousel_check = now + polling_interval
+                        _next_collection_check = now + polling_interval
                 time.sleep(1)
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")

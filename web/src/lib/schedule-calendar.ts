@@ -15,8 +15,8 @@ import {
   startOfWeek,
 } from "date-fns";
 
-import type { Carousel, Page, ScheduleEntry } from "./api";
-import { isCarouselId } from "./api";
+import type { Collection, Page, ScheduleEntry } from "./api";
+import { isCollectionId } from "./api";
 
 /**
  * Calendar event type for react-big-calendar
@@ -159,10 +159,10 @@ function scheduleAppliesOnDay(schedule: ScheduleEntry, day: Date): boolean {
 /**
  * Get page name by ID from pages array
  */
-function getPageName(pageId: string, pages: Page[], carousels?: Carousel[]): string {
-  if (isCarouselId(pageId) && carousels) {
-    const carousel = carousels.find((c) => c.id === pageId);
-    return carousel ? `${carousel.name}` : pageId;
+function getPageName(pageId: string, pages: Page[], collections?: Collection[]): string {
+  if (isCollectionId(pageId) && collections) {
+    const collection = collections.find((c) => c.id === pageId);
+    return collection ? `${collection.name}` : pageId;
   }
   const page = pages.find((p) => p.id === pageId);
   return page?.name || pageId;
@@ -175,14 +175,14 @@ export function scheduleToCalendarEvents(
   schedule: ScheduleEntry,
   weekStart: Date,
   pages: Page[],
-  carousels?: Carousel[],
+  collections?: Collection[],
   sunTimesMap?: Record<string, { sunrise: string; sunset: string }>,
 ): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  const pageName = getPageName(schedule.page_id, pages, carousels);
+  const pageName = getPageName(schedule.page_id, pages, collections);
 
   for (const day of daysInWeek) {
     const dayOfWeek = getDay(day);
@@ -292,13 +292,13 @@ export function schedulesToCalendarEvents(
   schedules: ScheduleEntry[],
   weekStart: Date,
   pages: Page[],
-  carousels?: Carousel[],
+  collections?: Collection[],
   sunTimesMap?: Record<string, { sunrise: string; sunset: string }>,
 ): CalendarEvent[] {
   const allEvents: CalendarEvent[] = [];
 
   for (const schedule of schedules) {
-    const events = scheduleToCalendarEvents(schedule, weekStart, pages, carousels, sunTimesMap);
+    const events = scheduleToCalendarEvents(schedule, weekStart, pages, collections, sunTimesMap);
     allEvents.push(...events);
   }
 

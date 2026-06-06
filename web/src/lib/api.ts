@@ -628,36 +628,59 @@ export interface DefaultPageResponse {
   default_page_id: string | null;
 }
 
-// Carousel types
-export const CAROUSEL_ID_PREFIX = "carousel:";
+// Collection types
+export const COLLECTION_ID_PREFIX = "collection:";
 
-export function isCarouselId(id: string | null | undefined): boolean {
-  return !!id && id.startsWith(CAROUSEL_ID_PREFIX);
+export function isCollectionId(id: string | null | undefined): boolean {
+  return !!id && id.startsWith(COLLECTION_ID_PREFIX);
 }
 
-export interface Carousel {
+export type CollectionSelectionMode = "time" | "variable";
+
+export interface TimeModeConfig {
+  interval_seconds: number;
+}
+
+export interface VariableRule {
+  expression: string;
+  page_id: string;
+}
+
+export interface VariableModeConfig {
+  rules: VariableRule[];
+  default_page_id: string;
+  poll_seconds: number;
+}
+
+export interface Collection {
   id: string;
   name: string;
   page_ids: string[];
-  interval_seconds: number;
+  selection_mode: CollectionSelectionMode;
+  time: TimeModeConfig;
+  variable: VariableModeConfig | null;
   created_at: string;
   updated_at?: string;
 }
 
-export interface CarouselCreate {
+export interface CollectionCreate {
   name: string;
   page_ids: string[];
-  interval_seconds?: number;
+  selection_mode?: CollectionSelectionMode;
+  time?: TimeModeConfig;
+  variable?: VariableModeConfig | null;
 }
 
-export interface CarouselUpdate {
+export interface CollectionUpdate {
   name?: string;
   page_ids?: string[];
-  interval_seconds?: number;
+  selection_mode?: CollectionSelectionMode;
+  time?: TimeModeConfig;
+  variable?: VariableModeConfig | null;
 }
 
-export interface CarouselsResponse {
-  carousels: Carousel[];
+export interface CollectionsResponse {
+  collections: Collection[];
   total: number;
 }
 
@@ -1459,25 +1482,25 @@ export const api = {
       body: JSON.stringify({ enabled, ...(boardId != null && { board_id: boardId }) }),
     }),
 
-  // Carousel endpoints
-  getCarousels: () => fetchApi<CarouselsResponse>("/carousels"),
+  // Collection endpoints
+  getCollections: () => fetchApi<CollectionsResponse>("/collections"),
 
-  createCarousel: (data: CarouselCreate) =>
-    fetchApi<{ status: string; carousel: Carousel }>("/carousels", {
+  createCollection: (data: CollectionCreate) =>
+    fetchApi<{ status: string; collection: Collection }>("/collections", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
-  getCarousel: (carouselId: string) => fetchApi<Carousel>(`/carousels/${carouselId}`),
+  getCollection: (collectionId: string) => fetchApi<Collection>(`/collections/${collectionId}`),
 
-  updateCarousel: (carouselId: string, data: CarouselUpdate) =>
-    fetchApi<{ status: string; carousel: Carousel }>(`/carousels/${carouselId}`, {
+  updateCollection: (collectionId: string, data: CollectionUpdate) =>
+    fetchApi<{ status: string; collection: Collection }>(`/collections/${collectionId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
-  deleteCarousel: (carouselId: string) =>
-    fetchApi<{ status: string; message: string }>(`/carousels/${carouselId}`, {
+  deleteCollection: (collectionId: string) =>
+    fetchApi<{ status: string; message: string }>(`/collections/${collectionId}`, {
       method: "DELETE",
     }),
 

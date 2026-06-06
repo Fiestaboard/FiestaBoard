@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import type {
-  Carousel,
+  Collection,
   DayPattern,
   RecurrenceType,
   ScheduleCreate,
@@ -24,7 +24,7 @@ import type {
 interface ScheduleEntryFormProps {
   schedule?: ScheduleEntry;
   pages: Array<{ id: string; name: string }>;
-  carousels?: Carousel[];
+  collections?: Collection[];
   onSubmit: (data: ScheduleCreate | ScheduleUpdate) => Promise<void>;
   onCancel: () => void;
   onDelete?: () => void;
@@ -86,7 +86,7 @@ const todayISO = (): string => {
 export function ScheduleEntryForm({
   schedule,
   pages,
-  carousels = [],
+  collections = [],
   onSubmit,
   onCancel,
   onDelete,
@@ -294,24 +294,24 @@ export function ScheduleEntryForm({
         </Alert>
       )}
 
-      {/* Page / Carousel Selection */}
+      {/* Page / Collection Selection */}
       <div className="space-y-2">
-        <Label htmlFor="page">{t("scheduleEntryForm.pageOrCarousel")}</Label>
+        <Label htmlFor="page">{t("scheduleEntryForm.pageOrCollection")}</Label>
         <Select value={pageId} onValueChange={setPageId} modal={false}>
           <SelectTrigger id="page">
-            <SelectValue placeholder={t("scheduleEntryForm.selectPageOrCarousel")} />
+            <SelectValue placeholder={t("scheduleEntryForm.selectPageOrCollection")} />
           </SelectTrigger>
           <SelectContent>
-            {carousels.length > 0 && (
+            {collections.length > 0 && (
               <>
                 <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                  {t("scheduleEntryForm.carouselsGroup")}
+                  {t("scheduleEntryForm.collectionsGroup")}
                 </div>
-                {carousels.map((carousel) => (
-                  <SelectItem key={carousel.id} value={carousel.id}>
+                {collections.map((collection) => (
+                  <SelectItem key={collection.id} value={collection.id}>
                     <span className="flex items-center gap-2">
                       <GalleryHorizontalEnd className="h-3.5 w-3.5" />
-                      {carousel.name}
+                      {collection.name}
                     </span>
                   </SelectItem>
                 ))}

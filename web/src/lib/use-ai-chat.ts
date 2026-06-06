@@ -118,7 +118,7 @@ export function useAiChat(opts: UseAiChatOptions): UseAiChatResult {
             available_pages: ctx.availablePages,
             installed_plugins: ctx.installedPlugins,
             available_schedules: ctx.availableSchedules,
-            available_carousels: ctx.availableCarousels,
+            available_collections: ctx.availableCollections,
             registry_plugins: ctx.registryPlugins,
             provider_id: providerId,
             model,

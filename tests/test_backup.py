@@ -38,7 +38,7 @@ def _seed_data_dir(data_dir: Path) -> None:
             }
         )
     )
-    (data_dir / "carousels.json").write_text(json.dumps({"carousels": []}))
+    (data_dir / "collections.json").write_text(json.dumps({"schema_version": 1, "collections": []}))
     (data_dir / "schedules.json").write_text(json.dumps({"schedules": [], "default_page_id": None}))
 
 
@@ -55,7 +55,7 @@ def test_build_backup_includes_all_data_files(tmp_path):
     assert backup["data"]["config"]["board"]["host"] == "fiestaboard.example.test"
     assert backup["data"]["pages"]["pages"][0]["id"] == "p1"
     assert backup["data"]["settings"]["transitions"]["strategy"] == "column"
-    assert backup["data"]["carousels"] == {"carousels": []}
+    assert backup["data"]["collections"] == {"schema_version": 1, "collections": []}
     assert backup["data"]["schedules"]["schedules"] == []
     assert isinstance(backup["installed_plugins"], list)
 
@@ -66,7 +66,7 @@ def test_build_backup_with_missing_files_uses_none(tmp_path):
 
     backup = service.build_backup()
 
-    for key in ("config", "settings", "pages", "carousels", "schedules"):
+    for key in ("config", "settings", "pages", "collections", "schedules"):
         assert backup["data"][key] is None
 
 
@@ -97,7 +97,7 @@ def test_round_trip_export_then_import(tmp_path):
         "config.json",
         "settings.json",
         "pages.json",
-        "carousels.json",
+        "collections.json",
         "schedules.json",
     }
     # Data was actually written to the destination.

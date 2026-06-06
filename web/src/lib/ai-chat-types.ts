@@ -92,14 +92,14 @@ export interface UpdateSettingArgs {
 
 export type DayPattern = "all" | "weekdays" | "weekends" | "custom";
 
-export interface CreateCarouselArgs {
+export interface CreateCollectionArgs {
   name: string;
   page_ids: string[];
   interval_seconds: number;
 }
 
-export interface UpdateCarouselArgs {
-  carousel_id: string;
+export interface UpdateCollectionArgs {
+  collection_id: string;
   name?: string | null;
   page_ids?: string[] | null;
   interval_seconds?: number | null;
@@ -175,8 +175,8 @@ export type ToolCall =
   | { id: string; op: "install_plugin"; args: InstallPluginArgs }
   | { id: string; op: "update_plugin_config"; args: UpdatePluginConfigArgs }
   | { id: string; op: "update_setting"; args: UpdateSettingArgs }
-  | { id: string; op: "create_carousel"; args: CreateCarouselArgs }
-  | { id: string; op: "update_carousel"; args: UpdateCarouselArgs }
+  | { id: string; op: "create_collection"; args: CreateCollectionArgs }
+  | { id: string; op: "update_collection"; args: UpdateCollectionArgs }
   | { id: string; op: "create_schedule"; args: CreateScheduleArgs }
   | { id: string; op: "update_schedule"; args: UpdateScheduleArgs }
   | { id: string; op: "delete_schedule"; args: DeleteScheduleArgs }
@@ -259,11 +259,17 @@ export interface ScheduleRef {
   enabled: boolean;
 }
 
-export interface CarouselRef {
+export interface CollectionRef {
   id: string;
   name: string;
   page_ids: string[];
-  interval_seconds: number;
+  selection_mode: "time" | "variable";
+  time: { interval_seconds: number };
+  variable: {
+    rules: Array<{ expression: string; page_id: string }>;
+    default_page_id: string;
+    poll_seconds: number;
+  } | null;
 }
 
 /**
@@ -273,8 +279,8 @@ export interface CarouselRef {
  * the editor (for refinement turns).
  *
  * The global AI panel also passes availablePages, installedPlugins,
- * availableSchedules, and availableCarousels so the AI can propose
- * navigation, plugin installs, schedule/carousel management, etc.
+ * availableSchedules, and availableCollections so the AI can propose
+ * navigation, plugin installs, schedule/collection management, etc.
  */
 /**
  * Which chat surface the user is talking to. The inline page-editor
@@ -292,7 +298,7 @@ export interface ChatTurnContext {
   availablePages?: PageRef[];
   installedPlugins?: InstalledPluginRef[];
   availableSchedules?: ScheduleRef[];
-  availableCarousels?: CarouselRef[];
+  availableCollections?: CollectionRef[];
   registryPlugins?: RegistryPluginRef[];
 }
 
@@ -304,7 +310,7 @@ export interface ChatRequestBody {
   available_pages?: PageRef[];
   installed_plugins?: InstalledPluginRef[];
   available_schedules?: ScheduleRef[];
-  available_carousels?: CarouselRef[];
+  available_collections?: CollectionRef[];
   registry_plugins?: RegistryPluginRef[];
   provider_id?: string;
   model?: string;

@@ -160,23 +160,24 @@ def mock_schedule_service():
 
 
 @pytest.fixture
-def mock_carousel_service():
-    """Minimal mock carousel service."""
+def mock_collection_service():
+    """Minimal mock collection service."""
     svc = MagicMock()
     c = MagicMock()
-    c.id = "carousel-001"
+    c.id = "collection-001"
     c.name = "Daily"
     c.page_ids = ["page-001", "page-002"]
-    c.interval_seconds = 30
     c.model_dump.return_value = {
-        "id": "carousel-001",
+        "id": "collection-001",
         "name": "Daily",
         "page_ids": ["page-001", "page-002"],
-        "interval_seconds": 30,
+        "selection_mode": "time",
+        "time": {"interval_seconds": 30},
+        "variable": None,
     }
-    svc.list_carousels.return_value = [c]
-    svc.create_carousel.return_value = c
-    svc.update_carousel.return_value = c
+    svc.list_collections.return_value = [c]
+    svc.create_collection.return_value = c
+    svc.update_collection.return_value = c
     return svc
 
 
@@ -246,11 +247,11 @@ EXPECTED_TOOLS = {
     "create_schedule",
     "update_schedule",
     "delete_schedule",
-    # Carousel tools
-    "list_carousels",
-    "create_carousel",
-    "update_carousel",
-    "delete_carousel",
+    # Collection tools
+    "list_collections",
+    "create_collection",
+    "update_collection",
+    "delete_collection",
     # System tools
     "get_system_status",
     "get_settings_summary",
@@ -657,53 +658,53 @@ class TestDeleteSchedule:
 
 
 # ---------------------------------------------------------------------------
-# Carousel tools
+# Collection tools
 # ---------------------------------------------------------------------------
 
 
-class TestListCarousels:
-    def test_returns_carousel_list(self, mcp, mock_carousel_service):
-        with patch("src.carousels.service.get_carousel_service", return_value=mock_carousel_service):
-            result = _call_tool(mcp, "list_carousels")
+class TestListCollections:
+    def test_returns_collection_list(self, mcp, mock_collection_service):
+        with patch("src.collections.service.get_collection_service", return_value=mock_collection_service):
+            result = _call_tool(mcp, "list_collections")
         data = result
-        assert data[0]["id"] == "carousel-001"
+        assert data[0]["id"] == "collection-001"
         assert len(data[0]["page_ids"]) == 2
 
 
-class TestCreateCarousel:
-    def test_create_success(self, mcp, mock_carousel_service):
-        with patch("src.carousels.service.get_carousel_service", return_value=mock_carousel_service):
+class TestCreateCollection:
+    def test_create_success(self, mcp, mock_collection_service):
+        with patch("src.collections.service.get_collection_service", return_value=mock_collection_service):
             result = _call_tool(
                 mcp,
-                "create_carousel",
+                "create_collection",
                 name="Morning Show",
                 page_ids=["page-001", "page-002"],
                 interval_seconds=60,
             )
         data = result
         assert data["status"] == "success"
-        assert "carousel_id" in data
+        assert "collection_id" in data
 
 
-class TestUpdateCarousel:
-    def test_update_success(self, mcp, mock_carousel_service):
-        with patch("src.carousels.service.get_carousel_service", return_value=mock_carousel_service):
-            result = _call_tool(mcp, "update_carousel", carousel_id="carousel-001", name="Renamed")
+class TestUpdateCollection:
+    def test_update_success(self, mcp, mock_collection_service):
+        with patch("src.collections.service.get_collection_service", return_value=mock_collection_service):
+            result = _call_tool(mcp, "update_collection", collection_id="collection-001", name="Renamed")
         data = result
         assert data["status"] == "success"
 
     def test_not_found(self, mcp):
         mock_svc = MagicMock()
-        mock_svc.update_carousel.return_value = None
-        with patch("src.carousels.service.get_carousel_service", return_value=mock_svc):
-            result = _call_tool(mcp, "update_carousel", carousel_id="missing")
+        mock_svc.update_collection.return_value = None
+        with patch("src.collections.service.get_collection_service", return_value=mock_svc):
+            result = _call_tool(mcp, "update_collection", collection_id="missing")
         assert "not found" in result["error"]
 
 
-class TestDeleteCarousel:
-    def test_delete_success(self, mcp, mock_carousel_service):
-        with patch("src.carousels.service.get_carousel_service", return_value=mock_carousel_service):
-            result = _call_tool(mcp, "delete_carousel", carousel_id="carousel-001")
+class TestDeleteCollection:
+    def test_delete_success(self, mcp, mock_collection_service):
+        with patch("src.collections.service.get_collection_service", return_value=mock_collection_service):
+            result = _call_tool(mcp, "delete_collection", collection_id="collection-001")
         assert "deleted successfully" in result["message"]
 
 
@@ -824,11 +825,11 @@ class TestMCPResources:
         assert "page-001" in result
         assert "08:00" in result
 
-    def test_carousels_resource(self, mcp, mock_carousel_service):
-        with patch("src.carousels.service.get_carousel_service", return_value=mock_carousel_service):
-            result = _call_resource(mcp, "fiestaboard://carousels")
+    def test_collections_resource(self, mcp, mock_collection_service):
+        with patch("src.collections.service.get_collection_service", return_value=mock_collection_service):
+            result = _call_resource(mcp, "fiestaboard://collections")
         assert "Daily" in result
-        assert "carousel-001" in result
+        assert "collection-001" in result
 
 
 # ---------------------------------------------------------------------------
@@ -870,9 +871,9 @@ class TestMCPPrompts:
         assert "create_schedule" in result
         assert "set_schedule_mode" in result
 
-    def test_build_a_carousel_prompt(self, mcp):
-        result = _call_prompt(mcp, "build_a_carousel")
-        assert "create_carousel" in result
+    def test_build_a_collection_prompt(self, mcp):
+        result = _call_prompt(mcp, "build_a_collection")
+        assert "create_collection" in result
         assert "list_pages" in result
 
     def test_troubleshoot_display_prompt(self, mcp):
@@ -912,10 +913,10 @@ class TestToolErrorResilience:
             ("create_schedule", {"page_id": "x", "start_time": "08:00"}),
             ("update_schedule", {"schedule_id": "x"}),
             ("delete_schedule", {"schedule_id": "x"}),
-            ("list_carousels", {}),
-            ("create_carousel", {"name": "x", "page_ids": []}),
-            ("update_carousel", {"carousel_id": "x"}),
-            ("delete_carousel", {"carousel_id": "x"}),
+            ("list_collections", {}),
+            ("create_collection", {"name": "x", "page_ids": []}),
+            ("update_collection", {"collection_id": "x"}),
+            ("delete_collection", {"collection_id": "x"}),
             ("get_system_status", {}),
             ("get_settings_summary", {}),
             ("set_active_page", {"page_id": "x"}),
@@ -928,7 +929,7 @@ class TestToolErrorResilience:
             patch("src.plugins.get_plugin_registry", side_effect=RuntimeError("boom")),
             patch("src.pages.service.get_page_service", side_effect=RuntimeError("boom")),
             patch("src.schedules.service.get_schedule_service", side_effect=RuntimeError("boom")),
-            patch("src.carousels.service.get_carousel_service", side_effect=RuntimeError("boom")),
+            patch("src.collections.service.get_collection_service", side_effect=RuntimeError("boom")),
             patch("src.settings.service.get_settings_service", side_effect=RuntimeError("boom")),
             patch("src.config_manager.get_config_manager", side_effect=RuntimeError("boom")),
             patch("src.api_server.get_service", side_effect=RuntimeError("boom")),

@@ -1,7 +1,7 @@
 """Extended tests for api_server.py to boost coverage on remaining untested endpoints.
 
 Covers: MQTT settings, Bay Wheels stations, Muni stops, traffic geocode/validate,
-plugin data/updates/install, carousel error paths, generic-data test-fetch,
+plugin data/updates/install, collection error paths, generic-data test-fetch,
 and deprecated compat endpoints.
 """
 
@@ -843,34 +843,34 @@ class TestGenericDataTestFetch:
 
 
 # ---------------------------------------------------------------------------
-# Carousel error paths (lines 3906-3940)
+# Collection error paths (lines 3906-3940)
 # ---------------------------------------------------------------------------
 
 
-class TestCarouselErrors:
-    def test_create_carousel_value_error(self, client):
+class TestCollectionErrors:
+    def test_create_collection_value_error(self, client):
         mock_cs = Mock()
-        mock_cs.create_carousel.side_effect = ValueError("Duplicate name")
+        mock_cs.create_collection.side_effect = ValueError("Duplicate name")
         mock_ps = Mock()
         mock_ps.get_page.return_value = Mock()
         with (
-            patch("src.api_server.get_carousel_service", return_value=mock_cs),
+            patch("src.api_server.get_collection_service", return_value=mock_cs),
             patch("src.api_server.get_page_service", return_value=mock_ps),
         ):
-            resp = client.post("/carousels", json={"name": "Test", "page_ids": ["p1"]})
+            resp = client.post("/collections", json={"name": "Test", "page_ids": ["p1"]})
         assert resp.status_code == 400
         assert "Duplicate" in resp.json()["detail"]
 
-    def test_update_carousel_value_error(self, client):
+    def test_update_collection_value_error(self, client):
         mock_cs = Mock()
-        mock_cs.update_carousel.side_effect = ValueError("Invalid")
+        mock_cs.update_collection.side_effect = ValueError("Invalid")
         mock_ps = Mock()
         mock_ps.get_page.return_value = Mock()
         with (
-            patch("src.api_server.get_carousel_service", return_value=mock_cs),
+            patch("src.api_server.get_collection_service", return_value=mock_cs),
             patch("src.api_server.get_page_service", return_value=mock_ps),
         ):
-            resp = client.put("/carousels/c1", json={"name": "Updated", "page_ids": ["p1"]})
+            resp = client.put("/collections/c1", json={"name": "Updated", "page_ids": ["p1"]})
         assert resp.status_code == 400
 
 

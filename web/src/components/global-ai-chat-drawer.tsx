@@ -13,7 +13,7 @@ import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-con
 import type {
   ChainingMode,
   ChatTurnContext,
-  CreateCarouselArgs,
+  CreateCollectionArgs,
   CreateScheduleArgs,
   DeleteScheduleArgs,
   DisablePluginArgs,
@@ -22,7 +22,7 @@ import type {
   TaskItem,
   ToolCall,
   UninstallPluginArgs,
-  UpdateCarouselArgs,
+  UpdateCollectionArgs,
   UpdatePluginArgs,
   UpdatePluginConfigArgs,
   UpdateScheduleArgs,
@@ -66,12 +66,12 @@ function buildToolResultText(call: ToolCall, success: boolean, errorMsg?: string
       const a = call.args as UpdateSettingArgs;
       return `[Tool result: update_setting (${a.category}) → ${status}.${success ? " Setting applied. Continue with any remaining steps." : ""}]`;
     }
-    case "create_carousel": {
-      const a = call.args as CreateCarouselArgs;
-      return `[Tool result: create_carousel "${a.name}" → ${status}.${success ? " Carousel created. Continue with any remaining steps." : ""}]`;
+    case "create_collection": {
+      const a = call.args as CreateCollectionArgs;
+      return `[Tool result: create_collection "${a.name}" → ${status}.${success ? " Collection created. Continue with any remaining steps." : ""}]`;
     }
-    case "update_carousel":
-      return `[Tool result: update_carousel → ${status}.]`;
+    case "update_collection":
+      return `[Tool result: update_collection → ${status}.]`;
     case "create_schedule": {
       const a = call.args as CreateScheduleArgs;
       return `[Tool result: create_schedule at ${a.start_time} → ${status}.${success ? " Schedule created. Continue with any remaining steps." : ""}]`;
@@ -157,9 +157,9 @@ export function GlobalAiChatDrawer() {
     enabled: isOpen,
   });
 
-  const { data: carouselsData } = useQuery({
-    queryKey: ["carousels"],
-    queryFn: () => api.getCarousels(),
+  const { data: collectionsData } = useQuery({
+    queryKey: ["collections"],
+    queryFn: () => api.getCollections(),
     enabled: isOpen,
   });
 
@@ -203,11 +203,13 @@ export function GlobalAiChatDrawer() {
       day_pattern: s.day_pattern as "all" | "weekdays" | "weekends" | "custom",
       enabled: s.enabled,
     }));
-    const carousels = carouselsData?.carousels?.map((c) => ({
+    const collections = collectionsData?.collections?.map((c) => ({
       id: c.id,
       name: c.name,
       page_ids: c.page_ids,
-      interval_seconds: c.interval_seconds,
+      selection_mode: c.selection_mode,
+      time: c.time,
+      variable: c.variable,
     }));
     const registryPlugins = registryData?.entries?.map((e) => ({
       id: e.id,
@@ -226,10 +228,10 @@ export function GlobalAiChatDrawer() {
       availablePages: pages,
       installedPlugins: plugins,
       availableSchedules: schedules,
-      availableCarousels: carousels,
+      availableCollections: collections,
       registryPlugins,
     };
-  }, [pagesData, pluginsData, schedulesData, carouselsData, registryData, getEditorSnapshot]);
+  }, [pagesData, pluginsData, schedulesData, collectionsData, registryData, getEditorSnapshot]);
 
   const handleCreateSchedule = useCallback(
     async (args: CreateScheduleArgs) => {
@@ -446,8 +448,8 @@ export function GlobalAiChatDrawer() {
         case "update_plugin_config":
         case "update_plugin":
         case "update_setting":
-        case "create_carousel":
-        case "update_carousel":
+        case "create_collection":
+        case "update_collection":
         case "enable_plugin":
         case "disable_plugin":
         case "uninstall_plugin":
@@ -583,29 +585,33 @@ export function GlobalAiChatDrawer() {
     [queryClient],
   );
 
-  const handleCreateCarousel = useCallback(
-    async (args: CreateCarouselArgs) => {
-      await api.createCarousel({
+  const handleCreateCollection = useCallback(
+    async (args: CreateCollectionArgs) => {
+      await api.createCollection({
         name: args.name,
         page_ids: args.page_ids,
-        interval_seconds: args.interval_seconds,
+        selection_mode: "time",
+        time: { interval_seconds: args.interval_seconds },
       });
-      await queryClient.invalidateQueries({ queryKey: ["carousels"] });
-      toast.success(`Carousel "${args.name}" created.`);
+      await queryClient.invalidateQueries({ queryKey: ["collections"] });
+      toast.success(`Collection "${args.name}" created.`);
     },
     [queryClient],
   );
 
-  const handleUpdateCarousel = useCallback(
-    async (args: UpdateCarouselArgs) => {
-      const { carousel_id, ...update } = args;
-      await api.updateCarousel(carousel_id, {
+  const handleUpdateCollection = useCallback(
+    async (args: UpdateCollectionArgs) => {
+      const { collection_id, ...update } = args;
+      await api.updateCollection(collection_id, {
         ...(update.name != null && { name: update.name }),
         ...(update.page_ids != null && { page_ids: update.page_ids }),
-        ...(update.interval_seconds != null && { interval_seconds: update.interval_seconds }),
+        ...(update.interval_seconds != null && {
+          selection_mode: "time",
+          time: { interval_seconds: update.interval_seconds },
+        }),
       });
-      await queryClient.invalidateQueries({ queryKey: ["carousels"] });
-      toast.success("Carousel updated.");
+      await queryClient.invalidateQueries({ queryKey: ["collections"] });
+      toast.success("Collection updated.");
     },
     [queryClient],
   );
@@ -696,21 +702,21 @@ export function GlobalAiChatDrawer() {
           />
         );
       }
-      if (call.op === "create_carousel") {
+      if (call.op === "create_collection") {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={chainAfter(call, () => handleCreateCarousel(call.args as CreateCarouselArgs))}
+            onAllow={chainAfter(call, () => handleCreateCollection(call.args as CreateCollectionArgs))}
             onDeny={() => {}}
             autoAllow={autoAllow}
           />
         );
       }
-      if (call.op === "update_carousel") {
+      if (call.op === "update_collection") {
         return (
           <AiActionConfirmation
             call={call}
-            onAllow={chainAfter(call, () => handleUpdateCarousel(call.args as UpdateCarouselArgs))}
+            onAllow={chainAfter(call, () => handleUpdateCollection(call.args as UpdateCollectionArgs))}
             onDeny={() => {}}
             autoAllow={autoAllow}
           />
@@ -741,8 +747,8 @@ export function GlobalAiChatDrawer() {
       handleDisablePlugin,
       handleUninstallPlugin,
       handleUpdateSetting,
-      handleCreateCarousel,
-      handleUpdateCarousel,
+      handleCreateCollection,
+      handleUpdateCollection,
       handleTriggerSystemUpdate,
     ],
   );

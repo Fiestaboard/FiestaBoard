@@ -13,7 +13,7 @@ export const queryKeys = {
   pages: ["pages"] as const,
   pagePreview: (pageId: string) => ["pagePreview", pageId] as const,
   boardSettings: ["boardSettings"] as const,
-  carousels: ["carousels"] as const,
+  collections: ["collections"] as const,
   schedules: (boardId: string) => ["schedules", boardId] as const,
 };
 
@@ -110,11 +110,11 @@ export function usePagePreview(pageId: string | null, options?: { enabled?: bool
   });
 }
 
-// Carousels query
-export function useCarousels() {
+// Collections query
+export function useCollections() {
   return useQuery({
-    queryKey: queryKeys.carousels,
-    queryFn: api.getCarousels,
+    queryKey: queryKeys.collections,
+    queryFn: api.getCollections,
     retry: 1,
     staleTime: 5 * 60 * 1000,
   });

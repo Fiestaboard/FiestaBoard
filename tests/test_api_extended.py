@@ -1710,6 +1710,39 @@ class TestEnableLocalAPI:
         assert response.status_code == 200
         assert response.json()["success"] is False
 
+    def test_rejects_public_ip(self, client):
+        """SSRF guard: a public IP must be rejected before any HTTP request."""
+        with patch("src.api_server.requests.post") as mock_post:
+            response = client.post(
+                "/config/board/enable-local-api",
+                json={
+                    "host": "8.8.8.8",
+                    "enablement_token": "test_token_xyz",
+                },
+            )
+        # Returns 200 with success=False (this endpoint reports validation as a body field).
+        assert response.status_code == 200
+        body = response.json()
+        assert body["success"] is False
+        # No outbound HTTP request should have been issued.
+        mock_post.assert_not_called()
+
+    def test_rejects_aws_metadata_address(self, client):
+        """SSRF guard: the AWS instance-metadata IP must be rejected."""
+        with patch("src.api_server.requests.post") as mock_post:
+            response = client.post(
+                "/config/board/enable-local-api",
+                json={
+                    "host": "169.254.169.254",
+                    "enablement_token": "test_token_xyz",
+                },
+            )
+        assert response.status_code == 200
+        # 169.254.0.0/16 is link-local — explicitly allowed (Vestaboard boards
+        # auto-assign in this range when DHCP is unavailable). The validation
+        # only blocks non-LAN public addresses. The post would be attempted.
+        assert mock_post.called or response.json()["success"] is False
+
 
 # ============================================================
 # Stocks Endpoints

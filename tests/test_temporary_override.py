@@ -51,8 +51,8 @@ def client_with_page(settings_service, tmp_path):
     with patch("src.api_server.get_settings_service", return_value=settings_service):
         with patch("src.settings.service.get_settings_service", return_value=settings_service):
             with patch("src.api_server.get_page_service", return_value=page_service_mock):
-                with patch("src.api_server.get_carousel_service") as mock_cs:
-                    mock_cs.return_value.get_carousel.return_value = None
+                with patch("src.api_server.get_collection_service") as mock_cs:
+                    mock_cs.return_value.get_collection.return_value = None
                     yield TestClient(app), settings_service
 
 

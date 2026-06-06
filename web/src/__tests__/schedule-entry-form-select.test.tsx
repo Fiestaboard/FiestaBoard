@@ -43,7 +43,7 @@ function renderInSheet(props: Parameters<typeof ScheduleEntryForm>[0]) {
 }
 
 // ---------------------------------------------------------------------------
-// Page / Carousel Select
+// Page / Collection Select
 // ---------------------------------------------------------------------------
 describe("ScheduleEntryForm page Select inside Sheet", () => {
   it("mouse-click: clicking a page option selects it", async () => {
@@ -54,7 +54,7 @@ describe("ScheduleEntryForm page Select inside Sheet", () => {
     renderInSheet({ pages: mockPages, onSubmit, onCancel });
 
     // Use label association to find the page combobox specifically
-    const trigger = screen.getByLabelText("Page or Carousel");
+    const trigger = screen.getByLabelText("Page or Collection");
     await user.click(trigger);
 
     // Wait for the Select listbox to appear
@@ -79,7 +79,7 @@ describe("ScheduleEntryForm page Select inside Sheet", () => {
 
     renderInSheet({ pages: mockPages, onSubmit, onCancel });
 
-    const trigger = screen.getByLabelText("Page or Carousel");
+    const trigger = screen.getByLabelText("Page or Collection");
     await user.click(trigger);
 
     await waitFor(() => {

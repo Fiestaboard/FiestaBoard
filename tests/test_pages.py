@@ -1150,18 +1150,18 @@ class TestPagesAPIEndpoints:
 
         assert response.status_code == 404
 
-    @patch("src.api_server.get_carousel_service")
+    @patch("src.api_server.get_collection_service")
     @patch("src.api_server.get_settings_service")
-    def test_current_display_carousel_resolved(self, mock_settings, mock_carousel, client, mock_page_service):
-        """Test GET /pages/current-display resolves carousel to underlying page."""
+    def test_current_display_collection_resolved(self, mock_settings, mock_collection, client, mock_page_service):
+        """Test GET /pages/current-display resolves collection to underlying page."""
         mock_svc = Mock()
         mock_svc.is_schedule_enabled.return_value = False
-        mock_svc.get_active_page_id.return_value = "carousel:abc"
+        mock_svc.get_active_page_id.return_value = "collection:abc"
         mock_settings.return_value = mock_svc
 
-        mock_carousel_svc = Mock()
-        mock_carousel_svc.resolve_page_id.return_value = "resolved-page-id"
-        mock_carousel.return_value = mock_carousel_svc
+        mock_collection_svc = Mock()
+        mock_collection_svc.resolve_page_id.return_value = "resolved-page-id"
+        mock_collection.return_value = mock_collection_svc
 
         mock_page_service.get_page.return_value = Page(
             id="resolved-page-id",

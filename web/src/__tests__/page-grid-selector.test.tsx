@@ -13,10 +13,10 @@ vi.mock("@/lib/api", () => ({
     getPages: vi.fn(),
     getBoardSettings: vi.fn(),
     previewPagesBatch: vi.fn(),
-    getCarousels: vi.fn(),
+    getCollections: vi.fn(),
   },
-  isCarouselId: (id: string) => id?.startsWith("carousel:"),
-  CAROUSEL_ID_PREFIX: "carousel:",
+  isCollectionId: (id: string) => id?.startsWith("collection:"),
+  COLLECTION_ID_PREFIX: "collection:",
 }));
 
 // Mock localStorage
@@ -118,8 +118,8 @@ describe("PageGridSelector", () => {
       devices: ["flagship"],
     });
 
-    vi.mocked(api.getCarousels).mockResolvedValue({
-      carousels: [],
+    vi.mocked(api.getCollections).mockResolvedValue({
+      collections: [],
       total: 0,
     });
 
@@ -347,8 +347,8 @@ describe("PageGridSelector", () => {
     });
   });
 
-  it("accepts showCarousels prop", async () => {
-    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} showCarousels={false} />, {
+  it("accepts showCollections prop", async () => {
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} showCollections={false} />, {
       wrapper: TestWrapper,
     });
 
@@ -357,23 +357,31 @@ describe("PageGridSelector", () => {
     });
   });
 
-  it("renders carousel buttons when carousels exist", async () => {
+  it("renders collection buttons when collections exist", async () => {
     const user = userEvent.setup();
 
-    vi.mocked(api.getCarousels).mockResolvedValue({
-      carousels: [
+    vi.mocked(api.getCollections).mockResolvedValue({
+      collections: [
         {
-          id: "carousel:c1",
-          name: "My Carousel",
+          id: "collection:c1",
+          name: "My Collection",
           page_ids: ["page-1", "page-2"],
-          interval_seconds: 30,
+          selection_mode: "time",
+
+          time: { interval_seconds: 30 },
+
+          variable: null,
           created_at: "2025-01-01T00:00:00Z",
         },
         {
-          id: "carousel:c2",
-          name: "Single Carousel",
+          id: "collection:c2",
+          name: "Single Collection",
           page_ids: ["page-3"],
-          interval_seconds: 60,
+          selection_mode: "time",
+
+          time: { interval_seconds: 60 },
+
+          variable: null,
           created_at: "2025-01-01T00:00:00Z",
         },
       ],
@@ -384,26 +392,30 @@ describe("PageGridSelector", () => {
 
     render(<PageGridSelector activePageId={null} onSelectPage={onSelectPage} />, { wrapper: TestWrapper });
 
-    // Wait for tabs to appear then switch to Carousels tab
+    // Wait for tabs to appear then switch to Collections tab
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: /Carousels/i })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /Collections/i })).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("tab", { name: /Carousels/i }));
+    await user.click(screen.getByRole("tab", { name: /Collections/i }));
 
-    expect(screen.getByText("My Carousel")).toBeInTheDocument();
-    expect(screen.getByText("Single Carousel")).toBeInTheDocument();
+    expect(screen.getByText("My Collection")).toBeInTheDocument();
+    expect(screen.getByText("Single Collection")).toBeInTheDocument();
     expect(screen.getByText("2 pages")).toBeInTheDocument();
     expect(screen.getByText("1 page")).toBeInTheDocument();
   });
 
-  it("highlights active carousel and handles click", async () => {
-    vi.mocked(api.getCarousels).mockResolvedValue({
-      carousels: [
+  it("highlights active collection and handles click", async () => {
+    vi.mocked(api.getCollections).mockResolvedValue({
+      collections: [
         {
-          id: "carousel:c1",
-          name: "Active Carousel",
+          id: "collection:c1",
+          name: "Active Collection",
           page_ids: ["page-1", "page-2"],
-          interval_seconds: 30,
+          selection_mode: "time",
+
+          time: { interval_seconds: 30 },
+
+          variable: null,
           created_at: "2025-01-01T00:00:00Z",
         },
       ],
@@ -412,15 +424,15 @@ describe("PageGridSelector", () => {
 
     const onSelectPage = vi.fn();
 
-    render(<PageGridSelector activePageId="carousel:c1" onSelectPage={onSelectPage} />, { wrapper: TestWrapper });
+    render(<PageGridSelector activePageId="collection:c1" onSelectPage={onSelectPage} />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      const button = screen.getByText("Active Carousel").closest("button");
+      const button = screen.getByText("Active Collection").closest("button");
       expect(button).toHaveClass("border-brand");
     });
 
-    screen.getByText("Active Carousel").closest("button")!.click();
-    expect(onSelectPage).toHaveBeenCalledWith("carousel:c1");
+    screen.getByText("Active Collection").closest("button")!.click();
+    expect(onSelectPage).toHaveBeenCalledWith("collection:c1");
   });
 
   describe("list view mode", () => {

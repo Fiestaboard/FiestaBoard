@@ -6,8 +6,8 @@ import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Carousel } from "@/lib/api";
-import { isCarouselId } from "@/lib/api";
+import type { Collection } from "@/lib/api";
+import { isCollectionId } from "@/lib/api";
 
 interface Page {
   id: string;
@@ -17,26 +17,26 @@ interface Page {
 
 interface PagePickerDialogProps {
   pages: Page[];
-  carousels?: Carousel[];
+  collections?: Collection[];
   selectedPageId: string | null;
   onSelect: (pageId: string | null) => void;
   allowNone?: boolean;
 }
 
 /**
- * Simple page/carousel picker for selecting (not editing) pages or carousels.
+ * Simple page/collection picker for selecting (not editing) pages or collections.
  * Used for default page selection in schedule settings and schedule entry form.
  */
 export function PagePickerDialog({
   pages,
-  carousels = [],
+  collections = [],
   selectedPageId,
   onSelect,
   allowNone = false,
 }: PagePickerDialogProps) {
   const t = useTranslations("pagePickerDialog");
-  const hasCarousels = carousels.length > 0;
-  const defaultTab = selectedPageId && isCarouselId(selectedPageId) ? "carousels" : "pages";
+  const hasCollections = collections.length > 0;
+  const defaultTab = selectedPageId && isCollectionId(selectedPageId) ? "collections" : "pages";
 
   const noneOption = allowNone && (
     <button
@@ -77,32 +77,32 @@ export function PagePickerDialog({
     </div>
   );
 
-  const carouselsList = (
-    <div className="space-y-2" role="listbox" aria-label={t("carouselsAriaLabel")}>
-      {carousels.map((carousel) => (
+  const collectionsList = (
+    <div className="space-y-2" role="listbox" aria-label={t("collectionsAriaLabel")}>
+      {collections.map((collection) => (
         <button
-          key={carousel.id}
+          key={collection.id}
           role="option"
-          aria-selected={selectedPageId === carousel.id}
-          onClick={() => onSelect(carousel.id)}
+          aria-selected={selectedPageId === collection.id}
+          onClick={() => onSelect(collection.id)}
           className={`w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            selectedPageId === carousel.id ? "border-brand bg-muted/50" : ""
+            selectedPageId === collection.id ? "border-brand bg-muted/50" : ""
           }`}
         >
           <div className="flex items-center gap-2">
             <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">{carousel.name}</span>
+            <span className="text-sm font-medium">{collection.name}</span>
             <Badge variant="secondary" className="text-[10px]">
-              {t("pageCount", { count: carousel.page_ids.length })}
+              {t("pageCount", { count: collection.page_ids.length })}
             </Badge>
           </div>
-          {selectedPageId === carousel.id && <Check className="h-4 w-4 text-brand" aria-hidden="true" />}
+          {selectedPageId === collection.id && <Check className="h-4 w-4 text-brand" aria-hidden="true" />}
         </button>
       ))}
     </div>
   );
 
-  if (!hasCarousels) {
+  if (!hasCollections) {
     return (
       <div className="space-y-2">
         {noneOption}
@@ -124,9 +124,9 @@ export function PagePickerDialog({
             <LayoutTemplate className="h-4 w-4" />
             {t("pagesTab", { count: pages.length })}
           </TabsTrigger>
-          <TabsTrigger value="carousels" className="flex-1 gap-1.5">
+          <TabsTrigger value="collections" className="flex-1 gap-1.5">
             <GalleryHorizontalEnd className="h-4 w-4" />
-            {t("carouselsTab", { count: carousels.length })}
+            {t("collectionsTab", { count: collections.length })}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="pages">
@@ -136,7 +136,7 @@ export function PagePickerDialog({
             pagesList
           )}
         </TabsContent>
-        <TabsContent value="carousels">{carouselsList}</TabsContent>
+        <TabsContent value="collections">{collectionsList}</TabsContent>
       </Tabs>
     </div>
   );

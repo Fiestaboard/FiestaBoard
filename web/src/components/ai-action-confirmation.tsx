@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type {
-  CreateCarouselArgs,
+  CreateCollectionArgs,
   CreateScheduleArgs,
   DeleteScheduleArgs,
   DisablePluginArgs,
@@ -26,7 +26,7 @@ import type {
   InstallPluginArgs,
   ToolCall,
   UninstallPluginArgs,
-  UpdateCarouselArgs,
+  UpdateCollectionArgs,
   UpdatePluginArgs,
   UpdatePluginConfigArgs,
   UpdateScheduleArgs,
@@ -65,10 +65,10 @@ function actionLabel(call: AiActionConfirmationProps["call"]): string {
       return `Uninstall plugin: ${(call.args as UninstallPluginArgs).plugin_id}`;
     case "update_setting":
       return `Change setting: ${(call.args as UpdateSettingArgs).category}`;
-    case "create_carousel":
-      return `Create carousel: "${(call.args as CreateCarouselArgs).name}"`;
-    case "update_carousel":
-      return `Update carousel`;
+    case "create_collection":
+      return `Create collection: "${(call.args as CreateCollectionArgs).name}"`;
+    case "update_collection":
+      return `Update collection`;
     case "create_schedule":
       return `Create schedule`;
     case "update_schedule":
@@ -114,12 +114,12 @@ function actionDescription(call: AiActionConfirmationProps["call"]): string {
         .join(", ");
       return `Sets ${entries || "no values"} in ${a.category} settings.`;
     }
-    case "create_carousel": {
-      const a = call.args as CreateCarouselArgs;
-      return `Creates a carousel with ${a.page_ids.length} page(s), rotating every ${a.interval_seconds}s.`;
+    case "create_collection": {
+      const a = call.args as CreateCollectionArgs;
+      return `Creates a collection with ${a.page_ids.length} page(s), rotating every ${a.interval_seconds}s.`;
     }
-    case "update_carousel": {
-      const a = call.args as UpdateCarouselArgs;
+    case "update_collection": {
+      const a = call.args as UpdateCollectionArgs;
       const changes: string[] = [];
       if (a.name != null) changes.push(`rename to "${a.name}"`);
       if (a.page_ids != null) changes.push(`set ${a.page_ids.length} page(s)`);
@@ -165,8 +165,8 @@ function ActionIcon({ op }: { op: ConfirmableOp }) {
       return <Trash2 className={cls} />;
     case "update_setting":
       return <Settings className={cls} />;
-    case "create_carousel":
-    case "update_carousel":
+    case "create_collection":
+    case "update_collection":
       return <ListVideo className={cls} />;
     case "create_schedule":
     case "update_schedule":

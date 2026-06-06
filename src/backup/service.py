@@ -6,7 +6,7 @@ user-mutable state:
 * ``data/config.json`` — board + plugin configuration
 * ``data/settings.json`` — runtime settings
 * ``data/pages.json`` — user pages
-* ``data/carousels.json`` — user carousels
+* ``data/collections.json`` — user collections
 * ``data/schedules.json`` — user schedules
 * metadata about installed external plugins so they can be re-cloned on
   the new instance
@@ -53,7 +53,7 @@ DATA_FILES: tuple[str, ...] = (
     "config.json",
     "settings.json",
     "pages.json",
-    "carousels.json",
+    "collections.json",
     "schedules.json",
 )
 
@@ -150,6 +150,15 @@ class BackupService:
             for filename in DATA_FILES:
                 key = filename[:-5]
                 payload = data_section.get(key)
+                if payload is None and key == "collections":
+                    # Legacy backups carried a "carousels" section. Write it
+                    # to data/carousels.json so the collection storage's
+                    # first-run import migrates it into collections.json.
+                    legacy = data_section.get("carousels")
+                    if legacy is not None:
+                        self._write_json_with_backup(self.data_dir / "carousels.json", legacy, timestamp)
+                        restored.append("carousels.json (legacy)")
+                        continue
                 if payload is None:
                     skipped.append(filename)
                     continue
@@ -406,12 +415,12 @@ def _reload_services() -> list[str]:
         logger.exception("Failed to reload config manager")
         errors.append("config: reload failed (see server logs)")
 
-    # Settings, pages, carousels, schedules: drop singletons so the next
+    # Settings, pages, collections, schedules: drop singletons so the next
     # access re-reads from the freshly written JSON files.
     for module_path, attr in (
         ("src.settings.service", "_settings_service"),
         ("src.pages.service", "_page_service"),
-        ("src.carousels.service", "_carousel_service"),
+        ("src.collections.service", "_collection_service"),
         ("src.schedules.service", "_schedule_service"),
     ):
         try:

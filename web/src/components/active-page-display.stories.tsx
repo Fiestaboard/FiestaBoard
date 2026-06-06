@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import type { Carousel, CarouselsResponse, Page, PagesResponse, SilenceStatus } from "@/lib/api";
+import type { Collection, CollectionsResponse, Page, PagesResponse, SilenceStatus } from "@/lib/api";
 
 import { ActivePageDisplay } from "./active-page-display";
 
@@ -46,12 +46,14 @@ const mockPages: Page[] = [
 
 const mockPreviewMessage = "{63}WEATHER{/63}\n{64}72°F SUNNY{/64}\n \nHIGH: 75°F\nLOW: 65°F\nHUMIDITY: 60%";
 
-const mockCarousels: Carousel[] = [
+const mockCollections: Collection[] = [
   {
-    id: "carousel:abc-123",
+    id: "collection:abc-123",
     name: "Morning Rotation",
     page_ids: ["page-1", "page-2"],
-    interval_seconds: 30,
+    selection_mode: "time",
+    time: { interval_seconds: 30 },
+    variable: null,
     created_at: "2024-02-01T00:00:00Z",
   },
 ];
@@ -60,7 +62,7 @@ const createQueryClient = (
   activePageId: string | null,
   scheduleEnabled: boolean = false,
   silenceActive: boolean = false,
-  carousels?: Carousel[],
+  collections?: Collection[],
 ) => {
   const client = new QueryClient({
     defaultOptions: {
@@ -95,7 +97,7 @@ const createQueryClient = (
     });
   }
 
-  // Seed preview data for all pages so carousel rotation has something to show
+  // Seed preview data for all pages so collection rotation has something to show
   for (const page of mockPages) {
     if (!client.getQueryData(["pagePreview", page.id])) {
       client.setQueryData(["pagePreview", page.id], {
@@ -123,10 +125,10 @@ const createQueryClient = (
     devices: ["flagship"],
   });
 
-  client.setQueryData(["carousels"], {
-    carousels: carousels ?? [],
-    total: carousels?.length ?? 0,
-  } as CarouselsResponse);
+  client.setQueryData(["collections"], {
+    collections: collections ?? [],
+    total: collections?.length ?? 0,
+  } as CollectionsResponse);
 
   return client;
 };
@@ -227,10 +229,10 @@ export const InDashboard = () => (
   </QueryClientProvider>
 );
 
-export const CarouselActive: Story = {
+export const CollectionActive: Story = {
   decorators: [
     (Story) => (
-      <QueryClientProvider client={createQueryClient("carousel:abc-123", false, false, mockCarousels)}>
+      <QueryClientProvider client={createQueryClient("collection:abc-123", false, false, mockCollections)}>
         <div className="max-w-4xl">
           <Story />
         </div>
@@ -239,10 +241,10 @@ export const CarouselActive: Story = {
   ],
 };
 
-export const CarouselActiveScheduled: Story = {
+export const CollectionActiveScheduled: Story = {
   decorators: [
     (Story) => (
-      <QueryClientProvider client={createQueryClient("carousel:abc-123", true, false, mockCarousels)}>
+      <QueryClientProvider client={createQueryClient("collection:abc-123", true, false, mockCollections)}>
         <div className="max-w-4xl">
           <Story />
         </div>

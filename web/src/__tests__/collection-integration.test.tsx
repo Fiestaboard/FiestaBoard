@@ -1,9 +1,9 @@
 /**
- * Tests for carousel integration across UI components.
+ * Tests for collection integration across UI components.
  *
- * Covers the carousel-specific branches added to:
- * - ScheduleEntryForm (carousel dropdown section)
- * - PagePickerDialog (carousel section rendering)
+ * Covers the collection-specific branches added to:
+ * - ScheduleEntryForm (collection dropdown section)
+ * - PagePickerDialog (collection section rendering)
  */
 
 import { render, screen } from "@testing-library/react";
@@ -12,57 +12,65 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PagePickerDialog } from "@/components/page-picker-dialog";
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
-import type { Carousel } from "@/lib/api";
+import type { Collection } from "@/lib/api";
 
 const mockPages = [
   { id: "page-1", name: "Page One" },
   { id: "page-2", name: "Page Two" },
 ];
 
-const mockCarousels: Carousel[] = [
+const mockCollections: Collection[] = [
   {
-    id: "carousel:c1",
+    id: "collection:c1",
     name: "Morning Rotation",
     page_ids: ["page-1", "page-2"],
-    interval_seconds: 30,
+    selection_mode: "time",
+
+    time: { interval_seconds: 30 },
+
+    variable: null,
     created_at: "2025-01-01T00:00:00Z",
   },
   {
-    id: "carousel:c2",
+    id: "collection:c2",
     name: "Evening Rotation",
     page_ids: ["page-1"],
-    interval_seconds: 60,
+    selection_mode: "time",
+
+    time: { interval_seconds: 60 },
+
+    variable: null,
     created_at: "2025-01-01T00:00:00Z",
   },
 ];
 
 // =============================================================================
-// ScheduleEntryForm with carousels
+// ScheduleEntryForm with collections
 // =============================================================================
 
-describe("ScheduleEntryForm - Carousel Integration", () => {
-  it("renders carousel section label when carousels are provided", async () => {
-    render(<ScheduleEntryForm pages={mockPages} carousels={mockCarousels} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+describe("ScheduleEntryForm - Collection Integration", () => {
+  it("renders collection section label when collections are provided", async () => {
+    render(<ScheduleEntryForm pages={mockPages} collections={mockCollections} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    expect(screen.getByText("Page or Carousel")).toBeInTheDocument();
+    expect(screen.getByText("Page or Collection")).toBeInTheDocument();
   });
 
-  it("renders without carousel section when carousels array is empty", () => {
-    render(<ScheduleEntryForm pages={mockPages} carousels={[]} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+  it("renders without collection section when collections array is empty", () => {
+    render(<ScheduleEntryForm pages={mockPages} collections={[]} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    expect(screen.getByText("Page or Carousel")).toBeInTheDocument();
+    expect(screen.getByText("Page or Collection")).toBeInTheDocument();
   });
 
-  it("renders without carousel section when carousels prop is undefined", () => {
+  it("renders without collection section when collections prop is undefined", () => {
     render(<ScheduleEntryForm pages={mockPages} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    expect(screen.getByText("Page or Carousel")).toBeInTheDocument();
+    expect(screen.getByText("Page or Collection")).toBeInTheDocument();
   });
 
-  it("shows placeholder text that references carousels when carousels exist", () => {
-    render(<ScheduleEntryForm pages={mockPages} carousels={mockCarousels} onSubmit={vi.fn()} onCancel={vi.fn()} />);
+  it("shows placeholder text that references collections when collections exist", () => {
+    render(<ScheduleEntryForm pages={mockPages} collections={mockCollections} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    expect(screen.getByText("Select a page or carousel")).toBeInTheDocument();
+    expect(screen.getByText("Select a page or collection")).toBeInTheDocument();
   });
 
   it("renders edit mode with existing schedule page", () => {
@@ -80,7 +88,7 @@ describe("ScheduleEntryForm - Carousel Integration", () => {
       <ScheduleEntryForm
         schedule={existingSchedule}
         pages={mockPages}
-        carousels={mockCarousels}
+        collections={mockCollections}
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
         onDelete={vi.fn()}
@@ -91,10 +99,10 @@ describe("ScheduleEntryForm - Carousel Integration", () => {
     expect(screen.getByText("Delete")).toBeInTheDocument();
   });
 
-  it("renders edit mode with carousel as scheduled item", () => {
+  it("renders edit mode with collection as scheduled item", () => {
     const existingSchedule = {
       id: "sched-2",
-      page_id: "carousel:c1",
+      page_id: "collection:c1",
       start_time: "09:00",
       end_time: "17:00",
       day_pattern: "weekdays" as const,
@@ -106,7 +114,7 @@ describe("ScheduleEntryForm - Carousel Integration", () => {
       <ScheduleEntryForm
         schedule={existingSchedule}
         pages={mockPages}
-        carousels={mockCarousels}
+        collections={mockCollections}
         onSubmit={vi.fn()}
         onCancel={vi.fn()}
       />,
@@ -117,101 +125,101 @@ describe("ScheduleEntryForm - Carousel Integration", () => {
 });
 
 // =============================================================================
-// PagePickerDialog with carousels
+// PagePickerDialog with collections
 // =============================================================================
 
-describe("PagePickerDialog - Carousel Integration", () => {
-  it("renders carousel section when carousels are provided", async () => {
+describe("PagePickerDialog - Collection Integration", () => {
+  it("renders collection section when collections are provided", async () => {
     const user = userEvent.setup();
 
     render(
       <PagePickerDialog
         pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        carousels={mockCarousels}
+        collections={mockCollections}
         selectedPageId={null}
         onSelect={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("tab", { name: /Carousels/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Collections/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Pages/i })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("tab", { name: /Carousels/i }));
+    await user.click(screen.getByRole("tab", { name: /Collections/i }));
     expect(screen.getByText("Morning Rotation")).toBeInTheDocument();
     expect(screen.getByText("Evening Rotation")).toBeInTheDocument();
   });
 
-  it("does not render carousel section when no carousels", () => {
+  it("does not render collection section when no collections", () => {
     render(
       <PagePickerDialog
         pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        carousels={[]}
+        collections={[]}
         selectedPageId={null}
         onSelect={vi.fn()}
       />,
     );
 
-    expect(screen.queryByRole("tab", { name: /Carousels/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /Collections/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: /Pages/i })).not.toBeInTheDocument();
     expect(screen.getByText("Page One")).toBeInTheDocument();
   });
 
-  it("highlights selected carousel", () => {
+  it("highlights selected collection", () => {
     render(
       <PagePickerDialog
         pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        carousels={mockCarousels}
-        selectedPageId="carousel:c1"
+        collections={mockCollections}
+        selectedPageId="collection:c1"
         onSelect={vi.fn()}
       />,
     );
 
-    // When a carousel is selected, the carousels tab is default
+    // When a collection is selected, the collections tab is default
     expect(screen.getByText("Morning Rotation")).toBeInTheDocument();
     const button = screen.getByText("Morning Rotation").closest("button");
     expect(button).toHaveClass("border-brand");
   });
 
-  it("calls onSelect with carousel ID when carousel is clicked", async () => {
+  it("calls onSelect with collection ID when collection is clicked", async () => {
     const onSelect = vi.fn();
     const user = userEvent.setup();
 
     render(
       <PagePickerDialog
         pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        carousels={mockCarousels}
+        collections={mockCollections}
         selectedPageId={null}
         onSelect={onSelect}
       />,
     );
 
-    await user.click(screen.getByRole("tab", { name: /Carousels/i }));
+    await user.click(screen.getByRole("tab", { name: /Collections/i }));
     await user.click(screen.getByText("Morning Rotation"));
-    expect(onSelect).toHaveBeenCalledWith("carousel:c1");
+    expect(onSelect).toHaveBeenCalledWith("collection:c1");
   });
 
-  it("shows page count badge on carousel items", async () => {
+  it("shows page count badge on collection items", async () => {
     const user = userEvent.setup();
 
     render(
       <PagePickerDialog
         pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        carousels={mockCarousels}
+        collections={mockCollections}
         selectedPageId={null}
         onSelect={vi.fn()}
       />,
     );
 
-    await user.click(screen.getByRole("tab", { name: /Carousels/i }));
+    await user.click(screen.getByRole("tab", { name: /Collections/i }));
     expect(screen.getByText("2 pages")).toBeInTheDocument();
     expect(screen.getByText("1 page")).toBeInTheDocument();
   });
 
-  it("renders with allowNone and carousels", () => {
+  it("renders with allowNone and collections", () => {
     render(
       <PagePickerDialog
         pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        carousels={mockCarousels}
+        collections={mockCollections}
         selectedPageId={null}
         onSelect={vi.fn()}
         allowNone={true}
@@ -219,11 +227,11 @@ describe("PagePickerDialog - Carousel Integration", () => {
     );
 
     expect(screen.getByText("None (no default)")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Carousels/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Collections/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Pages/i })).toBeInTheDocument();
   });
 
-  it("renders without carousels prop (undefined)", () => {
+  it("renders without collections prop (undefined)", () => {
     render(
       <PagePickerDialog
         pages={mockPages.map((p) => ({ ...p, type: "template" }))}
@@ -232,7 +240,7 @@ describe("PagePickerDialog - Carousel Integration", () => {
       />,
     );
 
-    expect(screen.queryByRole("tab", { name: /Carousels/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /Collections/i })).not.toBeInTheDocument();
     expect(screen.getByText("Page One")).toBeInTheDocument();
   });
 
@@ -242,8 +250,8 @@ describe("PagePickerDialog - Carousel Integration", () => {
     render(
       <PagePickerDialog
         pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        carousels={mockCarousels}
-        selectedPageId="carousel:c1"
+        collections={mockCollections}
+        selectedPageId="collection:c1"
         onSelect={onSelect}
         allowNone={true}
       />,

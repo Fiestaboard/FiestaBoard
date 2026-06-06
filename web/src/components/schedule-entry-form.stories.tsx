@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import type { Carousel, ScheduleEntry } from "@/lib/api";
+import type { Collection, ScheduleEntry } from "@/lib/api";
 
 import { ScheduleEntryForm } from "./schedule-entry-form";
 
@@ -148,27 +148,31 @@ export const ManyPages: Story = {
   },
 };
 
-const mockCarousels: Carousel[] = [
+const mockCollections: Collection[] = [
   {
-    id: "carousel:abc-123",
+    id: "collection:abc-123",
     name: "Morning Rotation",
     page_ids: ["page-1", "page-2", "page-3"],
-    interval_seconds: 30,
+    selection_mode: "time",
+    time: { interval_seconds: 30 },
+    variable: null,
     created_at: "2024-02-01T00:00:00Z",
   },
   {
-    id: "carousel:def-456",
+    id: "collection:def-456",
     name: "Evening Loop",
     page_ids: ["page-3", "page-4"],
-    interval_seconds: 60,
+    selection_mode: "time",
+    time: { interval_seconds: 60 },
+    variable: null,
     created_at: "2024-02-02T00:00:00Z",
   },
 ];
 
-export const WithCarousels: Story = {
+export const WithCollections: Story = {
   args: {
     pages: mockPages,
-    carousels: mockCarousels,
+    collections: mockCollections,
     onSubmit: async (data) => {
       console.log("Create schedule:", data);
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -177,11 +181,11 @@ export const WithCarousels: Story = {
   },
 };
 
-export const EditCarouselEntry: Story = {
+export const EditCollectionEntry: Story = {
   args: {
     schedule: {
       id: "sched-5",
-      page_id: "carousel:abc-123",
+      page_id: "collection:abc-123",
       start_time: "07:00",
       end_time: "09:00",
       day_pattern: "weekdays",
@@ -189,7 +193,7 @@ export const EditCarouselEntry: Story = {
       created_at: "2024-01-01T00:00:00Z",
     } as ScheduleEntry,
     pages: mockPages,
-    carousels: mockCarousels,
+    collections: mockCollections,
     onSubmit: async (data) => {
       console.log("Update schedule:", data);
       await new Promise((resolve) => setTimeout(resolve, 1000));

@@ -152,15 +152,15 @@ test.describe("Navigation", () => {
     await expect(settingsLink).toBeVisible();
   });
 
-  test("Carousels is a direct link in primary navigation", async ({ page }) => {
+  test("Collections is a direct link in primary navigation", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     const sidebar = page.locator("aside").first();
     const primaryNav = sidebar.getByLabel("Primary navigation");
-    const carouselsLink = primaryNav.getByRole("link", { name: /carousels/i });
-    await expect(carouselsLink).toBeVisible();
-    await expect(carouselsLink).toHaveAttribute("href", "/carousels");
+    const collectionsLink = primaryNav.getByRole("link", { name: /collections/i });
+    await expect(collectionsLink).toBeVisible();
+    await expect(collectionsLink).toHaveAttribute("href", "/collections");
   });
 });

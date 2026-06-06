@@ -3,7 +3,7 @@
 These tests verify that:
 1. The 15-minute interval restriction is removed (any minute 0-59 allowed)
 2. end_time can be None for "single cycle" schedules
-3. Schedules with no end_time compute duration from the linked carousel
+3. Schedules with no end_time compute duration from the linked collection
 4. Overlap/gap detection handles optional end_time correctly
 5. Active page resolution handles optional end_time correctly
 """
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from src.carousels.models import Carousel
+from src.collections.models import Collection, TimeModeConfig
 from src.schedules.models import ScheduleCreate, ScheduleEntry
 from src.schedules.service import ScheduleService
 from src.schedules.storage import ScheduleStorage
@@ -81,7 +81,7 @@ class TestOneMinuteGranularity:
     def test_school_departure_use_case(self, service):
         """Test the school departure countdown use case from the issue.
 
-        7:35 through 7:40, each with a different page/carousel.
+        7:35 through 7:40, each with a different page/collection.
         """
         for minute in range(35, 41):
             next_minute = minute + 1
@@ -127,7 +127,7 @@ class TestOptionalEndTime:
     def test_schedule_entry_allows_none_end_time(self):
         """ScheduleEntry should accept end_time=None."""
         entry = ScheduleEntry(
-            page_id="carousel:abc-123", start_time="07:35", end_time=None, day_pattern="weekdays", enabled=True
+            page_id="collection:abc-123", start_time="07:35", end_time=None, day_pattern="weekdays", enabled=True
         )
         assert entry.end_time is None
         assert entry.start_time == "07:35"
@@ -135,14 +135,14 @@ class TestOptionalEndTime:
     def test_schedule_create_allows_none_end_time(self):
         """ScheduleCreate should accept end_time=None."""
         create = ScheduleCreate(
-            page_id="carousel:abc-123", start_time="07:35", end_time=None, day_pattern="weekdays", enabled=True
+            page_id="collection:abc-123", start_time="07:35", end_time=None, day_pattern="weekdays", enabled=True
         )
         assert create.end_time is None
 
     def test_none_end_time_validates_ok(self):
         """Schedule with None end_time should validate successfully."""
         entry = ScheduleEntry(
-            page_id="carousel:abc-123", start_time="07:35", end_time=None, day_pattern="weekdays", enabled=True
+            page_id="collection:abc-123", start_time="07:35", end_time=None, day_pattern="weekdays", enabled=True
         )
         errors = entry.validate_config()
         assert len(errors) == 0, f"Expected no errors but got: {errors}"
@@ -150,7 +150,7 @@ class TestOptionalEndTime:
     def test_none_end_time_same_start_not_rejected(self):
         """Zero-duration check should not trigger when end_time is None."""
         entry = ScheduleEntry(
-            page_id="carousel:abc-123", start_time="07:35", end_time=None, day_pattern="all", enabled=True
+            page_id="collection:abc-123", start_time="07:35", end_time=None, day_pattern="all", enabled=True
         )
         errors = entry.validate_config()
         assert not any("zero-duration" in e.lower() for e in errors)
@@ -159,44 +159,44 @@ class TestOptionalEndTime:
     def test_schedule_with_none_end_time_is_valid(self):
         """is_valid() should return True for schedule with None end_time."""
         entry = ScheduleEntry(
-            page_id="carousel:abc-123", start_time="07:35", end_time=None, day_pattern="all", enabled=True
+            page_id="collection:abc-123", start_time="07:35", end_time=None, day_pattern="all", enabled=True
         )
         assert entry.is_valid() is True
 
 
 # =============================================================================
-# Carousel total_cycle_seconds Tests
+# Collection total_cycle_seconds Tests
 # =============================================================================
 
 
-class TestCarouselCycleDuration:
-    """Test carousel total cycle duration computation."""
+class TestCollectionCycleDuration:
+    """Test time-mode collection total cycle duration computation."""
 
     def test_total_cycle_seconds_basic(self):
         """Total cycle = num_pages * interval_seconds."""
-        carousel = Carousel(
+        collection = Collection(
             name="School Countdown",
             page_ids=["p1", "p2", "p3", "p4", "p5", "p6"],
-            interval_seconds=60,
+            time=TimeModeConfig(interval_seconds=60),
         )
-        assert carousel.total_cycle_seconds() == 360  # 6 pages * 60s
+        assert collection.total_cycle_seconds_time() == 360  # 6 pages * 60s
 
     def test_total_cycle_seconds_single_page(self):
-        """Single page carousel has cycle = 1 * interval."""
-        carousel = Carousel(
+        """Single page collection has cycle = 1 * interval."""
+        collection = Collection(
             name="Single",
             page_ids=["p1"],
-            interval_seconds=30,
+            time=TimeModeConfig(interval_seconds=30),
         )
-        assert carousel.total_cycle_seconds() == 30
+        assert collection.total_cycle_seconds_time() == 30
 
     def test_total_cycle_seconds_default_interval(self):
         """Default interval of 30s with 3 pages = 90s."""
-        carousel = Carousel(
+        collection = Collection(
             name="Test",
             page_ids=["p1", "p2", "p3"],
         )
-        assert carousel.total_cycle_seconds() == 90
+        assert collection.total_cycle_seconds_time() == 90
 
 
 # =============================================================================
@@ -210,14 +210,14 @@ class TestAppliesToTimeOptionalEnd:
     def test_applies_to_time_at_start(self):
         """Time at start_time should match open-ended schedule."""
         entry = ScheduleEntry(
-            page_id="carousel:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True
+            page_id="collection:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True
         )
         assert entry.applies_to_time("07:35") is True
 
     def test_applies_to_time_after_start(self):
         """Time after start_time should match open-ended schedule (no end boundary)."""
         entry = ScheduleEntry(
-            page_id="carousel:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True
+            page_id="collection:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True
         )
         # Open-ended: matches from start_time until end of day
         assert entry.applies_to_time("07:40") is True
@@ -227,7 +227,7 @@ class TestAppliesToTimeOptionalEnd:
     def test_applies_to_time_before_start(self):
         """Time before start_time should NOT match open-ended schedule."""
         entry = ScheduleEntry(
-            page_id="carousel:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True
+            page_id="collection:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True
         )
         assert entry.applies_to_time("07:34") is False
         assert entry.applies_to_time("00:00") is False
@@ -244,7 +244,7 @@ class TestStorageOptionalEndTime:
     def test_create_schedule_with_none_end_time(self, service):
         """Creating a schedule with None end_time should persist correctly."""
         create_data = ScheduleCreate(
-            page_id="carousel:abc-123", start_time="07:35", end_time=None, day_pattern="weekdays", enabled=True
+            page_id="collection:abc-123", start_time="07:35", end_time=None, day_pattern="weekdays", enabled=True
         )
         created = service.create_schedule(create_data)
         assert created.end_time is None
@@ -258,7 +258,7 @@ class TestStorageOptionalEndTime:
     def test_update_schedule_to_none_end_time(self, service):
         """Updating a schedule to have None end_time should work."""
         create_data = ScheduleCreate(
-            page_id="carousel:abc-123", start_time="07:35", end_time="08:00", day_pattern="weekdays", enabled=True
+            page_id="collection:abc-123", start_time="07:35", end_time="08:00", day_pattern="weekdays", enabled=True
         )
         created = service.create_schedule(create_data)
         assert created.end_time == "08:00"
@@ -284,7 +284,7 @@ class TestOverlapWithOptionalEndTime:
     def test_open_ended_overlaps_with_later_schedule(self, service):
         """An open-ended schedule should overlap with a schedule that starts after it."""
         service.create_schedule(
-            ScheduleCreate(page_id="carousel:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True)
+            ScheduleCreate(page_id="collection:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True)
         )
         service.create_schedule(
             ScheduleCreate(
@@ -300,7 +300,7 @@ class TestOverlapWithOptionalEndTime:
         """Open-ended schedule on weekdays should not overlap with weekend schedule."""
         service.create_schedule(
             ScheduleCreate(
-                page_id="carousel:abc", start_time="07:35", end_time=None, day_pattern="weekdays", enabled=True
+                page_id="collection:abc", start_time="07:35", end_time=None, day_pattern="weekdays", enabled=True
             )
         )
         service.create_schedule(
@@ -325,25 +325,25 @@ class TestActivePageWithOptionalEndTime:
     def test_open_ended_matches_at_start(self, service):
         """Open-ended schedule should match at its start time."""
         service.create_schedule(
-            ScheduleCreate(page_id="carousel:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True)
+            ScheduleCreate(page_id="collection:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True)
         )
 
         page_id = service.get_active_page_id(time(7, 35), "monday")
-        assert page_id == "carousel:abc"
+        assert page_id == "collection:abc"
 
     def test_open_ended_matches_after_start(self, service):
         """Open-ended schedule should match after start time."""
         service.create_schedule(
-            ScheduleCreate(page_id="carousel:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True)
+            ScheduleCreate(page_id="collection:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True)
         )
 
         page_id = service.get_active_page_id(time(12, 0), "monday")
-        assert page_id == "carousel:abc"
+        assert page_id == "collection:abc"
 
     def test_open_ended_does_not_match_before_start(self, service):
         """Open-ended schedule should not match before start time."""
         service.create_schedule(
-            ScheduleCreate(page_id="carousel:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True)
+            ScheduleCreate(page_id="collection:abc", start_time="07:35", end_time=None, day_pattern="all", enabled=True)
         )
 
         service.set_default_page("default-page")

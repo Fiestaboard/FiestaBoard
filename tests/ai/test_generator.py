@@ -19,6 +19,7 @@ from src.ai.generator import (
     _line_visible_width,
     _resolve_model,
     _resolve_provider,
+    _user_safe_error_message,
     _validate_and_repair,
     generate_page,
 )
@@ -643,3 +644,37 @@ async def test_generate_page_note_device_uses_correct_row_count():
     )
     assert len(result["page"]["template"]) == 3
     assert result["page"]["device_type"] == "note"
+
+
+# ---------------------------------------------------------------------------
+# _user_safe_error_message — masks stack-trace / control characters
+# (CodeQL py/stack-trace-exposure mitigation)
+# ---------------------------------------------------------------------------
+
+
+def test_user_safe_error_message_passes_through_curated_message():
+    exc = AIGenerationError("AI provider 'p1' not found.")
+    assert _user_safe_error_message(exc) == "AI provider 'p1' not found."
+
+
+def test_user_safe_error_message_strips_embedded_newlines():
+    exc = AIGenerationError("Bad output\nTraceback (most recent call last):\n  File ...")
+    msg = _user_safe_error_message(exc)
+    assert "\n" not in msg
+    assert "Traceback" in msg  # collapsed, not stripped
+
+
+def test_user_safe_error_message_falls_back_when_no_args():
+    exc = AIGenerationError()
+    assert _user_safe_error_message(exc) == "AI provider error"
+
+
+def test_user_safe_error_message_falls_back_for_non_string_arg():
+    exc = AIGenerationError({"unexpected": "dict"})
+    assert _user_safe_error_message(exc) == "AI provider error"
+
+
+def test_user_safe_error_message_caps_length():
+    exc = AIGenerationError("x" * 1000)
+    msg = _user_safe_error_message(exc)
+    assert len(msg) <= 500

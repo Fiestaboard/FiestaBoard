@@ -15,10 +15,23 @@ from .models import DEFAULT_BOARD_ID, ScheduleEntry
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
+
+_LEGACY_CAROUSEL_PREFIX = "carousel:"
+_COLLECTION_PREFIX = "collection:"
 
 
-def _migrate_v0_to_v1(schedules_data: list[dict]) -> int:
+def _rewrite_carousel_ref(ref: str | None) -> tuple[str | None, bool]:
+    """Rewrite a single ``carousel:<uuid>`` reference to ``collection:<uuid>``.
+
+    Returns ``(new_ref, changed)``. Non-carousel and falsy refs pass through.
+    """
+    if isinstance(ref, str) and ref.startswith(_LEGACY_CAROUSEL_PREFIX):
+        return _COLLECTION_PREFIX + ref[len(_LEGACY_CAROUSEL_PREFIX) :], True
+    return ref, False
+
+
+def _migrate_v0_to_v1(data: dict) -> int:
     """Migration 0 -> 1: introduce recurrence_type field (defaults to 'weekly').
 
     Pre-existing entries had no recurrence concept, so they all map to weekly.
@@ -26,15 +39,48 @@ def _migrate_v0_to_v1(schedules_data: list[dict]) -> int:
     but we set recurrence_type so reload + resave produces consistent JSON.
     """
     migrated = 0
-    for entry in schedules_data:
+    for entry in data.get("schedules", []) or []:
         if "recurrence_type" not in entry:
             entry["recurrence_type"] = "weekly"
             migrated += 1
     return migrated
 
 
-MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
+def _migrate_v1_to_v2(data: dict) -> int:
+    """Migration 1 -> 2: rewrite ``carousel:<uuid>`` refs to ``collection:<uuid>``.
+
+    Walks every persisted ``page_id`` slot (per-schedule, board defaults,
+    legacy global default) and rewrites in place. Returns the total number
+    of references rewritten.
+    """
+    rewrites = 0
+
+    for schedule in data.get("schedules", []) or []:
+        new_ref, changed = _rewrite_carousel_ref(schedule.get("page_id"))
+        if changed:
+            schedule["page_id"] = new_ref
+            rewrites += 1
+
+    default_ref, changed = _rewrite_carousel_ref(data.get("default_page_id"))
+    if changed:
+        data["default_page_id"] = default_ref
+        rewrites += 1
+
+    board_defaults = data.get("default_page_by_board") or {}
+    for board_id, page_ref in list(board_defaults.items()):
+        new_ref, changed = _rewrite_carousel_ref(page_ref)
+        if changed:
+            board_defaults[board_id] = new_ref
+            rewrites += 1
+    if board_defaults:
+        data["default_page_by_board"] = board_defaults
+
+    return rewrites
+
+
+MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (1, _migrate_v0_to_v1),
+    (2, _migrate_v1_to_v2),
 ]
 
 
@@ -79,8 +125,6 @@ class ScheduleStorage:
         if current_version >= CURRENT_SCHEMA_VERSION:
             return False
 
-        schedules_list = data.get("schedules", [])
-
         if self.storage_file.exists():
             backup_path = self.storage_file.with_suffix(f".json.v{current_version}_backup")
             if not backup_path.exists():
@@ -93,10 +137,8 @@ class ScheduleStorage:
         for target_version, migrate_fn in MIGRATIONS:
             if current_version >= target_version:
                 continue
-            count = migrate_fn(schedules_list)
-            logger.info(
-                f"Schedules schema migration v{current_version}->v{target_version}: {count} schedule(s) processed"
-            )
+            count = migrate_fn(data)
+            logger.info(f"Schedules schema migration v{current_version}->v{target_version}: {count} change(s) applied")
             current_version = target_version
 
         data["schema_version"] = CURRENT_SCHEMA_VERSION
@@ -240,7 +282,13 @@ class ScheduleStorage:
         # Apply updates
         schedule_dict = schedule.model_dump()
         # Fields that are allowed to be set to None explicitly
-        nullable_fields = {"end_time", "annual_date", "annual_end_date", "one_off_date", "one_off_end_date"}
+        nullable_fields = {
+            "end_time",
+            "annual_date",
+            "annual_end_date",
+            "one_off_date",
+            "one_off_end_date",
+        }
         for key, value in updates.items():
             if key in schedule_dict and (value is not None or key in nullable_fields):
                 schedule_dict[key] = value
