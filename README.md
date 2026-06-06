@@ -45,6 +45,16 @@ That's it — FiestaBoard starts on every boot and updates itself with one click
 
 > **Why we recommend this path:** The Pi is inexpensive, low-power, runs 24/7, and is purpose-built to be a reliable always-on display controller. Even users who have never touched a Raspberry Pi before can complete this in under 15 minutes.
 
+### Already running Home Assistant? Use the HA add-on (beta)
+
+If you have **Home Assistant OS** or **Home Assistant Supervised**, you can install FiestaBoard from the HA Add-on Store. You get sidebar Ingress, MQTT auto-discovery with the Mosquitto add-on, HA-managed backups of all your settings, and updates through HA's UI.
+
+[![Open your Home Assistant instance and show the app store with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_store.svg)](https://my.home-assistant.io/redirect/supervisor_store/?repository_url=https%3A%2F%2Fgithub.com%2FFiestaboard%2FFiestaBoard-Home-Assistant-App)
+
+**→ [Home Assistant Add-on setup guide](https://fiestaboard.app/docs/setup/home-assistant-addon)**
+
+> 🧪 **The HA add-on is in beta and we want your feedback.** Report bugs or feature requests at the [add-on repo issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues), or come say hi on [Discord](https://discord.gg/JvN8y6ahaf) — even "it just worked" reports help us stabilize the beta.
+
 ### Alternative: Run on a computer with Docker
 
 Already have a laptop, desktop, NAS, or home server? FiestaBoard runs anywhere Docker runs. **All you need:** Your board's API key + [Docker](https://docs.docker.com/get-started/get-docker/) installed.
