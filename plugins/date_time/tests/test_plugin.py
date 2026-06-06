@@ -78,8 +78,15 @@ class TestDateTimePlugin:
         assert "time" in data
         assert "datetime" in data
         assert "day_of_week" in data
+        assert "day_of_week_abbr" in data
+        assert "day_of_week_num" in data
+        assert "day_of_year" in data
+        assert "day_of_year_padded" in data
         assert "day" in data
         assert "month" in data
+        assert "week_of_year" in data
+        assert "week_of_year_padded" in data
+        assert "quarter" in data
         assert "year" in data
         assert "hour" in data
         assert "minute" in data
@@ -219,7 +226,14 @@ class TestDateTimePlugin:
         result = plugin.fetch_data()
 
         assert result.data["day_of_week"] == "Wednesday"
+        assert result.data["day_of_week_abbr"] == "Wed"
+        assert result.data["day_of_week_num"] == "3"
+        assert result.data["day_of_year"] == "15"
+        assert result.data["day_of_year_padded"] == "015"
         assert result.data["day"] == "15"
+        assert result.data["week_of_year"] == "3"
+        assert result.data["week_of_year_padded"] == "03"
+        assert result.data["quarter"] == "1"
         assert result.data["year"] == "2025"
 
     @patch("plugins.date_time.datetime")
@@ -368,7 +382,14 @@ class TestDateTimeManifestMetadata:
             "datetime",
             "day",
             "day_of_week",
+            "day_of_week_abbr",
+            "day_of_week_num",
+            "day_of_year",
+            "day_of_year_padded",
+            "week_of_year",
+            "week_of_year_padded",
             "month",
+            "quarter",
             "year",
             "hour",
             "minute",

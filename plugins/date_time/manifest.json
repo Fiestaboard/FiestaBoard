@@ -109,6 +109,42 @@
         "max_length": 9,
         "example": "Friday"
       },
+      "day_of_week_abbr": {
+        "description": "Abbreviated day name (e.g. Tue)",
+        "group": "date",
+        "max_length": 3,
+        "example": "Fri"
+      },
+      "day_of_week_num": {
+        "description": "Day number (1-7)",
+        "group": "date",
+        "max_length": 1,
+        "example": "5"
+      },
+      "day_of_year": {
+        "description": "Day of year (1-366)",
+        "group": "date",
+        "max_length": 3,
+        "example": "1"
+      },
+      "day_of_year_padded": {
+        "description": "Day of year (001-366)",
+        "group": "date",
+        "max_length": 3,
+        "example": "001"
+      },
+      "week_of_year": {
+        "description": "Week of year (1-53)",
+        "group": "date",
+        "max_length": 2,
+        "example": "5"
+      },
+      "week_of_year_padded": {
+        "description": "Week of year (01-53)",
+        "group": "date",
+        "max_length": 2,
+        "example": "05"
+      },
       "month": {
         "description": "Full month name",
         "group": "date",
@@ -133,6 +169,13 @@
         "group": "date",
         "max_length": 3,
         "example": "Mar"
+      },
+      "quarter": {
+        "description": "Quarter number (1-4)",
+        "type": "number",
+        "group": "date",
+        "max_length": 1,
+        "example": "1"
       },
       "year": {
         "description": "Four-digit year",

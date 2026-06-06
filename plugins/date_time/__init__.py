@@ -138,9 +138,16 @@ class DateTimePlugin(PluginBase):
                 "time": now.strftime("%H:%M"),
                 "datetime": now.strftime("%Y-%m-%d %H:%M"),
                 "day_of_week": now.strftime("%A"),
+                "day_of_week_abbr": now.strftime("%a"),  # e.g. Mon, Tue, Wed
+                "day_of_week_num": now.strftime("%u"),  # 1-7 (Monday=1)
+                "day_of_year": str(int(now.strftime("%j"))),  # 1-366 (unpadded)
+                "day_of_year_padded": now.strftime("%j"),  # 001-366 (zero-padded)
+                "week_of_year": str(int(now.strftime("%V"))),  # 1-53 (unpadded)
+                "week_of_year_padded": now.strftime("%V"),  # 01-53 (zero-padded)
                 "timezone_abbr": now.strftime("%Z"),
                 "day": str(now.day),
                 "month": now.strftime("%B"),
+                "quarter": str((now.month - 1) // 3 + 1),
                 "year": str(now.year),
                 "hour": str(now.hour),
                 "minute": str(now.minute).zfill(2),
@@ -155,7 +162,9 @@ class DateTimePlugin(PluginBase):
                 # New month formats
                 "month_number": str(now.month),  # 1-12 (unpadded)
                 "month_number_padded": now.strftime("%m"),  # 01-12 (zero-padded)
-                "month_abbr": now.strftime("%b"),  # 3-letter abbreviation (Jan, Feb, etc.)
+                "month_abbr": now.strftime(
+                    "%b"
+                ),  # 3-letter abbreviation (Jan, Feb, etc.)
                 # Additional timezone info
                 "timezone": timezone_str,  # Full timezone name from config
                 # Spoken English time expression
