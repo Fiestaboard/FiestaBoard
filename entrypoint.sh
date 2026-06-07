@@ -228,31 +228,38 @@ sub_filter '"/api/'    '"$http_x_ingress_path/api/';
 sub_filter "'/api/"    "'$http_x_ingress_path/api/";
 # CSS `url(/_next/...)` -- unquoted is the form Next.js actually emits.
 sub_filter '(/_next/'  '($http_x_ingress_path/_next/';
-# Inject a runtime URL-patching script as the very first child of <head>.
+# Inject a *minimal* runtime URL-patching script as the very first
+# child of <head>.
 #
 # Next.js's client runtime constructs dynamic asset URLs (font preloads
-# via ReactDOM.preload, lazy chunk fetches) from a *build-time*
-# `assetPrefix` that's baked into the JS bundles -- empty by default.
-# Server-side sub_filter cannot reach those URLs because they don't
-# exist in the response at all; they're computed on the client after
-# hydration. The result was bare `/_next/static/media/...woff2` font
-# requests against the host's origin root and a broken render under
-# HA Ingress even after #913 and #914 landed.
+# via ReactDOM.preload) from a *build-time* `assetPrefix` that's baked
+# into the JS bundles -- empty by default. Server-side sub_filter
+# cannot reach those URLs because they don't exist in the response at
+# all; they're computed on the client after hydration. The result was
+# bare `/_next/static/media/...woff2` font requests against the host's
+# origin root and a broken render under HA Ingress even after #913
+# and #914 landed.
 #
-# The injected script detects the Ingress prefix from
-# `location.pathname` (only HA Ingress URLs match the regex; any other
-# proxy is a silent no-op), then patches `HTMLLinkElement.prototype.href`,
-# `HTMLScriptElement.prototype.src`, `HTMLImageElement.prototype.src`,
-# `Element.prototype.setAttribute`, `window.fetch`, and
-# `XMLHttpRequest.prototype.open` to prefix any leading-slash URL the
-# Next.js runtime hands them. Running as the first child of <head> means
-# every later script (including hydration) sees the patched versions.
+# Scope is deliberately narrow -- only `HTMLLinkElement.prototype.href`
+# setter. ReactDOM.preload (the React 19 path that triggered the
+# original bug for `next/font`) writes to this property directly. An
+# earlier iteration of this patch also overrode
+# `Element.prototype.setAttribute`, `window.fetch`,
+# `XMLHttpRequest.prototype.open`, and the script/img src setters; that
+# interfered with React 19's hydration internals in a way the unit
+# tests didn't catch (Suspense boundaries hung in pending state forever
+# under HA Ingress, even though the prototype patches were "working" by
+# probe). React 19 calls `setAttribute` and `fetch` heavily during
+# hydration; replacing them is too invasive to maintain.
+#
+# The script detects the Ingress prefix from `location.pathname` (only
+# HA Ingress URLs match the regex; any other proxy is a silent no-op).
 #
 # Standalone deployments never see this because the env var that gates
 # the snippet (FIESTABOARD_INGRESS_PATH_REWRITE) is off by default;
 # even if an operator turns it on, the script no-ops unless the path
 # matches the HA Ingress shape.
-sub_filter '<head>' '<head><script>(function(){var p=(location.pathname.match(/^\/api\/hassio_ingress\/[^\/]+/)||[])[0];if(!p)return;function f(u){return typeof u==="string"&&u.charCodeAt(0)===47&&u.charCodeAt(1)!==47&&u.indexOf(p)!==0?p+u:u;}function pp(c,k){var d=Object.getOwnPropertyDescriptor(c.prototype,k);if(!d||!d.set)return;Object.defineProperty(c.prototype,k,{set:function(v){d.set.call(this,f(v));},get:d.get,configurable:true});}pp(HTMLLinkElement,"href");pp(HTMLScriptElement,"src");pp(HTMLImageElement,"src");var sa=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if((n==="href"||n==="src")&&typeof v==="string")v=f(v);return sa.call(this,n,v);};var of=window.fetch;if(typeof of==="function")window.fetch=function(i,o){if(typeof i==="string")i=f(i);return of.call(this,i,o);};var oo=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string")arguments[1]=f(u);return oo.apply(this,arguments);};})();</script>';
+sub_filter '<head>' '<head><script>(function(){var p=(location.pathname.match(/^\/api\/hassio_ingress\/[^\/]+/)||[])[0];if(!p)return;function f(u){return typeof u==="string"&&u.charCodeAt(0)===47&&u.charCodeAt(1)!==47&&u.indexOf(p)!==0?p+u:u;}var d=Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype,"href");if(d&&d.set)Object.defineProperty(HTMLLinkElement.prototype,"href",{set:function(v){d.set.call(this,f(v));},get:d.get,configurable:true});})();</script>';
 NGINX
 }
 
