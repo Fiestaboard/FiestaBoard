@@ -27,7 +27,7 @@
 
 .dashboard {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 2.5rem;
   align-items: start;
   margin-bottom: 3rem;
