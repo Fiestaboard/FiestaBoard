@@ -8,19 +8,25 @@ import { VitePWA } from "vite-plugin-pwa";
 /**
  * Vite config for the React Router v7 framework-mode build.
  *
- * Critical choice: `base: "./"` emits relative asset URLs so the browser
- * resolves them against `<base href>`. nginx injects `<base href>` from
- * `X-Ingress-Path` at request time, which is how HA Supervisor Ingress
- * subpaths work without any prototype patching or sub_filter of asset
- * URLs. Direct deployments get `<base href="/">` (identity).
+ * `base: "/"` (absolute) is required because ES dynamic `import()` calls
+ * inside lazy route chunks resolve relative to the importing module's
+ * URL — NOT the document `<base href>`. With `base: "./"`, a chunk
+ * loaded from `/assets/index-X.js` would dynamic-import `./assets/foo.js`
+ * which resolves to `/assets/assets/foo.js` (double prefix) → 404.
  *
- * The Next.js → RR7 migration intentionally moves away from build-time
- * `assetPrefix` because there is no runtime equivalent in Next.js. See
- * the `<base href>` snippet in `entrypoint.sh::configure_ingress_path_rewrite`
- * for the nginx side.
+ * For HA Ingress, the runtime prefix is injected by nginx's sub_filter
+ * rewriting `/assets/`, `/sw.js`, `/icons/`, `/manifest.json` in both
+ * HTML and JS response bodies (see entrypoint.sh::configure_ingress_path_rewrite).
+ * Unlike Next.js's `<link rel="preload">` font URLs that React 19's
+ * `ReactDOM.preload()` constructs at runtime from a baked-in empty
+ * assetPrefix, every asset URL Vite emits lives as a string literal in
+ * the build output — nginx can rewrite them all.
+ *
+ * Direct deployments (`X-Ingress-Path` absent) get the snippet expanded
+ * to no-op substitutions and incur only the gzip-pass-through overhead.
  */
 export default defineConfig({
-  base: "./",
+  base: "/",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

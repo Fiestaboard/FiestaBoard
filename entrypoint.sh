@@ -146,23 +146,28 @@ configure_frame_headers() {
 # mount FiestaBoard under a per-installation URL prefix and signal that
 # prefix to the upstream via an `X-Ingress-Path` request header.
 #
-# Post-migration to React Router v7 (Vite SPA), the UI emits relative
-# asset URLs (`<script src="./assets/...">`) thanks to Vite's `base: "./"`
-# config. The browser resolves those against `<base href>` in the
-# document <head>. When FIESTABOARD_INGRESS_PATH_REWRITE=true, this
-# snippet injects exactly one rule: `<base href="$http_x_ingress_path/">`.
-# nginx fills in the value from the request header at proxy time.
+# Post-migration to React Router v7 (Vite SPA), the UI is built with
+# `base: "/"` (absolute paths). When FIESTABOARD_INGRESS_PATH_REWRITE=true
+# this snippet runs sub_filter on HTML, JS, and CSS responses to
+# prepend `$http_x_ingress_path` to every absolute reference to the
+# SPA's asset paths (`/assets/`, `/sw.js`, `/icons/`, `/manifest.json`,
+# `/favicon.ico`) and the API (`/api/`).
 #
-# That is the entire HA Ingress integration. No sub_filter of asset
-# URLs, no runtime prototype patching of HTMLLinkElement / fetch /
-# XMLHttpRequest, no fight with React 19's hydration internals. The
-# old four-fix chain (PRs #913, #914, #915, #918) collapses to one
-# nginx line.
+# Why this is safer than the Next.js setup we replaced: Vite emits
+# every asset URL as a string literal in the build output (HTML
+# `<link>`/`<script>` srcs, JS chunk import paths, CSS `url()`). There
+# is no analog of Next.js's React 19 `ReactDOM.preload()` that
+# constructs URLs at runtime from an empty build-time `assetPrefix`.
+# So sub_filter sees every URL and can rewrite it; no client-side
+# prototype patches of HTMLLinkElement / fetch / XMLHttpRequest are
+# needed. The four-fix chain (#913, #914, #915, #918) collapses to
+# this snippet.
 #
-# Direct deployments: when X-Ingress-Path is absent the variable
-# expands to "", giving `<base href="/">` — identity, no behavioral
-# change. Even with the snippet enabled, standalone Docker / the
-# public preview site keep working unchanged.
+# Direct deployments (X-Ingress-Path absent): the variable expands
+# to "", every substitution becomes a no-op self-rewrite, and the
+# response passes through with the only cost being the disabled
+# upstream gzip. Standalone Docker / the public preview site keep
+# working unchanged.
 configure_ingress_path_rewrite() {
     SNIPPET_DIR=/etc/nginx/fiestaboard/location-root
     SNIPPET=$SNIPPET_DIR/base-path-rewrite.conf
@@ -200,14 +205,36 @@ configure_ingress_path_rewrite() {
 # (nginx's outer `gzip on` re-compresses the rewritten response
 # before it leaves the box, so the wire-level bytes are still small.)
 proxy_set_header Accept-Encoding "";
-sub_filter_once on;
-# Inject <base href> into the HTML shell. Vite emits `<script src="./...">`
-# and `<link href="./..."> ` (relative URLs) thanks to `base: "./"` in
-# vite.config.ts, so the browser uses <base> to resolve them against
-# the Ingress prefix. Dynamic ESM imports also honor <base href> via
-# `import.meta.url`. This single rule replaces the runtime
-# prototype-patching that broke React 19 hydration.
-sub_filter '<head>' '<head><base href="$http_x_ingress_path/">';
+sub_filter_once off;
+# Also rewrite JS and CSS bodies, not just HTML. JS chunks contain
+# dynamic-import expressions like `import("/assets/foo.js")` (string
+# literals baked at build time). CSS contains `@font-face` `url(...)`
+# and CSS `url(/assets/...)` references. Without these the SPA loads
+# under HA Ingress but lazy routes 404 against the host origin root.
+sub_filter_types application/javascript text/css application/json;
+# Rewrite double-quoted ("/assets/"), single-quoted ('/assets/'), and
+# unquoted (CSS url(/assets/...) ) references. Same shape for /api/,
+# /sw.js, /registerSW.js, /icons/, /manifest.json, /favicon.ico —
+# these are the only absolute paths Vite emits.
+sub_filter '"/assets/' '"$http_x_ingress_path/assets/';
+sub_filter "'/assets/" "'$http_x_ingress_path/assets/";
+sub_filter '(/assets/' '($http_x_ingress_path/assets/';
+sub_filter '"/sw.js' '"$http_x_ingress_path/sw.js';
+sub_filter "'/sw.js" "'$http_x_ingress_path/sw.js";
+sub_filter '"/registerSW.js' '"$http_x_ingress_path/registerSW.js';
+sub_filter "'/registerSW.js" "'$http_x_ingress_path/registerSW.js";
+sub_filter '"/api/' '"$http_x_ingress_path/api/';
+sub_filter "'/api/" "'$http_x_ingress_path/api/";
+sub_filter '"/icons/' '"$http_x_ingress_path/icons/';
+sub_filter "'/icons/" "'$http_x_ingress_path/icons/";
+sub_filter '"/manifest.json' '"$http_x_ingress_path/manifest.json';
+sub_filter "'/manifest.json" "'$http_x_ingress_path/manifest.json";
+sub_filter '"/favicon.ico' '"$http_x_ingress_path/favicon.ico';
+sub_filter "'/favicon.ico" "'$http_x_ingress_path/favicon.ico";
+# href="/..." in the SPA's <Link to="/..."> renders are not rewritten —
+# React Router resolves them through its history API which honors the
+# document base. If we ever need to surface them through templates,
+# add explicit substitutions here.
 NGINX
 }
 
