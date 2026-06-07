@@ -226,17 +226,40 @@ class PluginBase(ABC):
         return refresh_schema.get("minimum", MIN_REFRESH_SECONDS)
 
     @property
+    def live_data(self) -> bool:
+        """Whether this plugin opts out of caching and serves fresh data every tick.
+
+        Plugins that genuinely need fresh data on every render (clocks,
+        animations, anything driven by ``now()``) set ``live_data: true``
+        at the top level of ``manifest.json``.  When true, :meth:`get_data`
+        skips the cache entirely and calls :meth:`fetch_data` on every call.
+
+        Defaults to ``False`` -- the safer behavior -- so plugins that
+        don't declare a refresh interval get a sensible default cache
+        instead of hammering their data source on every poll tick.
+        """
+        return bool(self._manifest.get("live_data", False))
+
+    @property
     def refresh_seconds(self) -> int | None:
         """Get the effective refresh interval in seconds.
 
-        Returns the configured value, falling back to the manifest default.
-        The value is clamped to never go below ``min_refresh_seconds`` --
-        even if the stored config contains a lower number.
-        Returns None if the plugin's manifest does not define refresh_seconds.
+        Resolution order:
+
+        1. If the plugin's manifest declares ``live_data: true``, return
+           ``None`` to signal "no cache" to :meth:`get_data`.
+        2. If the manifest declares ``refresh_seconds`` in its
+           ``settings_schema``, return the configured/default value
+           (clamped to ``min_refresh_seconds``).
+        3. Otherwise fall back to :data:`DEFAULT_REFRESH_SECONDS` so a
+           plugin that forgot to declare a refresh interval still gets a
+           reasonable cache instead of fetching fresh data on every tick.
         """
+        if self.live_data:
+            return None
         refresh_schema = self._get_refresh_schema()
         if refresh_schema is None:
-            return None
+            return DEFAULT_REFRESH_SECONDS
         default = refresh_schema.get("default", DEFAULT_REFRESH_SECONDS)
         value = self._config.get("refresh_seconds", default)
         floor = self.min_refresh_seconds
@@ -248,13 +271,24 @@ class PluginBase(ABC):
     def get_data(self) -> PluginResult:
         """Get plugin data with automatic caching based on refresh_seconds.
 
-        If the plugin's manifest defines refresh_seconds in settings_schema,
-        results are cached and reused until the refresh interval expires.
-        Plugins without refresh_seconds in their manifest always fetch fresh.
+        Behavior is controlled by the manifest:
+
+        * ``live_data: true`` -- bypass the cache entirely (every call
+          invokes :meth:`fetch_data`).  Use this for clocks/animations
+          where stale data is wrong by definition.
+        * ``settings_schema.properties.refresh_seconds`` declared -- cache
+          results for the configured interval.
+        * Neither declared -- cache results for
+          :data:`DEFAULT_REFRESH_SECONDS` (5 minutes).  This is the safer
+          default for random/static-ish data sources.
 
         Returns:
             PluginResult with data or error
         """
+        if self.live_data:
+            logger.debug(f"Live data plugin {self.plugin_id}: skipping cache")
+            return self.fetch_data()
+
         interval = self.refresh_seconds
 
         if interval is None:
