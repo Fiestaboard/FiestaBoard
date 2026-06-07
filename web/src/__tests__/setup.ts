@@ -127,6 +127,26 @@ vi.mock("next-intl", async () => {
   return mod;
 });
 
+/**
+ * The next-compat navigation shim (`@/lib/next-compat/navigation`) calls
+ * `useNavigate` / `useLocation` / `useSearchParams` / `useParams` from
+ * `react-router`. Those hooks throw when there's no `<Router>` ancestor —
+ * which is exactly the situation in unit tests that render a component
+ * in isolation. Mock the react-router hooks here so any `next/navigation`
+ * import (which Vite redirects to the shim) Just Works in tests without
+ * forcing every test file to wrap its render in `<MemoryRouter>`.
+ */
+vi.mock("react-router", async () => {
+  const actual = await vi.importActual<typeof import("react-router")>("react-router");
+  return {
+    ...actual,
+    useNavigate: () => vi.fn(),
+    useLocation: () => ({ pathname: "/", search: "", hash: "", state: null, key: "default" }),
+    useSearchParams: () => [new URLSearchParams(), vi.fn()],
+    useParams: () => ({}),
+  };
+});
+
 // Filter out jsdom localStorage file warnings
 // These are internal to jsdom and don't affect our tests
 const originalEmitWarning = process.emitWarning;
