@@ -38,14 +38,35 @@ type AppRouterInstance = {
   prefetch: (href: string) => void;
 };
 
+/**
+ * `next/navigation`'s `router.push(href)` / `router.replace(href)` are
+ * no-ops when `href` equals the current pathname (they don't strip the
+ * search / hash on a same-route navigation). Match that semantic here:
+ * if the caller asks to navigate to a bare pathname that matches where
+ * we already are, skip the call to RR7's `navigate`. Otherwise an
+ * already-on-this-route useEffect (like the login redirect placeholder
+ * at `app/login/page.tsx:107-131`) sees its `redirectTo` mutate when
+ * the query string is wiped, re-fires, and chains into an unintended
+ * second navigation.
+ */
+function isSameRouteNav(href: string): boolean {
+  if (typeof window === "undefined") return false;
+  // Only treat bare pathnames (no `?` / `#`) as candidates — anything
+  // explicitly carrying a new search / hash is a real navigation.
+  if (href.includes("?") || href.includes("#")) return false;
+  return window.location.pathname === href;
+}
+
 export function useRouter(): AppRouterInstance {
   const navigate = useNavigate();
   return useMemo(
     () => ({
       push: (href: string) => {
+        if (isSameRouteNav(href)) return;
         navigate(href);
       },
       replace: (href: string) => {
+        if (isSameRouteNav(href)) return;
         navigate(href, { replace: true });
       },
       back: () => {
