@@ -257,20 +257,45 @@
   background-clip: text;
 }
 
-/* Sidebar gradient: 3 pride colors spread wide across the spectrum */
-.pride-month .sidebar-gradient,
-.pride-month .sidebar-gradient-horizontal {
-  --sidebar-fiesta-red: #e40303;
-  --sidebar-fiesta-orange: #ffed00;
-  --sidebar-fiesta-purple: #750787;
+/* Pride month sidebar (dark mode only): dark base so the WebGL aurora is the visual.
+   Light mode keeps the original gradient — the aurora canvas overlays it.
+   .dark.pride-month targets <html> when it has both classes simultaneously. */
+.dark.pride-month .sidebar-gradient {
+  background: #0e0b18;
+  animation: none;
+  color: oklch(1 0 0);
+  --sidebar-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(1 0 0 / 14%);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --foreground: oklch(1 0 0);
+  --muted-foreground: oklch(1 0 0 / 75%);
 }
 
-/* Dark mode sidebar: muted pride colors to stay readable against dark text */
-.pride-month.dark .sidebar-gradient,
-.pride-month.dark .sidebar-gradient-horizontal {
-  --sidebar-fiesta-red: #8a1a10;
-  --sidebar-fiesta-orange: #7a7000;
-  --sidebar-fiesta-purple: #3d1268;
+/* Mobile horizontal header — dark mode only */
+.dark.pride-month .sidebar-gradient-horizontal {
+  background: #0e0b18;
+  animation: none;
+  color: oklch(1 0 0);
+  --sidebar-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(1 0 0 / 14%);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+}
+
+/* Pride easter egg — confetti burst particles spawned by JS on logo click */
+@keyframes pride-burst {
+  0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.2); opacity: 0; }
+}
+.pride-burst-particle {
+  position: fixed;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 9999;
+  animation: pride-burst var(--dur, 0.8s) ease-out forwards;
 }
 
 @layer base {

@@ -18,9 +18,12 @@ import {
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { FiestaLogo } from "@/components/fiesta-logo";
+import { SidebarAurora } from "@/components/sidebar-aurora";
+import { SidebarAuroraHorizontal } from "@/components/sidebar-aurora-horizontal";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { SidebarAccount } from "@/components/sidebar-account";
 import { useSidebar } from "@/components/sidebar-context";
@@ -55,6 +58,8 @@ const secondaryItems: NavItem[] = [
   { key: "settings", href: "/settings", icon: Settings },
 ];
 
+const PRIDE_COLORS = ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"];
+
 export function NavigationSidebar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -63,6 +68,45 @@ export function NavigationSidebar() {
   const { collapsed, transitioning, toggle, onTransitionEnd } = useSidebar();
   const t = useTranslations("navigation");
   const { isOpen: aiPanelOpen, open: openAiPanel } = useGlobalAiPanel();
+
+  const isPrideMonth = new Date().getMonth() === 5;
+
+  const firePrideCelebration = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isPrideMonth) return;
+      for (let i = 0; i < 48; i++) {
+        const p = document.createElement("div");
+        p.className = "pride-burst-particle";
+        const angle = (i / 48) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+        const dist = 80 + Math.random() * 160;
+        p.style.setProperty("--tx", `${Math.cos(angle) * dist}px`);
+        p.style.setProperty("--ty", `${Math.sin(angle) * dist}px`);
+        p.style.setProperty("--rot", `${Math.random() * 720 - 360}deg`);
+        p.style.setProperty("--dur", `${0.5 + Math.random() * 0.5}s`);
+        p.style.background = PRIDE_COLORS[i % 6];
+        p.style.left = `${e.clientX - 3.5}px`;
+        p.style.top = `${e.clientY - 3.5}px`;
+        document.body.appendChild(p);
+        p.addEventListener("animationend", () => p.remove());
+      }
+      toast.custom(() => (
+        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#111] px-5 py-2.5 text-[15px] font-bold shadow-xl">
+          <span
+            style={{
+              background: "linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            Happy Pride!
+          </span>{" "}
+          🏳️‍🌈
+        </div>
+      ));
+    },
+    [isPrideMonth],
+  );
 
   const { data: aiSettings } = useQuery<AISettings>({
     queryKey: ["ai-settings"],
@@ -212,8 +256,9 @@ export function NavigationSidebar() {
   return (
     <>
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-2 left-3 right-3 z-[100] sidebar-gradient-horizontal">
-        <div className="flex items-center px-4 h-14">
+      <header className="lg:hidden fixed top-2 left-3 right-3 z-[100] overflow-hidden sidebar-gradient-horizontal">
+        {isPrideMonth && <SidebarAuroraHorizontal />}
+        <div className="relative z-[1] flex items-center px-4 h-14">
           <Button
             variant="ghost"
             size="icon"
@@ -229,7 +274,10 @@ export function NavigationSidebar() {
               <Menu className="h-6 w-6" />
             )}
           </Button>
-          <div className="flex items-center gap-3 min-w-0 flex-1 ml-2">
+          <div
+            className={cn("flex items-center gap-3 min-w-0 flex-1 ml-2", isPrideMonth && "cursor-pointer")}
+            onClick={isPrideMonth ? firePrideCelebration : undefined}
+          >
             <Image src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
             <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
           </div>
@@ -310,6 +358,7 @@ export function NavigationSidebar() {
             }
           }}
         >
+          {isPrideMonth && <SidebarAurora />}
           {/* Edge toggle button -- sits on the sidebar border, Jira-style */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -324,9 +373,12 @@ export function NavigationSidebar() {
             <TooltipContent side="right">{collapsed ? t("expandSidebar") : t("collapseSidebar")}</TooltipContent>
           </Tooltip>
 
-          <div className="flex h-full flex-col overflow-hidden">
+          <div className="relative z-[1] flex h-full flex-col overflow-hidden">
             {/* Header */}
-            <div className="flex items-center gap-2 overflow-hidden px-4 py-4">
+            <div
+              className={cn("flex items-center gap-2 overflow-hidden px-4 py-4", isPrideMonth && "cursor-pointer")}
+              onClick={isPrideMonth ? firePrideCelebration : undefined}
+            >
               <Image src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
               <FiestaLogo
                 className={cn(
