@@ -156,21 +156,27 @@ configure_frame_headers() {
 #      payloads; nginx's outer `gzip on` still compresses the rewritten
 #      response before it leaves the box).
 #   2. Adds sub_filter rules that prepend `$http_x_ingress_path` to
-#      absolute `/_next/` and `/api/` references in HTML responses,
-#      covering both `"` and `'` quote styles.
+#      absolute `/_next/` and `/api/` references in HTML and CSS
+#      responses, covering both `"`, `'`, and the unquoted `url()`
+#      form Next.js emits in stylesheets.
+#   3. Injects a runtime URL-patching script as the first child of
+#      `<head>`. The script detects the HA Ingress prefix from
+#      `location.pathname` and patches the DOM property setters
+#      (`HTMLLinkElement.href`, etc.), `Element.prototype.setAttribute`,
+#      `window.fetch`, and `XMLHttpRequest.prototype.open` so URLs the
+#      Next.js client runtime constructs *after* hydration (font
+#      preloads via `ReactDOM.preload`, lazy chunks, etc.) get the
+#      prefix too. Without this last piece, Next.js's build-time
+#      `assetPrefix=""` produces bare `/_next/...` requests that 404
+#      against the host's origin root and break dynamic typography /
+#      lazy assets even though the initial HTML response is correct.
 #
 # When the env var is unset/false the snippet directory stays empty, so
 # direct (non-proxy) deployments incur zero buffering or gzip overhead.
 # Inside the snippet, when X-Ingress-Path is absent the substitutions
-# degenerate to self-substitutions, so toggling the var ON for a direct
-# deployment is also safe (just wasteful).
-#
-# Scope: this handles the initial HTML and its inline asset references,
-# which is what resolves the immediate chunk 404s seen behind HA Ingress.
-# Next.js client-side router navigation uses paths baked at build time
-# and is not yet covered here -- callers that need full SPA navigation
-# under a prefix will additionally need a runtime `assetPrefix` plumbed
-# through next.config.ts.
+# degenerate to self-substitutions and the injected script's regex
+# does not match, so it is a no-op -- toggling the var ON for a direct
+# deployment is safe (just wasteful).
 configure_ingress_path_rewrite() {
     SNIPPET_DIR=/etc/nginx/fiestaboard/location-root
     SNIPPET=$SNIPPET_DIR/base-path-rewrite.conf
@@ -222,6 +228,31 @@ sub_filter '"/api/'    '"$http_x_ingress_path/api/';
 sub_filter "'/api/"    "'$http_x_ingress_path/api/";
 # CSS `url(/_next/...)` -- unquoted is the form Next.js actually emits.
 sub_filter '(/_next/'  '($http_x_ingress_path/_next/';
+# Inject a runtime URL-patching script as the very first child of <head>.
+#
+# Next.js's client runtime constructs dynamic asset URLs (font preloads
+# via ReactDOM.preload, lazy chunk fetches) from a *build-time*
+# `assetPrefix` that's baked into the JS bundles -- empty by default.
+# Server-side sub_filter cannot reach those URLs because they don't
+# exist in the response at all; they're computed on the client after
+# hydration. The result was bare `/_next/static/media/...woff2` font
+# requests against the host's origin root and a broken render under
+# HA Ingress even after #913 and #914 landed.
+#
+# The injected script detects the Ingress prefix from
+# `location.pathname` (only HA Ingress URLs match the regex; any other
+# proxy is a silent no-op), then patches `HTMLLinkElement.prototype.href`,
+# `HTMLScriptElement.prototype.src`, `HTMLImageElement.prototype.src`,
+# `Element.prototype.setAttribute`, `window.fetch`, and
+# `XMLHttpRequest.prototype.open` to prefix any leading-slash URL the
+# Next.js runtime hands them. Running as the first child of <head> means
+# every later script (including hydration) sees the patched versions.
+#
+# Standalone deployments never see this because the env var that gates
+# the snippet (FIESTABOARD_INGRESS_PATH_REWRITE) is off by default;
+# even if an operator turns it on, the script no-ops unless the path
+# matches the HA Ingress shape.
+sub_filter '<head>' '<head><script>(function(){var p=(location.pathname.match(/^\/api\/hassio_ingress\/[^\/]+/)||[])[0];if(!p)return;function f(u){return typeof u==="string"&&u.charCodeAt(0)===47&&u.charCodeAt(1)!==47&&u.indexOf(p)!==0?p+u:u;}function pp(c,k){var d=Object.getOwnPropertyDescriptor(c.prototype,k);if(!d||!d.set)return;Object.defineProperty(c.prototype,k,{set:function(v){d.set.call(this,f(v));},get:d.get,configurable:true});}pp(HTMLLinkElement,"href");pp(HTMLScriptElement,"src");pp(HTMLImageElement,"src");var sa=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if((n==="href"||n==="src")&&typeof v==="string")v=f(v);return sa.call(this,n,v);};var of=window.fetch;if(typeof of==="function")window.fetch=function(i,o){if(typeof i==="string")i=f(i);return of.call(this,i,o);};var oo=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string")arguments[1]=f(u);return oo.apply(this,arguments);};})();</script>';
 NGINX
 }
 
