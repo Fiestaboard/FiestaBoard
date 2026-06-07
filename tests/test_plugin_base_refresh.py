@@ -61,6 +61,26 @@ MANIFEST_BARE = {
     "version": "1.0.0",
 }
 
+MANIFEST_LIVE_DATA = {
+    "id": "test_plugin",
+    "name": "Test Plugin",
+    "version": "1.0.0",
+    "live_data": True,
+}
+
+MANIFEST_LIVE_DATA_WITH_SCHEMA = {
+    "id": "test_plugin",
+    "name": "Test Plugin",
+    "version": "1.0.0",
+    "live_data": True,
+    "settings_schema": {
+        "type": "object",
+        "properties": {
+            "refresh_seconds": {"type": "integer", "default": 120, "minimum": 30},
+        },
+    },
+}
+
 
 class ConcretePlugin(PluginBase):
     """Concrete plugin for testing base class behavior."""
@@ -90,6 +110,28 @@ class FailingPlugin(PluginBase):
 
     def fetch_data(self) -> PluginResult:
         return PluginResult(available=False, error="always fails")
+
+
+# --- live_data property ---
+
+
+class TestLiveDataProperty:
+    def test_defaults_to_false(self):
+        plugin = ConcretePlugin(MANIFEST_BARE)
+        assert plugin.live_data is False
+
+    def test_false_when_not_declared(self):
+        plugin = ConcretePlugin(MANIFEST_WITH_REFRESH)
+        assert plugin.live_data is False
+
+    def test_true_when_manifest_opts_in(self):
+        plugin = ConcretePlugin(MANIFEST_LIVE_DATA)
+        assert plugin.live_data is True
+
+    def test_explicit_false(self):
+        manifest = {**MANIFEST_BARE, "live_data": False}
+        plugin = ConcretePlugin(manifest)
+        assert plugin.live_data is False
 
 
 # --- _get_refresh_schema ---
@@ -126,12 +168,28 @@ class TestRefreshSecondsProperty:
         plugin._config = {"refresh_seconds": 60}
         assert plugin.refresh_seconds == 60
 
-    def test_returns_none_without_schema(self):
+    def test_defaults_to_300s_without_schema(self):
+        """Plugins without a refresh_seconds schema get a safe 5-minute cache by default.
+
+        Before this fix the property returned ``None`` (meaning "no cache"),
+        which caused random-data plugins like Star Trek Quotes to re-fetch
+        on every poll tick and flip the board every ~14 seconds.
+        """
         plugin = ConcretePlugin(MANIFEST_WITHOUT_REFRESH)
+        assert plugin.refresh_seconds == DEFAULT_REFRESH_SECONDS
+
+    def test_defaults_to_300s_for_bare_manifest(self):
+        plugin = ConcretePlugin(MANIFEST_BARE)
+        assert plugin.refresh_seconds == DEFAULT_REFRESH_SECONDS
+
+    def test_returns_none_when_live_data_true(self):
+        """``live_data: true`` opts out of caching and signals "always fresh"."""
+        plugin = ConcretePlugin(MANIFEST_LIVE_DATA)
         assert plugin.refresh_seconds is None
 
-    def test_returns_none_for_bare_manifest(self):
-        plugin = ConcretePlugin(MANIFEST_BARE)
+    def test_live_data_overrides_explicit_schema(self):
+        """``live_data: true`` wins even when refresh_seconds is declared in the schema."""
+        plugin = ConcretePlugin(MANIFEST_LIVE_DATA_WITH_SCHEMA)
         assert plugin.refresh_seconds is None
 
     def test_falls_back_to_global_default_when_schema_missing_default(self):
@@ -174,19 +232,52 @@ class TestGetDataCaching:
         plugin.get_data()
         assert plugin.fetch_call_count == 2
 
-    def test_no_caching_without_schema(self):
+    def test_caches_with_default_300s_when_no_schema(self):
+        """Plugins without a refresh_seconds schema should still cache.
+
+        Regression test for the board-flipping bug: previously a plugin
+        with no ``refresh_seconds`` in its manifest fell through to
+        ``fetch_data()`` on every call, causing random-data plugins to
+        pick a fresh value every poll tick.
+        """
         plugin = ConcretePlugin(MANIFEST_WITHOUT_REFRESH)
 
         plugin.get_data()
         plugin.get_data()
-        assert plugin.fetch_call_count == 2
+        assert plugin.fetch_call_count == 1
 
-    def test_no_caching_for_bare_manifest(self):
+    def test_caches_with_default_300s_for_bare_manifest(self):
         plugin = ConcretePlugin(MANIFEST_BARE)
 
         plugin.get_data()
         plugin.get_data()
+        assert plugin.fetch_call_count == 1
+
+    def test_default_cache_expires_after_300s(self):
+        plugin = ConcretePlugin(MANIFEST_BARE)
+
+        plugin.get_data()
+        assert plugin.fetch_call_count == 1
+
+        plugin._last_fetch_time = datetime.now() - timedelta(seconds=DEFAULT_REFRESH_SECONDS + 1)
+        plugin.get_data()
         assert plugin.fetch_call_count == 2
+
+    def test_live_data_skips_cache_entirely(self):
+        """``live_data: true`` calls ``fetch_data()`` every time."""
+        plugin = ConcretePlugin(MANIFEST_LIVE_DATA)
+
+        plugin.get_data()
+        plugin.get_data()
+        plugin.get_data()
+        assert plugin.fetch_call_count == 3
+
+    def test_live_data_does_not_populate_cache(self):
+        plugin = ConcretePlugin(MANIFEST_LIVE_DATA)
+
+        plugin.get_data()
+        assert plugin._cached_result is None
+        assert plugin._last_fetch_time is None
 
     def test_does_not_cache_failed_result(self):
         plugin = FailingPlugin(MANIFEST_WITH_REFRESH)
@@ -463,6 +554,11 @@ class TestRuntimeClamping:
         assert plugin.fetch_call_count == 1
 
     def test_no_clamping_without_floor(self):
+        """When the manifest declares no refresh_seconds schema there's no floor
+        to clamp against, but the property now returns the safe 300s default
+        rather than None (and ignores stray config values for refresh_seconds
+        since the schema doesn't acknowledge the field).
+        """
         plugin = ConcretePlugin(MANIFEST_WITHOUT_REFRESH)
         plugin._config = {"refresh_seconds": 1}
-        assert plugin.refresh_seconds is None
+        assert plugin.refresh_seconds == DEFAULT_REFRESH_SECONDS
