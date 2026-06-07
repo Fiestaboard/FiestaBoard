@@ -91,8 +91,57 @@ except (FileNotFoundError, json.JSONDecodeError, OSError):
     fi
 }
 
+# ---------------------------------------------------------------------------
+# Frame-embedding headers
+# ---------------------------------------------------------------------------
+# nginx.conf / nginx.https.conf / nginx-dev.conf each `include` the snippets
+# directory inside their `server` block; this function renders the actual
+# `add_header` lines into /etc/nginx/fiestaboard/frame-headers.conf so they can
+# be controlled by env without baking a value into the image.
+#
+# Env vars (both optional):
+#   FIESTABOARD_X_FRAME_OPTIONS  Defaults to "SAMEORIGIN" (historical
+#                                behavior).  Common values: SAMEORIGIN, DENY.
+#                                Special value "OFF" omits the header entirely
+#                                so a CSP `frame-ancestors` directive can
+#                                fully control framing in modern browsers.
+#   FIESTABOARD_FRAME_ANCESTORS  Optional CSP `frame-ancestors` value.  When
+#                                set, emits `Content-Security-Policy:
+#                                frame-ancestors <value>`.  Example values:
+#                                "'self'", "'self' https://my.host", "*".
+#
+# Defaults preserve the previous hard-coded `X-Frame-Options: SAMEORIGIN`
+# for any deployment that doesn't set the new vars.  When the host has
+# /etc/nginx bind-mounted read-only (e.g. some dev compose setups), we
+# skip silently and fall back to whatever the mounted config provides.
+configure_frame_headers() {
+    SNIPPET_DIR=/etc/nginx/fiestaboard
+    SNIPPET=$SNIPPET_DIR/frame-headers.conf
+
+    if ! mkdir -p "$SNIPPET_DIR" 2>/dev/null; then
+        echo "[entrypoint] cannot create $SNIPPET_DIR; using built-in defaults" >&2
+        return 0
+    fi
+    if ! touch "$SNIPPET" 2>/dev/null; then
+        echo "[entrypoint] $SNIPPET is read-only; skipping frame-header setup" >&2
+        return 0
+    fi
+
+    XFO="${FIESTABOARD_X_FRAME_OPTIONS-SAMEORIGIN}"
+
+    : > "$SNIPPET"
+    if [ -n "$XFO" ] && [ "$XFO" != "OFF" ]; then
+        printf 'add_header X-Frame-Options "%s" always;\n' "$XFO" >> "$SNIPPET"
+    fi
+    if [ -n "${FIESTABOARD_FRAME_ANCESTORS:-}" ]; then
+        printf 'add_header Content-Security-Policy "frame-ancestors %s" always;\n' \
+            "$FIESTABOARD_FRAME_ANCESTORS" >> "$SNIPPET"
+    fi
+}
+
 # Run cert/config setup before dropping privileges so the entrypoint can
 # both write /etc/nginx/nginx.conf (root-owned) and chown cert files.
+configure_frame_headers
 configure_https
 
 # ---------------------------------------------------------------------------
