@@ -96,7 +96,7 @@ except (FileNotFoundError, json.JSONDecodeError, OSError):
 # ---------------------------------------------------------------------------
 # nginx.conf / nginx.https.conf / nginx-dev.conf each `include` the snippets
 # directory inside their `server` block; this function renders the actual
-# `add_header` lines into /etc/nginx/snippets/frame-headers.conf so they can
+# `add_header` lines into /etc/nginx/fiestaboard/frame-headers.conf so they can
 # be controlled by env without baking a value into the image.
 #
 # Env vars (both optional):
@@ -115,7 +115,7 @@ except (FileNotFoundError, json.JSONDecodeError, OSError):
 # /etc/nginx bind-mounted read-only (e.g. some dev compose setups), we
 # skip silently and fall back to whatever the mounted config provides.
 configure_frame_headers() {
-    SNIPPET_DIR=/etc/nginx/snippets
+    SNIPPET_DIR=/etc/nginx/fiestaboard
     SNIPPET=$SNIPPET_DIR/frame-headers.conf
 
     if ! mkdir -p "$SNIPPET_DIR" 2>/dev/null; then

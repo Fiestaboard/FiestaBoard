@@ -115,7 +115,8 @@ RUN mkdir -p /app/static
 COPY starting.html /app/static/starting.html
 
 # Create nginx directories and set permissions
-RUN mkdir -p /var/log/nginx /var/lib/nginx/tmp /run/nginx /var/lib/nginx/body
+# /etc/nginx/fiestaboard is our dedicated snippet dir (avoids Debian's /etc/nginx/snippets/).
+RUN mkdir -p /var/log/nginx /var/lib/nginx/tmp /run/nginx /var/lib/nginx/body /etc/nginx/fiestaboard
 
 # Create data directory for logs and app state
 RUN mkdir -p /app/data/logs
