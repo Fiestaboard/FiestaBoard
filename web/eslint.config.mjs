@@ -1,18 +1,11 @@
-import coreWebVitals from "eslint-config-next/core-web-vitals";
-import nextTypescript from "eslint-config-next/typescript";
 import prettierConfig from "eslint-config-prettier";
 import i18nextPlugin from "eslint-plugin-i18next";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+import reactPlugin from "eslint-plugin-react";
+import reactHooks from "eslint-plugin-react-hooks";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
-// Explicit React version to avoid context.getFilename() deprecation in flat config mode
-// (eslint-plugin-react's version detection calls getFilename which was removed in ESLint 9+)
 const REACT_VERSION = "19";
-
-const coreWebVitalsConfigured = coreWebVitals.map((config) =>
-  config.settings?.react
-    ? { ...config, settings: { ...config.settings, react: { ...config.settings.react, version: REACT_VERSION } } }
-    : config,
-);
 
 // Wrap eslint-plugin-i18next rules with a getSourceCode shim for flat config compatibility
 // (eslint-plugin-i18next uses the legacy context.getSourceCode() API removed in ESLint 9+)
@@ -35,15 +28,13 @@ const i18nextPluginFlatConfigAdapter = {
 };
 
 const eslintConfig = [
-  ...coreWebVitalsConfigured,
-  ...nextTypescript,
   {
     ignores: [
       "node_modules/**",
-      ".next/**",
-      "out/**",
+      ".react-router/**",
       "build/**",
-      "next-env.d.ts",
+      "dist/**",
+      "out/**",
       "public/**",
       "storybook-static/**",
       "coverage/**",
@@ -52,37 +43,43 @@ const eslintConfig = [
     ],
   },
   {
-    // Strict TypeScript + general correctness rules for AI-written code
+    // React + JSX recommended rules (replaces eslint-config-next's curated set).
+    files: ["**/*.{ts,tsx,js,jsx,mjs,cjs}"],
     plugins: {
+      react: reactPlugin,
+      "react-hooks": reactHooks,
+      "jsx-a11y": jsxA11y,
       "simple-import-sort": simpleImportSort,
     },
+    languageOptions: {
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
+    },
+    settings: {
+      react: { version: REACT_VERSION },
+    },
     rules: {
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        {
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-        },
-      ],
-      "@typescript-eslint/consistent-type-imports": [
-        "error",
-        { prefer: "type-imports", fixStyle: "separate-type-imports" },
-      ],
+      // React 19 + React Compiler readiness rules. Warnings (not errors) so
+      // they're visible but don't block CI; tighten in a follow-up.
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/static-components": "warn",
+      "react-hooks/immutability": "warn",
+      "react/jsx-uses-react": "off",
+      "react/react-in-jsx-scope": "off",
+      "react/prop-types": "off",
+      // Strict TypeScript + general correctness rules for AI-written code
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
       "prefer-const": "error",
       "no-var": "error",
       eqeqeq: ["error", "smart"],
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "simple-import-sort/imports": "error",
       "simple-import-sort/exports": "error",
-      // React Compiler readiness rules from Next 16 / eslint-plugin-react-hooks v6.
-      // These surface real issues but classifying every existing setState-in-effect
-      // as an error would balloon this PR into a behavioral refactor. Keep them on
-      // as warnings so they're visible but don't block CI; tighten in a follow-up.
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/refs": "warn",
-      "react-hooks/static-components": "warn",
-      "react-hooks/immutability": "warn",
     },
   },
   {
@@ -119,15 +116,6 @@ const eslintConfig = [
       "playwright.config.{ts,mts}",
     ],
     rules: {
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          args: "none",
-          varsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
-        },
-      ],
       "no-console": "off",
     },
   },

@@ -1,28 +1,15 @@
 import "../src/app/globals.css";
+import "@fontsource-variable/geist";
+import "@fontsource-variable/geist-mono";
 
-import type { Preview } from "@storybook/nextjs";
+import type { Preview } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { NextIntlClientProvider } from "next-intl";
 import { ThemeProvider, useTheme } from "next-themes";
 import { useEffect } from "react";
+import { I18nextProvider, useTranslation } from "react-i18next";
 
-import de from "../messages/de.json";
-import en from "../messages/en.json";
-import es from "../messages/es.json";
-import fr from "../messages/fr.json";
-import it from "../messages/it.json";
-import ja from "../messages/ja.json";
-import ko from "../messages/ko.json";
-import nl from "../messages/nl.json";
-import pl from "../messages/pl.json";
-import pt from "../messages/pt.json";
-import ru from "../messages/ru.json";
-import sv from "../messages/sv.json";
-import tr from "../messages/tr.json";
-import zh from "../messages/zh.json";
 import { type Locale, localeNames, locales } from "../src/i18n/config";
-
-const messages: Record<Locale, typeof en> = { en, es, fr, de, it, pt, nl, pl, ru, sv, tr, ja, ko, zh };
+import i18n from "../src/i18n/i18next";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,6 +23,14 @@ const queryClient = new QueryClient({
 function ThemeSync({ theme }: { theme: string }) {
   const { setTheme } = useTheme();
   useEffect(() => setTheme(theme), [theme, setTheme]);
+  return null;
+}
+
+function LocaleSync({ locale }: { locale: Locale }) {
+  const { i18n: rrtI18n } = useTranslation();
+  useEffect(() => {
+    void rrtI18n.changeLanguage(locale);
+  }, [locale, rrtI18n]);
   return null;
 }
 
@@ -78,9 +73,6 @@ const preview: Preview = {
         date: /Date$/i,
       },
     },
-    nextjs: {
-      appDirectory: true,
-    },
     a11y: {
       config: {
         rules: [
@@ -96,7 +88,7 @@ const preview: Preview = {
       const theme = context.globals.theme || "dark";
       const locale = (context.globals.locale || "en") as Locale;
       return (
-        <NextIntlClientProvider locale={locale} messages={messages[locale]}>
+        <I18nextProvider i18n={i18n}>
           <QueryClientProvider client={queryClient}>
             <ThemeProvider
               attribute="class"
@@ -106,12 +98,13 @@ const preview: Preview = {
               disableTransitionOnChange
             >
               <ThemeSync theme={theme} />
+              <LocaleSync locale={locale} />
               <main className="min-h-screen bg-background text-foreground p-8">
                 <Story />
               </main>
             </ThemeProvider>
           </QueryClientProvider>
-        </NextIntlClientProvider>
+        </I18nextProvider>
       );
     },
   ],

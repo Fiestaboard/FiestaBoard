@@ -142,41 +142,27 @@ configure_frame_headers() {
 # ---------------------------------------------------------------------------
 # Reverse-proxy base-path rewriting (e.g. Home Assistant Ingress)
 # ---------------------------------------------------------------------------
-# Some embedding contexts (HA Supervisor Ingress, traefik subpath routing)
+# Some embedding contexts (HA Supervisor Ingress, Traefik subpath routing)
 # mount FiestaBoard under a per-installation URL prefix and signal that
-# prefix to the upstream via an `X-Ingress-Path` request header. Without
-# any rewriting, the browser sees `<script src="/_next/...">` in the
-# returned HTML, resolves it against the iframe's *origin root*, bypasses
-# the proxy, and 404s -- visible to users as "Refused to execute ...
-# nosniff" console errors and a broken sidebar iframe.
+# prefix to the upstream via an `X-Ingress-Path` request header.
 #
-# When FIESTABOARD_INGRESS_PATH_REWRITE=true, render a `location /`
-# snippet that:
-#   1. Disables upstream gzip (sub_filter cannot rewrite compressed
-#      payloads; nginx's outer `gzip on` still compresses the rewritten
-#      response before it leaves the box).
-#   2. Adds sub_filter rules that prepend `$http_x_ingress_path` to
-#      absolute `/_next/` and `/api/` references in HTML and CSS
-#      responses, covering both `"`, `'`, and the unquoted `url()`
-#      form Next.js emits in stylesheets.
-#   3. Injects a runtime URL-patching script as the first child of
-#      `<head>`. The script detects the HA Ingress prefix from
-#      `location.pathname` and patches the DOM property setters
-#      (`HTMLLinkElement.href`, etc.), `Element.prototype.setAttribute`,
-#      `window.fetch`, and `XMLHttpRequest.prototype.open` so URLs the
-#      Next.js client runtime constructs *after* hydration (font
-#      preloads via `ReactDOM.preload`, lazy chunks, etc.) get the
-#      prefix too. Without this last piece, Next.js's build-time
-#      `assetPrefix=""` produces bare `/_next/...` requests that 404
-#      against the host's origin root and break dynamic typography /
-#      lazy assets even though the initial HTML response is correct.
+# Post-migration to React Router v7 (Vite SPA), the UI emits relative
+# asset URLs (`<script src="./assets/...">`) thanks to Vite's `base: "./"`
+# config. The browser resolves those against `<base href>` in the
+# document <head>. When FIESTABOARD_INGRESS_PATH_REWRITE=true, this
+# snippet injects exactly one rule: `<base href="$http_x_ingress_path/">`.
+# nginx fills in the value from the request header at proxy time.
 #
-# When the env var is unset/false the snippet directory stays empty, so
-# direct (non-proxy) deployments incur zero buffering or gzip overhead.
-# Inside the snippet, when X-Ingress-Path is absent the substitutions
-# degenerate to self-substitutions and the injected script's regex
-# does not match, so it is a no-op -- toggling the var ON for a direct
-# deployment is safe (just wasteful).
+# That is the entire HA Ingress integration. No sub_filter of asset
+# URLs, no runtime prototype patching of HTMLLinkElement / fetch /
+# XMLHttpRequest, no fight with React 19's hydration internals. The
+# old four-fix chain (PRs #913, #914, #915, #918) collapses to one
+# nginx line.
+#
+# Direct deployments: when X-Ingress-Path is absent the variable
+# expands to "", giving `<base href="/">` — identity, no behavioral
+# change. Even with the snippet enabled, standalone Docker / the
+# public preview site keep working unchanged.
 configure_ingress_path_rewrite() {
     SNIPPET_DIR=/etc/nginx/fiestaboard/location-root
     SNIPPET=$SNIPPET_DIR/base-path-rewrite.conf
@@ -187,8 +173,7 @@ configure_ingress_path_rewrite() {
     fi
 
     # Default OFF -- only enabled when the operator opts in. This keeps
-    # direct deployments (standalone Docker, the public preview site) on
-    # the zero-overhead path.
+    # direct deployments on the zero-overhead path.
     case "${FIESTABOARD_INGRESS_PATH_REWRITE:-false}" in
         true|TRUE|1|yes|YES)
             ;;
@@ -207,59 +192,22 @@ configure_ingress_path_rewrite() {
         return 0
     fi
 
-    # The single quotes inside the search/replacement strings are literal
-    # characters that must match the HTML payload (`href='/_next/...'`),
-    # not shell quoting. We use a quoted heredoc so nginx receives them
-    # verbatim and so `$http_x_ingress_path` is preserved for nginx to
-    # expand at request time rather than being interpolated by the shell.
+    # Use a quoted heredoc so `$http_x_ingress_path` is preserved
+    # verbatim for nginx to expand at request time (instead of being
+    # interpolated by the shell at config-render time).
     cat > "$SNIPPET" <<'NGINX'
+# Strip upstream gzip so sub_filter can see the response body.
+# (nginx's outer `gzip on` re-compresses the rewritten response
+# before it leaves the box, so the wire-level bytes are still small.)
 proxy_set_header Accept-Encoding "";
-sub_filter_once off;
-# Also rewrite CSS bodies, not just HTML. Next.js emits @font-face
-# declarations like `src: url(/_next/static/media/...woff2)` inside its
-# generated stylesheets; those URLs are unquoted and live in a text/css
-# response, so the default HTML-only sub_filter never sees them, fonts
-# 404 against the host's origin root, and the rendered UI loses its
-# typography (typically appearing as a near-blank dark layout).
-sub_filter_types text/css;
-sub_filter '"/_next/'  '"$http_x_ingress_path/_next/';
-sub_filter "'/_next/"  "'$http_x_ingress_path/_next/";
-sub_filter '"/api/'    '"$http_x_ingress_path/api/';
-sub_filter "'/api/"    "'$http_x_ingress_path/api/";
-# CSS `url(/_next/...)` -- unquoted is the form Next.js actually emits.
-sub_filter '(/_next/'  '($http_x_ingress_path/_next/';
-# Inject a *minimal* runtime URL-patching script as the very first
-# child of <head>.
-#
-# Next.js's client runtime constructs dynamic asset URLs (font preloads
-# via ReactDOM.preload) from a *build-time* `assetPrefix` that's baked
-# into the JS bundles -- empty by default. Server-side sub_filter
-# cannot reach those URLs because they don't exist in the response at
-# all; they're computed on the client after hydration. The result was
-# bare `/_next/static/media/...woff2` font requests against the host's
-# origin root and a broken render under HA Ingress even after #913
-# and #914 landed.
-#
-# Scope is deliberately narrow -- only `HTMLLinkElement.prototype.href`
-# setter. ReactDOM.preload (the React 19 path that triggered the
-# original bug for `next/font`) writes to this property directly. An
-# earlier iteration of this patch also overrode
-# `Element.prototype.setAttribute`, `window.fetch`,
-# `XMLHttpRequest.prototype.open`, and the script/img src setters; that
-# interfered with React 19's hydration internals in a way the unit
-# tests didn't catch (Suspense boundaries hung in pending state forever
-# under HA Ingress, even though the prototype patches were "working" by
-# probe). React 19 calls `setAttribute` and `fetch` heavily during
-# hydration; replacing them is too invasive to maintain.
-#
-# The script detects the Ingress prefix from `location.pathname` (only
-# HA Ingress URLs match the regex; any other proxy is a silent no-op).
-#
-# Standalone deployments never see this because the env var that gates
-# the snippet (FIESTABOARD_INGRESS_PATH_REWRITE) is off by default;
-# even if an operator turns it on, the script no-ops unless the path
-# matches the HA Ingress shape.
-sub_filter '<head>' '<head><script>(function(){var p=(location.pathname.match(/^\/api\/hassio_ingress\/[^\/]+/)||[])[0];if(!p)return;function f(u){return typeof u==="string"&&u.charCodeAt(0)===47&&u.charCodeAt(1)!==47&&u.indexOf(p)!==0?p+u:u;}var d=Object.getOwnPropertyDescriptor(HTMLLinkElement.prototype,"href");if(d&&d.set)Object.defineProperty(HTMLLinkElement.prototype,"href",{set:function(v){d.set.call(this,f(v));},get:d.get,configurable:true});})();</script>';
+sub_filter_once on;
+# Inject <base href> into the HTML shell. Vite emits `<script src="./...">`
+# and `<link href="./..."> ` (relative URLs) thanks to `base: "./"` in
+# vite.config.ts, so the browser uses <base> to resolve them against
+# the Ingress prefix. Dynamic ESM imports also honor <base href> via
+# `import.meta.url`. This single rule replaces the runtime
+# prototype-patching that broke React 19 hydration.
+sub_filter '<head>' '<head><base href="$http_x_ingress_path/">';
 NGINX
 }
 
@@ -302,9 +250,14 @@ if [ -S /var/run/docker.sock ]; then
     usermod -aG "$DOCKER_GROUP" appuser 2>/dev/null || true
 fi
 
-# Fix ownership of bind-mounted web directory for dev mode
+# Fix ownership of bind-mounted web directory for dev mode (Vite's
+# build dir lives at /app/web/build/ post-migration; in dev it isn't
+# created — Vite serves from memory — but we chown both paths so a
+# stale Next.js .next directory left over from before the cutover
+# doesn't keep root-owned permissions after pulling the new image).
 if [ -d /app/web/src ]; then
-    chown -R appuser:appuser /app/web/.next 2>/dev/null || true
+    chown -R appuser:appuser /app/web/build 2>/dev/null || true
+    chown -R appuser:appuser /app/web/.react-router 2>/dev/null || true
 fi
 
 # Drop to the unprivileged application user and exec the CMD

@@ -48,7 +48,6 @@ export default defineConfig({
       exclude: [
         "src/__tests__/**",
         "**/*.stories.tsx",
-        // Pure TypeScript type declarations — no executable code to cover
         "src/lib/ai-chat-types.ts",
       ],
       thresholds: {
@@ -63,6 +62,16 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Match the Vite compat aliases so tests resolve `next/*` and
+      // `next-intl` imports the same way the production build does.
+      // The vitest setup.ts also vi.mock()s `next-intl` separately to
+      // bypass i18next runtime initialization in jsdom; the alias is a
+      // fallback for anything the mock doesn't catch.
+      "next/navigation": path.resolve(__dirname, "./src/lib/next-compat/navigation.ts"),
+      "next/link": path.resolve(__dirname, "./src/lib/next-compat/link.tsx"),
+      "next/dynamic": path.resolve(__dirname, "./src/lib/next-compat/dynamic.tsx"),
+      "next/image": path.resolve(__dirname, "./src/lib/next-compat/image.tsx"),
+      "next-intl": path.resolve(__dirname, "./src/lib/next-compat/intl.tsx"),
     },
   },
 });

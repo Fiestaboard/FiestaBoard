@@ -1,4 +1,10 @@
 import "@testing-library/jest-dom/vitest";
+// Eagerly initialize i18next before any component imports run. The
+// next-intl compat shim at @/lib/next-compat/intl.tsx delegates to
+// react-i18next + this config; without it, useTranslations() in a
+// test would crash on the first call. en messages are statically
+// imported so language lookups resolve synchronously.
+import "../i18n/i18next";
 
 import { cleanup } from "@testing-library/react";
 import React from "react";
@@ -7,7 +13,12 @@ import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import enMessages from "../../messages/en.json";
 import { server } from "./mocks/server";
 
-// Mock next-intl: resolve translation keys from English messages
+// `next-intl` is no longer a real dependency — the Vite alias
+// (replicated in vitest.config.ts) redirects it to the production
+// compat shim. This vi.mock provides a deterministic translation
+// surface for tests that don't want to depend on react-i18next's
+// internal subscription model. It mirrors the shim's `t` / `t.rich`
+// / `t.raw` shape so test assertions don't drift.
 function getNestedRaw(obj: unknown, path: string): unknown {
   if (!path) return obj;
   const parts = path.split(".");
@@ -22,7 +33,7 @@ function getNestedRaw(obj: unknown, path: string): unknown {
   return current;
 }
 
-vi.mock("next-intl", () => ({
+vi.mock("@/lib/next-compat/intl", () => ({
   useTranslations: (namespace?: string) => {
     const ns = namespace ? getNestedRaw(enMessages, namespace) : enMessages;
     const lookup = (key: string): unknown => {
@@ -107,6 +118,15 @@ vi.mock("next-intl", () => ({
     React.createElement(React.Fragment, null, children),
 }));
 
+// Mirror the same mock on the raw "next-intl" path so tests that pre-date
+// the migration and import directly from "next-intl" pick up the same
+// deterministic surface (rather than being redirected through the live
+// react-i18next path via the Vitest alias).
+vi.mock("next-intl", async () => {
+  const mod = await vi.importMock<typeof import("@/lib/next-compat/intl")>("@/lib/next-compat/intl");
+  return mod;
+});
+
 // Filter out jsdom localStorage file warnings
 // These are internal to jsdom and don't affect our tests
 const originalEmitWarning = process.emitWarning;
@@ -162,25 +182,9 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
-// Mock next/dynamic to return components synchronously in tests
-vi.mock("next/dynamic", () => ({
-  default: (loader: () => Promise<any>, options?: any) => {
-    // In tests, immediately resolve and return the component
-    return (props: any) => {
-      const [Component, setComponent] = React.useState<any>(null);
-      React.useEffect(() => {
-        loader().then((mod) => {
-          setComponent(() => mod.default || mod);
-        });
-      }, []);
-      if (!Component) {
-        // Return loading state if provided
-        return options?.loading ? React.createElement(options.loading) : null;
-      }
-      return React.createElement(Component, props);
-    };
-  },
-}));
+// `next/dynamic` is no longer used directly — the compat shim at
+// `src/lib/next-compat/dynamic.tsx` wraps `React.lazy` + `<Suspense>`,
+// which works natively in jsdom. No vitest mock needed.
 
 // Mock DOM APIs needed by ProseMirror/TipTap
 if (typeof document !== "undefined") {
