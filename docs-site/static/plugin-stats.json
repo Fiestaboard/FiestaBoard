@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-06T06:56:26Z",
+  "generated_at": "2026-06-07T07:57:26Z",
   "window_days": 14,
   "plugins": [
     {
@@ -10,9 +10,9 @@
       "description": "Display live flight information near a configurable airport.",
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:40Z",
-      "updated_at": "2026-05-17T06:24:25Z",
-      "clones_14d_count": 15,
-      "clones_14d_uniques": 14
+      "updated_at": "2026-06-06T18:21:46Z",
+      "clones_14d_count": 22,
+      "clones_14d_uniques": 21
     },
     {
       "id": "air_fog",
@@ -24,7 +24,7 @@
       "created_at": "2026-03-22T01:21:49Z",
       "updated_at": "2026-05-17T06:24:22Z",
       "clones_14d_count": 220,
-      "clones_14d_uniques": 183
+      "clones_14d_uniques": 180
     },
     {
       "id": "aurora_forecast",
@@ -46,9 +46,9 @@
       "description": "Display Lyft bike share availability with electric and classic bike counts. Works with Bay Wheels, CitiBike, Capital Bikeshare, Biketown, Divvy, and other Lyft-operated systems.",
       "version": "2.0.3",
       "created_at": "2026-03-22T01:21:56Z",
-      "updated_at": "2026-05-17T06:25:18Z",
-      "clones_14d_count": 210,
-      "clones_14d_uniques": 171
+      "updated_at": "2026-06-06T18:23:02Z",
+      "clones_14d_count": 265,
+      "clones_14d_uniques": 200
     },
     {
       "id": "calendar_sub",
@@ -58,9 +58,9 @@
       "description": "Subscribe to any public iCalendar (.ics) URL and display upcoming events with automatic board alerts before each event starts",
       "version": "1.1.2",
       "created_at": "2026-04-04T02:12:05Z",
-      "updated_at": "2026-06-03T00:57:26Z",
-      "clones_14d_count": 74,
-      "clones_14d_uniques": 40
+      "updated_at": "2026-06-06T18:22:24Z",
+      "clones_14d_count": 97,
+      "clones_14d_uniques": 52
     },
     {
       "id": "currency",
@@ -83,8 +83,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:02Z",
       "updated_at": "2026-05-17T06:24:37Z",
-      "clones_14d_count": 1428,
-      "clones_14d_uniques": 191
+      "clones_14d_count": 1381,
+      "clones_14d_uniques": 188
     },
     {
       "id": "disney_parks_times",
@@ -94,9 +94,9 @@
       "description": "Display wait times for Disney parks (Disneyland, California Adventure, Disney World, etc.) from Queue-Times.com",
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:10Z",
-      "updated_at": "2026-05-17T06:24:42Z",
-      "clones_14d_count": 19,
-      "clones_14d_uniques": 18
+      "updated_at": "2026-06-06T18:21:14Z",
+      "clones_14d_count": 40,
+      "clones_14d_uniques": 32
     },
     {
       "id": "earthquake",
@@ -106,7 +106,7 @@
       "description": "Display recent earthquake activity from USGS GeoJSON feeds.",
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:51Z",
-      "updated_at": "2026-05-17T06:24:44Z",
+      "updated_at": "2026-06-06T18:22:17Z",
       "clones_14d_count": 15,
       "clones_14d_uniques": 14
     },
@@ -119,8 +119,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:55Z",
       "updated_at": "2026-05-17T06:24:47Z",
-      "clones_14d_count": 14,
-      "clones_14d_uniques": 14
+      "clones_14d_count": 13,
+      "clones_14d_uniques": 13
     },
     {
       "id": "generic_data",
@@ -131,8 +131,8 @@
       "version": "1.2.2",
       "created_at": "2026-03-22T01:22:18Z",
       "updated_at": "2026-05-17T06:24:53Z",
-      "clones_14d_count": 15,
-      "clones_14d_uniques": 15
+      "clones_14d_count": 14,
+      "clones_14d_uniques": 14
     },
     {
       "id": "generative_ai_art",
@@ -152,11 +152,11 @@
       "name": "Guest WiFi",
       "category": "utility",
       "description": "Display guest WiFi credentials on your board",
-      "version": "1.1.2",
+      "version": "1.1.3",
       "created_at": "2026-03-22T01:22:24Z",
-      "updated_at": "2026-05-17T06:24:56Z",
-      "clones_14d_count": 217,
-      "clones_14d_uniques": 182
+      "updated_at": "2026-06-07T01:59:31Z",
+      "clones_14d_count": 216,
+      "clones_14d_uniques": 179
     },
     {
       "id": "hacker_news",
@@ -166,9 +166,9 @@
       "description": "Display the top Hacker News story title and score on your board.",
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:58Z",
-      "updated_at": "2026-05-17T06:24:59Z",
-      "clones_14d_count": 12,
-      "clones_14d_uniques": 12
+      "updated_at": "2026-06-06T18:24:37Z",
+      "clones_14d_count": 30,
+      "clones_14d_uniques": 23
     },
     {
       "id": "health",
@@ -179,8 +179,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:31Z",
       "updated_at": "2026-05-17T06:25:03Z",
-      "clones_14d_count": 13,
-      "clones_14d_uniques": 13
+      "clones_14d_count": 12,
+      "clones_14d_uniques": 11
     },
     {
       "id": "home_assistant",
@@ -192,7 +192,7 @@
       "created_at": "2026-03-22T01:22:37Z",
       "updated_at": "2026-05-17T06:25:06Z",
       "clones_14d_count": 215,
-      "clones_14d_uniques": 180
+      "clones_14d_uniques": 178
     },
     {
       "id": "iss_tracker",
@@ -226,9 +226,9 @@
       "description": "Display active weather alerts for a US state from the NWS.",
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:05Z",
-      "updated_at": "2026-05-17T06:25:16Z",
-      "clones_14d_count": 11,
-      "clones_14d_uniques": 11
+      "updated_at": "2026-06-06T18:23:05Z",
+      "clones_14d_count": 34,
+      "clones_14d_uniques": 25
     },
     {
       "id": "moon_phase",
@@ -240,7 +240,7 @@
       "created_at": "2026-05-02T07:01:09Z",
       "updated_at": "2026-05-17T06:25:22Z",
       "clones_14d_count": 17,
-      "clones_14d_uniques": 15
+      "clones_14d_uniques": 16
     },
     {
       "id": "muni",
@@ -250,9 +250,9 @@
       "description": "Display San Francisco Muni transit arrival times with multi-line support",
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:49Z",
-      "updated_at": "2026-05-17T06:25:25Z",
-      "clones_14d_count": 221,
-      "clones_14d_uniques": 185
+      "updated_at": "2026-06-06T18:22:49Z",
+      "clones_14d_count": 239,
+      "clones_14d_uniques": 192
     },
     {
       "id": "national_day",
@@ -262,9 +262,9 @@
       "description": "Display today's national days and fun observances.",
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:13Z",
-      "updated_at": "2026-05-17T06:25:28Z",
-      "clones_14d_count": 13,
-      "clones_14d_uniques": 13
+      "updated_at": "2026-06-06T18:22:09Z",
+      "clones_14d_count": 30,
+      "clones_14d_uniques": 22
     },
     {
       "id": "nearby_aircraft",
@@ -275,8 +275,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:57Z",
       "updated_at": "2026-05-17T06:25:32Z",
-      "clones_14d_count": 15,
-      "clones_14d_uniques": 15
+      "clones_14d_count": 13,
+      "clones_14d_uniques": 13
     },
     {
       "id": "network_speed",
@@ -287,8 +287,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:17Z",
       "updated_at": "2026-05-17T06:25:34Z",
-      "clones_14d_count": 15,
-      "clones_14d_uniques": 15
+      "clones_14d_count": 13,
+      "clones_14d_uniques": 13
     },
     {
       "id": "on_this_day",
@@ -299,7 +299,7 @@
       "version": "0.1.4",
       "created_at": "2026-05-02T07:01:20Z",
       "updated_at": "2026-05-17T06:25:38Z",
-      "clones_14d_count": 13,
+      "clones_14d_count": 12,
       "clones_14d_uniques": 12
     },
     {
@@ -310,9 +310,9 @@
       "description": "Display a random fun fact about cats or dogs.",
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:24Z",
-      "updated_at": "2026-05-17T06:25:41Z",
-      "clones_14d_count": 13,
-      "clones_14d_uniques": 13
+      "updated_at": "2026-06-06T18:22:38Z",
+      "clones_14d_count": 32,
+      "clones_14d_uniques": 24
     },
     {
       "id": "pihole",
@@ -334,9 +334,9 @@
       "description": "Display a daily inspirational quote from ZenQuotes.",
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:32Z",
-      "updated_at": "2026-05-29T01:34:49Z",
-      "clones_14d_count": 30,
-      "clones_14d_uniques": 21
+      "updated_at": "2026-06-06T18:24:48Z",
+      "clones_14d_count": 60,
+      "clones_14d_uniques": 37
     },
     {
       "id": "reddit_hot",
@@ -346,9 +346,9 @@
       "description": "Display the top hot post from any subreddit.",
       "version": "0.2.2",
       "created_at": "2026-05-02T07:01:36Z",
-      "updated_at": "2026-05-17T06:25:50Z",
-      "clones_14d_count": 10,
-      "clones_14d_uniques": 10
+      "updated_at": "2026-06-06T18:26:09Z",
+      "clones_14d_count": 37,
+      "clones_14d_uniques": 25
     },
     {
       "id": "river_flow",
@@ -358,9 +358,9 @@
       "description": "Display real-time streamflow data from a USGS monitoring station.",
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:39Z",
-      "updated_at": "2026-05-17T06:25:54Z",
-      "clones_14d_count": 12,
-      "clones_14d_uniques": 12
+      "updated_at": "2026-06-06T18:23:23Z",
+      "clones_14d_count": 26,
+      "clones_14d_uniques": 18
     },
     {
       "id": "santa_tracker",
@@ -368,9 +368,9 @@
       "name": "Santa Tracker",
       "category": "entertainment",
       "description": "Track Santa's journey around the world as midnight of December 25th hits famous locations in each timezone",
-      "version": "1.1.2",
+      "version": "1.1.3",
       "created_at": "2026-03-22T01:23:03Z",
-      "updated_at": "2026-05-17T06:25:57Z",
+      "updated_at": "2026-06-07T01:57:33Z",
       "clones_14d_count": 12,
       "clones_14d_uniques": 12
     },
@@ -394,7 +394,7 @@
       "description": "Track upcoming spacecraft launch countdowns and statuses",
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:09Z",
-      "updated_at": "2026-05-17T06:26:04Z",
+      "updated_at": "2026-06-06T18:24:19Z",
       "clones_14d_count": 11,
       "clones_14d_uniques": 11
     },
@@ -407,8 +407,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:17Z",
       "updated_at": "2026-05-17T06:26:07Z",
-      "clones_14d_count": 20,
-      "clones_14d_uniques": 17
+      "clones_14d_count": 17,
+      "clones_14d_uniques": 16
     },
     {
       "id": "star_trek_quotes",
@@ -416,11 +416,11 @@
       "name": "Star Trek Quotes",
       "category": "entertainment",
       "description": "Display random Star Trek quotes from TNG, Voyager, and DS9",
-      "version": "1.1.2",
+      "version": "1.1.3",
       "created_at": "2026-03-22T01:23:22Z",
-      "updated_at": "2026-05-17T06:26:09Z",
-      "clones_14d_count": 745,
-      "clones_14d_uniques": 202
+      "updated_at": "2026-06-07T01:58:18Z",
+      "clones_14d_count": 727,
+      "clones_14d_uniques": 199
     },
     {
       "id": "stardate",
@@ -428,11 +428,11 @@
       "name": "Stardate",
       "category": "entertainment",
       "description": "Display the current TNG-style stardate",
-      "version": "1.1.2",
+      "version": "1.1.3",
       "created_at": "2026-03-22T01:23:29Z",
-      "updated_at": "2026-05-17T06:26:12Z",
-      "clones_14d_count": 10,
-      "clones_14d_uniques": 10
+      "updated_at": "2026-06-07T02:06:52Z",
+      "clones_14d_count": 11,
+      "clones_14d_uniques": 11
     },
     {
       "id": "stocks",
@@ -443,8 +443,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:34Z",
       "updated_at": "2026-05-17T06:26:16Z",
-      "clones_14d_count": 226,
-      "clones_14d_uniques": 177
+      "clones_14d_count": 232,
+      "clones_14d_uniques": 175
     },
     {
       "id": "sun_art",
@@ -467,8 +467,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:48Z",
       "updated_at": "2026-05-17T06:26:22Z",
-      "clones_14d_count": 198,
-      "clones_14d_uniques": 164
+      "clones_14d_count": 223,
+      "clones_14d_uniques": 176
     },
     {
       "id": "tide_times",
@@ -478,9 +478,9 @@
       "description": "Display NOAA tide predictions for a configured station.",
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:46Z",
-      "updated_at": "2026-05-17T06:26:26Z",
-      "clones_14d_count": 11,
-      "clones_14d_uniques": 11
+      "updated_at": "2026-06-06T18:24:39Z",
+      "clones_14d_count": 29,
+      "clones_14d_uniques": 20
     },
     {
       "id": "traffic",
@@ -491,8 +491,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:54Z",
       "updated_at": "2026-05-17T06:26:29Z",
-      "clones_14d_count": 225,
-      "clones_14d_uniques": 178
+      "clones_14d_count": 228,
+      "clones_14d_uniques": 175
     },
     {
       "id": "uv_index",
@@ -512,9 +512,9 @@
       "name": "Visual Clock",
       "category": "art",
       "description": "Displays a full-screen clock with large pixel-art style digits.",
-      "version": "1.1.2",
+      "version": "1.1.3",
       "created_at": "2026-03-22T01:24:01Z",
-      "updated_at": "2026-05-17T06:26:35Z",
+      "updated_at": "2026-06-07T01:58:22Z",
       "clones_14d_count": 11,
       "clones_14d_uniques": 10
     },
@@ -526,9 +526,9 @@
       "description": "Display current volcanic activity from the Smithsonian GVP.",
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:53Z",
-      "updated_at": "2026-05-17T06:26:38Z",
-      "clones_14d_count": 11,
-      "clones_14d_uniques": 11
+      "updated_at": "2026-06-06T18:25:06Z",
+      "clones_14d_count": 20,
+      "clones_14d_uniques": 18
     },
     {
       "id": "weather",
@@ -538,9 +538,9 @@
       "description": "Display current weather conditions with temperature, humidity, and wind speed",
       "version": "1.2.0",
       "created_at": "2026-03-22T01:24:09Z",
-      "updated_at": "2026-05-27T05:57:50Z",
-      "clones_14d_count": 263,
-      "clones_14d_uniques": 207
+      "updated_at": "2026-06-06T18:25:02Z",
+      "clones_14d_count": 276,
+      "clones_14d_uniques": 209
     },
     {
       "id": "webhook",
@@ -550,9 +550,9 @@
       "description": "Display a custom message pushed via an HTTP webhook.",
       "version": "0.1.4",
       "created_at": "2026-05-02T07:01:57Z",
-      "updated_at": "2026-05-17T06:26:44Z",
-      "clones_14d_count": 13,
-      "clones_14d_uniques": 13
+      "updated_at": "2026-06-06T18:24:59Z",
+      "clones_14d_count": 33,
+      "clones_14d_uniques": 25
     },
     {
       "id": "white_noise",
@@ -560,10 +560,10 @@
       "name": "White Noise",
       "category": "art",
       "description": "Gentle rain / white noise mode \u2014 softly cascading tiles that create a soothing ambient pitter-patter",
-      "version": "1.1.2",
+      "version": "1.1.3",
       "created_at": "2026-03-22T01:24:14Z",
-      "updated_at": "2026-05-17T06:26:48Z",
-      "clones_14d_count": 15,
+      "updated_at": "2026-06-07T02:06:55Z",
+      "clones_14d_count": 14,
       "clones_14d_uniques": 14
     },
     {
@@ -574,9 +574,9 @@
       "description": "Display active wildfire information from NIFC.",
       "version": "0.1.2",
       "created_at": "2026-05-02T07:02:01Z",
-      "updated_at": "2026-05-17T06:26:51Z",
-      "clones_14d_count": 11,
-      "clones_14d_uniques": 11
+      "updated_at": "2026-06-06T18:30:14Z",
+      "clones_14d_count": 20,
+      "clones_14d_uniques": 17
     },
     {
       "id": "word_of_day",
@@ -586,9 +586,9 @@
       "description": "Display a word, its pronunciation, and definition.",
       "version": "0.2.1",
       "created_at": "2026-05-02T07:02:05Z",
-      "updated_at": "2026-05-19T01:29:30Z",
-      "clones_14d_count": 16,
-      "clones_14d_uniques": 16
+      "updated_at": "2026-06-06T18:26:16Z",
+      "clones_14d_count": 36,
+      "clones_14d_uniques": 26
     },
     {
       "id": "wsdot",
@@ -598,9 +598,9 @@
       "description": "Washington State Ferries: schedules, vessel names, car spots, and alerts",
       "version": "1.1.2",
       "created_at": "2026-03-22T01:24:21Z",
-      "updated_at": "2026-05-17T06:26:57Z",
-      "clones_14d_count": 10,
-      "clones_14d_uniques": 10
+      "updated_at": "2026-06-06T18:27:54Z",
+      "clones_14d_count": 19,
+      "clones_14d_uniques": 18
     }
   ]
 }
