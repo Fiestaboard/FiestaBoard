@@ -139,9 +139,87 @@ configure_frame_headers() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# Reverse-proxy base-path rewriting (e.g. Home Assistant Ingress)
+# ---------------------------------------------------------------------------
+# Some embedding contexts (HA Supervisor Ingress, traefik subpath routing)
+# mount FiestaBoard under a per-installation URL prefix and signal that
+# prefix to the upstream via an `X-Ingress-Path` request header. Without
+# any rewriting, the browser sees `<script src="/_next/...">` in the
+# returned HTML, resolves it against the iframe's *origin root*, bypasses
+# the proxy, and 404s -- visible to users as "Refused to execute ...
+# nosniff" console errors and a broken sidebar iframe.
+#
+# When FIESTABOARD_INGRESS_PATH_REWRITE=true, render a `location /`
+# snippet that:
+#   1. Disables upstream gzip (sub_filter cannot rewrite compressed
+#      payloads; nginx's outer `gzip on` still compresses the rewritten
+#      response before it leaves the box).
+#   2. Adds sub_filter rules that prepend `$http_x_ingress_path` to
+#      absolute `/_next/` and `/api/` references in HTML responses,
+#      covering both `"` and `'` quote styles.
+#
+# When the env var is unset/false the snippet directory stays empty, so
+# direct (non-proxy) deployments incur zero buffering or gzip overhead.
+# Inside the snippet, when X-Ingress-Path is absent the substitutions
+# degenerate to self-substitutions, so toggling the var ON for a direct
+# deployment is also safe (just wasteful).
+#
+# Scope: this handles the initial HTML and its inline asset references,
+# which is what resolves the immediate chunk 404s seen behind HA Ingress.
+# Next.js client-side router navigation uses paths baked at build time
+# and is not yet covered here -- callers that need full SPA navigation
+# under a prefix will additionally need a runtime `assetPrefix` plumbed
+# through next.config.ts.
+configure_ingress_path_rewrite() {
+    SNIPPET_DIR=/etc/nginx/fiestaboard/location-root
+    SNIPPET=$SNIPPET_DIR/base-path-rewrite.conf
+
+    if ! mkdir -p "$SNIPPET_DIR" 2>/dev/null; then
+        echo "[entrypoint] cannot create $SNIPPET_DIR; skipping base-path rewrite" >&2
+        return 0
+    fi
+
+    # Default OFF -- only enabled when the operator opts in. This keeps
+    # direct deployments (standalone Docker, the public preview site) on
+    # the zero-overhead path.
+    case "${FIESTABOARD_INGRESS_PATH_REWRITE:-false}" in
+        true|TRUE|1|yes|YES)
+            ;;
+        *)
+            # Clear any stale snippet from a previous boot so the include
+            # is a no-op next time nginx starts.
+            if [ -f "$SNIPPET" ] && ! rm -f "$SNIPPET" 2>/dev/null; then
+                echo "[entrypoint] cannot remove stale $SNIPPET; nginx will keep prior behavior" >&2
+            fi
+            return 0
+            ;;
+    esac
+
+    if ! touch "$SNIPPET" 2>/dev/null; then
+        echo "[entrypoint] $SNIPPET is read-only; skipping base-path rewrite" >&2
+        return 0
+    fi
+
+    # The single quotes inside the search/replacement strings are literal
+    # characters that must match the HTML payload (`href='/_next/...'`),
+    # not shell quoting. We use a quoted heredoc so nginx receives them
+    # verbatim and so `$http_x_ingress_path` is preserved for nginx to
+    # expand at request time rather than being interpolated by the shell.
+    cat > "$SNIPPET" <<'NGINX'
+proxy_set_header Accept-Encoding "";
+sub_filter_once off;
+sub_filter '"/_next/'  '"$http_x_ingress_path/_next/';
+sub_filter "'/_next/"  "'$http_x_ingress_path/_next/";
+sub_filter '"/api/'    '"$http_x_ingress_path/api/';
+sub_filter "'/api/"    "'$http_x_ingress_path/api/";
+NGINX
+}
+
 # Run cert/config setup before dropping privileges so the entrypoint can
 # both write /etc/nginx/nginx.conf (root-owned) and chown cert files.
 configure_frame_headers
+configure_ingress_path_rewrite
 configure_https
 
 # ---------------------------------------------------------------------------
