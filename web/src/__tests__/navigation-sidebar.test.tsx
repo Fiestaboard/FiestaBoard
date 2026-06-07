@@ -133,10 +133,8 @@ describe("NavigationSidebar mobile menu", () => {
     const menuButton = screen.getByLabelText("Open menu");
     fireEvent.click(menuButton);
 
-    const backdrop = document.querySelector('[aria-hidden="true"]');
-    if (backdrop) {
-      fireEvent.click(backdrop);
-    }
+    const backdrop = screen.getByTestId("mobile-backdrop");
+    fireEvent.click(backdrop);
 
     expect(screen.getByLabelText("Open menu")).toBeInTheDocument();
   });

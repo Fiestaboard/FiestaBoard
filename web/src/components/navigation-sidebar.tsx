@@ -22,10 +22,10 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { FiestaLogo } from "@/components/fiesta-logo";
-import { SidebarAurora } from "@/components/sidebar-aurora";
-import { SidebarAuroraHorizontal } from "@/components/sidebar-aurora-horizontal";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { SidebarAccount } from "@/components/sidebar-account";
+import { SidebarAurora } from "@/components/sidebar-aurora";
+import { SidebarAuroraHorizontal } from "@/components/sidebar-aurora-horizontal";
 import { useSidebar } from "@/components/sidebar-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -286,6 +286,7 @@ export function NavigationSidebar() {
 
       {/* Mobile Menu Backdrop */}
       <div
+        data-testid="mobile-backdrop"
         className={cn(
           "lg:hidden fixed inset-0 z-[90] bg-black/25 backdrop-blur-[2px] transition-opacity duration-200 pointer-events-none",
           mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0",
