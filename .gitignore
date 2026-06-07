@@ -37,9 +37,10 @@ env/
 ENV/
 .venv
 
-# Next.js build output
-web/out/
-web/.next/
+# Vite + React Router v7 build output
+web/build/
+web/.react-router/
+web/dist/
 
 # IDE
 .vscode/

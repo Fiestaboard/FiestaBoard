@@ -48,6 +48,8 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export const meta: Route.MetaFunction = () => [
+  { charSet: "utf-8" },
+  { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
   // Locale-aware title and description are set client-side in
   // `RootBody` below — these defaults exist so the initial HTML render
   // and any prerender pass include something sensible.
@@ -64,12 +66,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <Meta />
         <Links />
       </head>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        {children}
+        <ScrollRestoration />
+        <Scripts />
+      </body>
     </html>
   );
 }
@@ -160,25 +164,16 @@ function RootBody() {
           </ScheduleEditorBridgeProvider>
         </BootGate>
       </Providers>
-      <ScrollRestoration />
-      <Scripts />
     </>
   );
 }
 
+/**
+ * Rendered during client-side hydration when the user lands on a
+ * route whose chunks haven't loaded yet. The `Layout` export above
+ * already provides the `<html>` / `<head>` / `<body>` shell, so this
+ * is just the visible body content.
+ */
 export function HydrateFallback() {
-  return (
-    <html lang="en">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <Meta />
-        <Links />
-      </head>
-      <body>
-        <div style={{ minHeight: "100vh" }} />
-        <Scripts />
-      </body>
-    </html>
-  );
+  return <div style={{ minHeight: "100vh" }} />;
 }
