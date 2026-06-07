@@ -285,8 +285,14 @@
 
 /* Pride easter egg — confetti burst particles spawned by JS on logo click */
 @keyframes pride-burst {
-  0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
-  100% { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.2); opacity: 0; }
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.2);
+    opacity: 0;
+  }
 }
 .pride-burst-particle {
   position: fixed;

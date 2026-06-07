@@ -190,10 +190,7 @@ export const SidebarAuroraHorizontal = memo(function SidebarAuroraHorizontal() {
         pointerEvents: "none",
       }}
     >
-      <canvas
-        ref={canvasRef}
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-      />
+      <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
     </div>
   );
 });
