@@ -60,7 +60,7 @@ RUN --mount=type=cache,target=/app/node_modules/.vite \
     npm run build
 
 # --- Stage 3: Final unified runtime image ---
-FROM python:3.14-slim
+FROM python:3.14-slim AS runtime
 
 ARG VERSION=dev
 ENV VERSION=${VERSION}
@@ -154,3 +154,23 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 # then drops to appuser via gosu before executing the CMD.
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["supervisord", "-c", "/app/supervisord.conf"]
+
+# --- Stage 4 (optional): Dev runtime, only built when target=runtime-dev ---
+# The Vite/React-Router dev server needs Node at runtime; production
+# doesn't (nginx serves the static SPA). Split that into a separate
+# target so the prod image keeps the ~150MB Node savings while
+# docker-compose.dev.yml can opt in with `target: runtime-dev`.
+FROM runtime AS runtime-dev
+
+USER root
+
+# Pull the same Node 26.x that the ui-builder stage used so dev and
+# build resolve packages the same way. `--with-deps` is implicit via
+# the nodesource setup script.
+RUN curl -fsSL https://deb.nodesource.com/setup_26.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && chown -R appuser:appuser /app
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["supervisord", "-c", "/app/supervisord-dev.conf"]

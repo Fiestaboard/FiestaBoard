@@ -4,6 +4,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Dev mode needs Node at runtime so `npx react-router dev` can
+      # boot Vite. Production targets the default `runtime` stage which
+      # omits Node entirely (see Dockerfile for the prod/dev split).
+      target: runtime-dev
     container_name: fiestaboard-dev
     env_file:
       - .env
