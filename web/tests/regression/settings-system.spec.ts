@@ -420,7 +420,7 @@ test.describe("regression: settings.system", () => {
     await expect(page.getByText("Update Available")).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByText("v6.99.0")).toBeVisible();
+    await expect(page.getByText("v6.99.0", { exact: true })).toBeVisible();
     await expect(page.getByText(/running v6\.10\.0/i)).toBeVisible();
 
     const viewRelease = page.getByRole("link", { name: /View Release/i });
