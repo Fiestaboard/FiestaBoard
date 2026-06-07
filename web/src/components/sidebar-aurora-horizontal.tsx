@@ -125,9 +125,9 @@ export const SidebarAuroraHorizontal = memo(function SidebarAuroraHorizontal() {
     gl.enableVertexAttribArray(posLoc);
     gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
 
-    const uTime  = gl.getUniformLocation(prog, "uTime");
+    const uTime = gl.getUniformLocation(prog, "uTime");
     const uStops = gl.getUniformLocation(prog, "uColorStops");
-    const uRes   = gl.getUniformLocation(prog, "uResolution");
+    const uRes = gl.getUniformLocation(prog, "uResolution");
     const uBlend = gl.getUniformLocation(prog, "uBlend");
 
     gl.uniform3fv(uStops, new Float32Array(PRIDE_COLORS.flatMap(hexToRgb)));
@@ -137,9 +137,9 @@ export const SidebarAuroraHorizontal = memo(function SidebarAuroraHorizontal() {
       const parent = canvas!.parentElement;
       if (!parent) return;
       const { width: w, height: h } = parent.getBoundingClientRect();
-      canvas!.width  = Math.floor(w);
+      canvas!.width = Math.floor(w);
       canvas!.height = Math.floor(h);
-      canvas!.style.width  = `${w}px`;
+      canvas!.style.width = `${w}px`;
       canvas!.style.height = `${h}px`;
       gl!.viewport(0, 0, Math.floor(w), Math.floor(h));
       gl!.uniform2f(uRes, w, h);
