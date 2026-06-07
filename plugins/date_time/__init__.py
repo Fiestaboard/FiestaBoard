@@ -160,9 +160,7 @@ class DateTimePlugin(PluginBase):
                 # New month formats
                 "month_number": str(now.month),  # 1-12 (unpadded)
                 "month_number_padded": now.strftime("%m"),  # 01-12 (zero-padded)
-                "month_abbr": now.strftime(
-                    "%b"
-                ),  # 3-letter abbreviation (Jan, Feb, etc.)
+                "month_abbr": now.strftime("%b"),  # 3-letter abbreviation (Jan, Feb, etc.)
                 # Additional timezone info
                 "timezone": timezone_str,  # Full timezone name from config
                 # Spoken English time expression
