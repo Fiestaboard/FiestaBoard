@@ -14,6 +14,10 @@
 import { expect, type Page, test } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+
+// `__dirname` isn't defined in ESM; package.json sets `"type": "module"`.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const API_URL = process.env.BASE_URL ? `${process.env.BASE_URL}/api` : "http://localhost:4420/api";
 const BOARD_HOST = process.env.MOCK_BOARD_HOST || "fiestaboard-mock-board";

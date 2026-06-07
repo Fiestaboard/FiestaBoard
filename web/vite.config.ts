@@ -1,9 +1,13 @@
 import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+
+// `__dirname` isn't defined in ESM; package.json sets `"type": "module"`.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Vite config for the React Router v7 framework-mode build.

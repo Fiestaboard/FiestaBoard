@@ -4,6 +4,7 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactPlugin from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
 
 const REACT_VERSION = "19";
 
@@ -42,6 +43,11 @@ const eslintConfig = [
       "playwright-report/**",
     ],
   },
+  // typescript-eslint's recommended rule set — replaces what
+  // `eslint-config-next/typescript` was contributing before the
+  // migration. This must come BEFORE the project-level rule block
+  // so the TS parser and plugin are available everywhere downstream.
+  ...tseslint.configs.recommended,
   {
     // React + JSX recommended rules (replaces eslint-config-next's curated set).
     files: ["**/*.{ts,tsx,js,jsx,mjs,cjs}"],
@@ -52,8 +58,11 @@ const eslintConfig = [
       "simple-import-sort": simpleImportSort,
     },
     languageOptions: {
+      parser: tseslint.parser,
       parserOptions: {
         ecmaFeatures: { jsx: true },
+        ecmaVersion: "latest",
+        sourceType: "module",
       },
     },
     settings: {
