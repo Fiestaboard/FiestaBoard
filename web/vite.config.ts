@@ -49,6 +49,16 @@ export default defineConfig({
   },
   plugins: [
     tailwindcss(),
+    // `@vitejs/plugin-react` is intentionally NOT used here. Including
+    // it conflicts with RR7's own React Refresh integration: plugin-react
+    // injects `import RefreshRuntime from "/@react-refresh"` into every
+    // React module, and `@react-router/dev/vite`'s transform injects
+    // the same name from its own HMR runtime — the two collide with
+    // "Cannot declare an imported binding name twice: 'RefreshRuntime'".
+    // RR7 handles Fast Refresh itself; we just need to satisfy its
+    // preamble check, which `app/root.tsx::DEV_REACT_REFRESH_PREAMBLE`
+    // does by setting `window.__vite_plugin_react_preamble_installed__`
+    // inline in Layout's `<head>` before the route module imports.
     reactRouter(),
     VitePWA({
       registerType: "autoUpdate",

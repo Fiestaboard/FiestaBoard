@@ -277,12 +277,21 @@ if [ -S /var/run/docker.sock ]; then
     usermod -aG "$DOCKER_GROUP" appuser 2>/dev/null || true
 fi
 
-# Fix ownership of bind-mounted web directory for dev mode (Vite's
-# build dir lives at /app/web/build/ post-migration; in dev it isn't
-# created — Vite serves from memory — but we chown both paths so a
-# stale Next.js .next directory left over from before the cutover
-# doesn't keep root-owned permissions after pulling the new image).
+# Fix ownership of bind-mounted web directory for dev mode.
+#
+# The docker-compose.dev.yml mounts a named volume at /app/web/node_modules
+# (so that node_modules persists across container restarts independent of
+# the host bind mount). On first start that volume is created root-owned,
+# which makes start-dev.sh's `npm install` fail with EACCES when it tries
+# to mkdir into it as appuser. Same story for /app/web/build (Vite output)
+# and /app/web/.react-router (RR7 codegen) — they're created on demand by
+# tools that run as appuser.
+#
+# Chown them here from root before we gosu down to appuser. The 2>/dev/null
+# || true protects against the directories not existing yet (e.g. a fresh
+# container with no build artifacts), which is fine.
 if [ -d /app/web/src ]; then
+    chown -R appuser:appuser /app/web/node_modules 2>/dev/null || true
     chown -R appuser:appuser /app/web/build 2>/dev/null || true
     chown -R appuser:appuser /app/web/.react-router 2>/dev/null || true
 fi
