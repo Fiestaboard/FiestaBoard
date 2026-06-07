@@ -209,10 +209,19 @@ configure_ingress_path_rewrite() {
     cat > "$SNIPPET" <<'NGINX'
 proxy_set_header Accept-Encoding "";
 sub_filter_once off;
+# Also rewrite CSS bodies, not just HTML. Next.js emits @font-face
+# declarations like `src: url(/_next/static/media/...woff2)` inside its
+# generated stylesheets; those URLs are unquoted and live in a text/css
+# response, so the default HTML-only sub_filter never sees them, fonts
+# 404 against the host's origin root, and the rendered UI loses its
+# typography (typically appearing as a near-blank dark layout).
+sub_filter_types text/css;
 sub_filter '"/_next/'  '"$http_x_ingress_path/_next/';
 sub_filter "'/_next/"  "'$http_x_ingress_path/_next/";
 sub_filter '"/api/'    '"$http_x_ingress_path/api/';
 sub_filter "'/api/"    "'$http_x_ingress_path/api/";
+# CSS `url(/_next/...)` -- unquoted is the form Next.js actually emits.
+sub_filter '(/_next/'  '($http_x_ingress_path/_next/';
 NGINX
 }
 
