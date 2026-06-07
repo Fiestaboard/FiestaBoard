@@ -94,6 +94,12 @@ jobs:
           allow-licenses: >-
             MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD,
             CC0-1.0, Unlicense, Python-2.0, MPL-2.0, Zlib, BlueOak-1.0.0
+          # Per-package exceptions for deps whose license isn't on the
+          # general allow-list but which we've reviewed and accepted.
+          # caniuse-lite ships browser-compat *data* under CC-BY-4.0 (the
+          # code is MIT); it's a transitive dep of browserslist, pulled in
+          # by tooling across the web build.
+          allow-dependencies-licenses: 'pkg:npm/caniuse-lite'
           comment-summary-in-pr: on-failure
 
   test-platform:
