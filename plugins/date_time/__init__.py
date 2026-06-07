@@ -140,10 +140,8 @@ class DateTimePlugin(PluginBase):
                 "day_of_week": now.strftime("%A"),
                 "day_of_week_abbr": now.strftime("%a"),  # e.g. Mon, Tue, Wed
                 "day_of_week_num": now.strftime("%u"),  # 1-7 (Monday=1)
-                "day_of_year": str(int(now.strftime("%j"))),  # 1-366 (unpadded)
-                "day_of_year_padded": now.strftime("%j"),  # 001-366 (zero-padded)
-                "week_of_year": str(int(now.strftime("%V"))),  # 1-53 (unpadded)
-                "week_of_year_padded": now.strftime("%V"),  # 01-53 (zero-padded)
+                "day_of_year": str(int(now.strftime("%j"))),  # 1-366
+                "week_of_year": str(int(now.strftime("%V"))),  # 1-53
                 "timezone_abbr": now.strftime("%Z"),
                 "day": str(now.day),
                 "month": now.strftime("%B"),

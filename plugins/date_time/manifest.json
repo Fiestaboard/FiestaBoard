@@ -127,23 +127,11 @@
         "max_length": 3,
         "example": "1"
       },
-      "day_of_year_padded": {
-        "description": "Day of year (001-366)",
-        "group": "date",
-        "max_length": 3,
-        "example": "001"
-      },
       "week_of_year": {
         "description": "Week of year (1-53)",
         "group": "date",
         "max_length": 2,
         "example": "5"
-      },
-      "week_of_year_padded": {
-        "description": "Week of year (01-53)",
-        "group": "date",
-        "max_length": 2,
-        "example": "05"
       },
       "month": {
         "description": "Full month name",

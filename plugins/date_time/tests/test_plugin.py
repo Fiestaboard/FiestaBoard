@@ -81,11 +81,9 @@ class TestDateTimePlugin:
         assert "day_of_week_abbr" in data
         assert "day_of_week_num" in data
         assert "day_of_year" in data
-        assert "day_of_year_padded" in data
         assert "day" in data
         assert "month" in data
         assert "week_of_year" in data
-        assert "week_of_year_padded" in data
         assert "quarter" in data
         assert "year" in data
         assert "hour" in data
@@ -229,10 +227,8 @@ class TestDateTimePlugin:
         assert result.data["day_of_week_abbr"] == "Wed"
         assert result.data["day_of_week_num"] == "3"
         assert result.data["day_of_year"] == "15"
-        assert result.data["day_of_year_padded"] == "015"
         assert result.data["day"] == "15"
         assert result.data["week_of_year"] == "3"
-        assert result.data["week_of_year_padded"] == "03"
         assert result.data["quarter"] == "1"
         assert result.data["year"] == "2025"
 
@@ -385,9 +381,7 @@ class TestDateTimeManifestMetadata:
             "day_of_week_abbr",
             "day_of_week_num",
             "day_of_year",
-            "day_of_year_padded",
             "week_of_year",
-            "week_of_year_padded",
             "month",
             "quarter",
             "year",
