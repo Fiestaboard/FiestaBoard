@@ -96,10 +96,19 @@ jobs:
             CC0-1.0, Unlicense, Python-2.0, MPL-2.0, Zlib, BlueOak-1.0.0
           # Per-package exceptions for deps whose license isn't on the
           # general allow-list but which we've reviewed and accepted.
-          # caniuse-lite ships browser-compat *data* under CC-BY-4.0 (the
-          # code is MIT); it's a transitive dep of browserslist, pulled in
-          # by tooling across the web build.
-          allow-dependencies-licenses: 'pkg:npm/caniuse-lite'
+          # - caniuse-lite ships browser-compat *data* under CC-BY-4.0 (the
+          #   code is MIT); it's a transitive dep of browserslist, pulled
+          #   in by tooling across the web build.
+          # - @fontsource-variable/geist + -geist-mono ship the actual
+          #   font files (woff2) under SIL Open Font License 1.1 (OFL-1.1).
+          #   OFL is the standard permissive font license used by Google
+          #   Fonts; the JS wrapper / package metadata is MIT. Replaced
+          #   next/font/google during the Next.js → RR7 migration so the
+          #   fonts are self-hosted (HA-Ingress-safe).
+          allow-dependencies-licenses: >-
+            pkg:npm/caniuse-lite,
+            pkg:npm/%40fontsource-variable/geist,
+            pkg:npm/%40fontsource-variable/geist-mono
           comment-summary-in-pr: on-failure
 
   test-platform:
