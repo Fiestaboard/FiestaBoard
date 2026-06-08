@@ -1207,6 +1207,12 @@
     "toastNoUpdates": "Tutti i plugin sono aggiornati",
     "toastCheckFailed": "Ricerca aggiornamenti non riuscita: {error}"
   },
+  "festiveMonthsSettings": {
+    "title": "Mesi festivi",
+    "description": "Dettagli dell'interfaccia a tema mensile — attualmente un arcobaleno sul logo, la barra laterale e le icone dell'intestazione durante il Mese dell'Orgoglio (giugno).",
+    "hideLabel": "Nascondi i mesi festivi",
+    "hideHint": "Disattiva le decorazioni stagionali in tutta l'interfaccia web. Non influisce su ciò che viene inviato alla tua board."
+  },
   "betaSettings": {
     "title": "Funzioni beta",
     "betaBadge": "Beta",

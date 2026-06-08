@@ -1207,6 +1207,12 @@
     "toastNoUpdates": "すべてのプラグインは最新です",
     "toastCheckFailed": "更新の確認に失敗: {error}"
   },
+  "festiveMonthsSettings": {
+    "title": "フェスティブマンス",
+    "description": "月ごとに変わる UI 装飾 — 現在はプライド月間（6 月）の間、ロゴ、サイドバー、ページヘッダーのアイコンにレインボーが表示されます。",
+    "hideLabel": "フェスティブマンスを非表示",
+    "hideHint": "Web UI 全体の季節装飾をオフにします。ボードへの送信内容には影響しません。"
+  },
   "betaSettings": {
     "title": "ベータ機能",
     "betaBadge": "ベータ",

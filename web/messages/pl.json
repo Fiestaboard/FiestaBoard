@@ -1207,6 +1207,12 @@
     "toastNoUpdates": "Wszystkie wtyczki są aktualne",
     "toastCheckFailed": "Nie udało się sprawdzić aktualizacji: {error}"
   },
+  "festiveMonthsSettings": {
+    "title": "Miesiące świąteczne",
+    "description": "Motywy interfejsu zależne od miesiąca — obecnie tęcza na logo, pasku bocznym i ikonach nagłówka strony w Miesiącu Dumy (czerwiec).",
+    "hideLabel": "Ukryj miesiące świąteczne",
+    "hideHint": "Wyłącza sezonowe dekoracje w całym interfejsie webowym. Nie wpływa na to, co jest wysyłane do twojej tablicy."
+  },
   "betaSettings": {
     "title": "Funkcje beta",
     "betaBadge": "Beta",

@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { VersionDisplay } from "@/components/version-display";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { usePrefetchPagesData } from "@/hooks/use-board";
+import { usePrideActive } from "@/hooks/use-pride-active";
 import { type AISettings, api } from "@/lib/api";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { cn } from "@/lib/utils";
@@ -69,7 +70,7 @@ export function NavigationSidebar() {
   const t = useTranslations("navigation");
   const { isOpen: aiPanelOpen, open: openAiPanel } = useGlobalAiPanel();
 
-  const isPrideMonth = new Date().getMonth() === 5;
+  const isPrideMonth = usePrideActive();
 
   const firePrideCelebration = useCallback(
     (e: React.MouseEvent) => {

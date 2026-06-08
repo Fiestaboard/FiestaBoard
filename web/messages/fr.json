@@ -1207,6 +1207,12 @@
     "toastNoUpdates": "Tous les plugins sont à jour",
     "toastCheckFailed": "Impossible de rechercher des mises à jour : {error}"
   },
+  "festiveMonthsSettings": {
+    "title": "Mois festifs",
+    "description": "Touches d'interface thématiques selon le mois — actuellement un arc-en-ciel sur le logo, la barre latérale et les icônes d'en-tête pendant le Mois des fiertés (juin).",
+    "hideLabel": "Masquer les mois festifs",
+    "hideHint": "Désactive les décorations saisonnières dans toute l'interface web. N'affecte pas ce qui est envoyé à votre tableau."
+  },
   "betaSettings": {
     "title": "Fonctionnalités bêta",
     "betaBadge": "Bêta",

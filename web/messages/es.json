@@ -1207,6 +1207,12 @@
     "toastNoUpdates": "Todos los plugins están actualizados",
     "toastCheckFailed": "No se pudo comprobar las actualizaciones: {error}"
   },
+  "festiveMonthsSettings": {
+    "title": "Meses festivos",
+    "description": "Detalles temáticos según el mes — actualmente un arcoíris en el logo, la barra lateral y los iconos del encabezado durante el Mes del Orgullo (junio).",
+    "hideLabel": "Ocultar meses festivos",
+    "hideHint": "Desactiva las decoraciones estacionales en toda la interfaz web. No afecta a lo que se envía a tu tablero."
+  },
   "betaSettings": {
     "title": "Funciones beta",
     "betaBadge": "Beta",

@@ -1207,6 +1207,12 @@
     "toastNoUpdates": "Alle Plugins sind aktuell",
     "toastCheckFailed": "Suche nach Updates fehlgeschlagen: {error}"
   },
+  "festiveMonthsSettings": {
+    "title": "Festliche Monate",
+    "description": "Monatsbezogene UI-Akzente — derzeit ein Regenbogen auf Logo, Seitenleiste und Seitenkopf-Symbolen während des Pride Month (Juni).",
+    "hideLabel": "Festliche Monate ausblenden",
+    "hideHint": "Saisonale Dekorationen in der gesamten Web-Oberfläche deaktivieren. Hat keinen Einfluss darauf, was an dein Board gesendet wird."
+  },
   "betaSettings": {
     "title": "Beta-Funktionen",
     "betaBadge": "Beta",
