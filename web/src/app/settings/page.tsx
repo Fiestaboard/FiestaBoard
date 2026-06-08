@@ -20,6 +20,7 @@ import { BackupSettings } from "@/components/settings/backup-settings";
 import { BetaSettings } from "@/components/settings/beta-settings";
 import { DebugSettings } from "@/components/settings/debug-settings";
 import { DisplaySettings } from "@/components/settings/display-settings";
+import { FestiveMonthsSettings } from "@/components/settings/festive-months-settings";
 import { InstanceNameCard } from "@/components/settings/instance-name";
 import { LanguageSettingsCard } from "@/components/settings/language-settings";
 import { LocationSettingsCard } from "@/components/settings/location-settings";
@@ -221,6 +222,7 @@ export default function SettingsPage() {
         <TabsContent value="advanced" className="mt-0 space-y-6">
           <DebugSettings />
           <BetaSettings />
+          <FestiveMonthsSettings />
         </TabsContent>
       </Tabs>
     </PageLayout>

@@ -167,25 +167,10 @@ export const SidebarAurora = memo(function SidebarAurora() {
     };
     rafId = requestAnimationFrame(tick);
 
-    // Resist removal. rAF delay lets React reconcile first so we don't fight its own renders.
-    let alive = true;
-    const wrapperEl = canvas.parentElement!;
-    const guard = new MutationObserver(() => {
-      if (!alive || document.contains(canvas)) return;
-      requestAnimationFrame(() => {
-        if (!alive || document.contains(canvas)) return;
-        console.log("%c🏳️‍🌈 Nice try. Happy Pride Month!", "color:#ff8c00;font-weight:bold;font-size:13px");
-        wrapperEl.appendChild(canvas);
-      });
-    });
-    guard.observe(document.body, { childList: true, subtree: true });
-
     // Do NOT call loseContext() — permanently destroys context, breaks React 18 Strict Mode remount.
     return () => {
-      alive = false;
       cancelAnimationFrame(rafId);
       ro.disconnect();
-      guard.disconnect();
     };
   }, []);
 

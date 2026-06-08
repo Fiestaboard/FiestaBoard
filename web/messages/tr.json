@@ -1207,6 +1207,12 @@
     "toastNoUpdates": "Tüm eklentiler güncel",
     "toastCheckFailed": "Güncellemeler kontrol edilemedi: {error}"
   },
+  "festiveMonthsSettings": {
+    "title": "Festival Ayları",
+    "description": "Aya özel arayüz dokunuşları — şu anda Onur Ayı'nda (Haziran) logo, kenar çubuğu ve sayfa başlığı simgelerinde gökkuşağı görünüyor.",
+    "hideLabel": "Festival aylarını gizle",
+    "hideHint": "Web arayüzündeki mevsimsel dekorasyonları kapatır. Panonuza gönderilen hiçbir şeyi etkilemez."
+  },
   "betaSettings": {
     "title": "Beta Özellikleri",
     "betaBadge": "Beta",

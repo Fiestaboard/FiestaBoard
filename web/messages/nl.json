@@ -1207,6 +1207,12 @@
     "toastNoUpdates": "Alle plugins zijn up-to-date",
     "toastCheckFailed": "Updates controleren mislukt: {error}"
   },
+  "festiveMonthsSettings": {
+    "title": "Feestelijke maanden",
+    "description": "Maandgebonden UI-accenten — momenteel een regenboog op het logo, de zijbalk en de pagina-koppictogrammen tijdens Pride Month (juni).",
+    "hideLabel": "Feestelijke maanden verbergen",
+    "hideHint": "Schakel seizoensdecoraties in de webinterface uit. Heeft geen invloed op wat naar je board wordt gestuurd."
+  },
   "betaSettings": {
     "title": "Bèta-functies",
     "betaBadge": "Bèta",

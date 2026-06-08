@@ -1207,6 +1207,12 @@
     "toastNoUpdates": "Alla plugins är uppdaterade",
     "toastCheckFailed": "Kunde inte söka efter uppdateringar: {error}"
   },
+  "festiveMonthsSettings": {
+    "title": "Festliga månader",
+    "description": "Månadsbaserade UI-detaljer — för närvarande en regnbåge på logotypen, sidofältet och sidhuvudikonerna under Pride-månaden (juni).",
+    "hideLabel": "Dölj festliga månader",
+    "hideHint": "Stäng av säsongsbaserade dekorationer i hela webbgränssnittet. Påverkar inte det som skickas till din tavla."
+  },
   "betaSettings": {
     "title": "Beta-funktioner",
     "betaBadge": "Beta",

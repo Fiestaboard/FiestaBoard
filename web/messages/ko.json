@@ -1207,6 +1207,12 @@
     "toastNoUpdates": "모든 플러그인이 최신입니다",
     "toastCheckFailed": "업데이트 확인 실패: {error}"
   },
+  "festiveMonthsSettings": {
+    "title": "축제의 달",
+    "description": "월별 테마 UI 장식 — 현재는 프라이드 먼스(6월) 동안 로고, 사이드바, 페이지 헤더 아이콘에 무지개가 적용됩니다.",
+    "hideLabel": "축제의 달 숨기기",
+    "hideHint": "웹 UI 전체의 계절 장식을 끕니다. 보드에 전송되는 내용에는 영향을 주지 않습니다."
+  },
   "betaSettings": {
     "title": "베타 기능",
     "betaBadge": "베타",

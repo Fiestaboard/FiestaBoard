@@ -70,7 +70,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // across theme toggles depend on this stable insertion order — see
   // `web/tests/navigation.spec.ts:72-101`. useState's init function runs
   // once per mount, so the value is stable for the lifetime of the page.
-  const [isPrideMonth] = useState(() => new Date().getMonth() === 5);
+  //
+  // Opt-out: the `hide_festive_months` cookie (written by
+  // FestiveMonthsSettings, which reloads the page after toggle) suppresses
+  // the class. Pre-migration this was a server-side `cookies()` read in
+  // the Next.js root layout; in SPA mode we read `document.cookie` in the
+  // same useState initializer so the class is set on the very first paint.
+  const [isPrideMonth] = useState(() => {
+    if (new Date().getMonth() !== 5) return false;
+    if (typeof document === "undefined") return true;
+    return !document.cookie.split("; ").some((c) => c === "hide_festive_months=true");
+  });
   return (
     <html lang="en" className={isPrideMonth ? "pride-month" : undefined} suppressHydrationWarning>
       <head>

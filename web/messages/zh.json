@@ -1207,6 +1207,12 @@
     "toastNoUpdates": "所有插件均为最新",
     "toastCheckFailed": "无法检查更新:{error}"
   },
+  "festiveMonthsSettings": {
+    "title": "节日月份",
+    "description": "按月份变化的界面装饰 — 当前在骄傲月（6 月）期间，徽标、侧边栏和页面标题图标会显示彩虹。",
+    "hideLabel": "隐藏节日月份",
+    "hideHint": "关闭整个 Web 界面的季节性装饰。不会影响发送到板子的任何内容。"
+  },
   "betaSettings": {
     "title": "Beta 功能",
     "betaBadge": "Beta",
