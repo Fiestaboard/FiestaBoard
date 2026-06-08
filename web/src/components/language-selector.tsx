@@ -1,12 +1,12 @@
 "use client";
 
 import { Globe } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useTransition } from "react";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type Locale, localeNames, locales } from "@/i18n/config";
+import i18n from "@/i18n/i18next";
 
 function setLocaleCookie(locale: Locale) {
   document.cookie = `NEXT_LOCALE=${locale};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`;
@@ -14,7 +14,6 @@ function setLocaleCookie(locale: Locale) {
 
 export function LanguageSelector() {
   const locale = useLocale();
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const t = useTranslations("common");
 
@@ -22,7 +21,11 @@ export function LanguageSelector() {
     const newLocale = value as Locale;
     setLocaleCookie(newLocale);
     startTransition(() => {
-      router.refresh();
+      // SPA-mode: i18next's language-detector reads the cookie only at
+      // boot, so we have to push the change into i18next ourselves for
+      // the UI to re-render. The cookie write above keeps the choice
+      // sticky across reloads.
+      void i18n.changeLanguage(newLocale);
     });
   }
 

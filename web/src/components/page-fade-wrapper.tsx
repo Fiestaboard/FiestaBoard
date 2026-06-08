@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/hooks/use-router";
 
 import FadeContent from "@/components/ui/react-bits/fade-content";
 

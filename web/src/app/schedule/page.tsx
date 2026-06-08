@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";

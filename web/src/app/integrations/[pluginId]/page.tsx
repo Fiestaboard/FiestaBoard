@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDownToLine, ArrowLeft, CopyPlus, ExternalLink, Puzzle } from "lucide-react";
 import Link from "@/components/smart-link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter } from "@/hooks/use-router";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";

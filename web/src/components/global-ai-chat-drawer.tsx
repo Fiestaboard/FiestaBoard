@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/hooks/use-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 

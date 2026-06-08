@@ -14,7 +14,7 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "next-intl";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";

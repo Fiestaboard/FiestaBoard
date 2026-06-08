@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/hooks/use-router";
 
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { useSidebar } from "@/components/sidebar-context";

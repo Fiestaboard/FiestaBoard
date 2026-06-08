@@ -11,7 +11,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/hooks/use-router";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";

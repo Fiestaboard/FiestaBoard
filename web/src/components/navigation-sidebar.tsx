@@ -15,7 +15,7 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";

@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useState } from "react";

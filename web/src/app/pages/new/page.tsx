@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useSearchParams } from "@/hooks/use-router";
 
 import { PageEditorShell } from "@/components/page-editor-shell";
 import { useViewTransition } from "@/hooks/use-view-transition";

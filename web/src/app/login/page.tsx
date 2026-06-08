@@ -25,7 +25,7 @@
  */
 
 import { Loader2, Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
@@ -102,6 +102,12 @@ export default function LoginPage() {
   const usernameInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
+  // Guard against re-firing the bounce navigation if either `router` or
+  // `redirectTo` references change after we've already left. Without it
+  // the effect can chain a second navigation that overwrites a search/hash
+  // the user has since added.
+  const hasBounced = useRef(false);
+
   // Resolve /auth/status on mount so we know which form to render.
   useEffect(() => {
     let cancelled = false;
@@ -111,11 +117,15 @@ export default function LoginPage() {
         setStatus(s);
         // If auth is disabled, this page has no purpose — bounce home.
         if (!s.enabled) {
-          router.replace(redirectTo);
+          if (!hasBounced.current) {
+            hasBounced.current = true;
+            router.replace(redirectTo);
+          }
           return;
         }
         // Already signed in -> straight to the redirect target.
-        if (s.authenticated) {
+        if (s.authenticated && !hasBounced.current) {
+          hasBounced.current = true;
           router.replace(redirectTo);
         }
       })

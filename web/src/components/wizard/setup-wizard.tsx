@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 

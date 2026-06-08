@@ -16,7 +16,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCircle2, UserCog } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/hooks/use-router";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 

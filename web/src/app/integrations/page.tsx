@@ -197,7 +197,7 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "@/components/smart-link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
