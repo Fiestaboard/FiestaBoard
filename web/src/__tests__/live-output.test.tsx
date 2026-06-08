@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@/hooks/use-theme";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PageBuilder } from "@/components/page-builder";

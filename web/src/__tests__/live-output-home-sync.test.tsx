@@ -14,7 +14,7 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { renderHook } from "@testing-library/react";
 import { http } from "msw";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@/hooks/use-theme";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

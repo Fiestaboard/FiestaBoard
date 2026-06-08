@@ -240,7 +240,7 @@ Object.defineProperty(window, "localStorage", {
   writable: true,
 });
 
-// Mock matchMedia for next-themes
+// Mock matchMedia for the `useTheme` hook at `@/hooks/use-theme`
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({

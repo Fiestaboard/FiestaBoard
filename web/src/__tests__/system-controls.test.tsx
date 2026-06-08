@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@/hooks/use-theme";
 import { describe, expect, it } from "vitest";
 
 import { SystemControls } from "@/components/settings/system-controls";

@@ -6,7 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const mockSetTheme = vi.fn();
 
-vi.mock("next-themes", () => ({
+vi.mock("@/hooks/use-theme", () => ({
   useTheme: vi.fn(),
   ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -14,7 +14,7 @@ vi.mock("next-themes", () => ({
 describe("ThemeToggle", () => {
   beforeEach(async () => {
     mockSetTheme.mockClear();
-    const { useTheme } = await import("next-themes");
+    const { useTheme } = await import("@/hooks/use-theme");
     vi.mocked(useTheme).mockReturnValue({
       theme: "light",
       setTheme: mockSetTheme,
@@ -23,7 +23,7 @@ describe("ThemeToggle", () => {
   });
 
   it("calls setTheme with dark when theme is light (ternary branch)", async () => {
-    const { useTheme } = await import("next-themes");
+    const { useTheme } = await import("@/hooks/use-theme");
     vi.mocked(useTheme).mockReturnValue({
       theme: "light",
       setTheme: mockSetTheme,
@@ -42,7 +42,7 @@ describe("ThemeToggle", () => {
   });
 
   it("calls setTheme with light when theme is dark (ternary branch)", async () => {
-    const { useTheme } = await import("next-themes");
+    const { useTheme } = await import("@/hooks/use-theme");
     vi.mocked(useTheme).mockReturnValue({
       theme: "dark",
       setTheme: mockSetTheme,
