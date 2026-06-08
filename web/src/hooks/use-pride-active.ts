@@ -2,26 +2,31 @@
 
 import { useEffect, useState } from "react";
 
+import { readCookieString, shouldShowPride } from "@/lib/pride";
+
 /**
- * Returns whether the `pride-month` class is currently on `<html>`.
+ * Returns whether Pride Month flourishes should be active.
  *
- * The class is the single gate for Pride Month UI flourishes — applied
- * by the root layout (`web/app/root.tsx::Layout`) on first mount, based
- * on the date + the `hide_festive_months` cookie. JS-rendered
- * decorations (sidebar aurora, click-to-celebrate confetti) read from
- * this hook so they stay in lockstep with the CSS rules that key off
- * the same class.
+ * Derives from the same primary source as the `pride-month` CSS class
+ * (date + `hide_festive_months` cookie) rather than reading the class
+ * itself — that keeps the JS gate (sidebar aurora, click-to-celebrate
+ * confetti) and the CSS gate aligned even when the prerendered HTML
+ * has the class baked in but the user has opted out via cookie.
  *
- * The class only changes via a full page load (the settings toggle
- * sets the cookie and reloads), so reading it once on mount is enough.
- * Returns false during the first render to avoid any hydration-style
- * mismatch for anything mounted inside this hook's consumer.
+ * Pre-fix the hook read `document.documentElement.classList` once on
+ * mount, which meant after toggling the cookie + reloading, the JS
+ * decorations stayed visible whenever the SSR/prerender output had
+ * already included `pride-month` on `<html>`.
+ *
+ * The hook returns `false` on the first render to avoid hydration
+ * mismatch for anything mounted inside its consumer, then resolves
+ * to the cookie-aware value in a layout effect.
  */
 export function usePrideActive(): boolean {
   const [active, setActive] = useState(false);
 
   useEffect(() => {
-    setActive(document.documentElement.classList.contains("pride-month"));
+    setActive(shouldShowPride(new Date(), readCookieString()));
   }, []);
 
   return active;
