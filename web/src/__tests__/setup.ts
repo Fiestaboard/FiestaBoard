@@ -33,99 +33,104 @@ function getNestedRaw(obj: unknown, path: string): unknown {
   return current;
 }
 
-vi.mock("@/lib/next-compat/intl", () => ({
-  useTranslations: (namespace?: string) => {
-    const ns = namespace ? getNestedRaw(enMessages, namespace) : enMessages;
-    const lookup = (key: string): unknown => {
-      const v = getNestedRaw(ns, key);
-      return v === undefined ? (namespace ? `${namespace}.${key}` : key) : v;
-    };
-    const t = (key: string, params?: Record<string, unknown>) => {
-      const raw = lookup(key);
-      let rawStr = typeof raw === "string" ? raw : namespace ? `${namespace}.${key}` : key;
-      if (!params) return rawStr;
-      // Handle ICU plural: {name, plural, one {...} other {...}}
-      rawStr = rawStr.replace(
-        /\{(\w+),\s*plural,\s*((?:[^{}]|\{[^{}]*\})*)\}/g,
-        (_full: string, name: string, branches: string) => {
-          const value = Number(params[name]);
-          const branchMap: Record<string, string> = {};
-          const branchRe = /(\w+|=\d+)\s*\{([^{}]*)\}/g;
-          let m: RegExpExecArray | null;
-          while ((m = branchRe.exec(branches)) !== null) {
-            branchMap[m[1]] = m[2];
-          }
-          let chosen = branchMap.other ?? "";
-          if (`=${value}` in branchMap) chosen = branchMap[`=${value}`];
-          else if (value === 1 && branchMap.one) chosen = branchMap.one;
-          return chosen.replace(/#/g, String(value));
-        },
-      );
-      return rawStr.replace(/\{(\w+)\}/g, (_: string, k: string) => (params[k] != null ? String(params[k]) : `{${k}}`));
-    };
-    // Mock t.rich: render the message, replacing <tag>...</tag> and {placeholder} with React elements
-    (t as unknown as { rich: (key: string, values?: Record<string, unknown>) => React.ReactNode }).rich = (
-      key: string,
-      values?: Record<string, unknown>,
-    ) => {
-      const rawVal = lookup(key);
-      const raw = typeof rawVal === "string" ? rawVal : key;
-      if (!values) return raw;
-      const parts: React.ReactNode[] = [];
-      const regex = /<(\w+)>(.*?)<\/\1>|\{(\w+)\}/g;
-      let lastIndex = 0;
-      let match: RegExpExecArray | null;
-      let nodeKey = 0;
-      while ((match = regex.exec(raw)) !== null) {
-        if (match.index > lastIndex) {
-          parts.push(raw.slice(lastIndex, match.index));
+// One factory used by both module-id paths. Inlined twice (not shared via
+// vi.importMock) because vi.importMock from a setup-file mock factory
+// deadlocks when both `next-intl` and the shim path are mocked — the second
+// factory's awaited importMock waits for the first mock to resolve, but the
+// first mock resolution is paused on whichever import the test made first,
+// which leaves vitest's worker hung at module-load with no test ever running.
+function makeIntlMock() {
+  return {
+    useTranslations: (namespace?: string) => {
+      const ns = namespace ? getNestedRaw(enMessages, namespace) : enMessages;
+      const lookup = (key: string): unknown => {
+        const v = getNestedRaw(ns, key);
+        return v === undefined ? (namespace ? `${namespace}.${key}` : key) : v;
+      };
+      const t = (key: string, params?: Record<string, unknown>) => {
+        const raw = lookup(key);
+        let rawStr = typeof raw === "string" ? raw : namespace ? `${namespace}.${key}` : key;
+        if (!params) return rawStr;
+        // Handle ICU plural: {name, plural, one {...} other {...}}
+        rawStr = rawStr.replace(
+          /\{(\w+),\s*plural,\s*((?:[^{}]|\{[^{}]*\})*)\}/g,
+          (_full: string, name: string, branches: string) => {
+            const value = Number(params[name]);
+            const branchMap: Record<string, string> = {};
+            const branchRe = /(\w+|=\d+)\s*\{([^{}]*)\}/g;
+            let m: RegExpExecArray | null;
+            while ((m = branchRe.exec(branches)) !== null) {
+              branchMap[m[1]] = m[2];
+            }
+            let chosen = branchMap.other ?? "";
+            if (`=${value}` in branchMap) chosen = branchMap[`=${value}`];
+            else if (value === 1 && branchMap.one) chosen = branchMap.one;
+            return chosen.replace(/#/g, String(value));
+          },
+        );
+        return rawStr.replace(/\{(\w+)\}/g, (_: string, k: string) =>
+          params[k] != null ? String(params[k]) : `{${k}}`,
+        );
+      };
+      // Mock t.rich: render the message, replacing <tag>...</tag> and {placeholder} with React elements
+      (
+        t as unknown as {
+          rich: (key: string, values?: Record<string, unknown>) => React.ReactNode;
         }
-        if (match[1]) {
-          const fn = values[match[1]];
-          if (typeof fn === "function") {
-            parts.push(
-              React.createElement(
-                React.Fragment,
-                { key: nodeKey++ },
-                (fn as (chunks: string) => React.ReactNode)(match[2]),
-              ),
-            );
-          } else {
-            parts.push(match[2]);
+      ).rich = (key: string, values?: Record<string, unknown>) => {
+        const rawVal = lookup(key);
+        const raw = typeof rawVal === "string" ? rawVal : key;
+        if (!values) return raw;
+        const parts: React.ReactNode[] = [];
+        const regex = /<(\w+)>(.*?)<\/\1>|\{(\w+)\}/g;
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+        let nodeKey = 0;
+        while ((match = regex.exec(raw)) !== null) {
+          if (match.index > lastIndex) {
+            parts.push(raw.slice(lastIndex, match.index));
           }
-        } else if (match[3]) {
-          const v = values[match[3]];
-          if (typeof v === "function") {
-            parts.push(React.createElement(React.Fragment, { key: nodeKey++ }, (v as () => React.ReactNode)()));
-          } else if (v != null) {
-            parts.push(String(v));
+          if (match[1]) {
+            const fn = values[match[1]];
+            if (typeof fn === "function") {
+              parts.push(
+                React.createElement(
+                  React.Fragment,
+                  { key: nodeKey++ },
+                  (fn as (chunks: string) => React.ReactNode)(match[2]),
+                ),
+              );
+            } else {
+              parts.push(match[2]);
+            }
+          } else if (match[3]) {
+            const v = values[match[3]];
+            if (typeof v === "function") {
+              parts.push(React.createElement(React.Fragment, { key: nodeKey++ }, (v as () => React.ReactNode)()));
+            } else if (v != null) {
+              parts.push(String(v));
+            }
           }
+          lastIndex = regex.lastIndex;
         }
-        lastIndex = regex.lastIndex;
-      }
-      if (lastIndex < raw.length) parts.push(raw.slice(lastIndex));
-      return React.createElement(React.Fragment, null, ...parts);
-    };
-    // Mock t.raw: returns the raw value (object/array/string) at the given key
-    (t as unknown as { raw: (key: string) => unknown }).raw = (key: string) => {
-      const v = getNestedRaw(ns, key);
-      return v === undefined ? key : v;
-    };
-    return t;
-  },
-  useLocale: () => "en",
-  NextIntlClientProvider: ({ children }: { children: React.ReactNode }) =>
-    React.createElement(React.Fragment, null, children),
-}));
+        if (lastIndex < raw.length) parts.push(raw.slice(lastIndex));
+        return React.createElement(React.Fragment, null, ...parts);
+      };
+      // Mock t.raw: returns the raw value (object/array/string) at the given key
+      (t as unknown as { raw: (key: string) => unknown }).raw = (key: string) => {
+        const v = getNestedRaw(ns, key);
+        return v === undefined ? key : v;
+      };
+      return t;
+    },
+    useLocale: () => "en",
+    NextIntlClientProvider: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+  };
+}
 
-// Mirror the same mock on the raw "next-intl" path so tests that pre-date
-// the migration and import directly from "next-intl" pick up the same
-// deterministic surface (rather than being redirected through the live
-// react-i18next path via the Vitest alias).
-vi.mock("next-intl", async () => {
-  const mod = await vi.importMock<typeof import("@/lib/next-compat/intl")>("@/lib/next-compat/intl");
-  return mod;
-});
+vi.mock("@/lib/next-compat/intl", () => makeIntlMock());
+vi.mock("next-intl", () => makeIntlMock());
 
 /**
  * The next-compat navigation shim (`@/lib/next-compat/navigation`) calls
@@ -138,10 +143,58 @@ vi.mock("next-intl", async () => {
  */
 vi.mock("react-router", async () => {
   const actual = await vi.importActual<typeof import("react-router")>("react-router");
+  // `<Link>` / `<NavLink>` from react-router crash with
+  // "Cannot destructure property 'basename' of React.useContext(...)" when
+  // rendered without a router ancestor. Substitute plain anchor renderers
+  // so individual component tests don't need to wrap in `<MemoryRouter>`.
+  const LinkStub = React.forwardRef<
+    HTMLAnchorElement,
+    Record<string, unknown> & { to?: unknown; children?: React.ReactNode }
+  >(function LinkStub({ to, children, replace: _replace, prefetch: _prefetch, viewTransition: _vt, ...rest }, ref) {
+    const href = typeof to === "string" ? to : "#";
+    return React.createElement("a", { ref, href, ...rest }, children);
+  });
+  const NavLinkStub = React.forwardRef<
+    HTMLAnchorElement,
+    Record<string, unknown> & {
+      to?: unknown;
+      children?: React.ReactNode | ((p: { isActive: boolean }) => React.ReactNode);
+    }
+  >(function NavLinkStub({ to, children, className, style, ...rest }, ref) {
+    const href = typeof to === "string" ? to : "#";
+    const isActive = href === "/";
+    const renderedChildren =
+      typeof children === "function"
+        ? (children as (p: { isActive: boolean }) => React.ReactNode)({
+            isActive,
+          })
+        : children;
+    const resolvedClass =
+      typeof className === "function" ? (className as (p: { isActive: boolean }) => string)({ isActive }) : className;
+    const resolvedStyle =
+      typeof style === "function"
+        ? (style as (p: { isActive: boolean }) => React.CSSProperties)({
+            isActive,
+          })
+        : style;
+    return React.createElement(
+      "a",
+      { ref, href, className: resolvedClass, style: resolvedStyle, ...rest },
+      renderedChildren,
+    );
+  });
   return {
     ...actual,
+    Link: LinkStub,
+    NavLink: NavLinkStub,
     useNavigate: () => vi.fn(),
-    useLocation: () => ({ pathname: "/", search: "", hash: "", state: null, key: "default" }),
+    useLocation: () => ({
+      pathname: "/",
+      search: "",
+      hash: "",
+      state: null,
+      key: "default",
+    }),
     useSearchParams: () => [new URLSearchParams(), vi.fn()],
     useParams: () => ({}),
   };
