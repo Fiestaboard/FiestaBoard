@@ -1,5 +1,3 @@
-"use client";
-
 import { useRouter } from "@/hooks/use-router";
 
 import { PageEditorShell } from "@/components/page-editor-shell";

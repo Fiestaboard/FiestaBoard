@@ -30,7 +30,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-import Home from "@/app/page";
+import Home from "../../app/routes/home";
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({

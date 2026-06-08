@@ -1,5 +1,6 @@
 /**
- * React Router v7 root module — replaces `src/app/layout.tsx`.
+ * React Router v7 root module — owns the document shell that pre-RR7
+ * lived in a Next.js `app/layout.tsx`.
  *
  * Renders the document shell, mounts the provider tree, and exposes
  * `<Outlet />` for nested routes. Localized `<title>` and
@@ -9,7 +10,7 @@
  * `./assets/...`), which is how HA Ingress works without any
  * build-time `assetPrefix`.
  */
-import "../src/app/globals.css";
+import "./globals.css";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
 
@@ -64,18 +65,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // we lean on i18next-browser-languagedetector and patch `<html lang>`
   // imperatively in `RootBody` once it boots.
   //
-  // `pride-month` is set as a className in the initial render (matching the
-  // pre-migration Next.js layout) so it appears in the HTML attribute BEFORE
-  // next-themes adds `light`/`dark`. Tests that compare html.class strings
-  // across theme toggles depend on this stable insertion order — see
+  // `pride-month` is set as a className in the initial render so it
+  // appears in the HTML attribute BEFORE the theme hook adds
+  // `light`/`dark`. Tests that compare html.class strings across theme
+  // toggles depend on this stable insertion order — see
   // `web/tests/navigation.spec.ts:72-101`. useState's init function runs
   // once per mount, so the value is stable for the lifetime of the page.
   //
   // Opt-out: the `hide_festive_months` cookie (written by
   // FestiveMonthsSettings, which reloads the page after toggle) suppresses
-  // the class. Pre-migration this was a server-side `cookies()` read in
-  // the Next.js root layout; in SPA mode we read `document.cookie` in the
-  // same useState initializer so the class is set on the very first paint.
+  // the class. We read `document.cookie` in the same useState initializer
+  // so the class is set on the very first paint.
   const [isPrideMonth] = useState(() => {
     if (new Date().getMonth() !== 5) return false;
     if (typeof document === "undefined") return true;

@@ -29,7 +29,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/login",
 }));
 
-import LoginPage from "@/app/login/page";
+import LoginPage from "../../app/routes/login";
 
 function makeStatus(
   overrides: Partial<{
