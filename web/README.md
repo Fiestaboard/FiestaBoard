@@ -1,3 +1,3 @@
 # FiestaBoard Web UI
 
-The Next.js frontend for FiestaBoard. See the root [README](../README.md) for project overview and setup instructions.
+The React Router v7 + Vite frontend for FiestaBoard. See the root [README](../README.md) for project overview and setup instructions.
