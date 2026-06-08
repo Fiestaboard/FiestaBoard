@@ -67,19 +67,28 @@ jobs:
         with:
           node-version: "20"
           cache: 'npm'
-          cache-dependency-path: web/package-lock.json
+          # package-lock.json is regenerated on the first build after
+          # the Next.js → RR7 migration; fall back to package.json
+          # for cache keying until the regenerated lockfile is
+          # committed in a follow-up.
+          cache-dependency-path: web/package.json
 
       - name: Cache Playwright browsers
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package.json', 'web/package-lock.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
       - name: Install UI dependencies
         working-directory: web
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --legacy-peer-deps --no-audit
+          else
+            npm install --legacy-peer-deps --no-audit
+          fi
 
       - name: Install Playwright browsers
         working-directory: web

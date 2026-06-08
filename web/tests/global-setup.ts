@@ -8,6 +8,12 @@
  */
 import { rm } from "fs/promises";
 import path from "path";
+import { fileURLToPath } from "url";
+
+// `__dirname` doesn't exist in ESM (we set `"type": "module"` in
+// package.json post-RR7 migration). Resolve relative paths via
+// `import.meta.url` instead.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const API_URL = process.env.BASE_URL
   ? `${process.env.BASE_URL}/api`

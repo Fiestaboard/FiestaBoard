@@ -1,6 +1,8 @@
 # ============================================================
 # FiestaBoard Unified Dockerfile
-# Combines API (Python/FastAPI) and UI (Next.js) in one image
+# Combines API (Python/FastAPI) and UI (React Router v7 / Vite SPA)
+# in one image. nginx serves the static UI bundle directly — no Node
+# runtime process in production.
 # ============================================================
 
 # --- Stage 1: Build Python dependencies ---
@@ -21,38 +23,44 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir fastapi uvicorn[standard] supervisor
 
-# --- Stage 2: Build Next.js UI ---
+# --- Stage 2: Build the React Router v7 UI (static SPA) ---
 FROM node:26-alpine AS ui-builder
 
 ARG VERSION=dev
 
 WORKDIR /app
 
-# Install build dependencies for native modules (lightningcss, swc)
+# Build deps for native modules (lightningcss, swc, sharp if any)
 RUN apk add --no-cache python3 make g++
 
-# Copy package files for dependency installation. Lockfile is required
-# for `npm ci` reproducibility (matches what CI tests against).
-COPY web/package.json web/package-lock.json ./
+# Install web dependencies. We use `npm install` (not `npm ci`) because
+# this migration PR drops the Next.js-pinned package-lock.json — the
+# first successful build in CI will produce a fresh lockfile that can
+# be committed in a follow-up to restore reproducible `npm ci` builds.
+# The lockfile is COPYed conditionally so the build works whether or
+# not it has been committed yet.
+COPY web/package.json ./
+COPY web/package-lock.json* ./
 
-# Install ALL dependencies (needed for build). `npm ci` matches the
-# lockfile exactly — same versions CI installed and tested.
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --legacy-peer-deps --no-audit
+    if [ -f package-lock.json ]; then \
+        npm ci --legacy-peer-deps --no-audit; \
+    else \
+        npm install --legacy-peer-deps --no-audit; \
+    fi
 
-# Copy source files
+# Copy source files (everything Vite + RR7 needs to build)
 COPY web/ ./
 
-# Build the Next.js app with standalone output. The .next/cache mount
-# persists webpack/SWC's incremental compilation cache across builds on
-# the same buildkit instance (helps local devs; no-op in CI where each
-# job gets a fresh runner).
+# Static SPA build. Output lands in /app/build/client/ (RR7 framework
+# mode with `ssr: false`). Cache the Vite build cache so local
+# rebuilds are faster; CI doesn't benefit (fresh runner each job).
 ENV NODE_OPTIONS="--max-old-space-size=4096"
-RUN --mount=type=cache,target=/app/.next/cache \
+RUN --mount=type=cache,target=/app/node_modules/.vite \
     npm run build
 
 # --- Stage 3: Final unified runtime image ---
-FROM python:3.14-slim
+FROM python:3.14-slim AS runtime
 
 ARG VERSION=dev
 ENV VERSION=${VERSION}
@@ -67,13 +75,14 @@ LABEL org.opencontainers.image.title="FiestaBoard" \
 
 WORKDIR /app
 
-# Install Node.js, nginx, wget, git, and gosu (for entrypoint privilege dropping)
-# git is required for the external plugin install/update system (git clone, git pull)
+# Install nginx, wget, git, and gosu. Node.js is no longer installed
+# in the production runtime — the UI is a static Vite bundle that
+# nginx serves directly. Dropping nodejs shrinks the runtime image
+# by ~150MB.
+# git is required for the external plugin install/update system.
+# network-manager (nmcli + nm-online) is used by FiestaPi WiFi-management
+# endpoints. Harmless on non-Pi deployments.
 ARG TARGETARCH
-# network-manager (provides nmcli + nm-online) is used by the FiestaPi
-# WiFi-management endpoints. Harmless on non-Pi deployments — the binaries
-# only do anything when the container is granted CAP_NET_ADMIN and the
-# host D-Bus socket is bind-mounted (see pi-image/.../docker-compose.yml).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
@@ -82,8 +91,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     openssl \
     wget \
-    && curl -fsSL https://deb.nodesource.com/setup_25.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python packages from builder
@@ -95,17 +102,15 @@ COPY src/ ./src/
 COPY plugins/ ./plugins/
 COPY tests/ ./tests/
 COPY staff-picks/ ./staff-picks/
-# Curated community plugin list for Integrations → Marketplace (API reads /app/plugin-registry.json)
 COPY plugin-registry.json ./plugin-registry.json
 
-# Copy Next.js standalone build from UI builder
-COPY --from=ui-builder /app/.next/standalone ./web/
-COPY --from=ui-builder /app/.next/static ./web/.next/static
-COPY --from=ui-builder /app/public ./web/public
+# Copy the static SPA bundle. Vite emits /app/build/client/ with
+# index.html + hashed assets/ subdirectory. nginx serves this directly
+# (see nginx.conf::location /).
+COPY --from=ui-builder /app/build/client /app/web/build/client
+COPY --from=ui-builder /app/public /app/web/public
 
 # Copy nginx configuration (default HTTP) and the alternate HTTPS template.
-# entrypoint.sh swaps in the HTTPS template at startup when the user has
-# enabled the HTTPS (Beta) setting and a valid cert exists.
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY nginx.conf /app/nginx.http.conf
 COPY nginx.https.conf /app/nginx.https.conf
@@ -135,8 +140,7 @@ RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app /var/log/nginx /var/lib/nginx /run/nginx /etc/nginx
 
 # Declare persistent data volume so Docker always creates a volume for /app/data,
-# even when the container is run without an explicit -v mount (e.g. plain docker run).
-# Compose bind-mounts (./data:/app/data) override this automatically.
+# even when the container is run without an explicit -v mount.
 VOLUME /app/data
 
 # Expose single port
@@ -150,3 +154,23 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 # then drops to appuser via gosu before executing the CMD.
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["supervisord", "-c", "/app/supervisord.conf"]
+
+# --- Stage 4 (optional): Dev runtime, only built when target=runtime-dev ---
+# The Vite/React-Router dev server needs Node at runtime; production
+# doesn't (nginx serves the static SPA). Split that into a separate
+# target so the prod image keeps the ~150MB Node savings while
+# docker-compose.dev.yml can opt in with `target: runtime-dev`.
+FROM runtime AS runtime-dev
+
+USER root
+
+# Pull the same Node 26.x that the ui-builder stage used so dev and
+# build resolve packages the same way. `--with-deps` is implicit via
+# the nodesource setup script.
+RUN curl -fsSL https://deb.nodesource.com/setup_26.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && chown -R appuser:appuser /app
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["supervisord", "-c", "/app/supervisord-dev.conf"]

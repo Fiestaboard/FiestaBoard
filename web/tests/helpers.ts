@@ -106,6 +106,14 @@ export async function resetMockBoard(port?: number): Promise<void> {
 /**
  * Configure the board via the API so the app is no longer in first-run mode.
  * Call this in tests that need a working backend without running the wizard.
+ *
+ * Also pins the multi-board settings to a single "flagship" device. Without
+ * this, the inferred device list can flip to ["note"] between tests (depending
+ * on which test reset state last), which hides flagship pages from the /pages
+ * UI because PagesPage filters by the currently-active device tab. See
+ * `web/src/app/pages/page.tsx` — `useBoardSettings().devices` drives the
+ * tab list, and pages whose `device_type` doesn't match the active tab are
+ * filtered out by `<PageGridSelector deviceTypeFilter={...} />`.
  */
 export async function configureBoard() {
   await ensureAuthForFetch();
@@ -117,6 +125,13 @@ export async function configureBoard() {
       local_api_key: "test-key",
       host: BOARD_HOST,
     }),
+  });
+  // Pin the device list so tests that create flagship-default pages can
+  // actually see them in /pages — see comment above.
+  await fetch(`${API_URL}/settings/board`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ devices: ["flagship"] }),
   });
 }
 

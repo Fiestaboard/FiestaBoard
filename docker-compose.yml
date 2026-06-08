@@ -4,6 +4,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Explicit production target. The Dockerfile defines a `runtime-dev`
+      # stage AFTER `runtime` that adds Node + flips CMD to supervisord-dev
+      # for the Vite dev server; without `target`, Docker builds the last
+      # stage and prod accidentally runs the dev supervisord (and tries to
+      # spawn `rr7` forever). Pin the prod target so it always lands here.
+      target: runtime
     container_name: fiestaboard
     env_file:
       - .env
@@ -82,3 +88,33 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # Mock Vestaboard - off by default; opt-in for local end-to-end testing
+  # without a real board. Enable with:
+  #   docker compose -f docker-compose.yml --profile mock-board up -d
+  # ---------------------------------------------------------------------------
+  # Then in the FiestaBoard UI, set the board host to `fiestaboard-mock-board`
+  # (the container name resolves over the compose-internal network) and the
+  # local API key to `mock-dev-key`. Real production deployments should not
+  # set this profile.
+  fiestaboard-mock-board:
+    image: python:3.11-alpine
+    container_name: fiestaboard-mock-board
+    profiles: ["mock-board"]
+    restart: unless-stopped
+    volumes:
+      - ./integration-tests/mock-board/server.py:/server.py:ro
+    # Host ports avoid macOS AirPlay / Control Center (often binds :7000).
+    # Inside the container the mock still listens on 7000/7001.
+    ports:
+      - "17000:7000"
+      - "17001:7001"
+    environment:
+      - PORTS=7000,7001
+    command: python /server.py
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

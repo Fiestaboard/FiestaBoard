@@ -223,7 +223,6 @@ export default function PluginDetailPage() {
                     </a>
                   ),
                   img: ({ src, alt, ...props }) => (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={src} alt={alt ?? ""} className="rounded-lg max-h-64 w-auto my-3" {...props} />
                   ),
                   pre: ({ children, ...props }) => (

@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -13,15 +13,28 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "types": ["vite/client", "vite-plugin-pwa/client"],
+    "rootDirs": [".", "./.react-router/types"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "next/navigation": ["./src/lib/next-compat/navigation.ts"],
+      "next/link": ["./src/lib/next-compat/link.tsx"],
+      "next/dynamic": ["./src/lib/next-compat/dynamic.tsx"],
+      "next/image": ["./src/lib/next-compat/image.tsx"],
+      "next-intl": ["./src/lib/next-compat/intl.tsx"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    ".react-router/types/**/*",
+    "app/**/*",
+    "src/**/*",
+    "tests/**/*",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "react-router.config.ts",
+    "playwright.config.ts",
+    "playwright-screenshots.config.ts",
+    "eslint.config.mjs"
+  ],
+  "exclude": ["node_modules", "build", ".react-router"]
 }

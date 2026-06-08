@@ -18,22 +18,33 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
         cache: 'npm'
-        cache-dependency-path: web/package-lock.json
+        # package-lock.json is regenerated on the first CI build after the
+        # Next.js → RR7 migration; fall back to package.json for cache
+        # keying until the regenerated lockfile is committed.
+        cache-dependency-path: web/package.json
 
     - name: Cache Playwright browsers
       uses: actions/cache@v5
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+        key: playwright-${{ runner.os }}-${{ hashFiles('web/package.json', 'web/package-lock.json') }}
         restore-keys: |
           playwright-${{ runner.os }}-
 
     - name: Install deps (parallel npm + Playwright)
       shell: bash
       run: |
-        # npm ci runs in the background while we install Playwright's
-        # system deps; both are I/O-bound so overlapping them saves ~30s.
-        (cd web && npm ci && echo "✅ npm ci complete") &
+        # `npm ci` once a fresh lockfile is committed post-migration;
+        # `npm install` covers the gap when it isn't. Runs in the
+        # background while we install Playwright's system deps; both
+        # are I/O-bound so overlapping them saves ~30s.
+        (cd web && \
+         if [ -f package-lock.json ]; then \
+           npm ci --legacy-peer-deps --no-audit; \
+         else \
+           npm install --legacy-peer-deps --no-audit; \
+         fi && \
+         echo "✅ npm install complete") &
         NPM_PID=$!
 
         cd web

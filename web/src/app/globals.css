@@ -110,6 +110,14 @@
 }
 
 :root {
+  /* Font families self-hosted via @fontsource-variable/geist (and
+     @fontsource-variable/geist-mono). The font-family names below
+     match the @font-face declarations those packages register at
+     module load. Previously these CSS vars were set by Next.js's
+     next/font wrapper in layout.tsx — moved here so they're owned by
+     the stylesheet, not a build-time JS wrapper. */
+  --font-geist-sans: "Geist Variable", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-geist-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Monaco, Menlo, monospace;
   --radius: 0.625rem;
   --background: oklch(0.985 0 0);
   --foreground: oklch(0.145 0 0);

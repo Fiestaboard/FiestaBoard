@@ -6,17 +6,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { server } from "./mocks/server";
 
 const replaceMock = vi.fn();
+// Module-level so useRouter() returns the SAME object every call —
+// otherwise LoginPage's `useEffect([router, ...])` (page.tsx:107-131)
+// sees a fresh `router` reference on every render, re-fires its
+// fetchAuthStatus chain, setState triggers another render, and the
+// component loops indefinitely under jsdom. The pre-migration shape
+// returned a stable router from Next.js itself; this mock just had
+// to be re-stabilized for the RR7 compat shim path.
+const stableRouter = {
+  push: vi.fn(),
+  replace: replaceMock,
+  refresh: vi.fn(),
+  back: vi.fn(),
+  forward: vi.fn(),
+  prefetch: vi.fn(),
+};
+const stableSearchParams = new URLSearchParams("");
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: replaceMock,
-    refresh: vi.fn(),
-    back: vi.fn(),
-    forward: vi.fn(),
-    prefetch: vi.fn(),
-  }),
-  useSearchParams: () => new URLSearchParams(""),
+  useRouter: () => stableRouter,
+  useSearchParams: () => stableSearchParams,
   usePathname: () => "/login",
 }));
 
