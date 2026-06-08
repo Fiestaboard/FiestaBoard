@@ -22,10 +22,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * For HA Ingress, the runtime prefix is injected by nginx's sub_filter
  * rewriting `/assets/`, `/sw.js`, `/icons/`, `/manifest.json` in both
  * HTML and JS response bodies (see entrypoint.sh::configure_ingress_path_rewrite).
- * Unlike Next.js's `<link rel="preload">` font URLs that React 19's
- * `ReactDOM.preload()` constructs at runtime from a baked-in empty
- * assetPrefix, every asset URL Vite emits lives as a string literal in
- * the build output — nginx can rewrite them all.
+ * Every asset URL Vite emits lives as a string literal in the build
+ * output — nginx can rewrite them all at request time.
  *
  * Direct deployments (`X-Ingress-Path` absent) get the snippet expanded
  * to no-op substitutions and incur only the gzip-pass-through overhead.
@@ -35,16 +33,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      // Temporary compat shims so the 135 client components keep working
-      // without per-file edits during the Next.js → RR7 migration. The
-      // shims wrap react-router / react-i18next with next/*-shaped APIs.
-      // See `src/lib/next-compat/` for implementations. These can be
-      // codemodded away later — they're a permanent-OK thin layer.
-      "next/navigation": path.resolve(__dirname, "./src/lib/next-compat/navigation.ts"),
-      "next/link": path.resolve(__dirname, "./src/lib/next-compat/link.tsx"),
-      "next/dynamic": path.resolve(__dirname, "./src/lib/next-compat/dynamic.tsx"),
-      "next/image": path.resolve(__dirname, "./src/lib/next-compat/image.tsx"),
-      "next-intl": path.resolve(__dirname, "./src/lib/next-compat/intl.tsx"),
     },
   },
   plugins: [
@@ -66,9 +54,8 @@ export default defineConfig({
       injectRegister: "auto",
       workbox: {
         navigateFallback: "/offline",
-        // Match the Next-PWA configuration we're replacing: NetworkFirst
-        // across the board with a 10s timeout and a 200-entry / 7-day
-        // expiration. See the old `next.config.ts::withPWA` block.
+        // NetworkFirst across the board with a 10s timeout and a
+        // 200-entry / 7-day expiration.
         runtimeCaching: [
           {
             urlPattern: /^https?.*/,
