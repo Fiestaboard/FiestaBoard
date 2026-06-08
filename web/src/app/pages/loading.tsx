@@ -1,5 +1,5 @@
 import { FileText } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 
 import { PageLayout } from "@/components/page-layout";
 import { Skeleton } from "@/components/ui/skeleton";

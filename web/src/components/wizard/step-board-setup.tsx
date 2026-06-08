@@ -13,7 +13,7 @@ import {
   Wifi,
   XCircle,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { BoardDisplay } from "@/components/board-display";

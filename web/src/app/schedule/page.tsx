@@ -61,7 +61,7 @@ import {
   Power,
 } from "lucide-react";
 import Link from "@/components/smart-link";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/page-header";

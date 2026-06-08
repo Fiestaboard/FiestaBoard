@@ -1,7 +1,7 @@
 "use client";
 
 import { RefreshCw, WifiOff } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
 
 export default function OfflinePage() {

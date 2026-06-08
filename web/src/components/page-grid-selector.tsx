@@ -2,7 +2,7 @@
 
 import { Clock, FilePlus, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
 import Link from "@/components/smart-link";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { StaticBoardDisplay } from "@/components/static-board-display";

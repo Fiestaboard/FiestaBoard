@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";

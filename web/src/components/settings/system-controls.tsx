@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowUpCircle, Cpu, Loader2, Power, RefreshCw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";

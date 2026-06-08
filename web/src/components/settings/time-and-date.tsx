@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatInTimeZone } from "date-fns-tz";
 import { Clock } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { Home as HomeIcon, Info } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
 
 import { ActivePageDisplay } from "@/components/active-page-display";

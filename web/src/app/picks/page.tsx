@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleAlert, CircleCheck, Sparkles } from "lucide-react";
 import Link from "@/components/smart-link";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 

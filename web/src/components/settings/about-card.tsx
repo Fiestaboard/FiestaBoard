@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Cpu, ExternalLink, Info, Package } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

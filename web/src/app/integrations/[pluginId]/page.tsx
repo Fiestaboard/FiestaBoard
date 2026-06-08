@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDownToLine, ArrowLeft, CopyPlus, ExternalLink, Puzzle } from "lucide-react";
 import Link from "@/components/smart-link";
 import { useParams, useRouter } from "@/hooks/use-router";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";

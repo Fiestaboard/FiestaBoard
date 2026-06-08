@@ -1,24 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
 import { DaySelector } from "@/components/day-selector";
 import type { DayPattern } from "@/lib/api";
 
-import en from "../../messages/en.json";
-
-function Wrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <NextIntlClientProvider locale="en" messages={en}>
-      {children}
-    </NextIntlClientProvider>
-  );
-}
-
 function renderSelector(value: DayPattern = "all") {
   const onChange = vi.fn();
-  render(<DaySelector value={value} onChange={onChange} />, { wrapper: Wrapper });
+  render(<DaySelector value={value} onChange={onChange} />);
   return { onChange };
 }
 
@@ -95,7 +84,7 @@ describe("DaySelector keyboard navigation", () => {
 
   it("custom day checkboxes can be toggled on and off", async () => {
     const onChange = vi.fn();
-    render(<DaySelector value="custom" customDays={["monday", "tuesday"]} onChange={onChange} />, { wrapper: Wrapper });
+    render(<DaySelector value="custom" customDays={["monday", "tuesday"]} onChange={onChange} />);
     const tuesday = screen.getByRole("checkbox", { name: /tuesday/i });
     await userEvent.click(tuesday);
     expect(onChange).toHaveBeenCalledWith("custom", ["monday"]);
@@ -110,7 +99,7 @@ describe("DaySelector keyboard navigation", () => {
 
   it("refuses to deselect the last remaining custom day", async () => {
     const onChange = vi.fn();
-    render(<DaySelector value="custom" customDays={["monday"]} onChange={onChange} />, { wrapper: Wrapper });
+    render(<DaySelector value="custom" customDays={["monday"]} onChange={onChange} />);
     const monday = screen.getByRole("checkbox", { name: /monday/i });
     await userEvent.click(monday);
     expect(onChange).not.toHaveBeenCalled();

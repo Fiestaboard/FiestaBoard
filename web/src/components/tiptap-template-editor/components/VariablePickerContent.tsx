@@ -8,7 +8,7 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { icons as lucideIcons, Search } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useDeferredValue, useMemo, useState } from "react";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";

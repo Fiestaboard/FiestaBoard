@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, FileText, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";

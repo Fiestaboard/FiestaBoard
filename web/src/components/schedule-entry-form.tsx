@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, GalleryHorizontalEnd, Loader2, Sunrise, Sunset, Trash2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
 
 import { DaySelector } from "@/components/day-selector";

@@ -26,7 +26,7 @@
 
 import { Loader2, Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { FiestaLogo } from "@/components/fiesta-logo";

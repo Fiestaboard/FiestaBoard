@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {

@@ -2,12 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AutoUpdateIntervalCard } from "@/components/settings/auto-update-interval";
 
-import en from "../../messages/en.json";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -32,13 +30,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     },
   });
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <NextIntlClientProvider locale="en" messages={en}>
-        {children}
-      </NextIntlClientProvider>
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 describe("AutoUpdateIntervalCard – manual Check now button", () => {

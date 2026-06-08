@@ -198,7 +198,7 @@ import {
 } from "lucide-react";
 import Link from "@/components/smart-link";
 import { useSearchParams } from "@/hooks/use-router";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 

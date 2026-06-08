@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle, Clock, Loader2, PartyPopper, Puzzle, Send, XCircle } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";

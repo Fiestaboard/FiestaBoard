@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { Cog, MonitorCog, Plug, Settings, ShieldCheck, User, Wand2, Waves, Wifi, Wrench } from "lucide-react";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useCallback, useMemo } from "react";
 
 import { AccountSection } from "@/components/account-section";

@@ -11,7 +11,7 @@
 
 import { NodeViewWrapper } from "@tiptap/react";
 import { SquareFunction } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 

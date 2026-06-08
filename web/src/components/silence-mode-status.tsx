@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Clock, Loader2, Moon, Sun } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";

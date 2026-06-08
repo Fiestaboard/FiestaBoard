@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Lock, RefreshCw, Trash2, Unlink, Wifi, WifiOff, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useState } from "react";
 import { toast } from "sonner";
 

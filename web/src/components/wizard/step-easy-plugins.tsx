@@ -3,7 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import { Clock, Cloud, Laugh, Rocket, Star, Timer, TrendingUp, Trophy, Waves, Wifi } from "lucide-react";
 import Link from "@/components/smart-link";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";

@@ -6,7 +6,7 @@
 
 import type { Editor } from "@tiptap/react";
 import { AlertCircle } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";

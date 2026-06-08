@@ -1,7 +1,7 @@
 "use client";
 
 import { RefreshCw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/i18n/translations";
 import { createContext, Fragment, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
