@@ -51,21 +51,20 @@ jobs:
             // Determine version bump type from PR title
             let bumpType = 'patch'; // default
             
-            // Check for breaking changes (major)
-            if (title.includes('BREAKING CHANGE:') || 
-                title.includes('!:') ||
-                /^[a-z]+!:/.test(title)) {
+            // Check for breaking changes (major): `type!:` or `type(scope)!:` or explicit BREAKING CHANGE footer
+            if (title.includes('BREAKING CHANGE:') ||
+                /^[a-z]+(\([^)]+\))?!:/.test(title)) {
               bumpType = 'major';
             }
             // Check for features (minor)
-            else if (title.startsWith('feat:') || 
+            else if (title.startsWith('feat:') ||
                      title.startsWith('feature:') ||
                      title.startsWith('feat(') ||
                      title.startsWith('feature(')) {
               bumpType = 'minor';
             }
             // Check for fixes (patch)
-            else if (title.startsWith('fix:') || 
+            else if (title.startsWith('fix:') ||
                      title.startsWith('fix(')) {
               bumpType = 'patch';
             }
