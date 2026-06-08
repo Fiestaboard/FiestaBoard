@@ -1,9 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import {
@@ -35,17 +34,22 @@ import { cn } from "@/lib/utils";
 import { ScheduleListView } from "./components";
 
 // Lazy load ScheduleCalendarView since it includes react-big-calendar (~150KB+)
-const ScheduleCalendarView = dynamic(
-  () => import("./components").then((mod) => ({ default: mod.ScheduleCalendarView })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="space-y-4">
-        <Skeleton className="h-96 w-full" />
-      </div>
-    ),
-  },
+const ScheduleCalendarViewLazy = lazy(() =>
+  import("./components").then((mod) => ({ default: mod.ScheduleCalendarView })),
 );
+function ScheduleCalendarView(props: React.ComponentProps<typeof ScheduleCalendarViewLazy>) {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <Skeleton className="h-96 w-full" />
+        </div>
+      }
+    >
+      <ScheduleCalendarViewLazy {...props} />
+    </Suspense>
+  );
+}
 import {
   AlertCircle,
   AlertTriangle,
@@ -56,7 +60,7 @@ import {
   Plus,
   Power,
 } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/smart-link";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 

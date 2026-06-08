@@ -2,8 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleAlert, CircleCheck, Sparkles } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/smart-link";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -56,10 +55,9 @@ function PickCard({ pick, enabledPluginIds }: { pick: StaffPick; enabledPluginId
         <div className="relative w-full aspect-[17/8] bg-zinc-950 flex items-center justify-center p-4">
           {showImage ? (
             <div className="relative w-full h-full">
-              <Image
+              <img
                 src={pick.image!}
                 alt={pick.name}
-                fill
                 className="object-contain drop-shadow-xl"
                 onError={() => setImgError(true)}
               />

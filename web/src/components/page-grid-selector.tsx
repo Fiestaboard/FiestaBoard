@@ -1,7 +1,7 @@
 "use client";
 
 import { Clock, FilePlus, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/smart-link";
 import { useTranslations } from "next-intl";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 

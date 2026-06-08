@@ -25,7 +25,6 @@
  */
 
 import { Loader2, Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -460,7 +459,7 @@ function CenteredCard({
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="mb-6 flex items-center gap-3">
-        <Image src="/icons/favicon-32x32.png" alt="" width={36} height={36} className="flex-shrink-0" />
+        <img src="/icons/favicon-32x32.png" alt="" width={36} height={36} className="flex-shrink-0" />
         <FiestaLogo className="text-2xl" />
       </div>
       <Card className="w-full max-w-md">

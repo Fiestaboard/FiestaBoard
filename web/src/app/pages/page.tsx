@@ -2,9 +2,8 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, FileText, LayoutGrid, List, Plus } from "lucide-react";
-import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { ViewMode } from "@/components/page-grid-selector";
@@ -29,19 +28,24 @@ import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 
 // Lazy load PageGridSelector so the header renders immediately
-const PageGridSelector = dynamic(
-  () => import("@/components/page-grid-selector").then((mod) => ({ default: mod.PageGridSelector })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="aspect-[9/16] w-full rounded-lg" />
-        ))}
-      </div>
-    ),
-  },
+const PageGridSelectorLazy = lazy(() =>
+  import("@/components/page-grid-selector").then((mod) => ({ default: mod.PageGridSelector })),
 );
+function PageGridSelector(props: React.ComponentProps<typeof PageGridSelectorLazy>) {
+  return (
+    <Suspense
+      fallback={
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-[9/16] w-full rounded-lg" />
+          ))}
+        </div>
+      }
+    >
+      <PageGridSelectorLazy {...props} />
+    </Suspense>
+  );
+}
 
 const VIEW_MODE_STORAGE_KEY = "fiestaboard_pages_view_mode";
 

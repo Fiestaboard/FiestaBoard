@@ -196,7 +196,7 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/smart-link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";

@@ -15,7 +15,6 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
@@ -279,7 +278,7 @@ export function NavigationSidebar() {
             className={cn("flex items-center gap-3 min-w-0 flex-1 ml-2", isPrideMonth && "cursor-pointer")}
             onClick={isPrideMonth ? firePrideCelebration : undefined}
           >
-            <Image src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+            <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
             <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
           </div>
         </div>
@@ -381,7 +380,7 @@ export function NavigationSidebar() {
               className={cn("flex items-center gap-2 overflow-hidden px-4 py-4", isPrideMonth && "cursor-pointer")}
               onClick={isPrideMonth ? firePrideCelebration : undefined}
             >
-              <Image src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+              <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
               <FiestaLogo
                 className={cn(
                   "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",

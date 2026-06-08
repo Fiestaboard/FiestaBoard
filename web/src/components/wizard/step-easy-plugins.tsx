@@ -2,7 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Clock, Cloud, Laugh, Rocket, Star, Timer, TrendingUp, Trophy, Waves, Wifi } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/smart-link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
