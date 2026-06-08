@@ -49,7 +49,17 @@ export default defineConfig({
         "src/components/language-selector.tsx",
         "src/i18n/config.ts",
       ],
-      exclude: ["src/__tests__/**", "**/*.stories.tsx", "src/lib/ai-chat-types.ts"],
+      exclude: [
+        "src/__tests__/**",
+        "**/*.stories.tsx",
+        "src/lib/ai-chat-types.ts",
+        // The next-compat shims are mocked at the vitest layer (see
+        // src/__tests__/setup.ts), so their runtime code paths never execute
+        // during unit tests — they're exercised by the production build and
+        // by the e2e suite. Counting them tanks the coverage threshold for
+        // no real diagnostic value.
+        "src/lib/next-compat/**",
+      ],
       thresholds: {
         statements: 80,
         branches: 80,
