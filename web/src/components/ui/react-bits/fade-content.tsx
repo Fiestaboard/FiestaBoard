@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 interface FadeContentProps {
   children: React.ReactNode;
@@ -24,9 +24,27 @@ export default function FadeContent({
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
 
-  useEffect(() => {
+  // If the element is already on-screen at mount, kick the animation off on
+  // the next frame — IntersectionObserver fires asynchronously and would leave
+  // a ~20-30ms gap of invisible content between mount and animation start
+  // (perceived as a flicker right after a route transition, since the new
+  // PageFadeWrapper mounts with opacity:0 and stays there until the observer
+  // catches up). Off-screen mounts still fall back to the observer so this
+  // keeps working as a scroll-into-view effect elsewhere.
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const vw = window.innerWidth || document.documentElement.clientWidth;
+    const onScreen = rect.bottom > 0 && rect.right > 0 && rect.top < vh && rect.left < vw;
+
+    if (onScreen) {
+      const raf = requestAnimationFrame(() => setInView(true));
+      return () => cancelAnimationFrame(raf);
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
