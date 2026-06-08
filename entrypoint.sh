@@ -231,9 +231,19 @@ sub_filter '"/manifest.json' '"$http_x_ingress_path/manifest.json';
 sub_filter "'/manifest.json" "'$http_x_ingress_path/manifest.json";
 sub_filter '"/favicon.ico' '"$http_x_ingress_path/favicon.ico';
 sub_filter "'/favicon.ico" "'$http_x_ingress_path/favicon.ico";
+# React Router v7 SPA hydration context. The Vite build inlines
+#   window.__reactRouterContext = {"basename":"/", ...}
+# into the served HTML. HydratedRouter strips `basename` from
+# `location.pathname` before matching, so under an Ingress proxy the
+# request lands on `<ingress-path>/`, RR strips "/" (a no-op), and
+# the resulting path (still `<ingress-path>/`) has no matching route —
+# every page renders the SPA's 404 boundary. Rewriting the literal so
+# basename equals the Ingress prefix makes RR strip the prefix and
+# match the bare routes (`/`, `/login`, `/integrations/:id`, ...).
+sub_filter '"basename":"/"' '"basename":"$http_x_ingress_path/"';
 # href="/..." in the SPA's <Link to="/..."> renders are not rewritten —
 # React Router resolves them through its history API which honors the
-# document base. If we ever need to surface them through templates,
+# basename above. If we ever need to surface them through templates,
 # add explicit substitutions here.
 NGINX
 }
