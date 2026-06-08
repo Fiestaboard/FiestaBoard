@@ -63,8 +63,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Server-side this would honor a request-bound locale; in SPA mode
   // we lean on i18next-browser-languagedetector and patch `<html lang>`
   // imperatively in `RootBody` once it boots.
+  //
+  // `pride-month` is set as a className in the initial render (matching the
+  // pre-migration Next.js layout) so it appears in the HTML attribute BEFORE
+  // next-themes adds `light`/`dark`. Tests that compare html.class strings
+  // across theme toggles depend on this stable insertion order — see
+  // `web/tests/navigation.spec.ts:72-101`. useState's init function runs
+  // once per mount, so the value is stable for the lifetime of the page.
+  const [isPrideMonth] = useState(() => new Date().getMonth() === 5);
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={isPrideMonth ? "pride-month" : undefined} suppressHydrationWarning>
       <head>
         <Meta />
         <Links />
@@ -84,11 +92,6 @@ export default function Root() {
 
 function RootBody() {
   const { i18n: rrtI18n, t } = useTranslation();
-  const [isPrideMonth, setIsPrideMonth] = useState(false);
-
-  useEffect(() => {
-    setIsPrideMonth(new Date().getMonth() === 5);
-  }, []);
 
   // Keep `<html lang>` and `<title>` / description in sync with the
   // active locale. WCAG 2.2 AA: 2.4.2 Page Titled, 3.1.1 Language.
@@ -117,14 +120,6 @@ function RootBody() {
       rrtI18n.off("languageChanged", sync);
     };
   }, [rrtI18n, t]);
-
-  useEffect(() => {
-    if (isPrideMonth) {
-      document.documentElement.classList.add("pride-month");
-    } else {
-      document.documentElement.classList.remove("pride-month");
-    }
-  }, [isPrideMonth]);
 
   return (
     <>

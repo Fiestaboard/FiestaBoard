@@ -49,11 +49,7 @@ export default defineConfig({
         "src/components/language-selector.tsx",
         "src/i18n/config.ts",
       ],
-      exclude: [
-        "src/__tests__/**",
-        "**/*.stories.tsx",
-        "src/lib/ai-chat-types.ts",
-      ],
+      exclude: ["src/__tests__/**", "**/*.stories.tsx", "src/lib/ai-chat-types.ts"],
       thresholds: {
         statements: 80,
         branches: 80,

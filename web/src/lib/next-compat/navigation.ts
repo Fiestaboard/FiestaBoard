@@ -22,12 +22,7 @@
  *    aren't used in this codebase (verified during migration).
  */
 import { useMemo } from "react";
-import {
-  useLocation,
-  useNavigate,
-  useParams as useRRParams,
-  useSearchParams as useRRSearchParams,
-} from "react-router";
+import { useLocation, useNavigate, useParams as useRRParams, useSearchParams as useRRSearchParams } from "react-router";
 
 type AppRouterInstance = {
   push: (href: string) => void;

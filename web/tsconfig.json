@@ -16,7 +16,12 @@
     "types": ["vite/client", "vite-plugin-pwa/client"],
     "rootDirs": [".", "./.react-router/types"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "next/navigation": ["./src/lib/next-compat/navigation.ts"],
+      "next/link": ["./src/lib/next-compat/link.tsx"],
+      "next/dynamic": ["./src/lib/next-compat/dynamic.tsx"],
+      "next/image": ["./src/lib/next-compat/image.tsx"],
+      "next-intl": ["./src/lib/next-compat/intl.tsx"]
     }
   },
   "include": [

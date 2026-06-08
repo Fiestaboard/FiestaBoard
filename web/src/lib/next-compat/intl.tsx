@@ -54,9 +54,7 @@ function interpolatePlural(input: string, params?: Record<string, unknown>): str
       return chosen.replace(/#/g, String(value));
     },
   );
-  out = out.replace(/\{(\w+)\}/g, (_: string, k: string) =>
-    params[k] != null ? String(params[k]) : `{${k}}`,
-  );
+  out = out.replace(/\{(\w+)\}/g, (_: string, k: string) => (params[k] != null ? String(params[k]) : `{${k}}`));
   return out;
 }
 
@@ -111,11 +109,7 @@ export function useTranslations(namespace?: string): TFn {
         const fn = values[match[1]];
         if (typeof fn === "function") {
           parts.push(
-            React.createElement(
-              Fragment,
-              { key: nodeKey++ },
-              (fn as (chunks: string) => React.ReactNode)(match[2]),
-            ),
+            React.createElement(Fragment, { key: nodeKey++ }, (fn as (chunks: string) => React.ReactNode)(match[2])),
           );
         } else {
           parts.push(match[2]);

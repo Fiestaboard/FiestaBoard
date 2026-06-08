@@ -24,10 +24,7 @@ type DynamicOptions = {
 
 type Loader<P> = () => Promise<ComponentType<P> | { default: ComponentType<P> }>;
 
-export default function dynamic<P extends object>(
-  loader: Loader<P>,
-  options: DynamicOptions = {},
-): ComponentType<P> {
+export default function dynamic<P extends object>(loader: Loader<P>, options: DynamicOptions = {}): ComponentType<P> {
   const Loading = options.loading;
   const Lazy = lazy(async () => {
     const mod = await loader();
