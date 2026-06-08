@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { server } from "./mocks/server";
 
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),

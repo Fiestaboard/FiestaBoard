@@ -12,7 +12,7 @@ import { server } from "./mocks/server";
 
 // Mock usePathname from next/navigation
 const mockPathname = vi.fn();
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   usePathname: () => mockPathname(),
   useRouter: () => ({
     push: vi.fn(),

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),

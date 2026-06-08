@@ -334,7 +334,7 @@ const { mockPush, mockReplace, mockBack } = vi.hoisted(() => ({
   mockBack: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({
     push: mockPush,
     replace: mockReplace,

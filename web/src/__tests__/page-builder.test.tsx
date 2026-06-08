@@ -12,7 +12,7 @@ import { server } from "./mocks/server";
 const API_BASE = "/api";
 import { PageBuilder } from "@/components/page-builder";
 
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),

@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockOutputSettings, mockPages, mockTransitionSettings } from "./mocks/handlers";
 import { server } from "./mocks/server";
 
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),

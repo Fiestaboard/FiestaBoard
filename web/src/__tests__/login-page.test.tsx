@@ -23,7 +23,7 @@ const stableRouter = {
 };
 const stableSearchParams = new URLSearchParams("");
 
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   useRouter: () => stableRouter,
   useSearchParams: () => stableSearchParams,
   usePathname: () => "/login",

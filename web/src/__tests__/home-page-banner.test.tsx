@@ -21,7 +21,7 @@ vi.mock("@/components/wizard-provider", () => ({
 }));
 
 const mockPush = vi.fn();
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({
     push: mockPush,
     replace: vi.fn(),
