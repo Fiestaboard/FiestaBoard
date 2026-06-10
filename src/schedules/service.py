@@ -264,8 +264,19 @@ class ScheduleService:
             s for s in self.list_schedules(board_id=board_id) if s.enabled and s.recurrence_type == "weekly"
         ]
 
-        overlaps = self._detect_overlaps(weekly_schedules)
-        gaps = self._detect_gaps(weekly_schedules)
+        # Resolve sun-based start/end times before checking for overlaps and
+        # gaps so validation reflects what the user actually scheduled (e.g.
+        # "sunset until 22:00") rather than the placeholder fallback HH:MM
+        # values stored on disk (see #924).
+        location = self._get_location()
+        today = get_today_in_timezone(location[2])
+        resolved_schedules = [self._resolve_effective_times(s, today, location) for s in weekly_schedules]
+
+        # Preserve original schedule IDs on overlaps so the UI can highlight
+        # the right rows; _resolve_effective_times copies the entry so ids
+        # already round-trip, but we pass resolved copies explicitly here.
+        overlaps = self._detect_overlaps(resolved_schedules)
+        gaps = self._detect_gaps(resolved_schedules)
 
         return ScheduleValidationResult(valid=len(overlaps) == 0, overlaps=overlaps, gaps=gaps)
 

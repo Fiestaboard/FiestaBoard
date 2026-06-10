@@ -421,6 +421,69 @@ class TestValidation:
         assert "saturday" in gap_days
         assert "sunday" in gap_days
 
+    def test_validate_uses_resolved_sun_times_not_fallbacks(self, service, monkeypatch):
+        """Regression test for #924: validation must resolve sun-based times
+        before checking for overlaps. Otherwise two non-overlapping sunset
+        schedules with shared placeholder fallbacks are wrongly reported as
+        conflicts."""
+        # Configure a location so sun resolution runs
+        mock_settings = MagicMock()
+        mock_settings.get_location_settings.return_value.latitude = 40.7128
+        mock_settings.get_location_settings.return_value.longitude = -74.0060
+        mock_settings.get_board_settings.return_value.boards = []
+        monkeypatch.setattr(
+            "src.schedules.service.get_settings_service",
+            lambda: mock_settings,
+        )
+        monkeypatch.setattr(
+            "src.schedules.service.get_effective_timezone",
+            lambda: "America/New_York",
+        )
+
+        # Stub the sun-time resolver so the test is deterministic. The two
+        # schedules below both have stored fallback start_time="00:00", but
+        # after sun resolution one runs sunset to 22:00 and the other runs
+        # 06:00 until sunset — so they do not actually overlap.
+        def fake_resolver(*, start_type, end_type, start_time_fallback, end_time_fallback, **kwargs):
+            start = "20:00" if start_type == "sunset" else start_time_fallback
+            end = "20:00" if end_type == "sunset" else end_time_fallback
+            return start, end
+
+        monkeypatch.setattr(
+            "src.schedules.service.resolve_schedule_sun_times",
+            fake_resolver,
+        )
+
+        # Schedule A: sunset (~20:00) until 22:00
+        service.create_schedule(
+            ScheduleCreate(
+                page_id="evening-page",
+                start_time="00:00",  # placeholder fallback for sunset
+                end_time="22:00",
+                day_pattern="all",
+                enabled=True,
+                start_type="sunset",
+            )
+        )
+        # Schedule B: 06:00 until sunset (~20:00)
+        service.create_schedule(
+            ScheduleCreate(
+                page_id="daytime-page",
+                start_time="06:00",
+                end_time="00:00",  # placeholder fallback for sunset
+                day_pattern="all",
+                enabled=True,
+                end_type="sunset",
+            )
+        )
+
+        result = service.validate_schedules()
+        assert result.valid is True, (
+            f"Sun-based schedules should not conflict once resolved, "
+            f"got overlaps: {[o.conflict_description for o in result.overlaps]}"
+        )
+        assert len(result.overlaps) == 0
+
 
 class TestHelpers:
     """Tests for internal helper methods and module-level utilities."""
