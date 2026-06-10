@@ -379,7 +379,10 @@ class PluginRegistry:
         ``self._plugins``, so it is skipped on every subsequent startup.
         """
         loaded_ids = set(self._plugins.keys())
-        orphaned = [pid for pid in stored_configs if pid not in loaded_ids]
+        # Instance keys (e.g. "countdown:fijiaustralia") are restored separately
+        # by ``_restore_instances`` and must not be treated as orphaned base
+        # plugins — their base ID is what gets installed from the registry.
+        orphaned = [pid for pid in stored_configs if pid not in loaded_ids and not self.is_instance_key(pid)]
         if not orphaned:
             return
 
