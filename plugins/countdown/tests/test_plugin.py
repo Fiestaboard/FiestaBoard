@@ -255,6 +255,61 @@ class TestCountdownPlugin:
         assert result.data["formatted"] == "21D 3H 10M"
 
     @patch("plugins.countdown.datetime")
+    def test_fetch_data_dst_spring_forward(self, mock_datetime, sample_manifest):
+        """Countdown across the DST spring-forward boundary loses an hour (#926).
+
+        When both ``now`` and ``target`` share the same ``ZoneInfo`` reference,
+        Python's ``datetime`` subtraction ignores ``tzinfo`` and returns wall-clock
+        delta — which is wrong across DST transitions where wall-clock and elapsed
+        seconds disagree by an hour.
+        """
+        tz = ZoneInfo("America/Los_Angeles")
+        # PST 20:00 on 2025-03-08 -> PDT 20:00 on 2025-03-09.
+        # DST springs forward at 02:00 local on 2025-03-09, so the real elapsed
+        # time is 23 hours, not 24 wall-clock hours.
+        mock_now = datetime(2025, 3, 8, 20, 0, 0, tzinfo=tz)
+        mock_datetime.now.return_value = mock_now
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = {
+            "target_datetime": "2025-03-09T20:00:00",
+            "timezone": "America/Los_Angeles",
+        }
+        result = plugin.fetch_data()
+
+        assert result.available is True
+        data = result.data
+        # 23 hours of real elapsed time => 0 days, 23 hours.
+        assert data["days"] == "0"
+        assert data["hours"] == "23"
+        assert data["total_seconds"] == "82800"
+
+    @patch("plugins.countdown.datetime")
+    def test_fetch_data_dst_fall_back(self, mock_datetime, sample_manifest):
+        """Countdown across the DST fall-back boundary gains an hour (#926)."""
+        tz = ZoneInfo("America/Los_Angeles")
+        # PDT 20:00 on 2025-11-01 -> PST 20:00 on 2025-11-02.
+        # DST falls back at 02:00 local on 2025-11-02, so the real elapsed
+        # time is 25 hours, not 24 wall-clock hours.
+        mock_now = datetime(2025, 11, 1, 20, 0, 0, tzinfo=tz)
+        mock_datetime.now.return_value = mock_now
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = {
+            "target_datetime": "2025-11-02T20:00:00",
+            "timezone": "America/Los_Angeles",
+        }
+        result = plugin.fetch_data()
+
+        assert result.available is True
+        data = result.data
+        assert data["days"] == "1"
+        assert data["hours"] == "1"
+        assert data["total_seconds"] == "90000"
+
+    @patch("plugins.countdown.datetime")
     def test_fetch_data_default_event_name(self, mock_datetime, sample_manifest):
         """Test default event name when not configured."""
         tz = ZoneInfo("America/Los_Angeles")

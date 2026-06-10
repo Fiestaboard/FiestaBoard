@@ -5,7 +5,7 @@ Displays the remaining time to an event timestamp in real time.
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -80,7 +80,11 @@ class CountdownPlugin(PluginBase):
 
             event_name = self.config.get("event_name") or os.getenv("COUNTDOWN_EVENT_NAME") or "Event"
 
-            delta = target - now
+            # Convert both sides to UTC before subtracting. When two aware
+            # datetimes share the same tzinfo, Python returns the wall-clock
+            # delta and silently drops DST transitions — so a "1 day" target
+            # straddling spring-forward would report 24h instead of 23h (#926).
+            delta = target.astimezone(timezone.utc) - now.astimezone(timezone.utc)
             total_seconds = int(delta.total_seconds())
 
             if total_seconds <= 0:
