@@ -137,4 +137,3 @@ export function useLocale(): string {
   const { i18n: rrtI18n } = useTranslation();
   return rrtI18n.language || i18n.language || "en";
 }
-

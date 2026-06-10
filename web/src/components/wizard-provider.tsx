@@ -20,9 +20,7 @@ function WizardLoadingFallback() {
 }
 
 // Lazy load SetupWizard since it's only needed on first visit or when manually triggered
-const SetupWizardLazy = lazy(() =>
-  import("@/components/wizard").then((mod) => ({ default: mod.SetupWizard })),
-);
+const SetupWizardLazy = lazy(() => import("@/components/wizard").then((mod) => ({ default: mod.SetupWizard })));
 function SetupWizard(props: React.ComponentProps<typeof SetupWizardLazy>) {
   return (
     <Suspense fallback={<WizardLoadingFallback />}>

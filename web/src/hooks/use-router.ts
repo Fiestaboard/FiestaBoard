@@ -1,10 +1,5 @@
 import { useMemo } from "react";
-import {
-  useLocation,
-  useNavigate,
-  useParams as useRRParams,
-  useSearchParams as useRRSearchParams,
-} from "react-router";
+import { useLocation, useNavigate, useParams as useRRParams, useSearchParams as useRRSearchParams } from "react-router";
 
 type Router = {
   push: (href: string) => void;
@@ -38,8 +33,6 @@ export function useSearchParams(): URLSearchParams {
   return params;
 }
 
-export function useParams<
-  T extends Record<string, string | undefined> = Record<string, string | undefined>,
->(): T {
+export function useParams<T extends Record<string, string | undefined> = Record<string, string | undefined>>(): T {
   return useRRParams() as T;
 }
