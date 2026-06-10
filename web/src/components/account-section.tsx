@@ -16,7 +16,6 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCircle2, UserCog } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
@@ -34,6 +33,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "@/hooks/use-router";
 import { api } from "@/lib/api";
 
 export function AccountSection() {

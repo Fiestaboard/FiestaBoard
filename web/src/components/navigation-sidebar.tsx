@@ -15,9 +15,6 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -34,6 +31,8 @@ import { VersionDisplay } from "@/components/version-display";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { usePrideActive } from "@/hooks/use-pride-active";
+import { usePathname } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { cn } from "@/lib/utils";
@@ -279,7 +278,7 @@ export function NavigationSidebar() {
             className={cn("flex items-center gap-3 min-w-0 flex-1 ml-2", isPrideMonth && "cursor-pointer")}
             onClick={isPrideMonth ? firePrideCelebration : undefined}
           >
-            <Image src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+            <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
             <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
           </div>
         </div>
@@ -381,7 +380,7 @@ export function NavigationSidebar() {
               className={cn("flex items-center gap-2 overflow-hidden px-4 py-4", isPrideMonth && "cursor-pointer")}
               onClick={isPrideMonth ? firePrideCelebration : undefined}
             >
-              <Image src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+              <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
               <FiestaLogo
                 className={cn(
                   "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",

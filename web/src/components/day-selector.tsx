@@ -1,9 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { useTranslations } from "@/i18n/translations";
 import type { DayPattern } from "@/lib/api";
 import { cn } from "@/lib/utils";
 

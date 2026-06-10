@@ -1,14 +1,14 @@
-import "../src/app/globals.css";
+import "../app/globals.css";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
 
 import type { Preview } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider, useTheme } from "next-themes";
 import { useEffect } from "react";
 import { I18nextProvider, useTranslation } from "react-i18next";
 import { MemoryRouter } from "react-router";
 
+import { ThemeProvider, useTheme } from "../src/hooks/use-theme";
 import { type Locale, localeNames, locales } from "../src/i18n/config";
 import i18n from "../src/i18n/i18next";
 
@@ -21,7 +21,7 @@ const queryClient = new QueryClient({
   },
 });
 
-function ThemeSync({ theme }: { theme: string }) {
+function ThemeSync({ theme }: { theme: "light" | "dark" }) {
   const { setTheme } = useTheme();
   useEffect(() => setTheme(theme), [theme, setTheme]);
   return null;
@@ -86,7 +86,7 @@ const preview: Preview = {
   },
   decorators: [
     (Story, context) => {
-      const theme = context.globals.theme || "dark";
+      const theme = (context.globals.theme || "dark") as "light" | "dark";
       const locale = (context.globals.locale || "en") as Locale;
       return (
         // MemoryRouter so stories that call useLocation / useNavigate via the
@@ -95,13 +95,7 @@ const preview: Preview = {
         <MemoryRouter initialEntries={["/"]}>
           <I18nextProvider i18n={i18n}>
             <QueryClientProvider client={queryClient}>
-              <ThemeProvider
-                attribute="class"
-                defaultTheme={theme}
-                enableSystem={false}
-                forcedTheme={theme}
-                disableTransitionOnChange
-              >
+              <ThemeProvider defaultTheme={theme}>
                 <ThemeSync theme={theme} />
                 <LocaleSync locale={locale} />
                 <main className="min-h-screen bg-background text-foreground p-8">

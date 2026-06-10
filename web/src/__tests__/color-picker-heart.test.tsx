@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { ThemeProvider } from "next-themes";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ColorPickerContent } from "@/components/tiptap-template-editor/components/ColorPickerContent";
+import { ThemeProvider } from "@/hooks/use-theme";
 
 // Test wrapper with providers (TooltipProvider is rendered inside ColorPickerContent)
 function TestWrapper({ children }: { children: React.ReactNode }) {

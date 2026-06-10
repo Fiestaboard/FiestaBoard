@@ -9,7 +9,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ScheduleListView } from "@/app/schedule/components/schedule-list-view";
+import { ScheduleListView } from "@/components/schedule/schedule-list-view";
 import type { Page, ScheduleEntry } from "@/lib/api";
 
 const MOCK_PAGES: Page[] = [

@@ -1,11 +1,11 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { useTranslations } from "@/i18n/translations";
 import { HIDE_FESTIVE_COOKIE } from "@/lib/pride";
 
 // 10 years — this is a sticky per-browser preference, not a session

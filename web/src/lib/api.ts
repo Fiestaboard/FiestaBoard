@@ -1991,7 +1991,7 @@ export const api = {
 
   // --- Auth -----------------------------------------------------------
   // The login/setup forms talk to /api/auth/* directly (see
-  // web/src/app/login/page.tsx) because they need access to the response
+  // web/app/routes/login.tsx) because they need access to the response
   // `detail` field. The helpers below are for the rest of the UI — e.g.
   // a "Sign out" button in the profile menu.
 

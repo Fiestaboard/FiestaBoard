@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertCircle, GalleryHorizontalEnd, Loader2, Sunrise, Sunset, Trash2 } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { DaySelector } from "@/components/day-selector";
@@ -11,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useTranslations } from "@/i18n/translations";
 import type {
   Collection,
   DayPattern,

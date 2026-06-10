@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { WifiOff } from "lucide-react";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import { FiestaLogo } from "@/components/fiesta-logo";
@@ -76,7 +75,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
       <div className="flex flex-col items-center gap-6 text-center px-6 max-w-sm">
         {/* Branding */}
         <div className="flex items-center gap-3">
-          <Image src="/icons/favicon-32x32.png" alt="" width={36} height={36} className="flex-shrink-0" />
+          <img src="/icons/favicon-32x32.png" alt="" width={36} height={36} className="flex-shrink-0" />
           <FiestaLogo className="text-2xl" />
         </div>
 

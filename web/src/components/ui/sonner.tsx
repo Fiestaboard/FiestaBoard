@@ -1,9 +1,10 @@
 "use client";
 
 import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
+
+import { useTheme } from "@/hooks/use-theme";
+import { useTranslations } from "@/i18n/translations";
 
 /**
  * App-wide Sonner wrapper.

@@ -23,13 +23,13 @@ const stableRouter = {
 };
 const stableSearchParams = new URLSearchParams("");
 
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   useRouter: () => stableRouter,
   useSearchParams: () => stableSearchParams,
   usePathname: () => "/login",
 }));
 
-import LoginPage from "@/app/login/page";
+import LoginPage from "../../app/routes/login";
 
 function makeStatus(
   overrides: Partial<{

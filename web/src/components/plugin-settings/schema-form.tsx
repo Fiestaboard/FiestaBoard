@@ -1,7 +1,6 @@
 "use client";
 
 import { Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, Loader2, MapPin, Plus, Trash2, Zap } from "lucide-react";
-import { useTranslations } from "next-intl";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -11,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
+import { useTranslations } from "@/i18n/translations";
 import { api, type QueueTimesPark, type QueueTimesRide } from "@/lib/api";
 import { cn } from "@/lib/utils";
 

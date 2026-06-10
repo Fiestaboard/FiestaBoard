@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatInTimeZone } from "date-fns-tz";
 import { Clock } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -12,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 type TimeFormat = "12h" | "24h";

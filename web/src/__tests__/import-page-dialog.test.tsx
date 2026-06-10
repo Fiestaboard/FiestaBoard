@@ -4,13 +4,12 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ImportPageDialog } from "@/app/pages/page";
-
+import { ImportPageDialog } from "../../app/routes/pages._index";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
 
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),

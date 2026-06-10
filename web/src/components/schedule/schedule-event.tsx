@@ -1,5 +1,3 @@
-"use client";
-
 import { format } from "date-fns";
 import { useMemo } from "react";
 import type { EventProps } from "react-big-calendar";

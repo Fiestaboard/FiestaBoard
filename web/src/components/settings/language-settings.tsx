@@ -1,10 +1,10 @@
 "use client";
 
 import { Globe } from "lucide-react";
-import { useTranslations } from "next-intl";
 
 import { LanguageSelector } from "@/components/language-selector";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTranslations } from "@/i18n/translations";
 
 export function LanguageSettingsCard() {
   const t = useTranslations("profile");

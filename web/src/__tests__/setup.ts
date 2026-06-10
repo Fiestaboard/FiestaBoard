@@ -1,9 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 // Eagerly initialize i18next before any component imports run. The
-// next-intl compat shim at @/lib/next-compat/intl.tsx delegates to
-// react-i18next + this config; without it, useTranslations() in a
-// test would crash on the first call. en messages are statically
-// imported so language lookups resolve synchronously.
+// `@/i18n/translations` hook delegates to react-i18next + this config;
+// without it, useTranslations() in a test would crash on the first call.
+// en messages are statically imported so lookups resolve synchronously.
 import "../i18n/i18next";
 
 import { cleanup } from "@testing-library/react";
@@ -13,12 +12,11 @@ import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import enMessages from "../../messages/en.json";
 import { server } from "./mocks/server";
 
-// `next-intl` is no longer a real dependency — the Vite alias
-// (replicated in vitest.config.ts) redirects it to the production
-// compat shim. This vi.mock provides a deterministic translation
-// surface for tests that don't want to depend on react-i18next's
-// internal subscription model. It mirrors the shim's `t` / `t.rich`
-// / `t.raw` shape so test assertions don't drift.
+// Tests mock `@/i18n/translations` with a synchronous English-only
+// implementation so component output is deterministic without
+// depending on react-i18next's subscription model. The mock mirrors
+// the production hook's `t` / `t.rich` / `t.raw` shape so assertions
+// don't drift.
 function getNestedRaw(obj: unknown, path: string): unknown {
   if (!path) return obj;
   const parts = path.split(".");
@@ -33,12 +31,6 @@ function getNestedRaw(obj: unknown, path: string): unknown {
   return current;
 }
 
-// One factory used by both module-id paths. Inlined twice (not shared via
-// vi.importMock) because vi.importMock from a setup-file mock factory
-// deadlocks when both `next-intl` and the shim path are mocked — the second
-// factory's awaited importMock waits for the first mock to resolve, but the
-// first mock resolution is paused on whichever import the test made first,
-// which leaves vitest's worker hung at module-load with no test ever running.
 function makeIntlMock() {
   return {
     useTranslations: (namespace?: string) => {
@@ -124,22 +116,16 @@ function makeIntlMock() {
       return t;
     },
     useLocale: () => "en",
-    NextIntlClientProvider: ({ children }: { children: React.ReactNode }) =>
-      React.createElement(React.Fragment, null, children),
   };
 }
 
-vi.mock("@/lib/next-compat/intl", () => makeIntlMock());
-vi.mock("next-intl", () => makeIntlMock());
+vi.mock("@/i18n/translations", () => makeIntlMock());
 
 /**
- * The next-compat navigation shim (`@/lib/next-compat/navigation`) calls
- * `useNavigate` / `useLocation` / `useSearchParams` / `useParams` from
- * `react-router`. Those hooks throw when there's no `<Router>` ancestor —
- * which is exactly the situation in unit tests that render a component
- * in isolation. Mock the react-router hooks here so any `next/navigation`
- * import (which Vite redirects to the shim) Just Works in tests without
- * forcing every test file to wrap its render in `<MemoryRouter>`.
+ * Mock `react-router` hooks so any test that renders a component using
+ * `useNavigate` / `useLocation` / `useSearchParams` / `useParams` (either
+ * directly or via the `@/hooks/use-router` wrapper) Just Works without
+ * wrapping in `<MemoryRouter>`.
  */
 vi.mock("react-router", async () => {
   const actual = await vi.importActual<typeof import("react-router")>("react-router");
@@ -240,7 +226,7 @@ Object.defineProperty(window, "localStorage", {
   writable: true,
 });
 
-// Mock matchMedia for next-themes
+// Mock matchMedia for the `useTheme` hook at `@/hooks/use-theme`
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({
@@ -254,10 +240,6 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: vi.fn(),
   })),
 });
-
-// `next/dynamic` is no longer used directly — the compat shim at
-// `src/lib/next-compat/dynamic.tsx` wraps `React.lazy` + `<Suspense>`,
-// which works natively in jsdom. No vitest mock needed.
 
 // Mock DOM APIs needed by ProseMirror/TipTap
 if (typeof document !== "undefined") {

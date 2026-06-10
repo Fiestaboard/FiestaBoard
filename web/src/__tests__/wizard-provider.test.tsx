@@ -10,7 +10,7 @@ import { server } from "./mocks/server";
 // remount on client-side navigation, so the bug we're guarding against is
 // "didn't re-check after the auth picker finished".
 let currentPathname = "/";
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   usePathname: () => currentPathname,
   useRouter: () => ({
     push: vi.fn(),

@@ -4,11 +4,11 @@
 "use client";
 
 import { ChevronRight, ChevronsLeftRight } from "lucide-react";
-import { useTranslations } from "next-intl";
 import React from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslations } from "@/i18n/translations";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
 

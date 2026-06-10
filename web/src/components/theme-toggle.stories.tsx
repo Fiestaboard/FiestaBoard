@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { ThemeProvider } from "next-themes";
+
+import { ThemeProvider } from "@/hooks/use-theme";
 
 import { ThemeToggle } from "./theme-toggle";
 

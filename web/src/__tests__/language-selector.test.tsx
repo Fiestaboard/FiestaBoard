@@ -2,16 +2,18 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockRouter = { refresh: vi.fn(), push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() };
-vi.mock("next/navigation", () => ({
-  useRouter: () => mockRouter,
+const { changeLanguageMock } = vi.hoisted(() => ({ changeLanguageMock: vi.fn() }));
+vi.mock("@/i18n/i18next", () => ({
+  default: {
+    changeLanguage: changeLanguageMock,
+  },
 }));
 
 import { LanguageSelector } from "@/components/language-selector";
 
 describe("LanguageSelector", () => {
   beforeEach(() => {
-    mockRouter.refresh.mockClear();
+    changeLanguageMock.mockClear();
     document.cookie = "NEXT_LOCALE=; path=/; max-age=0";
   });
 
@@ -40,7 +42,7 @@ describe("LanguageSelector", () => {
     expect(screen.getByText("简体中文")).toBeInTheDocument();
   });
 
-  it("sets NEXT_LOCALE cookie and refreshes when a language is selected", async () => {
+  it("sets NEXT_LOCALE cookie and changes i18next language when a language is selected", async () => {
     const user = userEvent.setup();
     render(<LanguageSelector />);
 
@@ -51,7 +53,7 @@ describe("LanguageSelector", () => {
     await user.click(spanishOption);
 
     expect(document.cookie).toContain("NEXT_LOCALE=es");
-    expect(mockRouter.refresh).toHaveBeenCalled();
+    expect(changeLanguageMock).toHaveBeenCalledWith("es");
   });
 
   it("has proper aria-label for accessibility", () => {

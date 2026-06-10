@@ -26,9 +26,8 @@ import { WrappedTextNode } from "./extensions/wrapped-text-node";
 import { BOARD_LINES, BOARD_WIDTH } from "./utils/constants";
 import { parseLineContent, parseTemplateSimple, serializeTemplateSimple } from "./utils/serialization";
 export type LineAlignment = "left" | "center" | "right";
-import { useTranslations } from "next-intl";
-
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslations } from "@/i18n/translations";
 
 import { TemplateEditorToolbar } from "./components/TemplateEditorToolbar";
 

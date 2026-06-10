@@ -1,20 +1,17 @@
 /**
- * Compat shim for `next-intl` on react-i18next.
+ * Translation hook layered over react-i18next.
  *
- * 77 files in this codebase import from `next-intl`. The shim mirrors the
- * three APIs they actually use: `useTranslations`, `useLocale`, and
- * `NextIntlClientProvider`. The shim's `t` function supports `t.rich` and
- * `t.raw` with semantics that match the existing vitest mock at
- * `src/__tests__/setup.ts:55-97` (which has been our reference behavior
- * for two years of test coverage). This file lifts that logic to be the
- * production implementation.
+ * Exposes the shape the codebase has been using for ~2 years:
+ *   const t = useTranslations("namespace");
+ *   t("key", {count: 3});            // ICU plural via inline regex
+ *   t.rich("key", { strong: (c) => <strong>{c}</strong> });
+ *   t.raw("key");                    // raw object / array / string
  *
- * Implementation note: we delegate value lookup to react-i18next's `t`
- * which returns the raw string for plain keys, but build our own
- * `t.rich` and `t.raw` and re-implement ICU `{name, plural, ...}` so the
- * behavior matches what's been shipping. react-i18next's built-in
- * pluralization is configurable but the existing messages use ICU-style
- * inline plural, so we match that surface.
+ * react-i18next's `t` returns the resolved string for plain keys; we
+ * build `t.rich` and `t.raw` and re-implement ICU
+ * `{name, plural, one {...} other {...}}` directly so the existing
+ * `messages/*.json` (which uses next-intl's ICU syntax) keeps working
+ * without a per-string codemod across 14 locales.
  */
 import React, { Fragment } from "react";
 import { useTranslation } from "react-i18next";
@@ -139,14 +136,4 @@ export function useTranslations(namespace?: string): TFn {
 export function useLocale(): string {
   const { i18n: rrtI18n } = useTranslation();
   return rrtI18n.language || i18n.language || "en";
-}
-
-export function NextIntlClientProvider({
-  children,
-}: {
-  children: React.ReactNode;
-  messages?: unknown;
-  locale?: string;
-}) {
-  return <>{children}</>;
 }

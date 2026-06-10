@@ -1,12 +1,12 @@
 "use client";
 
 import { Clock } from "lucide-react";
-import { useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 
 interface TimePickerProps {

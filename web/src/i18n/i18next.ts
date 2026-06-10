@@ -1,11 +1,10 @@
 /**
  * react-i18next initialization for FiestaBoard.
  *
- * Replaces the next-intl server-side request handler (`request.ts`) that
- * read the `NEXT_LOCALE` cookie inside a Next.js server component. In
- * SPA-mode RR7 the locale is determined at boot in the browser, via
- * `i18next-browser-languagedetector`. Cookie order matches the old
- * `NEXT_LOCALE` name so users who already had a locale set keep it.
+ * Locale is detected at boot in the browser via
+ * `i18next-browser-languagedetector` — cookie name is `NEXT_LOCALE`
+ * for back-compat with users who already had a locale set before the
+ * RR7 migration.
  *
  * All 14 locales are statically imported so they're available
  * synchronously at first render — there's no `Suspense` boundary
@@ -57,10 +56,11 @@ if (!i18n.isInitialized) {
       resources,
       supportedLngs: [...locales],
       fallbackLng: defaultLocale,
-      // We do our own ICU plural / placeholder interpolation in the
-      // next-intl compat shim (`src/lib/next-compat/intl.tsx`) because
-      // the existing messages use next-intl's syntax. Turning i18next's
-      // interpolation off prevents double-processing of `{}` markers.
+      // We do our own ICU plural / placeholder interpolation in
+      // `@/i18n/translations` because the existing message strings use
+      // next-intl-style ICU syntax. Set i18next's interpolation prefix
+      // to `{{` (not the default `{`) so its replacement pass doesn't
+      // double-process our `{name}` placeholders.
       interpolation: { escapeValue: false, prefix: "{{", suffix: "}}" },
       detection: {
         order: ["cookie", "navigator", "htmlTag"],

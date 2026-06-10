@@ -1,10 +1,9 @@
 "use client";
 
 import { Clock, FilePlus, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
-import Link from "next/link";
-import { useTranslations } from "next-intl";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import Link from "@/components/smart-link";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
+import { useTranslations } from "@/i18n/translations";
 import type { Collection, Page, PagePreviewResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 

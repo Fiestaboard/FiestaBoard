@@ -1,11 +1,10 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useState } from "react";
 
+import { usePathname } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import { clearWizardCompletion, shouldShowWizard } from "@/lib/setup-detection";
 
 function WizardLoadingFallback() {
@@ -21,10 +20,14 @@ function WizardLoadingFallback() {
 }
 
 // Lazy load SetupWizard since it's only needed on first visit or when manually triggered
-const SetupWizard = dynamic(() => import("@/components/wizard").then((mod) => ({ default: mod.SetupWizard })), {
-  ssr: false,
-  loading: () => <WizardLoadingFallback />,
-});
+const SetupWizardLazy = lazy(() => import("@/components/wizard").then((mod) => ({ default: mod.SetupWizard })));
+function SetupWizard(props: React.ComponentProps<typeof SetupWizardLazy>) {
+  return (
+    <Suspense fallback={<WizardLoadingFallback />}>
+      <SetupWizardLazy {...props} />
+    </Suspense>
+  );
+}
 
 interface WizardContextType {
   isWizardActive: boolean;

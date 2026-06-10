@@ -377,7 +377,7 @@ docker-compose -f docker-compose.dev.yml up --build
 FiestaBoard/
 ├── plugins/          # Plugin-based data sources (weather, stocks, etc.)
 ├── src/              # Platform core (API server, display service, plugin system)
-├── web/              # Next.js web UI
+├── web/              # React Router v7 + Vite web UI
 ├── docs/             # Development documentation
 ├── docs-site/        # Documentation website (fiestaboard.app)
 ├── Dockerfile        # Unified container (API + Web UI + nginx)

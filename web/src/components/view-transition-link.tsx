@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import type { AnchorHTMLAttributes, MouseEvent, ReactNode } from "react";
+
+import Link from "@/components/smart-link";
 
 type TransitionType = "default" | "slide-up" | "slide-down" | "scale-fade";
 

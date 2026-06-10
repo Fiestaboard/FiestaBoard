@@ -18,7 +18,6 @@ import {
   Wifi,
   XCircle,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -29,6 +28,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTranslations } from "@/i18n/translations";
 import type { NetworkDiagnosticsResult } from "@/lib/api";
 import { api } from "@/lib/api";
 

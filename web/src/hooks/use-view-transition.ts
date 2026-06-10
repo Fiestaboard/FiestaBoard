@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback } from "react";
+
+import { useRouter } from "@/hooks/use-router";
 
 type TransitionType = "default" | "slide-up" | "slide-down" | "scale-fade";
 

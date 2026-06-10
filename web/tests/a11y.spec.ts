@@ -67,7 +67,6 @@ async function auditPage(page: Page, path: string, waitForSelector?: string) {
   }));
 
   if (process.env.DEBUG_A11Y || summarised.length > 0) {
-    // eslint-disable-next-line no-console
     console.log(`[a11y] ${path}:`, JSON.stringify(summarised, null, 2));
   }
 

@@ -22,10 +22,10 @@ import {
   Undo2,
   WrapText,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";

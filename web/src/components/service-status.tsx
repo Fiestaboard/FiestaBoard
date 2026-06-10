@@ -1,10 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useStatus } from "@/hooks/use-board";
+import { useTranslations } from "@/i18n/translations";
 
 export function ServiceStatus() {
   const { data, isLoading, isError } = useStatus();

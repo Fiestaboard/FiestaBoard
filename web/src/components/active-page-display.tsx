@@ -14,8 +14,6 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -44,6 +42,8 @@ import {
   usePages,
   useSetActivePage,
 } from "@/hooks/use-board";
+import { useRouter } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import type { BoardCurrentMessageResponse, Collection, SilenceStatus } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";

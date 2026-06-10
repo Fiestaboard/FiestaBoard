@@ -2,9 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpCircle, Package } from "lucide-react";
-import { useTranslations } from "next-intl";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 export function VersionDisplay() {

@@ -11,12 +11,12 @@
 
 import { NodeViewWrapper } from "@tiptap/react";
 import { SquareFunction } from "lucide-react";
-import { useTranslations } from "next-intl";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslations } from "@/i18n/translations";
 
 import { FormulaEditorPanel } from "../components/FormulaEditorPanel";
 

@@ -1,11 +1,8 @@
 import { index, route, type RouteConfig } from "@react-router/dev/routes";
 
 /**
- * Route configuration for FiestaBoard. The actual route components are
- * kept under `app/routes/` and (where it's a thin re-export) delegate to
- * the canonical implementation under `../src/app/<route>/page.tsx`. The
- * file-based split makes RR7 happy without forcing us to physically move
- * 187 source files in a single PR.
+ * Route configuration for FiestaBoard. Each route module lives in
+ * `app/routes/` and is loaded by React Router v7 in framework mode.
  */
 export default [
   index("routes/home.tsx"),

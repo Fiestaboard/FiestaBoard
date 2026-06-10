@@ -1,11 +1,10 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStatus } from "@/hooks/use-board";
+import { useTranslations } from "@/i18n/translations";
 
 export function ServiceControls() {
   const t = useTranslations("serviceControls");

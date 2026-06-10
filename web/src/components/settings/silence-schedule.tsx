@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Moon } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { TimePicker } from "@/components/ui/time-picker";
 import { usePages } from "@/hooks/use-board";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { localTimeToUTC, utcToLocalTime } from "@/lib/timezone-utils";
 

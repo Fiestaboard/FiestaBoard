@@ -1,13 +1,11 @@
-"use client";
-
 import { Calendar, Edit, GalleryHorizontalEnd, Trash2 } from "lucide-react";
-import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useTranslations } from "@/i18n/translations";
 import type { Collection, Page, ScheduleEntry } from "@/lib/api";
 import { isCollectionId } from "@/lib/api";
 

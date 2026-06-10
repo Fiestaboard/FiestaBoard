@@ -1,5 +1,6 @@
 /**
- * React Router v7 root module — replaces `src/app/layout.tsx`.
+ * React Router v7 root module — owns the document shell that pre-RR7
+ * lived in a Next.js `app/layout.tsx`.
  *
  * Renders the document shell, mounts the provider tree, and exposes
  * `<Outlet />` for nested routes. Localized `<title>` and
@@ -9,7 +10,7 @@
  * `./assets/...`), which is how HA Ingress works without any
  * build-time `assetPrefix`.
  */
-import "../src/app/globals.css";
+import "./globals.css";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
 
@@ -67,7 +68,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   //
   // `pride-month` gates the rainbow logo, dark sidebar base, WebGL aurora,
   // and click-to-celebrate confetti via CSS rules in `globals.css`. The
-  // class lands on `<html>` BEFORE next-themes adds `light`/`dark` —
+  // class lands on `<html>` BEFORE the theme hook adds `light`/`dark` —
   // navigation tests compare html.class strings across theme toggles and
   // depend on that insertion order (see `web/tests/navigation.spec.ts:72-101`).
   //
@@ -75,11 +76,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // June). In SPA mode the prerender runs with `typeof document === "undefined"`
   // so the `hide_festive_months` cookie can't be read at build time —
   // `shouldShowPride` falls back to "active" in June. `suppressHydrationWarning`
-  // (kept for next-themes' classList mutation) means React won't reconcile
+  // (kept for the theme hook's classList mutation) means React won't reconcile
   // the `<html>` className across re-renders, so a re-render alone can't
   // remove the class on the client. The effect below imperatively toggles
-  // it via classList — that way it composes with next-themes' `dark`/`light`
-  // class without clobbering them.
+  // it via classList — that way it composes with the theme hook's
+  // `dark`/`light` class without clobbering them.
   const [initialIsPrideMonth] = useState(() => shouldShowPride(new Date(), readCookieString()));
   useEffect(() => {
     const active = shouldShowPride(new Date(), readCookieString());

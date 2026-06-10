@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -10,6 +9,7 @@ import { AiChatPanel } from "@/components/ai-chat-panel";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
+import { useRouter } from "@/hooks/use-router";
 import type {
   ChainingMode,
   ChatTurnContext,

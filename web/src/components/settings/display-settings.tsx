@@ -16,7 +16,6 @@ import {
   Smartphone,
   Trash2,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -29,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
+import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 

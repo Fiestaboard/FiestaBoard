@@ -2,12 +2,12 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Cpu, ExternalLink, Info, Package } from "lucide-react";
-import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStatus } from "@/hooks/use-board";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 

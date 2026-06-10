@@ -8,7 +8,7 @@ import { server } from "./mocks/server";
 
 const replaceMock = vi.fn();
 
-vi.mock("next/navigation", () => ({
+vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({
     push: vi.fn(),
     replace: replaceMock,
@@ -233,7 +233,7 @@ describe("AccountSection", () => {
     let body: { enabled?: boolean } | null = null;
     const pushMock = vi.fn();
     // Re-mock useRouter for this test to capture push().
-    const navMock = await import("next/navigation");
+    const navMock = await import("@/hooks/use-router");
     vi.spyOn(navMock, "useRouter").mockReturnValue({
       push: pushMock,
       replace: replaceMock,
