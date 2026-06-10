@@ -6,7 +6,7 @@ schedule>=1.2.2
 defusedxml>=0.7.1
 
 # Symmetric encryption for secrets at rest (see src/security/secrets.py)
-cryptography>=48.0.0
+cryptography>=48.0.1
 
 # API Server dependencies
 fastapi>=0.125.0
