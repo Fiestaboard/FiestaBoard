@@ -6,23 +6,22 @@ import { useEffect, useState } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { HIDE_FESTIVE_COOKIE } from "@/lib/pride";
 
-const COOKIE_NAME = "hide_festive_months";
 // 10 years — this is a sticky per-browser preference, not a session
-// thing. The cookie is the gate the root layout reads in its
-// `useState` initializer on first mount (post-RR7-SPA migration; was
-// a `next/headers` `cookies()` read in the prior Next.js layout).
+// thing. The cookie is read by the root layout's `useEffect` on first
+// mount to toggle the `pride-month` class on `<html>`.
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 10;
 
 function readCookie(): boolean {
   if (typeof document === "undefined") return false;
-  return document.cookie.split("; ").some((c) => c === `${COOKIE_NAME}=true`);
+  return document.cookie.split("; ").some((c) => c === `${HIDE_FESTIVE_COOKIE}=true`);
 }
 
 function writeCookie(hide: boolean) {
   document.cookie = hide
-    ? `${COOKIE_NAME}=true; path=/; max-age=${COOKIE_MAX_AGE}; samesite=lax`
-    : `${COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
+    ? `${HIDE_FESTIVE_COOKIE}=true; path=/; max-age=${COOKIE_MAX_AGE}; samesite=lax`
+    : `${HIDE_FESTIVE_COOKIE}=; path=/; max-age=0; samesite=lax`;
 }
 
 /**
