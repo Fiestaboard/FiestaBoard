@@ -1,7 +1,7 @@
 {
   "id": "countdown",
   "name": "Countdown",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Display the remaining time to an event in real time",
   "author": "FiestaBoard Team",
   "repository": "https://github.com/FiestaBoard/FiestaBoard",
