@@ -1195,6 +1195,38 @@ def test_auto_migrate_skips_already_installed_on_subsequent_boots(
     mock_install.assert_not_called()
 
 
+def test_auto_migrate_ignores_instance_keys_when_base_plugin_is_loaded(
+    registry, mock_loader, mock_plugin, mock_manifest
+):
+    """Instance config keys (e.g. ``countdown:fijiaustralia``) must NOT be flagged
+    as orphaned V3 migration candidates when their base plugin is loaded.
+
+    Regression for https://github.com/Fiestaboard/FiestaBoard/issues/925 — the
+    V3 auto-migration was reporting every plugin instance as missing from the
+    registry because it only checked compound keys against the set of loaded
+    base plugin IDs.
+    """
+    mock_loader.load_all_plugins.return_value = {"countdown": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "countdown" else None
+    mock_manifest.id = "countdown"
+
+    with (
+        patch("src.plugins.registry.load_registry") as mock_load_reg,
+        patch("src.plugins.registry.install_registry_plugin") as mock_install,
+        patch("src.config_manager.get_config_manager") as mock_cm,
+    ):
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "countdown": {"enabled": True},
+            "countdown:fijiaustralia": {"enabled": True, "target_date": "2026-12-25"},
+        }
+        registry.initialize()
+
+    # Instance key has a matching loaded base plugin → no orphans → registry
+    # lookup and install should never be triggered.
+    mock_load_reg.assert_not_called()
+    mock_install.assert_not_called()
+
+
 # --- uninstall_external_plugin ---
 
 
