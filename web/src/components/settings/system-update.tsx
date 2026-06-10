@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpCircle, ExternalLink, RefreshCw } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 import { useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUpdate } from "@/components/update-context";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 /**

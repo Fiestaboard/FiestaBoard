@@ -10,7 +10,6 @@ import {
   Sigma,
   Trash2,
 } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -37,6 +36,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { VariableRuleRow } from "@/components/variable-rule-row";
 import { queryKeys } from "@/hooks/use-board";
+import { useTranslations } from "@/i18n/translations";
 import type {
   Collection,
   CollectionCreate,

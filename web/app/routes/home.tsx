@@ -1,5 +1,4 @@
 import { Home as HomeIcon, Info } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
 
 import { ActivePageDisplay } from "@/components/active-page-display";
@@ -8,6 +7,7 @@ import { PageLayout } from "@/components/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useWizard } from "@/components/wizard-provider";
+import { useTranslations } from "@/i18n/translations";
 import { getSetupStatus } from "@/lib/setup-detection";
 
 export default function Home() {

@@ -1,6 +1,5 @@
-import { useRouter } from "@/hooks/use-router";
-
 import { PageEditorShell } from "@/components/page-editor-shell";
+import { useRouter } from "@/hooks/use-router";
 
 interface EditPageClientProps {
   pageId: string;

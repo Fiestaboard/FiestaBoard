@@ -1,6 +1,7 @@
 import { RefreshCw, WifiOff } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
+
+import { useTranslations } from "@/i18n/translations";
 
 export default function OfflinePage() {
   const [isOnline, setIsOnline] = useState(false);

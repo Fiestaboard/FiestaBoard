@@ -15,8 +15,6 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
-import { usePathname } from "@/hooks/use-router";
-import { useTranslations } from "@/i18n/translations";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -33,6 +31,8 @@ import { VersionDisplay } from "@/components/version-display";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { usePrefetchPagesData } from "@/hooks/use-board";
 import { usePrideActive } from "@/hooks/use-pride-active";
+import { usePathname } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { cn } from "@/lib/utils";

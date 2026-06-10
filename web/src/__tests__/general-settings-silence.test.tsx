@@ -11,8 +11,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { ThemeProvider } from "@/hooks/use-theme";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ThemeProvider } from "@/hooks/use-theme";
 
 import { mockOutputSettings, mockTransitionSettings } from "./mocks/handlers";
 import { server } from "./mocks/server";

@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowUpCircle, Cpu, Loader2, Power, RefreshCw } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useUpdate } from "@/components/update-context";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 /**

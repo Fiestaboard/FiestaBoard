@@ -1,9 +1,9 @@
 "use client";
 
-import { useTranslations } from "@/i18n/translations";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";
+import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
 

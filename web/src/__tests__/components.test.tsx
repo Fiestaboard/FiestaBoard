@@ -1,13 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { ThemeProvider } from "@/hooks/use-theme";
 import { describe, expect, it } from "vitest";
 
 import { ConfigDisplay } from "@/components/config-display";
 import { ServiceControls } from "@/components/service-controls";
 import { ServiceStatus } from "@/components/service-status";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+import { ThemeProvider } from "@/hooks/use-theme";
 
 import { server } from "./mocks/server";
 

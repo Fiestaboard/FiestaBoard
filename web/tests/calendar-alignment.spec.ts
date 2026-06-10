@@ -156,7 +156,7 @@ test.describe("Calendar alignment", () => {
 
     const result = await measureCalendarAlignment(page);
     for (const d of result.details) {
-      // eslint-disable-next-line no-console
+       
       console.log(`  ${d}`);
     }
     expect(
@@ -179,7 +179,7 @@ test.describe("Calendar alignment", () => {
 
     const result = await measureCalendarAlignment(page);
     for (const d of result.details) {
-      // eslint-disable-next-line no-console
+       
       console.log(`  ${d}`);
     }
     expect(
@@ -272,10 +272,10 @@ test.describe("Calendar alignment", () => {
     for (const day of placement.daySlots) {
       const overnightEvents = day.eventTitles.filter((t) => t === "Overnight");
       if (overnightEvents.length > 0) {
-        // eslint-disable-next-line no-console
+         
         console.log(`  Day ${day.dayIndex}: ${day.eventCount} events, overnight count: ${overnightEvents.length}`);
         for (let i = 0; i < day.eventTitles.length; i++) {
-          // eslint-disable-next-line no-console
+           
           console.log(`    "${day.eventTitles[i]}" top=${day.eventTops[i]} bottom=${day.eventBottoms[i]}`);
         }
       }
@@ -283,9 +283,9 @@ test.describe("Calendar alignment", () => {
 
     // Hour 22 (10pm) is at index 22 in the gutter
     const hour22Top = placement.hourTops[22];
-    // eslint-disable-next-line no-console
+     
     console.log(`  10pm gutter line top: ${hour22Top}`);
-    // eslint-disable-next-line no-console
+     
     console.log(`  midnight gutter line top: ${placement.hourTops[0]}`);
 
     // Find "Overnight" events by proximity to expected gutter lines
@@ -308,7 +308,7 @@ test.describe("Calendar alignment", () => {
     const sundaySlot = placement.daySlots[0];
     const sundayEvening = findOvernightNearest(sundaySlot, hour22Top);
     expect(sundayEvening.idx, "Sunday should have an Overnight evening block near 10pm").toBeGreaterThanOrEqual(0);
-    // eslint-disable-next-line no-console
+     
     console.log(
       `  Sunday Overnight evening block: top=${sundaySlot.eventTops[sundayEvening.idx]}, expected ~${hour22Top}, drift=${sundayEvening.drift}px`,
     );
@@ -322,7 +322,7 @@ test.describe("Calendar alignment", () => {
     const midnightTop = placement.hourTops[0];
     const mondayMorning = findOvernightNearest(mondaySlot, midnightTop);
     expect(mondayMorning.idx, "Monday should have an Overnight morning block near midnight").toBeGreaterThanOrEqual(0);
-    // eslint-disable-next-line no-console
+     
     console.log(
       `  Monday Overnight morning block: top=${mondaySlot.eventTops[mondayMorning.idx]}, expected ~${midnightTop}, drift=${mondayMorning.drift}px`,
     );

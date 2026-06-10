@@ -1,9 +1,8 @@
 "use client";
 
-import { usePathname } from "@/hooks/use-router";
-
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { useSidebar } from "@/components/sidebar-context";
+import { usePathname } from "@/hooks/use-router";
 import { MAX_APP_WIDTH } from "@/lib/layout-constants";
 import { cn } from "@/lib/utils";
 

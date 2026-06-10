@@ -1,10 +1,10 @@
 "use client";
 
-import { usePathname } from "@/hooks/use-router";
-import { useTranslations } from "@/i18n/translations";
 import type { ReactNode } from "react";
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useState } from "react";
 
+import { usePathname } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import { clearWizardCompletion, shouldShowWizard } from "@/lib/setup-detection";
 
 function WizardLoadingFallback() {

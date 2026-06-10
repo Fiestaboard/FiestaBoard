@@ -1,8 +1,8 @@
 "use client";
 
-import { useTranslations } from "@/i18n/translations";
 import { memo, useMemo } from "react";
 
+import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
 

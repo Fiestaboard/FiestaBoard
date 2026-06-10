@@ -1,8 +1,8 @@
 import { Activity } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 
 import { PageLayout } from "@/components/page-layout";
 import { Card, CardContent } from "@/components/ui/card";
+import { useTranslations } from "@/i18n/translations";
 
 export default function DebugMonitorPage() {
   const t = useTranslations("monitor");

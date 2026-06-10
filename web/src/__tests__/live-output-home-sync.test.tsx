@@ -14,12 +14,12 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { renderHook } from "@testing-library/react";
 import { http } from "msw";
-import { ThemeProvider } from "@/hooks/use-theme";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ActivePageDisplay } from "@/components/active-page-display";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+import { ThemeProvider } from "@/hooks/use-theme";
 
 import { server } from "./mocks/server";
 

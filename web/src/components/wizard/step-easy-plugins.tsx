@@ -2,15 +2,15 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Clock, Cloud, Laugh, Rocket, Star, Timer, TrendingUp, Trophy, Waves, Wifi } from "lucide-react";
-import Link from "@/components/smart-link";
-import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
 
+import Link from "@/components/smart-link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
+import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------

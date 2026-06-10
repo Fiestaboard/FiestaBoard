@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useTranslations } from "@/i18n/translations";
 import { useState } from "react";
 
 import {
@@ -16,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTranslations } from "@/i18n/translations";
 import type { HomeAssistantEntity } from "@/lib/api";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";

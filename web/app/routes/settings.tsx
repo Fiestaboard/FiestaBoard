@@ -1,8 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { Cog, MonitorCog, Plug, Settings, ShieldCheck, User, Wand2, Waves, Wifi, Wrench } from "lucide-react";
-import { useRouter, useSearchParams } from "@/hooks/use-router";
-import { useTranslations } from "@/i18n/translations";
 import { useCallback, useMemo } from "react";
 
 import { AccountSection } from "@/components/account-section";
@@ -36,6 +34,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWizard } from "@/components/wizard-provider";
+import { useRouter, useSearchParams } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 type SectionId = "general" | "account" | "hardware" | "network" | "behavior" | "integrations" | "system" | "advanced";

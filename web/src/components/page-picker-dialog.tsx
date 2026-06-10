@@ -1,11 +1,11 @@
 "use client";
 
 import { Check, FileText, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTranslations } from "@/i18n/translations";
 import type { Collection } from "@/lib/api";
 import { isCollectionId } from "@/lib/api";
 

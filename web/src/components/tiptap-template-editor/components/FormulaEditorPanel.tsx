@@ -30,11 +30,11 @@ import {
   Type as TypeIcon,
   XCircle,
 } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 

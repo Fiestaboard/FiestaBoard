@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Copy, Radio, Save, Trash2, Upload } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -34,6 +33,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { queryKeys } from "@/hooks/use-board";
 import { getEffectiveBoardColor, useBoardSettings } from "@/hooks/use-board";
+import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, ToolCall } from "@/lib/ai-chat-types";
 import type {
   BoardInstance,

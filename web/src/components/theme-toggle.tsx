@@ -1,11 +1,11 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
-import { useTheme } from "@/hooks/use-theme";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/hooks/use-theme";
+import { useTranslations } from "@/i18n/translations";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();

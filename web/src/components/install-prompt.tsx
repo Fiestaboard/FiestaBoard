@@ -1,8 +1,9 @@
 "use client";
 
 import { Download, X } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 import { useEffect, useState } from "react";
+
+import { useTranslations } from "@/i18n/translations";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;

@@ -1,13 +1,13 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useRouter } from "@/hooks/use-router";
-import { useTranslations } from "@/i18n/translations";
 import { useCallback, useEffect, useState } from "react";
 
 import { LanguageSelector } from "@/components/language-selector";
 import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import type { WizardProgress } from "@/lib/setup-detection";
 import { clearWizardProgress, getWizardProgress, markWizardComplete, saveWizardProgress } from "@/lib/setup-detection";
 import { cn } from "@/lib/utils";

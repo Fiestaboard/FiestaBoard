@@ -2,9 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Clock, Loader2, Moon, Sun } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 
 import { Badge } from "@/components/ui/badge";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { getTimezoneAbbreviation, utcToLocalTime } from "@/lib/timezone-utils";
 

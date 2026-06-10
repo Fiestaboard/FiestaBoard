@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Lock, RefreshCw, Trash2, Unlink, Wifi, WifiOff, X } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -19,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useTranslations } from "@/i18n/translations";
 import type { SavedWifiNetwork, WifiNetwork } from "@/lib/api";
 import { api } from "@/lib/api";
 

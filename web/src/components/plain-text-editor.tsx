@@ -1,9 +1,9 @@
 "use client";
 
-import { useTranslations } from "@/i18n/translations";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 
 interface PlainTextEditorProps {

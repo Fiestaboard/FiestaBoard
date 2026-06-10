@@ -1,10 +1,10 @@
 "use client";
 
 import { Check, Monitor, Moon, Sun } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
-import { useTheme } from "@/hooks/use-theme";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTheme } from "@/hooks/use-theme";
+import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 
 export function AppearanceSettings() {

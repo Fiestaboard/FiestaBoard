@@ -1,14 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDownToLine, ArrowLeft, CopyPlus, ExternalLink, Puzzle } from "lucide-react";
-import Link from "@/components/smart-link";
-import { useParams, useRouter } from "@/hooks/use-router";
-import { useTranslations } from "@/i18n/translations";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
 import { PageLayout } from "@/components/page-layout";
+import Link from "@/components/smart-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +20,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useParams, useRouter } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { fetchPluginReadme, rewriteMarkdownImageUrls, rewriteMarkdownRepoLinks } from "@/lib/github";
 import { cn } from "@/lib/utils";

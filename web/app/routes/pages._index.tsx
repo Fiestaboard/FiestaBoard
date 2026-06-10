@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, FileText, LayoutGrid, List, Plus } from "lucide-react";
-import { useTranslations } from "@/i18n/translations";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -22,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBoardSettings } from "@/hooks/use-board";
 import { queryKeys } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";
+import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 

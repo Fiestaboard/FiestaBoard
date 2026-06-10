@@ -1,7 +1,8 @@
 "use client";
 
-import { useTheme } from "@/hooks/use-theme";
 import { useEffect } from "react";
+
+import { useTheme } from "@/hooks/use-theme";
 
 /**
  * Resolves any CSS color value (including oklch) to a hex string

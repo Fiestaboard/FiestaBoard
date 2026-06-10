@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import { ThemeProvider } from "@/hooks/use-theme";
 import React, { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BoardDisplay } from "@/components/board-display";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
+import { ThemeProvider } from "@/hooks/use-theme";
 
 // Test wrapper with providers
 function TestWrapper({ children }: { children: React.ReactNode }) {

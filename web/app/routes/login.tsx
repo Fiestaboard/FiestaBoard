@@ -23,8 +23,6 @@
  */
 
 import { Loader2, Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
-import { useRouter, useSearchParams } from "@/hooks/use-router";
-import { useTranslations } from "@/i18n/translations";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { FiestaLogo } from "@/components/fiesta-logo";
@@ -34,6 +32,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useRouter, useSearchParams } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import type { AuthStatusResponse } from "@/lib/api";
 
 type AuthStatus = AuthStatusResponse;

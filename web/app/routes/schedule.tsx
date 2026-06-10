@@ -1,8 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter, useSearchParams } from "@/hooks/use-router";
+import {
+  AlertCircle,
+  AlertTriangle,
+  Calendar as CalendarIcon,
+  CalendarDays,
+  List,
+  MapPin,
+  Plus,
+  Power,
+} from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
+import { PageHeader } from "@/components/page-header";
+import { PageLayout } from "@/components/page-layout";
+import { PageToolbar } from "@/components/page-toolbar";
+import { ScheduleListView } from "@/components/schedule";
+import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
+import Link from "@/components/smart-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,33 +39,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
-import { cn } from "@/lib/utils";
-
-import {
-  AlertCircle,
-  AlertTriangle,
-  Calendar as CalendarIcon,
-  CalendarDays,
-  List,
-  MapPin,
-  Plus,
-  Power,
-} from "lucide-react";
-import Link from "@/components/smart-link";
-import { useTranslations } from "@/i18n/translations";
-import { toast } from "sonner";
-
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
-import { PageToolbar } from "@/components/page-toolbar";
-import { ScheduleListView } from "@/components/schedule";
-import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCollections } from "@/hooks/use-board";
+import { useRouter, useSearchParams } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import {
   api,
   type DayPattern,
@@ -59,6 +56,7 @@ import {
   type ScheduleUpdate,
 } from "@/lib/api";
 import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar";
+import { cn } from "@/lib/utils";
 
 // Lazy load ScheduleCalendarView since it includes react-big-calendar (~150KB+)
 const ScheduleCalendarViewLazy = lazy(() =>

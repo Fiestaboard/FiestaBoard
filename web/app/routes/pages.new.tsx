@@ -1,6 +1,5 @@
-import { useSearchParams } from "@/hooks/use-router";
-
 import { PageEditorShell } from "@/components/page-editor-shell";
+import { useSearchParams } from "@/hooks/use-router";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import type { DeviceType } from "@/lib/api";
 
