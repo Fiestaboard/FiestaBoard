@@ -1,4 +1,4 @@
-import "../src/app/globals.css";
+import "../app/globals.css";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
 
