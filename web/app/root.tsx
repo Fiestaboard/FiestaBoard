@@ -34,6 +34,7 @@ import { ThemeColorMeta } from "@/components/theme-color-meta";
 import { Toaster } from "@/components/ui/sonner";
 import { WizardProvider } from "@/components/wizard-provider";
 import i18n from "@/i18n/i18next";
+import { readCookieString, shouldShowPride } from "@/lib/pride";
 
 import type { Route } from "./+types/root";
 
@@ -65,24 +66,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // we lean on i18next-browser-languagedetector and patch `<html lang>`
   // imperatively in `RootBody` once it boots.
   //
-  // `pride-month` is set as a className in the initial render so it
-  // appears in the HTML attribute BEFORE the theme hook adds
-  // `light`/`dark`. Tests that compare html.class strings across theme
-  // toggles depend on this stable insertion order — see
-  // `web/tests/navigation.spec.ts:72-101`. useState's init function runs
-  // once per mount, so the value is stable for the lifetime of the page.
+  // `pride-month` gates the rainbow logo, dark sidebar base, WebGL aurora,
+  // and click-to-celebrate confetti via CSS rules in `globals.css`. The
+  // class lands on `<html>` BEFORE the theme hook adds `light`/`dark` —
+  // navigation tests compare html.class strings across theme toggles and
+  // depend on that insertion order (see `web/tests/navigation.spec.ts:72-101`).
   //
-  // Opt-out: the `hide_festive_months` cookie (written by
-  // FestiveMonthsSettings, which reloads the page after toggle) suppresses
-  // the class. We read `document.cookie` in the same useState initializer
-  // so the class is set on the very first paint.
-  const [isPrideMonth] = useState(() => {
-    if (new Date().getMonth() !== 5) return false;
-    if (typeof document === "undefined") return true;
-    return !document.cookie.split("; ").some((c) => c === "hide_festive_months=true");
-  });
+  // The initial className comes from useState (FOUC-free first paint in
+  // June). In SPA mode the prerender runs with `typeof document === "undefined"`
+  // so the `hide_festive_months` cookie can't be read at build time —
+  // `shouldShowPride` falls back to "active" in June. `suppressHydrationWarning`
+  // (kept for the theme hook's classList mutation) means React won't reconcile
+  // the `<html>` className across re-renders, so a re-render alone can't
+  // remove the class on the client. The effect below imperatively toggles
+  // it via classList — that way it composes with the theme hook's
+  // `dark`/`light` class without clobbering them.
+  const [initialIsPrideMonth] = useState(() => shouldShowPride(new Date(), readCookieString()));
+  useEffect(() => {
+    const active = shouldShowPride(new Date(), readCookieString());
+    document.documentElement.classList.toggle("pride-month", active);
+  }, []);
   return (
-    <html lang="en" className={isPrideMonth ? "pride-month" : undefined} suppressHydrationWarning>
+    <html lang="en" className={initialIsPrideMonth ? "pride-month" : undefined} suppressHydrationWarning>
       <head>
         <Meta />
         <Links />
