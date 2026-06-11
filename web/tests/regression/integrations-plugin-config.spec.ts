@@ -242,6 +242,10 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
    * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/936
    */
   test("integrations.plugin.config-sheet.template-vars — Current Value column shows live value", async ({ page }) => {
+    // The raw-display endpoint only refreshes on the plugin scheduler tick,
+    // which on a cold CI container can take >20s for date_time's first cycle.
+    // Triple the default 30s budget so the assertion has room to wait it out.
+    test.slow();
     await openConfigSheet(page);
 
     // Wait for template-vars heading
