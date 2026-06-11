@@ -258,19 +258,11 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     await expect(timeCode).toBeVisible({ timeout: 5_000 });
     const timeRow = varsTable.locator("tbody tr").filter({ has: timeCode });
 
-    // The "Current Value" cell is the 3rd column. Poll until it renders something
-    // beyond the loading skeleton — the raw display fetch can take a moment.
+    // The "Current Value" cell is the 3rd column. Wait until it renders the live
+    // value — date_time.time always contains a digit (HH:MM). The displays-raw
+    // endpoint can take a moment to warm up on a cold container, so allow 30s.
     const valueCell = timeRow.locator("td").nth(2);
-    await expect
-      .poll(
-        async () => {
-          const text = (await valueCell.textContent())?.trim() ?? "";
-          // Skeleton renders no text; "—" is the empty-state placeholder. Anything else is a live value.
-          return text.length > 0 && text !== "—" ? text : null;
-        },
-        { timeout: 15_000, message: "Current Value cell never populated" },
-      )
-      .not.toBeNull();
+    await expect(valueCell).toContainText(/\d/, { timeout: 30_000 });
   });
 
   /**
