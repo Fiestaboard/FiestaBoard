@@ -338,6 +338,12 @@
     "editScheduleAriaLabel": "Rooster voor {pageName} bewerken",
     "deleteScheduleAriaLabel": "Rooster voor {pageName} verwijderen",
     "openLabel": "open",
+    "silenceEventTitle": "Silence",
+    "silenceScheduleListTitle": "Silence Schedule",
+    "silenceEventAriaLabel": "Silence schedule, {range}, opens settings",
+    "silenceModeIndicatorSubtitle": "Indicator: {text}",
+    "silenceModeFreezeSubtitle": "Board frozen",
+    "silenceModePageSubtitle": "Page: {name}",
     "dayLabels": {
       "allDays": "Alle dagen",
       "monFri": "Ma-Vr",

@@ -338,6 +338,12 @@
     "editScheduleAriaLabel": "编辑 {pageName} 的计划",
     "deleteScheduleAriaLabel": "删除 {pageName} 的计划",
     "openLabel": "打开",
+    "silenceEventTitle": "Silence",
+    "silenceScheduleListTitle": "Silence Schedule",
+    "silenceEventAriaLabel": "Silence schedule, {range}, opens settings",
+    "silenceModeIndicatorSubtitle": "Indicator: {text}",
+    "silenceModeFreezeSubtitle": "Board frozen",
+    "silenceModePageSubtitle": "Page: {name}",
     "dayLabels": {
       "allDays": "每天",
       "monFri": "周一-周五",

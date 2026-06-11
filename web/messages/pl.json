@@ -338,6 +338,12 @@
     "editScheduleAriaLabel": "Edytuj harmonogram dla {pageName}",
     "deleteScheduleAriaLabel": "Usuń harmonogram dla {pageName}",
     "openLabel": "otwarty",
+    "silenceEventTitle": "Silence",
+    "silenceScheduleListTitle": "Silence Schedule",
+    "silenceEventAriaLabel": "Silence schedule, {range}, opens settings",
+    "silenceModeIndicatorSubtitle": "Indicator: {text}",
+    "silenceModeFreezeSubtitle": "Board frozen",
+    "silenceModePageSubtitle": "Page: {name}",
     "dayLabels": {
       "allDays": "Wszystkie dni",
       "monFri": "Pon-Pt",

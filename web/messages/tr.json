@@ -338,6 +338,12 @@
     "editScheduleAriaLabel": "{pageName} için zamanlamayı düzenle",
     "deleteScheduleAriaLabel": "{pageName} için zamanlamayı sil",
     "openLabel": "açık",
+    "silenceEventTitle": "Silence",
+    "silenceScheduleListTitle": "Silence Schedule",
+    "silenceEventAriaLabel": "Silence schedule, {range}, opens settings",
+    "silenceModeIndicatorSubtitle": "Indicator: {text}",
+    "silenceModeFreezeSubtitle": "Board frozen",
+    "silenceModePageSubtitle": "Page: {name}",
     "dayLabels": {
       "allDays": "Tüm günler",
       "monFri": "Pzt-Cum",

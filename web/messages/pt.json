@@ -338,6 +338,12 @@
     "editScheduleAriaLabel": "Editar agendamento para {pageName}",
     "deleteScheduleAriaLabel": "Eliminar agendamento para {pageName}",
     "openLabel": "aberto",
+    "silenceEventTitle": "Silence",
+    "silenceScheduleListTitle": "Silence Schedule",
+    "silenceEventAriaLabel": "Silence schedule, {range}, opens settings",
+    "silenceModeIndicatorSubtitle": "Indicator: {text}",
+    "silenceModeFreezeSubtitle": "Board frozen",
+    "silenceModePageSubtitle": "Page: {name}",
     "dayLabels": {
       "allDays": "Todos os dias",
       "monFri": "Seg-Sex",
