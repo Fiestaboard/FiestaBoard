@@ -25,6 +25,7 @@ permissions:
   pull-requests: read
   actions: write
   models: read
+  id-token: write  # required by anthropics/claude-code-action@v1
 
 jobs:
   # Prevent loop: skip release when this run was triggered by our own version-bump push.
@@ -290,16 +291,21 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create GitHub Release
-        id: create-release
+      # Step 1 of 3 — gather release context: create the tag, fetch GitHub's
+      # auto-generated changelog, harvest per-PR `<!-- claude-changelog -->`
+      # comments left by the PR Changelog Summary workflow, and stash everything
+      # to /tmp for the Claude summarization step and the final render step.
+      - name: Gather release context
+        id: gather
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const fs = require('fs');
             const version = '${{ needs.prep.outputs.version }}';
             const releaseSha = '${{ needs.prep.outputs.release_sha }}';
             const tagName = `v${version}`;
-            
+
             // Create a tag pointing to the version-bump commit
             try {
               await github.rest.git.createRef({
@@ -312,7 +318,7 @@ jobs:
             } catch (error) {
               console.log(`Tag ${tagName} may already exist: ${error.message}`);
             }
-            
+
             // Find previous release tag
             let previousTag = null;
             try {
@@ -327,8 +333,8 @@ jobs:
             } catch (error) {
               console.log(`Could not list previous releases: ${error.message}`);
             }
-            
-            // Generate release notes using GitHub's API (uses .github/release.yml for categories)
+
+            // GitHub-auto-generated changelog (uses .github/release.yml for buckets)
             let autoNotes = '';
             try {
               const notesParams = {
@@ -345,14 +351,17 @@ jobs:
             } catch (error) {
               console.log(`Could not auto-generate release notes: ${error.message}`);
             }
-            
-            // Collect change context for AI summary
+
+            // Build context for Claude: per-PR human-readable changelog lines
+            // (from PR Changelog Summary workflow) + commit messages + areas.
             let changesContext = '';
-            
             if (autoNotes) {
               changesContext += `GitHub auto-generated changelog:\n${autoNotes}\n\n`;
             }
-            
+
+            const contributors = new Set();
+            const prChangelogLines = [];
+
             if (previousTag) {
               try {
                 const { data: comparison } = await github.rest.repos.compareCommitsWithBasehead({
@@ -360,7 +369,48 @@ jobs:
                   repo: context.repo.repo,
                   basehead: `${previousTag}...${releaseSha}`
                 });
-                
+
+                // Contributors
+                for (const commit of comparison.commits) {
+                  const login = commit.author?.login || commit.committer?.login;
+                  if (login && login !== 'github-actions[bot]' && login !== 'web-flow') {
+                    contributors.add(login);
+                  }
+                }
+
+                // PR numbers from merge commit messages — fetch the
+                // <!-- claude-changelog --> comment we left at merge time.
+                const prNumbers = new Set();
+                for (const c of comparison.commits) {
+                  const match = c.commit.message.match(/\(#(\d+)\)|Merge pull request #(\d+)/);
+                  if (match) prNumbers.add(parseInt(match[1] || match[2], 10));
+                }
+
+                for (const num of prNumbers) {
+                  try {
+                    const { data: comments } = await github.rest.issues.listComments({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: num,
+                      per_page: 100
+                    });
+                    const tagged = comments.find(c => c.body && c.body.includes('<!-- claude-changelog -->'));
+                    if (tagged) {
+                      const body = tagged.body.replace('<!-- claude-changelog -->', '').trim();
+                      if (!body.startsWith('SKIP')) {
+                        prChangelogLines.push(`${body} (#${num})`);
+                      }
+                    }
+                  } catch (error) {
+                    console.log(`Could not fetch comments for PR #${num}: ${error.message}`);
+                  }
+                }
+
+                if (prChangelogLines.length > 0) {
+                  changesContext += `Per-PR human-written summaries:\n${prChangelogLines.join('\n')}\n\n`;
+                }
+
+                // Fallback context — raw commit titles
                 const commitMessages = comparison.commits
                   .map(c => c.commit.message.split('\n')[0])
                   .filter(msg =>
@@ -368,11 +418,10 @@ jobs:
                     !msg.startsWith('docs: snapshot version ')
                   )
                   .slice(0, 50);
-                
                 if (commitMessages.length > 0) {
-                  changesContext += `Commits:\n${commitMessages.map(m => `- ${m}`).join('\n')}\n\n`;
+                  changesContext += `All commits in range:\n${commitMessages.map(m => `- ${m}`).join('\n')}\n\n`;
                 }
-                
+
                 if (comparison.files && comparison.files.length > 0) {
                   const areas = new Set();
                   for (const file of comparison.files) {
@@ -391,69 +440,81 @@ jobs:
                 console.log(`Could not compare commits: ${error.message}`);
               }
             }
-            
-            // Truncate context to stay within model limits
-            if (changesContext.length > 4000) {
-              changesContext = changesContext.substring(0, 4000) + '\n...(truncated)';
+
+            if (changesContext.length > 8000) {
+              changesContext = changesContext.substring(0, 8000) + '\n...(truncated)';
             }
-            
-            // Generate AI summary using GitHub Models
+
+            // Persist for the Claude step and the render step
+            fs.writeFileSync('/tmp/release-context.md',
+              `# Release ${tagName}\n\n${changesContext}`);
+            fs.writeFileSync('/tmp/release-meta.json', JSON.stringify({
+              version,
+              tagName,
+              releaseSha,
+              previousTag,
+              autoNotes,
+              contributors: [...contributors],
+            }, null, 2));
+
+            console.log(`Wrote /tmp/release-context.md (${changesContext.length} chars)`);
+            console.log(`Found ${prChangelogLines.length} per-PR claude-changelog lines`);
+
+      # Step 2 of 3 — Claude reads the gathered context and writes the
+      # user-facing summary to /tmp/release-summary.md. Uses the same Claude
+      # Code OAuth token as the @claude PR mention workflow — no API key needed.
+      - name: Generate AI summary with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--model claude-haiku-4-5 --allowed-tools "Read,Write"'
+          prompt: |
+            You are writing the "Summary" section of FiestaBoard release
+            ${{ needs.prep.outputs.version }}. FiestaBoard is an open-source
+            self-hosted platform for controlling split-flap displays.
+
+            1. Read `/tmp/release-context.md`. It contains GitHub's auto
+               changelog, per-PR human-written summaries (most accurate when
+               present — prefer these), all commit titles, and the areas of
+               the repo affected.
+            2. Write 3-6 polished bullets to `/tmp/release-summary.md` that a
+               FiestaBoard user would read at the top of the release notes.
+               Group bullets into themes when natural:
+                 - New plugins (call them out by name)
+                 - New features / UX improvements
+                 - Bug fixes (only if user-visible)
+               Skip entirely: version bumps, CI tweaks, dependency bumps with
+               no behavior change, internal refactors, test additions, docs.
+               If everything in the release is internal, write a single bullet:
+               "🧹 Internal maintenance — no user-facing changes this release."
+            3. Each bullet:
+                 - Starts with an emoji (🎉 feature, 🔌 plugin, 🎨 UI,
+                   ⚙️  backend, 🐛 fix, 🍓 Pi/setup).
+                 - One sentence, ~15-25 words.
+                 - Leads with what the user can now do, not the implementation.
+                 - No PR numbers (they appear in the auto-generated list below).
+            4. Output ONLY the bullets to `/tmp/release-summary.md` — no
+               heading, no preamble, no trailing prose. Do not edit any other
+               file. Do not run shell commands beyond what Read/Write need.
+
+      # Step 3 of 3 — assemble and publish the release. Reads the Claude
+      # summary from /tmp and the metadata stashed in step 1, then renders
+      # the full body (Pi banner, summary, auto-changelog, install sections,
+      # contributors, links) and creates the GitHub Release.
+      - name: Render and publish release
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const meta = JSON.parse(fs.readFileSync('/tmp/release-meta.json', 'utf8'));
+            const { version, tagName, previousTag, autoNotes, contributors } = meta;
+
             let aiSummary = '';
-            if (changesContext.trim()) {
-              try {
-                const response = await fetch('https://models.github.ai/inference/chat/completions', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    model: 'openai/gpt-4o-mini',
-                    messages: [
-                      {
-                        role: 'system',
-                        content: 'You are a release notes writer for FiestaBoard, an open-source self-hosted platform for controlling split-flap displays. Write a concise, friendly summary of the changes in this release. Format as 2-5 bullet points with emoji prefixes. Focus on user-facing changes: new features, improvements, and bug fixes. Keep each bullet to 1-2 sentences. Omit version bumps, CI changes, and internal tooling unless they affect users. Output only the bullet points, no headers or extra text.'
-                      },
-                      {
-                        role: 'user',
-                        content: `Summarize these changes for release ${tagName}:\n\n${changesContext}`
-                      }
-                    ],
-                    max_tokens: 500,
-                    temperature: 0.3
-                  })
-                });
-                
-                if (response.ok) {
-                  const data = await response.json();
-                  aiSummary = data.choices?.[0]?.message?.content || '';
-                  console.log('AI summary generated successfully');
-                } else {
-                  console.log(`GitHub Models returned ${response.status}: ${await response.text()}`);
-                }
-              } catch (error) {
-                console.log(`AI summary generation failed: ${error.message}`);
-              }
-            }
-            
-            // Collect contributor info
-            const contributors = new Set();
-            if (previousTag) {
-              try {
-                const { data: comparison } = await github.rest.repos.compareCommitsWithBasehead({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  basehead: `${previousTag}...${releaseSha}`
-                });
-                for (const commit of comparison.commits) {
-                  const login = commit.author?.login || commit.committer?.login;
-                  if (login && login !== 'github-actions[bot]' && login !== 'web-flow') {
-                    contributors.add(login);
-                  }
-                }
-              } catch (error) {
-                console.log(`Could not fetch contributors: ${error.message}`);
-              }
+            try {
+              aiSummary = fs.readFileSync('/tmp/release-summary.md', 'utf8').trim();
+            } catch (error) {
+              console.log(`No Claude summary found: ${error.message}`);
             }
 
             // Build final release notes
@@ -511,7 +572,7 @@ jobs:
             releaseNotes += `Supports \`linux/amd64\` and \`linux/arm64\`. Running FiestaBoard in Docker on a Pi? Use these same commands.\n\n`;
             releaseNotes += `Full setup guide: [Docker Setup](https://fiestaboard.app/docs/setup/quick-start)\n`;
 
-            if (contributors.size > 0) {
+            if (contributors.length > 0) {
               const sorted = [...contributors].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
               releaseNotes += `\n## Contributors\n\n`;
               releaseNotes += sorted.map(c => `@${c}`).join(', ');
