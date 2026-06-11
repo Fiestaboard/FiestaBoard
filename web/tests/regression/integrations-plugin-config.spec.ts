@@ -234,6 +234,44 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
   });
 
   /**
+   * UX node: integrations.plugin.config-sheet.template-vars.current-value
+   * Route: /integrations (sheet)
+   * Preconditions: plugin:enabled, plugin:exposes-variables
+   * Expected: Template Variables table shows a "Current Value" column populated
+   *   with the live value returned by /displays/{plugin}/raw.
+   * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/936
+   */
+  test("integrations.plugin.config-sheet.template-vars — Current Value column shows live value", async ({ page }) => {
+    await openConfigSheet(page);
+
+    // Wait for template-vars heading
+    await expect(page.getByRole("heading", { name: /Template Variables/i })).toBeVisible({ timeout: 15_000 });
+
+    // Locate the variables table by its column headers (it includes "Current Value" + "Max").
+    const dialog = page.locator('[role="dialog"]');
+    const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
+    await expect(varsTable).toBeVisible({ timeout: 5_000 });
+
+    // Find the row for the `time` variable. date_time exposes a `time` simple variable.
+    const timeRow = varsTable.locator("tbody tr").filter({ hasText: `${TEST_PLUGIN_ID}.time` });
+    await expect(timeRow).toBeVisible({ timeout: 5_000 });
+
+    // The "Current Value" cell is the 3rd column. Poll until it renders something
+    // beyond the loading skeleton — the raw display fetch can take a moment.
+    const valueCell = timeRow.locator("td").nth(2);
+    await expect
+      .poll(
+        async () => {
+          const text = (await valueCell.textContent())?.trim() ?? "";
+          // Skeleton renders no text; "—" is the empty-state placeholder. Anything else is a live value.
+          return text.length > 0 && text !== "—" ? text : null;
+        },
+        { timeout: 15_000, message: "Current Value cell never populated" },
+      )
+      .not.toBeNull();
+  });
+
+  /**
    * UX node: integrations.plugin.config-sheet.copy-variable
    * Route: /integrations (sheet)
    * Preconditions: plugin:has-template-vars
