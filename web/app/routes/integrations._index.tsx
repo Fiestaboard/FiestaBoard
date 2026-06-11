@@ -118,6 +118,7 @@ import {
   Package,
   PartyPopper,
   Pause,
+  Pencil,
   Phone,
   PieChart,
   Pill,
@@ -855,6 +856,8 @@ function PluginCard({
   const [copiedVar, setCopiedVar] = useState<string | null>(null);
   const [isCreatingDemo, setIsCreatingDemo] = useState(false);
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
+  const [showDeleteDemoConfirm, setShowDeleteDemoConfirm] = useState(false);
+  const [isDeletingDemo, setIsDeletingDemo] = useState(false);
   const [showAddInstance, setShowAddInstance] = useState(false);
   const [instanceLabel, setInstanceLabel] = useState("");
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
@@ -909,6 +912,24 @@ function PluginCard({
       toast.error(`Failed to create demo page: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsCreatingDemo(false);
+    }
+  };
+
+  const handleDeleteDemoPage = async () => {
+    const demoPageId = pluginDetails?.demo_page_id;
+    if (!demoPageId) return;
+    setIsDeletingDemo(true);
+    try {
+      await api.deletePage(demoPageId);
+      toast.success(`Demo page deleted for ${plugin.name}`);
+      queryClient.invalidateQueries({ queryKey: ["plugin", plugin.id] });
+      queryClient.invalidateQueries({ queryKey: ["pages"] });
+      queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
+      setShowDeleteDemoConfirm(false);
+    } catch (error) {
+      toast.error(`Failed to delete demo page: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsDeletingDemo(false);
     }
   };
 
@@ -1067,31 +1088,74 @@ function PluginCard({
                       </p>
                     </div>
                     {pluginDetails.demo_page_id ? (
-                      <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" disabled={!areDemoRequirementsMet() || isCreatingDemo}>
-                            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                            Recreate
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Recreate Demo Page?</DialogTitle>
-                            <DialogDescription>
-                              This will delete the existing demo page and create a fresh one with default settings. This
-                              action cannot be undone.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
-                              Cancel
+                      <div className="flex items-center gap-1.5">
+                        <Button variant="outline" size="sm" asChild aria-label="Edit demo page">
+                          <Link href={`/pages/edit/${pluginDetails.demo_page_id}`}>
+                            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                            Edit
+                          </Link>
+                        </Button>
+                        <Dialog open={showDeleteDemoConfirm} onOpenChange={setShowDeleteDemoConfirm}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              disabled={isDeletingDemo}
+                              aria-label="Delete demo page"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                              Delete
                             </Button>
-                            <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
-                              {isCreatingDemo ? "Creating..." : "Recreate Demo Page"}
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Delete Demo Page?</DialogTitle>
+                              <DialogDescription>
+                                This will permanently delete the demo page for {plugin.name}. This action cannot be
+                                undone.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setShowDeleteDemoConfirm(false)}>
+                                Cancel
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={handleDeleteDemoPage}
+                                disabled={isDeletingDemo}
+                              >
+                                {isDeletingDemo ? "Deleting..." : "Delete Demo Page"}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                        <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" disabled={!areDemoRequirementsMet() || isCreatingDemo}>
+                              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                              Recreate
                             </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Recreate Demo Page?</DialogTitle>
+                              <DialogDescription>
+                                This will delete the existing demo page and create a fresh one with default settings.
+                                This action cannot be undone.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
+                                Cancel
+                              </Button>
+                              <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
+                                {isCreatingDemo ? "Creating..." : "Recreate Demo Page"}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     ) : (
                       <Button
                         variant="default"

@@ -315,6 +315,90 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
   });
 
   /**
+   * UX node: integrations.plugin.demo-page-edit
+   * Route: /integrations (sheet)
+   * Preconditions: demo-page:already-exists
+   * Interactions: click:edit-demo-page
+   * Expected: navigates to /pages/edit/{demo_page_id} so the user can edit
+   *           the demo page from the same surface that created it (issue #943).
+   * Coverage status: uncovered
+   */
+  test("integrations.plugin.demo-page-edit — Edit button navigates to /pages/edit/{demo_page_id}", async ({ page }) => {
+    // Ensure a demo page exists so the Edit affordance is rendered.
+    const ensureRes = await fetch(`${API_URL}/plugins/${TEST_PLUGIN_ID}/demo-page`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    expect(ensureRes.ok).toBeTruthy();
+    const ensured = await ensureRes.json();
+    const demoPageId: string = ensured.page.id;
+    createdDemoPageIds.add(demoPageId);
+
+    await openConfigSheet(page);
+    await expect(page.getByRole("button", { name: "Save Changes" })).toBeEnabled({ timeout: 15_000 });
+
+    const sheet = page.locator('[role="dialog"]').first();
+    const editLink = sheet.getByRole("link", { name: "Edit demo page" });
+    await expect(editLink).toBeVisible({ timeout: 5_000 });
+    await expect(editLink).toHaveAttribute("href", `/pages/edit/${demoPageId}`);
+
+    await editLink.click();
+    await expect(page).toHaveURL(new RegExp(`/pages/edit/${demoPageId}$`), { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /Edit Page/i })).toBeVisible({ timeout: 15_000 });
+  });
+
+  /**
+   * UX node: integrations.plugin.demo-page-delete
+   * Route: /integrations (sheet)
+   * Preconditions: demo-page:already-exists
+   * Interactions: click:delete-demo-page → confirm dialog → click:confirm
+   * Expected: confirmation dialog warns about permanence; on confirm the demo
+   *           page is deleted and the section reverts to the "Create Demo Page"
+   *           affordance (issue #943).
+   * Coverage status: uncovered
+   */
+  test("integrations.plugin.demo-page-delete — Delete button removes demo page and toasts success", async ({ page }) => {
+    const ensureRes = await fetch(`${API_URL}/plugins/${TEST_PLUGIN_ID}/demo-page`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    expect(ensureRes.ok).toBeTruthy();
+    const ensured = await ensureRes.json();
+    const demoPageId: string = ensured.page.id;
+    // Track for cleanup in case the test fails before deletion runs.
+    createdDemoPageIds.add(demoPageId);
+
+    await openConfigSheet(page);
+    await expect(page.getByRole("button", { name: "Save Changes" })).toBeEnabled({ timeout: 15_000 });
+
+    const sheet = page.locator('[role="dialog"]').first();
+    const deleteBtn = sheet.getByRole("button", { name: "Delete demo page" });
+    await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
+    await deleteBtn.click();
+
+    // Confirmation dialog appears with a clear "cannot be undone" warning.
+    const confirmDialog = page.getByRole("dialog", { name: /Delete Demo Page\?/i });
+    await expect(confirmDialog).toBeVisible({ timeout: 5_000 });
+    await expect(confirmDialog.getByText(/cannot be undone/i)).toBeVisible();
+
+    await confirmDialog.getByRole("button", { name: "Delete Demo Page" }).click();
+
+    // Toast confirms the deletion.
+    await expect(
+      page.getByRole("region", { name: /Notifications/i }).getByText(`Demo page deleted for ${TEST_PLUGIN_NAME}`),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // The section flips back to "Create Demo Page" — Edit/Delete affordances gone.
+    await expect(sheet.getByRole("button", { name: /Create Demo Page/i })).toBeVisible({ timeout: 15_000 });
+    await expect(sheet.getByRole("button", { name: "Delete demo page" })).toHaveCount(0);
+
+    // API confirms the page is actually deleted.
+    const pageRes = await fetch(`${API_URL}/pages/${demoPageId}`, { headers: authHeaders() });
+    expect(pageRes.status).toBe(404);
+    createdDemoPageIds.delete(demoPageId);
+  });
+
+  /**
    * UX node: integrations.plugin.demo-page-recreate-confirm
    * Route: /integrations (sheet)
    * Preconditions: demo-page:already-exists
