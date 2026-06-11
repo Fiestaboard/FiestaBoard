@@ -332,6 +332,127 @@ class TestCustomIndicatorTextAndPosition:
         service.vb_client.send_characters.assert_not_called()
 
 
+class TestTemporaryOverrideDuringSilence:
+    """A user-initiated temporary override must win over the silence schedule.
+
+    Regression for issue #949 ("Override Quiet Hours"): when a user
+    explicitly says "show this page right now for N minutes" we honor that
+    intent even if the silence window is currently active. The plugin-based
+    trigger path is unchanged (still suppressed by silence — see
+    ``test_trigger_render_path.py``); only the explicit user override
+    bypasses silence.
+    """
+
+    def _patch_common(self, has_override=True, silence_active=True, silence_mode="indicator"):
+        from src.settings.service import TemporaryOverride
+
+        # Active page that the schedule would otherwise show.
+        active_page = Mock(
+            id="active-page",
+            device_type="note",
+            transition_strategy=None,
+            transition_interval_ms=None,
+            transition_step_size=None,
+        )
+        active_result = Mock(available=True, formatted="WEATHER\nTEMP")
+
+        # The override page — what the user explicitly wants to see now.
+        override_page = Mock(
+            id="override-page",
+            device_type="note",
+            transition_strategy=None,
+            transition_interval_ms=None,
+            transition_step_size=None,
+        )
+        override_result = Mock(available=True, formatted="HELLO")
+
+        def _get_page(pid):
+            return override_page if pid == "override-page" else active_page
+
+        def _preview(pid, force_refresh=False):
+            return override_result if pid == "override-page" else active_result
+
+        page_service = Mock()
+        page_service.get_page.side_effect = _get_page
+        page_service.preview_page.side_effect = _preview
+
+        override = (
+            TemporaryOverride(
+                page_id="override-page",
+                expires_at="2099-01-01T00:00:00+00:00",
+                revert_mode="schedule",
+            )
+            if has_override
+            else None
+        )
+
+        settings = Mock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = "active-page"
+        settings.get_board_settings.return_value = Mock(boards=[{"device_type": "note"}])
+        settings.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
+        settings.consume_temporary_override.return_value = override
+
+        config = Mock()
+        config.is_silence_mode_active.return_value = silence_active
+        config.SILENCE_SCHEDULE_MODE = silence_mode
+        config.SILENCE_SCHEDULE_PAGE_ID = None
+        config.SILENCE_SCHEDULE_INDICATOR_TEXT = "SNOOZING"
+        config.SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
+
+        return page_service, settings, config
+
+    def test_active_override_bypasses_silence_indicator(self, service):
+        """With silence active and a fresh override, board shows the override page, not SNOOZING."""
+        page_service, settings, config = self._patch_common(silence_mode="indicator")
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
+            sent = service.check_and_send_active_page()
+
+        assert sent is True
+        args, _ = service.vb_client.send_characters.call_args
+        text = _decode_board_text(args[0]).strip()
+        assert "HELLO" in text
+        assert "SNOOZING" not in text
+
+    def test_active_override_bypasses_silence_freeze(self, service):
+        """Freeze mode must NOT block an explicit user override."""
+        page_service, settings, config = self._patch_common(silence_mode="freeze")
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
+            sent = service.check_and_send_active_page()
+
+        assert sent is True
+        service.vb_client.send_characters.assert_called_once()
+        args, _ = service.vb_client.send_characters.call_args
+        assert "HELLO" in _decode_board_text(args[0])
+
+    def test_no_override_still_silences(self, service):
+        """Sanity: without an override, silence still produces the indicator."""
+        page_service, settings, config = self._patch_common(has_override=False, silence_mode="indicator")
+        with (
+            patch("src.main.get_page_service", return_value=page_service),
+            patch("src.main.get_settings_service", return_value=settings),
+            patch("src.main.get_schedule_service"),
+            patch("src.main.Config", config),
+            patch.object(service, "_check_trigger_override", return_value=None),
+        ):
+            service.check_and_send_active_page()
+
+        args, _ = service.vb_client.send_characters.call_args
+        assert _decode_board_text(args[0]).strip() == "SNOOZING"
+
+
 class TestSendTriggerContent:
     """Tests for _send_trigger_content."""
 
