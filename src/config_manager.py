@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import threading
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -19,6 +20,10 @@ from typing import Any, Optional
 from .time_service import get_time_service
 
 logger = logging.getLogger(__name__)
+
+# Key under which we record the last app version that booted against this
+# config. Used by the boot-time snapshot guard below.
+APP_VERSION_SEEN_KEY = "app_version_seen"
 
 # Mapping from legacy feature keys to plugin IDs.
 # silence_schedule is a system feature and is NOT migrated here.
@@ -351,23 +356,176 @@ class ConfigManager:
                         self._config = json.load(f)
                     logger.info(f"Loaded config from {self._config_path}")
 
+                    # Take a pre-init safety snapshot BEFORE any migration or
+                    # merge touches the loaded data. This covers every upgrade
+                    # path (docker compose pull, FiestaUpdater button, FiestaPi
+                    # button, watchtower, manual swap) — anything that brings
+                    # up a new binary against an existing data dir. See
+                    # issue #948 (integrations lost on upgrade).
+                    self._maybe_snapshot_on_version_change()
+
                     # Snapshot features actually present before merge fills in defaults
                     self._raw_features = self._deep_copy(self._config.get("features", {}))
 
                     # Merge with defaults to handle missing keys
                     self._config = self._merge_with_defaults(self._config)
+                    self._stamp_app_version_seen()
                     self._save_internal()
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid JSON in config file: {e}")
                     logger.info("Creating new config with defaults")
                     self._config = DEFAULT_CONFIG.copy()
                     self._apply_profile_defaults()
+                    self._stamp_app_version_seen()
                     self._save_internal()
             else:
                 logger.info(f"Config file not found, creating defaults at {self._config_path}")
                 self._config = self._deep_copy(DEFAULT_CONFIG)
                 self._apply_profile_defaults()
+                self._stamp_app_version_seen()
                 self._save_internal()
+
+    # ── boot-time safety snapshot (issue #948) ──────────────────────────
+    #
+    # Whenever the app version on disk differs from the one we just booted,
+    # snapshot data/ to data/update-backups/ BEFORE we touch anything. The
+    # existing /system/update/rollback flow already knows how to list and
+    # restore these files — by reusing the `pre-update-<ts>.json` naming
+    # convention we get rollback for free, regardless of which upgrade
+    # path the user took (compose pull, FiestaUpdater, FiestaPi button…).
+
+    def _stamp_app_version_seen(self) -> None:
+        """Record the running app version into the loaded config dict.
+
+        Caller is responsible for persisting via ``_save_internal``.
+        """
+        try:
+            from src import __version__ as current_version
+        except Exception:  # pragma: no cover - defensive
+            return
+        self._config[APP_VERSION_SEEN_KEY] = current_version
+
+    # Files captured in the pre-init snapshot. Mirrors backup/service.py's
+    # DATA_FILES but is intentionally inlined: BackupService.build_backup()
+    # eagerly initialises the plugin registry, which during ConfigManager
+    # init recurses back through __init__ and corrupts self._config_path.
+    # A flat dict of file payloads is enough for the rollback flow to
+    # restore from.
+    _PRE_INIT_SNAPSHOT_FILES = (
+        "config.json",
+        "settings.json",
+        "pages.json",
+        "collections.json",
+        "schedules.json",
+    )
+
+    def _maybe_snapshot_on_version_change(self) -> None:
+        """If the running version differs from what was last seen, write a
+        pre-init snapshot of ``data/*.json`` to ``update-backups/``.
+
+        No-op when:
+          * the version matches (no upgrade happened),
+          * there is no prior version AND no meaningful user data (fresh
+            install — nothing to back up).
+
+        Failures are swallowed: the snapshot is a safety net, never a
+        gate that could prevent the app from booting.
+
+        Implementation note: we deliberately bypass BackupService here.
+        Its ``build_backup`` calls ``_collect_installed_plugins`` →
+        ``get_plugin_registry`` → ``PluginRegistry.initialize`` →
+        ``get_config_manager`` — which during ``ConfigManager.__init__``
+        re-enters this singleton with the *default* config path and
+        clobbers the one the caller passed in. We hand-roll a minimal
+        snapshot to keep the safety net free of that init-time recursion.
+        """
+        try:
+            from src import __version__ as current_version
+        except Exception:  # pragma: no cover
+            return
+
+        seen = self._config.get(APP_VERSION_SEEN_KEY)
+        if seen == current_version:
+            return
+
+        # Treat as a "first boot" if there's neither a recorded version nor
+        # any user-authored data worth backing up. A fresh install legitimately
+        # has neither, and dumping an empty backup just clutters the rollback
+        # picker.
+        has_user_data = bool(
+            self._config.get("plugins")
+            or self._config.get("features", {}).get("silence_schedule")
+            or self._config.get("board", {}).get("local_api_key")
+            or self._config.get("board", {}).get("cloud_key")
+        )
+        if seen is None and not has_user_data:
+            return
+
+        try:
+            data_dir = self._config_path.parent
+            snapshot_dir = data_dir / "update-backups"
+            snapshot_dir.mkdir(parents=True, exist_ok=True)
+
+            data_payload: dict[str, Any] = {}
+            for filename in self._PRE_INIT_SNAPSHOT_FILES:
+                source = data_dir / filename
+                if not source.is_file():
+                    data_payload[filename[:-5]] = None
+                    continue
+                try:
+                    data_payload[filename[:-5]] = json.loads(source.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    data_payload[filename[:-5]] = None
+
+            doc = {
+                "fiestaboard_backup": True,
+                "schema_version": 1,
+                "exported_at": datetime.now(UTC).isoformat(),
+                "app_version": current_version,
+                "data": data_payload,
+                "installed_plugins": [],
+                "_fiestaupdater": {
+                    "previous_digest": None,
+                    "previous_image": None,
+                    "previous_version": seen or "unknown",
+                    "current_version": current_version,
+                    "trigger": "boot-version-change",
+                },
+            }
+
+            # Match the existing pre-update-<ts>.json shape so the same
+            # rollback endpoint can list and restore these snapshots
+            # without any extra plumbing.
+            now = datetime.now(UTC)
+            ts = now.strftime("%Y%m%dT%H%M%S") + f".{now.microsecond // 1000:03d}Z"
+            target = snapshot_dir / f"pre-update-{ts}.json"
+
+            # Belt-and-braces against same-millisecond collisions when
+            # multiple boot snapshots fire from a tight test/CI loop.
+            for bump in range(1, 1000):
+                if not target.exists():
+                    break
+                ms = (now.microsecond // 1000 + bump) % 1000
+                ts = now.strftime("%Y%m%dT%H%M%S") + f".{ms:03d}Z"
+                target = snapshot_dir / f"pre-update-{ts}.json"
+
+            tmp = target.with_suffix(target.suffix + ".tmp")
+            tmp.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+            tmp.replace(target)
+
+            logger.info(
+                "Version change detected (%s -> %s); pre-init snapshot written to %s",
+                seen or "<unknown>",
+                current_version,
+                target.name,
+            )
+        except Exception:
+            logger.warning(
+                "Could not write pre-init snapshot for version change %s -> %s",
+                seen or "<unknown>",
+                current_version,
+                exc_info=True,
+            )
 
     def _apply_profile_defaults(self) -> None:
         """Apply install-profile-specific overrides at fresh-config creation
@@ -1299,6 +1457,50 @@ class ConfigManager:
             migrations["v2_completed"] = True
             self._save_internal()
         logger.info("v2 plugin migration marked as complete")
+
+    # ── per-plugin retry list (issue #948) ────────────────────────────────────
+    #
+    # If the v2→v3 auto-install fails for a specific plugin (e.g. transient
+    # network during the git clone), we record its id here. On the next boot
+    # the migration retries JUST those ids — provided the user still has a
+    # matching stored config. This keeps the #937 "don't resurrect deliberately
+    # uninstalled plugins" invariant intact while letting a flaky first boot
+    # recover instead of permanently stranding the user.
+
+    def get_v2_plugin_failed_installs(self) -> list[str]:
+        """Return the list of plugin ids that failed to install on a previous
+        v2→v3 migration run."""
+        with self._file_lock:
+            raw = self._config.get("plugin_migrations", {}).get("v2_failed_installs")
+            if not isinstance(raw, list):
+                return []
+            # Defensive filter: only return non-empty string ids.
+            return [pid for pid in raw if isinstance(pid, str) and pid]
+
+    def set_v2_plugin_failed_installs(self, plugin_ids: list[str]) -> None:
+        """Persist the list of plugin ids that should be retried on the next boot.
+
+        Passing an empty list clears the retry queue.
+        """
+        with self._file_lock:
+            migrations = self._config.setdefault("plugin_migrations", {})
+            current = migrations.get("v2_failed_installs") or []
+            normalized = sorted({pid for pid in plugin_ids if isinstance(pid, str) and pid})
+            if current == normalized:
+                return
+            if normalized:
+                migrations["v2_failed_installs"] = normalized
+            else:
+                migrations.pop("v2_failed_installs", None)
+            self._save_internal()
+        if normalized:
+            logger.info("v2 plugin migration: queued %d id(s) for retry: %s", len(normalized), normalized)
+        else:
+            logger.info("v2 plugin migration: retry queue cleared")
+
+    def clear_v2_plugin_failed_installs(self) -> None:
+        """Drop any persisted retry queue. Equivalent to ``set_v2_plugin_failed_installs([])``."""
+        self.set_v2_plugin_failed_installs([])
 
     def migrate_feature_to_plugin(self, feature_name: str, plugin_id: str) -> bool:
         """Migrate a legacy feature configuration to plugin format.

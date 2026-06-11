@@ -870,3 +870,159 @@ def test_v2_plugin_migration_flag_idempotent(tmp_path):
     cm.mark_v2_plugin_migration_done()
     cm.mark_v2_plugin_migration_done()
     assert cm.is_v2_plugin_migration_done() is True
+
+
+# --- v2 plugin migration retry list (issue #948) ---
+#
+# Regression for the upgrade-eats-integrations report: per-plugin install
+# failures must survive across boots so a flaky first attempt can recover,
+# without us giving up the #937 "don't resurrect deliberately-deleted
+# plugins" guarantee.
+
+
+def test_v2_plugin_failed_installs_default_empty(tmp_path):
+    """On a fresh install the retry queue is empty (and stays out of the file)."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_v2_plugin_failed_installs() == []
+    saved = json.loads(config_path.read_text())
+    assert "v2_failed_installs" not in saved.get("plugin_migrations", {})
+
+
+def test_v2_plugin_failed_installs_round_trip(tmp_path):
+    """Setting + reloading from disk preserves the queue (deduped + sorted)."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.set_v2_plugin_failed_installs(["weather", "muni", "weather"])
+    assert cm.get_v2_plugin_failed_installs() == ["muni", "weather"]
+
+    # Reload from disk to confirm persistence.
+    ConfigManager._instance = None
+    cm2 = ConfigManager(config_path=str(config_path))
+    assert cm2.get_v2_plugin_failed_installs() == ["muni", "weather"]
+
+
+def test_v2_plugin_failed_installs_clear_removes_key(tmp_path):
+    """Clearing the queue drops the field entirely so the config stays tidy."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.set_v2_plugin_failed_installs(["weather"])
+    cm.clear_v2_plugin_failed_installs()
+    assert cm.get_v2_plugin_failed_installs() == []
+    saved = json.loads(config_path.read_text())
+    assert "v2_failed_installs" not in saved.get("plugin_migrations", {})
+
+
+def test_v2_plugin_failed_installs_ignores_non_string_entries(tmp_path):
+    """Defensive: stale on-disk corruption (None, ints, empty strings) is filtered."""
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "plugin_migrations": {
+                    "v2_completed": True,
+                    "v2_failed_installs": ["muni", "", None, 7, "weather"],
+                },
+            }
+        )
+    )
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_v2_plugin_failed_installs() == ["muni", "weather"]
+
+
+# --- app_version_seen stamp + pre-boot snapshot (issue #948) ---
+
+
+def test_app_version_seen_stamped_on_fresh_config(tmp_path):
+    """A brand-new config records the running version so the next boot can
+    detect upgrades without us having to scrape image digests."""
+    from src import __version__
+
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    saved = json.loads(config_path.read_text())
+    assert saved.get("app_version_seen") == __version__
+    assert cm._config.get("app_version_seen") == __version__
+
+
+def test_app_version_seen_stamped_on_existing_config(tmp_path):
+    """Loading a config that pre-dates the stamp adds it on first boot."""
+    from src import __version__
+
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"plugins": {"weather": {"enabled": True}}}))
+    ConfigManager(config_path=str(config_path))
+    saved = json.loads(config_path.read_text())
+    assert saved.get("app_version_seen") == __version__
+
+
+def test_pre_boot_snapshot_written_when_version_changes(tmp_path):
+    """When the on-disk version differs from the running one, a pre-init
+    snapshot is dropped into update-backups/ before any migration runs.
+
+    This is the safety net for issue #948: every upgrade path now leaves
+    behind a rollback target, regardless of which mechanism the user used
+    (compose pull, FiestaUpdater button, FiestaPi update, etc.).
+    """
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "app_version_seen": "6.99.0",
+                "plugins": {"weather": {"enabled": True, "api_key": "k"}},
+                "board": {"api_mode": "local", "local_api_key": "x", "host": "h"},
+            }
+        )
+    )
+    # Plant a couple of sibling data files so the snapshot captures them too.
+    (tmp_path / "pages.json").write_text('{"pages": []}')
+
+    ConfigManager(config_path=str(config_path))
+
+    snapshot_dir = tmp_path / "update-backups"
+    assert snapshot_dir.is_dir(), "snapshot dir was not created"
+    snapshots = list(snapshot_dir.glob("pre-update-*.json"))
+    assert len(snapshots) == 1, f"expected exactly one boot snapshot, got {snapshots}"
+
+    doc = json.loads(snapshots[0].read_text())
+    meta = doc.get("_fiestaupdater") or {}
+    assert meta.get("trigger") == "boot-version-change"
+    assert meta.get("previous_version") == "6.99.0"
+    # The captured config payload reflects the pre-merge state — specifically
+    # it still carries the OLD app_version_seen, not the new one that __init__
+    # is about to stamp in.
+    snap_config = (doc.get("data") or {}).get("config") or {}
+    assert snap_config.get("plugins", {}).get("weather", {}).get("enabled") is True
+    assert snap_config.get("app_version_seen") == "6.99.0"
+
+
+def test_no_pre_boot_snapshot_when_versions_match(tmp_path):
+    """A normal restart (same version, same data) is not noisy — no extra
+    snapshot files are dropped into update-backups/."""
+    from src import __version__
+
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "app_version_seen": __version__,
+                "plugins": {"weather": {"enabled": True}},
+                "board": {"api_mode": "local", "local_api_key": "x", "host": "h"},
+            }
+        )
+    )
+    ConfigManager(config_path=str(config_path))
+
+    snapshot_dir = tmp_path / "update-backups"
+    assert not snapshot_dir.exists() or not list(snapshot_dir.glob("pre-update-*.json"))
+
+
+def test_no_pre_boot_snapshot_on_brand_new_install(tmp_path):
+    """A first-ever boot (no config file, no data worth backing up) does not
+    leave a junk snapshot behind."""
+    config_path = tmp_path / "config.json"
+    # No file exists; ConfigManager will create one.
+    ConfigManager(config_path=str(config_path))
+
+    snapshot_dir = tmp_path / "update-backups"
+    assert not snapshot_dir.exists() or not list(snapshot_dir.glob("pre-update-*.json"))
