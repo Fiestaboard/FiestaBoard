@@ -1198,9 +1198,7 @@ function PluginCard({
                       <span className="ml-2 text-xs font-normal">(click to copy)</span>
                     </h4>
                     {!plugin.enabled && (
-                      <p className="text-xs text-muted-foreground italic">
-                        Enable the plugin to see live values.
-                      </p>
+                      <p className="text-xs text-muted-foreground italic">Enable the plugin to see live values.</p>
                     )}
                     {plugin.enabled && rawDisplay && rawDisplay.available === false && (
                       <p className="text-xs text-amber-600 dark:text-amber-400">
@@ -1252,10 +1250,7 @@ function PluginCard({
                                 <td className="px-3 py-2 text-muted-foreground capitalize align-top">
                                   {variable.description}
                                 </td>
-                                <td
-                                  className="px-3 py-2 align-top max-w-[200px]"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
+                                <td className="px-3 py-2 align-top max-w-[200px]" onClick={(e) => e.stopPropagation()}>
                                   {!plugin.enabled ? (
                                     <span className="text-muted-foreground">—</span>
                                   ) : isLoadingRawDisplay ? (
