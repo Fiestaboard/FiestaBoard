@@ -6,12 +6,15 @@ Covers:
 - Schema migration v1 -> v2
 - PageService.get_demo_page() and create_demo_page()
 - Manifest validation of the demo section
+- POST /plugins/{plugin_id}/demo-page endpoint device_type resolution
 """
 
 import os
 import tempfile
+from unittest.mock import Mock, patch
 
 import pytest
+from fastapi.testclient import TestClient
 
 from src.pages.models import Page, PageCreate
 from src.pages.service import PageService
@@ -502,3 +505,144 @@ class TestPageServiceDemo:
         assert found is not None
         assert found.id == page.id
         assert found.demo_plugin_id == "test_plugin"
+
+
+# ---------------------------------------------------------------------------
+# POST /plugins/{plugin_id}/demo-page – endpoint behaviour
+#
+# Regression coverage for issue #942: when no device_type query param is
+# supplied, the endpoint must honour the configured board's device_type
+# instead of defaulting to "flagship".
+# ---------------------------------------------------------------------------
+
+
+class TestCreateDemoPageEndpoint:
+    @pytest.fixture
+    def client(self):
+        from src.api_server import app
+
+        return TestClient(app)
+
+    @pytest.fixture
+    def flagship_demo_schema(self):
+        return DemoPageSchema(
+            name="Flagship Demo",
+            template=["F1", "F2", "F3", "F4", "F5", "F6"],
+            device_type="flagship",
+        )
+
+    @pytest.fixture
+    def note_demo_schema(self):
+        return DemoPageSchema(
+            name="Note Demo",
+            template=["N1", "N2", "N3"],
+            device_type="note",
+        )
+
+    @pytest.fixture
+    def manifest_with_both_demos(self, flagship_demo_schema, note_demo_schema):
+        manifest = Mock()
+        manifest.demo = {"flagship": flagship_demo_schema, "note": note_demo_schema}
+        manifest.settings_schema = {"required": []}
+        return manifest
+
+    @pytest.fixture
+    def board_settings_with_device(self):
+        def _make(device_type: str):
+            bs = Mock()
+            bs.boards = [{"id": "b1", "device_type": device_type}]
+            bs.devices = [device_type]
+            return bs
+
+        return _make
+
+    def _patch_dependencies(self, manifest, board_settings):
+        """Patch the registry, settings service, and page service."""
+        registry = Mock()
+        registry.get_manifest.return_value = manifest
+
+        settings_service = Mock()
+        settings_service.get_board_settings.return_value = board_settings
+
+        created_page = Mock()
+        created_page.model_dump.return_value = {"id": "p1", "name": "demo"}
+        page_service = Mock()
+        page_service.create_demo_page.return_value = (created_page, False)
+
+        return (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry", return_value=registry),
+            patch("src.api_server.get_settings_service", return_value=settings_service),
+            patch("src.api_server.get_page_service", return_value=page_service),
+            patch("src.api_server.get_config_manager", return_value=Mock(get_plugin_config=Mock(return_value={}))),
+            page_service,
+        )
+
+    def test_defaults_to_configured_board_device_type_note(
+        self, client, manifest_with_both_demos, board_settings_with_device
+    ):
+        """When the only configured board is a Note, the demo must use the note schema."""
+        bs = board_settings_with_device("note")
+        p_avail, p_reg, p_ss, p_ps, p_cm, page_service = self._patch_dependencies(
+            manifest_with_both_demos, bs
+        )
+
+        with p_avail, p_reg, p_ss, p_ps, p_cm:
+            response = client.post("/plugins/test_plugin/demo-page")
+
+        assert response.status_code == 200, response.text
+        page_service.create_demo_page.assert_called_once()
+        passed_schema = page_service.create_demo_page.call_args[0][1]
+        assert passed_schema.device_type == "note", (
+            "Endpoint should resolve device_type from configured board settings, "
+            "not hard-code 'flagship'."
+        )
+
+    def test_defaults_to_configured_board_device_type_flagship(
+        self, client, manifest_with_both_demos, board_settings_with_device
+    ):
+        """When the only configured board is a Flagship, the demo uses the flagship schema."""
+        bs = board_settings_with_device("flagship")
+        p_avail, p_reg, p_ss, p_ps, p_cm, page_service = self._patch_dependencies(
+            manifest_with_both_demos, bs
+        )
+
+        with p_avail, p_reg, p_ss, p_ps, p_cm:
+            response = client.post("/plugins/test_plugin/demo-page")
+
+        assert response.status_code == 200, response.text
+        passed_schema = page_service.create_demo_page.call_args[0][1]
+        assert passed_schema.device_type == "flagship"
+
+    def test_explicit_device_type_query_overrides_settings(
+        self, client, manifest_with_both_demos, board_settings_with_device
+    ):
+        """An explicit ?device_type=flagship still wins over a Note-only configuration."""
+        bs = board_settings_with_device("note")
+        p_avail, p_reg, p_ss, p_ps, p_cm, page_service = self._patch_dependencies(
+            manifest_with_both_demos, bs
+        )
+
+        with p_avail, p_reg, p_ss, p_ps, p_cm:
+            response = client.post("/plugins/test_plugin/demo-page?device_type=flagship")
+
+        assert response.status_code == 200, response.text
+        passed_schema = page_service.create_demo_page.call_args[0][1]
+        assert passed_schema.device_type == "flagship"
+
+    def test_falls_back_to_flagship_when_note_template_missing(
+        self, client, flagship_demo_schema, board_settings_with_device
+    ):
+        """If the plugin only ships a flagship demo, a Note board still gets *something*."""
+        manifest = Mock()
+        manifest.demo = {"flagship": flagship_demo_schema}
+        manifest.settings_schema = {"required": []}
+        bs = board_settings_with_device("note")
+        p_avail, p_reg, p_ss, p_ps, p_cm, page_service = self._patch_dependencies(manifest, bs)
+
+        with p_avail, p_reg, p_ss, p_ps, p_cm:
+            response = client.post("/plugins/test_plugin/demo-page")
+
+        assert response.status_code == 200, response.text
+        passed_schema = page_service.create_demo_page.call_args[0][1]
+        assert passed_schema.device_type == "flagship"
