@@ -3811,6 +3811,21 @@ async def get_silence_status():
     # Determine next change time (simplified - just return start or end)
     next_change_utc = end_time if active else start_time
 
+    # Wall-clock seconds until the next active/inactive transition. Lets the
+    # frontend show a "silence starts in N min" warning without re-doing the
+    # UTC + offset math the silence window uses (which has subtle edge cases
+    # around midnight rollover and DST). None when silence is disabled.
+    seconds_until_next_change: int | None = None
+    if enabled:
+        next_change_dt = time_service.parse_iso_time(next_change_utc)
+        if next_change_dt is not None:
+            delta_seconds = int((next_change_dt - current_utc).total_seconds())
+            # next_change_dt is anchored to "today" in UTC, so a negative value
+            # means the boundary already passed today and will recur tomorrow.
+            if delta_seconds < 0:
+                delta_seconds += 86_400
+            seconds_until_next_change = delta_seconds
+
     return {
         "enabled": enabled,
         "active": active,
@@ -3818,6 +3833,7 @@ async def get_silence_status():
         "end_time_utc": end_time,
         "current_time_utc": current_time_utc,
         "next_change_utc": next_change_utc,
+        "seconds_until_next_change": seconds_until_next_change,
         "mode": mode,
         "page_id": page_id,
         "indicator_text": silence_config.get("indicator_text", "SNOOZING"),
