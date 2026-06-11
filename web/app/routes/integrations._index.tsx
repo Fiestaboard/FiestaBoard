@@ -194,6 +194,7 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -252,7 +253,7 @@ import { useTranslations } from "@/i18n/translations";
 import type { PluginInfo, RegistryEntry } from "@/lib/api";
 import { api } from "@/lib/api";
 import type { FiestaboardColorName } from "@/lib/board-colors";
-import { AVAILABLE_COLORS, FIESTABOARD_COLORS } from "@/lib/board-colors";
+import { ALL_COLOR_CODES, AVAILABLE_COLORS, FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
 
 /**
@@ -877,6 +878,53 @@ function formatCurrentValue(
   return { short: value, full: value };
 }
 
+// Render a value string with inline color swatches in place of `{63}` / `{red}`
+// tokens, mirroring how the board preview parses lines. End tags `{/...}` are
+// dropped. Non-color text passes through unchanged so mixed strings like
+// "Sunny {66}*{/}" render as text + a green tile.
+function renderValueWithColors(value: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+  let textBuf = "";
+  const flushText = () => {
+    if (textBuf) {
+      nodes.push(<span key={`t${key++}`}>{textBuf}</span>);
+      textBuf = "";
+    }
+  };
+  while (i < value.length) {
+    if (value[i] === "{") {
+      const close = value.indexOf("}", i);
+      if (close !== -1) {
+        const content = value.slice(i + 1, close);
+        if (content.startsWith("/")) {
+          i = close + 1;
+          continue;
+        }
+        const hex = ALL_COLOR_CODES[content] ?? ALL_COLOR_CODES[content.toLowerCase()];
+        if (hex) {
+          flushText();
+          nodes.push(
+            <span
+              key={`c${key++}`}
+              aria-label={`color ${content}`}
+              className="inline-block align-middle h-3 w-3 rounded-sm border border-border/40"
+              style={{ backgroundColor: hex }}
+            />,
+          );
+          i = close + 1;
+          continue;
+        }
+      }
+    }
+    textBuf += value[i];
+    i++;
+  }
+  flushText();
+  return nodes;
+}
+
 interface PluginCardProps {
   plugin: PluginInfo;
   onToggle: (pluginId: string, enabled: boolean) => void;
@@ -1260,13 +1308,17 @@ function PluginCard({
                                   ) : resolved && resolved.short !== "" ? (
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <span className="block truncate font-mono text-[11px]">{resolved.short}</span>
+                                        <span className="flex items-center gap-1 truncate font-mono text-[11px]">
+                                          {renderValueWithColors(resolved.short)}
+                                        </span>
                                       </TooltipTrigger>
                                       <TooltipContent
                                         side="top"
                                         className="max-w-[360px] whitespace-pre-wrap break-words font-mono text-[11px]"
                                       >
-                                        {resolved.full}
+                                        <span className="inline-flex flex-wrap items-center gap-1">
+                                          {renderValueWithColors(resolved.full)}
+                                        </span>
                                       </TooltipContent>
                                     </Tooltip>
                                   ) : (
