@@ -7480,6 +7480,32 @@ async def get_plugin_variables(plugin_id: str):
 # ── Plugin Demo Pages ────────────────────────────────────────────────────────
 
 
+def _resolve_demo_device_type(demo: dict) -> str:
+    """Pick the demo device_type that matches the configured board.
+
+    Walks the user's configured boards in order and returns the first
+    device_type that the plugin actually ships a demo for. Falls back to
+    any device_type the plugin supports, then to "flagship" as a last
+    resort. See issue #942.
+    """
+    configured: list[str] = []
+    try:
+        board_settings = get_settings_service().get_board_settings()
+        for board in getattr(board_settings, "boards", []) or []:
+            dt = board.get("device_type") if isinstance(board, dict) else None
+            if dt and dt not in configured:
+                configured.append(dt)
+    except Exception:  # noqa: BLE001 — settings access must never break demo creation
+        logger.debug("Could not resolve configured device_type; using plugin default", exc_info=True)
+
+    for dt in configured:
+        if dt in demo:
+            return dt
+    if demo:
+        return next(iter(demo))
+    return "flagship"
+
+
 @app.get("/plugins/{plugin_id}/demo-page")
 async def get_plugin_demo_page(plugin_id: str, device_type: str = "flagship"):
     """
@@ -7509,9 +7535,15 @@ async def get_plugin_demo_page(plugin_id: str, device_type: str = "flagship"):
 
 
 @app.post("/plugins/{plugin_id}/demo-page")
-async def create_plugin_demo_page(plugin_id: str, device_type: str = "flagship"):
+async def create_plugin_demo_page(plugin_id: str, device_type: str | None = None):
     """
     Create (or recreate) the demo page for a plugin and device type.
+
+    When *device_type* is omitted, it is resolved from the configured board
+    settings (the first device type listed under Settings → Hardware), so a
+    Note board does not silently get a Flagship-sized demo page (issue #942).
+    If the plugin does not ship a demo template for the configured device,
+    we fall back to any device type it does support.
 
     The demo page is a singleton per plugin + device type -- calling this endpoint
     when a demo page already exists for that device type will delete the old one
@@ -7531,11 +7563,13 @@ async def create_plugin_demo_page(plugin_id: str, device_type: str = "flagship")
             detail=f"Plugin '{plugin_id}' does not include a demo page template.",
         )
 
-    demo_schema = manifest.demo.get(device_type)
+    resolved_device_type = device_type or _resolve_demo_device_type(manifest.demo)
+
+    demo_schema = manifest.demo.get(resolved_device_type)
     if demo_schema is None:
         raise HTTPException(
             status_code=400,
-            detail=f"Plugin '{plugin_id}' has no demo template for device type '{device_type}'.",
+            detail=f"Plugin '{plugin_id}' has no demo template for device type '{resolved_device_type}'.",
         )
 
     # Check that required settings are configured
@@ -8183,6 +8217,7 @@ async def generic_data_test_fetch(request: dict):
     # (scheme is one of {"http","https"}; host already passed the
     # IpAddressSanitizer above).
     from urllib.parse import urlunsplit as _urlunsplit
+
     _safe_scheme = "https" if _parsed_url.scheme == "https" else "http"
     _safe_netloc = _host_for_check
     if _parsed_url.port:
