@@ -8212,6 +8212,7 @@ async def generic_data_test_fetch(request: dict):
     # (scheme is one of {"http","https"}; host already passed the
     # IpAddressSanitizer above).
     from urllib.parse import urlunsplit as _urlunsplit
+
     _safe_scheme = "https" if _parsed_url.scheme == "https" else "http"
     _safe_netloc = _host_for_check
     if _parsed_url.port:

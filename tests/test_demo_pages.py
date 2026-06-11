@@ -583,9 +583,7 @@ class TestCreateDemoPageEndpoint:
     ):
         """When the only configured board is a Note, the demo must use the note schema."""
         bs = board_settings_with_device("note")
-        p_avail, p_reg, p_ss, p_ps, p_cm, page_service = self._patch_dependencies(
-            manifest_with_both_demos, bs
-        )
+        p_avail, p_reg, p_ss, p_ps, p_cm, page_service = self._patch_dependencies(manifest_with_both_demos, bs)
 
         with p_avail, p_reg, p_ss, p_ps, p_cm:
             response = client.post("/plugins/test_plugin/demo-page")
@@ -594,8 +592,7 @@ class TestCreateDemoPageEndpoint:
         page_service.create_demo_page.assert_called_once()
         passed_schema = page_service.create_demo_page.call_args[0][1]
         assert passed_schema.device_type == "note", (
-            "Endpoint should resolve device_type from configured board settings, "
-            "not hard-code 'flagship'."
+            "Endpoint should resolve device_type from configured board settings, not hard-code 'flagship'."
         )
 
     def test_defaults_to_configured_board_device_type_flagship(
@@ -603,9 +600,7 @@ class TestCreateDemoPageEndpoint:
     ):
         """When the only configured board is a Flagship, the demo uses the flagship schema."""
         bs = board_settings_with_device("flagship")
-        p_avail, p_reg, p_ss, p_ps, p_cm, page_service = self._patch_dependencies(
-            manifest_with_both_demos, bs
-        )
+        p_avail, p_reg, p_ss, p_ps, p_cm, page_service = self._patch_dependencies(manifest_with_both_demos, bs)
 
         with p_avail, p_reg, p_ss, p_ps, p_cm:
             response = client.post("/plugins/test_plugin/demo-page")
@@ -619,9 +614,7 @@ class TestCreateDemoPageEndpoint:
     ):
         """An explicit ?device_type=flagship still wins over a Note-only configuration."""
         bs = board_settings_with_device("note")
-        p_avail, p_reg, p_ss, p_ps, p_cm, page_service = self._patch_dependencies(
-            manifest_with_both_demos, bs
-        )
+        p_avail, p_reg, p_ss, p_ps, p_cm, page_service = self._patch_dependencies(manifest_with_both_demos, bs)
 
         with p_avail, p_reg, p_ss, p_ps, p_cm:
             response = client.post("/plugins/test_plugin/demo-page?device_type=flagship")
