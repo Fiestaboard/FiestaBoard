@@ -1,4 +1,9 @@
-name: Claude Code
+name: 'Claude: Code Assistant'
+
+# Fires when someone mentions `@claude` on an issue, PR, review, or review
+# comment — the action then runs Claude against that context. Also supports
+# manual workflow_dispatch with a `prompt` input for ad-hoc runs (no
+# triggering comment needed).
 
 on:
   issue_comment:
@@ -9,10 +14,17 @@ on:
     types: [opened, assigned]
   pull_request_review:
     types: [submitted]
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: 'Prompt to send to Claude'
+        required: true
+        type: string
 
 jobs:
   claude:
     if: |
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
@@ -40,11 +52,12 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
+          # On workflow_dispatch we pass the typed-in prompt explicitly. For
+          # event-driven runs the action picks up the @claude comment itself,
+          # so we leave `prompt` empty.
+          prompt: ${{ github.event_name == 'workflow_dispatch' && inputs.prompt || '' }}
 
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
           # claude_args: '--allowed-tools Bash(gh pr *)'
-
