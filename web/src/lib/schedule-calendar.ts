@@ -366,9 +366,8 @@ export function silenceToCalendarEvents(
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
   const isMidnightRollover = eH < sH || (eH === sH && eM <= sM);
-  const pageName = silence.mode === "page" && silence.pageId
-    ? (pages.find((p) => p.id === silence.pageId)?.name ?? null)
-    : null;
+  const pageName =
+    silence.mode === "page" && silence.pageId ? (pages.find((p) => p.id === silence.pageId)?.name ?? null) : null;
 
   const resourceBase = {
     kind: "silence" as const,

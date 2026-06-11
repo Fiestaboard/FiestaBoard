@@ -135,8 +135,7 @@ export function ScheduleListView({
         : silenceSchedule.mode === "freeze"
           ? t("silenceModeFreezeSubtitle")
           : t("silenceModePageSubtitle", {
-              name:
-                pages.find((p) => p.id === silenceSchedule.pageId)?.name || silenceSchedule.pageId || "",
+              name: pages.find((p) => p.id === silenceSchedule.pageId)?.name || silenceSchedule.pageId || "",
             });
 
     return (
