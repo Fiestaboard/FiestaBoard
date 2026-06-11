@@ -318,7 +318,7 @@ export function ScheduleCalendarView({
 
   return (
     <TooltipProvider>
-      <div className="schedule-calendar-wrapper h-full flex flex-col">
+      <div className="schedule-calendar-wrapper flex flex-col sm:h-full">
         {/* Top bar: mobile day navigation (left) + zoom slider (right) */}
         <div className="flex items-center justify-between mb-2 px-1">
           {/* Mobile day navigation */}
