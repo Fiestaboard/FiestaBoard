@@ -15,10 +15,12 @@ export function PageLayout({ children, className, outerClassName, fillHeight }: 
       className={cn(
         "bg-background overflow-x-hidden",
         // fillHeight pins the page to the viewport so inner content (e.g. the
-        // calendar grid) can scroll independently. The mobile topbar (`pt-[72px]`
-        // on MainContent) is subtracted on small screens so the wrapper doesn't
-        // extend past the viewport bottom.
-        fillHeight ? "h-[calc(100dvh-72px)] lg:h-dvh flex flex-col overflow-hidden" : "min-h-full",
+        // calendar grid) can scroll independently. On phones we drop the
+        // pinning — viewport-internal scroll on a 24-hour grid is fiddly to
+        // discover, so we let the page itself scroll instead.
+        fillHeight
+          ? "min-h-full sm:h-[calc(100dvh-72px)] sm:flex sm:flex-col sm:overflow-hidden lg:h-dvh"
+          : "min-h-full",
         outerClassName,
       )}
     >
@@ -28,7 +30,7 @@ export function PageLayout({ children, className, outerClassName, fillHeight }: 
           // When pinned to the viewport (e.g. calendar mode), the inner content
           // owns the scrolling — trim mobile vertical padding so the child gets
           // back the pixels normally reserved for page breathing room.
-          fillHeight && "flex-1 min-h-0 flex flex-col overflow-hidden py-2 sm:py-3",
+          fillHeight && "py-2 sm:py-3 sm:flex-1 sm:min-h-0 sm:flex sm:flex-col sm:overflow-hidden",
           className,
         )}
       >

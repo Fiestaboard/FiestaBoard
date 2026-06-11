@@ -698,16 +698,16 @@ export default function SchedulePage() {
         />
       ) : (
         /* Calendar card: grows to fill remaining space in the pinned layout.
-           Mobile: drop the card chrome (title + extra padding) so the calendar
-           grid uses the available height instead of a tiny ~300px window. */
+           Mobile: drop the card chrome (title + extra padding) and let the
+           calendar grow to its natural 24-hour height so the page scrolls. */
         <Card
-          className="flex-1 min-h-0 flex flex-col overflow-hidden animate-card-fade-in py-2 sm:py-6"
+          className="flex flex-col overflow-hidden animate-card-fade-in py-2 sm:py-6 sm:flex-1 sm:min-h-0"
           style={{ animationDelay: "300ms" }}
         >
           <CardHeader className="flex-shrink-0 py-3 hidden sm:block">
             <CardTitle className="text-base">{t("scheduleCalendar")}</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0 overflow-hidden pt-0 px-2 sm:px-6">
+          <CardContent className="overflow-hidden pt-0 px-2 sm:px-6 sm:flex-1 sm:min-h-0">
             <ScheduleCalendarView
               schedules={schedules}
               pages={pages}
