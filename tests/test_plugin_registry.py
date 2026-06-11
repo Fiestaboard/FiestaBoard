@@ -1184,6 +1184,71 @@ def test_auto_migrate_processes_multiple_orphaned_plugins(
 @patch("src.plugins.registry.get_external_plugins_dir")
 @patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
 @patch("src.plugins.registry.load_registry")
+def test_auto_migrate_one_shot_across_in_process_reinits(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest, tmp_path, monkeypatch
+):
+    """Regression for #937: the migration is one-shot ACROSS multiple
+    initialize() calls in the same process, not just across container restarts.
+
+    `DisplayService.__init__` calls `registry.initialize()` every time it is
+    constructed (`src/displays/service.py:58`), and `reset_display_service()`
+    is wired up from five plugin-config endpoints (configure, enable, disable,
+    create-instance, delete-instance). So in production the migration was
+    re-firing every time the user touched plugin settings — not only on
+    container restart. The flag must be persisted to disk via a real
+    ConfigManager and consulted on every initialize() call.
+    """
+    import threading
+
+    from src.config_manager import ConfigManager
+
+    # Use a real ConfigManager backed by a tmp file so the flag actually persists.
+    monkeypatch.setattr(ConfigManager, "_instance", None)
+    ConfigManager._lock = threading.Lock()
+    config_path = tmp_path / "config.json"
+    real_cm = ConfigManager(config_path=str(config_path))
+    # Simulate a v2 leftover: muni configured but no plugin loaded.
+    real_cm.set_plugin_config("muni", {"enabled": True, "stop_code": "15726"})
+
+    mock_loader.load_all_plugins.return_value = {}
+    mock_manifest.id = "muni"
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="muni",
+            name="SF Muni",
+            repository="https://github.com/Org/fiestaboard-plugin--muni",
+        )
+    ]
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    with patch("src.config_manager.get_config_manager", return_value=real_cm):
+        # First boot: orphan detected, migration installs and restores config.
+        registry.initialize()
+        assert "muni" in registry._plugins
+        assert real_cm.is_v2_plugin_migration_done() is True
+        assert mock_install.call_count == 1
+
+        # Simulate the user uninstalling muni: in-memory state cleared, config
+        # purged. We do NOT touch the v2-migration flag — once set, it stays set.
+        del registry._plugins["muni"]
+        registry._enabled.pop("muni", None)
+        registry._configs.pop("muni", None)
+        real_cm.delete_plugin_config("muni")
+
+        # In-process re-init (e.g. via reset_display_service → new DisplayService).
+        # Even if the config delete had failed, the flag must short-circuit.
+        real_cm.set_plugin_config("muni", {"enabled": True})  # simulate stuck config
+        registry.initialize()
+
+    # Migration must NOT install muni a second time.
+    assert mock_install.call_count == 1
+    assert "muni" not in registry._plugins
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
 def test_auto_migrate_is_one_shot_does_not_reinstall_uninstalled_plugin(
     mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
 ):
