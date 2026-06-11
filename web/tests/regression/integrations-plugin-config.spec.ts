@@ -256,11 +256,10 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
     const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
     await expect(varsTable).toBeVisible({ timeout: 5_000 });
 
-    // Find the row for the `time` variable via the exact <code> text — bare `hasText`
-    // would also match `time_12h`, `time_24h`, `time_english`, etc.
-    const timeCode = varsTable.locator("tbody tr code", { hasText: new RegExp(`^${TEST_PLUGIN_ID}\\.time$`) });
-    await expect(timeCode).toBeVisible({ timeout: 5_000 });
-    const timeRow = varsTable.locator("tbody tr").filter({ has: timeCode });
+    // Pin to the `time` row by its accessible name; the trailing space prevents
+    // a substring match against `time_12h`, `time_24h`, `time_english`, etc.
+    const timeRow = varsTable.getByRole("row", { name: new RegExp(`^${TEST_PLUGIN_ID}\\.time `) });
+    await expect(timeRow).toBeVisible({ timeout: 5_000 });
 
     // The "Current Value" cell is the 3rd column. Wait until it renders the live
     // value — date_time.time always contains a digit (HH:MM). The displays-raw
