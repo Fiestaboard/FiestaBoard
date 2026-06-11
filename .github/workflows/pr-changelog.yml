@@ -1,0 +1,77 @@
+name: PR Changelog Summary
+
+# When a PR is merged to main, ask Claude to write a single user-facing
+# changelog one-liner and post it as a PR comment with the marker
+# `<!-- claude-changelog -->`. The Release workflow later harvests these
+# comments instead of relying on raw PR titles, so the release notes read
+# like a human wrote them.
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  summarize:
+    name: Summarize merged PR
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--model claude-haiku-4-5 --allowed-tools "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"'
+          prompt: |
+            You are writing one line of a FiestaBoard changelog. FiestaBoard is
+            an open-source platform for controlling split-flap displays.
+
+            PR #${{ github.event.pull_request.number }} just merged to main.
+
+            1. Run `gh pr view ${{ github.event.pull_request.number }} --json title,body,labels,files` to read the PR.
+            2. Run `gh pr diff ${{ github.event.pull_request.number }}` to see the actual change (you may pipe to `head -300` if it is huge).
+            3. Decide if this change is user-facing. Internal-only changes
+               include: version bumps, CI tweaks, dependency bumps with no
+               behavior change, internal refactors, doc-only typo fixes, test
+               additions. User-facing changes include: new plugins, new
+               features, bug fixes a user would notice, UI changes, new config
+               options, plugin behavior changes, setup/install improvements.
+            4. Write a SINGLE markdown bullet, max ~20 words, that a non-technical
+               FiestaBoard user would understand. Lead with what changed for the
+               user, not the implementation. Skip the PR number — that gets
+               appended automatically by GitHub later. Use one of these emoji
+               prefixes based on PR labels and content:
+                 - 🎉 new feature
+                 - 🔌 new plugin or plugin update (name the plugin)
+                 - 🎨 frontend / UI
+                 - ⚙️  backend / API
+                 - 🐛 bug fix
+                 - 📖 docs (only if substantial)
+                 - 📦 dependency (only if user-visible)
+            5. Post the result as a PR comment using exactly this format
+               (the HTML comment markers are required — the release workflow
+               greps for them):
+
+                   <!-- claude-changelog -->
+                   - <emoji> your one-line summary here
+
+               If the change is internal-only and should be excluded from
+               release notes, post this instead:
+
+                   <!-- claude-changelog -->
+                   SKIP: <one short reason>
+
+               Post the comment with:
+                   gh pr comment ${{ github.event.pull_request.number }} --body "..."
+
+            Do not post anything else. Do not edit files. Do not push.
