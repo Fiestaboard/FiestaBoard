@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { Cog, MonitorCog, Plug, Settings, ShieldCheck, User, Wand2, Waves, Wifi, Wrench } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { AccountSection } from "@/components/account-section";
 import { PageHeader } from "@/components/page-header";
@@ -107,6 +107,23 @@ export default function SettingsPage() {
   if (activeSection === "network" && !showNetwork) {
     activeSection = DEFAULT_SECTION;
   }
+
+  // Scroll to a hash anchor (e.g. #silence-schedule) when the active tab
+  // mounts, and pulse the target card so the user can see what they navigated
+  // to. Driven by deep-links like /settings?section=behavior#silence-schedule.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace(/^#/, "");
+    if (!hash) return;
+    const timer = setTimeout(() => {
+      const el = document.getElementById(hash);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.classList.add("settings-anchor-highlight");
+      setTimeout(() => el.classList.remove("settings-anchor-highlight"), 2200);
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [activeSection]);
 
   const handleSectionChange = useCallback(
     (id: string) => {

@@ -746,9 +746,25 @@ export interface SunTimesWeekResponse {
   dates: Record<string, { sunrise: string; sunset: string }>;
 }
 
+export type SilenceMode = "indicator" | "freeze" | "page";
+
+export interface SilenceScheduleConfig {
+  enabled: boolean;
+  start_time: string;
+  end_time: string;
+  mode: SilenceMode;
+  page_id: string | null;
+  indicator_text: string | null;
+  indicator_position: string | null;
+}
+
+export interface SilenceScheduleSettings {
+  config?: Partial<SilenceScheduleConfig>;
+}
+
 export interface AllSettingsResponse {
   general: GeneralConfig;
-  silence_schedule: Record<string, unknown>;
+  silence_schedule: SilenceScheduleSettings;
   polling: PollingSettings;
   transitions: TransitionSettings;
   output: OutputSettings;

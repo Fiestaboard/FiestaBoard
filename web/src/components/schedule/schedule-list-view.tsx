@@ -1,4 +1,5 @@
-import { Calendar, Edit, GalleryHorizontalEnd, Trash2 } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar, ChevronRight, Edit, GalleryHorizontalEnd, Moon, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,14 +9,17 @@ import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/i18n/translations";
 import type { Collection, Page, ScheduleEntry } from "@/lib/api";
 import { isCollectionId } from "@/lib/api";
+import type { ResolvedSilenceSchedule } from "@/lib/schedule-calendar";
 
 interface ScheduleListViewProps {
   schedules: ScheduleEntry[];
   pages: Page[];
   collections?: Collection[];
+  silenceSchedule?: ResolvedSilenceSchedule | null;
   onEdit: (schedule: ScheduleEntry) => void;
   onDelete: (id: string) => void;
   onToggleEnabled?: (schedule: ScheduleEntry, enabled: boolean) => void;
+  onSilenceClick?: () => void;
 }
 
 const DAY_KEYS: Record<string, "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday"> = {
@@ -98,13 +102,17 @@ export function ScheduleListView({
   schedules,
   pages,
   collections = [],
+  silenceSchedule = null,
   onEdit,
   onDelete,
   onToggleEnabled,
+  onSilenceClick,
 }: ScheduleListViewProps) {
   const t = useTranslations("schedule");
   const tCommon = useTranslations("common");
   const { formatDays, formatTimeDisplay } = useFormatters();
+
+  const showSilenceRow = !!silenceSchedule?.enabled;
 
   const getPageName = (pageId: string): string => {
     if (isCollectionId(pageId)) {
@@ -114,13 +122,52 @@ export function ScheduleListView({
     return pages.find((p) => p.id === pageId)?.name || pageId;
   };
 
+  const renderSilenceRow = () => {
+    if (!showSilenceRow || !silenceSchedule) return null;
+    const [sH, sM] = silenceSchedule.startTimeLocal.split(":").map(Number);
+    const [eH, eM] = silenceSchedule.endTimeLocal.split(":").map(Number);
+    const startLabel = format(new Date(2000, 0, 1, sH, sM), "h:mm a");
+    const endLabel = format(new Date(2000, 0, 1, eH, eM), "h:mm a");
+    const timeRange = `${startLabel} – ${endLabel}`;
+    const subtitle =
+      silenceSchedule.mode === "indicator"
+        ? t("silenceModeIndicatorSubtitle", { text: silenceSchedule.indicatorText || "SNOOZING" })
+        : silenceSchedule.mode === "freeze"
+          ? t("silenceModeFreezeSubtitle")
+          : t("silenceModePageSubtitle", {
+              name:
+                pages.find((p) => p.id === silenceSchedule.pageId)?.name || silenceSchedule.pageId || "",
+            });
+
+    return (
+      <button
+        type="button"
+        onClick={onSilenceClick}
+        aria-label={t("silenceEventAriaLabel", { range: timeRange })}
+        className="w-full text-left flex items-center justify-between p-4 border rounded-lg bg-muted/30 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+        data-testid="schedule-list-silence-row"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <Moon className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+            <span className="font-medium">{t("silenceScheduleListTitle")}</span>
+          </div>
+          <div className="text-sm text-muted-foreground truncate">
+            {timeRange} • {subtitle}
+          </div>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-2" aria-hidden="true" />
+      </button>
+    );
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader>
         <CardTitle className="text-lg">{t("scheduleEntriesTitle")}</CardTitle>
       </CardHeader>
       <CardContent>
-        {schedules.length === 0 ? (
+        {schedules.length === 0 && !showSilenceRow ? (
           <div className="text-center py-12 text-muted-foreground">
             <Calendar className="h-12 w-12 mx-auto mb-4" />
             <p>{t("noSchedulesCreated")}</p>
@@ -128,6 +175,7 @@ export function ScheduleListView({
           </div>
         ) : (
           <div className="space-y-3">
+            {renderSilenceRow()}
             {schedules.map((schedule) => {
               const pageName = getPageName(schedule.page_id);
               const toggleId = `schedule-enabled-${schedule.id}`;

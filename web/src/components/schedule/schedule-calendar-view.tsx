@@ -14,7 +14,13 @@ import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Collection, Overlap, Page, ScheduleEntry } from "@/lib/api";
 import { api } from "@/lib/api";
-import { type CalendarEvent, extractTimeFromDate, schedulesToCalendarEvents } from "@/lib/schedule-calendar";
+import {
+  type CalendarEvent,
+  extractTimeFromDate,
+  type ResolvedSilenceSchedule,
+  schedulesToCalendarEvents,
+  silenceToCalendarEvents,
+} from "@/lib/schedule-calendar";
 
 import { ScheduleEvent } from "./schedule-event";
 
@@ -62,9 +68,11 @@ interface ScheduleCalendarViewProps {
   pages: Page[];
   collections?: Collection[];
   overlaps?: Overlap[];
+  silenceSchedule?: ResolvedSilenceSchedule | null;
   onEventClick: (schedule: ScheduleEntry) => void;
   onSlotSelect: (start: Date, end: Date) => void;
   onEventTimeChange: (scheduleId: string, startTime: string, endTime: string | null) => void;
+  onSilenceClick?: () => void;
 }
 
 export function ScheduleCalendarView({
@@ -72,9 +80,11 @@ export function ScheduleCalendarView({
   pages,
   collections = [],
   overlaps = [],
+  silenceSchedule = null,
   onEventClick,
   onSlotSelect,
   onEventTimeChange,
+  onSilenceClick,
 }: ScheduleCalendarViewProps) {
   // Track mobile state
   const [isMobile, setIsMobile] = useState(false);
@@ -152,10 +162,11 @@ export function ScheduleCalendarView({
   }, [weekStart]);
 
   // Transform schedules to calendar events
-  const events = useMemo(
-    () => schedulesToCalendarEvents(schedules, weekStart, pages, collections, sunTimesMap),
-    [schedules, weekStart, pages, collections, sunTimesMap],
-  );
+  const events = useMemo(() => {
+    const scheduleEvents = schedulesToCalendarEvents(schedules, weekStart, pages, collections, sunTimesMap);
+    const silenceEvents = silenceToCalendarEvents(silenceSchedule, weekStart, pages);
+    return [...scheduleEvents, ...silenceEvents];
+  }, [schedules, weekStart, pages, collections, sunTimesMap, silenceSchedule]);
 
   // Get IDs of schedules that have overlaps
   const overlappingScheduleIds = useMemo(() => {
@@ -170,9 +181,13 @@ export function ScheduleCalendarView({
   // Handle event click
   const handleSelectEvent = useCallback(
     (event: CalendarEvent) => {
+      if (event.resource.kind === "silence") {
+        onSilenceClick?.();
+        return;
+      }
       onEventClick(event.resource.originalSchedule);
     },
-    [onEventClick],
+    [onEventClick, onSilenceClick],
   );
 
   // Handle slot selection (clicking empty time)
@@ -186,6 +201,10 @@ export function ScheduleCalendarView({
   // Handle event drag (move) or resize
   const handleEventDropOrResize = useCallback(
     ({ event, start, end }: EventInteractionArgs<CalendarEvent>) => {
+      // Silence events are read-only — guard even though draggable/resizable
+      // accessors should prevent this from firing.
+      if (event.resource.kind === "silence") return;
+
       const startTime = extractTimeFromDate(start as Date);
       const endTime = extractTimeFromDate(end as Date);
 
@@ -221,6 +240,9 @@ export function ScheduleCalendarView({
   // Custom event prop getter for styling
   const eventPropGetter = useCallback(
     (event: CalendarEvent) => {
+      if (event.resource.kind === "silence") {
+        return { className: "schedule-event schedule-event-silence" };
+      }
       const isOverlapping = overlappingScheduleIds.has(event.resource.scheduleId);
       const isDisabled = !event.resource.enabled;
 
@@ -420,8 +442,10 @@ export function ScheduleCalendarView({
             tooltipAccessor={(event: CalendarEvent) =>
               `${event.title}\n${format(event.start, "h:mm a")} - ${format(event.end, "h:mm a")}`
             }
-            draggableAccessor={(event: CalendarEvent) => !event.resource.isMidnightSplit}
-            resizableAccessor={() => true}
+            draggableAccessor={(event: CalendarEvent) =>
+              event.resource.kind !== "silence" && !event.resource.isMidnightSplit
+            }
+            resizableAccessor={(event: CalendarEvent) => event.resource.kind !== "silence"}
             longPressThreshold={150}
           />
         </div>
