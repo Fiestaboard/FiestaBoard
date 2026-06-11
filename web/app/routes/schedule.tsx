@@ -459,7 +459,12 @@ export default function SchedulePage() {
       <PageHeader
         icon={CalendarIcon}
         title={t("title")}
-        className="flex-shrink-0"
+        className={cn(
+          "flex-shrink-0",
+          // In calendar mode the grid wants every vertical pixel — compact the
+          // header chrome on mobile so the calendar isn't squeezed.
+          isCalendarMode && "py-2 sm:py-4 mb-2 sm:mb-5",
+        )}
         description={t("descriptionWithTimezone", { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })}
       />
 
@@ -692,15 +697,17 @@ export default function SchedulePage() {
           onSilenceClick={handleSilenceClick}
         />
       ) : (
-        /* Calendar card: grows to fill remaining space in the pinned layout */
+        /* Calendar card: grows to fill remaining space in the pinned layout.
+           Mobile: drop the card chrome (title + extra padding) so the calendar
+           grid uses the available height instead of a tiny ~300px window. */
         <Card
-          className="flex-1 min-h-0 flex flex-col overflow-hidden animate-card-fade-in"
+          className="flex-1 min-h-0 flex flex-col overflow-hidden animate-card-fade-in py-2 sm:py-6"
           style={{ animationDelay: "300ms" }}
         >
-          <CardHeader className="flex-shrink-0 py-3">
+          <CardHeader className="flex-shrink-0 py-3 hidden sm:block">
             <CardTitle className="text-base">{t("scheduleCalendar")}</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0 overflow-hidden pt-0">
+          <CardContent className="flex-1 min-h-0 overflow-hidden pt-0 px-2 sm:px-6">
             <ScheduleCalendarView
               schedules={schedules}
               pages={pages}
