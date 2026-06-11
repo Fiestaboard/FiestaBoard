@@ -1277,6 +1277,29 @@ class ConfigManager:
                 enabled.append(plugin_id)
         return enabled
 
+    # ── plugin-migration bookkeeping (issue #937) ─────────────────────────────
+    #
+    # The v2→v3 migration that auto-installs orphaned external plugins must run
+    # exactly once per install. Without this flag every boot would treat a
+    # user-uninstalled plugin as orphaned and silently re-clone it, producing
+    # the "sticky plugin" bug reported in #937.
+
+    def is_v2_plugin_migration_done(self) -> bool:
+        """Return True once the v2→v3 plugin migration has run on this install."""
+        with self._file_lock:
+            return bool(self._config.get("plugin_migrations", {}).get("v2_completed", False))
+
+    def mark_v2_plugin_migration_done(self) -> None:
+        """Persist that the v2→v3 plugin migration has run, so it does not run
+        again on subsequent boots."""
+        with self._file_lock:
+            migrations = self._config.setdefault("plugin_migrations", {})
+            if migrations.get("v2_completed") is True:
+                return
+            migrations["v2_completed"] = True
+            self._save_internal()
+        logger.info("v2 plugin migration marked as complete")
+
     def migrate_feature_to_plugin(self, feature_name: str, plugin_id: str) -> bool:
         """Migrate a legacy feature configuration to plugin format.
 

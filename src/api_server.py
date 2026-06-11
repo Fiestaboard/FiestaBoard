@@ -7829,9 +7829,14 @@ async def uninstall_external_plugin(plugin_id: str):
     if errors:
         raise HTTPException(status_code=400, detail="; ".join(errors))
 
+    # Purge persisted configs for both the base plugin and every named instance.
+    # The base-id delete is critical: without it the v2→v3 auto-migration would
+    # see the leftover entry as orphaned on the next boot and silently reinstall
+    # the plugin the user just deleted (issue #937).
     config_manager = get_config_manager()
     for compound_key in instance_keys:
         config_manager.delete_plugin_config(compound_key)
+    config_manager.delete_plugin_config(plugin_id)
 
     return {
         "status": "success",

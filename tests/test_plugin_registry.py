@@ -991,6 +991,7 @@ def test_auto_migrate_noop_when_all_configs_are_loaded(registry, mock_loader, mo
         patch("src.plugins.registry.load_registry") as mock_load_reg,
         patch("src.config_manager.get_config_manager") as mock_cm,
     ):
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
         mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": {"enabled": True, "api_key": "key"}}
         registry.initialize()
 
@@ -1006,6 +1007,7 @@ def test_auto_migrate_noop_when_stored_configs_empty(registry, mock_loader):
         patch("src.plugins.registry.load_registry") as mock_load_reg,
         patch("src.config_manager.get_config_manager") as mock_cm,
     ):
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
         mock_cm.return_value.get_all_plugin_configs.return_value = {}
         registry.initialize()
 
@@ -1034,6 +1036,7 @@ def test_auto_migrate_installs_orphaned_enabled_plugin(
     stored_cfg = {"enabled": True, "api_key": "secret_key", "location": "Seattle"}
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
         mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": stored_cfg}
         registry.initialize()
 
@@ -1066,6 +1069,7 @@ def test_auto_migrate_installs_orphaned_disabled_plugin(
     stored_cfg = {"enabled": False, "api_key": "transit_key", "stop_code": "15726"}
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
         mock_cm.return_value.get_all_plugin_configs.return_value = {"muni": stored_cfg}
         registry.initialize()
 
@@ -1081,6 +1085,7 @@ def test_auto_migrate_skips_plugin_not_in_registry(mock_load_reg, registry, mock
     mock_load_reg.return_value = []  # registry is empty
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
         mock_cm.return_value.get_all_plugin_configs.return_value = {"custom_builtin": {"enabled": True}}
         registry.initialize()
 
@@ -1093,6 +1098,7 @@ def test_auto_migrate_handles_registry_load_error_gracefully(mock_load_reg, regi
     mock_loader.load_all_plugins.return_value = {}
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
         mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": {"enabled": True, "api_key": "key"}}
         # Should not raise despite registry failure
         registry.initialize()
@@ -1114,6 +1120,7 @@ def test_auto_migrate_handles_install_failure_gracefully(mock_load_reg, mock_ins
     ]
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
         mock_cm.return_value.get_all_plugin_configs.return_value = {"stocks": {"enabled": True, "symbols": ["AAPL"]}}
         registry.initialize()
 
@@ -1161,6 +1168,7 @@ def test_auto_migrate_processes_multiple_orphaned_plugins(
     mock_loader.get_manifest.side_effect = _get_manifest
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
         mock_cm.return_value.get_all_plugin_configs.return_value = {
             "weather": {"enabled": True, "api_key": "w_key"},
             "muni": {"enabled": True, "api_key": "m_key"},
@@ -1176,6 +1184,117 @@ def test_auto_migrate_processes_multiple_orphaned_plugins(
 @patch("src.plugins.registry.get_external_plugins_dir")
 @patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
 @patch("src.plugins.registry.load_registry")
+def test_auto_migrate_is_one_shot_does_not_reinstall_uninstalled_plugin(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """Regression for #937 ("sticky plugins").
+
+    After a user uninstalls an external plugin, the v2→v3 migration must NOT
+    re-install it on the next boot just because its persisted config is still
+    around. The migration is a one-shot operation that runs once per install —
+    after that, an orphan config is treated as deliberately uninstalled.
+    """
+    mock_loader.load_all_plugins.return_value = {}
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="muni",
+            name="SF Muni",
+            repository="https://github.com/Org/fiestaboard-plugin--muni",
+        )
+    ]
+
+    # Flag is already set (a previous boot ran the migration).
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"muni": {"enabled": True}}
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = True
+        registry.initialize()
+
+    # No install attempt, no registry lookup, no plugin in memory.
+    mock_install.assert_not_called()
+    mock_load_reg.assert_not_called()
+    assert "muni" not in registry._plugins
+
+
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_marks_flag_after_first_run_with_no_orphans(
+    mock_load_reg, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """First boot of a clean v3 install (no orphans) must still mark migration
+    as done, so a later user-uninstall doesn't get reverted on subsequent boots.
+    """
+    mock_loader.load_all_plugins.return_value = {"weather": mock_plugin}
+    mock_loader.get_manifest.return_value = mock_manifest
+    mock_manifest.id = "weather"
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": {"enabled": True}}
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
+        registry.initialize()
+
+    mock_cm.return_value.mark_v2_plugin_migration_done.assert_called_once()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_marks_flag_after_first_run_with_orphans(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """After a real v2→v3 migration (orphans were installed), the flag must be
+    set so the migration becomes a no-op on every subsequent boot."""
+    mock_loader.load_all_plugins.return_value = {}
+    mock_manifest.id = "muni"
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="muni",
+            name="SF Muni",
+            repository="https://github.com/Org/fiestaboard-plugin--muni",
+        )
+    ]
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"muni": {"enabled": True}}
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
+        registry.initialize()
+
+    mock_cm.return_value.mark_v2_plugin_migration_done.assert_called_once()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(False, "network down"))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_marks_flag_even_when_install_fails(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """If install fails for a transient reason on first boot, we still mark
+    migration as done. Rationale: the alternative (retry on every boot) means
+    that any plugin the user later uninstalls reappears the next time the
+    registry is briefly unreachable — the exact bug from #937. The cost of the
+    chosen tradeoff is small: the user manually installs the failed plugin
+    from the integrations page if needed.
+    """
+    mock_loader.load_all_plugins.return_value = {}
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="muni",
+            name="SF Muni",
+            repository="https://github.com/Org/fiestaboard-plugin--muni",
+        )
+    ]
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"muni": {"enabled": True}}
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
+        registry.initialize()
+
+    mock_cm.return_value.mark_v2_plugin_migration_done.assert_called_once()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
 def test_auto_migrate_skips_already_installed_on_subsequent_boots(
     mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
 ):
@@ -1186,6 +1305,7 @@ def test_auto_migrate_skips_already_installed_on_subsequent_boots(
     mock_loader.get_manifest.return_value = mock_manifest
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
         mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": {"enabled": True, "api_key": "key"}}
         registry.initialize()
 
