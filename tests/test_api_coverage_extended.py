@@ -721,6 +721,65 @@ class TestPluginManagement:
         assert resp.status_code == 400
         assert "repository not found" in resp.json()["detail"]
 
+    def test_uninstall_deletes_base_plugin_config(self, client):
+        """Regression for #937: uninstalling a base plugin must purge its persisted
+        config so the v2→v3 auto-migration does not treat it as orphaned on the
+        next boot and silently re-install it."""
+        mock_registry = Mock()
+        mock_registry.list_plugins.return_value = [
+            {"id": "muni", "base_plugin_id": "muni", "instance_label": None},
+        ]
+        mock_registry.uninstall_external_plugin.return_value = []
+        mock_cm = Mock()
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+        ):
+            resp = client.delete("/plugins/muni/uninstall")
+        assert resp.status_code == 200
+        mock_cm.delete_plugin_config.assert_any_call("muni")
+
+    def test_uninstall_deletes_base_and_instance_configs(self, client):
+        """When the uninstalled plugin has named instances, the endpoint must
+        delete each instance's persisted config AND the base plugin's persisted
+        config (the missing base-id delete is the root cause of #937)."""
+        mock_registry = Mock()
+        mock_registry.list_plugins.return_value = [
+            {"id": "weather:sf", "base_plugin_id": "weather", "instance_label": "sf"},
+            {"id": "weather:nyc", "base_plugin_id": "weather", "instance_label": "nyc"},
+            {"id": "weather", "base_plugin_id": "weather", "instance_label": None},
+        ]
+        mock_registry.uninstall_external_plugin.return_value = []
+        mock_cm = Mock()
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+        ):
+            resp = client.delete("/plugins/weather/uninstall")
+        assert resp.status_code == 200
+        called_keys = {call.args[0] for call in mock_cm.delete_plugin_config.call_args_list}
+        assert called_keys == {"weather:sf", "weather:nyc", "weather"}
+
+    def test_uninstall_failure_preserves_config(self, client):
+        """If the registry uninstall fails, the persisted config must NOT be
+        deleted — otherwise we could lose user settings on a transient failure."""
+        mock_registry = Mock()
+        mock_registry.list_plugins.return_value = [
+            {"id": "muni", "base_plugin_id": "muni", "instance_label": None},
+        ]
+        mock_registry.uninstall_external_plugin.return_value = ["Plugin not found: muni"]
+        mock_cm = Mock()
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+        ):
+            resp = client.delete("/plugins/muni/uninstall")
+        assert resp.status_code == 400
+        mock_cm.delete_plugin_config.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # Generic Data Test Fetch (lines 4985-5055)

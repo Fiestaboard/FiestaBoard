@@ -375,9 +375,33 @@ class PluginRegistry:
         from the registry, and restores the stored configuration and enabled state
         — giving users a seamless, zero-data-loss upgrade experience.
 
-        The check is idempotent: once a plugin is installed it appears in
-        ``self._plugins``, so it is skipped on every subsequent startup.
+        One-shot semantics (issue #937): this runs exactly once per install,
+        gated by a persisted flag. After the first run, an "orphaned" config is
+        treated as a deliberate uninstall and is left alone — otherwise the
+        next boot would silently re-clone any plugin the user just deleted.
+        A transient failure (e.g. registry unreachable) still flips the flag;
+        the user can install the missing plugin manually from the Integrations
+        page, which is far better than the alternative of every uninstall
+        being undone the next time the network blips.
         """
+        try:
+            from src.config_manager import get_config_manager
+
+            cm = get_config_manager()
+        except Exception as exc:
+            logger.warning("V3 migration: could not access config manager — skipping: %s", exc)
+            return
+
+        if cm.is_v2_plugin_migration_done():
+            return
+
+        try:
+            self._run_v2_plugin_migration(stored_configs)
+        finally:
+            cm.mark_v2_plugin_migration_done()
+
+    def _run_v2_plugin_migration(self, stored_configs: dict[str, dict[str, Any]]) -> None:
+        """Body of the one-shot v2→v3 migration. See `_auto_migrate_v2_plugins`."""
         loaded_ids = set(self._plugins.keys())
         # Instance keys (e.g. "countdown:fijiaustralia") are restored separately
         # by ``_restore_instances`` and must not be treated as orphaned base
@@ -413,7 +437,8 @@ class PluginRegistry:
             errors = self.install_from_registry(plugin_id)
             if errors:
                 logger.error(
-                    "V3 migration: failed to install '%s' (will retry on next boot): %s",
+                    "V3 migration: failed to install '%s': %s. "
+                    "Install it manually from the Integrations page if you still want it.",
                     plugin_id,
                     errors,
                 )

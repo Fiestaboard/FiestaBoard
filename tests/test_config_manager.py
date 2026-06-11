@@ -835,3 +835,38 @@ def test_auto_migrate_excludes_color_rules(tmp_path):
     cm = ConfigManager(config_path=str(config_path))
     plugin_cfg = cm.get_plugin_config("weather")
     assert "color_rules" not in plugin_cfg
+
+
+# --- v2 plugin migration flag (issue #937) ---
+
+
+def test_v2_plugin_migration_flag_defaults_to_false(tmp_path):
+    """On a brand-new config, the v2 plugin migration flag is unset/false so the
+    one-shot migration runs once on first boot."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.is_v2_plugin_migration_done() is False
+
+
+def test_v2_plugin_migration_flag_persists_across_loads(tmp_path):
+    """Marking the migration done writes through to disk so the next process
+    skips the migration. This is the lock that prevents #937's sticky-plugin
+    reinstall loop."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.mark_v2_plugin_migration_done()
+    assert cm.is_v2_plugin_migration_done() is True
+
+    # Simulate a fresh process: drop the singleton, reload from disk.
+    ConfigManager._instance = None
+    cm2 = ConfigManager(config_path=str(config_path))
+    assert cm2.is_v2_plugin_migration_done() is True
+
+
+def test_v2_plugin_migration_flag_idempotent(tmp_path):
+    """Marking done twice does not raise and stays True."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.mark_v2_plugin_migration_done()
+    cm.mark_v2_plugin_migration_done()
+    assert cm.is_v2_plugin_migration_done() is True
