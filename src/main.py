@@ -238,22 +238,30 @@ class DisplayService:
                     return self._send_trigger_content(trigger_content)
 
             # --- Temporary override check (user-initiated, time-limited; below triggers) ---
+            # Issue #949: an explicit user override (POST /settings/temporary-override)
+            # must win over the silence schedule. The user pressed "show this page
+            # now" — honoring silence here would silently swallow that intent.
+            # Plugin-driven trigger overrides above DO still defer to silence;
+            # only this user-initiated path bypasses it.
             active_page_id = None
-            if not silence_mode_active:
-                override = settings_service.consume_temporary_override()
-                if override is not None:
-                    if not override.is_expired():
-                        active_page_id = override.page_id
-                        logger.debug(f"Temporary override active: using page {active_page_id}")
-                    else:
-                        # Override just expired — apply revert before resuming normal flow
-                        logger.info(f"Temporary override expired, applying revert: {override.revert_mode}")
-                        if override.revert_mode == "blank":
-                            return self._send_blank_board()
-                        if override.revert_mode == "page" and override.revert_page_id:
-                            settings_service.set_active_page_id(override.revert_page_id)
-                        # "schedule" (and fallback): clear content cache so next tick rerenders
-                        self._last_active_page_content = None
+            override_active = False
+            override = settings_service.consume_temporary_override()
+            if override is not None:
+                if not override.is_expired():
+                    active_page_id = override.page_id
+                    override_active = True
+                    logger.debug(f"Temporary override active: using page {active_page_id}")
+                elif not silence_mode_active:
+                    # Override just expired — apply revert before resuming normal flow.
+                    # Skip during silence: the silence-mode dispatch below will own
+                    # the board until the silence window ends.
+                    logger.info(f"Temporary override expired, applying revert: {override.revert_mode}")
+                    if override.revert_mode == "blank":
+                        return self._send_blank_board()
+                    if override.revert_mode == "page" and override.revert_page_id:
+                        settings_service.set_active_page_id(override.revert_page_id)
+                    # "schedule" (and fallback): clear content cache so next tick rerenders
+                    self._last_active_page_content = None
 
             # Determine active page based on schedule mode (skipped when override is active)
             if active_page_id is None and settings_service.is_schedule_enabled():
@@ -326,7 +334,12 @@ class DisplayService:
             # silence (or recovering from a missing indicator after restart /
             # power outage) and need to send exactly one update with the
             # silence-mode display, or suppress updates entirely (freeze mode).
-            if silence_mode_active:
+            #
+            # Exception (issue #949): a user-initiated temporary override wins
+            # over silence. The user explicitly asked to see this page now, so
+            # we render it and skip the silence dispatch. Once the override
+            # expires, normal silence behavior resumes on the next tick.
+            if silence_mode_active and not override_active:
                 silence_mode = Config.SILENCE_SCHEDULE_MODE
                 if silence_mode == "freeze":
                     if entering_silence_mode:
