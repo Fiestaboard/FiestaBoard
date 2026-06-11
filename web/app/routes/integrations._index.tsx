@@ -828,6 +828,55 @@ const CATEGORY_LABELS: Record<string, string> = {
   weather: "Weather & Environment",
 };
 
+// Resolve the live value of a template variable from a plugin's raw display data.
+// Variable names come in two shapes:
+//   - simple:  "temperature"             → data.temperature
+//   - array:   "forecast.{index}.day"    → data.forecast[i].day for each i
+// Returns null when the variable can't be resolved (missing key, plugin disabled).
+// `short` is what we render in the cell; `full` is what the hover tooltip shows.
+function formatCurrentValue(
+  variable: string,
+  data: Record<string, unknown> | undefined,
+): { short: string; full: string } | null {
+  if (!data) return null;
+
+  const stringify = (v: unknown): string => {
+    if (v == null) return "";
+    if (typeof v === "string") return v;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(v);
+    }
+  };
+
+  // Array variable: "<arrayName>.{index}.<field>"
+  const arrayMatch = variable.match(/^([^.]+)\.\{index\}\.(.+)$/);
+  if (arrayMatch) {
+    const [, arrayName, field] = arrayMatch;
+    const arr = data[arrayName];
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+
+    const entries = arr.map((item, i) => {
+      const value = item && typeof item === "object" ? (item as Record<string, unknown>)[field] : undefined;
+      return { i, value: stringify(value) };
+    });
+
+    const fullLines = entries.map(({ i, value }) => `[${i}] ${value || "—"}`);
+    const previewCount = 3;
+    const previewParts = entries.slice(0, previewCount).map(({ i, value }) => `[${i}] ${value || "—"}`);
+    const more = entries.length > previewCount ? `  +${entries.length - previewCount} more` : "";
+
+    return { short: previewParts.join("  ") + more, full: fullLines.join("\n") };
+  }
+
+  // Simple variable: direct key lookup.
+  if (!(variable in data)) return null;
+  const value = stringify(data[variable]);
+  return { short: value, full: value };
+}
+
 interface PluginCardProps {
   plugin: PluginInfo;
   onToggle: (pluginId: string, enabled: boolean) => void;
@@ -872,6 +921,19 @@ function PluginCard({
     enabled: isConfigOpen,
   });
 
+  // Fetch current variable values (raw display data) for the Template Variables table.
+  // Polls while the sheet is open so users can watch values update during troubleshooting.
+  const {
+    data: rawDisplay,
+    isLoading: isLoadingRawDisplay,
+    isFetching: isFetchingRawDisplay,
+  } = useQuery({
+    queryKey: ["plugin-display-raw", plugin.id],
+    queryFn: () => api.getDisplayRaw(plugin.id),
+    enabled: isConfigOpen && plugin.enabled,
+    refetchInterval: 15_000,
+  });
+
   // Initialize config values when plugin details load
   useEffect(() => {
     if (pluginDetails?.config) {
@@ -886,6 +948,7 @@ function PluginCard({
       toast.success(`${plugin.name} configuration saved`);
       onConfigUpdate();
       queryClient.invalidateQueries({ queryKey: ["plugin-displays-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-display-raw", plugin.id] });
       queryClient.invalidateQueries({ queryKey: ["pagePreview"] });
       setIsConfigOpen(false);
     } catch (error) {
@@ -1128,54 +1191,104 @@ function PluginCard({
 
               {/* Template Variables Section */}
               {getVariablesList().length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground">
-                    Template Variables
-                    <span className="ml-2 text-xs font-normal">(click to copy)</span>
-                  </h4>
-                  <div className="rounded-md border overflow-hidden">
-                    <table className="w-full text-xs">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="text-left px-3 py-2 font-medium">Variable</th>
-                          <th className="text-left px-3 py-2 font-medium">Description</th>
-                          <th className="text-center px-3 py-2 font-medium">Max</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {getVariablesList().map((variable) => (
-                          <tr
-                            key={variable.name}
-                            className="hover:bg-muted/30 cursor-pointer transition-colors"
-                            onClick={() => handleCopyVar(variable.name)}
-                          >
-                            <td className="px-3 py-2">
-                              <div className="flex items-center gap-1.5">
-                                <code className="text-primary font-mono bg-primary/10 px-1.5 py-0.5 rounded text-[11px]">
-                                  {plugin.id}.{variable.name}
-                                </code>
-                                {copiedVar === variable.name ? (
-                                  <Check className="h-3 w-3 text-success" />
-                                ) : (
-                                  <Copy className="h-3 w-3 text-muted-foreground" />
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground capitalize">{variable.description}</td>
-                            <td className="px-3 py-2 text-center">
-                              <Badge variant="outline" className="text-[10px]">
-                                {variable.maxChars}
-                              </Badge>
-                            </td>
+                <TooltipProvider delayDuration={200}>
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-muted-foreground">
+                      Template Variables
+                      <span className="ml-2 text-xs font-normal">(click to copy)</span>
+                    </h4>
+                    {!plugin.enabled && (
+                      <p className="text-xs text-muted-foreground italic">Enable the plugin to see live values.</p>
+                    )}
+                    {plugin.enabled && rawDisplay && rawDisplay.available === false && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        Live values are unavailable
+                        {rawDisplay.error ? `: ${rawDisplay.error}` : "."}
+                      </p>
+                    )}
+                    <div className="rounded-md border overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="text-left px-3 py-2 font-medium">Variable</th>
+                            <th className="text-left px-3 py-2 font-medium">Description</th>
+                            <th className="text-left px-3 py-2 font-medium">
+                              Current Value
+                              {plugin.enabled && isFetchingRawDisplay && !isLoadingRawDisplay && (
+                                <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">
+                                  (refreshing…)
+                                </span>
+                              )}
+                            </th>
+                            <th className="text-center px-3 py-2 font-medium">Max</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y">
+                          {getVariablesList().map((variable) => {
+                            const resolved = formatCurrentValue(
+                              variable.name,
+                              rawDisplay?.available ? (rawDisplay.data as Record<string, unknown>) : undefined,
+                            );
+                            return (
+                              <tr
+                                key={variable.name}
+                                className="hover:bg-muted/30 cursor-pointer transition-colors"
+                                onClick={() => handleCopyVar(variable.name)}
+                              >
+                                <td className="px-3 py-2 align-top">
+                                  <div className="flex items-center gap-1.5">
+                                    <code className="text-primary font-mono bg-primary/10 px-1.5 py-0.5 rounded text-[11px]">
+                                      {plugin.id}.{variable.name}
+                                    </code>
+                                    {copiedVar === variable.name ? (
+                                      <Check className="h-3 w-3 text-success" />
+                                    ) : (
+                                      <Copy className="h-3 w-3 text-muted-foreground" />
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-muted-foreground capitalize align-top">
+                                  {variable.description}
+                                </td>
+                                <td className="px-3 py-2 align-top max-w-[200px]" onClick={(e) => e.stopPropagation()}>
+                                  {!plugin.enabled ? (
+                                    <span className="text-muted-foreground">—</span>
+                                  ) : isLoadingRawDisplay ? (
+                                    <Skeleton className="h-3 w-16" />
+                                  ) : rawDisplay && rawDisplay.available === false ? (
+                                    <span className="text-muted-foreground italic">Unavailable</span>
+                                  ) : resolved && resolved.short !== "" ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="block truncate font-mono text-[11px]">{resolved.short}</span>
+                                      </TooltipTrigger>
+                                      <TooltipContent
+                                        side="top"
+                                        className="max-w-[360px] whitespace-pre-wrap break-words font-mono text-[11px]"
+                                      >
+                                        {resolved.full}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-center align-top">
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {variable.maxChars}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Use in templates as <code className="bg-muted px-1 rounded">{`{{${plugin.id}.variable}}`}</code>
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Use in templates as <code className="bg-muted px-1 rounded">{`{{${plugin.id}.variable}}`}</code>
-                  </p>
-                </div>
+                </TooltipProvider>
               )}
 
               {/* Environment Variables Section */}

@@ -234,6 +234,91 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
   });
 
   /**
+   * UX node: integrations.plugin.config-sheet.template-vars.current-value
+   * Route: /integrations (sheet)
+   * Preconditions: plugin:enabled, plugin:exposes-variables
+   * Expected: Template Variables table shows a "Current Value" column populated
+   *   with the live value returned by /displays/{plugin}/raw.
+   * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/936
+   */
+  test("integrations.plugin.config-sheet.template-vars — Current Value column shows live value", async ({ page }) => {
+    // The raw-display endpoint only refreshes on the plugin scheduler tick,
+    // which on a cold CI container can take >20s for date_time's first cycle.
+    // Triple the default 30s budget so the assertion has room to wait it out.
+    test.slow();
+    await openConfigSheet(page);
+
+    // Wait for template-vars heading
+    await expect(page.getByRole("heading", { name: /Template Variables/i })).toBeVisible({ timeout: 15_000 });
+
+    // Locate the variables table by its column headers (it includes "Current Value" + "Max").
+    const dialog = page.locator('[role="dialog"]');
+    const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
+    await expect(varsTable).toBeVisible({ timeout: 5_000 });
+
+    // Pin to the `time` row by its accessible name; the trailing space prevents
+    // a substring match against `time_12h`, `time_24h`, `time_english`, etc.
+    const timeRow = varsTable.getByRole("row", { name: new RegExp(`^${TEST_PLUGIN_ID}\\.time `) });
+    await expect(timeRow).toBeVisible({ timeout: 5_000 });
+
+    // The "Current Value" cell is the 3rd column. Wait until it renders the live
+    // value — date_time.time always contains a digit (HH:MM). The displays-raw
+    // endpoint can take a moment to warm up on a cold container, so allow 30s.
+    const valueCell = timeRow.locator("td").nth(2);
+    await expect(valueCell).toContainText(/\d/, { timeout: 30_000 });
+  });
+
+  /**
+   * UX node: integrations.plugin.config-sheet.template-vars.unconfigured
+   * Route: /integrations (sheet)
+   * Preconditions: plugin:enabled, raw-display:unavailable (missing config / fetch error)
+   * Expected:
+   *   - sheet still renders without crashing
+   *   - "Unavailable" message visible above the table
+   *   - every Current Value cell falls back to "—" (no live value)
+   *   - copying a variable still works (rest of the sheet is unaffected)
+   * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/936
+   */
+  test("integrations.plugin.config-sheet.template-vars — handles unconfigured plugin gracefully", async ({ page }) => {
+    // Simulate an unconfigured plugin: the raw-display endpoint reports the
+    // plugin's data isn't available. This is what a plugin like `weather`
+    // returns when its API key isn't set.
+    await page.route(`**/api/displays/${TEST_PLUGIN_ID}/raw`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          display_type: TEST_PLUGIN_ID,
+          data: {},
+          available: false,
+          error: "Plugin not configured",
+        }),
+      });
+    });
+
+    await openConfigSheet(page);
+
+    // Sheet renders, Template Variables section is present (page didn't crash).
+    await expect(page.getByRole("heading", { name: /Template Variables/i })).toBeVisible({ timeout: 15_000 });
+
+    const dialog = page.locator('[role="dialog"]');
+    const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
+    await expect(varsTable).toBeVisible({ timeout: 5_000 });
+
+    // The unavailable hint surfaces the upstream error message.
+    await expect(dialog.getByText(/Plugin not configured/i)).toBeVisible({ timeout: 5_000 });
+
+    // The `time` row's Current Value cell falls back to the "Unavailable"
+    // placeholder rather than a live value or a crashing render.
+    const timeRow = varsTable.getByRole("row", { name: new RegExp(`^${TEST_PLUGIN_ID}\\.time `) });
+    const valueCell = timeRow.locator("td").nth(2);
+    await expect(valueCell).toHaveText("Unavailable", { timeout: 5_000 });
+
+    // Save button is still enabled — the rest of the sheet remains interactive.
+    await expect(page.getByRole("button", { name: "Save Changes" })).toBeEnabled();
+  });
+
+  /**
    * UX node: integrations.plugin.config-sheet.copy-variable
    * Route: /integrations (sheet)
    * Preconditions: plugin:has-template-vars
