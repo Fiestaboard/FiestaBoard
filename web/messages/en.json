@@ -295,6 +295,12 @@
     "editScheduleAriaLabel": "Edit schedule for {pageName}",
     "deleteScheduleAriaLabel": "Delete schedule for {pageName}",
     "openLabel": "open",
+    "silenceEventTitle": "Silence",
+    "silenceScheduleListTitle": "Silence Schedule",
+    "silenceEventAriaLabel": "Silence schedule, {range}, opens settings",
+    "silenceModeIndicatorSubtitle": "Indicator: {text}",
+    "silenceModeFreezeSubtitle": "Board frozen",
+    "silenceModePageSubtitle": "Page: {name}",
     "dayLabels": {
       "allDays": "All days",
       "monFri": "Mon-Fri",

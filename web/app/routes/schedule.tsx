@@ -9,7 +9,7 @@ import {
   Plus,
   Power,
 } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/page-header";
@@ -54,8 +54,10 @@ import {
   type ScheduleCreate,
   type ScheduleEntry,
   type ScheduleUpdate,
+  type SilenceMode,
 } from "@/lib/api";
-import { extractTimeFromDate, getDayNameFromDate } from "@/lib/schedule-calendar";
+import { extractTimeFromDate, getDayNameFromDate, type ResolvedSilenceSchedule } from "@/lib/schedule-calendar";
+import { utcToLocalTime } from "@/lib/timezone-utils";
 import { cn } from "@/lib/utils";
 
 // Lazy load ScheduleCalendarView since it includes react-big-calendar (~150KB+)
@@ -203,6 +205,37 @@ export default function SchedulePage() {
     queryFn: () => api.validateSchedules(effectiveBoardId || undefined),
     enabled: (schedulesData?.schedules.length || 0) > 0,
   });
+
+  // Fetch silence schedule + user timezone so we can render the silence window
+  // as a read-only overlay on the calendar/list views. Reuses the same query
+  // key as the settings page so a save there refreshes both pages.
+  const { data: allSettings } = useQuery({
+    queryKey: ["all-settings"],
+    queryFn: api.getAllSettings,
+  });
+
+  const resolvedSilenceSchedule = useMemo<ResolvedSilenceSchedule | null>(() => {
+    const config = allSettings?.silence_schedule?.config;
+    const timezone = allSettings?.general?.timezone ?? "America/Los_Angeles";
+    if (!config || !config.start_time || !config.end_time) return null;
+    const startLocal = utcToLocalTime(config.start_time, timezone);
+    const endLocal = utcToLocalTime(config.end_time, timezone);
+    if (!startLocal || !endLocal) return null;
+    const rawMode = (config.mode as string | undefined) ?? "indicator";
+    const mode: SilenceMode = rawMode === "freeze" || rawMode === "page" ? rawMode : "indicator";
+    return {
+      enabled: !!config.enabled,
+      startTimeLocal: startLocal,
+      endTimeLocal: endLocal,
+      mode,
+      indicatorText: config.indicator_text ?? null,
+      pageId: config.page_id ?? null,
+    };
+  }, [allSettings]);
+
+  const handleSilenceClick = useCallback(() => {
+    router.push("/settings?section=behavior#silence-schedule");
+  }, [router]);
 
   // Toggle schedule (per board when multi-board)
   const toggleSchedule = useMutation({
@@ -652,9 +685,11 @@ export default function SchedulePage() {
           schedules={schedules}
           pages={pages}
           collections={collectionsData?.collections}
+          silenceSchedule={resolvedSilenceSchedule}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onToggleEnabled={handleToggleEnabled}
+          onSilenceClick={handleSilenceClick}
         />
       ) : (
         /* Calendar card: grows to fill remaining space in the pinned layout */
@@ -671,9 +706,11 @@ export default function SchedulePage() {
               pages={pages}
               collections={collectionsData?.collections}
               overlaps={validation?.overlaps}
+              silenceSchedule={resolvedSilenceSchedule}
               onEventClick={handleEventClick}
               onSlotSelect={handleSlotSelect}
               onEventTimeChange={handleEventTimeChange}
+              onSilenceClick={handleSilenceClick}
             />
           </CardContent>
         </Card>

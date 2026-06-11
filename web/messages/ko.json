@@ -338,6 +338,12 @@
     "editScheduleAriaLabel": "{pageName}의 일정 편집",
     "deleteScheduleAriaLabel": "{pageName}의 일정 삭제",
     "openLabel": "열림",
+    "silenceEventTitle": "Silence",
+    "silenceScheduleListTitle": "Silence Schedule",
+    "silenceEventAriaLabel": "Silence schedule, {range}, opens settings",
+    "silenceModeIndicatorSubtitle": "Indicator: {text}",
+    "silenceModeFreezeSubtitle": "Board frozen",
+    "silenceModePageSubtitle": "Page: {name}",
     "dayLabels": {
       "allDays": "매일",
       "monFri": "월-금",

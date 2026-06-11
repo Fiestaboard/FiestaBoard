@@ -15,30 +15,55 @@ import {
   startOfWeek,
 } from "date-fns";
 
-import type { Collection, Page, ScheduleEntry } from "./api";
+import type { Collection, Page, ScheduleEntry, SilenceMode } from "./api";
 import { isCollectionId } from "./api";
 
-/**
- * Calendar event type for react-big-calendar
- */
-export interface CalendarEvent {
+interface BaseCalendarEvent {
   id: string;
   title: string;
   start: Date;
   end: Date;
-  resource: {
-    scheduleId: string;
-    pageId: string;
-    pageName: string;
-    enabled: boolean;
-    dayPattern: string;
-    originalSchedule: ScheduleEntry;
-    /** True when the event is one half of a midnight-split schedule */
-    isMidnightSplit?: boolean;
-    /** Which half of the split: "evening" ends at 00:00, "morning" starts at 00:00 */
-    splitPart?: "evening" | "morning";
-  };
 }
+
+export interface ScheduleEventResource {
+  kind: "schedule";
+  scheduleId: string;
+  pageId: string;
+  pageName: string;
+  enabled: boolean;
+  dayPattern: string;
+  originalSchedule: ScheduleEntry;
+  /** True when the event is one half of a midnight-split schedule */
+  isMidnightSplit?: boolean;
+  /** Which half of the split: "evening" ends at 00:00, "morning" starts at 00:00 */
+  splitPart?: "evening" | "morning";
+}
+
+export interface SilenceEventResource {
+  kind: "silence";
+  mode: SilenceMode;
+  indicatorText: string | null;
+  /** Page name when mode === "page", otherwise null */
+  pageName: string | null;
+  /** Local-time HH:MM start/end as configured by the user (for display) */
+  startTimeLocal: string;
+  endTimeLocal: string;
+  isMidnightSplit?: boolean;
+  splitPart?: "evening" | "morning";
+}
+
+export interface ScheduleCalendarEvent extends BaseCalendarEvent {
+  resource: ScheduleEventResource;
+}
+
+export interface SilenceCalendarEvent extends BaseCalendarEvent {
+  resource: SilenceEventResource;
+}
+
+/**
+ * Calendar event type for react-big-calendar. Discriminated on resource.kind.
+ */
+export type CalendarEvent = ScheduleCalendarEvent | SilenceCalendarEvent;
 
 /**
  * Map of day names to day-of-week numbers (0 = Sunday, 1 = Monday, etc.)
@@ -177,8 +202,8 @@ export function scheduleToCalendarEvents(
   pages: Page[],
   collections?: Collection[],
   sunTimesMap?: Record<string, { sunrise: string; sunset: string }>,
-): CalendarEvent[] {
-  const events: CalendarEvent[] = [];
+): ScheduleCalendarEvent[] {
+  const events: ScheduleCalendarEvent[] = [];
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
@@ -232,6 +257,7 @@ export function scheduleToCalendarEvents(
         start: eventStart,
         end: eveningEnd,
         resource: {
+          kind: "schedule",
           scheduleId: schedule.id,
           pageId: schedule.page_id,
           pageName,
@@ -252,6 +278,7 @@ export function scheduleToCalendarEvents(
         start: morningStart,
         end: morningEnd,
         resource: {
+          kind: "schedule",
           scheduleId: schedule.id,
           pageId: schedule.page_id,
           pageName,
@@ -271,6 +298,7 @@ export function scheduleToCalendarEvents(
         start: eventStart,
         end: eventEnd,
         resource: {
+          kind: "schedule",
           scheduleId: schedule.id,
           pageId: schedule.page_id,
           pageName,
@@ -294,8 +322,8 @@ export function schedulesToCalendarEvents(
   pages: Page[],
   collections?: Collection[],
   sunTimesMap?: Record<string, { sunrise: string; sunset: string }>,
-): CalendarEvent[] {
-  const allEvents: CalendarEvent[] = [];
+): ScheduleCalendarEvent[] {
+  const allEvents: ScheduleCalendarEvent[] = [];
 
   for (const schedule of schedules) {
     const events = scheduleToCalendarEvents(schedule, weekStart, pages, collections, sunTimesMap);
@@ -303,6 +331,93 @@ export function schedulesToCalendarEvents(
   }
 
   return allEvents;
+}
+
+/**
+ * Resolved silence-schedule data ready for calendar rendering.
+ * Times are already converted to the user's local timezone as HH:MM.
+ */
+export interface ResolvedSilenceSchedule {
+  enabled: boolean;
+  startTimeLocal: string;
+  endTimeLocal: string;
+  mode: SilenceMode;
+  indicatorText: string | null;
+  pageId: string | null;
+}
+
+/**
+ * Synthesize calendar events for the silence schedule across the visible
+ * week. Mirrors the midnight-split handling used for regular schedules so
+ * a silence window like 22:00 → 06:00 shows as evening + morning halves.
+ */
+export function silenceToCalendarEvents(
+  silence: ResolvedSilenceSchedule | null,
+  weekStart: Date,
+  pages: Page[],
+): SilenceCalendarEvent[] {
+  if (!silence || !silence.enabled) return [];
+  const { hours: sH, minutes: sM } = parseTime(silence.startTimeLocal);
+  const { hours: eH, minutes: eM } = parseTime(silence.endTimeLocal);
+  // Same-time start/end means no silence window — render nothing.
+  if (sH === eH && sM === eM) return [];
+
+  const events: SilenceCalendarEvent[] = [];
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+  const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  const isMidnightRollover = eH < sH || (eH === sH && eM <= sM);
+  const pageName =
+    silence.mode === "page" && silence.pageId ? (pages.find((p) => p.id === silence.pageId)?.name ?? null) : null;
+
+  const resourceBase = {
+    kind: "silence" as const,
+    mode: silence.mode,
+    indicatorText: silence.indicatorText,
+    pageName,
+    startTimeLocal: silence.startTimeLocal,
+    endTimeLocal: silence.endTimeLocal,
+  };
+
+  for (const day of daysInWeek) {
+    const dayOfWeek = getDay(day);
+    const eventStart = setMinutes(setHours(day, sH), sM);
+
+    if (isMidnightRollover) {
+      // Saturday's morning continuation wraps to this week's Sunday so the
+      // event stays in the visible template view (same trick as regular
+      // schedule midnight splits).
+      const morningDay = dayOfWeek === 6 ? weekStart : addDays(day, 1);
+
+      events.push({
+        id: `silence-${format(day, "yyyy-MM-dd")}-evening`,
+        title: "Silence",
+        start: eventStart,
+        end: endOfDay(day),
+        resource: { ...resourceBase, isMidnightSplit: true, splitPart: "evening" },
+      });
+
+      const morningStart = setMinutes(setHours(morningDay, 0), 0);
+      const morningEnd = setMinutes(setHours(morningDay, eH), eM);
+      events.push({
+        id: `silence-${format(morningDay, "yyyy-MM-dd")}-morning`,
+        title: "Silence",
+        start: morningStart,
+        end: morningEnd,
+        resource: { ...resourceBase, isMidnightSplit: true, splitPart: "morning" },
+      });
+    } else {
+      const eventEnd = setMinutes(setHours(day, eH), eM);
+      events.push({
+        id: `silence-${format(day, "yyyy-MM-dd")}`,
+        title: "Silence",
+        start: eventStart,
+        end: eventEnd,
+        resource: { ...resourceBase },
+      });
+    }
+  }
+
+  return events;
 }
 
 /**

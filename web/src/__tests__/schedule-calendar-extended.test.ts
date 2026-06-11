@@ -292,6 +292,7 @@ describe("schedule-calendar extended", () => {
         start: new Date(2025, 0, 6, 9, 0),
         end: new Date(2025, 0, 6, 17, 0),
         resource: {
+          kind: "schedule",
           scheduleId: "s1",
           pageId: "p1",
           pageName: "Test",
@@ -310,6 +311,7 @@ describe("schedule-calendar extended", () => {
         start: new Date(2025, 0, 6, 9, 0),
         end: new Date(2025, 0, 6, 17, 0),
         resource: {
+          kind: "schedule",
           scheduleId: "s1",
           pageId: "p1",
           pageName: "Test",

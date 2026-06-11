@@ -338,6 +338,12 @@
     "editScheduleAriaLabel": "Modifier le planning pour {pageName}",
     "deleteScheduleAriaLabel": "Supprimer le planning pour {pageName}",
     "openLabel": "ouvert",
+    "silenceEventTitle": "Silence",
+    "silenceScheduleListTitle": "Silence Schedule",
+    "silenceEventAriaLabel": "Silence schedule, {range}, opens settings",
+    "silenceModeIndicatorSubtitle": "Indicator: {text}",
+    "silenceModeFreezeSubtitle": "Board frozen",
+    "silenceModePageSubtitle": "Page: {name}",
     "dayLabels": {
       "allDays": "Tous les jours",
       "monFri": "Lun-Ven",

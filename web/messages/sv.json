@@ -338,6 +338,12 @@
     "editScheduleAriaLabel": "Redigera schema för {pageName}",
     "deleteScheduleAriaLabel": "Ta bort schema för {pageName}",
     "openLabel": "öppet",
+    "silenceEventTitle": "Silence",
+    "silenceScheduleListTitle": "Silence Schedule",
+    "silenceEventAriaLabel": "Silence schedule, {range}, opens settings",
+    "silenceModeIndicatorSubtitle": "Indicator: {text}",
+    "silenceModeFreezeSubtitle": "Board frozen",
+    "silenceModePageSubtitle": "Page: {name}",
     "dayLabels": {
       "allDays": "Alla dagar",
       "monFri": "Mån-Fre",

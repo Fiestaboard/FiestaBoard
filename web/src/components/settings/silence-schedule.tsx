@@ -159,7 +159,7 @@ export function SilenceSchedule() {
   ]);
 
   return (
-    <Card>
+    <Card id="silence-schedule" className="scroll-mt-24">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Moon className="h-4 w-4" />

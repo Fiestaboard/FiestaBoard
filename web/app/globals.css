@@ -1168,6 +1168,23 @@
   animation: card-fade-in 1s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Brief highlight when a settings card is jumped to via a hash anchor.
+   Drives the click-to-details flow from the Schedule page → silence card. */
+@keyframes settings-anchor-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  20%,
+  60% {
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary) 45%, transparent);
+  }
+}
+
+.settings-anchor-highlight {
+  animation: settings-anchor-pulse 2.2s ease-in-out;
+}
+
 /* Type scale: ratio 1.25; body 1rem (16px). Tailwind text-xs/sm/base/lg/xl/2xl/3xl/4xl align. */
 /* Page typography - consistent titles and descriptions */
 .page-title {

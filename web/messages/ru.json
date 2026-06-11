@@ -338,6 +338,12 @@
     "editScheduleAriaLabel": "Редактировать расписание для {pageName}",
     "deleteScheduleAriaLabel": "Удалить расписание для {pageName}",
     "openLabel": "открыто",
+    "silenceEventTitle": "Silence",
+    "silenceScheduleListTitle": "Silence Schedule",
+    "silenceEventAriaLabel": "Silence schedule, {range}, opens settings",
+    "silenceModeIndicatorSubtitle": "Indicator: {text}",
+    "silenceModeFreezeSubtitle": "Board frozen",
+    "silenceModePageSubtitle": "Page: {name}",
     "dayLabels": {
       "allDays": "Все дни",
       "monFri": "Пн-Пт",

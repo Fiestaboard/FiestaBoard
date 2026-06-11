@@ -303,6 +303,32 @@
   opacity: 0.6;
 }
 
+/* Silence schedule overlay — read-only, visually distinct from real schedules.
+   Diagonal stripe pattern signals "do not disturb / blocked time" without
+   competing with the colored brand events. */
+.schedule-event-silence .schedule-event-content {
+  background-color: color-mix(in oklch, var(--muted-foreground) 8%, transparent);
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in oklch, var(--muted-foreground) 22%, transparent) 0,
+    color-mix(in oklch, var(--muted-foreground) 22%, transparent) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+  border-left: 2px solid color-mix(in oklch, var(--muted-foreground) 55%, transparent);
+  color: var(--muted-foreground);
+}
+
+.schedule-event-silence .schedule-event-content:hover {
+  background-color: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
+}
+
+/* Silence sits above regular schedule events so the stripe pattern reads
+   clearly when the windows overlap. */
+.schedule-calendar-container .rbc-event.schedule-event-silence {
+  z-index: 2;
+}
+
 /* ===== Events Container ===== */
 .schedule-calendar-container .rbc-day-slot .rbc-events-container {
   margin-right: 2px;

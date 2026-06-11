@@ -338,6 +338,12 @@
     "editScheduleAriaLabel": "{pageName} のスケジュールを編集",
     "deleteScheduleAriaLabel": "{pageName} のスケジュールを削除",
     "openLabel": "開く",
+    "silenceEventTitle": "Silence",
+    "silenceScheduleListTitle": "Silence Schedule",
+    "silenceEventAriaLabel": "Silence schedule, {range}, opens settings",
+    "silenceModeIndicatorSubtitle": "Indicator: {text}",
+    "silenceModeFreezeSubtitle": "Board frozen",
+    "silenceModePageSubtitle": "Page: {name}",
     "dayLabels": {
       "allDays": "毎日",
       "monFri": "月-金",
