@@ -11,15 +11,17 @@ name: Scheduled Maintenance
 #   - security-scan  : weekly bandit + pip-audit sweep of plugin-registry
 #                      repos, opens/updates an issue on findings
 #                      (was .github/workflows/registry-scan.yml)
+#
+# Note: the Claude-driven docs audit lives in its own workflow
+# (.github/workflows/claude-docs-audit.yml) so it surfaces independently
+# in the Actions sidebar.
 # =============================================================================
 
 on:
   schedule:
-    # Daily 04:00 UTC for stats refresh; Sunday 00:00 UTC for security scan.
-    # Both crons listed here; each job filters on the resolved schedule
-    # via `github.event.schedule`.
-    - cron: '0 4 * * *'    # plugin stats
-    - cron: '0 0 * * 0'    # security scan (Sundays)
+    # Each job filters on the resolved schedule via `github.event.schedule`.
+    - cron: '0 4 * * *'    # plugin stats (04:00 UTC daily)
+    - cron: '0 0 * * 0'    # security scan (Sun 00:00 UTC)
   workflow_dispatch:
     inputs:
       job:

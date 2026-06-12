@@ -1,0 +1,94 @@
+name: Claude Issue Triage
+
+# Take a first-pass fix attempt at new issues.
+#
+# Triggers in two ways:
+#   1. Auto: issue opened by the repo owner / a member / a collaborator
+#   2. Manual gate: any issue that gets the `claude-fix` label applied
+#
+# This double gate keeps drive-by issues from public reporters out of the
+# auto-run path while still letting you (or any maintainer) opt one in by
+# adding the label.
+
+on:
+  issues:
+    types: [opened, labeled]
+
+# Cancel a prior run for the same issue if a new trigger fires (e.g. label
+# applied right after open, or edits) — avoids burning credits on duplicates.
+concurrency:
+  group: claude-issue-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    # Gate: either the author is trusted, OR the gating label was just applied.
+    # Also skip anything that looks like an `@claude` mention so it doesn't
+    # double-fire with claude.yml.
+    if: |
+      !contains(github.event.issue.body, '@claude') &&
+      !contains(github.event.issue.title, '@claude') &&
+      (
+        (github.event.action == 'opened' && (
+          github.event.issue.author_association == 'OWNER' ||
+          github.event.issue.author_association == 'MEMBER' ||
+          github.event.issue.author_association == 'COLLABORATOR'
+        )) ||
+        (github.event.action == 'labeled' && github.event.label.name == 'claude-fix')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          additional_permissions: |
+            actions: read
+
+          prompt: |
+            A new issue was just filed on this repo. Take a first-pass attempt
+            at fixing it. The issue is #${{ github.event.issue.number }}:
+
+            Title: ${{ github.event.issue.title }}
+
+            Body:
+            ${{ github.event.issue.body }}
+
+            Your job:
+            1. Read the issue carefully and decide whether it's actionable as
+               a code change. If it's a feature request that needs design
+               discussion, a question, a duplicate, or doesn't have enough
+               info, DO NOT open a PR — instead post one short comment on
+               the issue explaining what's needed and stop.
+            2. If it IS actionable: investigate the codebase, reproduce the
+               problem if you can, and implement the smallest fix that
+               solves it. Follow the rules in CLAUDE.md.
+            3. Add or update a test that would have caught the bug.
+            4. Open a DRAFT pull request against `main` from a branch named
+               `claude/issue-${{ github.event.issue.number }}`. Title it
+               `[Claude first-pass] <short summary>` and link the issue with
+               `Closes #${{ github.event.issue.number }}` in the body.
+            5. In the PR body, be honest about your confidence: what you
+               changed, what you tested, and what a human reviewer should
+               double-check before merging.
+            6. Never merge the PR. Never force-push. Never bypass hooks.
+
+            If you finish without opening a PR, leave a comment on the issue
+            summarizing what you found and why no PR was opened.
+
+          # Long ceiling so Claude has room to actually attempt the fix.
+          # `timeout-minutes` above is the real backstop on cost.
+          claude_args: '--max-turns 80'
