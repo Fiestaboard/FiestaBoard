@@ -126,7 +126,14 @@
     "description": "Supervisa la pantalla de tu tablero y la actividad del sistema",
     "noBoardConfigured": "Ningún tablero configurado",
     "noBoardDescription": "Tu tablero aún no está configurado. Conecta tu tablero para comenzar a mostrar contenido.",
-    "runSetupWizard": "Ejecutar asistente de configuración"
+    "runSetupWizard": "Ejecutar asistente de configuración",
+    "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
+    "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentDescriptionUnnamed": "Switch to your silence page now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentSwitchNow": "Switch now",
+    "silenceImminentDismiss": "Dismiss",
+    "silenceImminentSwitchSuccess": "Switched to silence page",
+    "silenceImminentSwitchFailed": "Could not switch to silence page"
   },
   "pages": {
     "title": "Páginas",

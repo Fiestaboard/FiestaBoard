@@ -126,7 +126,14 @@
     "description": "보드 표시 상태 및 시스템 활동을 모니터링하세요",
     "noBoardConfigured": "보드가 설정되지 않았습니다",
     "noBoardDescription": "보드가 아직 설정되지 않았습니다. 보드를 연결하여 콘텐츠 표시를 시작하세요.",
-    "runSetupWizard": "설정 마법사 실행"
+    "runSetupWizard": "설정 마법사 실행",
+    "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
+    "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentDescriptionUnnamed": "Switch to your silence page now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentSwitchNow": "Switch now",
+    "silenceImminentDismiss": "Dismiss",
+    "silenceImminentSwitchSuccess": "Switched to silence page",
+    "silenceImminentSwitchFailed": "Could not switch to silence page"
   },
   "pages": {
     "title": "페이지",

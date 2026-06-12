@@ -703,6 +703,26 @@ class DisplayService:
         try:
             while self.running:
                 schedule.run_pending()
+
+                # 1-second silence-boundary detector. The schedule library only
+                # fires check_and_send_active_page every polling_interval seconds,
+                # so without this the silence page could appear up to ~15s after
+                # the configured start time (longer if the user raised the poll
+                # interval). A cheap is_silence_mode_active() call each second
+                # lets us catch the transition within ~1s.
+                try:
+                    silence_now = Config.is_silence_mode_active()
+                except Exception as e:
+                    logger.debug(f"Silence boundary check failed: {e}")
+                    silence_now = self._last_silence_mode_active
+                if silence_now != self._last_silence_mode_active:
+                    logger.debug(
+                        "Silence boundary crossed (now=%s, was=%s) - forcing immediate update",
+                        silence_now,
+                        self._last_silence_mode_active,
+                    )
+                    self.check_and_send_active_page()
+
                 # When a collection is active, poll at its mode-specific cadence:
                 # time-mode aligns with the next page boundary; variable-mode uses
                 # the configured poll_seconds.

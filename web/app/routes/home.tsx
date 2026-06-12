@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ActivePageDisplay } from "@/components/active-page-display";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
+import { SilenceImminentBanner } from "@/components/silence-imminent-banner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useWizard } from "@/components/wizard-provider";
@@ -50,6 +51,8 @@ export default function Home() {
           </Alert>
         </div>
       )}
+
+      <SilenceImminentBanner />
 
       <div className="animate-card-fade-in">
         <ActivePageDisplay />

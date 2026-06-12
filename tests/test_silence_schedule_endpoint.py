@@ -340,3 +340,82 @@ class TestSilenceIndicatorTextAndPosition:
         response = self._put(client, indicator_text=long_text)
         assert response.status_code == 200
         assert response.json()["config"]["indicator_text"] == long_text
+
+
+class TestSilenceStatusSecondsUntilNextChange:
+    """Tests for the seconds_until_next_change field driving the home banner."""
+
+    @staticmethod
+    def _patch_now(monkeypatch, fixed_utc):
+        from datetime import UTC, datetime
+
+        from src import time_service as ts_mod
+
+        ts_mod.reset_time_service()
+        service = ts_mod.get_time_service()
+
+        def fake_now():
+            return datetime.fromisoformat(fixed_utc).replace(tzinfo=UTC)
+
+        monkeypatch.setattr(service, "get_current_utc", fake_now)
+        return service
+
+    def test_returns_none_when_disabled(self, client, mock_config_manager_for_silence, monkeypatch):
+        self._patch_now(monkeypatch, "2024-01-15T12:00:00")
+        # Default fixture has enabled=False
+        response = client.get("/silence-status")
+        assert response.status_code == 200
+        assert response.json()["seconds_until_next_change"] is None
+
+    def test_counts_down_to_silence_start(self, client, mock_config_manager_for_silence, monkeypatch):
+        """When silence is enabled and inactive, count down to start_time."""
+        self._patch_now(monkeypatch, "2024-01-15T11:58:30")
+        client.put(
+            "/settings/silence-schedule",
+            json={
+                "enabled": True,
+                "start_time": "12:00+00:00",  # 1m30s away
+                "end_time": "20:00+00:00",
+            },
+        )
+        response = client.get("/silence-status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["active"] is False
+        assert data["seconds_until_next_change"] == 90
+
+    def test_counts_down_to_silence_end_when_active(self, client, mock_config_manager_for_silence, monkeypatch):
+        """When already in silence, count down to end_time."""
+        self._patch_now(monkeypatch, "2024-01-15T19:30:00")
+        client.put(
+            "/settings/silence-schedule",
+            json={
+                "enabled": True,
+                "start_time": "12:00+00:00",
+                "end_time": "20:00+00:00",  # 30m away
+            },
+        )
+        response = client.get("/silence-status")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["active"] is True
+        assert data["seconds_until_next_change"] == 30 * 60
+
+    def test_wraps_to_tomorrow_when_boundary_already_passed(self, client, mock_config_manager_for_silence, monkeypatch):
+        """parse_iso_time anchors to today; if start is earlier than now, add 24h."""
+        self._patch_now(monkeypatch, "2024-01-15T13:00:00")
+        client.put(
+            "/settings/silence-schedule",
+            json={
+                "enabled": True,
+                "start_time": "12:00+00:00",  # earlier today
+                "end_time": "10:00+00:00",  # also earlier today (window wraps midnight)
+            },
+        )
+        response = client.get("/silence-status")
+        assert response.status_code == 200
+        data = response.json()
+        # 13:00 is inside a 12:00->10:00(+1d) window, so silence is active and
+        # we count down to end_time (10:00 tomorrow = 21h away).
+        assert data["active"] is True
+        assert data["seconds_until_next_change"] == 21 * 3600

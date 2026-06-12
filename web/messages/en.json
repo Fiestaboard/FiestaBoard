@@ -83,7 +83,14 @@
     "description": "Monitor your board display and system activity",
     "noBoardConfigured": "No board configured",
     "noBoardDescription": "Your board is not set up yet. Connect your board to start displaying content.",
-    "runSetupWizard": "Run Setup Wizard"
+    "runSetupWizard": "Run Setup Wizard",
+    "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
+    "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentDescriptionUnnamed": "Switch to your silence page now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentSwitchNow": "Switch now",
+    "silenceImminentDismiss": "Dismiss",
+    "silenceImminentSwitchSuccess": "Switched to silence page",
+    "silenceImminentSwitchFailed": "Could not switch to silence page"
   },
   "pages": {
     "title": "Pages",
