@@ -18,6 +18,11 @@
 /.react-router
 /dist
 
+# Stale Next.js artifacts — the app migrated off Next.js to Vite + React Router v7,
+# but tools occasionally regenerate these. Ignore so they don't sneak back in.
+/.next
+/next-env.d.ts
+
 # misc
 .DS_Store
 *.pem

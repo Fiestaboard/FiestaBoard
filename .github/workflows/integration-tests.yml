@@ -44,6 +44,7 @@ jobs:
 
       - name: Build production image (same as prod for E2E)
         uses: docker/build-push-action@v7
+        timeout-minutes: 10
         with:
           context: .
           file: ./Dockerfile
@@ -83,6 +84,7 @@ jobs:
 
       - name: Install UI dependencies
         working-directory: web
+        timeout-minutes: 5
         run: |
           if [ -f package-lock.json ]; then
             npm ci --legacy-peer-deps --no-audit
@@ -92,6 +94,7 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: web
+        timeout-minutes: 5
         run: npx playwright install --with-deps chromium
 
       # ── PR: single container for smoke subset ─────────────────────
@@ -188,6 +191,7 @@ jobs:
 
       - name: Wait for all containers to be ready (full suite)
         if: github.event_name == 'merge_group'
+        timeout-minutes: 3
         run: |
           IFS=',' read -ra URLS <<< "$WORKER_URLS"
           for url in "${URLS[@]}"; do

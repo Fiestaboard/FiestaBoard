@@ -126,7 +126,14 @@
     "description": "监控看板显示和系统活动",
     "noBoardConfigured": "未配置看板",
     "noBoardDescription": "您的看板尚未设置。连接看板以开始显示内容。",
-    "runSetupWizard": "运行设置向导"
+    "runSetupWizard": "运行设置向导",
+    "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
+    "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentDescriptionUnnamed": "Switch to your silence page now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentSwitchNow": "Switch now",
+    "silenceImminentDismiss": "Dismiss",
+    "silenceImminentSwitchSuccess": "Switched to silence page",
+    "silenceImminentSwitchFailed": "Could not switch to silence page"
   },
   "pages": {
     "title": "页面",

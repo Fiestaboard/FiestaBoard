@@ -1334,11 +1334,10 @@ def test_auto_migrate_marks_flag_even_when_install_fails(
     mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
 ):
     """If install fails for a transient reason on first boot, we still mark
-    migration as done. Rationale: the alternative (retry on every boot) means
-    that any plugin the user later uninstalls reappears the next time the
-    registry is briefly unreachable — the exact bug from #937. The cost of the
-    chosen tradeoff is small: the user manually installs the failed plugin
-    from the integrations page if needed.
+    migration as done so the user's deliberate uninstalls (#937) are not
+    silently undone on the next boot. But we ALSO record the failed plugin
+    in v2_failed_installs so the next boot can retry just that one plugin
+    (#948 — give upgraders a chance to recover from a flaky first attempt).
     """
     mock_loader.load_all_plugins.return_value = {}
     mock_load_reg.return_value = [
@@ -1355,6 +1354,89 @@ def test_auto_migrate_marks_flag_even_when_install_fails(
         registry.initialize()
 
     mock_cm.return_value.mark_v2_plugin_migration_done.assert_called_once()
+    mock_cm.return_value.set_v2_plugin_failed_installs.assert_called_with(["muni"])
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_retries_only_failed_plugins_on_next_boot(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """On a subsequent boot (flag already set), the migration retries ONLY
+    the plugin ids in v2_failed_installs that still appear as orphaned
+    stored configs. This recovers from a flaky first attempt without
+    re-running the full migration (which would risk resurrecting plugins
+    the user uninstalled in between — the #937 invariant).
+    """
+    mock_manifest.id = "muni"
+    mock_loader.load_all_plugins.return_value = {}
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="muni",
+            name="SF Muni",
+            repository="https://github.com/Org/fiestaboard-plugin--muni",
+        ),
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        # Subsequent boot: migration already ran. Only `muni` previously
+        # failed; `weather` was an intentional uninstall (no entry).
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = True
+        mock_cm.return_value.get_v2_plugin_failed_installs.return_value = ["muni"]
+        # Both still appear in stored configs (the #937 fix would have
+        # purged `weather` if the user had clicked Uninstall, but we
+        # leave both here to prove the retry filter — not the orphan
+        # detector — is what scopes the retry).
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "muni": {"enabled": True, "stop_code": "15726"},
+            "weather": {"enabled": True, "api_key": "k"},
+        }
+        registry.initialize()
+
+    # Only muni was retried; weather was not even attempted.
+    install_calls = [c.args[0].plugin_id for c in mock_install.call_args_list]
+    assert install_calls == ["muni"]
+    # mark_v2_plugin_migration_done is NOT called again (already done).
+    mock_cm.return_value.mark_v2_plugin_migration_done.assert_not_called()
+    # Retry queue is cleared (muni succeeded).
+    mock_cm.return_value.set_v2_plugin_failed_installs.assert_called_with([])
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_no_op_when_retry_queue_resolved(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """If the retry queue references plugins that the user has since installed
+    or uninstalled manually, the migration is a clean no-op and clears the
+    queue — it must NOT re-run the full first-boot scan.
+    """
+    # Simulate: muni was queued for retry, but the user installed it manually
+    # (so it's now in self._plugins) and the queue is stale.
+    mock_manifest.id = "muni"
+    mock_loader.load_all_plugins.return_value = {"muni": mock_plugin}
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = True
+        mock_cm.return_value.get_v2_plugin_failed_installs.return_value = ["muni"]
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"muni": {"enabled": True, "stop_code": "15726"}}
+        registry.initialize()
+
+    # No registry lookups, no install attempts.
+    mock_load_reg.assert_not_called()
+    mock_install.assert_not_called()
+    # Stale queue is cleared so future boots short-circuit immediately.
+    mock_cm.return_value.clear_v2_plugin_failed_installs.assert_called_once()
 
 
 @patch("src.plugins.registry.get_external_plugins_dir")

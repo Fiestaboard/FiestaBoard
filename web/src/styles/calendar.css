@@ -607,6 +607,21 @@
     --rbc-slot-height: 6px;
   }
 
+  /* On mobile the page itself scrolls instead of the grid — let the
+     calendar grow to its natural 24-hour height so swiping down on the
+     page reveals later hours, instead of users having to discover that
+     they need to swipe inside the grid. */
+  .schedule-calendar-container,
+  .schedule-calendar-container .rbc-calendar,
+  .schedule-calendar-container .rbc-time-view {
+    flex: 1 0 auto;
+  }
+  .schedule-calendar-container .rbc-time-content {
+    flex: 1 0 auto;
+    overflow-y: visible !important;
+    min-height: calc(var(--rbc-hour-height) * 24);
+  }
+
   /* Explicit heights prevent flex rounding drift on mobile */
   .schedule-calendar-container .rbc-timeslot-group {
     min-height: var(--rbc-hour-height);

@@ -514,6 +514,11 @@ class UpdateStatusResponse(BaseModel):
     # Each entry includes ``previous_digest`` and ``previous_image`` so the
     # UI can offer "revert to the version that was running on <date>".
     settings_snapshots: list[dict[str, Any]] = []
+    # If the most recent snapshot has materially more enabled plugins than
+    # the live config, surface a recovery hint so users hit by issue #948
+    # can roll back with one click instead of discovering the snapshot on
+    # their own. ``None`` when there's no detectable regression.
+    post_upgrade_regression: dict[str, Any] | None = None
 
 
 class UpdateApplyResponse(BaseModel):
@@ -664,6 +669,26 @@ async def lifespan(app: FastAPI):
 
     # Set up file-based logging
     _setup_file_logging()
+
+    # If the most recent settings snapshot looks materially richer than the
+    # live config (more enabled plugins, etc.), tell the user loudly on
+    # startup so they don't have to discover the recovery path on their own.
+    # See issue #948.
+    try:
+        _regression_hint = _detect_post_upgrade_regression()
+        if _regression_hint:
+            logger.warning(
+                "Post-upgrade regression suspected: snapshot '%s' has %d enabled "
+                "plugin(s) but live config has %d. Missing: %s. "
+                "Roll back with POST /system/update/rollback (snapshot=%s, restore_settings=true).",
+                _regression_hint["snapshot_name"],
+                _regression_hint["snapshot_enabled_count"],
+                _regression_hint["current_enabled_count"],
+                _regression_hint["missing_plugin_ids"],
+                _regression_hint["snapshot_name"],
+            )
+    except Exception:  # pragma: no cover - defensive
+        logger.debug("Post-upgrade regression check failed", exc_info=True)
 
     # Initialize and auto-start the service
     service = get_service()
@@ -2056,6 +2081,68 @@ def _list_settings_snapshots() -> list[dict[str, Any]]:
     return out
 
 
+def _detect_post_upgrade_regression() -> dict[str, Any] | None:
+    """Return a hint payload when the live config looks regressed against the
+    newest pre-update snapshot.
+
+    Signals an upgrade is likely to have dropped user state (issue #948 —
+    "integrations lost on upgrade"). We compare the snapshot's enabled
+    plugin set to the current one; if the snapshot enabled strictly more
+    plugins, point the user at /system/update/rollback so they don't have
+    to discover the recovery path on their own.
+
+    Returns ``None`` when:
+      * there are no snapshots,
+      * the newest snapshot is unreadable,
+      * the snapshot has <= 0 enabled plugins (nothing to recover),
+      * the live config has at least as many enabled plugins as the
+        snapshot (no regression detected).
+    """
+    snapshots = _list_settings_snapshots()
+    if not snapshots:
+        return None
+    newest = _resolve_snapshot_name(snapshots[0]["name"])
+    if newest is None:
+        return None
+    try:
+        snap_doc = json.loads(newest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+    snap_plugins_raw = ((snap_doc.get("data") or {}).get("config") or {}).get("plugins") or {}
+    snap_enabled = {
+        pid
+        for pid, cfg in snap_plugins_raw.items()
+        if isinstance(cfg, dict) and cfg.get("enabled")
+    }
+    if not snap_enabled:
+        return None
+
+    try:
+        live = get_config_manager().get_all_plugin_configs()
+    except Exception:  # pragma: no cover - defensive
+        return None
+    live_enabled = {
+        pid for pid, cfg in live.items() if isinstance(cfg, dict) and cfg.get("enabled")
+    }
+
+    missing = sorted(snap_enabled - live_enabled)
+    if not missing:
+        return None
+
+    return {
+        "snapshot_name": newest.name,
+        "snapshot_enabled_count": len(snap_enabled),
+        "current_enabled_count": len(live_enabled),
+        "missing_plugin_ids": missing,
+        "snapshot_app_version": (snap_doc.get("app_version") if isinstance(snap_doc, dict) else None),
+        "rollback_hint": (
+            "POST /system/update/rollback with snapshot=" + newest.name
+            + " and restore_settings=true to recover."
+        ),
+    }
+
+
 def _prune_settings_snapshots() -> None:
     """Delete all but the ``SETTINGS_SNAPSHOT_RETENTION`` newest snapshots."""
     snapshots = _list_settings_snapshots()
@@ -2116,6 +2203,7 @@ async def system_update_status():
     last = await asyncio.to_thread(_updater_last_update) if available else {}
     interval = _resolve_auto_update_interval(state)
     snapshots = await asyncio.to_thread(_list_settings_snapshots)
+    regression = await asyncio.to_thread(_detect_post_upgrade_regression)
     return UpdateStatusResponse(
         updater_available=available,
         auto_update_enabled=interval != "manual",
@@ -2130,6 +2218,7 @@ async def system_update_status():
         last_update_previous_digest=last.get("previous_digest"),
         last_update_completed_at=last.get("completed_at"),
         settings_snapshots=snapshots,
+        post_upgrade_regression=regression,
     )
 
 
@@ -3811,6 +3900,21 @@ async def get_silence_status():
     # Determine next change time (simplified - just return start or end)
     next_change_utc = end_time if active else start_time
 
+    # Wall-clock seconds until the next active/inactive transition. Lets the
+    # frontend show a "silence starts in N min" warning without re-doing the
+    # UTC + offset math the silence window uses (which has subtle edge cases
+    # around midnight rollover and DST). None when silence is disabled.
+    seconds_until_next_change: int | None = None
+    if enabled:
+        next_change_dt = time_service.parse_iso_time(next_change_utc)
+        if next_change_dt is not None:
+            delta_seconds = int((next_change_dt - current_utc).total_seconds())
+            # next_change_dt is anchored to "today" in UTC, so a negative value
+            # means the boundary already passed today and will recur tomorrow.
+            if delta_seconds < 0:
+                delta_seconds += 86_400
+            seconds_until_next_change = delta_seconds
+
     return {
         "enabled": enabled,
         "active": active,
@@ -3818,6 +3922,7 @@ async def get_silence_status():
         "end_time_utc": end_time,
         "current_time_utc": current_time_utc,
         "next_change_utc": next_change_utc,
+        "seconds_until_next_change": seconds_until_next_change,
         "mode": mode,
         "page_id": page_id,
         "indicator_text": silence_config.get("indicator_text", "SNOOZING"),

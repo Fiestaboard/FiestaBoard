@@ -1,0 +1,242 @@
+name: 'Claude: Docs Audit'
+
+# =============================================================================
+# Daily ~4pm America/Los_Angeles sweep of repo docs by Claude Sonnet.
+# Opens draft PRs for fixable errors and issues for missing/confusing docs.
+# Progress tracked in .github/docs-audit-state.json; sweep restarts from the
+# top once every file has been audited.
+#
+# Cron fires twice (paired UTC times) to stay DST-aware; the local-hour
+# gate below picks the correct one. workflow_dispatch always proceeds, so
+# you can kick off a one-off audit from the Actions tab.
+# =============================================================================
+
+on:
+  schedule:
+    # docs-audit fires twice; only one matches 16:xx America/Los_Angeles
+    # depending on DST. The job gates on the local-hour check below.
+    - cron: '7 23 * * *'   # 4:07pm PDT (summer) / 3:07pm PST
+    - cron: '7 0 * * *'    # 4:07pm PST (winter) / 5:07pm PDT
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs-audit:
+    name: Audit docs with Claude
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Gate on America/Los_Angeles local hour == 16
+        id: gate
+        # On scheduled runs, only proceed when it is actually 4pm PT.
+        # workflow_dispatch always proceeds.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hour=$(TZ=America/Los_Angeles date +%H)
+          echo "Local hour in America/Los_Angeles: $hour"
+          if [ "$hour" = "16" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: not 4pm PT (DST-paired cron firing on the other side)."
+          fi
+
+      - name: Checkout repository
+        if: steps.gate.outputs.go == 'true'
+        uses: actions/checkout@v6
+        with:
+          # RELEASE_PAT so the state-file commit can push to main past
+          # branch protection — same pattern as the plugin-stats job.
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
+
+      - name: Configure git identity
+        if: steps.gate.outputs.go == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run Claude docs audit
+        if: steps.gate.outputs.go == 'true'
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Surface the SDK transcript in the Actions log. Without this the
+          # action prints "full output hidden for security" and silent
+          # permission denials look like a clean success.
+          show_full_output: 'true'
+          # Sonnet — the user picked this tier for the recurring audit.
+          # --allowed-tools: the agent-mode default toolset is read-only, so
+          # without this allowlist every Edit/Write/`git`/`gh` call is denied
+          # and the run completes with 0 PRs + 0 issues + an unchanged state
+          # file. Bash patterns must match what the prompt actually invokes.
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 60
+            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git rev-parse:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh label list:*),Bash(gh label create:*)"
+          prompt: |
+            You are the FiestaBoard docs auditor. You run unattended once a day
+            at 4pm America/Los_Angeles and audit a small batch of repo docs.
+
+            ## Sweep state
+
+            State file: `.github/docs-audit-state.json`
+            Schema:
+              - `round`           — int, sweep number (starts at 0; bumped each restart)
+              - `round_started_at`— ISO8601 string or null
+              - `last_run_at`     — ISO8601 string or null
+              - `files_remaining` — list of relative paths still to audit this round
+              - `files_audited`   — list of relative paths already audited this round
+
+            ## Sweep logic
+
+            1. Read the state file.
+            2. If `files_remaining` is empty:
+               - Glob the repo for docs files. Include:
+                 `README.md`, `docs/**/*.md`, `plugins/*/README.md`,
+                 `plugins/*/docs/**/*.md`, `web/src/components/README.md`.
+                 Exclude `node_modules/`, `.git/`, `docs-site/node_modules/`,
+                 `web/node_modules/`, `tools/`, and anything under `.claude/`.
+               - Set `files_remaining` to the full glob, sorted.
+               - Set `files_audited` to `[]`.
+               - Bump `round` by 1 and set `round_started_at` to now (ISO8601 UTC).
+            3. Pick the first **8** entries from `files_remaining` as this run's batch.
+               If fewer than 8 remain, use what's there.
+
+            ## For each file in the batch
+
+            Read it carefully. Categorize findings into three buckets:
+
+            **A. Auto-fixable errors** — typos, broken internal links, stale
+                command examples that contradict CLAUDE.md (e.g. mention
+                `npm run dev` directly), wrong file paths, code blocks missing
+                language tags, references to renamed/removed files (verify with
+                `ls` or `grep`), out-of-order section headings vs the canonical
+                plugin doc format described in CLAUDE.md.
+
+            **B. Missing documentation** — a referenced concept, command, env
+                var, or workflow that has no documented home; a plugin without
+                a `docs/SETUP.md` or hero image; a feature in `src/` with no
+                user-facing doc.
+
+            **C. Usability / clarity issues** — instructions that are correct
+                but confusing, redundant, out-of-order, or could be simplified;
+                missing prerequisites; jargon used before definition.
+
+            Be conservative: only flag a finding if you're confident it's real.
+            False positives erode trust. If you're unsure, leave it.
+
+            ## Outputs
+
+            ### If bucket A has any findings across the batch
+
+            Create a branch `docs-audit/round-<round>-batch-<unix-timestamp>`
+            off `main`. Apply ONLY the bucket-A fixes (small, surgical edits).
+            Commit. Open a **draft** PR:
+
+              Title: `docs: auto-audit fixes (round <round>, batch <N> files)`
+              Body:
+                ## Summary
+                Auto-generated by the daily docs-audit cron. Fixes <K> issues
+                across <N> files.
+
+                ## Files touched
+                - `<path>`: <one-line description of fix>
+                - ...
+
+                ## Notes
+                - Round <round> sweep, audited <X>/<Y> files so far.
+                - Review each diff — auto-edits can introduce regressions.
+
+                🤖 Generated by the docs-audit GitHub Action.
+
+            Use `gh pr create --draft`. Never mark ready-for-review.
+
+            ### For each bucket B or C finding
+
+            File a GitHub issue. Dedupe first:
+              `gh issue list --label docs-audit --state open --limit 100 --search "<key phrase>"`
+            If an issue with the same file + topic already exists, skip it.
+
+            Issue title: `docs: <verb> <file> — <one-line summary>`
+              e.g. `docs: clarify weather plugin SETUP.md — API key step ordering`
+                   `docs: add missing docs for src/carousels schema migration flow`
+
+            Issue body:
+              ## File(s)
+              - `<path>`
+
+              ## Category
+              <Missing documentation | Usability / clarity>
+
+              ## Finding
+              <2–5 sentences describing what's missing or confusing>
+
+              ## Suggested improvement
+              <2–5 sentences proposing how to fix it>
+
+              ---
+              _Filed by the docs-audit cron during round <round>._
+
+            Labels: `docs`, `docs-audit`. Create the labels if they don't exist
+            (`gh label create docs-audit --color BFD4F2 --description "Filed by the docs-audit cron" || true`).
+
+            ## State commit
+
+            After processing the batch:
+            1. Move the batch entries from `files_remaining` to `files_audited`.
+            2. Update `last_run_at` to now (ISO8601 UTC).
+            3. Write the JSON back to `.github/docs-audit-state.json`
+               (2-space indent, trailing newline, keys in the same order as the
+               existing file).
+            4. Commit to `main` directly with the message
+               `chore(docs-audit): advance sweep state [skip ci]` and push.
+               This is the ONLY direct-to-main commit you make.
+
+            ## Hard rules
+
+            - Never push to `main` except for the single state-file commit above.
+            - Never force-push, never `--no-verify`, never `--no-gpg-sign`.
+            - Never modify non-docs source code. Edits are restricted to
+              `*.md` files and `.github/docs-audit-state.json`.
+            - Never open more than 1 PR per run.
+            - Never file more than 10 issues per run. If you'd file more,
+              keep the top 10 (most actionable) and discard the rest.
+            - If something looks ambiguous, skip it and move on. Erring on
+              the side of "do nothing" is correct for an unattended job.
+
+            ## Wrap up
+
+            Print a one-screen summary:
+              ROUND: <n> (started <date>)
+              BATCH: <files in this batch>
+              PR opened: <#N or "none">
+              Issues filed: <#A #B ...>
+              Progress: <audited>/<total> files in this round
+              Next batch: <first 3 of files_remaining or "round complete">
+
+      - name: Push state-file changes
+        if: steps.gate.outputs.go == 'true'
+        # Defensive: if the Claude step somehow leaves a staged state change
+        # without pushing (early exit, rate limit, etc.), commit + push it
+        # here. `[skip ci]` keeps this from triggering downstream workflows.
+        run: |
+          if git diff --quiet -- .github/docs-audit-state.json; then
+            echo "State file unchanged."
+            exit 0
+          fi
+          git add .github/docs-audit-state.json
+          git commit -m "chore(docs-audit): advance sweep state [skip ci]"
+          git push origin HEAD:main

@@ -126,7 +126,14 @@
     "description": "Pano ekranınızı ve sistem etkinliğini izleyin",
     "noBoardConfigured": "Pano yapılandırılmadı",
     "noBoardDescription": "Panonuz henüz kurulmadı. İçerik görüntülemeye başlamak için panonuzu bağlayın.",
-    "runSetupWizard": "Kurulum Sihirbazını Çalıştır"
+    "runSetupWizard": "Kurulum Sihirbazını Çalıştır",
+    "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
+    "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentDescriptionUnnamed": "Switch to your silence page now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentSwitchNow": "Switch now",
+    "silenceImminentDismiss": "Dismiss",
+    "silenceImminentSwitchSuccess": "Switched to silence page",
+    "silenceImminentSwitchFailed": "Could not switch to silence page"
   },
   "pages": {
     "title": "Sayfalar",

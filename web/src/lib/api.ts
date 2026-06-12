@@ -470,7 +470,9 @@ export interface SilenceStatus {
   end_time_utc: string;
   current_time_utc: string;
   next_change_utc: string;
+  seconds_until_next_change?: number | null;
   mode?: string;
+  page_id?: string | null;
   indicator_text?: string;
   indicator_position?: string;
 }
