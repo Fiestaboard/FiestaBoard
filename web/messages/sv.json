@@ -126,7 +126,14 @@
     "description": "Övervaka din tavlas visning och systemaktivitet",
     "noBoardConfigured": "Ingen tavla konfigurerad",
     "noBoardDescription": "Din tavla är inte inställd ännu. Anslut din tavla för att börja visa innehåll.",
-    "runSetupWizard": "Kör installationsguiden"
+    "runSetupWizard": "Kör installationsguiden",
+    "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
+    "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentDescriptionUnnamed": "Switch to your silence page now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentSwitchNow": "Switch now",
+    "silenceImminentDismiss": "Dismiss",
+    "silenceImminentSwitchSuccess": "Switched to silence page",
+    "silenceImminentSwitchFailed": "Could not switch to silence page"
   },
   "pages": {
     "title": "Sidor",

@@ -126,7 +126,14 @@
     "description": "Monitora la visualizzazione della bacheca e l'attività del sistema",
     "noBoardConfigured": "Nessuna bacheca configurata",
     "noBoardDescription": "La tua bacheca non è ancora configurata. Collega la tua bacheca per iniziare a mostrare contenuti.",
-    "runSetupWizard": "Avvia procedura guidata"
+    "runSetupWizard": "Avvia procedura guidata",
+    "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
+    "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentDescriptionUnnamed": "Switch to your silence page now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentSwitchNow": "Switch now",
+    "silenceImminentDismiss": "Dismiss",
+    "silenceImminentSwitchSuccess": "Switched to silence page",
+    "silenceImminentSwitchFailed": "Could not switch to silence page"
   },
   "pages": {
     "title": "Pagine",

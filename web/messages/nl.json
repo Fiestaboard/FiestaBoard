@@ -126,7 +126,14 @@
     "description": "Bekijk je bordweergave en systeemactiviteit",
     "noBoardConfigured": "Geen bord geconfigureerd",
     "noBoardDescription": "Je bord is nog niet ingesteld. Verbind je bord om inhoud weer te geven.",
-    "runSetupWizard": "Installatiewizard starten"
+    "runSetupWizard": "Installatiewizard starten",
+    "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
+    "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentDescriptionUnnamed": "Switch to your silence page now so you don't have to wait for the schedule to catch up.",
+    "silenceImminentSwitchNow": "Switch now",
+    "silenceImminentDismiss": "Dismiss",
+    "silenceImminentSwitchSuccess": "Switched to silence page",
+    "silenceImminentSwitchFailed": "Could not switch to silence page"
   },
   "pages": {
     "title": "Pagina's",

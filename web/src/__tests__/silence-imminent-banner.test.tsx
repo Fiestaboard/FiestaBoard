@@ -52,9 +52,7 @@ function setupHandlers(opts: {
         },
       }),
     ),
-    http.get(`${API_BASE}/settings/active-page`, () =>
-      HttpResponse.json({ page_id: opts.manualPageId ?? null }),
-    ),
+    http.get(`${API_BASE}/settings/active-page`, () => HttpResponse.json({ page_id: opts.manualPageId ?? null })),
     http.get(`${API_BASE}/pages`, () =>
       HttpResponse.json({
         pages: opts.pages ?? [{ id: "page-quiet", name: "Quiet" }],

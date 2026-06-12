@@ -46,9 +46,7 @@ export function SilenceImminentBanner() {
   });
   const { data: manualActivePage } = useActivePage();
   const scheduleEnabled = activeScheduleData?.schedule_enabled ?? false;
-  const activePageId = scheduleEnabled
-    ? (activeScheduleData?.page_id ?? null)
-    : (manualActivePage?.page_id ?? null);
+  const activePageId = scheduleEnabled ? (activeScheduleData?.page_id ?? null) : (manualActivePage?.page_id ?? null);
 
   const switchNowMutation = useMutation({
     mutationFn: (vars: { pageId: string; durationMinutes: number }) =>

@@ -401,9 +401,7 @@ class TestSilenceStatusSecondsUntilNextChange:
         assert data["active"] is True
         assert data["seconds_until_next_change"] == 30 * 60
 
-    def test_wraps_to_tomorrow_when_boundary_already_passed(
-        self, client, mock_config_manager_for_silence, monkeypatch
-    ):
+    def test_wraps_to_tomorrow_when_boundary_already_passed(self, client, mock_config_manager_for_silence, monkeypatch):
         """parse_iso_time anchors to today; if start is earlier than now, add 24h."""
         self._patch_now(monkeypatch, "2024-01-15T13:00:00")
         client.put(
