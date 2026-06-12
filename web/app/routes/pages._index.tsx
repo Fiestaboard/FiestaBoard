@@ -120,10 +120,7 @@ export default function PagesPage() {
   const t = useTranslations("pages");
   const { data: boardSettings } = useBoardSettings();
   const { data: pagesData } = usePages();
-  const configuredDevices = useMemo<DeviceType[]>(
-    () => boardSettings?.devices ?? ["flagship"],
-    [boardSettings],
-  );
+  const configuredDevices = useMemo<DeviceType[]>(() => boardSettings?.devices ?? ["flagship"], [boardSettings]);
   // Surface pages whose device_type isn't in the user's configured boards
   // (e.g. flagship demo pages on a note-only setup) so they can still be
   // edited or deleted. See issue #943.

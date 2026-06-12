@@ -74,9 +74,7 @@ function mockPages(pages: { id: string; name: string; device_type: "flagship" | 
   );
   // Page previews batch is called when grid renders; respond with empty so
   // the component finishes loading.
-  server.use(
-    http.post(`${API_BASE}/pages/preview-batch`, () => HttpResponse.json({ previews: {} })),
-  );
+  server.use(http.post(`${API_BASE}/pages/preview-batch`, () => HttpResponse.json({ previews: {} })));
   // Collections — empty.
   server.use(http.get(`${API_BASE}/collections`, () => HttpResponse.json({ collections: [] })));
 }
