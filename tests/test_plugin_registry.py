@@ -1429,9 +1429,7 @@ def test_auto_migrate_no_op_when_retry_queue_resolved(
     with patch("src.config_manager.get_config_manager") as mock_cm:
         mock_cm.return_value.is_v2_plugin_migration_done.return_value = True
         mock_cm.return_value.get_v2_plugin_failed_installs.return_value = ["muni"]
-        mock_cm.return_value.get_all_plugin_configs.return_value = {
-            "muni": {"enabled": True, "stop_code": "15726"}
-        }
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"muni": {"enabled": True, "stop_code": "15726"}}
         registry.initialize()
 
     # No registry lookups, no install attempts.

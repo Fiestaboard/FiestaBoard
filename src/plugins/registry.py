@@ -410,9 +410,7 @@ class PluginRegistry:
             if not failed:
                 return
             loaded_ids = set(self._plugins.keys())
-            orphan_subset = {
-                pid for pid in failed if pid in stored_configs and pid not in loaded_ids
-            }
+            orphan_subset = {pid for pid in failed if pid in stored_configs and pid not in loaded_ids}
             if not orphan_subset:
                 # Everything that failed has since been resolved (installed
                 # manually, uninstalled deliberately, or otherwise reconciled).
