@@ -2,16 +2,8 @@
   "schema_version": 1,
   "round": 1,
   "round_started_at": "2026-06-12T05:16:50Z",
-  "last_run_at": "2026-06-12T05:16:50Z",
+  "last_run_at": "2026-06-12T23:12:36Z",
   "files_remaining": [
-    "docs/setup/MCP_CLIENTS.md",
-    "docs/setup/RASPBERRY_PI.md",
-    "docs/setup/RELEASE_CHECKLIST.md",
-    "docs/setup/UPDATING.md",
-    "plugins/_template/README.md",
-    "plugins/_template/docs/SETUP.md",
-    "plugins/countdown/README.md",
-    "plugins/countdown/docs/SETUP.md",
     "plugins/date_time/README.md",
     "plugins/date_time/docs/SETUP.md",
     "plugins/random/README.md",
@@ -25,6 +17,14 @@
     "docs/development/TECHNICAL_DEBT.md",
     "docs/development/VISUAL_REGRESSION.md",
     "docs/setup/AI_PROVIDERS.md",
-    "docs/setup/LOCAL_DEVELOPMENT.md"
+    "docs/setup/LOCAL_DEVELOPMENT.md",
+    "docs/setup/MCP_CLIENTS.md",
+    "docs/setup/RASPBERRY_PI.md",
+    "docs/setup/RELEASE_CHECKLIST.md",
+    "docs/setup/UPDATING.md",
+    "plugins/_template/README.md",
+    "plugins/_template/docs/SETUP.md",
+    "plugins/countdown/README.md",
+    "plugins/countdown/docs/SETUP.md"
   ]
 }
