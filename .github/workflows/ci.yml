@@ -6,8 +6,17 @@ on:
   pull_request:
     # Run on all PRs regardless of target branch (validate before merge)
     branches: [ '**' ]
+  # Required so the `CI Success` status check reports on the merge-queue
+  # SHA. Without this, GitHub waits `check_response_timeout_minutes` for a
+  # check that never fires and removes the PR with "no response for
+  # status checks". See `dorny/paths-filter` — it diffs the merge SHA
+  # against main, so the existing path filters keep heavy jobs skipped
+  # when the merge commit touches nothing they care about.
+  merge_group:
 
 concurrency:
+  # On merge_group there is no pull_request.number, so this falls back to
+  # the merge SHA — unique per queue entry, so no cross-queue cancels.
   group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
