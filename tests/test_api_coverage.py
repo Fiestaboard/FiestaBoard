@@ -834,9 +834,14 @@ class TestSilenceStatus:
 
     def test_silence_disabled(self, client, mock_config_manager):
         """Silence disabled returns active=False."""
+        from datetime import UTC, datetime
+
         with patch("src.time_service.get_time_service") as mock_ts:
             ts = Mock()
-            ts.get_current_utc.return_value = Mock(strftime=Mock(return_value="12:00+00:00"))
+            # Use a real datetime so the endpoint can subtract from
+            # parse_iso_time(next_change_utc) when computing seconds_until_next_change.
+            ts.get_current_utc.return_value = datetime(2024, 1, 15, 12, 0, tzinfo=UTC)
+            ts.parse_iso_time.return_value = None
             mock_ts.return_value = ts
             response = client.get("/silence-status")
             assert response.status_code == 200
@@ -846,6 +851,8 @@ class TestSilenceStatus:
 
     def test_silence_enabled_active(self, client, mock_config_manager):
         """Silence enabled and currently active."""
+        from datetime import UTC, datetime
+
         mock_config_manager.get_feature.return_value = {
             "enabled": True,
             "start_time": "22:00+00:00",
@@ -854,7 +861,9 @@ class TestSilenceStatus:
         with patch("src.time_service.get_time_service") as mock_ts:
             ts = Mock()
             ts.is_time_in_window.return_value = True
-            ts.get_current_utc.return_value = Mock(strftime=Mock(return_value="23:00+00:00"))
+            ts.get_current_utc.return_value = datetime(2024, 1, 15, 23, 0, tzinfo=UTC)
+            # parse_iso_time of "06:00+00:00" anchored to today.
+            ts.parse_iso_time.return_value = datetime(2024, 1, 15, 6, 0, tzinfo=UTC)
             mock_ts.return_value = ts
             response = client.get("/silence-status")
             data = response.json()
@@ -864,6 +873,8 @@ class TestSilenceStatus:
 
     def test_silence_enabled_inactive(self, client, mock_config_manager):
         """Silence enabled but not currently active."""
+        from datetime import UTC, datetime
+
         mock_config_manager.get_feature.return_value = {
             "enabled": True,
             "start_time": "22:00+00:00",
@@ -872,7 +883,9 @@ class TestSilenceStatus:
         with patch("src.time_service.get_time_service") as mock_ts:
             ts = Mock()
             ts.is_time_in_window.return_value = False
-            ts.get_current_utc.return_value = Mock(strftime=Mock(return_value="12:00+00:00"))
+            ts.get_current_utc.return_value = datetime(2024, 1, 15, 12, 0, tzinfo=UTC)
+            # parse_iso_time of "22:00+00:00" anchored to today.
+            ts.parse_iso_time.return_value = datetime(2024, 1, 15, 22, 0, tzinfo=UTC)
             mock_ts.return_value = ts
             response = client.get("/silence-status")
             data = response.json()
