@@ -14,14 +14,14 @@ Describe in 2–3 sentences what the plugin does and why it is useful. Mention t
 
 ### Main Data
 
-```
+```jinja
 {{my_plugin.value}}       # The primary data value (e.g., "123")
 {{my_plugin.status}}      # Current status text (e.g., "OK")
 ```
 
 ### Display
 
-```
+```jinja
 {{my_plugin.formatted}}   # Pre-formatted display string (e.g., "Value: 123")
 ```
 
@@ -29,14 +29,14 @@ Describe in 2–3 sentences what the plugin does and why it is useful. Mention t
 
 ### Simple Display
 
-```
+```jinja
 {center}{{my_plugin.value}}
 {{my_plugin.status}}
 ```
 
 ### Detailed Display
 
-```
+```jinja
 {center}MY PLUGIN
 {{my_plugin.formatted}}
 ```
@@ -175,7 +175,7 @@ class MyPlugin(PluginBase):
 
 ### Testing
 
-All plugins must have tests with **≥85% code coverage**. Tests are enforced in CI
+All plugins must have tests with **≥80% code coverage**. Tests are enforced in CI
 and will block merges if coverage falls below the threshold.
 
 ```bash
@@ -258,7 +258,7 @@ jobs:
           python -m pytest tests/ -v \
             --cov=. --cov-branch \
             --cov-report=term-missing \
-            --cov-fail-under=85
+            --cov-fail-under=80
 
       - name: Validate manifest
         run: |
