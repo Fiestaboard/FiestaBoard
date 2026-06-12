@@ -375,14 +375,20 @@ class PluginRegistry:
         from the registry, and restores the stored configuration and enabled state
         — giving users a seamless, zero-data-loss upgrade experience.
 
-        One-shot semantics (issue #937): this runs exactly once per install,
-        gated by a persisted flag. After the first run, an "orphaned" config is
-        treated as a deliberate uninstall and is left alone — otherwise the
-        next boot would silently re-clone any plugin the user just deleted.
-        A transient failure (e.g. registry unreachable) still flips the flag;
-        the user can install the missing plugin manually from the Integrations
-        page, which is far better than the alternative of every uninstall
-        being undone the next time the network blips.
+        One-shot semantics with bounded retry (issues #937, #948):
+
+        * The migration sets a persisted ``v2_completed`` flag so an
+          "orphaned" config is treated as a deliberate uninstall on every
+          subsequent boot — not silently re-installed. (Without this the
+          next boot would resurrect any plugin the user just deleted.)
+        * Per-plugin install failures (e.g. transient network blip while
+          cloning from the registry) are recorded in
+          ``plugin_migrations.v2_failed_installs``. On the next boot,
+          if any of those ids still appear as orphaned stored configs,
+          we retry just those — preserving the "stop reinstalling
+          deliberately-deleted plugins" invariant while letting a flaky
+          first boot recover. Once the list is empty the migration goes
+          fully dormant.
         """
         try:
             from src.config_manager import get_config_manager
@@ -392,23 +398,58 @@ class PluginRegistry:
             logger.warning("V3 migration: could not access config manager — skipping: %s", exc)
             return
 
-        if cm.is_v2_plugin_migration_done():
-            return
+        first_run = not cm.is_v2_plugin_migration_done()
+        if first_run:
+            loaded_ids = set(self._plugins.keys())
+            orphan_subset: set[str] | None = None
+        else:
+            # Subsequent boots: only retry plugins that failed on a previous
+            # run AND still have a stored config (i.e. the user hasn't
+            # uninstalled them in the meantime).
+            failed = cm.get_v2_plugin_failed_installs()
+            if not failed:
+                return
+            loaded_ids = set(self._plugins.keys())
+            orphan_subset = {pid for pid in failed if pid in stored_configs and pid not in loaded_ids}
+            if not orphan_subset:
+                # Everything that failed has since been resolved (installed
+                # manually, uninstalled deliberately, or otherwise reconciled).
+                cm.clear_v2_plugin_failed_installs()
+                return
 
-        try:
-            self._run_v2_plugin_migration(stored_configs)
-        finally:
+        failures = self._run_v2_plugin_migration(
+            stored_configs,
+            loaded_ids=loaded_ids,
+            orphan_subset=orphan_subset,
+        )
+
+        if first_run:
             cm.mark_v2_plugin_migration_done()
+        cm.set_v2_plugin_failed_installs(failures)
 
-    def _run_v2_plugin_migration(self, stored_configs: dict[str, dict[str, Any]]) -> None:
-        """Body of the one-shot v2→v3 migration. See `_auto_migrate_v2_plugins`."""
-        loaded_ids = set(self._plugins.keys())
+    def _run_v2_plugin_migration(
+        self,
+        stored_configs: dict[str, dict[str, Any]],
+        *,
+        loaded_ids: set[str] | None = None,
+        orphan_subset: set[str] | None = None,
+    ) -> list[str]:
+        """Body of the v2→v3 migration. See `_auto_migrate_v2_plugins`.
+
+        Returns the list of plugin ids that we attempted to install but
+        could not (registry-clone failure). The caller persists this so
+        we can retry just those on the next boot.
+        """
+        if loaded_ids is None:
+            loaded_ids = set(self._plugins.keys())
         # Instance keys (e.g. "countdown:fijiaustralia") are restored separately
         # by ``_restore_instances`` and must not be treated as orphaned base
         # plugins — their base ID is what gets installed from the registry.
         orphaned = [pid for pid in stored_configs if pid not in loaded_ids and not self.is_instance_key(pid)]
+        if orphan_subset is not None:
+            orphaned = [pid for pid in orphaned if pid in orphan_subset]
         if not orphaned:
-            return
+            return []
 
         logger.info(
             "V3 migration: found %d plugin config(s) with no matching installed plugin: %s",
@@ -420,9 +461,15 @@ class PluginRegistry:
             registry_entries = load_registry()
             registry_map = {e.plugin_id: e for e in registry_entries}
         except Exception as exc:
-            logger.warning("V3 migration: could not load plugin registry — skipping auto-install: %s", exc)
-            return
+            logger.warning(
+                "V3 migration: could not load plugin registry — skipping auto-install: %s",
+                exc,
+            )
+            # Treat as "everything in scope is currently a transient failure"
+            # so we get one more shot at it on the next boot.
+            return list(orphaned)
 
+        failed: list[str] = []
         migrated: list[str] = []
         for plugin_id in orphaned:
             if plugin_id not in registry_map:
@@ -438,10 +485,11 @@ class PluginRegistry:
             if errors:
                 logger.error(
                     "V3 migration: failed to install '%s': %s. "
-                    "Install it manually from the Integrations page if you still want it.",
+                    "Will retry on the next boot if the config is still present.",
                     plugin_id,
                     errors,
                 )
+                failed.append(plugin_id)
                 continue
 
             # install_from_registry() registers the plugin with enabled=False and
@@ -463,6 +511,8 @@ class PluginRegistry:
                 len(migrated),
                 migrated,
             )
+
+        return failed
 
     def get_plugin(self, plugin_id: str) -> PluginBase | None:
         """Get a plugin by ID.

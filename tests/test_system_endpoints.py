@@ -1,9 +1,10 @@
 """Tests for system management endpoints (update check)."""
 
+import json
 import os
 from datetime import UTC
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 from urllib.parse import urlparse
 
 import pytest
@@ -689,6 +690,83 @@ class TestSettingsSnapshots:
 
         survivors = api._list_settings_snapshots()
         assert len(survivors) == 5
+
+    def test_detect_regression_flags_missing_enabled_plugins(self, tmp_path, monkeypatch):
+        """When the newest snapshot has more enabled plugins than the live
+        config, the detector returns a recovery hint pointing at the rollback
+        endpoint. This is the visible-to-the-user half of issue #948.
+        """
+        from src import api_server as api
+
+        snap_dir = tmp_path / "update-backups"
+        snap_dir.mkdir()
+        monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
+
+        # Plant a snapshot whose recorded config had 3 enabled plugins.
+        snap_doc = {
+            "fiestaboard_backup": True,
+            "schema_version": 1,
+            "app_version": "7.0.10",
+            "data": {
+                "config": {
+                    "plugins": {
+                        "weather": {"enabled": True, "api_key": "k"},
+                        "muni": {"enabled": True, "stop_code": "1"},
+                        "stocks": {"enabled": False, "symbols": []},
+                        "date_time": {"enabled": True},
+                    }
+                }
+            },
+        }
+        target = snap_dir / "pre-update-20260611T030000.000Z.json"
+        target.write_text(json.dumps(snap_doc))
+
+        # Live config currently only has date_time enabled (the post-upgrade
+        # state DarthXoc reported).
+        mock_cm = MagicMock()
+        mock_cm.get_all_plugin_configs.return_value = {
+            "weather": {"enabled": False},
+            "muni": {"enabled": False},
+            "date_time": {"enabled": True},
+        }
+        monkeypatch.setattr(api, "get_config_manager", lambda: mock_cm)
+
+        hint = api._detect_post_upgrade_regression()
+        assert hint is not None
+        assert hint["snapshot_name"] == target.name
+        assert hint["snapshot_enabled_count"] == 3
+        assert hint["current_enabled_count"] == 1
+        assert sorted(hint["missing_plugin_ids"]) == ["muni", "weather"]
+        assert "rollback" in hint["rollback_hint"]
+
+    def test_detect_regression_returns_none_when_caught_up(self, tmp_path, monkeypatch):
+        """A clean upgrade (no plugin loss) does not produce a recovery hint."""
+        from src import api_server as api
+
+        snap_dir = tmp_path / "update-backups"
+        snap_dir.mkdir()
+        monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
+
+        snap_doc = {
+            "fiestaboard_backup": True,
+            "data": {"config": {"plugins": {"weather": {"enabled": True}}}},
+        }
+        (snap_dir / "pre-update-20260611T030000.000Z.json").write_text(json.dumps(snap_doc))
+
+        mock_cm = MagicMock()
+        mock_cm.get_all_plugin_configs.return_value = {"weather": {"enabled": True, "api_key": "k"}}
+        monkeypatch.setattr(api, "get_config_manager", lambda: mock_cm)
+
+        assert api._detect_post_upgrade_regression() is None
+
+    def test_detect_regression_returns_none_when_no_snapshots(self, tmp_path, monkeypatch):
+        """No snapshots → nothing to compare against → no hint."""
+        from src import api_server as api
+
+        snap_dir = tmp_path / "update-backups"
+        monkeypatch.setattr(api, "SETTINGS_SNAPSHOT_DIR", snap_dir)
+
+        assert api._detect_post_upgrade_regression() is None
 
     def test_resolve_rejects_path_traversal(self, tmp_path, monkeypatch):
         """``..`` and absolute paths must not escape the snapshot dir."""
