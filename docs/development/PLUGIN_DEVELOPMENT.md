@@ -562,7 +562,7 @@ Access settings and metadata through these properties on `PluginBase`:
 | `self.get_env_vars()` | method | The `env_vars` array from the manifest |
 | `self.clear_cache()` | method | Force a fresh `fetch_data()` on the next `get_data()` |
 
-> **Heads up:** The base class does **not** expose a `self.get_config(...)` method — call `self.config.get(...)` instead. The bundled `plugins/_template/__init__.py` still calls `self.get_config()` and would raise `AttributeError` at runtime; treat it as pseudo-code until that template is fixed.
+> **Heads up:** The base class does **not** expose a `self.get_config(...)` method — call `self.config.get(...)` instead.
 
 ### PluginResult
 
