@@ -1,6 +1,6 @@
 # Local Development Guide
 
-This guide is for **contributors and plugin developers** who want to work on FiestaBoard's code. If you just want to host a FiestaBoard server to control your board, see the [Quick Start](../../README.md#-quick-start) in the README instead.
+This guide is for **contributors and plugin developers** who want to work on FiestaBoard's code. If you just want to host a FiestaBoard server to control your board, see the [Get Started in 5 Minutes](../../README.md#get-started-in-5-minutes) in the README instead.
 
 **Dev and CI match production:** Development and CI both use the same single-container layout as production (API + UI on port 4420, API under `/api/*`). Dev adds mounted source and API `--reload`; CI builds the production image and runs E2E against it.
 
