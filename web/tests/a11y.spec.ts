@@ -76,11 +76,15 @@ async function auditPage(page: Page, path: string, waitForSelector?: string) {
 
 test.describe("Accessibility (axe)", () => {
   test.beforeEach(async ({ page }) => {
-    await configureBoard();
-    await resetToSingleBoard();
-    await suppressWizard(page);
-    await deleteAllSchedules();
-    await deleteAllPages();
+    await Promise.all([
+      (async () => {
+        await configureBoard();
+        await resetToSingleBoard();
+      })(),
+      suppressWizard(page),
+      deleteAllSchedules(),
+      deleteAllPages(),
+    ]);
   });
 
   test("dashboard (empty) has no critical or serious a11y violations", async ({ page }) => {

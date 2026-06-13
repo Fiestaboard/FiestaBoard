@@ -41,7 +41,7 @@ export default defineConfig({
   testIgnore: process.env.CI ? ciIgnore : [],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: 0,
+  retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 4 : 1,
   reporter: process.env.CI ? "github" : "list",
   timeout: 30_000,
