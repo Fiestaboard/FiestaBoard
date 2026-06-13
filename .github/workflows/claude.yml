@@ -31,8 +31,13 @@ jobs:
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: read
+      # contents/pull-requests are write so the @claude bot can commit and
+      # push fixes back to the PR branch when asked. Without write here, the
+      # action's git push fails 403 — see PR #980 comment 4699425518. Feature
+      # branches aren't protection-gated, so the default GITHUB_TOKEN is
+      # enough (no PAT needed); main is still protected separately.
+      contents: write
+      pull-requests: write
       issues: read
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
