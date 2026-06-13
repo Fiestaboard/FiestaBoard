@@ -16,7 +16,7 @@ The Countdown plugin shows the remaining days, hours, minutes, and seconds until
 
 ```jinja
 {{countdown.event_name}}       # Name of the event (e.g., "Last Day of School")
-{{countdown.target_datetime}}  # Target datetime string (e.g., "2025-06-15T00:00:00")
+{{countdown.target_datetime}}  # Target datetime string (e.g., "2027-01-01T00:00:00")
 {{countdown.is_expired}}       # "true" if the event has passed, "false" otherwise
 ```
 
@@ -72,7 +72,7 @@ The Countdown plugin shows the remaining days, hours, minutes, and seconds until
 |---------|------|---------|-------------|
 | enabled | boolean | false | Enable/disable the plugin |
 | event_name | string | "Event" | Name of the event to count down to |
-| target_datetime | string | *(required)* | Target date/time in ISO format (e.g., `2025-06-15T00:00:00`) |
+| target_datetime | string | *(required)* | Target date/time in ISO format (e.g., `2027-01-01T00:00:00`) |
 | timezone | string | "America/Los_Angeles" | IANA timezone name |
 
 ## Features
