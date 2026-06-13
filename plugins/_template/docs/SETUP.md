@@ -39,7 +39,7 @@ In the FiestaBoard web UI:
 
 Example template:
 
-```
+```jinja
 {center}MY PLUGIN
 {{my_plugin.value}}
 {{my_plugin.status}}
