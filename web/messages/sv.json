@@ -760,7 +760,13 @@
     "boardNamePlaceholder": "t.ex. Köks-Board, Kontors-Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
-    "failedToEnable": "Kunde inte aktivera lokalt API"
+    "failedToEnable": "Kunde inte aktivera lokalt API",
+    "pause": {
+      "toggle": "Pause sends",
+      "resumeToggle": "Resume sends",
+      "badge": "Paused",
+      "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Uppdatering tillgänglig",

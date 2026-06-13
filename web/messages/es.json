@@ -760,7 +760,13 @@
     "boardNamePlaceholder": "p. ej. Tablero Cocina, Note Oficina",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
-    "failedToEnable": "Error al activar la API local"
+    "failedToEnable": "Error al activar la API local",
+    "pause": {
+      "toggle": "Pause sends",
+      "resumeToggle": "Resume sends",
+      "badge": "Paused",
+      "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Actualización disponible",

@@ -760,7 +760,13 @@
     "boardNamePlaceholder": "例如:厨房 Board、办公室 Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
-    "failedToEnable": "启用本地 API 失败"
+    "failedToEnable": "启用本地 API 失败",
+    "pause": {
+      "toggle": "Pause sends",
+      "resumeToggle": "Resume sends",
+      "badge": "Paused",
+      "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "有可用更新",

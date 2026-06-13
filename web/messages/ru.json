@@ -760,7 +760,13 @@
     "boardNamePlaceholder": "напр. Кухонный Board, Офисный Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
-    "failedToEnable": "Не удалось включить локальный API"
+    "failedToEnable": "Не удалось включить локальный API",
+    "pause": {
+      "toggle": "Pause sends",
+      "resumeToggle": "Resume sends",
+      "badge": "Paused",
+      "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Доступно обновление",

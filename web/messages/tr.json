@@ -760,7 +760,13 @@
     "boardNamePlaceholder": "ör. Mutfak Board, Ofis Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
-    "failedToEnable": "Yerel API etkinleştirilemedi"
+    "failedToEnable": "Yerel API etkinleştirilemedi",
+    "pause": {
+      "toggle": "Pause sends",
+      "resumeToggle": "Resume sends",
+      "badge": "Paused",
+      "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Güncelleme Mevcut",
