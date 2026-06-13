@@ -417,9 +417,7 @@ export function DisplaySettings() {
                 key={board.id}
                 data-testid="board-card"
                 data-paused={isPaused ? "true" : undefined}
-                className={`rounded-lg border overflow-hidden ${
-                  isPaused ? "border-amber-500/60 bg-amber-500/5" : ""
-                }`}
+                className={`rounded-lg border overflow-hidden ${isPaused ? "border-amber-500/60 bg-amber-500/5" : ""}`}
               >
                 <CollapsibleTrigger className="flex items-center gap-3 p-3 w-full text-left hover:bg-muted/40 transition-colors [&[data-state=open]>div:first-child>svg:first-child]:hidden [&[data-state=closed]>div:first-child>svg:last-child]:hidden">
                   <div className="flex-shrink-0 text-muted-foreground">

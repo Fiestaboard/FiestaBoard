@@ -223,10 +223,7 @@ export function ActivePageDisplay() {
   // paused FiestaBoard does not push anything to it from any code path —
   // mirror the settings-page badge here so users aren't confused by a board
   // that appears "stuck" while paused.
-  const pausedBoards = useMemo(
-    () => (boardSettings?.boards ?? []).filter((b) => b.paused === true),
-    [boardSettings],
-  );
+  const pausedBoards = useMemo(() => (boardSettings?.boards ?? []).filter((b) => b.paused === true), [boardSettings]);
   const showBoardNameOnPauseBadge = (boardSettings?.boards?.length ?? 0) > 1;
 
   // Fetch collections for name resolution and badge display
