@@ -92,7 +92,9 @@ describe("use-board extended", () => {
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
         const boardKeyCalls = () =>
-          spy.mock.calls.filter(([opts]) => Array.isArray(opts?.queryKey) && opts.queryKey[0] === "board-current-message");
+          spy.mock.calls.filter(
+            ([opts]) => Array.isArray(opts?.queryKey) && opts.queryKey[0] === "board-current-message",
+          );
 
         // Before the first scheduled tick, no board-state invalidations yet.
         expect(boardKeyCalls()).toHaveLength(0);
