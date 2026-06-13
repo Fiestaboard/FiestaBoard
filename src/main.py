@@ -45,7 +45,12 @@ class DisplayService:
         self._polled_characters: list[list[int]] | None = None
         self._polled_at: float | None = None
         self._poll_thread: threading.Thread | None = None
-        self._pending_refresh_timer: threading.Timer | None = None
+        # Adaptive post-send refresh: a background thread polls the board
+        # on a short ramp after each send and stops early once the read
+        # matches what we just sent. ``_refresh_cancel`` lets a subsequent
+        # call abort an in-flight cycle so rapid sends don't pile up.
+        self._refresh_thread: threading.Thread | None = None
+        self._refresh_cancel: threading.Event | None = None
 
     def _build_board_clients(self):
         """Build board clients from settings.boards (first with connection) or Config. Sets self.vb_client."""
@@ -115,28 +120,67 @@ class DisplayService:
                 logger.debug(f"Board state poll failed: {e}")
             time.sleep(interval)
 
-    def request_board_refresh(self, delay_seconds: float = 3.0) -> None:
-        """Schedule a one-shot board-state read shortly after a page is sent.
+    def request_board_refresh(
+        self,
+        initial_delay_seconds: float = 0.5,
+        retry_interval_seconds: float = 1.0,
+        max_total_seconds: float = 3.0,
+    ) -> None:
+        """Adaptively poll the board after a send so the cached state catches up
+        quickly without waiting for the next full poll interval.
 
-        Cancels any pending refresh so rapid sends don't stack up timers.
+        Strategy: sleep ``initial_delay_seconds``, read the board. If the read
+        matches what we just sent, update the cache and stop. Otherwise sleep
+        ``retry_interval_seconds`` and try again, until ``max_total_seconds``
+        elapses. The latest successful read is always cached, so the display
+        cache improves even when we never observe a match (e.g. during a long
+        transition animation).
+
+        A subsequent call cancels any in-flight refresh so rapid sends don't
+        stack up threads.
         """
-        if self._pending_refresh_timer is not None and self._pending_refresh_timer.is_alive():
-            self._pending_refresh_timer.cancel()
+        # Cancel any in-flight refresh from a prior send.
+        if self._refresh_cancel is not None:
+            self._refresh_cancel.set()
+
+        client = self.vb_client
+        if client is None:
+            return
+
+        cancel = threading.Event()
+        self._refresh_cancel = cancel
+
+        # Snapshot what we just sent so we can detect when the board has
+        # caught up. May be None if no send has happened on this client yet.
+        last_sent = getattr(client, "_last_characters", None)
+        expected = [row[:] for row in last_sent] if isinstance(last_sent, list) and last_sent else None
 
         def _do_refresh() -> None:
-            if self.vb_client:
+            start = time.monotonic()
+            if cancel.wait(initial_delay_seconds):
+                return
+            while True:
                 try:
-                    chars = self.vb_client.read_current_message()
+                    chars = client.read_current_message()
                     if chars:
                         self._polled_characters = chars
                         self._polled_at = time.time()
-                        logger.debug("Post-send board state refresh completed")
+                        if expected is not None and chars == expected:
+                            logger.debug("Post-send refresh: board state matches sent content")
+                            return
                 except Exception as e:
                     logger.debug(f"Post-send board state refresh failed: {e}")
 
-        self._pending_refresh_timer = threading.Timer(delay_seconds, _do_refresh)
-        self._pending_refresh_timer.daemon = True
-        self._pending_refresh_timer.start()
+                elapsed = time.monotonic() - start
+                if elapsed >= max_total_seconds:
+                    return
+                wait_secs = min(retry_interval_seconds, max_total_seconds - elapsed)
+                if cancel.wait(wait_secs):
+                    return
+
+        thread = threading.Thread(target=_do_refresh, daemon=True)
+        self._refresh_thread = thread
+        thread.start()
 
     def initialize(self) -> bool:
         """Initialize all components."""

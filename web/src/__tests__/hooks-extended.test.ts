@@ -64,6 +64,54 @@ describe("use-board extended", () => {
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
       expect(result.current.data?.page_id).toBeNull();
     });
+
+    it("invalidates board-current-message shortly after success and again as a safety net", async () => {
+      // The backend's post-send adaptive refresh updates its cache within ~3s.
+      // We invalidate twice from the client: once at ~750ms to catch the
+      // fast local-API case, and once at ~3500ms after the backend's window
+      // closes. Otherwise the user waits up to 30s for the next poll tick.
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const queryClient = new QueryClient({
+          defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+          },
+        });
+        const spy = vi.spyOn(queryClient, "invalidateQueries");
+
+        function Wrapper({ children }: { children: React.ReactNode }) {
+          return React.createElement(QueryClientProvider, { client: queryClient }, children);
+        }
+
+        const { result } = renderHook(() => useSetActivePage(), { wrapper: Wrapper });
+
+        await act(async () => {
+          result.current.mutate("page-1");
+        });
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        const boardKeyCalls = () =>
+          spy.mock.calls.filter(([opts]) => Array.isArray(opts?.queryKey) && opts.queryKey[0] === "board-current-message");
+
+        // Before the first scheduled tick, no board-state invalidations yet.
+        expect(boardKeyCalls()).toHaveLength(0);
+
+        // After ~750ms, the first invalidate should have fired.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(800);
+        });
+        expect(boardKeyCalls().length).toBeGreaterThanOrEqual(1);
+
+        // After ~3500ms total, the second (safety-net) invalidate should have fired.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(3000);
+        });
+        expect(boardKeyCalls().length).toBeGreaterThanOrEqual(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("usePagePreview", () => {
