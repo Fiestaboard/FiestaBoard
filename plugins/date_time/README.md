@@ -48,7 +48,7 @@ The Date & Time plugin exposes the current date and time in the timezone you con
 |----------|-------------|---------|
 | `{{date_time.datetime}}` | Date + 24h time | `2025-03-21 14:30` |
 | `{{date_time.date_us}}` | US date (`MM/DD/YYYY`) | `03/21/2025` |
-| `{{date_time.date_us_short}}` | Short US date (`M/D/YY`) | `3/21/25` |
+| `{{date_time.date_us_short}}` | Short US date (`MM/DD/YY`) | `03/21/25` |
 | `{{date_time.time_english}}` | Spoken English time expression | `IT'S A QUARTER PAST ONE IN THE AFTERNOON.` |
 
 ## Example Templates
