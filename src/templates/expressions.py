@@ -182,13 +182,30 @@ def _tokenize(source: str) -> list[Token]:
             tokens.append(Token(_T_STRING, "".join(buf), start))
             continue
 
-        # Identifier / keyword: letters, digits, underscore, ':' (plugin instance)
-        # and '.' (dotted paths). We keep dotted paths as a single IDENT.
+        # Identifier / keyword: letters, digits, underscore, ':' (plugin instance),
+        # '.' (dotted paths), and '-' inside plugin instance labels.  We keep
+        # dotted paths as a single IDENT.
+        #
+        # ``-`` is only consumed when sandwiched between two identifier
+        # characters (e.g. ``my-cal``).  Free-standing ``-`` -- including
+        # ``foo - 1`` and trailing ``foo-`` -- remains a binary/unary minus
+        # operator.  This matches how plain ``{{plugin:instance.field}}``
+        # substitution treats instance labels with hyphens (issue #969) without
+        # breaking arithmetic that doesn't use whitespace.
         if ch.isalpha() or ch == "_":
             start = i
             i += 1
-            while i < n and (source[i].isalnum() or source[i] in ("_", ":", ".")):
-                i += 1
+            while i < n:
+                c = source[i]
+                if c.isalnum() or c in ("_", ":", "."):
+                    i += 1
+                    continue
+                if c == "-" and i + 1 < n and (source[i + 1].isalnum() or source[i + 1] == "_"):
+                    # Lookahead: only treat ``-`` as part of the identifier
+                    # when it sits between two identifier characters.
+                    i += 1
+                    continue
+                break
             text = source[start:i]
             # Strip a trailing dot which is almost certainly a typo, leaving
             # it would produce a misleading "Unknown source" error.
