@@ -222,6 +222,23 @@ class ScheduleEntry(BaseModel):
         # Normal range: active if start <= time < end
         return start_minutes <= time_minutes < end_minutes
 
+    def minutes_since_start(self, time_str: str) -> int:
+        """Minutes elapsed from this schedule's start_time to the given time.
+
+        Caller must ensure `applies_to_time(time_str)` is True — the result is
+        only meaningful while the schedule's window is active. Handles midnight
+        rollover: for a schedule defined 23:00-03:00 evaluated at 02:00, returns
+        180 (started 3h ago, yesterday), not -1260.
+        """
+        current_minutes = self._time_to_minutes(time_str)
+        start_minutes = self._time_to_minutes(self.start_time)
+        if self.end_time is not None:
+            end_minutes = self._time_to_minutes(self.end_time)
+            if end_minutes <= start_minutes and current_minutes < start_minutes:
+                # Rollover schedule whose window began yesterday
+                return current_minutes + 1440 - start_minutes
+        return current_minutes - start_minutes
+
 
 class ScheduleCreate(BaseModel):
     """Request model for creating a new schedule entry."""

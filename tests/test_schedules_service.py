@@ -1,7 +1,7 @@
 """Tests for schedule service."""
 
 import tempfile
-from datetime import time
+from datetime import time, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -271,6 +271,102 @@ class TestActivePageResolution:
         # Wednesday - should match
         page_id = service.get_active_page_id(time(12, 0), "wednesday")
         assert page_id == "custom-page"
+
+
+class TestWeeklyConflictTiebreaker:
+    """Within the weekly tier, the schedule that started most recently wins."""
+
+    def test_later_start_time_wins_over_earlier(self, service):
+        # 08:00–13:00 and 10:00–13:00 both cover Monday at 10:30. The 10:00
+        # window began more recently, so its page should display.
+        service.create_schedule(
+            ScheduleCreate(
+                page_id="morning-page",
+                start_time="08:00",
+                end_time="13:00",
+                day_pattern="all",
+            )
+        )
+        service.create_schedule(
+            ScheduleCreate(
+                page_id="late-morning-page",
+                start_time="10:00",
+                end_time="13:00",
+                day_pattern="all",
+            )
+        )
+        assert service.get_active_page_id(time(10, 30), "monday") == "late-morning-page"
+
+    def test_later_start_wins_regardless_of_created_at_order(self, service):
+        # Create the later-starting schedule first, then the earlier-starting
+        # one. The later start_time must still win even though it is older.
+        later = service.create_schedule(
+            ScheduleCreate(
+                page_id="late-morning-page",
+                start_time="10:00",
+                end_time="13:00",
+                day_pattern="all",
+            )
+        )
+        later.created_at = later.created_at - timedelta(hours=1)
+        service.storage._schedules[later.id] = later
+
+        service.create_schedule(
+            ScheduleCreate(
+                page_id="morning-page",
+                start_time="08:00",
+                end_time="13:00",
+                day_pattern="all",
+            )
+        )
+        assert service.get_active_page_id(time(10, 30), "monday") == "late-morning-page"
+
+    def test_identical_start_time_falls_back_to_created_at(self, service):
+        # Two schedules with the same start_time tie on the primary key, so the
+        # more recently created one wins.
+        first = service.create_schedule(
+            ScheduleCreate(
+                page_id="first-page",
+                start_time="09:00",
+                end_time="17:00",
+                day_pattern="all",
+            )
+        )
+        first.created_at = first.created_at - timedelta(seconds=5)
+        service.storage._schedules[first.id] = first
+
+        service.create_schedule(
+            ScheduleCreate(
+                page_id="second-page",
+                start_time="09:00",
+                end_time="17:00",
+                day_pattern="all",
+            )
+        )
+        assert service.get_active_page_id(time(12, 0), "monday") == "second-page"
+
+    def test_midnight_rollover_respects_actual_elapsed(self, service):
+        # Two overnight schedules both active at 02:00:
+        #   23:00–04:00 started 3h ago (yesterday at 23:00)
+        #   01:00–04:00 started 1h ago (today at 01:00)
+        # The 01:00 one started more recently and must win.
+        service.create_schedule(
+            ScheduleCreate(
+                page_id="late-night-page",
+                start_time="23:00",
+                end_time="04:00",
+                day_pattern="all",
+            )
+        )
+        service.create_schedule(
+            ScheduleCreate(
+                page_id="early-morning-page",
+                start_time="01:00",
+                end_time="04:00",
+                day_pattern="all",
+            )
+        )
+        assert service.get_active_page_id(time(2, 0), "monday") == "early-morning-page"
 
 
 class TestValidation:

@@ -150,7 +150,10 @@ class ScheduleService:
         1. one_off_date matches (most specific — single calendar date or range)
         2. annual_date matches (recurs each year on MM-DD)
         3. weekly matches (existing day-of-week behavior)
-        Within a priority tier, the most recently created entry wins.
+        Within a priority tier, the schedule whose window started most
+        recently relative to the current time wins (so a 10:00 schedule
+        beats an 8:00 schedule at 10:30). If two schedules share the same
+        start_time, the most recently created entry wins.
         """
         bid = board_id or DEFAULT_BOARD_ID
         schedules = [s for s in self.list_schedules(board_id=bid) if s.enabled]
@@ -175,12 +178,14 @@ class ScheduleService:
                 continue
             if not effective_schedule.applies_to_time(time_str):
                 continue
-            tiers[schedule.recurrence_type].append(schedule)
+            tiers[schedule.recurrence_type].append(effective_schedule)
 
         for tier_name in ("one_off_date", "annual_date", "weekly"):
             tier_matches = tiers[tier_name]
             if tier_matches:
-                tier_matches.sort(key=lambda s: s.created_at, reverse=True)
+                tier_matches.sort(
+                    key=lambda s: (s.minutes_since_start(time_str), -s.created_at.timestamp())
+                )
                 logger.debug(
                     f"Active schedule: {tier_matches[0].id} ({tier_name}) "
                     f"for {today.isoformat()} {time_str} (board={bid})"
