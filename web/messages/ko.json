@@ -760,7 +760,13 @@
     "boardNamePlaceholder": "예: 주방 Board, 사무실 Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
-    "failedToEnable": "로컬 API 활성화 실패"
+    "failedToEnable": "로컬 API 활성화 실패",
+    "pause": {
+      "toggle": "Pause sends",
+      "resumeToggle": "Resume sends",
+      "badge": "Paused",
+      "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "업데이트 가능",

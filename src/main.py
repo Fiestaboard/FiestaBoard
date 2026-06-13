@@ -199,6 +199,19 @@ class DisplayService:
             page_service = get_page_service()
             schedule_service = get_schedule_service()
 
+            # --- Pause short-circuit (issue #970) ---
+            # When the board is paused the user wants FiestaBoard to be
+            # completely hands-off: no scheduled rotation, no silence
+            # indicator, no trigger overrides, no override revert. Evaluate
+            # this BEFORE silence so a paused board doesn't even emit the
+            # one-shot SNOOZING indicator on entering silence.
+            board_id = self._get_first_board_id()
+            # Only treat a strict ``True`` as paused — guards against Mock
+            # returns from older fixtures that pre-date the pause feature.
+            if settings_service.is_paused(board_id=board_id) is True:
+                logger.debug("Board %s is paused - skipping update", board_id or "(default)")
+                return False
+
             # --- Silence mode short-circuit (evaluated FIRST) ---
             # Important: we evaluate silence before doing ANY plugin/API work
             # (trigger evaluation, page rendering, collection resolution) so a

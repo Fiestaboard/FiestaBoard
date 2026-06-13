@@ -43,6 +43,13 @@ class BoardInstance:
     device_type: str = "flagship"
     board_color: str = "black"
     enabled: bool = True
+    # Per-board pause flag (issue #970). When True, FiestaBoard does not push
+    # anything to this board — polling loop, schedule rotation, manual sends,
+    # plugin triggers, MQTT commands, debug sends, welcome message, etc. The
+    # board is left alone until the user resumes it. Distinct from
+    # ``schedule_enabled``: pause silences ALL output paths, where disabling
+    # the schedule only affects the schedule-driven rotation.
+    paused: bool = False
     schedule_enabled: bool = False  # Per-board: use schedule mode for this board
     api_mode: str = "local"
     host: str = ""
@@ -59,6 +66,8 @@ class BoardInstance:
             self.api_mode = "local"
         if not isinstance(self.enabled, bool):
             self.enabled = bool(self.enabled)
+        if not isinstance(self.paused, bool):
+            self.paused = bool(self.paused)
         if not self.name:
             self.name = "My Board"
 
@@ -85,6 +94,7 @@ class BoardInstance:
             device_type=data.get("device_type", "flagship"),
             board_color=data.get("board_color", "black"),
             enabled=data.get("enabled", True),
+            paused=data.get("paused", False),
             schedule_enabled=data.get("schedule_enabled", False),
             api_mode=data.get("api_mode", "local"),
             host=data.get("host", ""),

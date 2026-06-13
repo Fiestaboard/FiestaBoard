@@ -760,7 +760,13 @@
     "boardNamePlaceholder": "z. B. Küchenboard, Büro Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
-    "failedToEnable": "Lokale API konnte nicht aktiviert werden"
+    "failedToEnable": "Lokale API konnte nicht aktiviert werden",
+    "pause": {
+      "toggle": "Pause sends",
+      "resumeToggle": "Resume sends",
+      "badge": "Paused",
+      "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    }
   },
   "systemUpdate": {
     "updateAvailable": "Update verfügbar",
