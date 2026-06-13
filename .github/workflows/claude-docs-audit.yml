@@ -137,7 +137,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6
             --max-turns 60
-            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git rev-parse:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh label list:*),Bash(gh label create:*)"
+            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git rev-parse:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
           prompt: |
             You are the FiestaBoard docs auditor. You run unattended once a day
             at 4pm America/Los_Angeles and audit a small batch of repo docs.
@@ -171,12 +171,27 @@ jobs:
 
             Read it carefully. Categorize findings into three buckets:
 
-            **A. Auto-fixable errors** — typos, broken internal links, stale
-                command examples that contradict CLAUDE.md (e.g. mention
-                `npm run dev` directly), wrong file paths, code blocks missing
-                language tags, references to renamed/removed files (verify with
-                `ls` or `grep`), out-of-order section headings vs the canonical
-                plugin doc format described in CLAUDE.md.
+            **A. Auto-fixable errors** — small, surgical edits where the
+                right answer is unambiguous. Includes:
+                  - Typos, spelling, grammar
+                  - Broken internal links (verify the target with `ls`)
+                  - Stale command examples that contradict CLAUDE.md (e.g.
+                    `npm run dev` directly)
+                  - Wrong file paths (verify with `ls`)
+                  - Code blocks missing language tags
+                  - References to renamed/removed files (verify with `grep`)
+                  - Out-of-order section headings vs the canonical plugin
+                    doc format described in CLAUDE.md
+                  - **Broken code inside code blocks** when the breakage is
+                    mechanical and the fix is unambiguous: invalid regex
+                    syntax, malformed JSON, shell commands that won't parse.
+                    Do NOT touch code blocks whose breakage requires runtime
+                    knowledge or design judgment.
+                  - **Outdated external identifiers** (model IDs, API
+                    versions, CLI flags, package names) where you know the
+                    current value from your training OR can verify it from
+                    another up-to-date file in this repo. If the right
+                    replacement isn't unambiguous, file an issue instead.
 
             **B. Missing documentation** — a referenced concept, command, env
                 var, or workflow that has no documented home; a plugin without
@@ -258,6 +273,15 @@ jobs:
 
             Labels: `docs`, `docs-audit`. Create the labels if they don't exist
             (`gh label create docs-audit --color BFD4F2 --description "Filed by the docs-audit cron" || true`).
+
+            After creating each issue, also apply the `claude-fix` label so the
+            issue-triage workflow picks it up and takes a first-pass attempt
+            at a draft PR (issues filed by this bot don't satisfy the triage
+            workflow's author-association gate, so `claude-fix` is what opens
+            that path):
+              `gh issue edit <N> --add-label claude-fix`
+            Create that label first if needed:
+              `gh label create claude-fix --color 0E8A16 --description "Run the Claude issue-triage workflow on this issue" || true`
 
             ## State commit
 
