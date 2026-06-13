@@ -91,6 +91,13 @@ jobs:
           # the run with "Workflow initiated by non-human actor: claude".
           allowed_bots: 'claude'
 
+          # Surface the SDK transcript in the Actions log. Without this the
+          # action prints "full output hidden for security" and silent
+          # permission denials look like a clean success — exactly what
+          # happened on the first post-#986 triage run for #985: 25 turns
+          # burned, $1 spent, no PR, no comment, conclusion=success.
+          show_full_output: 'true'
+
           additional_permissions: |
             actions: read
 
@@ -153,4 +160,15 @@ jobs:
           # Long ceiling so Claude has room to actually attempt the fix.
           # `timeout-minutes` above is the real backstop on cost.
           # `--model` is picked dynamically by the tier step above.
-          claude_args: '--max-turns 80 --model ${{ steps.tier.outputs.model }}'
+          # `--allowed-tools`: agent-mode default toolset is read-only, so
+          # without this allowlist every Edit/Write/`git`/`gh` call is
+          # denied. Same lesson as claude-docs-audit.yml — the first triage
+          # run on a docs-audit issue did 25 turns of reads and produced no
+          # PR because it couldn't edit or push anything. Includes `find`
+          # and broader `Bash` patterns the triage agent needs to navigate
+          # an unknown codebase (docs-audit's narrower allowlist would
+          # block legitimate work here).
+          claude_args: >-
+            --max-turns 80
+            --model ${{ steps.tier.outputs.model }}
+            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(date:*),Bash(jq:*),Bash(python3:*),Bash(node:*),Bash(npm:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git rev-parse:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr edit:*),Bash(gh pr comment:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*),Bash(gh api:*)"
