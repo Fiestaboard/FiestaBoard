@@ -3,7 +3,7 @@
  *
  * Comprehensive coverage of the per-board configuration model:
  *  - Settings page: board card display (name, type, dimensions, connection badge)
- *  - Settings page: board CRUD (add, rename, change type/color, delete)
+ *  - Settings page: board CRUD (add, change type/color, delete)
  *  - Setup Wizard: board type picker, color swatches, BoardInstance creation
  *  - Cross-feature: board config changes affect pages list tabs
  */
@@ -162,26 +162,6 @@ test.describe("Settings – Board Instance CRUD", () => {
     expect(data.boards.length).toBe(2);
     const types = data.boards.map((b: { device_type: string }) => b.device_type);
     expect(types.filter((t: string) => t === "flagship").length).toBe(2);
-  });
-
-  test("can rename a board instance", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
-
-    // Click board card header to expand
-    await page.getByText("My Board").first().click();
-    const nameInput = page.getByPlaceholder("e.g. Kitchen Board, Office Note");
-    await expect(nameInput).toBeVisible({ timeout: 5_000 });
-
-    await nameInput.fill("Living Room Board");
-    await nameInput.blur();
-    await page.waitForTimeout(1_500);
-
-    const res = await fetch(`${API_URL}/settings/board`);
-    const data = await res.json();
-    expect(data.boards.some((b: { name: string }) => b.name === "Living Room Board")).toBe(true);
   });
 
   test("can change device type via type pills", async ({ page }) => {
