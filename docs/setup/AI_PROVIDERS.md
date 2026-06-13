@@ -78,11 +78,13 @@ These all work well with the FiestaBoard prompt format. Any current chat-complet
 | Provider     | Protocol  | Model                                  | Notes                              |
 | ------------ | --------- | -------------------------------------- | ---------------------------------- |
 | OpenRouter   | OpenAI    | `openai/gpt-4o-mini`                   | Cheap, fast, reliable JSON output. |
-| OpenRouter   | OpenAI    | `anthropic/claude-sonnet-4`            | High-quality, slower.              |
+| OpenRouter   | OpenAI    | `anthropic/claude-sonnet-4.6`          | High-quality, slower.              |
 | OpenAI       | OpenAI    | `gpt-4o-mini`                          | Same as via OpenRouter.            |
-| Anthropic    | Anthropic | `claude-sonnet-4-20250514`             | Direct, no OpenRouter markup.      |
-| Anthropic    | Anthropic | `claude-haiku-4-20250514`              | Cheaper, fast.                     |
+| Anthropic    | Anthropic | `claude-sonnet-4-6`                    | Direct, no OpenRouter markup.      |
+| Anthropic    | Anthropic | `claude-haiku-4-5-20251001`            | Cheaper, fast.                     |
 | Local Ollama | OpenAI    | `qwen2.5:14b-instruct` or larger       | Needs a model that follows JSON.   |
+
+> **Note:** Model IDs are versioned and providers periodically rotate them. This table is updated periodically, but the authoritative list of current Claude model IDs lives at [docs.anthropic.com](https://docs.anthropic.com/). If a suggested ID returns an "unknown model" error, check there for the current name.
 
 The Anthropic protocol pins a stable `anthropic-version` header in `src/ai/protocols.py`, so any model ID Anthropic accepts on that version works — earlier IDs like `claude-3-5-sonnet-20241022` are still valid if you've configured them. Smaller (≤ 7B) local models often struggle to emit valid JSON for the FiestaBoard schema; if you see frequent "Could not parse JSON" errors, switch to a larger or instruction-tuned model.
 
