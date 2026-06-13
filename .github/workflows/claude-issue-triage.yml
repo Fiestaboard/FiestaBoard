@@ -83,6 +83,14 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
+          # The docs-audit cron files issues as the `claude` bot and applies
+          # the `docs-audit` / `claude-fix` labels itself. Without this the
+          # action's own anti-bot guard short-circuits the run regardless of
+          # our workflow `if:` gate — see PR #983 follow-up where every
+          # docs-audit-filed issue triggered triage but the action rejected
+          # the run with "Workflow initiated by non-human actor: claude".
+          allowed_bots: 'claude'
+
           additional_permissions: |
             actions: read
 
