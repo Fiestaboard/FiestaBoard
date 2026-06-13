@@ -13,14 +13,23 @@ name: 'Claude: Docs Audit'
 
 on:
   schedule:
-    # docs-audit fires twice; only one matches 16:xx America/Los_Angeles
-    # depending on DST. The job gates on the local-hour check below.
-    - cron: '7 23 * * *'   # 4:07pm PDT (summer) / 3:07pm PST
-    - cron: '7 0 * * *'    # 4:07pm PST (winter) / 5:07pm PDT
+    # docs-audit fires twice; only one matches the 16:00–17:30 PT window
+    # below depending on DST. workflow_dispatch always proceeds.
+    - cron: '7 23 * * *'   # 16:07 PDT (summer) / 15:07 PST (gated off)
+    - cron: '7 0 * * *'    # 16:07 PST (winter) / 17:07 PDT (gated by last_run_at)
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# Serialize every docs-audit run. Without this, two parallel runs read the
+# same state, pick the same batch, and open duplicate PRs touching the same
+# files — exactly what happened with PRs #966/#967. cancel-in-progress=false
+# so a workflow_dispatch fired during a scheduled run waits its turn rather
+# than aborting it.
+concurrency:
+  group: docs-audit
+  cancel-in-progress: false
 
 jobs:
   docs-audit:
@@ -33,22 +42,25 @@ jobs:
       issues: write
       id-token: write
     steps:
-      - name: Gate on America/Los_Angeles local hour == 16
+      - name: Gate on America/Los_Angeles local hour window
         id: gate
-        # On scheduled runs, only proceed when it is actually 4pm PT.
-        # workflow_dispatch always proceeds.
+        # 16:00–17:30 PT absorbs the typical GitHub Actions cron delay
+        # (often 10–30 min, occasionally longer) without letting the
+        # wrong-DST cron through. Strict hour==16 was dropping every
+        # delayed firing — that's why no scheduled run produced a PR.
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "go=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           hour=$(TZ=America/Los_Angeles date +%H)
-          echo "Local hour in America/Los_Angeles: $hour"
-          if [ "$hour" = "16" ]; then
+          minute=$(TZ=America/Los_Angeles date +%M)
+          echo "Local PT: $hour:$minute"
+          if [ "$hour" = "16" ] || { [ "$hour" = "17" ] && [ "$minute" -le 30 ]; }; then
             echo "go=true" >> "$GITHUB_OUTPUT"
           else
             echo "go=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping: not 4pm PT (DST-paired cron firing on the other side)."
+            echo "Skipping: outside 16:00–17:30 PT window (DST-paired cron firing on the other side)."
           fi
 
       - name: Checkout repository
@@ -60,17 +72,57 @@ jobs:
           token: ${{ secrets.RELEASE_PAT }}
           fetch-depth: 0
 
-      - name: Configure git identity
+      - name: Dedup against recent runs and open drafts
+        id: dedup
         if: steps.gate.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        # In summer the widened window admits both DST-paired crons
+        # (16:07 and 17:07 PDT). last_run_at < 20h guards against the
+        # double-fire. Open-draft check prevents stacking new PRs on top
+        # of unreviewed ones — merge or close the draft to unblock.
+        # workflow_dispatch bypasses both so you can force a run.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          last=$(jq -r '.last_run_at // empty' .github/docs-audit-state.json)
+          if [ -n "$last" ]; then
+            last_epoch=$(date -u -d "$last" +%s 2>/dev/null || echo 0)
+            now_epoch=$(date -u +%s)
+            if [ "$last_epoch" -gt 0 ]; then
+              age_h=$(( (now_epoch - last_epoch) / 3600 ))
+              if [ "$age_h" -lt 20 ]; then
+                echo "Skipping: last run was ${age_h}h ago (<20h)."
+                echo "go=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+          fi
+          drafts=$(gh pr list --search "head:docs-audit/" --state open --json number --jq '[.[].number | tostring] | join(", #")')
+          if [ -n "$drafts" ]; then
+            echo "Skipping: open docs-audit draft(s) #${drafts}. Merge or close them, or use workflow_dispatch to bypass."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git identity
+        if: steps.dedup.outputs.go == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run Claude docs audit
-        if: steps.gate.outputs.go == 'true'
+        if: steps.dedup.outputs.go == 'true'
         uses: anthropics/claude-code-action@v1
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          # github.run_id is unique per run, so the branch name no longer
+          # depends on a model-generated timestamp (PR #967 used a 2025
+          # unix ts because the model hallucinated `date +%s`).
+          BRANCH_SUFFIX: ${{ github.run_id }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Surface the SDK transcript in the Actions log. Without this the
@@ -142,11 +194,25 @@ jobs:
 
             ### If bucket A has any findings across the batch
 
-            Create a branch `docs-audit/round-<round>-batch-<unix-timestamp>`
-            off `main`. Apply ONLY the bucket-A fixes (small, surgical edits).
-            Commit. Open a **draft** PR:
+            Before this run started, `files_audited` had length **X** and the
+            total file count for the round (`len(files_audited) + len(files_remaining)`)
+            was **T**. After this batch, `files_audited` has length **Y**
+            (Y = X + batch size). Use these numbers in the title/body below.
 
-              Title: `docs: auto-audit fixes (round <round>, batch <N> files)`
+            Create a branch named exactly:
+
+                docs-audit/round-<round>-run-$BRANCH_SUFFIX
+
+            where `$BRANCH_SUFFIX` is the value of the `BRANCH_SUFFIX`
+            environment variable (set by the workflow to the GitHub Actions
+            run ID). Do NOT use `date +%s` — past runs invented stale
+            timestamps that way. Verify with `echo "$BRANCH_SUFFIX"` first.
+
+            Branch off `main`. Apply ONLY the bucket-A fixes (small, surgical
+            edits). Commit. Open a **draft** PR:
+
+              Title: `docs: auto-audit — round <round>, files <X+1>–<Y> of <T>`
+                e.g. `docs: auto-audit — round 1, files 9–16 of 20`
               Body:
                 ## Summary
                 Auto-generated by the daily docs-audit cron. Fixes <K> issues
@@ -157,7 +223,7 @@ jobs:
                 - ...
 
                 ## Notes
-                - Round <round> sweep, audited <X>/<Y> files so far.
+                - Round <round> sweep, audited <Y>/<T> files so far.
                 - Review each diff — auto-edits can introduce regressions.
 
                 🤖 Generated by the docs-audit GitHub Action.
@@ -228,7 +294,7 @@ jobs:
               Next batch: <first 3 of files_remaining or "round complete">
 
       - name: Push state-file changes
-        if: steps.gate.outputs.go == 'true'
+        if: steps.dedup.outputs.go == 'true'
         # Defensive: if the Claude step somehow leaves a staged state change
         # without pushing (early exit, rate limit, etc.), commit + push it
         # here. `[skip ci]` keeps this from triggering downstream workflows.
