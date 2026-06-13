@@ -5816,12 +5816,18 @@ def _board_is_paused(board_id: str | None = None) -> bool:
     Centralizes the per-board pause check used at every API push site
     (issue #970). When True, callers MUST skip the send so paused boards
     are left untouched.
+
+    Only treats a strict ``True`` as paused — any non-bool return
+    (including a ``Mock`` from an under-configured test fixture) is
+    coerced to "not paused" so this guard never silently swallows sends
+    in tests that pre-date the pause feature.
     """
     try:
-        return get_settings_service().is_paused(board_id=board_id)
+        result = get_settings_service().is_paused(board_id=board_id)
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("Pause check failed (treating as not paused): %s", e)
         return False
+    return result is True
 
 
 def _paused_response(board_id: str | None = None) -> dict:

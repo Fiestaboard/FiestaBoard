@@ -139,7 +139,9 @@ class CommandHandler:
         if not settings.should_send_to_board():
             return
         # Block when the (first) board is paused (issue #970).
-        if settings.is_paused():
+        # Use ``is True`` so Mock returns from older fixtures don't trip
+        # this guard.
+        if settings.is_paused() is True:
             logger.info("MQTT blank_board blocked: board is paused")
             return
         blank_array = [[0] * 22 for _ in range(6)]
@@ -166,7 +168,9 @@ class CommandHandler:
 
         settings = get_settings_service()
         # Block when the (first) board is paused (issue #970).
-        if settings.is_paused():
+        # Use ``is True`` so Mock returns from older fixtures don't trip
+        # this guard.
+        if settings.is_paused() is True:
             logger.info("MQTT send_message blocked: board is paused")
             return
         transition = settings.get_transition_settings()
