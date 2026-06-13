@@ -28,7 +28,7 @@ In the FiestaBoard web UI:
 
 1. Click **Configure** on the Countdown card.
 2. Set the **Event Name** — for example, `Last Day of School`.
-3. Set the **Target Date & Time** in ISO 8601 format — for example, `2025-06-15T00:00:00`.
+3. Set the **Target Date & Time** in ISO 8601 format — for example, `2027-01-01T00:00:00`.
 4. Set the **Timezone** (defaults to `America/Los_Angeles`). The picker autocompletes IANA names.
 5. Click **Save Changes**.
 
@@ -56,7 +56,7 @@ Save the page. On the next refresh, your board will show the countdown.
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `{{countdown.event_name}}` | Configured event name | `Last Day of School` |
-| `{{countdown.target_datetime}}` | Target datetime (ISO 8601) | `2025-06-15T00:00:00` |
+| `{{countdown.target_datetime}}` | Target datetime (ISO 8601) | `2027-01-01T00:00:00` |
 | `{{countdown.days}}` | Whole days remaining | `86` |
 | `{{countdown.hours}}` | Hours remaining (0–23) | `14` |
 | `{{countdown.minutes}}` | Minutes remaining (0–59) | `30` |
@@ -75,7 +75,7 @@ Save the page. On the next refresh, your board will show the countdown.
 |---------|------|----------|---------|-------------|
 | `enabled` | boolean | No | `false` | Enable or disable the plugin |
 | `event_name` | string | No | `Event` | Name shown via `{{countdown.event_name}}` |
-| `target_datetime` | string | Yes | — | Target date/time in ISO 8601 format (e.g. `2025-06-15T00:00:00`) |
+| `target_datetime` | string | Yes | — | Target date/time in ISO 8601 format (e.g. `2027-01-01T00:00:00`) |
 | `timezone` | string | No | `America/Los_Angeles` | IANA timezone name |
 
 ### Environment variables
@@ -83,7 +83,7 @@ Save the page. On the next refresh, your board will show the countdown.
 Each environment variable mirrors a setting and is used only when the corresponding UI field is empty:
 
 ```bash
-COUNTDOWN_TARGET=2025-06-15T00:00:00
+COUNTDOWN_TARGET=2027-01-01T00:00:00
 COUNTDOWN_EVENT_NAME=Last Day of School
 TIMEZONE=America/Los_Angeles
 ```
@@ -100,4 +100,4 @@ The configured timezone does not match the timezone you intended for the target.
 The target datetime is in the past. Update it to a future date and time.
 
 **Configuration save fails with "Invalid target datetime format".**
-The value must be ISO 8601 — `YYYY-MM-DDTHH:MM:SS`. For example, `2025-06-15T00:00:00`.
+The value must be ISO 8601 — `YYYY-MM-DDTHH:MM:SS`. For example, `2027-01-01T00:00:00`.
