@@ -54,11 +54,27 @@ export default defineConfig({
       injectRegister: "auto",
       workbox: {
         navigateFallback: "/offline",
-        // NetworkFirst across the board with a 10s timeout and a
-        // 200-entry / 7-day expiration.
+        // A new SW that ships in a deploy takes over immediately
+        // instead of waiting for every controlled tab to close
+        // (otherwise users on long-lived tabs stay on the old build
+        // until they fully quit the app). cleanupOutdatedCaches sheds
+        // precaches from prior workbox revisions so storage doesn't
+        // accumulate stale assets.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        // NetworkFirst with a 10s timeout and a 200-entry / 7-day
+        // expiration for everything EXCEPT top-level navigation HTML.
+        // Caching the document under NetworkFirst means a transient
+        // slow network (>10s) serves a stale index.html whose hashed
+        // /assets/<old>.js chunks may not exist in the current build
+        // → white screen until a hard refresh. The document is already
+        // covered by precache + navigateFallback for the offline case,
+        // so the safe move is to keep it out of this runtime cache and
+        // always go to the network for navigations.
         runtimeCaching: [
           {
-            urlPattern: /^https?.*/,
+            urlPattern: ({ request }) => request.destination !== "document",
             handler: "NetworkFirst",
             options: {
               cacheName: "offlineCache",
