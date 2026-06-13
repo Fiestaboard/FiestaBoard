@@ -1018,6 +1018,48 @@ class SettingsService:
         logger.info(f"Removed board: {board_id}")
         return self._board
 
+    # Pause settings (per-board) — issue #970.
+    # When a board is paused, FiestaBoard does not push anything to it from
+    # any code path (polling loop, schedule, manual sends, plugin triggers,
+    # MQTT, debug, welcome, etc). The board is left alone until resumed.
+    def is_paused(self, board_id: str | None = None) -> bool:
+        """Return True when the given board (or the first board) is paused.
+
+        When ``board_id`` is None the first configured board is used. An
+        unknown board_id returns False so callers default to "not paused"
+        rather than silently dropping sends to an unrelated board.
+        """
+        if board_id:
+            for b in self._board.boards:
+                if b.get("id") == board_id:
+                    return bool(b.get("paused", False))
+            return False
+        if self._board.boards:
+            return bool(self._board.boards[0].get("paused", False))
+        return False
+
+    def set_paused(self, paused: bool, board_id: str | None = None) -> bool:
+        """Pause or resume a board (or the first board when board_id is None).
+
+        Returns the new paused state. Logs a warning and returns the prior
+        state if ``board_id`` is provided but no matching board exists.
+        """
+        paused = bool(paused)
+        if board_id:
+            for b in self._board.boards:
+                if b.get("id") == board_id:
+                    b["paused"] = paused
+                    self._save_to_file()
+                    logger.info(f"Board {board_id} {'paused' if paused else 'resumed'}")
+                    return paused
+            logger.warning(f"Board {board_id} not found for set_paused")
+            return False
+        if self._board.boards:
+            self._board.boards[0]["paused"] = paused
+            self._save_to_file()
+            logger.info(f"Default board {'paused' if paused else 'resumed'}")
+        return paused
+
     # Schedule settings
     def get_schedule_settings(self) -> ScheduleSettings:
         """Get current schedule settings.

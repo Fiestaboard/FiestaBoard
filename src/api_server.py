@@ -2110,11 +2110,7 @@ def _detect_post_upgrade_regression() -> dict[str, Any] | None:
         return None
 
     snap_plugins_raw = ((snap_doc.get("data") or {}).get("config") or {}).get("plugins") or {}
-    snap_enabled = {
-        pid
-        for pid, cfg in snap_plugins_raw.items()
-        if isinstance(cfg, dict) and cfg.get("enabled")
-    }
+    snap_enabled = {pid for pid, cfg in snap_plugins_raw.items() if isinstance(cfg, dict) and cfg.get("enabled")}
     if not snap_enabled:
         return None
 
@@ -2122,9 +2118,7 @@ def _detect_post_upgrade_regression() -> dict[str, Any] | None:
         live = get_config_manager().get_all_plugin_configs()
     except Exception:  # pragma: no cover - defensive
         return None
-    live_enabled = {
-        pid for pid, cfg in live.items() if isinstance(cfg, dict) and cfg.get("enabled")
-    }
+    live_enabled = {pid for pid, cfg in live.items() if isinstance(cfg, dict) and cfg.get("enabled")}
 
     missing = sorted(snap_enabled - live_enabled)
     if not missing:
@@ -2137,8 +2131,7 @@ def _detect_post_upgrade_regression() -> dict[str, Any] | None:
         "missing_plugin_ids": missing,
         "snapshot_app_version": (snap_doc.get("app_version") if isinstance(snap_doc, dict) else None),
         "rollback_hint": (
-            "POST /system/update/rollback with snapshot=" + newest.name
-            + " and restore_settings=true to recover."
+            "POST /system/update/rollback with snapshot=" + newest.name + " and restore_settings=true to recover."
         ),
     }
 
@@ -3015,6 +3008,11 @@ async def send_message(request: MessageRequest):
             "silence_mode": True,
         }
 
+    # Block all sends when the target board is paused (issue #970).
+    if _board_is_paused():
+        logger.info("Board is paused - blocking manual message send")
+        return _paused_response()
+
     if not service.vb_client:
         raise HTTPException(status_code=503, detail="Board client not initialized")
 
@@ -3123,6 +3121,11 @@ async def send_welcome_message():
     if Config.is_silence_mode_active():
         logger.info("Silence mode is active - blocking welcome message to prevent wake-up")
         return {"status": "blocked", "message": "Welcome message blocked during silence mode", "silence_mode": True}
+
+    # Block welcome message when the (first) board is paused (issue #970).
+    if _board_is_paused():
+        logger.info("Board is paused - blocking welcome message")
+        return _paused_response()
 
     # Create a fresh board client with current config values
     # This ensures any config changes from the setup wizard are used
@@ -4200,30 +4203,37 @@ async def send_display(display_type: str, target: str | None = None):
         send_to_board = target in ["board", "both"]
 
     sent_to_board = False
+    paused = False
     if send_to_board:
-        transition = settings_service.get_transition_settings()
-        # Use first board's device type for dimensions (flagship vs note)
-        board_settings = settings_service.get_board_settings()
-        device_type = "flagship"
-        if board_settings.boards:
-            device_type = board_settings.boards[0].get("device_type", "flagship")
-        dims = get_dimensions(device_type)
-        board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-        success, was_sent = service.vb_client.send_characters(
-            board_array,
-            strategy=transition.strategy,
-            step_interval_ms=transition.step_interval_ms,
-            step_size=transition.step_size,
-        )
-        sent_to_board = was_sent
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to send to board")
+        # Skip when the (first) board is paused (issue #970).
+        if _board_is_paused():
+            logger.info("Board is paused - skipping display send to board")
+            paused = True
+        else:
+            transition = settings_service.get_transition_settings()
+            # Use first board's device type for dimensions (flagship vs note)
+            board_settings = settings_service.get_board_settings()
+            device_type = "flagship"
+            if board_settings.boards:
+                device_type = board_settings.boards[0].get("device_type", "flagship")
+            dims = get_dimensions(device_type)
+            board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
+            success, was_sent = service.vb_client.send_characters(
+                board_array,
+                strategy=transition.strategy,
+                step_interval_ms=transition.step_interval_ms,
+                step_size=transition.step_size,
+            )
+            sent_to_board = was_sent
+            if not success:
+                raise HTTPException(status_code=500, detail="Failed to send to board")
 
     return {
         "status": "success",
         "display_type": display_type,
         "message": result.formatted,
         "sent_to_board": sent_to_board,
+        "paused": paused,
         "target": target or settings_service.get_output_settings().target,
     }
 
@@ -5150,35 +5160,44 @@ async def set_active_page(request: dict):
 
     # Immediately send to board if a page is set
     sent_to_board = False
+    paused = False
     if render_page_id and page and service and service.vb_client and settings_service.should_send_to_board():
-        result = page_service.preview_page(render_page_id, force_refresh=True)
-        if result and result.available:
-            system_transition = settings_service.get_transition_settings()
-            strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-            interval_ms = (
-                page.transition_interval_ms
-                if page.transition_interval_ms is not None
-                else system_transition.step_interval_ms
-            )
-            step_size = (
-                page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-            )
+        # Skip immediate send when the board is paused (issue #970). The
+        # active-page selection is still persisted so it takes effect when
+        # the user later resumes the board.
+        if _board_is_paused():
+            logger.info("Board is paused - skipping immediate active-page send")
+            paused = True
+        else:
+            result = page_service.preview_page(render_page_id, force_refresh=True)
+            if result and result.available:
+                system_transition = settings_service.get_transition_settings()
+                strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
+                interval_ms = (
+                    page.transition_interval_ms
+                    if page.transition_interval_ms is not None
+                    else system_transition.step_interval_ms
+                )
+                step_size = (
+                    page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
+                )
 
-            dims = get_dimensions(page.device_type)
-            board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-            success, was_sent = service.vb_client.send_characters(
-                board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
-            )
-            sent_to_board = was_sent
-            if not success:
-                logger.warning(f"Failed to send active page to board: {page_id}")
-            elif was_sent:
-                service.request_board_refresh()
+                dims = get_dimensions(page.device_type)
+                board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
+                success, was_sent = service.vb_client.send_characters(
+                    board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
+                )
+                sent_to_board = was_sent
+                if not success:
+                    logger.warning(f"Failed to send active page to board: {page_id}")
+                elif was_sent:
+                    service.request_board_refresh()
 
     return {
         "status": "success",
         "page_id": page_id,
         "sent_to_board": sent_to_board,
+        "paused": paused,
     }
 
 
@@ -5765,6 +5784,31 @@ def _get_board_client():
     return None
 
 
+def _board_is_paused(board_id: str | None = None) -> bool:
+    """Return True when the target board (or default board) is paused.
+
+    Centralizes the per-board pause check used at every API push site
+    (issue #970). When True, callers MUST skip the send so paused boards
+    are left untouched.
+    """
+    try:
+        return get_settings_service().is_paused(board_id=board_id)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("Pause check failed (treating as not paused): %s", e)
+        return False
+
+
+def _paused_response(board_id: str | None = None) -> dict:
+    """Standard payload returned by API endpoints that skip a send because
+    the target board is paused."""
+    return {
+        "status": "blocked",
+        "message": "Board is paused — sends are blocked until it is resumed.",
+        "paused": True,
+        "board_id": board_id,
+    }
+
+
 @app.post("/debug/blank")
 async def debug_blank_board():
     """Clear the board by filling with space characters (code 0)."""
@@ -5775,6 +5819,11 @@ async def debug_blank_board():
     settings_service = get_settings_service()
     if not settings_service.should_send_to_board():
         return {"status": "success", "message": "Board blank (output target is UI only)"}
+
+    # Block when the (first) board is paused (issue #970).
+    if _board_is_paused():
+        logger.info("Board is paused - blocking debug blank send")
+        return _paused_response()
 
     try:
         # Create a 6x22 array filled with spaces (code 0)
@@ -5813,6 +5862,11 @@ async def debug_fill_board(request: dict):
             "status": "success",
             "message": f"Board filled with character {character_code} (output target is UI only)",
         }
+
+    # Block when the (first) board is paused (issue #970).
+    if _board_is_paused():
+        logger.info("Board is paused - blocking debug fill send")
+        return _paused_response()
 
     try:
         # Create a 6x22 array filled with the specified character
@@ -5867,6 +5921,11 @@ V{version[:7]} {timestamp}"""
             "message": "Debug info displayed (output target is UI only)",
             "debug_info": debug_text,
         }
+
+    # Block when the (first) board is paused (issue #970).
+    if _board_is_paused():
+        logger.info("Board is paused - blocking debug info send")
+        return {**_paused_response(), "debug_info": debug_text}
 
     try:
         # Convert text to board array
@@ -6424,12 +6483,17 @@ async def send_page(page_id: str, target: str | None = None):
         send_to_board = target in ["board", "both"]
 
     sent_to_board = False
+    paused = False
     if send_to_board:
         # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups
         if Config.is_silence_mode_active():
             logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
             sent_to_board = False
             # Don't raise error, just skip sending
+        elif _board_is_paused():
+            # Block when the (first) board is paused (issue #970).
+            logger.info("Board is paused - blocking manual page send")
+            paused = True
         else:
             # Use page-level transitions if set, otherwise fall back to system defaults
             system_transition = settings_service.get_transition_settings()
@@ -6460,6 +6524,7 @@ async def send_page(page_id: str, target: str | None = None):
         "page_id": page_id,
         "message": result.formatted,
         "sent_to_board": sent_to_board,
+        "paused": paused,
         "target": target or settings_service.get_output_settings().target,
     }
 
@@ -7064,32 +7129,40 @@ async def render_template_live(request: dict):
         target_board = boards[0]
 
     sent_to_board = False
+    paused = False
     if target_board:
-        client = board_client_from_board_dict(target_board)
-        if client:
-            device_type = target_board.get("device_type", "flagship")
-            dims = get_dimensions(device_type)
-            board_array = text_to_board_array(rendered, rows=dims.rows, cols=dims.cols)
+        # Block when the target board is paused (issue #970). Render is still
+        # returned to the caller so the live editor preview keeps updating.
+        if _board_is_paused(board_id=target_board.get("id")):
+            logger.info("Board %s is paused - skipping live template send", target_board.get("id"))
+            paused = True
+        else:
+            client = board_client_from_board_dict(target_board)
+            if client:
+                device_type = target_board.get("device_type", "flagship")
+                dims = get_dimensions(device_type)
+                board_array = text_to_board_array(rendered, rows=dims.rows, cols=dims.cols)
 
-            transition_settings = settings_service.get_transition_settings()
-            try:
-                success, was_sent = await asyncio.to_thread(
-                    client.send_characters,
-                    board_array,
-                    strategy=transition_settings.strategy,
-                    step_interval_ms=transition_settings.step_interval_ms,
-                    step_size=transition_settings.step_size,
-                    force=True,
-                )
-                sent_to_board = was_sent
-            except Exception as e:
-                logger.error(f"Live send to board failed: {e}", exc_info=True)
+                transition_settings = settings_service.get_transition_settings()
+                try:
+                    success, was_sent = await asyncio.to_thread(
+                        client.send_characters,
+                        board_array,
+                        strategy=transition_settings.strategy,
+                        step_interval_ms=transition_settings.step_interval_ms,
+                        step_size=transition_settings.step_size,
+                        force=True,
+                    )
+                    sent_to_board = was_sent
+                except Exception as e:
+                    logger.error(f"Live send to board failed: {e}", exc_info=True)
 
     return {
         "rendered": rendered,
         "lines": rendered.split("\n"),
         "line_count": len(rendered.split("\n")),
         "sent_to_board": sent_to_board,
+        "paused": paused,
         "board_id": target_board.get("id") if target_board else None,
     }
 

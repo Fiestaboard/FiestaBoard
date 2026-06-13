@@ -135,7 +135,12 @@ class CommandHandler:
             return
         from src.settings.service import get_settings_service
 
-        if not get_settings_service().should_send_to_board():
+        settings = get_settings_service()
+        if not settings.should_send_to_board():
+            return
+        # Block when the (first) board is paused (issue #970).
+        if settings.is_paused():
+            logger.info("MQTT blank_board blocked: board is paused")
             return
         blank_array = [[0] * 22 for _ in range(6)]
         client.send_characters(blank_array, force=True)
@@ -160,6 +165,10 @@ class CommandHandler:
         from src.settings.service import get_settings_service
 
         settings = get_settings_service()
+        # Block when the (first) board is paused (issue #970).
+        if settings.is_paused():
+            logger.info("MQTT send_message blocked: board is paused")
+            return
         transition = settings.get_transition_settings()
         board_array = text_to_board_array(payload)
         service.vb_client.send_characters(
