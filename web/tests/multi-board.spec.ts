@@ -239,35 +239,6 @@ test.describe("Settings – Board Instance CRUD", () => {
     expect(data2.boards[0].board_color).toBe("black");
   });
 
-  test("can toggle board enabled/disabled", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
-
-    await openSettingsTab(page, "Hardware");
-
-    // Expand board card
-    await page.getByText("My Board").first().click();
-    const enabledLabel = page.getByText("Enabled", { exact: true });
-    await expect(enabledLabel).toBeVisible({ timeout: 5_000 });
-
-    // Find the switch adjacent to the Enabled label
-    const enabledSwitch = enabledLabel.locator("..").getByRole("switch");
-    await enabledSwitch.click();
-    await page.waitForTimeout(1_500);
-
-    const res = await fetch(`${API_URL}/settings/board`);
-    const data = await res.json();
-    expect(data.boards[0].enabled).toBe(false);
-
-    // Toggle back on
-    await enabledSwitch.click();
-    await page.waitForTimeout(1_500);
-
-    const res2 = await fetch(`${API_URL}/settings/board`);
-    const data2 = await res2.json();
-    expect(data2.boards[0].enabled).toBe(true);
-  });
-
   test("can delete a board when more than one exists", async ({ page }) => {
     // Add a Note board first
     await fetch(`${API_URL}/settings/board/add`, {

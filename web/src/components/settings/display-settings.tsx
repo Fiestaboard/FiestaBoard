@@ -24,7 +24,6 @@ import { Badge as BadgeUI } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -406,7 +405,6 @@ export function DisplaySettings() {
       <CardContent className="space-y-4">
         <div className="space-y-3">
           {boards.map((board) => {
-            const isEnabled = board.enabled !== false;
             const isPaused = board.paused === true;
             const apiMode = board.api_mode ?? "local";
             const hasLocalKey = board.local_api_key === "***" || Boolean(board.local_api_key);
@@ -420,7 +418,7 @@ export function DisplaySettings() {
                 data-testid="board-card"
                 data-paused={isPaused ? "true" : undefined}
                 className={`rounded-lg border overflow-hidden ${
-                  isPaused ? "border-amber-500/60 bg-amber-500/5" : isEnabled ? "" : "bg-muted/30"
+                  isPaused ? "border-amber-500/60 bg-amber-500/5" : ""
                 }`}
               >
                 <CollapsibleTrigger className="flex items-center gap-3 p-3 w-full text-left hover:bg-muted/40 transition-colors [&[data-state=open]>div:first-child>svg:first-child]:hidden [&[data-state=closed]>div:first-child>svg:last-child]:hidden">
@@ -444,12 +442,6 @@ export function DisplaySettings() {
                               : "var(--color-board-surface-dark)",
                         }}
                       />
-                      {!isEnabled && (
-                        <>
-                          <span>•</span>
-                          <span className="italic">{t("disabledLabel")}</span>
-                        </>
-                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -480,29 +472,6 @@ export function DisplaySettings() {
 
                 <CollapsibleContent>
                   <div className="border-t px-4 pb-4 pt-3 space-y-3">
-                    {/* Name + Enabled row */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <Input
-                          defaultValue={board.name}
-                          onBlur={(e) => {
-                            if (e.target.value !== board.name) {
-                              handleUpdateBoard(board.id, { name: e.target.value });
-                            }
-                          }}
-                          placeholder={t("boardNamePlaceholder")}
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <label className="text-[11px] text-muted-foreground">{tCommon("enabled")}</label>
-                        <Switch
-                          checked={isEnabled}
-                          onCheckedChange={(checked) => handleUpdateBoard(board.id, { enabled: checked })}
-                        />
-                      </div>
-                    </div>
-
                     {/* Pause / Resume row (issue #970) */}
                     <div
                       className={`flex items-center justify-between rounded-md border px-3 py-2 ${
