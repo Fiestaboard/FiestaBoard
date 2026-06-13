@@ -216,6 +216,45 @@ jobs:
             queue depth — you don't need to second-guess them. Just use
             them.
 
+            ## Learning from past rejections
+
+            **Read `.github/docs-audit/rejected-edits.jsonl` before doing
+            anything else.** Each non-empty line is one of your previous
+            draft PRs that a human closed without merging — i.e. the
+            proposed edit was wrong. The log is your single most important
+            input; it is how this audit gets better over time.
+
+            Each line is a JSON object with:
+              - `pr`, `title`, `head_ref`, `closed_at`
+              - `body` — the PR description you originally wrote
+              - `files` — list of `{path, patch}` for every file changed,
+                where `patch` is the raw unified diff
+              - `comments`, `reviews`, `inline_comments` — every human
+                comment on the PR (issue-style, review-level, and inline).
+                These usually contain the *reason* the close happened.
+
+            For each rejection:
+
+            1. **Never repeat the exact swap.** Extract the `-` / `+`
+               lines from each file's `patch`. If you would propose the
+               same `-old → +new` change again — anywhere in the repo,
+               not just in the same file — do not.
+            2. **Read every comment.** Treat the close commenter's
+               reasoning as authoritative. If they wrote "Vestaboard is
+               the physical device this software drives, don't rename
+               it" then "Vestaboard" is a protected term *everywhere* —
+               not just in the file that PR touched.
+            3. **Generalize.** Most rejections expose a class of false
+               positive (proper nouns, intentional jargon, deliberate
+               examples, links that look broken but aren't). Carry the
+               class forward, not just the literal string.
+            4. **Cite when relevant.** If you skip a finding because a
+               past rejection covers it, mention the PR number in your
+               wrap-up summary so the maintainer can see the loop
+               working.
+
+            If the file does not exist or is empty, proceed normally.
+
             ## Sweep state
 
             State file: `.github/docs-audit-state.json`
