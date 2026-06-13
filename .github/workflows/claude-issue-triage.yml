@@ -2,13 +2,20 @@ name: Claude Issue Triage
 
 # Take a first-pass fix attempt at new issues.
 #
-# Triggers in two ways:
+# Triggers in three ways:
 #   1. Auto: issue opened by the repo owner / a member / a collaborator
 #   2. Manual gate: any issue that gets the `claude-fix` label applied
+#   3. Docs cron: any issue that gets the `docs-audit` label applied
+#      (filed by claude-docs-audit.yml; the bot-authored issues don't
+#      satisfy gate #1, and we want them auto-triaged anyway)
 #
-# This double gate keeps drive-by issues from public reporters out of the
+# This triple gate keeps drive-by issues from public reporters out of the
 # auto-run path while still letting you (or any maintainer) opt one in by
-# adding the label.
+# adding the label, and letting the docs-audit cron close its own loop.
+#
+# Model tier: Sonnet for docs-flavored issues (`docs`/`docs-audit` label),
+# Opus for everything else — code bugs benefit from the harder model, while
+# markdown edits don't. See the "Choose model tier" step below.
 
 on:
   issues:
@@ -34,7 +41,10 @@ jobs:
           github.event.issue.author_association == 'MEMBER' ||
           github.event.issue.author_association == 'COLLABORATOR'
         )) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'claude-fix')
+        (github.event.action == 'labeled' && (
+          github.event.label.name == 'claude-fix' ||
+          github.event.label.name == 'docs-audit'
+        ))
       )
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -50,6 +60,24 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Choose model tier
+        id: tier
+        # Docs-flavored issues are markdown edits — Sonnet handles them and
+        # the docs-audit cron files them in volume, so Opus economics are bad.
+        # Everything else (code bugs, infra, plugin internals) gets Opus,
+        # which is materially better at debugging and codebase navigation.
+        run: |
+          labels='${{ toJSON(github.event.issue.labels.*.name) }}'
+          echo "Labels: $labels"
+          if echo "$labels" | grep -qE '"(docs|docs-audit)"'; then
+            model="claude-sonnet-4-6"
+            echo "Selected Sonnet (docs-flavored issue)"
+          else
+            model="claude-opus-4-7"
+            echo "Selected Opus (default — code/infra issue)"
+          fi
+          echo "model=$model" >> "$GITHUB_OUTPUT"
+
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
@@ -64,6 +92,8 @@ jobs:
 
             Title: ${{ github.event.issue.title }}
 
+            Labels: ${{ toJSON(github.event.issue.labels.*.name) }}
+
             Body:
             ${{ github.event.issue.body }}
 
@@ -77,18 +107,42 @@ jobs:
                problem if you can, and implement the smallest fix that
                solves it. Follow the rules in CLAUDE.md.
             3. Add or update a test that would have caught the bug.
-            4. Open a DRAFT pull request against `main` from a branch named
-               `claude/issue-${{ github.event.issue.number }}`. Title it
-               `[Claude first-pass] <short summary>` and link the issue with
+               **Docs-only fixes don't need a test** — skip this step if the
+               only files touched are `*.md`.
+            4. Open a DRAFT pull request against `main`.
+               - For docs-flavored issues (labels include `docs` or
+                 `docs-audit`): branch `docs/issue-${{ github.event.issue.number }}-<short-slug>`,
+                 title prefix `docs:` (no `[Claude first-pass]` prefix —
+                 docs PRs go through the normal docs review path).
+               - For everything else: branch
+                 `claude/issue-${{ github.event.issue.number }}`, title
+                 `[Claude first-pass] <short summary>`.
+               In either case link the issue with
                `Closes #${{ github.event.issue.number }}` in the body.
             5. In the PR body, be honest about your confidence: what you
                changed, what you tested, and what a human reviewer should
                double-check before merging.
             6. Never merge the PR. Never force-push. Never bypass hooks.
 
+            ## Docs issues — voice and format
+
+            If the issue labels include `docs` or `docs-audit`, your output
+            is community-facing documentation. Before drafting, read
+            `.claude/agents/docs-writer.md` and apply its rules:
+              - Examples-first, abstractions second
+              - Short paragraphs (2–3 sentences)
+              - Block-quote notes for caveats
+              - No marketing fluff ("powerful", "seamless", "easily")
+              - Privacy rules: no real PII, addresses, API keys; coords use
+                public landmarks (NYC `40.7128, -74.0060`) or round fakes
+              - Canonical README / SETUP section orders for plugin docs
+                (see `CLAUDE.md` and the existing `plugins/date_time/`,
+                `plugins/random/` docs as voice references)
+
             If you finish without opening a PR, leave a comment on the issue
             summarizing what you found and why no PR was opened.
 
           # Long ceiling so Claude has room to actually attempt the fix.
           # `timeout-minutes` above is the real backstop on cost.
-          claude_args: '--max-turns 80'
+          # `--model` is picked dynamically by the tier step above.
+          claude_args: '--max-turns 80 --model ${{ steps.tier.outputs.model }}'
