@@ -113,7 +113,7 @@
   "screenshots": [
     {
       "src": "docs/board-display.png",
-      "alt": "My Plugin Name displayed on a Vestaboard",
+      "alt": "My Plugin Name displayed on a FiestaBoard",
       "caption": "Example board output using the default template",
       "primary": true
     }

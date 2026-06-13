@@ -96,7 +96,7 @@
   "screenshots": [
     {
       "src": "docs/board-display.png",
-      "alt": "Random plugin displayed on a Vestaboard",
+      "alt": "Random plugin displayed on a FiestaBoard",
       "caption": "Coin flip result on board",
       "primary": true
     }
