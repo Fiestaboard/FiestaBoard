@@ -5432,6 +5432,32 @@ async def remove_board_instance(board_id: str):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
+@app.post("/settings/board/{board_id}/pause")
+async def set_board_paused(board_id: str, request: dict):
+    """Pause or resume a board (issue #970).
+
+    Body: ``{"paused": bool}``. When paused, FiestaBoard will not push
+    anything to this board from any code path (polling loop, schedule,
+    manual sends, plugin triggers, MQTT, debug, welcome, etc) until the
+    board is resumed.
+    """
+    if "paused" not in request:
+        raise HTTPException(status_code=400, detail="paused is required")
+    if not isinstance(request["paused"], bool):
+        raise HTTPException(status_code=400, detail="paused must be a boolean")
+    settings_service = get_settings_service()
+    boards = settings_service.get_board_settings().boards or []
+    if not any(b.get("id") == board_id for b in boards):
+        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
+    paused = settings_service.set_paused(request["paused"], board_id=board_id)
+    return {
+        "status": "success",
+        "board_id": board_id,
+        "paused": paused,
+        "settings": settings_service.get_board_settings().to_dict(),
+    }
+
+
 @app.get("/settings/display")
 async def get_display_settings():
     """Get current web UI display settings."""

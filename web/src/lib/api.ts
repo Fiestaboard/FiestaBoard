@@ -489,6 +489,9 @@ export interface BoardInstance {
   device_type: DeviceType;
   board_color: "black" | "white";
   enabled: boolean;
+  // Per-board pause flag (issue #970). When true FiestaBoard does not
+  // push anything to this board from any code path until it is resumed.
+  paused?: boolean;
   api_mode: "local" | "cloud";
   host: string;
   local_api_key: string;
@@ -1700,6 +1703,15 @@ export const api = {
     fetchApi<{ status: string; settings: BoardSettings }>(`/settings/board/${boardId}`, {
       method: "DELETE",
     }),
+  setBoardPaused: (boardId: string, paused: boolean) =>
+    fetchApi<{ status: string; board_id: string; paused: boolean; settings: BoardSettings }>(
+      `/settings/board/${boardId}/pause`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paused }),
+      },
+    ),
   getAllSettings: () => fetchApi<AllSettingsResponse>("/settings/all"),
 
   // Display settings
