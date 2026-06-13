@@ -279,6 +279,34 @@ class TestVariables:
         ctx = {"home_assistant": {"sensor_no_dot": {"state": "ok"}}}
         assert evaluate("home_assistant.sensor_no_dot.state", ctx) == "ok"
 
+    # ------------------------------------------------------------------
+    # Plugin instance labels containing dashes (regression #969)
+    #
+    # Bare ``{{...}}`` substitution always supported instance labels with
+    # ``-`` (e.g. ``my-cal``) because the engine's VAR_PATTERN swallows
+    # everything between the braces.  Inside a formula the expression
+    # lexer would split ``calendar:my-cal.event`` on the dash and treat it
+    # as subtraction, producing ``#REF`` whenever the variable was wrapped
+    # in a function call.
+    # ------------------------------------------------------------------
+    def test_dashed_instance_label_lookup(self):
+        ctx = {"calendar:my-cal": {"event": "Lunch"}}
+        assert evaluate("calendar:my-cal.event", ctx) == "Lunch"
+
+    def test_dashed_instance_label_inside_function(self):
+        ctx = {"calendar:my-cal": {"event": "Lunch"}}
+        assert evaluate("UPPER(calendar:my-cal.event)", ctx) == "LUNCH"
+
+    def test_dashed_instance_label_inside_iferror(self):
+        ctx = {"calendar:my-cal": {"event": "Lunch"}}
+        assert evaluate('IFERROR(UPPER(calendar:my-cal.event), "n/a")', ctx) == "LUNCH"
+
+    def test_subtraction_still_works_with_spaces(self):
+        # Make sure adding ``-`` to the identifier class didn't break plain
+        # arithmetic: with whitespace, ``-`` must remain a binary operator.
+        ctx = {"weather": {"temperature": 70}}
+        assert evaluate("weather.temperature - 5", ctx) == "65"
+
 
 class TestErrorPropagation:
     def test_arithmetic_with_missing_propagates(self):
@@ -692,6 +720,19 @@ class TestValidateExpression:
 
         # ``weather:home.temperature`` -- the source is "weather".
         issues = validate_expression("weather:home.temperature", known_sources={"weather"})
+        assert issues == []
+
+    def test_plugin_instance_label_with_dash(self):
+        # Regression for #969: instance labels may contain ``-`` (e.g. a
+        # ``google_calendar:my-cal`` instance).  The expression validator
+        # must recognise it as a single source path so wrapping it in a
+        # function doesn't trip the ``#REF`` / ``#SYNTAX`` paths.
+        from src.templates.expressions import validate_expression
+
+        issues = validate_expression(
+            "UPPER(google_calendar:my-cal.event)",
+            known_sources={"google_calendar"},
+        )
         assert issues == []
 
 
