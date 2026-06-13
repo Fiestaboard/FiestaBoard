@@ -32,13 +32,13 @@ The Date & Time plugin exposes the current date and time in the timezone you con
 | `{{date_time.day_of_week}}` | Day name | `Friday` |
 | `{{date_time.day_of_week_abbr}}` | Day name abbreviation | `Fri` |
 | `{{date_time.day_of_week_num}}` | ISO day of week, 1-7 | `5` |
-| `{{date_time.day_of_year}}` | Day of year, 1-366 | `47` |
+| `{{date_time.day_of_year}}` | Day of year, 1-366 | `80` |
 | `{{date_time.day}}` | Day of month, 1–31 | `21` |
 | `{{date_time.month}}` | Full month name | `March` |
 | `{{date_time.month_abbr}}` | 3-letter month | `Mar` |
 | `{{date_time.month_number}}` | Month, 1–12 | `3` |
 | `{{date_time.month_number_padded}}` | Month, 01–12 | `03` |
-| `{{date_time.week_of_year}}` | ISO week number, 1-53 | `5` |
+| `{{date_time.week_of_year}}` | ISO week number, 1-53 | `12` |
 | `{{date_time.quarter}}` | Quarter number, 1-4 | `1` |
 | `{{date_time.year}}` | 4-digit year | `2025` |
 
