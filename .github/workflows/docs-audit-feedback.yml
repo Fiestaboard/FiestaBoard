@@ -1,0 +1,95 @@
+name: 'Claude: Docs Audit Feedback Capture'
+
+# =============================================================================
+# Captures rejected docs-audit PRs so the cron auditor can learn from them.
+#
+# When a draft PR opened by claude-docs-audit.yml is closed without merging,
+# the maintainer is telling the bot "this edit was wrong." This workflow
+# bundles the PR's diff, the close metadata, and every comment/review on it
+# into a single JSONL line in `.github/docs-audit/rejected-edits.jsonl` and
+# commits that file to main. The next audit run reads the log and uses it to
+# (a) never re-propose the same exact swap, and (b) generalize from the
+# closer's explanation (e.g., "Vestaboard is a product name, do not rename"
+# → never rename Vestaboard in any doc).
+#
+# `workflow_dispatch` re-runs capture for a given PR, which is useful when
+# the maintainer adds an explanatory comment after the original close event.
+# Re-running replaces the prior line for that PR rather than appending.
+# =============================================================================
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to (re)capture into the rejection log'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+# Serialize commits to main. Two PRs closed at once would race the same log
+# file and lose a line; cancel-in-progress=false so each capture completes.
+concurrency:
+  group: docs-audit-feedback
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    name: Capture rejected docs-audit edit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # On `pull_request.closed`, only fire for unmerged docs-audit branches.
+    # `workflow_dispatch` always proceeds — the script itself refuses to
+    # log a merged PR, so manual backfill remains safe.
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.pull_request.merged == false &&
+           startsWith(github.event.pull_request.head.ref, 'docs-audit/')) }}
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+    steps:
+      - name: Determine PR number
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "number=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          # RELEASE_PAT so the log commit can push to main past branch
+          # protection — same pattern as the docs-audit state-file commit.
+          ref: main
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 1
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Capture rejection
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          set -euo pipefail
+          python3 .github/docs-audit/build_rejection.py "${{ steps.pr.outputs.number }}"
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- .github/docs-audit/rejected-edits.jsonl; then
+            echo "Log unchanged — script bailed (merged PR, or no diff)."
+            exit 0
+          fi
+          git add .github/docs-audit/rejected-edits.jsonl
+          git commit -m "chore(docs-audit): capture rejection from PR #${{ steps.pr.outputs.number }} [skip ci]"
+          git push origin HEAD:main
