@@ -38,7 +38,7 @@ If you're working in Claude Code, the project ships matching slash commands: `/s
 The development Docker Compose mounts source code as volumes (`./src`, `./plugins`, `./web`, `./tests`, `./scripts`, plus `./data`):
 
 - **Python API**: Changes to `src/` and `plugins/` trigger uvicorn `--reload` automatically — no restart needed.
-- **Next.js Web UI**: The container serves the production build that was baked into the image, so UI changes need a container rebuild (`docker-compose -f docker-compose.dev.yml up --build` or `/restart`). For interactive UI work, run Storybook with `docker-compose -f docker-compose.dev.yml up fiestaboard-storybook` (port 6006) instead.
+- **React Router / Vite Web UI**: The container serves the production build that was baked into the image, so UI changes need a container rebuild (`docker-compose -f docker-compose.dev.yml up --build` or `/restart`). For interactive UI work, run Storybook with `docker-compose -f docker-compose.dev.yml up fiestaboard-storybook` (port 6006) instead.
 
 ### Stopping Services
 
