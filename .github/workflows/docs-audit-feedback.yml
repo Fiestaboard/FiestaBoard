@@ -15,10 +15,19 @@ name: 'Claude: Docs Audit Feedback Capture'
 # `workflow_dispatch` re-runs capture for a given PR, which is useful when
 # the maintainer adds an explanatory comment after the original close event.
 # Re-running replaces the prior line for that PR rather than appending.
+#
+# Trigger is `pull_request_target` (not `pull_request`) so GitHub resolves
+# this workflow file from `main` rather than the PR's head ref. Docs-audit
+# branches are cut from `main` at audit time and never updated, so any
+# branch created before this workflow landed would otherwise be invisible
+# to it — exactly what happened with PR #992, which closed one second after
+# the feedback workflow merged and never fired. `pull_request_target` is
+# safe here because the workflow checks out `ref: main` (not PR code) and
+# only reads PR metadata via `gh`; no head-ref code is ever executed.
 # =============================================================================
 
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
   workflow_dispatch:
     inputs:
@@ -41,9 +50,11 @@ jobs:
     name: Capture rejected docs-audit edit
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # On `pull_request.closed`, only fire for unmerged docs-audit branches.
-    # `workflow_dispatch` always proceeds — the script itself refuses to
-    # log a merged PR, so manual backfill remains safe.
+    # On `pull_request_target.closed`, only fire for unmerged docs-audit
+    # branches. Draft and ready-for-review PRs both fire `closed` — there
+    # is no draft-state gate here. `workflow_dispatch` always proceeds —
+    # the script itself refuses to log a merged PR, so manual backfill
+    # remains safe.
     if: >-
       ${{ github.event_name == 'workflow_dispatch' ||
           (github.event.pull_request.merged == false &&
