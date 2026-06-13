@@ -183,9 +183,7 @@ class ScheduleService:
         for tier_name in ("one_off_date", "annual_date", "weekly"):
             tier_matches = tiers[tier_name]
             if tier_matches:
-                tier_matches.sort(
-                    key=lambda s: (s.minutes_since_start(time_str), -s.created_at.timestamp())
-                )
+                tier_matches.sort(key=lambda s: (s.minutes_since_start(time_str), -s.created_at.timestamp()))
                 logger.debug(
                     f"Active schedule: {tier_matches[0].id} ({tier_name}) "
                     f"for {today.isoformat()} {time_str} (board={bid})"
