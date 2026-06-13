@@ -1,22 +1,34 @@
 name: 'Claude: Docs Audit'
 
 # =============================================================================
-# Daily ~4pm America/Los_Angeles sweep of repo docs by Claude Sonnet.
-# Opens draft PRs for fixable errors and issues for missing/confusing docs.
-# Progress tracked in .github/docs-audit-state.json; sweep restarts from the
-# top once every file has been audited.
+# Twice-daily America/Los_Angeles sweep of repo docs by Claude Sonnet.
+# Opens draft PRs for trivial mechanical fixes and files issues for
+# anything that needs a thinking pass — those issues fan out to per-issue
+# triage workers (claude-issue-triage.yml) and become draft PRs.
 #
-# Cron fires twice (paired UTC times) to stay DST-aware; the local-hour
-# gate below picks the correct one. workflow_dispatch always proceeds, so
-# you can kick off a one-off audit from the Actions tab.
+# Cadence: noon + 4pm PT. Each cron pair fires twice in UTC to absorb DST
+# drift; the local-hour gate below admits exactly the intended window.
+# workflow_dispatch always proceeds.
+#
+# Effort scales with the open `docs-audit` issue queue (see "Compute
+# dynamic effort" step). Drained queue → thorough mode (batch 16, cap 25).
+# Hot queue → conservative mode (batch 6, cap 8). The audit self-throttles
+# without manual tuning.
+#
+# Progress tracked in .github/docs-audit-state.json; sweep restarts from
+# the top once every file has been audited.
 # =============================================================================
 
 on:
   schedule:
-    # docs-audit fires twice; only one matches the 16:00–17:30 PT window
-    # below depending on DST. workflow_dispatch always proceeds.
+    # Two pairs of UTC crons, one per intended PT window. Within each pair
+    # only one matches the local-hour gate depending on DST; the other is
+    # blocked by the gate or the short cooldown. workflow_dispatch bypasses
+    # both gates.
+    - cron: '7 19 * * *'   # 12:07 PDT (summer) / 11:07 PST (gated off)
+    - cron: '7 20 * * *'   # 12:07 PST (winter) / 13:07 PDT (gated by cooldown)
     - cron: '7 23 * * *'   # 16:07 PDT (summer) / 15:07 PST (gated off)
-    - cron: '7 0 * * *'    # 16:07 PST (winter) / 17:07 PDT (gated by last_run_at)
+    - cron: '7 0 * * *'    # 16:07 PST (winter) / 17:07 PDT (gated by cooldown)
   workflow_dispatch:
 
 permissions:
@@ -44,10 +56,10 @@ jobs:
     steps:
       - name: Gate on America/Los_Angeles local hour window
         id: gate
-        # 16:00–17:30 PT absorbs the typical GitHub Actions cron delay
-        # (often 10–30 min, occasionally longer) without letting the
-        # wrong-DST cron through. Strict hour==16 was dropping every
-        # delayed firing — that's why no scheduled run produced a PR.
+        # Two windows per day: 12:00–13:30 PT and 16:00–17:30 PT. Each
+        # absorbs the typical GitHub Actions cron delay (often 10–30 min)
+        # without letting a wrong-DST cron through. workflow_dispatch
+        # bypasses the gate.
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "go=true" >> "$GITHUB_OUTPUT"
@@ -56,11 +68,19 @@ jobs:
           hour=$(TZ=America/Los_Angeles date +%H)
           minute=$(TZ=America/Los_Angeles date +%M)
           echo "Local PT: $hour:$minute"
+          in_noon_window=false
+          in_4pm_window=false
+          if [ "$hour" = "12" ] || { [ "$hour" = "13" ] && [ "$minute" -le 30 ]; }; then
+            in_noon_window=true
+          fi
           if [ "$hour" = "16" ] || { [ "$hour" = "17" ] && [ "$minute" -le 30 ]; }; then
+            in_4pm_window=true
+          fi
+          if [ "$in_noon_window" = "true" ] || [ "$in_4pm_window" = "true" ]; then
             echo "go=true" >> "$GITHUB_OUTPUT"
           else
             echo "go=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping: outside 16:00–17:30 PT window (DST-paired cron firing on the other side)."
+            echo "Skipping: outside 12:00–13:30 PT and 16:00–17:30 PT windows."
           fi
 
       - name: Checkout repository
@@ -77,11 +97,12 @@ jobs:
         if: steps.gate.outputs.go == 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
-        # In summer the widened window admits both DST-paired crons
-        # (16:07 and 17:07 PDT). last_run_at < 20h guards against the
-        # double-fire. Open-draft check prevents stacking new PRs on top
-        # of unreviewed ones — merge or close the draft to unblock.
-        # workflow_dispatch bypasses both so you can force a run.
+        # 2× daily cadence (noon + 4pm PT). Each window has paired UTC
+        # crons; a 3h cooldown blocks the second cron in the same window
+        # without blocking the other window. Open-draft check is capped at
+        # 5 (was: any draft) so reviewer backlog doesn't permanently
+        # silence the audit — but still prevents unbounded stacking.
+        # workflow_dispatch bypasses both.
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "go=true" >> "$GITHUB_OUTPUT"
@@ -93,20 +114,50 @@ jobs:
             now_epoch=$(date -u +%s)
             if [ "$last_epoch" -gt 0 ]; then
               age_h=$(( (now_epoch - last_epoch) / 3600 ))
-              if [ "$age_h" -lt 20 ]; then
-                echo "Skipping: last run was ${age_h}h ago (<20h)."
+              if [ "$age_h" -lt 3 ]; then
+                echo "Skipping: last run was ${age_h}h ago (<3h cooldown)."
                 echo "go=false" >> "$GITHUB_OUTPUT"
                 exit 0
               fi
             fi
           fi
-          drafts=$(gh pr list --search "head:docs-audit/" --state open --json number --jq '[.[].number | tostring] | join(", #")')
-          if [ -n "$drafts" ]; then
-            echo "Skipping: open docs-audit draft(s) #${drafts}. Merge or close them, or use workflow_dispatch to bypass."
+          draft_count=$(gh pr list --search "head:docs-audit/" --state open --json number --jq 'length')
+          if [ "$draft_count" -ge 5 ]; then
+            drafts=$(gh pr list --search "head:docs-audit/" --state open --json number --jq '[.[].number | tostring] | join(", #")')
+            echo "Skipping: ${draft_count} open docs-audit draft(s) (#${drafts}). Merge/close some, or use workflow_dispatch."
             echo "go=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "Open audit drafts: ${draft_count} (cap 5)."
           echo "go=true" >> "$GITHUB_OUTPUT"
+
+      - name: Compute dynamic effort
+        id: effort
+        if: steps.dedup.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        # Effort scales inverse to the open docs-audit issue queue. A
+        # drained queue means triage is keeping up and the codebase can
+        # absorb more findings; a hot queue means we should back off so
+        # reviewers don't drown. This makes the audit self-balancing
+        # without a tuning knob.
+        run: |
+          open_count=$(gh issue list --label docs-audit --state open --limit 100 --json number --jq 'length')
+          echo "Open docs-audit issues: ${open_count}"
+          if [ "$open_count" -gt 20 ]; then
+            mode="conservative"; batch=6;  cap=8
+          elif [ "$open_count" -gt 10 ]; then
+            mode="balanced";     batch=12; cap=15
+          else
+            mode="thorough";     batch=16; cap=25
+          fi
+          echo "mode=${mode} batch=${batch} cap=${cap}"
+          {
+            echo "mode=${mode}"
+            echo "batch=${batch}"
+            echo "cap=${cap}"
+            echo "open_count=${open_count}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Configure git identity
         if: steps.dedup.outputs.go == 'true'
@@ -123,6 +174,13 @@ jobs:
           # depends on a model-generated timestamp (PR #967 used a 2025
           # unix ts because the model hallucinated `date +%s`).
           BRANCH_SUFFIX: ${{ github.run_id }}
+          # Dynamic effort from the previous step. The prompt reads these
+          # via the GHA `${{ ... }}` interpolation below; env vars exist
+          # primarily for visibility in the action log.
+          AUDIT_MODE: ${{ steps.effort.outputs.mode }}
+          AUDIT_BATCH_SIZE: ${{ steps.effort.outputs.batch }}
+          AUDIT_ISSUE_CAP: ${{ steps.effort.outputs.cap }}
+          AUDIT_QUEUE_OPEN: ${{ steps.effort.outputs.open_count }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Surface the SDK transcript in the Actions log. Without this the
@@ -136,11 +194,27 @@ jobs:
           # file. Bash patterns must match what the prompt actually invokes.
           claude_args: >-
             --model claude-sonnet-4-6
-            --max-turns 60
-            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git rev-parse:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
+            --max-turns 120
+            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git rev-parse:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
           prompt: |
-            You are the FiestaBoard docs auditor. You run unattended once a day
-            at 4pm America/Los_Angeles and audit a small batch of repo docs.
+            You are the FiestaBoard docs auditor. You run unattended twice a
+            day (noon and 4pm America/Los_Angeles) and audit a batch of repo
+            docs. Your job is mostly to **find** problems — fixing happens
+            downstream via the issue-triage workflow, which spawns one focused
+            Claude worker per issue you file. Lean into filing issues; each
+            one becomes a short, scoped, high-success-rate fix task. Save
+            inline PRs for the truly trivial.
+
+            ## Effort for this run (computed by the workflow)
+
+            - **Mode:**       ${{ steps.effort.outputs.mode }}
+            - **Batch size:** ${{ steps.effort.outputs.batch }} files
+            - **Issue cap:**  ${{ steps.effort.outputs.cap }} per run
+            - **Queue depth:** ${{ steps.effort.outputs.open_count }} open `docs-audit` issues
+
+            The mode/batch/cap were chosen by the workflow based on the
+            queue depth — you don't need to second-guess them. Just use
+            them.
 
             ## Sweep state
 
@@ -164,46 +238,70 @@ jobs:
                - Set `files_remaining` to the full glob, sorted.
                - Set `files_audited` to `[]`.
                - Bump `round` by 1 and set `round_started_at` to now (ISO8601 UTC).
-            3. Pick the first **8** entries from `files_remaining` as this run's batch.
-               If fewer than 8 remain, use what's there.
+            3. Pick the first **${{ steps.effort.outputs.batch }}** entries from
+               `files_remaining` as this run's batch. If fewer remain, use
+               what's there.
 
             ## For each file in the batch
 
-            Read it carefully. Categorize findings into three buckets:
+            Read it **carefully and deeply** — don't skim. For each file
+            spend real budget understanding what the doc claims, then
+            verify those claims (commands actually run? paths actually
+            exist? referenced functions/symbols actually present? screenshots
+            actually in the docs folder? variables/flags match the
+            manifest or `src/`?).
 
-            **A. Auto-fixable errors** — small, surgical edits where the
-                right answer is unambiguous. Includes:
-                  - Typos, spelling, grammar
-                  - Broken internal links (verify the target with `ls`)
-                  - Stale command examples that contradict CLAUDE.md (e.g.
-                    `npm run dev` directly)
-                  - Wrong file paths (verify with `ls`)
-                  - Code blocks missing language tags
-                  - References to renamed/removed files (verify with `grep`)
-                  - Out-of-order section headings vs the canonical plugin
-                    doc format described in CLAUDE.md
-                  - **Broken code inside code blocks** when the breakage is
-                    mechanical and the fix is unambiguous: invalid regex
-                    syntax, malformed JSON, shell commands that won't parse.
-                    Do NOT touch code blocks whose breakage requires runtime
-                    knowledge or design judgment.
-                  - **Outdated external identifiers** (model IDs, API
-                    versions, CLI flags, package names) where you know the
-                    current value from your training OR can verify it from
-                    another up-to-date file in this repo. If the right
-                    replacement isn't unambiguous, file an issue instead.
+            Categorize findings into three buckets:
 
-            **B. Missing documentation** — a referenced concept, command, env
-                var, or workflow that has no documented home; a plugin without
-                a `docs/SETUP.md` or hero image; a feature in `src/` with no
-                user-facing doc.
+            **A. Trivial mechanical fixes ONLY** — single-token or
+                single-line edits with no ambiguity:
+                  - Typos / spelling / grammar
+                  - Code blocks missing a language tag
+                  - Broken internal links to files that obviously moved
+                    (verify with `ls`)
 
-            **C. Usability / clarity issues** — instructions that are correct
-                but confusing, redundant, out-of-order, or could be simplified;
-                missing prerequisites; jargon used before definition.
+                Anything bigger than a one-line edit, anything that
+                requires reading surrounding context to fix, anything
+                that involves choosing between multiple reasonable
+                rewrites — that is NOT bucket A. Push it to B or C so a
+                triage worker handles it with focus.
 
-            Be conservative: only flag a finding if you're confident it's real.
-            False positives erode trust. If you're unsure, leave it.
+            **B. Missing documentation** — a referenced concept, command,
+                env var, or workflow with no documented home; a plugin
+                without `docs/SETUP.md` or a hero image; a feature in
+                `src/` with no user-facing doc; missing prerequisites;
+                outdated identifiers (model IDs, API versions, CLI flags,
+                package names) — file these as issues so the triage worker
+                can verify the current value and replace it cleanly;
+                broken code inside code blocks (invalid regex, malformed
+                JSON, unparseable shell) — file as issue so the triage
+                worker can rewrite it with full context.
+
+            **C. Usability / clarity issues** — instructions that are
+                correct but confusing, redundant, out-of-order, or could
+                be simplified; jargon used before definition; examples
+                that work but mislead (stale dates, placeholder values
+                where a real example would help, mismatched voice).
+
+            ## Aggressiveness
+
+            Mode for this run: **${{ steps.effort.outputs.mode }}**.
+
+            - `thorough` (queue ≤ 10 open issues): **file any defensible
+              finding**. False positives are cheap — the triage worker
+              will validate or leave a comment. Under-reporting is
+              expensive — broken docs stay broken. Read each file end to
+              end before deciding.
+            - `balanced` (10 < queue ≤ 20): file findings you're moderately
+              confident about. Skim past minor stylistic preferences.
+            - `conservative` (queue > 20): only flag findings you're
+              highly confident about. The reviewer queue is hot; don't
+              add noise.
+
+            Always: dedup against open `docs-audit` issues before filing
+            (`gh issue list --label docs-audit --state open --limit 100
+            --search "<key phrase>"`). Skip if a same-file, same-topic
+            issue already exists open.
 
             ## Outputs
 
@@ -302,10 +400,13 @@ jobs:
             - Never modify non-docs source code. Edits are restricted to
               `*.md` files and `.github/docs-audit-state.json`.
             - Never open more than 1 PR per run.
-            - Never file more than 10 issues per run. If you'd file more,
-              keep the top 10 (most actionable) and discard the rest.
-            - If something looks ambiguous, skip it and move on. Erring on
-              the side of "do nothing" is correct for an unattended job.
+            - Never file more than **${{ steps.effort.outputs.cap }}** issues per
+              run (the cap is dynamic based on queue depth). If you'd file
+              more, keep the top ${{ steps.effort.outputs.cap }} (most
+              actionable) and discard the rest.
+            - When dedup says skip, skip — don't refile the same finding.
+              When mode is `thorough`, lean toward filing; when
+              `conservative`, lean toward skipping.
 
             ## Wrap up
 
