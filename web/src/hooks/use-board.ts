@@ -17,6 +17,16 @@ export const queryKeys = {
   schedules: (boardId: string) => ["schedules", boardId] as const,
 };
 
+// Pair with the backend's adaptive post-send refresh (max ~3s). Early tick
+// catches the fast local-API case; late tick is the safety net once the
+// backend's window closes. Without this, the UI would wait up to 30s for
+// the next board-current-message refetch tick.
+function scheduleBoardStateInvalidations(queryClient: ReturnType<typeof useQueryClient>) {
+  const key = ["board-current-message"];
+  setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 750);
+  setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 3500);
+}
+
 // Status query - refetches every 15 seconds
 export function useStatus() {
   return useQuery({
@@ -78,6 +88,7 @@ export function useSetActivePage() {
     onSuccess: () => {
       // Only invalidate status, not activePage (we already updated it optimistically)
       queryClient.invalidateQueries({ queryKey: queryKeys.status });
+      scheduleBoardStateInvalidations(queryClient);
     },
     onSettled: () => {
       // Always refetch after error or success to ensure consistency
