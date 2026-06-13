@@ -1,6 +1,6 @@
 # Random Setup Guide
 
-Display randomly selected values on your Vestaboard, refreshed on a schedule you control.
+Display randomly selected values on your FiestaBoard, refreshed on a schedule you control.
 
 ## Overview
 
