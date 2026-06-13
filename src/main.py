@@ -285,20 +285,19 @@ class DisplayService:
                         f"Schedule mode: No matching schedule for {current_day} {current_time.strftime('%H:%M')}"
                     )
             elif active_page_id is None:
-                # Manual mode: Use manual active page setting
-                active_page_id = settings_service.get_active_page_id()
-                logger.debug(f"Manual mode: Using manual active page: {active_page_id}")
-
-            # No active page set - try to default to first page (manual mode only)
-            if not active_page_id and not settings_service.is_schedule_enabled():
-                pages = page_service.list_pages()
-                if pages:
-                    active_page_id = pages[0].id
-                    settings_service.set_active_page_id(active_page_id)
-                    logger.info(f"No active page set, defaulting to first page: {active_page_id}")
-                else:
-                    logger.debug("No active page and no pages available")
-                    return False
+                # Schedule is disabled and no explicit user override is active.
+                # Issue #970: a user toggling the schedule off expects FiestaBoard
+                # to stop pushing to the board so out-of-band content (e.g. a
+                # message composed in the Vestaboard app) isn't overwritten by
+                # the polling loop. Don't auto-push the manually-configured
+                # active page here — explicit user actions (POST
+                # /settings/active-page, POST /settings/temporary-override)
+                # still flow through their own send paths, so the user retains
+                # a way to push when they want to.
+                logger.debug("Schedule disabled - skipping active-page auto-push (issue #970)")
+                self._last_active_page_content = None
+                self._last_active_page_id = None
+                return False
 
             # If schedule mode but no page (gap without default), don't update board
             if not active_page_id:

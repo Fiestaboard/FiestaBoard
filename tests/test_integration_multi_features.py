@@ -251,8 +251,16 @@ class TestScheduleModeIntegration:
 
         return {"page": page_service, "schedule": schedule_service, "settings": settings_service}
 
-    def test_manual_mode_uses_manual_active_page(self, services):
-        """Test that manual mode uses the manual active page setting."""
+    def test_schedule_disabled_does_not_auto_push_active_page(self, services):
+        """Regression for issue #970: schedule off must stop the polling-loop push.
+
+        Pre-fix, toggling the schedule off fell back to "manual mode" and the
+        polling loop kept pushing the manually-set active page (with its live
+        variables, e.g. a clock) — overwriting out-of-band content sent from
+        the Vestaboard app. Now schedule-off means "FiestaBoard stops touching
+        the board" until the user explicitly re-enables the schedule or pushes
+        a page via /settings/active-page or /settings/temporary-override.
+        """
         page_service = services["page"]
         settings_service = services["settings"]
 
@@ -283,11 +291,13 @@ class TestScheduleModeIntegration:
                         service = DisplayService()
                         service.vb_client = mock_client_instance
 
-                        # Check active page (should use manual page1)
-                        service.check_and_send_active_page()
+                        # Tick the polling loop.
+                        sent = service.check_and_send_active_page()
 
-                        # Verify it used page1 (manual), not page2
-                        assert service._last_active_page_id == page1.id
+                        # The polling tick must be a no-op when schedule is off.
+                        assert sent is False
+                        assert service._last_active_page_id is None
+                        mock_client_instance.send_characters.assert_not_called()
 
     def test_schedule_mode_uses_scheduled_page(self, services):
         """Test that schedule mode uses the schedule-based page selection."""

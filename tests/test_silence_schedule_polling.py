@@ -43,8 +43,22 @@ def service_factory():
         mocks["config"].SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
         mocks["config"].SILENCE_SCHEDULE_PAGE_ID = None
 
+        # Schedule mode is enabled (see settings mock below), so the schedule
+        # service must yield a concrete page id when consulted.
+        schedule_service = Mock()
+        schedule_service.get_active_page_id.return_value = "page-1"
+        mocks["schedule"].return_value = schedule_service
+
+        # Collection resolution is a passthrough — return the page id unchanged.
+        collection_service = Mock()
+        collection_service.resolve_page_id.side_effect = lambda pid: pid
+        mocks["collection"].return_value = collection_service
+
         settings_service = Mock()
-        settings_service.is_schedule_enabled.return_value = False
+        # Silence-mode is a sub-feature of the polling loop, so these tests
+        # assume the schedule is enabled — otherwise the schedule-off guard
+        # (issue #970) short-circuits before silence dispatch can run.
+        settings_service.is_schedule_enabled.return_value = True
         settings_service.get_active_page_id.return_value = "page-1"
         settings_service.get_polling_interval.return_value = 60
         board_settings = Mock()

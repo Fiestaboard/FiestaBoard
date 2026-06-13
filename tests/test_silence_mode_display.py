@@ -108,8 +108,12 @@ class TestSilenceModeDispatch:
         page_service.preview_page.return_value = result
 
         settings = Mock()
-        settings.is_schedule_enabled.return_value = False
+        # Silence-mode dispatch is a sub-feature of the polling loop, so these
+        # tests assume schedule mode is on — the schedule-off guard (#970)
+        # would otherwise short-circuit before silence runs.
+        settings.is_schedule_enabled.return_value = True
         settings.get_active_page_id.return_value = "active-page"
+        settings.consume_temporary_override.return_value = None
         settings.get_board_settings.return_value = Mock(boards=[{"device_type": "note"}])
         settings.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
 
@@ -127,7 +131,7 @@ class TestSilenceModeDispatch:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service"),
+            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -143,7 +147,7 @@ class TestSilenceModeDispatch:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service"),
+            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -157,7 +161,7 @@ class TestSilenceModeDispatch:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service"),
+            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -203,7 +207,7 @@ class TestSilenceModeDispatch:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service"),
+            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -230,7 +234,7 @@ class TestSilenceModeDispatch:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service"),
+            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -260,8 +264,10 @@ class TestCustomIndicatorTextAndPosition:
         page_service.preview_page.return_value = result
 
         settings = Mock()
-        settings.is_schedule_enabled.return_value = False
+        # Schedule mode on — see comment in TestSilenceModeDispatch._patch_common.
+        settings.is_schedule_enabled.return_value = True
         settings.get_active_page_id.return_value = "active-page"
+        settings.consume_temporary_override.return_value = None
         settings.get_board_settings.return_value = Mock(boards=[{"device_type": "flagship"}])
         settings.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
 
@@ -278,7 +284,7 @@ class TestCustomIndicatorTextAndPosition:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service"),
+            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -294,7 +300,7 @@ class TestCustomIndicatorTextAndPosition:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service"),
+            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -322,7 +328,7 @@ class TestCustomIndicatorTextAndPosition:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service"),
+            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -387,7 +393,8 @@ class TestTemporaryOverrideDuringSilence:
         )
 
         settings = Mock()
-        settings.is_schedule_enabled.return_value = False
+        # Schedule mode on — see comment in TestSilenceModeDispatch._patch_common.
+        settings.is_schedule_enabled.return_value = True
         settings.get_active_page_id.return_value = "active-page"
         settings.get_board_settings.return_value = Mock(boards=[{"device_type": "note"}])
         settings.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
@@ -408,7 +415,7 @@ class TestTemporaryOverrideDuringSilence:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service"),
+            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -426,7 +433,7 @@ class TestTemporaryOverrideDuringSilence:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service"),
+            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -443,7 +450,7 @@ class TestTemporaryOverrideDuringSilence:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service"),
+            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
