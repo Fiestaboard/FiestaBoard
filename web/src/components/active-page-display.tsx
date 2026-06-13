@@ -9,6 +9,7 @@ import {
   GalleryHorizontalEnd,
   Loader2,
   Moon,
+  Pause,
   Radio,
   Timer,
   UploadCloud,
@@ -51,6 +52,7 @@ import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessag
 export function ActivePageDisplay() {
   const t = useTranslations("activeDisplay");
   const _tc = useTranslations("common");
+  const tPause = useTranslations("displaySettings.pause");
   const router = useRouter();
 
   // Sheet open state
@@ -216,6 +218,16 @@ export function ActivePageDisplay() {
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
+
+  // Surface per-board paused status on Home (issue #970). When a board is
+  // paused FiestaBoard does not push anything to it from any code path —
+  // mirror the settings-page badge here so users aren't confused by a board
+  // that appears "stuck" while paused.
+  const pausedBoards = useMemo(
+    () => (boardSettings?.boards ?? []).filter((b) => b.paused === true),
+    [boardSettings],
+  );
+  const showBoardNameOnPauseBadge = (boardSettings?.boards?.length ?? 0) > 1;
 
   // Fetch collections for name resolution and badge display
   const { data: collectionsData } = useQuery({
@@ -444,6 +456,18 @@ export function ActivePageDisplay() {
                 <span className="text-info">{t("silenceModeActive")}</span>
               </div>
             )}
+            {pausedBoards.map((board) => (
+              <Badge
+                key={board.id}
+                variant="default"
+                className="text-xs gap-1 bg-amber-500 text-white hover:bg-amber-500"
+                data-testid="board-paused-badge"
+                title={tPause("tooltip")}
+              >
+                <Pause className="h-3 w-3" aria-hidden="true" />
+                {showBoardNameOnPauseBadge ? `${tPause("badge")}: ${board.name}` : tPause("badge")}
+              </Badge>
+            ))}
           </div>
         </CardHeader>
 
