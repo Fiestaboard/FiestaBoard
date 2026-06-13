@@ -18,7 +18,7 @@ From repo root:
 
 ```bash
 # Should return no matches (or only test/example placeholders like "test_key", "your_*_here")
-git grep -E 'api_key|password|secret|token' -- '*.py' '*.ts' '*.tsx' '*.json' '*.yml' '*.md' | grep -v -E 'example|test_key|your_|placeholder|***|_mask_sensitive|SENSITIVE' || true
+git grep -E 'api_key|password|secret|token' -- '*.py' '*.ts' '*.tsx' '*.json' '*.yml' '*.md' | grep -v -E 'example|test_key|your_|placeholder|_mask_sensitive|SENSITIVE' || true
 ```
 
 - [ ] No real API keys, tokens, or passwords in code, docs, or committed config.
