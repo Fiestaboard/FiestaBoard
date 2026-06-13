@@ -70,9 +70,7 @@ class TestScheduleDisabledNoPush:
         live variables) was getting pushed every tick after the user toggled
         the schedule off, overwriting an out-of-band custom message.
         """
-        page_service, settings, config = _patch_common(
-            active_page_id="active-page", schedule_enabled=False
-        )
+        page_service, settings, config = _patch_common(active_page_id="active-page", schedule_enabled=False)
 
         with (
             patch("src.main.get_page_service", return_value=page_service),
@@ -92,9 +90,7 @@ class TestScheduleDisabledNoPush:
 
     def test_schedule_off_subsequent_ticks_stay_silent(self, service):
         """Multiple polling ticks with schedule off should never push."""
-        page_service, settings, config = _patch_common(
-            active_page_id="active-page", schedule_enabled=False
-        )
+        page_service, settings, config = _patch_common(active_page_id="active-page", schedule_enabled=False)
 
         with (
             patch("src.main.get_page_service", return_value=page_service),

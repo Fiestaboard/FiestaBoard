@@ -131,7 +131,9 @@ class TestSilenceModeDispatch:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
+            patch(
+                "src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))
+            ),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -147,7 +149,9 @@ class TestSilenceModeDispatch:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
+            patch(
+                "src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))
+            ),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -161,7 +165,9 @@ class TestSilenceModeDispatch:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
+            patch(
+                "src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))
+            ),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -207,7 +213,9 @@ class TestSilenceModeDispatch:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
+            patch(
+                "src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))
+            ),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -234,7 +242,9 @@ class TestSilenceModeDispatch:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
+            patch(
+                "src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))
+            ),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -284,7 +294,9 @@ class TestCustomIndicatorTextAndPosition:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
+            patch(
+                "src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))
+            ),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -300,7 +312,9 @@ class TestCustomIndicatorTextAndPosition:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
+            patch(
+                "src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))
+            ),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -328,7 +342,9 @@ class TestCustomIndicatorTextAndPosition:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
+            patch(
+                "src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))
+            ),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -415,7 +431,9 @@ class TestTemporaryOverrideDuringSilence:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
+            patch(
+                "src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))
+            ),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -433,7 +451,9 @@ class TestTemporaryOverrideDuringSilence:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
+            patch(
+                "src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))
+            ),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
@@ -450,7 +470,9 @@ class TestTemporaryOverrideDuringSilence:
         with (
             patch("src.main.get_page_service", return_value=page_service),
             patch("src.main.get_settings_service", return_value=settings),
-            patch("src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))),
+            patch(
+                "src.main.get_schedule_service", return_value=Mock(get_active_page_id=Mock(return_value="active-page"))
+            ),
             patch("src.main.Config", config),
             patch.object(service, "_check_trigger_override", return_value=None),
         ):
