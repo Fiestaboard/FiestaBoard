@@ -722,7 +722,7 @@ If `trigger_id` is omitted it defaults to the plugin id so simple fire-and-forge
 
 ### 4. Lifecycle: when triggers fire and what they replace
 
-The display loop ticks at the configured polling interval (see `src/main.py:683`). Each tick, **before** evaluating the scheduled or manual page, it calls `check_triggers()` on every enabled plugin where `supports_triggers` is `true`. The order of operations:
+The display loop ticks at the configured polling interval. Each tick, **before** evaluating the scheduled or manual page, it calls `check_triggers()` on every enabled plugin where `supports_triggers` is `true`. The order of operations:
 
 1. **Silence mode wins.** If the board is in silence mode, triggers are *not* evaluated — no plugin code runs at all. The silence indicator stays on the board.
 2. **Each trigger-capable plugin is asked.** `check_triggers()` is called; any returned `triggered=True` results are recorded in the `TriggerService`.
@@ -736,7 +736,7 @@ The display loop ticks at the configured polling interval (see `src/main.py:683`
 
 #### Dedup
 
-Re-emitting a `TriggerResult` with the same `trigger_id` *replaces* the existing active trigger (same id, refreshed `activated_at` and `duration_seconds`). This means it's safe — and expected — to keep returning the same trigger every tick while the underlying condition holds. The board doesn't flicker because the `TriggerService` only sends content to the board when the rendered content actually changes (`src/main.py:630-633`).
+Re-emitting a `TriggerResult` with the same `trigger_id` *replaces* the existing active trigger (same id, refreshed `activated_at` and `duration_seconds`). This means it's safe — and expected — to keep returning the same trigger every tick while the underlying condition holds. The board doesn't flicker because the `TriggerService` only sends content to the board when the rendered content actually changes.
 
 Pick `trigger_id` values that are **stable per event** (e.g. `"doorbell_ring_<event_uuid>"`, `"storm_alert_<nws_id>"`). Using a fixed string like `"doorbell"` works too, but means a second ring within the duration window can't visibly re-fire — it just refreshes the existing trigger's clock.
 
@@ -785,7 +785,7 @@ def check_triggers(self) -> list[TriggerResult]:
 
 **Threshold alert.** Fire when a numeric value crosses a configured threshold and stay active until it recovers.
 
-**Webhook-driven.** Override `receive_payload()` (see `src/plugins/base.py:458`) to handle an incoming webhook and call `self.fire_trigger(...)` directly — no need to wait for the next polling tick or hit `POST /triggers/check`.
+**Webhook-driven.** Override `receive_payload()` to handle an incoming webhook and call `self.fire_trigger(...)` directly — no need to wait for the next polling tick or hit `POST /triggers/check`.
 
 **Scheduled interrupt.** A countdown plugin can fire a high-priority trigger in the final minute before an event so the board interrupts whatever else is showing.
 
