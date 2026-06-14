@@ -12,10 +12,28 @@ The Random plugin needs no API key or external service — it generates all valu
 
 ## Quick Setup
 
-1. **Enable** — Open Integrations, find Random, and toggle it on.
-2. **Configure** — Set your list of choices (e.g. dinner options, team names). Optionally adjust the refresh interval.
-3. **Template** — Add `{{random.choice}}`, `{{random.coin_flip}}`, or `{{random.color}}` to any page template.
-4. **View** — Save and your board will show a fresh random pick on each refresh.
+### 1. Enable the plugin
+
+Open **Integrations**, find **Random**, and toggle it on.
+
+### 2. Configure
+
+Click **Configure** on the Random card. Set your list of choices (e.g. dinner options, team names). Optionally adjust the refresh interval, then click **Save Changes**.
+
+### 3. Add variables to a page
+
+In **Pages**, create or edit a page template and add random variables. A minimal example:
+
+```jinja
+{{random.choice}}
+{{random.coin_flip}}
+```
+
+### 4. View on your board
+
+Save the page. On the next refresh, your board will show a fresh random pick.
+
+![Random displayed on a Vestaboard](./board-display.png)
 
 ## Template Variables
 
