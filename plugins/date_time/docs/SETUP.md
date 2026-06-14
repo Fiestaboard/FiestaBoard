@@ -141,7 +141,7 @@ The configured timezone does not match the one you intended. Check the IANA name
 The string is not a valid IANA name. Use the autocomplete picker rather than typing it freehand, and watch for typos.
 
 **Time is not updating.**
-Verify the plugin is enabled in **Integrations** and that the page template references at least one `date_time.*` variable. The board refresh cadence is set elsewhere — see your board refresh configuration.
+Verify the plugin is enabled in **Integrations** and that the page template references at least one `date_time.*` variable. The board polls for new data on a fixed interval — to shorten it, open **Settings** and lower the **Board Update Interval** (default 15 seconds).
 
 **`time_english` reads oddly between hours.**
 The expression rounds to the nearest standard phrasing (`HALF PAST`, `A QUARTER PAST`, `A QUARTER TO`) and uses morning/afternoon/evening/night periods based on the hour. Minute 30 is always `HALF PAST`; minute 15 is always `A QUARTER PAST`.
