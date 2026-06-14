@@ -18,6 +18,16 @@ name: 'Claude: Docs Audit'
 # Hot queue → conservative mode (batch 12, cap 32). The audit self-throttles
 # without manual tuning.
 #
+# Parallel shards: workflow_dispatch accepts a `parallel_jobs` input. The
+# `prep` job computes a matrix of N shards, and the `docs-audit` matrix job
+# fans out into N parallel audits. Each shard takes a disjoint slice of
+# `files_remaining` (`SHARD_INDEX × batch` offset, next `batch` files), so
+# parallel shards within one dispatch don't audit overlapping files. The
+# state file commit is idempotent across shards (each writes the same
+# end-state — the full N × batch slice moved to `files_audited`) and the
+# push uses rebase+retry to survive races. Scheduled (cron) runs default
+# to 1 shard, so the existing cadence is unchanged.
+#
 # Progress tracked in .github/docs-audit-state.json; sweep restarts from
 # the top once every file has been audited.
 # =============================================================================
@@ -33,29 +43,41 @@ on:
     - cron: '7 23 * * *'   # 16:07 PDT (summer) / 15:07 PST (gated off)
     - cron: '7 0 * * *'    # 16:07 PST (winter) / 17:07 PDT (gated by cooldown)
   workflow_dispatch:
+    inputs:
+      parallel_jobs:
+        description: 'Number of parallel audit shards to fan out (1–10). Each shard takes a disjoint slice of the file queue.'
+        type: number
+        default: 1
 
 permissions:
   contents: read
 
-# Serialize every docs-audit run. Without this, two parallel runs read the
-# same state, pick the same batch, and open duplicate PRs touching the same
-# files — exactly what happened with PRs #966/#967. cancel-in-progress=false
-# so a workflow_dispatch fired during a scheduled run waits its turn rather
-# than aborting it.
+# Per-dispatch unique concurrency group so multiple dispatches don't cancel
+# each other's queued runs (GitHub keeps only the newest pending run per
+# group). Scheduled (cron) runs still share `docs-audit-cron` so the cron
+# cadence stays serialized — the state file is shared across cron runs but
+# each dispatch can race with itself only at the rebase+retry level.
 concurrency:
-  group: docs-audit
+  group: docs-audit-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'cron' }}
   cancel-in-progress: false
 
 jobs:
-  docs-audit:
-    name: Audit docs with Claude
+  prep:
+    name: Prepare audit shards
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
+    outputs:
+      go: ${{ steps.summary.outputs.go }}
+      mode: ${{ steps.effort.outputs.mode }}
+      batch: ${{ steps.effort.outputs.batch }}
+      cap: ${{ steps.effort.outputs.cap }}
+      open_count: ${{ steps.effort.outputs.open_count }}
+      shards: ${{ steps.shards.outputs.shards }}
+      shard_count: ${{ steps.shards.outputs.shard_count }}
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      id-token: write
+      contents: read
+      issues: read
+      pull-requests: read
     steps:
       - name: Gate on America/Los_Angeles local hour window
         id: gate
@@ -90,10 +112,7 @@ jobs:
         if: steps.gate.outputs.go == 'true'
         uses: actions/checkout@v6
         with:
-          # RELEASE_PAT so the state-file commit can push to main past
-          # branch protection — same pattern as the plugin-stats job.
-          token: ${{ secrets.RELEASE_PAT }}
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Dedup against recent runs and open drafts
         id: dedup
@@ -143,7 +162,8 @@ jobs:
         # drained queue means triage is keeping up and the codebase can
         # absorb more findings; a hot queue means we should back off so
         # reviewers don't drown. This makes the audit self-balancing
-        # without a tuning knob.
+        # without a tuning knob. Per-shard caps — with parallel_jobs=N the
+        # total issue cap for the dispatch is roughly N × cap.
         run: |
           open_count=$(gh issue list --label docs-audit --state open --limit 200 --json number --jq 'length')
           echo "Open docs-audit issues: ${open_count}"
@@ -162,28 +182,91 @@ jobs:
             echo "open_count=${open_count}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Configure git identity
+      - name: Compute shard matrix
+        id: shards
         if: steps.dedup.outputs.go == 'true'
+        # Build the matrix array [0, 1, ..., N-1] from the parallel_jobs
+        # input. Scheduled runs default to 1 shard (existing behavior).
+        # Clamped to [1, 10] so a typo can't fan out 100 jobs.
+        run: |
+          N='${{ github.event.inputs.parallel_jobs }}'
+          if [ -z "$N" ] || ! [ "$N" -eq "$N" ] 2>/dev/null; then
+            N=1
+          fi
+          if [ "$N" -lt 1 ]; then N=1; fi
+          if [ "$N" -gt 10 ]; then N=10; fi
+          shards=$(jq -nc --argjson n "$N" '[range(0; $n)]')
+          echo "Shard count: ${N}, matrix: ${shards}"
+          {
+            echo "shards=${shards}"
+            echo "shard_count=${N}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Summarize gate outcome
+        id: summary
+        if: always()
+        # Collapse gate + dedup into a single `go` for the downstream job.
+        run: |
+          if [ "${{ steps.gate.outputs.go }}" != "true" ] || [ "${{ steps.dedup.outputs.go }}" != "true" ]; then
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "Audit will not run this invocation."
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            echo "Audit will run with ${{ steps.shards.outputs.shard_count }} shard(s)."
+          fi
+
+  docs-audit:
+    name: Audit docs (shard ${{ matrix.shard }})
+    needs: prep
+    if: needs.prep.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    strategy:
+      # Don't cancel sibling shards if one fails — each shard's slice is
+      # independent so a single Claude error shouldn't kill the rest.
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.prep.outputs.shards) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          # RELEASE_PAT so the state-file commit can push to main past
+          # branch protection — same pattern as the plugin-stats job.
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
+
+      - name: Configure git identity
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run Claude docs audit
-        if: steps.dedup.outputs.go == 'true'
         uses: anthropics/claude-code-action@v1
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
-          # github.run_id is unique per run, so the branch name no longer
-          # depends on a model-generated timestamp (PR #967 used a 2025
-          # unix ts because the model hallucinated `date +%s`).
-          BRANCH_SUFFIX: ${{ github.run_id }}
-          # Dynamic effort from the previous step. The prompt reads these
-          # via the GHA `${{ ... }}` interpolation below; env vars exist
+          # Unique per-shard branch suffix. github.run_id is unique per
+          # workflow run, matrix.shard disambiguates parallel shards within
+          # the same run, so PR branches from a 5-shard dispatch land at
+          # docs-audit/round-N-run-<runid>-shard-0 … shard-4.
+          BRANCH_SUFFIX: ${{ github.run_id }}-shard-${{ matrix.shard }}
+          # Shard coordinates — the prompt uses these to compute its slice
+          # of files_remaining and the idempotent end-state for the state
+          # file commit.
+          SHARD_INDEX: ${{ matrix.shard }}
+          SHARD_COUNT: ${{ needs.prep.outputs.shard_count }}
+          # Dynamic effort from the prep job. The prompt reads these via
+          # the GHA `${{ ... }}` interpolation below; env vars exist
           # primarily for visibility in the action log.
-          AUDIT_MODE: ${{ steps.effort.outputs.mode }}
-          AUDIT_BATCH_SIZE: ${{ steps.effort.outputs.batch }}
-          AUDIT_ISSUE_CAP: ${{ steps.effort.outputs.cap }}
-          AUDIT_QUEUE_OPEN: ${{ steps.effort.outputs.open_count }}
+          AUDIT_MODE: ${{ needs.prep.outputs.mode }}
+          AUDIT_BATCH_SIZE: ${{ needs.prep.outputs.batch }}
+          AUDIT_ISSUE_CAP: ${{ needs.prep.outputs.cap }}
+          AUDIT_QUEUE_OPEN: ${{ needs.prep.outputs.open_count }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Surface the SDK transcript in the Actions log. Without this the
@@ -198,7 +281,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6
             --max-turns 250
-            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git rev-parse:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
+            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git pull:*),Bash(git rebase:*),Bash(git rev-parse:*),Bash(git reset:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
           prompt: |
             You are the FiestaBoard docs auditor. You run unattended twice a
             day (noon and 4pm America/Los_Angeles) and audit a batch of repo
@@ -208,12 +291,43 @@ jobs:
             one becomes a short, scoped, high-success-rate fix task. Save
             inline PRs for the truly trivial.
 
+            ## Parallel shard coordinates
+
+            You are **shard $SHARD_INDEX of $SHARD_COUNT** parallel shards
+            running against the same sweep state. Verify these by echoing
+            `$SHARD_INDEX` and `$SHARD_COUNT` before doing anything else.
+
+            All shards in this dispatch share `files_remaining`. To avoid
+            overlapping work:
+
+            - When picking your batch, **skip the first
+              `$SHARD_INDEX * ${{ needs.prep.outputs.batch }}` entries** of
+              `files_remaining`, then take the next
+              `${{ needs.prep.outputs.batch }}` entries as your batch.
+            - If your slice falls entirely past the end of
+              `files_remaining` (queue too small for your shard index), exit
+              cleanly with the wrap-up summary. Do **not** open a PR, do
+              **not** file issues, do **not** touch state. The next run
+              will pick up where this one left off.
+            - When updating state at the end, move **all
+              `$SHARD_COUNT * ${{ needs.prep.outputs.batch }}` files**
+              (the union slice consumed by every parallel shard) from
+              `files_remaining` to `files_audited`. This is the same
+              end-state every shard computes, so racing pushes are safe.
+              If fewer than `$SHARD_COUNT * ${{ needs.prep.outputs.batch }}`
+              files remain, move whatever is left.
+            - Do **not** regenerate `files_remaining` in this run if it
+              becomes empty. Round restart happens on the next run, where
+              shard 0 will detect empty remaining and bump the round
+              cleanly.
+
             ## Effort for this run (computed by the workflow)
 
-            - **Mode:**       ${{ steps.effort.outputs.mode }}
-            - **Batch size:** ${{ steps.effort.outputs.batch }} files
-            - **Issue cap:**  ${{ steps.effort.outputs.cap }} per run
-            - **Queue depth:** ${{ steps.effort.outputs.open_count }} open `docs-audit` issues
+            - **Mode:**       ${{ needs.prep.outputs.mode }}
+            - **Batch size:** ${{ needs.prep.outputs.batch }} files per shard
+            - **Issue cap:**  ${{ needs.prep.outputs.cap }} per shard
+            - **Queue depth:** ${{ needs.prep.outputs.open_count }} open `docs-audit` issues
+            - **Shard count:** $SHARD_COUNT (this is shard $SHARD_INDEX)
 
             The mode/batch/cap were chosen by the workflow based on the
             queue depth — you don't need to second-guess them. Just use
@@ -272,7 +386,7 @@ jobs:
             ## Sweep logic
 
             1. Read the state file.
-            2. If `files_remaining` is empty:
+            2. If `files_remaining` is empty AND you are shard 0:
                - Glob the repo for docs files. Include:
                  `README.md`, `docs/**/*.md`, `plugins/*/README.md`,
                  `plugins/*/docs/**/*.md`, `web/src/components/README.md`.
@@ -281,9 +395,15 @@ jobs:
                - Set `files_remaining` to the full glob, sorted.
                - Set `files_audited` to `[]`.
                - Bump `round` by 1 and set `round_started_at` to now (ISO8601 UTC).
-            3. Pick the first **${{ steps.effort.outputs.batch }}** entries from
-               `files_remaining` as this run's batch. If fewer remain, use
-               what's there.
+               If `files_remaining` is empty AND you are NOT shard 0:
+               - Exit cleanly. Shard 0 handles round restart so only one
+                 shard touches the bump.
+            3. Compute your slice. Let
+               `offset = $SHARD_INDEX * ${{ needs.prep.outputs.batch }}` and
+               `batch = ${{ needs.prep.outputs.batch }}`.
+               Take `files_remaining[offset : offset + batch]` as this
+               shard's batch. If the slice is empty (offset ≥ length),
+               exit cleanly per the parallel-shard rules above.
 
             ## For each file in the batch
 
@@ -328,7 +448,7 @@ jobs:
 
             ## Aggressiveness
 
-            Mode for this run: **${{ steps.effort.outputs.mode }}**.
+            Mode for this run: **${{ needs.prep.outputs.mode }}**.
 
             - `thorough` (queue ≤ 40 open issues): **file any defensible
               finding**. False positives are cheap — the triage worker
@@ -350,36 +470,43 @@ jobs:
 
             ### If bucket A has any findings across the batch
 
-            Before this run started, `files_audited` had length **X** and the
-            total file count for the round (`len(files_audited) + len(files_remaining)`)
-            was **T**. After this batch, `files_audited` has length **Y**
-            (Y = X + batch size). Use these numbers in the title/body below.
+            Compute, for *your shard's batch only*: let
+            `audited_before = len(files_audited)` and let
+            `T = len(files_audited) + len(files_remaining)` (the total file
+            count for the round, computed from state BEFORE any update).
+            Let `X = audited_before + ($SHARD_INDEX * ${{ needs.prep.outputs.batch }})`
+            and `Y = X + (size of your batch — typically ${{ needs.prep.outputs.batch }})`.
+            Use these in the title/body below — they describe the file
+            range *this shard* audited, not the union across shards.
 
             Create a branch named exactly:
 
                 docs-audit/round-<round>-run-$BRANCH_SUFFIX
 
             where `$BRANCH_SUFFIX` is the value of the `BRANCH_SUFFIX`
-            environment variable (set by the workflow to the GitHub Actions
-            run ID). Do NOT use `date +%s` — past runs invented stale
-            timestamps that way. Verify with `echo "$BRANCH_SUFFIX"` first.
+            environment variable (set by the workflow to
+            `<run_id>-shard-<index>` so parallel shards land on disjoint
+            branch names). Verify with `echo "$BRANCH_SUFFIX"` first. Do
+            NOT use `date +%s` — past runs invented stale timestamps that
+            way.
 
             Branch off `main`. Apply ONLY the bucket-A fixes (small, surgical
             edits). Commit. Open a **ready-for-review** PR (no `--draft`):
 
-              Title: `docs: auto-audit — round <round>, files <X+1>–<Y> of <T>`
-                e.g. `docs: auto-audit — round 1, files 9–16 of 20`
+              Title: `docs: auto-audit — round <round>, files <X+1>–<Y> of <T> (shard <SHARD_INDEX>/<SHARD_COUNT>)`
+                e.g. `docs: auto-audit — round 1, files 9–16 of 20 (shard 0/2)`
               Body:
                 ## Summary
-                Auto-generated by the daily docs-audit cron. Fixes <K> issues
-                across <N> files.
+                Auto-generated by the daily docs-audit cron, shard
+                <SHARD_INDEX> of <SHARD_COUNT>. Fixes <K> issues across
+                <N> files.
 
                 ## Files touched
                 - `<path>`: <one-line description of fix>
                 - ...
 
                 ## Notes
-                - Round <round> sweep, audited <Y>/<T> files so far.
+                - Round <round> sweep, this shard audited files <X+1>–<Y> of <T>.
                 - Review each diff — auto-edits can introduce regressions.
 
                 🤖 Generated by the docs-audit GitHub Action.
@@ -414,7 +541,7 @@ jobs:
               <2–5 sentences proposing how to fix it>
 
               ---
-              _Filed by the docs-audit cron during round <round>._
+              _Filed by the docs-audit cron during round <round> (shard <SHARD_INDEX>/<SHARD_COUNT>)._
 
             Labels: `docs`, `docs-audit`. Create the labels if they don't exist
             (`gh label create docs-audit --color BFD4F2 --description "Filed by the docs-audit cron" || true`).
@@ -430,14 +557,40 @@ jobs:
 
             ## State commit
 
-            After processing the batch:
-            1. Move the batch entries from `files_remaining` to `files_audited`.
-            2. Update `last_run_at` to now (ISO8601 UTC).
-            3. Write the JSON back to `.github/docs-audit-state.json`
+            After processing your batch:
+            1. Re-read the state file (it may have been updated by a sibling
+               shard that finished first; that's OK).
+            2. Compute the **union slice** consumed by all parallel shards
+               this run: the first `min($SHARD_COUNT * ${{ needs.prep.outputs.batch }}, len(files_remaining))`
+               entries of `files_remaining`.
+            3. Move that union slice from `files_remaining` to
+               `files_audited`. Every shard computes the same end-state,
+               so racing pushes are safe.
+            4. Update `last_run_at` to now (ISO8601 UTC).
+            5. Write the JSON back to `.github/docs-audit-state.json`
                (2-space indent, trailing newline, keys in the same order as the
                existing file).
-            4. Commit to `main` directly with the message
-               `chore(docs-audit): advance sweep state [skip ci]` and push.
+            6. Commit and push to `main` directly with rebase+retry to
+               survive races with sibling shards:
+
+               ```bash
+               git add .github/docs-audit-state.json
+               git commit -m "chore(docs-audit): advance sweep state [skip ci]" || exit 0
+               for attempt in 1 2 3 4 5; do
+                 if git push origin HEAD:main; then
+                   echo "State pushed on attempt $attempt."
+                   exit 0
+                 fi
+                 echo "Push attempt $attempt failed; rebasing onto origin/main."
+                 git fetch origin main
+                 # If a sibling shard already advanced state to the same
+                 # end-state, our commit is a no-op after rebase — that's
+                 # fine, the push will succeed.
+                 git rebase origin/main || git rebase --abort
+               done
+               echo "State push failed after retries; sibling shard will cover it."
+               ```
+
                This is the ONLY direct-to-main commit you make.
 
             ## Hard rules
@@ -446,10 +599,11 @@ jobs:
             - Never force-push, never `--no-verify`, never `--no-gpg-sign`.
             - Never modify non-docs source code. Edits are restricted to
               `*.md` files and `.github/docs-audit-state.json`.
-            - Never open more than 1 PR per run.
-            - Never file more than **${{ steps.effort.outputs.cap }}** issues per
-              run (the cap is dynamic based on queue depth). If you'd file
-              more, keep the top ${{ steps.effort.outputs.cap }} (most
+            - Never open more than 1 PR per shard (so up to $SHARD_COUNT PRs
+              per dispatch).
+            - Never file more than **${{ needs.prep.outputs.cap }}** issues
+              per shard (the cap is dynamic based on queue depth). If you'd
+              file more, keep the top ${{ needs.prep.outputs.cap }} (most
               actionable) and discard the rest.
             - When dedup says skip, skip — don't refile the same finding.
               When mode is `thorough`, lean toward filing; when
@@ -458,18 +612,19 @@ jobs:
             ## Wrap up
 
             Print a one-screen summary:
+              SHARD: $SHARD_INDEX of $SHARD_COUNT
               ROUND: <n> (started <date>)
-              BATCH: <files in this batch>
+              BATCH: <files in this shard's batch>
               PR opened: <#N or "none">
               Issues filed: <#A #B ...>
               Progress: <audited>/<total> files in this round
               Next batch: <first 3 of files_remaining or "round complete">
 
-      - name: Push state-file changes
-        if: steps.dedup.outputs.go == 'true'
+      - name: Push state-file changes (fallback)
         # Defensive: if the Claude step somehow leaves a staged state change
         # without pushing (early exit, rate limit, etc.), commit + push it
-        # here. `[skip ci]` keeps this from triggering downstream workflows.
+        # here with the same rebase+retry pattern as the prompt. `[skip ci]`
+        # keeps this from triggering downstream workflows.
         run: |
           if git diff --quiet -- .github/docs-audit-state.json; then
             echo "State file unchanged."
@@ -477,4 +632,13 @@ jobs:
           fi
           git add .github/docs-audit-state.json
           git commit -m "chore(docs-audit): advance sweep state [skip ci]"
-          git push origin HEAD:main
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              echo "State pushed on attempt $attempt."
+              exit 0
+            fi
+            echo "Push attempt $attempt failed; rebasing onto origin/main."
+            git fetch origin main
+            git rebase origin/main || git rebase --abort
+          done
+          echo "State push failed after retries; sibling shard will cover it."
