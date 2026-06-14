@@ -72,7 +72,7 @@ curl http://localhost:4420/api/health
 # Service status
 curl http://localhost:4420/api/status
 
-# Start the carousel
+# Start the display service
 curl -X POST http://localhost:4420/api/start
 
 # Send an ad-hoc message
