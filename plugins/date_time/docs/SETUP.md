@@ -63,6 +63,8 @@ In **Pages**, create or edit a page template and reference the variables you wan
 
 Save the page. On the next refresh, the board renders the current date and time.
 
+![Date & Time displayed on a Vestaboard](./board-display.png)
+
 ## Template Variables
 
 ### Time
