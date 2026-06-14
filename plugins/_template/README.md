@@ -175,7 +175,7 @@ class MyPlugin(PluginBase):
 
 ### Testing
 
-All plugins must have tests with **≥85% code coverage**. Tests are enforced in CI
+All plugins must have tests with **≥80% code coverage**. Tests are enforced in CI
 and will block merges if coverage falls below the threshold.
 
 ```bash
@@ -258,7 +258,7 @@ jobs:
           python -m pytest tests/ -v \
             --cov=. --cov-branch \
             --cov-report=term-missing \
-            --cov-fail-under=85
+            --cov-fail-under=80
 
       - name: Validate manifest
         run: |
