@@ -635,11 +635,11 @@ jobs:
       # ── Visual regression tests ───────────────────────────────────
       # Runs visual-regression.spec.ts against the first worker container
       # only (15 screenshot tests don't benefit from per-worker sharding).
-      # `continue-on-error: true` is in place until baseline snapshots are
-      # committed. To bootstrap (or refresh) baselines, run:
-      #   gh workflow run bootstrap-visual-baselines.yml
-      # That workflow opens a PR with the new PNGs and removes this
-      # `continue-on-error: true` line, making the step required.
+      # Baseline snapshots are committed under
+      # web/tests/visual-regression.spec.ts-snapshots/.
+      # `continue-on-error: true` is still present — remove it to make
+      # this step required (any snapshot diff will then block merge).
+      # To refresh baselines run: gh workflow run bootstrap-visual-baselines.yml
       # See docs/development/VISUAL_REGRESSION.md for the full workflow.
       - name: Run visual regression tests
         id: visual-regression

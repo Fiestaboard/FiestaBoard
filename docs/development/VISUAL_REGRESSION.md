@@ -20,10 +20,15 @@ job in `.github/workflows/ci.yml`. It runs on every PR (and pushes to
 `main`) when web-relevant paths change. The step uses `--workers=1`
 because the 15 screenshot tests don't benefit from sharding.
 
-The step is currently `continue-on-error: true` — see the comment block
-in `ci.yml`. Once `bootstrap-visual-baselines.yml` has been run and the
-generated baselines are merged, that line is removed and the step
-becomes required.
+The step currently runs with `continue-on-error: true`. All 15 baseline
+snapshots are committed under
+`web/tests/visual-regression.spec.ts-snapshots/`, so the prerequisite
+for removing that flag is already satisfied.
+
+> **Outstanding action:** open a one-line PR that deletes
+> `continue-on-error: true` from the `Run visual regression tests` step
+> in `.github/workflows/ci.yml` (around line 647). That makes the step
+> required and any snapshot regression will block merge.
 
 ## Updating baselines
 
