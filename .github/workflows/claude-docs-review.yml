@@ -12,10 +12,14 @@ name: 'Claude: Docs Auto-Review'
 # from rejection PRs #999/#1001.
 #
 # `pull_request_target` runs from the base ref's workflow definition, so
-# malicious head-branch edits to this workflow file can't fire. The action
-# checks out the PR's head sha because we need to read the diff and the
-# changed files — but `--allowed-tools` is read-only, no Edit/Write, no
-# git push, no shell escapes outside the allowlist.
+# malicious head-branch edits to this workflow file can't fire. We also
+# only check out the BASE ref — never the PR head — per the CodeQL
+# `actions/untrusted-checkout` rule (the "pwn-request" pattern). PR head
+# content is read read-only via `gh api .../contents/<path>?ref=<head_sha>`
+# from inside the Claude prompt: bytes piped through Claude as data, never
+# materialized in a location a later step could execute. Belt and braces:
+# `--allowed-tools` is read-only (no Edit/Write, no git push, no shell
+# escapes outside the allowlist).
 #
 # Draft PRs are skipped — a draft signals "not ready for review yet."
 # The trigger includes `ready_for_review` so the review fires when the
@@ -52,14 +56,20 @@ jobs:
       id-token: write
       actions: read
     steps:
-      - name: Checkout PR head
+      - name: Checkout base ref (trusted)
         uses: actions/checkout@v6
         with:
-          # pull_request_target normally checks out base; for review we
-          # need the PR's actual changes. Safe to use head sha here because
-          # the allowed-tools list below is read-only — no Edit/Write/push.
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
+          # `pull_request_target` grants this workflow access to repo
+          # secrets — so we MUST NOT check out PR-author-controlled code
+          # here (CodeQL's `actions/untrusted-checkout` rule, the
+          # "pwn-request" pattern). Checking out the BASE ref gives Claude
+          # the trusted CLAUDE.md / canonical README references it needs
+          # for voice/format comparison. PR head content is read read-only
+          # via `gh api .../contents/<path>?ref=<head_sha>` from inside
+          # the prompt — data piped through Claude, never executed.
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Run Claude review
         uses: anthropics/claude-code-action@v1
@@ -84,19 +94,35 @@ jobs:
 
             ## How to review
 
+            **Important — workspace is at BASE, not PR head.** The
+            workflow checks out the trusted base ref (per CodeQL's
+            untrusted-checkout rule), so `cat`/`Read`/`ls` see the BASE
+            content. PR-head content is read on-demand via:
+
+                gh api \
+                  "repos/${{ github.repository }}/contents/<path>?ref=${{ github.event.pull_request.head.sha }}" \
+                  -H "Accept: application/vnd.github.raw"
+
+            That returns raw file bytes (data only — never executed). Use
+            this whenever you need the PR's version of a file.
+
             1. Run `gh pr diff ${{ github.event.pull_request.number }}` to
                see the exact diff. Focus on `*.md` files and files under
                `plugins/*/docs/`, `docs/`, or `docs-site/`.
             2. Read the root `CLAUDE.md` and `plugins/CLAUDE.md` (if
-               touching plugin docs) for the canonical README/SETUP
-               section orders, the voice rules (examples-first, no
-               marketing fluff), and the privacy rules (no real PII).
+               touching plugin docs) — these live at base, so plain
+               `Read`/`cat` works. They contain the canonical README/SETUP
+               section orders, voice rules (examples-first, no marketing
+               fluff), and privacy rules (no real PII).
             3. For each changed doc, verify:
                - **Factual accuracy.** Does it match the code? If a doc
-                 names a command, `ls` to verify the script exists. If it
-                 cites a manifest variable, check `manifest.json`. If it
-                 claims an env var, grep `src/`. If it references a line
-                 number, the line numbers rot fast — flag any.
+                 names a command, check the script exists at the PR head
+                 via the `gh api` contents call above (HTTP 404 = doesn't
+                 exist). If it cites a manifest variable, fetch the PR's
+                 `manifest.json`. If it claims an env var, grep base
+                 (`src/`) — base-vs-head drift for env vars is rare. If
+                 it references a line number, line numbers rot fast —
+                 flag any.
                - **Voice and format.** Does it match the canonical voice
                  and section order? Concrete examples beat placeholders
                  (`"22"` beats `<value>`). Short paragraphs. No marketing
@@ -126,15 +152,35 @@ jobs:
 
             ### Step 1 — identify positions
 
-            Inline comments only attach to lines that appear in the PR
-            diff (added `+` lines and surrounding context). Run
+            Inline comments only attach to lines in the PR diff (added
+            `+` lines and surrounding context). Run
             `gh pr diff ${{ github.event.pull_request.number }}` to see
             what's eligible. For each finding, you need:
               - `path` — file path relative to the repo root
               - `line` — the RIGHT-side line number (the line as it
-                appears in the PR head). Because the workflow checks out
-                the PR head SHA, `cat -n <file>` gives the exact line
-                number GitHub expects — no diff-position math needed.
+                appears in the PR head)
+
+            Compute the right-side line number from the diff hunk
+            header `@@ -A,B +C,D @@`:
+              - new-side line numbers START at C
+              - for each context line (` `) or added line (`+`) in the
+                hunk body, the new-side line number increments by 1
+              - removed lines (`-`) DO NOT consume a new-side line number
+
+            Example: hunk header `@@ -10,4 +12,5 @@`, body:
+            ```
+             context             ← line 12 (new side)
+            -removed
+            +added                ← line 13
+             context             ← line 14
+            +added                ← line 15
+             context             ← line 16
+            ```
+
+            If you want to spot-check the line number, fetch the PR head
+            file via `gh api .../contents/...?ref=<head_sha>` and pipe
+            through `cat -n` — but never write PR head content to a
+            location where a later step could execute it (data only).
 
             ### Step 2 — build the review payload
 
