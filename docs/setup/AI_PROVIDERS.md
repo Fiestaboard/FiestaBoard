@@ -78,7 +78,7 @@ These all work well with the FiestaBoard prompt format. Any current chat-complet
 | Provider     | Protocol  | Model                                  | Notes                              |
 | ------------ | --------- | -------------------------------------- | ---------------------------------- |
 | OpenRouter   | OpenAI    | `openai/gpt-4o-mini`                   | Cheap, fast, reliable JSON output. |
-| OpenRouter   | OpenAI    | `anthropic/claude-sonnet-4.6`          | High-quality, slower.              |
+| OpenRouter   | OpenAI    | `anthropic/claude-sonnet-4-6`          | High-quality, slower.              |
 | OpenAI       | OpenAI    | `gpt-4o-mini`                          | Same as via OpenRouter.            |
 | Anthropic    | Anthropic | `claude-sonnet-4-6`                    | Direct, no OpenRouter markup.      |
 | Anthropic    | Anthropic | `claude-haiku-4-5-20251001`            | Cheaper, fast.                     |
