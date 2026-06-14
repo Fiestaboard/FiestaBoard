@@ -4,7 +4,7 @@ This document describes the design tokens and usage conventions for the FiestaBo
 
 ## Where tokens live
 
-- **Theme and tokens:** [`web/src/app/globals.css`](../web/src/app/globals.css)  
+- **Theme and tokens:** [`web/app/globals.css`](../web/app/globals.css)  
   - `@theme inline { ... }` – maps CSS variables into Tailwind v4 utilities.  
   - `:root` – light theme semantic and elevation variables.  
   - `.dark` – dark theme overrides.
@@ -123,6 +123,6 @@ Hardcoded warm oklch values in `.card-interactive:hover` were replaced with achr
 
 ## Related files
 
-- Theme tokens: [`web/src/app/globals.css`](../web/src/app/globals.css)
+- Theme tokens: [`web/app/globals.css`](../web/app/globals.css)
 - Empty-state component: [`web/src/components/ui/empty-state.tsx`](../web/src/components/ui/empty-state.tsx)
 - Tailwind config is inline in `globals.css` under `@theme inline { ... }` (Tailwind v4 — no separate `tailwind.config.ts`).
