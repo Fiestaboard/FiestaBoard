@@ -14,8 +14,8 @@ name: 'Claude: Docs Audit'
 # workflow_dispatch always proceeds.
 #
 # Effort scales with the open `docs-audit` issue queue (see "Compute
-# dynamic effort" step). Drained queue → thorough mode (batch 16, cap 25).
-# Hot queue → conservative mode (batch 6, cap 8). The audit self-throttles
+# dynamic effort" step). Drained queue → thorough mode (batch 32, cap 100).
+# Hot queue → conservative mode (batch 12, cap 32). The audit self-throttles
 # without manual tuning.
 #
 # Progress tracked in .github/docs-audit-state.json; sweep restarts from
@@ -145,14 +145,14 @@ jobs:
         # reviewers don't drown. This makes the audit self-balancing
         # without a tuning knob.
         run: |
-          open_count=$(gh issue list --label docs-audit --state open --limit 100 --json number --jq 'length')
+          open_count=$(gh issue list --label docs-audit --state open --limit 200 --json number --jq 'length')
           echo "Open docs-audit issues: ${open_count}"
-          if [ "$open_count" -gt 20 ]; then
-            mode="conservative"; batch=6;  cap=8
-          elif [ "$open_count" -gt 10 ]; then
-            mode="balanced";     batch=12; cap=15
+          if [ "$open_count" -gt 80 ]; then
+            mode="conservative"; batch=12; cap=32
+          elif [ "$open_count" -gt 40 ]; then
+            mode="balanced";     batch=24; cap=60
           else
-            mode="thorough";     batch=16; cap=25
+            mode="thorough";     batch=32; cap=100
           fi
           echo "mode=${mode} batch=${batch} cap=${cap}"
           {
@@ -197,7 +197,7 @@ jobs:
           # file. Bash patterns must match what the prompt actually invokes.
           claude_args: >-
             --model claude-sonnet-4-6
-            --max-turns 120
+            --max-turns 250
             --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git rev-parse:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
           prompt: |
             You are the FiestaBoard docs auditor. You run unattended twice a
@@ -330,19 +330,19 @@ jobs:
 
             Mode for this run: **${{ steps.effort.outputs.mode }}**.
 
-            - `thorough` (queue ≤ 10 open issues): **file any defensible
+            - `thorough` (queue ≤ 40 open issues): **file any defensible
               finding**. False positives are cheap — the triage worker
               will validate or leave a comment. Under-reporting is
               expensive — broken docs stay broken. Read each file end to
               end before deciding.
-            - `balanced` (10 < queue ≤ 20): file findings you're moderately
+            - `balanced` (40 < queue ≤ 80): file findings you're moderately
               confident about. Skim past minor stylistic preferences.
-            - `conservative` (queue > 20): only flag findings you're
+            - `conservative` (queue > 80): only flag findings you're
               highly confident about. The reviewer queue is hot; don't
               add noise.
 
             Always: dedup against open `docs-audit` issues before filing
-            (`gh issue list --label docs-audit --state open --limit 100
+            (`gh issue list --label docs-audit --state open --limit 200
             --search "<key phrase>"`). Skip if a same-file, same-topic
             issue already exists open.
 
