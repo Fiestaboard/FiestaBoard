@@ -310,14 +310,21 @@ FiestaBoard exposes a built-in **MCP (Model Context Protocol) server** at `/api/
 
 ### Connecting Claude Desktop
 
-Add to your `claude_desktop_config.json`:
+Claude Desktop only accepts stdio MCP entries, so connect via the `mcp-remote` proxy. First generate a bearer token in **Settings → Integrations → MCP / external clients**, then add to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "fiestaboard": {
-      "type": "http",
-      "url": "http://fiestaboard.local:4420/api/mcp"
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://fiestaboard.local:4420/api/mcp/",
+        "--allow-http",
+        "--header",
+        "Authorization: Bearer <YOUR_TOKEN>"
+      ]
     }
   }
 }
@@ -326,7 +333,9 @@ Add to your `claude_desktop_config.json`:
 ### Connecting Claude Code
 
 ```bash
-/mcp add fiestaboard --transport http --url http://localhost:4420/api/mcp
+claude mcp add fiestaboard --transport http \
+    --url http://fiestaboard.local:4420/api/mcp/ \
+    --header "Authorization: Bearer <YOUR_TOKEN>"
 ```
 
 ### Available tools
@@ -341,7 +350,7 @@ The MCP server exposes 26+ tools covering the full FiestaBoard API:
 | Carousels | `list_carousels`, `create_carousel`, `update_carousel`, `delete_carousel` |
 | System | `get_system_status`, `get_settings_summary`, `set_active_page`, `set_schedule_mode` |
 
-The server is local-only with no authentication. When FiestaBoard gains a login system, Bearer-token auth will be added.
+The MCP server requires a bearer token for all requests. Generate one in **Settings → Integrations → MCP / external clients**. See [MCP Clients Setup](docs/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
 
 ---
 
