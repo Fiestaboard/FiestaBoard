@@ -43,7 +43,9 @@ None required.
 ## Troubleshooting
 
 **`random.choice` always shows the same value**
-The value is cached until `refresh_seconds` expires. To force a refresh, save the plugin config — this clears the cache and picks a new value immediately.
+The value is cached until `refresh_seconds` expires. To force an immediate re-roll, you must save a config that is *different* from the current one — the cache only clears when the saved values actually change.
+
+> **Tip:** A quick way to force a refresh: temporarily add a dummy choice (e.g. `"temp"`), save, then remove it and save again. Each save with a changed value clears the cache and picks a new result immediately.
 
 **Validation error: "choices must have at least 2 items"**
 The `choices` list requires at least 2 entries. Add a second option to continue.
