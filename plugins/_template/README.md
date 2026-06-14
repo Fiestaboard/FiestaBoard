@@ -70,7 +70,7 @@ Your Name
 
 ### Plugin Structure
 
-```
+```text
 plugins/my_plugin/
 ├── __init__.py      # Plugin implementation (PluginBase subclass)
 ├── manifest.json    # Plugin metadata, settings, variables, screenshots
