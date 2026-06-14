@@ -75,6 +75,16 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Skip the OIDC→claude[bot] App-token exchange and post the
+          # review under the workflow's own GITHUB_TOKEN. On
+          # `pull_request_target` events the App exchange returns
+          # `401 Invalid OIDC token` (the App's trust policy doesn't
+          # admit pull_request_target subs); providing `github_token`
+          # bypasses that exchange entirely, per the action's FAQ. The
+          # cost is the review badge — `github-actions[bot]` instead of
+          # `claude[bot]`. The downstream feedback-capture workflow
+          # already allowlists both bots so the loop is unchanged.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           # Bot-authored PRs (docs-audit cron, issue-triage worker) need
           # to be reviewed too — that's the whole point. Without this the
           # action's anti-bot guard short-circuits the run.
