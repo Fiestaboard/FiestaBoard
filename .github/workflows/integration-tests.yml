@@ -1,4 +1,4 @@
-name: Integration Tests
+name: 'CI: Integration Tests'
 
 # Full integration suite runs on merge queue to gate changes before they land on main.
 # A smoke subset also runs on PRs to catch critical breakage early.

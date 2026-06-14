@@ -1,4 +1,4 @@
-name: 'Claude: Docs Audit Feedback Capture'
+name: 'Claude: Docs Audit Feedback'
 
 # =============================================================================
 # Captures rejected docs-pipeline PRs so the cron auditor can learn from them.

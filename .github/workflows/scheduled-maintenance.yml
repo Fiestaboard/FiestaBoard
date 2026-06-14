@@ -1,4 +1,4 @@
-name: Scheduled Maintenance
+name: 'Scheduled: Maintenance'
 
 # =============================================================================
 # Recurring repo upkeep jobs. Cron-only with a workflow_dispatch fallback

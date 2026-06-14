@@ -1,4 +1,4 @@
-name: Build FiestaPi image
+name: 'Build: FiestaPi Image'
 
 # =============================================================================
 # Builds the flashable FiestaPi .img.xz — a slow job (~45-60 min), so we

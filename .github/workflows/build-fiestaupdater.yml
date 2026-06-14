@@ -1,4 +1,4 @@
-name: Build & Publish FiestaUpdater
+name: 'Build: FiestaUpdater'
 
 # =============================================================================
 # Builds the `fiestaupdater` sidecar image (multi-arch) and pushes to Docker
