@@ -1,4 +1,4 @@
-name: 'Claude: PR Changelog Summary'
+name: 'Claude: PR Changelog'
 
 # When a PR is merged to main, ask Claude to write a single user-facing
 # changelog one-liner and post it as a PR comment with the marker

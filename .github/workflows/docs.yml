@@ -11,7 +11,7 @@
 #      creates a Docusaurus version snapshot, builds, then deploys.
 #      Patch releases (e.g. 2.5.0 → 2.5.1) share the same docs version
 #      (e.g. "2.5") so the snapshot step is a no-op for them.
-name: Deploy Docs
+name: 'Release: Deploy Docs Site'
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: Bootstrap Visual Regression Baselines
+name: 'Manual: Bootstrap Visual Baselines'
 
 # =============================================================================
 # Generates Playwright visual-regression baseline snapshots and opens a PR.
