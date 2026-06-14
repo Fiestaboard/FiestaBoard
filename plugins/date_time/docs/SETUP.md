@@ -2,8 +2,6 @@
 
 Show the current date and time on your board — no API key, no external service.
 
-![Date & Time Display](./board-display.png)
-
 ## Overview
 
 **What it does:**
@@ -71,6 +69,8 @@ In **Pages**, create or edit a page template and reference the variables you wan
 ### 4. View on your board
 
 Save the page. On the next refresh, the board renders the current date and time.
+
+![Date & Time Display](./board-display.png)
 
 ## Template Variables
 
