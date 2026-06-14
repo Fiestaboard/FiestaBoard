@@ -49,7 +49,7 @@ docker-compose -f docker-compose.hub.yml down
 docker-compose -f docker-compose.hub.yml up -d
 ```
 
-If you cloned the repository and run the default compose file:
+If you cloned the repository and use the default compose file (`docker-compose.yml`):
 
 ```bash
 docker-compose down
