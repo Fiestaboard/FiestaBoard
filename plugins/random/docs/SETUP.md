@@ -12,10 +12,35 @@ The Random plugin needs no API key or external service — it generates all valu
 
 ## Quick Setup
 
-1. **Enable** — Open Integrations, find Random, and toggle it on.
-2. **Configure** — Set your list of choices (e.g. dinner options, team names). Optionally adjust the refresh interval.
-3. **Template** — Add `{{random.choice}}`, `{{random.coin_flip}}`, or `{{random.color}}` to any page template.
-4. **View** — Save and your board will show a fresh random pick on each refresh.
+### 1. Enable the Plugin
+
+In the FiestaBoard web UI:
+
+1. Open **Integrations**.
+2. Find **Random** and toggle it on.
+
+### 2. Configure Random
+
+1. Click **Configure** on the Random card.
+2. Set your **Choices** — a list of 2–10 strings to pick from (e.g. dinner options, team names).
+3. Optionally adjust the **Refresh Interval** (how often the plugin re-rolls values).
+4. Click **Save Changes**.
+
+### 3. Create a Board Template
+
+In **Pages**, create or edit a page template and add Random variables. A minimal example:
+
+```jinja
+{center}TONIGHT'S DINNER
+
+{{random.choice}}
+```
+
+### 4. View on Your Board
+
+Save the page. On the next refresh, your board will show a fresh random pick.
+
+![Random display on a Vestaboard](./board-display.png)
 
 ## Template Variables
 
