@@ -357,7 +357,7 @@ Every plugin README must follow this section order:
 
 ![{Plugin Name} Display](./docs/board-display.png)
 
-**→ [Setup Guide](./docs/SETUP.md)** - Configuration and setup instructions
+**→ [Setup Guide](./docs/SETUP.md)**
 
 ## Overview
 {2-3 sentences on what the plugin does and why it is useful.}

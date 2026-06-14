@@ -4,7 +4,7 @@ A brief description of what this plugin does.
 
 ![My Plugin Name Display](./docs/board-display.png)
 
-**→ [Setup Guide](./docs/SETUP.md)** - Configuration and setup instructions
+**→ [Setup Guide](./docs/SETUP.md)**
 
 ## Overview
 
