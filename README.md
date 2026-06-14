@@ -396,7 +396,7 @@ FiestaBoard/
 
 ## Accessibility
 
-FiestaBoard aims to meet [WCAG 2.2 Level AAA](https://www.w3.org/TR/WCAG22/) standards. We are committed to making the web UI accessible to everyone, including users who rely on assistive technologies. If you find an accessibility issue, please [open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) or reach out on [Discord](https://discord.gg/JvN8y6ahaf).
+FiestaBoard aims to meet [WCAG 2.2 Level AA](https://www.w3.org/TR/WCAG22/) standards. We are committed to making the web UI accessible to everyone, including users who rely on assistive technologies. If you find an accessibility issue, please [open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) or reach out on [Discord](https://discord.gg/JvN8y6ahaf).
 
 ---
 
