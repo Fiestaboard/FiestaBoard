@@ -185,10 +185,10 @@
         "example": "03/21/2025"
       },
       "date_us_short": {
-        "description": "Short US date (M/D/YY)",
+        "description": "Short US date (MM/DD/YY)",
         "group": "formatting",
         "max_length": 8,
-        "example": "3/21/25"
+        "example": "03/21/25"
       },
       "time_english": {
         "description": "Current time as a spoken English expression",
