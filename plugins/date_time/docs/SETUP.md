@@ -40,14 +40,23 @@ Or set it via environment variable. Add the line to your `.env` file in the proj
 TIMEZONE=America/New_York
 ```
 
-Then restart the container for the change to take effect:
+Then restart the container for the change to take effect.
+
+If you installed from Docker Hub (`docker-compose.hub.yml`):
 
 ```bash
-docker-compose -f docker-compose.dev.yml down
-docker-compose -f docker-compose.dev.yml up
+docker-compose -f docker-compose.hub.yml down
+docker-compose -f docker-compose.hub.yml up -d
 ```
 
-> **Note:** Typing the bare assignment in your terminal shell has no effect on the container. The variable must be in the container environment — either in `.env`, under the `environment:` key in `docker-compose.yml`, or as a CLI prefix (`TIMEZONE=America/New_York docker-compose up`). See [Local Development](../../../docs/setup/LOCAL_DEVELOPMENT.md) for the full environment setup.
+If you cloned the repository and use the default compose file (`docker-compose.yml`):
+
+```bash
+docker-compose down
+docker-compose up -d
+```
+
+> **Note:** Typing the bare assignment in your terminal shell has no effect on the container. The variable must be in the container environment — either in `.env`, under the `environment:` key in your compose file, or as a CLI prefix (`TIMEZONE=America/New_York docker-compose up`). For the development setup, see [Local Development](../../../docs/setup/LOCAL_DEVELOPMENT.md).
 
 ### 3. Add date/time variables to a page
 
