@@ -1,16 +1,21 @@
 name: 'Claude: Docs Audit Feedback Capture'
 
 # =============================================================================
-# Captures rejected docs-audit PRs so the cron auditor can learn from them.
+# Captures rejected docs-pipeline PRs so the cron auditor can learn from them.
 #
-# When a draft PR opened by claude-docs-audit.yml is closed without merging,
-# the maintainer is telling the bot "this edit was wrong." This workflow
-# bundles the PR's diff, the close metadata, and every comment/review on it
-# into a single JSONL line in `.github/docs-audit/rejected-edits.jsonl` and
-# commits that file to main. The next audit run reads the log and uses it to
-# (a) never re-propose the same exact swap, and (b) generalize from the
-# closer's explanation (e.g., "Vestaboard is a product name, do not rename"
-# → never rename Vestaboard in any doc).
+# Two PR sources feed the docs pipeline, and both must be captured:
+#   - `docs-audit/*` — bucket-A inline PRs from claude-docs-audit.yml itself
+#   - `docs/issue-*` — per-issue fixes from claude-issue-triage.yml workers
+#     (which the audit cron files as `docs-audit`-labeled issues)
+#
+# When either is closed without merging, the maintainer is telling the bot
+# "this edit was wrong." This workflow bundles the PR's diff, the close
+# metadata, and every comment/review on it into a single JSONL line in
+# `.github/docs-audit/rejected-edits.jsonl` and commits that file to main.
+# The next audit run reads the log and uses it to (a) never re-propose the
+# same exact swap, and (b) generalize from the closer's explanation (e.g.,
+# "Vestaboard is the hardware, FiestaBoard is the software" → never confuse
+# the two terms in any doc).
 #
 # `workflow_dispatch` re-runs capture for a given PR, which is useful when
 # the maintainer adds an explanatory comment after the original close event.
@@ -50,15 +55,22 @@ jobs:
     name: Capture rejected docs-audit edit
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # On `pull_request_target.closed`, only fire for unmerged docs-audit
-    # branches. Draft and ready-for-review PRs both fire `closed` — there
-    # is no draft-state gate here. `workflow_dispatch` always proceeds —
-    # the script itself refuses to log a merged PR, so manual backfill
+    # On `pull_request_target.closed`, only fire for unmerged docs-pipeline
+    # branches. Both branch prefixes are bot-authored docs PRs:
+    #   - `docs-audit/*` — bucket-A PRs from the audit cron
+    #   - `docs/issue-*` — per-issue PRs from the triage worker (most of
+    #     the close-without-merge signal lives here — see PRs #999/#1001
+    #     where real rejection comments were lost because the head ref
+    #     didn't start with `docs-audit/`).
+    # Draft and ready-for-review PRs both fire `closed` — there is no
+    # draft-state gate here. `workflow_dispatch` always proceeds — the
+    # script itself refuses to log a merged PR, so manual backfill
     # remains safe.
     if: >-
       ${{ github.event_name == 'workflow_dispatch' ||
           (github.event.pull_request.merged == false &&
-           startsWith(github.event.pull_request.head.ref, 'docs-audit/')) }}
+           (startsWith(github.event.pull_request.head.ref, 'docs-audit/') ||
+            startsWith(github.event.pull_request.head.ref, 'docs/issue-'))) }}
     permissions:
       contents: write
       pull-requests: read

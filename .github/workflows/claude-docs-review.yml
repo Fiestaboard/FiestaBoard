@@ -1,0 +1,146 @@
+name: 'Claude: Docs Auto-Review'
+
+# =============================================================================
+# Auto-runs a Claude code review on any PR that touches markdown docs.
+# Posts ONE review comment on the PR. Read-only on contents — only
+# pull-requests: write so the action can leave its review.
+#
+# Goal: every docs PR (human-authored or bot-authored) gets a sanity check
+# before merge — voice/format match against the canonical formats in
+# CLAUDE.md, factual accuracy against the code, no real PII in examples,
+# and the FiestaBoard-vs-Vestaboard branding distinction that surfaced
+# from rejection PRs #999/#1001.
+#
+# `pull_request_target` runs from the base ref's workflow definition, so
+# malicious head-branch edits to this workflow file can't fire. The action
+# checks out the PR's head sha because we need to read the diff and the
+# changed files — but `--allowed-tools` is read-only, no Edit/Write, no
+# git push, no shell escapes outside the allowlist.
+#
+# Draft PRs are skipped — a draft signals "not ready for review yet."
+# The trigger includes `ready_for_review` so the review fires when the
+# author flips draft → ready.
+# =============================================================================
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '**.md'
+      - 'plugins/*/docs/**'
+      - 'docs/**'
+      - 'docs-site/**'
+
+permissions:
+  contents: read
+
+# Cancel a prior review for the same PR if a new push comes in — only the
+# latest diff matters and we don't want two reviews racing the same comment.
+concurrency:
+  group: claude-docs-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Claude reviews the docs diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.pull_request.draft == false
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          # pull_request_target normally checks out base; for review we
+          # need the PR's actual changes. Safe to use head sha here because
+          # the allowed-tools list below is read-only — no Edit/Write/push.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Run Claude review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Bot-authored PRs (docs-audit cron, issue-triage worker) need
+          # to be reviewed too — that's the whole point. Without this the
+          # action's anti-bot guard short-circuits the run.
+          allowed_bots: 'claude,github-actions'
+          # Surface the SDK transcript so silent permission denials don't
+          # look like a clean success.
+          show_full_output: 'true'
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 30
+            --allowed-tools "Read,Glob,Grep,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*)"
+          prompt: |
+            You are the FiestaBoard docs reviewer. Review PR
+            #${{ github.event.pull_request.number }} — only the docs changes
+            it makes. Skim any non-docs changes for context but don't review
+            them; another workflow handles code review.
+
+            ## How to review
+
+            1. Run `gh pr diff ${{ github.event.pull_request.number }}` to
+               see the exact diff. Focus on `*.md` files and files under
+               `plugins/*/docs/`, `docs/`, or `docs-site/`.
+            2. Read the root `CLAUDE.md` and `plugins/CLAUDE.md` (if
+               touching plugin docs) for the canonical README/SETUP
+               section orders, the voice rules (examples-first, no
+               marketing fluff), and the privacy rules (no real PII).
+            3. For each changed doc, verify:
+               - **Factual accuracy.** Does it match the code? If a doc
+                 names a command, `ls` to verify the script exists. If it
+                 cites a manifest variable, check `manifest.json`. If it
+                 claims an env var, grep `src/`. If it references a line
+                 number, the line numbers rot fast — flag any.
+               - **Voice and format.** Does it match the canonical voice
+                 and section order? Concrete examples beat placeholders
+                 (`"22"` beats `<value>`). Short paragraphs. No marketing
+                 words ("powerful", "seamless", "easily").
+               - **Privacy.** No real addresses, home coordinates, API
+                 keys, phone numbers, or emails. The plugin `manifest.json`
+                 `author` field is the only allowed exception.
+               - **Internal links.** Every relative link resolves on disk
+                 (use `ls` to verify).
+               - **Branding.** "FiestaBoard" is the open-source software;
+                 "Vestaboard" is the physical hardware it drives. Don't
+                 confuse the two — this was the cause of closed PRs #999
+                 and #1001. If the diff renames Vestaboard → FiestaBoard
+                 (or vice versa) anywhere, flag it loudly.
+            4. Save edge nits for last; lead with substantive findings.
+
+            ## Output
+
+            Post ONE comment on the PR via `gh pr comment ${{ github.event.pull_request.number }} --body "..."`.
+            Use exactly this format:
+
+            ## Docs review
+
+            **Verdict:** <looks-good | small fixes | needs work>
+
+            ### Findings
+            - `<file>:<line>` — <what's wrong> → <what it should be>
+            - ...
+
+            ### Nits (optional)
+            - <minor style preferences>
+
+            🤖 Auto-review by `claude-docs-review.yml`.
+
+            If the PR is genuinely clean, post just:
+              "## Docs review\n\n**Verdict:** looks-good — voice, format,
+              and accuracy all check out.\n\n🤖 Auto-review by
+              `claude-docs-review.yml`."
+            Don't manufacture findings to look thorough.
+
+            ## Hard rules
+
+            - Comments only. No edits, no pushes, no PR state changes.
+            - One comment per run. If you need to revise, post the full
+              revised review as a new comment — don't fragment.
+            - Stay focused on the docs diff. Don't review code changes
+              even if they're in the same PR.

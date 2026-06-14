@@ -124,14 +124,20 @@ jobs:
             3. Add or update a test that would have caught the bug.
                **Docs-only fixes don't need a test** — skip this step if the
                only files touched are `*.md`.
-            4. Open a DRAFT pull request against `main`.
+            4. Open a pull request against `main`. Draft state depends on
+               the issue flavor:
                - For docs-flavored issues (labels include `docs` or
                  `docs-audit`): branch `docs/issue-${{ github.event.issue.number }}-<short-slug>`,
                  title prefix `docs:` (no `[Claude first-pass]` prefix —
-                 docs PRs go through the normal docs review path).
+                 docs PRs go through the normal docs review path). Open
+                 **ready-for-review** — use `gh pr create` with NO
+                 `--draft` flag — so the docs auto-review workflow fires
+                 and the PR lands in the maintainer's normal review queue.
                - For everything else: branch
                  `claude/issue-${{ github.event.issue.number }}`, title
-                 `[Claude first-pass] <short summary>`.
+                 `[Claude first-pass] <short summary>`. Open as a draft
+                 (`gh pr create --draft`) so the human validates the
+                 first-pass code fix before sign-off.
                In either case link the issue with
                `Closes #${{ github.event.issue.number }}` in the body.
             5. In the PR body, be honest about your confidence: what you
