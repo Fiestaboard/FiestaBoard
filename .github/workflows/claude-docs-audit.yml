@@ -48,6 +48,10 @@ on:
         description: 'Number of parallel audit shards to fan out (1–10). Each shard takes a disjoint slice of the file queue.'
         type: number
         default: 1
+      focus:
+        description: 'Optional steering hint — what part of the docs to focus on (e.g. "weather plugin", "SETUP guides", "plugin manifests"). Leave blank for the default sweep. Focus runs do not advance sweep state.'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -267,6 +271,12 @@ jobs:
           AUDIT_BATCH_SIZE: ${{ needs.prep.outputs.batch }}
           AUDIT_ISSUE_CAP: ${{ needs.prep.outputs.cap }}
           AUDIT_QUEUE_OPEN: ${{ needs.prep.outputs.open_count }}
+          # Optional maintainer-supplied steering hint. Empty for scheduled
+          # (cron) runs; set via workflow_dispatch input. When non-empty the
+          # prompt narrows file selection to docs matching this topic and
+          # skips the state-file advance (focus runs are exploratory probes,
+          # not progress).
+          AUDIT_FOCUS: ${{ github.event.inputs.focus }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Surface the SDK transcript in the Actions log. Without this the
@@ -332,6 +342,48 @@ jobs:
             The mode/batch/cap were chosen by the workflow based on the
             queue depth — you don't need to second-guess them. Just use
             them.
+
+            ## Focus directive (optional)
+
+            Maintainer-supplied focus for this run: `$AUDIT_FOCUS`
+
+            Verify by echoing `"$AUDIT_FOCUS"` before doing anything else.
+
+            **If `$AUDIT_FOCUS` is empty**, follow the default sweep logic
+            below — pick your shard's slice from `files_remaining`, audit
+            it, advance state.
+
+            **If `$AUDIT_FOCUS` is non-empty**, this is a targeted probe
+            from the maintainer, not a sweep tick. Override the default
+            sweep logic as follows:
+
+            - **Override file selection.** Ignore `files_remaining` and
+              `files_audited`. Instead, glob the same docs corpus the
+              round-restart step would (see "Sweep logic" step 2 for the
+              include/exclude patterns), then filter to entries that match
+              the focus hint — substring match on path is the first cut,
+              but also use judgment about topical match (e.g. focus
+              "weather plugin" includes `plugins/weather/**` and any
+              top-level doc that talks about the weather plugin).
+            - **Apply shard math to the filtered list.** Use the same
+              `offset = $SHARD_INDEX * batch` / take next `batch` slice
+              rule against the focus-filtered list. If the filtered list
+              is shorter than `offset + batch`, just take what's there;
+              if your shard's slice is empty, exit cleanly.
+            - **Skew what you flag.** Lean toward findings within the focus
+              area; small issues outside it can be skipped this run even if
+              you stumble across them.
+            - **Do NOT advance sweep state.** Skip the entire "State commit"
+              section below. Do not modify `.github/docs-audit-state.json`,
+              do not commit, do not push. A focus run is exploratory; the
+              next scheduled sweep should still cover these files in the
+              normal rotation. The fallback push step is also a no-op
+              because the state file is unchanged.
+            - **Title/body markers.** Tag the focus in your PR title and
+              issue bodies so reviewers know this batch was scoped:
+                - PR title suffix: ` [focus: <AUDIT_FOCUS>]`
+                - Issue body: add a line `_Focus: <AUDIT_FOCUS>._` under
+                  the "Filed by" footer.
 
             ## Learning from past rejections
 
