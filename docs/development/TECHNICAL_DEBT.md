@@ -31,16 +31,6 @@ The new endpoint also changes failure mode: it returns HTTP **503** when plugin 
 
 ---
 
-## Dead Code
-
-### Unregistered `/config/vestaboard` compat shims
-
-`src/api_server.py` defines `get_board_config_compat()` and `update_board_config_compat()` to redirect callers from the historical `/config/vestaboard` paths to `/config/board`, but neither function is registered as a FastAPI route — there's no `@app.get("/config/vestaboard")` or `@app.put(...)` binding. The functions are unreachable.
-
-**Cleanup:** Delete both functions. The historical paths already return 404 to clients, so no migration window is needed.
-
----
-
 ## Other Known Debt
 
 *This section will be updated as additional technical debt is identified.*
