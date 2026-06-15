@@ -338,13 +338,16 @@ plugins/my_plugin/
 
 ## Documentation Standards
 
-Each plugin has three documentation layers:
+Each plugin has two documentation layers you are responsible for:
 
 | Layer | File | Audience | Purpose |
 |-------|------|----------|---------|
 | README | `README.md` | Developers, GitHub browsing | How the plugin works, variables, examples |
 | Setup guide | `docs/SETUP.md` | End users | Step-by-step setup, screenshots, troubleshooting |
-| Docs site | `docs-site/docs/plugins/<name>.md` | Public website | Published documentation at fiestaboard.app |
+
+> **Note:** The public docs site at fiestaboard.app (`docs-site/docs/plugins/<name>.md`) is
+> maintained separately by the maintainer team. You do not need to create or update a docs-site
+> page as part of a plugin contribution.
 
 ### README.md Format
 
