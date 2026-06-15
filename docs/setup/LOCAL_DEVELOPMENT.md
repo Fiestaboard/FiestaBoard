@@ -17,13 +17,13 @@ This guide is for **contributors and plugin developers** who want to work on Fie
 
 ```bash
 # Start all services in development mode
-docker-compose -f docker-compose.dev.yml up
+docker compose -f docker-compose.dev.yml up
 
 # Or run in background
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # View logs
-docker-compose -f docker-compose.dev.yml logs -f
+docker compose -f docker-compose.dev.yml logs -f
 ```
 
 If you're working in Claude Code, the project ships matching slash commands: `/start` (up -d), `/stop` (down), and `/restart` (down + `--no-cache` rebuild + up -d).
@@ -38,18 +38,18 @@ If you're working in Claude Code, the project ships matching slash commands: `/s
 The development Docker Compose mounts source code as volumes (`./src`, `./plugins`, `./web`, `./tests`, `./scripts`, plus `./data`):
 
 - **Python API**: Changes to `src/` and `plugins/` trigger uvicorn `--reload` automatically — no restart needed.
-- **React Router / Vite Web UI**: The container serves the production build that was baked into the image, so UI changes need a container rebuild (`docker-compose -f docker-compose.dev.yml up --build` or `/restart`). For interactive component work, Storybook is available as an opt-in service — see [Storybook](#storybook) below.
+- **React Router / Vite Web UI**: The container serves the production build that was baked into the image, so UI changes need a container rebuild (`docker compose -f docker-compose.dev.yml up --build` or `/restart`). For interactive component work, Storybook is available as an opt-in service — see [Storybook](#storybook) below.
 
 ### Storybook
 
-Storybook is an **opt-in** service for interactive component development. It does not start when you run `docker-compose up` — it only runs when you explicitly request it.
+Storybook is an **opt-in** service for interactive component development. It does not start when you run `docker compose up` — it only runs when you explicitly request it.
 
 ```bash
 # Start Storybook (runs npm install on every startup — first launch takes a minute)
-docker-compose -f docker-compose.dev.yml up fiestaboard-storybook
+docker compose -f docker-compose.dev.yml up fiestaboard-storybook
 
 # Or use the profile flag to start core services + Storybook together
-docker-compose -f docker-compose.dev.yml --profile storybook up
+docker compose -f docker-compose.dev.yml --profile storybook up
 ```
 
 Once running, Storybook is available at **http://localhost:6006**.
@@ -59,24 +59,24 @@ Once running, Storybook is available at **http://localhost:6006**.
 ### Stopping Services
 
 ```bash
-docker-compose -f docker-compose.dev.yml down
+docker compose -f docker-compose.dev.yml down
 ```
 
 ### Rebuilding After Dependency Changes
 
 ```bash
 # If you update requirements.txt or package.json
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 ## Testing
 
 ```bash
 # Run API tests (inside the FiestaBoard container)
-docker-compose -f docker-compose.dev.yml exec fiestaboard pytest
+docker compose -f docker-compose.dev.yml exec fiestaboard pytest
 
 # Run web tests (one-off container with profile test)
-docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
+docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
 ```
 
 ## Testing API Endpoints
@@ -115,23 +115,23 @@ cp env.example .env
 
 ```bash
 # All services
-docker-compose -f docker-compose.dev.yml logs -f
+docker compose -f docker-compose.dev.yml logs -f
 
 # FiestaBoard app only
-docker-compose -f docker-compose.dev.yml logs -f fiestaboard
+docker compose -f docker-compose.dev.yml logs -f fiestaboard
 ```
 
 ### Access Container Shell
 
 ```bash
 # FiestaBoard container (API + UI)
-docker-compose -f docker-compose.dev.yml exec fiestaboard sh
+docker compose -f docker-compose.dev.yml exec fiestaboard sh
 ```
 
 ### Check Container Status
 
 ```bash
-docker-compose -f docker-compose.dev.yml ps
+docker compose -f docker-compose.dev.yml ps
 ```
 
 ## VS Code / Dev Container
@@ -146,14 +146,14 @@ The repo ships a `.devcontainer/` with `devcontainer.json`, a build `Dockerfile`
 
 | Task | Command |
 |------|---------|
-| Start dev environment | `docker-compose -f docker-compose.dev.yml up` |
-| Stop dev environment | `docker-compose -f docker-compose.dev.yml down` |
-| Rebuild containers | `docker-compose -f docker-compose.dev.yml up --build` |
-| Run API tests | `docker-compose -f docker-compose.dev.yml exec fiestaboard pytest` |
-| View logs | `docker-compose -f docker-compose.dev.yml logs -f` |
+| Start dev environment | `docker compose -f docker-compose.dev.yml up` |
+| Stop dev environment | `docker compose -f docker-compose.dev.yml down` |
+| Rebuild containers | `docker compose -f docker-compose.dev.yml up --build` |
+| Run API tests | `docker compose -f docker-compose.dev.yml exec fiestaboard pytest` |
+| View logs | `docker compose -f docker-compose.dev.yml logs -f` |
 | View API docs | http://localhost:4420/api/docs |
 | View Web UI | http://localhost:4420 |
-| Start Storybook (opt-in) | `docker-compose -f docker-compose.dev.yml up fiestaboard-storybook` |
+| Start Storybook (opt-in) | `docker compose -f docker-compose.dev.yml up fiestaboard-storybook` |
 | View Storybook | http://localhost:6006 |
 
 ## Troubleshooting
@@ -165,7 +165,7 @@ The repo ships a `.devcontainer/` with `devcontainer.json`, a build `Dockerfile`
 lsof -i :4420
 
 # Kill the process or stop other Docker containers
-docker-compose down
+docker compose down
 ```
 
 If port 4420 is unavailable, you can remap to any free port by editing the `ports` mapping in `docker-compose.dev.yml`:
@@ -181,11 +181,11 @@ Only the host port (left of the colon) changes. The container-side port stays `3
 
 ```bash
 # Check logs for errors
-docker-compose -f docker-compose.dev.yml logs
+docker compose -f docker-compose.dev.yml logs
 
 # Rebuild from scratch
-docker-compose -f docker-compose.dev.yml down
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml down
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 ### API Can't Connect to Board

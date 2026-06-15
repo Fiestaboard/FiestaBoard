@@ -69,7 +69,7 @@ mkdir -p ~/fiestaboard && cd ~/fiestaboard
 curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
 
 # 3. Start FiestaBoard
-docker-compose -f docker-compose.hub.yml up -d
+docker compose -f docker-compose.hub.yml up -d
 ```
 
 Open **http://localhost:4420** in your browser, connect your board, and you're running.
@@ -282,7 +282,7 @@ Then open **http://localhost:4420** — the service starts automatically once th
 - Make sure the service shows **Running** on the dashboard (http://localhost:4420)
 - Check your board API key is correct (Settings page in the web UI)
 - For local mode: verify your board is on the same network as the server
-- Check logs: `docker-compose logs -f`
+- Check logs: `docker compose logs -f`
 
 ### Docker Issues
 
@@ -377,7 +377,7 @@ If you want to **contribute code** or **build plugins** (not just use FiestaBoar
 
 ```bash
 # Development environment (hot-reload for Python, volume mounts)
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 ### Project Structure
