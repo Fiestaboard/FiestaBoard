@@ -85,7 +85,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Storybook - Component development and testing
+  # Storybook - Component development and testing (opt-in via profile)
   fiestaboard-storybook:
     image: node:20-alpine
     container_name: fiestaboard-storybook
@@ -100,6 +100,8 @@ services:
     command: sh -c "rm -f package-lock.json && npm install --force && npm run storybook -- --host 0.0.0.0"
     networks:
       - fiestaboard-dev
+    profiles:
+      - storybook
     logging:
       driver: "json-file"
       options:
