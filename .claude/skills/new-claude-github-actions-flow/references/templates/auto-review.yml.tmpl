@@ -1,0 +1,98 @@
+name: 'Claude: {{DISPLAY_NAME}} Auto-Review'
+
+# =============================================================================
+# Auto-runs a Claude code review on any PR touching {{DOMAIN_DESCRIPTION_SHORT}}.
+# Posts ONE review comment. Read-only on contents — only pull-requests:write
+# so the action can leave its review.
+#
+# `pull_request_target` runs from the base ref's workflow definition, so
+# malicious head-branch edits can't fire. We only check out the BASE ref —
+# never the PR head — per the CodeQL `actions/untrusted-checkout` rule
+# (the "pwn-request" pattern). PR head content is read read-only via
+# `gh api .../contents/<path>?ref=<head_sha>` from inside the prompt:
+# bytes piped through Claude as data, never materialized in a location a
+# later step could execute. Belt and braces: `--allowed-tools` is read-only.
+#
+# Draft PRs are skipped — a draft signals "not ready for review yet."
+# The trigger includes `ready_for_review` so the review fires when the
+# author flips draft → ready.
+# =============================================================================
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+{{REVIEW_PATHS}}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: claude-{{NAME}}-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Claude reviews the {{NAME}} diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.pull_request.draft == false
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout base ref (trusted)
+        uses: actions/checkout@v6
+        with:
+          # pull_request_target grants secrets — never check out PR head.
+          # Base ref gives Claude the trusted CLAUDE.md / canonical refs.
+          # PR head content is read via `gh api .../contents/<path>?ref=<head_sha>`
+          # from inside the prompt — data piped through Claude, never executed.
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run Claude review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Skip the OIDC→claude[bot] App-token exchange. On
+          # pull_request_target events the App exchange returns
+          # `401 Invalid OIDC token`; providing github_token bypasses
+          # that exchange entirely.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Bot-authored PRs need to be reviewed too — that's the point.
+          allowed_bots: 'claude,github-actions'
+          show_full_output: 'true'
+          claude_args: >-
+            --model {{MODEL_REVIEW}}
+            --max-turns {{MAX_TURNS_REVIEW}}
+            --allowed-tools "{{ALLOWED_TOOLS_REVIEW}}"
+          prompt: |
+            You are the FiestaBoard {{NAME}} reviewer. Review PR
+            #${{ github.event.pull_request.number }}: {{ github.event.pull_request.title }}
+
+            ## What to review
+
+            {{REVIEW_PROMPT_BODY}}
+
+            ## How to access PR content
+
+            Use `gh pr diff ${{ github.event.pull_request.number }}` for the diff.
+            Use `gh api repos/${{ github.repository }}/contents/<path>?ref=${{ github.event.pull_request.head.sha }}`
+            for full file contents. Never `git checkout` the PR head.
+
+            ## Output
+
+            Post ONE review comment via `gh pr review --comment`. Be specific
+            with file:line references. If everything looks good, say so
+            briefly — a thumbs-up is fine.
+
+            ## Hard rules
+
+            - Read-only: never Edit, Write, or push.
+            - One review comment per run.
+            - Reference the canonical patterns in CLAUDE.md and the {{NAME}}
+              folder's docs as the source of truth.
