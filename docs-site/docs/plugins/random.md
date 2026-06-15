@@ -8,8 +8,6 @@ keywords: [FiestaBoard random, coin flip display, random pick, split-flap random
 
 Display randomly selected values on the board, refreshed on a schedule you control. **No API key required.**
 
-<BoardScreenshot src="/img/random-display.png" alt="Random plugin on split-flap board showing coin flip result" />
-
 ## Overview
 
 The Random plugin generates fresh values on a configurable interval:

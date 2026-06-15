@@ -8,8 +8,6 @@ keywords: [FiestaBoard countdown, event countdown, days remaining, split-flap co
 
 Display the remaining days, hours, minutes, and seconds until any target date. **No API key required.**
 
-<BoardScreenshot src="/img/countdown-display.png" alt="Countdown timer on split-flap board" />
-
 ## Overview
 
 The Countdown plugin shows the remaining time until a target date and time you set:
