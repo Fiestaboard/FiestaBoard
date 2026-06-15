@@ -62,8 +62,13 @@ The current preset list, sourced from `web/src/components/settings/ai-settings.t
      pills** section above.
    - **API Key** — paste the key. It is stored on this device's
      `data/config.json` and is masked (`***`) on read.
-   - **Models** — type each model id and press Enter or click `+`
-     (e.g. `openai/gpt-4o-mini`, `claude-sonnet-4-6`).
+   - **Models** — type each model id and press Enter or click `+`.
+     The format depends on your provider:
+     - OpenRouter: `openai/gpt-4o-mini`, `anthropic/claude-sonnet-4-6`
+     - Anthropic direct: `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`
+     - OpenAI direct: `gpt-4o-mini`, `gpt-4o`
+
+     See the **Recommended models** table below for a full list.
    - **Default model** — picked automatically once you add at least
      one model.
 4. (Optional) Click **Test connection** to send a one-token smoke
