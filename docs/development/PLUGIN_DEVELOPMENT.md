@@ -899,7 +899,7 @@ To contribute a plugin to the FiestaBoard repository:
 3. Implement your plugin following this guide
 4. Add tests with >80% coverage
 5. Add documentation in `README.md` and `docs/SETUP.md`
-6. Add your plugin to the main `README.md` "Available Plugins" list
+6. Add your plugin to the main `README.md` "Available Plugins" list (in alphabetical order by plugin name)
 7. Submit a pull request
 
 ### PR Checklist
@@ -913,4 +913,4 @@ To contribute a plugin to the FiestaBoard repository:
 - [ ] `docs/SETUP.md` follows the canonical section order (see Documentation Standards)
 - [ ] `docs/board-display.png` exists (primary screenshot)
 - [ ] No hardcoded secrets or personal information
-- [ ] Plugin added to main README.md "Available Plugins" list
+- [ ] Plugin added to main README.md "Available Plugins" list (alphabetical order)
