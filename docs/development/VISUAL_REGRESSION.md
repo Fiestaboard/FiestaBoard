@@ -20,15 +20,9 @@ job in `.github/workflows/ci.yml`. It runs on every PR (and pushes to
 `main`) when web-relevant paths change. The step uses `--workers=1`
 because the 15 screenshot tests don't benefit from sharding.
 
-The step currently runs with `continue-on-error: true`. All 15 baseline
-snapshots are committed under
-`web/tests/visual-regression.spec.ts-snapshots/`, so the prerequisite
-for removing that flag is already satisfied.
-
-> **Outstanding action:** open a one-line PR that deletes
-> `continue-on-error: true` from the `Run visual regression tests` step
-> in `.github/workflows/ci.yml`. That makes the step
-> required and any snapshot regression will block merge.
+All 15 baseline snapshots are committed under
+`web/tests/visual-regression.spec.ts-snapshots/`. The step is a
+required CI gate — a snapshot regression will block merge.
 
 ## Updating baselines
 
@@ -82,10 +76,7 @@ The `Bootstrap Visual Regression Baselines` workflow:
 4. Opens a PR titled **"ci: refresh visual regression baselines"** with
    the new PNGs.
 
-Review the screenshots in the PR before merging. Flipping the CI step
-from advisory (`continue-on-error: true`) to required is a separate
-one-line PR — the bot token in `bootstrap-visual-baselines.yml` lacks
-the `workflow` scope needed to modify `ci.yml`.
+Review the screenshots in the PR before merging.
 
 ## Adding a new screenshot test
 

@@ -959,6 +959,60 @@ The behaviour is controlled by **Settings → Plugin Updates**. Users can choose
 
 For plugin authors this means users on the default settings will receive fixes and new variables shortly after changes land on the plugin's default branch. Keep the default branch stable — breaking changes should be gated behind a version bump in `manifest.json`.
 
+## Publishing to the Plugin Registry
+
+The FiestaBoard plugin registry (`plugin-registry.json` at the repository root) is the catalog that powers the Integrations page. When a user clicks "Install", FiestaBoard clones the matching repository into its `external_plugins/` directory and loads it alongside built-in plugins.
+
+**There is no automatic discovery.** Your repository will not appear on the Integrations page unless an entry is added to `plugin-registry.json`. The `fiestaboard-plugin--{name}` naming convention is required, but following the convention alone is not enough — you must also open a PR.
+
+### Naming convention
+
+Repository names must match:
+
+```
+fiestaboard-plugin--{name}
+```
+
+The `{name}` part is lowercase and hyphenated. FiestaBoard derives the plugin id by replacing hyphens with underscores, so `fiestaboard-plugin--my-cool-plugin` produces the plugin id `my_cool_plugin`. That id must match the `id` field in your `manifest.json`.
+
+> **Note:** Users can also install any public git repo directly by URL from the Integrations page, without the naming convention. Registry listing is only needed for your plugin to appear in the built-in catalog.
+
+### Submission process
+
+Open a pull request against the FiestaBoard repository that adds one entry to the `plugins` array in `plugin-registry.json`. Keep entries alphabetical by `id`:
+
+```json
+{
+  "id": "my_cool_plugin",
+  "name": "My Cool Plugin",
+  "description": "One sentence describing what users see on the board.",
+  "repository": "https://github.com/your-username/fiestaboard-plugin--my-cool-plugin",
+  "author": "Your Name",
+  "fiestaboard_version": ">=2.10.0",
+  "icon": "puzzle",
+  "category": "utility"
+}
+```
+
+Set `fiestaboard_version` to the minimum FiestaBoard version your plugin requires. Use an existing `category` value (see [Plugin Categories](#plugin-categories) above).
+
+### Registry checklist
+
+Before submitting your PR, verify all of the following:
+
+- [ ] Repository name matches `fiestaboard-plugin--{name}` (lowercase, hyphens)
+- [ ] `manifest.json` `id` matches the name derived from the repo (hyphens → underscores)
+- [ ] `docs/board-display.png` exists — the hero image shown in the Integrations catalog
+- [ ] `manifest.json` includes a `screenshots` array with exactly one entry marked `"primary": true`
+- [ ] CI passes on your repository's default branch
+- [ ] Tests exist with >80% coverage
+- [ ] `README.md` and `docs/SETUP.md` follow the canonical section orders (see Documentation Standards)
+- [ ] No real API keys, credentials, or personal information in the code or docs
+
+Once your PR is merged, users can find and install your plugin directly from the Integrations page.
+
+---
+
 ## Contributing Plugins
 
 To contribute a plugin to the FiestaBoard repository:

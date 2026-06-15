@@ -43,7 +43,7 @@ In **Settings → AI Providers**, the **Quick presets** row gives you one-click 
 
 The current preset list, sourced from `web/src/components/settings/ai-settings.tsx`:
 
-- **Cloud:** OpenAI, OpenRouter, Anthropic, Groq, DeepSeek, Mistral, Together AI, Fireworks AI.
+- **Cloud:** OpenRouter, OpenAI, Anthropic, Groq, DeepSeek, Mistral, Together AI, Fireworks AI.
 - **Local:** Ollama (`http://localhost:11434/v1`), LM Studio (`http://localhost:1234/v1`), llama.cpp (`http://localhost:8080/v1`), vLLM (`http://localhost:8000/v1`).
 
 ## Configuration
@@ -62,8 +62,13 @@ The current preset list, sourced from `web/src/components/settings/ai-settings.t
      pills** section above.
    - **API Key** — paste the key. It is stored on this device's
      `data/config.json` and is masked (`***`) on read.
-   - **Models** — type each model id and press Enter or click `+`
-     (e.g. `openai/gpt-4o-mini`, `claude-sonnet-4-6`).
+   - **Models** — type each model id and press Enter or click `+`.
+     The format depends on your provider:
+     - OpenRouter: `openai/gpt-4o-mini`, `anthropic/claude-sonnet-4-6`
+     - Anthropic direct: `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`
+     - OpenAI direct: `gpt-4o-mini`, `gpt-4o`
+
+     See the **Recommended models** table below for a full list.
    - **Default model** — picked automatically once you add at least
      one model.
 4. (Optional) Click **Test connection** to send a one-token smoke
