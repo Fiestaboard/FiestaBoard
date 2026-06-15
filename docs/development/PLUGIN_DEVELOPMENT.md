@@ -793,7 +793,7 @@ def check_triggers(self) -> list[TriggerResult]:
 
 - ❌ **Don't fire on every tick without a stable `trigger_id`.** Without an id the trigger replaces itself anyway, but using event-derived ids makes dedup, dismiss, and API inspection sane.
 - ❌ **Don't return `triggered=True` for steady-state data.** Triggers preempt the user's scheduled page. Reserve them for genuine events.
-- ❌ **Don't raise from `check_triggers()` and assume the loop handles it gracefully.** It does (`src/triggers/service.py:240-244`), but the error is silently logged — your trigger just stops firing. Catch and log inside the method if you need visibility.
+- ❌ **Don't raise from `check_triggers()` and assume the loop handles it gracefully.** It does (`src/triggers/service.py:235-239`), but the error is silently logged — your trigger just stops firing. Catch and log inside the method if you need visibility.
 - ❌ **Don't store secrets or PII in `TriggerResult.data`.** It's exposed via `GET /triggers` and the page template engine.
 - ❌ **Don't expect triggers to fire during silence mode.** They're explicitly suppressed.
 - ⚠️ **Prefer `TriggerPriority` over raw integers.** Raw `priority=42` still works, but the enum (`AMBIENT`/`NOTABLE`/`URGENT`/`CRITICAL`) is the published scale and keeps triggers from different plugins composing predictably.
