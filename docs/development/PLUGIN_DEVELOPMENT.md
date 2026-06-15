@@ -570,7 +570,7 @@ Each rule object has three fields:
 |-------|-------------|
 | `condition` | Comparison operator: `==`, `!=`, `>`, `<`, `>=`, `<=` |
 | `value` | The value to compare against (number or string) |
-| `color` | Color name: `red`, `orange`, `yellow`, `green`, `blue`, `violet` |
+| `color` | Color name: `red`, `orange`, `yellow`, `green`, `blue`, `violet`, `white`, `black` |
 
 Rules are evaluated in order. The first rule that matches fires; the rest are ignored. Numeric operators (`>`, `<`, `>=`, `<=`) coerce both sides to float before comparing. `==` and `!=` do case-insensitive string comparison when numeric coercion fails.
 
