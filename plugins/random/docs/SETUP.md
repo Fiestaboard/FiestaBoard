@@ -19,16 +19,16 @@ In the FiestaBoard web UI:
 1. Open **Integrations**.
 2. Find **Random** and toggle it on.
 
-### 2. Configure the plugin
+### 2. Configure
 
 1. Click **Configure** on the Random card.
 2. Set your **Choices** — a list of 2–10 strings the plugin picks from (e.g. `Pizza`, `Tacos`, `Sushi`).
 3. Optionally adjust the **Refresh Interval** (default: 60 seconds).
 4. Click **Save Changes**.
 
-### 3. Add Random variables to a page
+### 3. Create a board template
 
-In **Pages**, create or edit a page and add Random variables. A minimal example:
+In **Pages**, create or edit a page template and add random variables. A minimal example:
 
 ```jinja
 {center}TODAY'S PICK

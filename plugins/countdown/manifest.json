@@ -126,7 +126,7 @@
         "description": "Pre-formatted countdown display",
         "group": "countdown",
         "max_length": 22,
-        "example": "86d 14h 30m 45s"
+        "example": "86D 14H 30M"
       }
     }
   },

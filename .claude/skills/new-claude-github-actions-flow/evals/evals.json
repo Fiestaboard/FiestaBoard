@@ -1,0 +1,26 @@
+{
+  "skill_name": "new-claude-github-actions-flow",
+  "evals": [
+    {
+      "id": 1,
+      "name": "create-tests-audit-from-scratch",
+      "prompt": "I want to set up a Claude feedback loop for my Python tests, similar to the docs-audit I already have. It should scan tests/**/*.py and plugins/*/tests/**/*.py twice a day and find flaky tests (tests that use real time/network without mocking), slow tests (anything over 2 seconds), and tests that don't actually assert anything. Open inline PRs for trivial fixes (typos, dead code, missing assertions where the intent is obvious) and file issues for everything else. Use Sonnet for the audit. Include the rejection-feedback capture so the loop learns from closed PRs. Name it tests-audit. Scaffold the full thing on a feature branch and tell me what to do next.",
+      "expected_output": "A feature branch with: claude-tests-audit.yml (audit workflow), claude-tests-audit-review.yml (auto-review), claude-tests-audit-feedback.yml (rejection capture), .github/tests-audit-state.json (initial state), .github/tests-audit/build_rejection.py, .github/tests-audit/README.md, .github/tests-audit/rejected-edits.jsonl (empty). The triage workflow at .github/workflows/claude-issue-triage.yml should be updated to add 'tests-audit' to its labeled gate. All the pitfalls should be observed: BRANCH_SUFFIX=github.run_id, show_full_output, --allowed-tools allowlist with Edit/Write/git/gh, UTC cron pairs for DST, cancel-in-progress: false, RELEASE_PAT for state-file push, pull_request_target for feedback. A PR should be opened.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "tune-docs-audit-knobs",
+      "prompt": "The docs-audit is being too aggressive. Reviewer queue keeps getting drowned. Bump the conservative threshold so it kicks in at 40 open issues instead of 80, and drop the conservative batch size to 8 (from 12) and cap to 20 (from 32). Also extend the cooldown from 3h to 6h. Open a PR with the change.",
+      "expected_output": "An Edit to .github/workflows/claude-docs-audit.yml that changes: EFFORT_HOT_THRESHOLD 80→40 in the 'Compute dynamic effort' step, batch=12 → batch=8 in the conservative branch, cap=32 → cap=20 in the conservative branch, and the cooldown check (age_h -lt 3) → (age_h -lt 6) in the 'Dedup' step. Other knobs preserved. PR opened on a feature branch with a descriptive title and body that explains before/after for each knob and why.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "create-minimal-audit-only-loop",
+      "prompt": "Set up a minimal Claude loop that just audits plugin manifests (plugins/*/manifest.json) once a week (Mondays at 10am Pacific). It should only file issues — no inline PRs, no auto-review, no feedback capture. Just the auditor. Call it manifest-audit. Use Sonnet. The audit should look for: missing required fields (id, name, version, settings_schema, variables), screenshots that don't exist on disk, plugin id not matching directory name, and invalid category (must be one of: art, data, entertainment, home, transit, utility, weather). File one issue per problem.",
+      "expected_output": "Just two files: .github/workflows/claude-manifest-audit.yml and .github/manifest-audit-state.json. The audit YAML has a weekly cron (with PT gate), Sonnet model, write permissions only for issues (no PR creation), allowlist without git push or gh pr create, and a domain-specific prompt that covers the four checks. Skip the auto-review, feedback, triage modifications. PR opened with a feature branch.",
+      "files": []
+    }
+  ]
+}

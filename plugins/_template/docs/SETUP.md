@@ -20,7 +20,8 @@ In the FiestaBoard web UI:
 1. Go to **Integrations**
 2. Find **My Plugin Name** and toggle it **On**
 
-![My Plugin Name in Integrations list](./integrations.png)
+<!-- Add a screenshot to `docs/integrations.png`, then replace this comment with:
+     ![My Plugin Name in Integrations list](./integrations.png) -->
 
 ### 2. Configure My Plugin Name
 
@@ -29,7 +30,8 @@ In the FiestaBoard web UI:
 3. Adjust other settings as needed
 4. Click **Save Changes**
 
-![My Plugin Name configuration dialog](./configuration.png)
+<!-- Add a screenshot to `docs/configuration.png`, then replace this comment with:
+     ![My Plugin Name configuration dialog](./configuration.png) -->
 
 ### 3. Create a Board Template
 
@@ -49,7 +51,8 @@ Example template:
 
 Once configured, the plugin output displays on your board when the page is active:
 
-![My Plugin Name on Vestaboard](./board-display.png)
+<!-- Add a screenshot to `docs/board-display.png`, then replace this comment with:
+     ![My Plugin Name on Vestaboard](./board-display.png) -->
 
 ## Template Variables
 
@@ -85,4 +88,4 @@ MY_PLUGIN_API_KEY=your-api-key-here
 **Issue: Data not updating**
 - Check the refresh interval setting
 - Verify the API is not rate-limited
-- Check the Docker logs for error messages: `docker-compose logs -f`
+- Check the Docker logs for error messages: `docker compose logs -f`

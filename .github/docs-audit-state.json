@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "round": 7,
-  "round_started_at": "2026-06-14T23:49:11Z",
-  "last_run_at": "2026-06-14T23:49:11Z",
+  "round": 8,
+  "round_started_at": "2026-06-15T00:30:44Z",
+  "last_run_at": "2026-06-15T00:30:44Z",
   "files_remaining": [],
   "files_audited": [
     "README.md",
@@ -17,6 +17,7 @@
     "docs/setup/RASPBERRY_PI.md",
     "docs/setup/RELEASE_CHECKLIST.md",
     "docs/setup/UPDATING.md",
+    "docs/superpowers/specs/2026-06-14-actions-sidebar-cleanup-design.md",
     "plugins/_template/README.md",
     "plugins/_template/docs/SETUP.md",
     "plugins/countdown/README.md",

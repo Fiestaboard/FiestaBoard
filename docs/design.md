@@ -37,9 +37,9 @@ Use these for UI chrome, not for board tile colors.
 ## Type scale
 
 - **Ratio:** 1.25. Body text 16px (1rem). Use Tailwind `text-*` from the scale (xs 0.75rem, sm 0.875rem, base 1rem, lg 1.125rem, xl 1.25rem, 2xl 1.5rem, 3xl 1.875rem, 4xl 2.25rem). Headings should use scale-based or semantic classes below.
-- **Page title:** `.page-title` – `text-2xl sm:text-3xl font-bold tracking-tight`  
+- **Page title:** `.page-title` – `text-lg sm:text-xl font-medium tracking-tight`  
   Use for main heading on list/detail pages (Pages, Settings, Integrations, etc.).
-- **Page description:** `.page-description` – `text-muted-foreground mt-1 text-sm sm:text-base`  
+- **Page description:** `.page-description` – `text-muted-foreground mt-1 text-sm sm:text-base leading-relaxed`  
   Use for the one-line description under the page title.
 - **Display title (hub):** `.page-title-display` – `text-3xl sm:text-4xl font-bold tracking-tight`  
   Use for the Dashboard (home) title only.

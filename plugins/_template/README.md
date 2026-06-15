@@ -2,7 +2,8 @@
 
 A brief description of what this plugin does.
 
-![My Plugin Name Display](./docs/board-display.png)
+<!-- Add a screenshot to `docs/board-display.png`, then replace this comment with:
+     ![My Plugin Name Display](./docs/board-display.png) -->
 
 **→ [Setup Guide](./docs/SETUP.md)**
 

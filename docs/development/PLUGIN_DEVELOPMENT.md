@@ -86,7 +86,7 @@ This means beginners can skip the entire `variables` and `max_lengths` configura
 |---|---|
 | No `variables` section at all | **Yes** |
 | Empty `variables: {}` | **Yes** |
-| `variables` with `simple` or `arrays` declared | **No** (but undeclared data keys still appear in an "Other" group) |
+| `variables` with `simple` or `arrays` declared | **No** (but undeclared data keys still appear in a "General" group) |
 | Explicit `"auto_discover": true` | **Yes** (even with declared variables) |
 | Explicit `"auto_discover": false` | **No** (strict mode -- only declared variables) |
 
@@ -298,7 +298,7 @@ Template usage:
 
 ### Mixing declared and undeclared variables
 
-When your manifest declares some variables but your `fetch_data()` returns extra keys, those extras appear in the editor under an "Other" group by default. This is by design -- it means you can declare metadata for your main variables while still allowing new keys to be discovered.
+When your manifest declares some variables but your `fetch_data()` returns extra keys, those extras appear in the editor under a "General" group by default. This is by design -- it means you can declare metadata for your main variables while still allowing new keys to be discovered.
 
 ### Strict mode
 
@@ -338,13 +338,16 @@ plugins/my_plugin/
 
 ## Documentation Standards
 
-Each plugin has three documentation layers:
+Each plugin has two documentation layers you are responsible for:
 
 | Layer | File | Audience | Purpose |
 |-------|------|----------|---------|
 | README | `README.md` | Developers, GitHub browsing | How the plugin works, variables, examples |
 | Setup guide | `docs/SETUP.md` | End users | Step-by-step setup, screenshots, troubleshooting |
-| Docs site | `docs-site/docs/plugins/<name>.md` | Public website | Published documentation at fiestaboard.app |
+
+> **Note:** The public docs site at fiestaboard.app (`docs-site/docs/plugins/<name>.md`) is
+> maintained separately by the maintainer team. You do not need to create or update a docs-site
+> page as part of a plugin contribution.
 
 ### README.md Format
 
@@ -487,7 +490,7 @@ The docs-site build process copies the primary screenshot from `plugins/<id>/doc
 | `settings_schema` | JSON Schema for configuration UI |
 | `variables` | Variable declarations with optional metadata and groups |
 | `max_lengths` | Max character lengths (alternative to per-variable `max_length`) |
-| `color_rules_schema` | Schema for dynamic color rules |
+| `color_rules_schema` | Schema for dynamic color rules (see [Color Rules](#color-rules)) |
 | `min_refresh_seconds` | Hard floor for refresh interval |
 | `screenshots` | Array of screenshot entries for galleries, docs, and the registry (see Documentation Standards) |
 
@@ -526,6 +529,72 @@ Use JSON Schema to define configuration fields:
 - `array-input` - Array of items
 - `datetime` - Date/time picker
 - `timezone` - Timezone selector
+
+### Color Rules
+
+`color_rules_schema` lets you declare which variables support automatic color coding. When a rule fires, FiestaBoard prepends a color tile before the variable value in the template. No plugin code is needed — the template engine handles it automatically.
+
+```json
+{
+  "color_rules_schema": {
+    "status": {
+      "type": "threshold",
+      "description": "Color based on status value",
+      "default_rules": [
+        { "condition": "==", "value": "OK",      "color": "green"  },
+        { "condition": "==", "value": "WARNING",  "color": "yellow" },
+        { "condition": "==", "value": "CRITICAL", "color": "red"   }
+      ]
+    },
+    "temp_f": {
+      "type": "threshold",
+      "description": "Color based on temperature",
+      "default_rules": [
+        { "condition": ">=", "value": 90, "color": "red"    },
+        { "condition": ">=", "value": 70, "color": "yellow" },
+        { "condition": "<",  "value": 70, "color": "blue"   }
+      ]
+    }
+  }
+}
+```
+
+Each top-level key is a variable field name. The value is an object with:
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `type` | No | Informational label (e.g., `"threshold"`, `"exact"`) — not enforced by the engine |
+| `description` | No | Human-readable description shown in the UI |
+| `default_rules` | No | Array of rule objects used when the user has not set custom rules |
+
+Each rule object has three fields:
+
+| Field | Description |
+|-------|-------------|
+| `condition` | Comparison operator: `==`, `!=`, `>`, `<`, `>=`, `<=` |
+| `value` | The value to compare against (number or string) |
+| `color` | Color name: `red`, `orange`, `yellow`, `green`, `blue`, `violet`, `white`, `black` |
+
+Rules are evaluated in order. The first rule that matches fires; the rest are ignored. Numeric operators (`>`, `<`, `>=`, `<=`) coerce both sides to float before comparing. `==` and `!=` always do case-insensitive string comparison.
+
+#### How it works in templates
+
+Color is applied automatically when the variable is rendered. Use the variable as normal:
+
+```
+{{my_plugin.status}}
+{{my_plugin.temp_f}}°F
+```
+
+If the `status` value is `"WARNING"`, the output on the board is a yellow tile followed by `WARNING`. No special template syntax is required.
+
+> **Note:** A colored line takes 2 characters of width (the tile + a space), which reduces the space available for the variable value. FiestaBoard accounts for this automatically in max-length calculations.
+
+#### User overrides
+
+Users can configure their own color rules through the FiestaBoard web UI, per field. When custom rules exist they replace the `default_rules` entirely. The `color_rules_schema` tells the UI which fields are eligible for color customization.
+
+If you omit `default_rules`, the field still appears in the color-rules UI but starts with no rules applied.
 
 ## Plugin Implementation
 
@@ -793,7 +862,7 @@ def check_triggers(self) -> list[TriggerResult]:
 
 - ❌ **Don't fire on every tick without a stable `trigger_id`.** Without an id the trigger replaces itself anyway, but using event-derived ids makes dedup, dismiss, and API inspection sane.
 - ❌ **Don't return `triggered=True` for steady-state data.** Triggers preempt the user's scheduled page. Reserve them for genuine events.
-- ❌ **Don't raise from `check_triggers()` and assume the loop handles it gracefully.** It does (`src/triggers/service.py:240-244`), but the error is silently logged — your trigger just stops firing. Catch and log inside the method if you need visibility.
+- ❌ **Don't raise from `check_triggers()` and assume the loop handles it gracefully.** It does (`src/triggers/service.py:235-239`), but the error is silently logged — your trigger just stops firing. Catch and log inside the method if you need visibility.
 - ❌ **Don't store secrets or PII in `TriggerResult.data`.** It's exposed via `GET /triggers` and the page template engine.
 - ❌ **Don't expect triggers to fire during silence mode.** They're explicitly suppressed.
 - ⚠️ **Prefer `TriggerPriority` over raw integers.** Raw `priority=42` still works, but the enum (`AMBIENT`/`NOTABLE`/`URGENT`/`CRITICAL`) is the published scale and keeps triggers from different plugins composing predictably.
@@ -899,7 +968,7 @@ To contribute a plugin to the FiestaBoard repository:
 3. Implement your plugin following this guide
 4. Add tests with >80% coverage
 5. Add documentation in `README.md` and `docs/SETUP.md`
-6. Add your plugin to the main `README.md` "Available Plugins" list
+6. Add your plugin to the main `README.md` "Available Plugins" list (in alphabetical order by plugin name)
 7. Submit a pull request
 
 ### PR Checklist
@@ -913,4 +982,4 @@ To contribute a plugin to the FiestaBoard repository:
 - [ ] `docs/SETUP.md` follows the canonical section order (see Documentation Standards)
 - [ ] `docs/board-display.png` exists (primary screenshot)
 - [ ] No hardcoded secrets or personal information
-- [ ] Plugin added to main README.md "Available Plugins" list
+- [ ] Plugin added to main README.md "Available Plugins" list (alphabetical order)

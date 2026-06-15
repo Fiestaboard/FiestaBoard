@@ -1,0 +1,100 @@
+name: 'Claude: {{DISPLAY_NAME}} Feedback Capture'
+
+# =============================================================================
+# Captures rejected {{NAME}} PRs so the cron auditor can learn from them.
+#
+# Two PR sources feed this pipeline, and both must be captured:
+#   - `{{BRANCH_PREFIX_AUDIT}}*` — bucket-A inline PRs from the audit cron itself
+#   - `{{BRANCH_PREFIX_TRIAGE}}*` — per-issue fixes from the triage worker
+#
+# When either is closed without merging, the maintainer is telling the bot
+# "this edit was wrong." This workflow bundles the PR's diff, close metadata,
+# and every comment/review into a single JSONL line in {{REJECTION_LOG}}
+# and commits that file to main. The next audit run reads the log and uses
+# it to (a) never re-propose the same exact swap, and (b) generalize from
+# the closer's explanation.
+#
+# `workflow_dispatch` re-runs capture for a given PR — useful when a
+# maintainer adds an explanatory comment after the original close.
+# Re-running replaces the prior line for that PR rather than appending.
+#
+# Trigger is `pull_request_target` (not `pull_request`) so GitHub resolves
+# this workflow file from `main` rather than the PR's head ref. Branches
+# cut from `main` at audit time and never updated would otherwise be
+# invisible to it. `pull_request_target` is safe here because the workflow
+# checks out `main` (not PR code) and only reads PR metadata via `gh`;
+# no head-ref code is ever executed.
+# =============================================================================
+
+on:
+  pull_request_target:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to (re)capture into the rejection log'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+concurrency:
+  group: {{CONCURRENCY_GROUP_FEEDBACK}}
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    name: Capture rejected {{NAME}} edit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.pull_request.merged == false &&
+           (startsWith(github.event.pull_request.head.ref, '{{BRANCH_PREFIX_AUDIT}}') ||
+            startsWith(github.event.pull_request.head.ref, '{{BRANCH_PREFIX_TRIAGE}}'))) }}
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+    steps:
+      - name: Determine PR number
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "number=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          # RELEASE_PAT so the log commit can push to main past branch
+          # protection.
+          ref: main
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 1
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Capture rejection
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          set -euo pipefail
+          python3 {{FEEDBACK_DIR}}build_rejection.py "${{ steps.pr.outputs.number }}"
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- {{REJECTION_LOG}}; then
+            echo "Log unchanged — script bailed (merged PR, or no diff)."
+            exit 0
+          fi
+          git add {{REJECTION_LOG}}
+          git commit -m "chore({{NAME}}): capture rejection from PR #${{ steps.pr.outputs.number }} [skip ci]"
+          git push origin HEAD:main

@@ -1,0 +1,341 @@
+name: 'Claude: {{DISPLAY_NAME}}'
+
+# =============================================================================
+# {{DESCRIPTION}}
+#
+# Cadence: {{CADENCE_SUMMARY}}. Each cron pair fires twice in UTC to absorb DST
+# drift; the local-hour gate below admits exactly the intended window.
+# workflow_dispatch always proceeds.
+#
+# Effort scales with the open `{{ISSUE_LABEL_AUDIT}}` issue queue (see "Compute
+# dynamic effort" step). Drained queue → thorough mode (batch {{BATCH_THOROUGH}},
+# cap {{CAP_THOROUGH}}). Hot queue → conservative mode (batch {{BATCH_CONSERVATIVE}},
+# cap {{CAP_CONSERVATIVE}}). The audit self-throttles without manual tuning.
+#
+# Progress tracked in {{STATE_FILE}}; sweep restarts from the top once every
+# file has been audited.
+# =============================================================================
+
+on:
+  schedule:
+{{CRONS}}
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize every {{NAME}} run. Without this, two parallel runs read the
+# same state, pick the same batch, and open duplicate PRs touching the same
+# files. cancel-in-progress=false so a workflow_dispatch fired during a
+# scheduled run waits its turn rather than aborting it.
+concurrency:
+  group: {{CONCURRENCY_GROUP_AUDIT}}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: {{DISPLAY_NAME}} with Claude
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Gate on {{TIMEZONE}} local hour window
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hour=$(TZ={{TIMEZONE}} date +%H)
+          minute=$(TZ={{TIMEZONE}} date +%M)
+          echo "Local: $hour:$minute"
+{{TIME_GATE_BODY}}
+
+      - name: Checkout repository
+        if: steps.gate.outputs.go == 'true'
+        uses: actions/checkout@v6
+        with:
+          # RELEASE_PAT so the state-file commit can push to main past
+          # branch protection.
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
+
+      - name: Dedup against recent runs and open drafts
+        id: dedup
+        if: steps.gate.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          last=$(jq -r '.last_run_at // empty' {{STATE_FILE}})
+          if [ -n "$last" ]; then
+            last_epoch=$(date -u -d "$last" +%s 2>/dev/null || echo 0)
+            now_epoch=$(date -u +%s)
+            if [ "$last_epoch" -gt 0 ]; then
+              age_h=$(( (now_epoch - last_epoch) / 3600 ))
+              if [ "$age_h" -lt {{COOLDOWN_HOURS}} ]; then
+                echo "Skipping: last run was ${age_h}h ago (<{{COOLDOWN_HOURS}}h cooldown)."
+                echo "go=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+          fi
+          draft_count=$(gh pr list --search "head:{{BRANCH_PREFIX_AUDIT}}" --state open --json number --jq 'length')
+          if [ "$draft_count" -ge {{DRAFT_CAP}} ]; then
+            drafts=$(gh pr list --search "head:{{BRANCH_PREFIX_AUDIT}}" --state open --json number --jq '[.[].number | tostring] | join(", #")')
+            echo "Skipping: ${draft_count} open {{NAME}} draft(s) (#${drafts}). Merge/close some, or use workflow_dispatch."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Open audit drafts: ${draft_count} (cap {{DRAFT_CAP}})."
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+      - name: Compute dynamic effort
+        id: effort
+        if: steps.dedup.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          open_count=$(gh issue list --label {{ISSUE_LABEL_AUDIT}} --state open --limit 200 --json number --jq 'length')
+          echo "Open {{ISSUE_LABEL_AUDIT}} issues: ${open_count}"
+          if [ "$open_count" -gt {{EFFORT_HOT_THRESHOLD}} ]; then
+            mode="conservative"; batch={{BATCH_CONSERVATIVE}}; cap={{CAP_CONSERVATIVE}}
+          elif [ "$open_count" -gt {{EFFORT_BALANCED_THRESHOLD}} ]; then
+            mode="balanced";     batch={{BATCH_BALANCED}};     cap={{CAP_BALANCED}}
+          else
+            mode="thorough";     batch={{BATCH_THOROUGH}};     cap={{CAP_THOROUGH}}
+          fi
+          echo "mode=${mode} batch=${batch} cap=${cap}"
+          {
+            echo "mode=${mode}"
+            echo "batch=${batch}"
+            echo "cap=${cap}"
+            echo "open_count=${open_count}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Configure git identity
+        if: steps.dedup.outputs.go == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run Claude {{NAME}}
+        if: steps.dedup.outputs.go == 'true'
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          BRANCH_SUFFIX: ${{ github.run_id }}
+          AUDIT_MODE: ${{ steps.effort.outputs.mode }}
+          AUDIT_BATCH_SIZE: ${{ steps.effort.outputs.batch }}
+          AUDIT_ISSUE_CAP: ${{ steps.effort.outputs.cap }}
+          AUDIT_QUEUE_OPEN: ${{ steps.effort.outputs.open_count }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: 'true'
+          claude_args: >-
+            --model {{MODEL_AUDIT}}
+            --max-turns {{MAX_TURNS_AUDIT}}
+            --allowed-tools "{{ALLOWED_TOOLS_AUDIT}}"
+          prompt: |
+            {{DOMAIN_INTRO}}
+
+            ## Effort for this run (computed by the workflow)
+
+            - **Mode:**       ${{ steps.effort.outputs.mode }}
+            - **Batch size:** ${{ steps.effort.outputs.batch }} files
+            - **Issue cap:**  ${{ steps.effort.outputs.cap }} per run
+            - **Queue depth:** ${{ steps.effort.outputs.open_count }} open `{{ISSUE_LABEL_AUDIT}}` issues
+
+            The mode/batch/cap were chosen by the workflow based on the
+            queue depth — you don't need to second-guess them.
+
+            ## Learning from past rejections
+
+            **Read `{{REJECTION_LOG}}` before doing anything else.** Each
+            non-empty line is a previous PR (from this cron or from a
+            triage worker) that a human closed without merging — i.e. the
+            proposed edit was wrong. The log is your single most important
+            input; it is how this loop gets better over time.
+
+            Each line is a JSON object with:
+              - `pr`, `title`, `head_ref`, `closed_at`
+              - `body` — the PR description you originally wrote
+              - `files` — list of `{path, patch}` for every file changed
+              - `comments`, `reviews`, `inline_comments` — every human
+                comment on the PR. These contain the *reason* for the close.
+
+            For each rejection:
+
+            1. **Never repeat the exact swap.** Extract `-` / `+` lines
+               from each `patch`. If you would propose the same swap
+               again — anywhere in the repo, not just in the same file —
+               do not.
+            2. **Read every comment.** Treat the closer's reasoning as
+               authoritative. Generalize beyond the specific case.
+            3. **Cite when relevant.** If you skip a finding because a
+               past rejection covers it, mention the PR number in the
+               wrap-up summary.
+
+            If the file does not exist or is empty, proceed normally.
+
+            ## Sweep state
+
+            State file: `{{STATE_FILE}}`
+            Schema:
+              - `schema_version`  — int, currently 1
+              - `round`           — int, sweep number (starts at 0; bumped each restart)
+              - `round_started_at`— ISO8601 string or null
+              - `last_run_at`     — ISO8601 string or null
+              - `files_remaining` — list of relative paths still to audit this round
+              - `files_audited`   — list of relative paths already audited this round
+
+            ## Sweep logic
+
+            1. Read the state file.
+            2. If `files_remaining` is empty:
+               - Glob the repo for files matching:
+{{FILE_GLOB_INCLUDES_LIST}}
+                 Exclude:
+{{FILE_GLOB_EXCLUDES_LIST}}
+               - Set `files_remaining` to the full glob, sorted.
+               - Set `files_audited` to `[]`.
+               - Bump `round` by 1 and set `round_started_at` to now (ISO8601 UTC).
+            3. Pick the first **${{ steps.effort.outputs.batch }}** entries from
+               `files_remaining` as this run's batch. If fewer remain, use
+               what's there.
+
+            ## For each file in the batch
+
+            Read it carefully and deeply — don't skim. Spend real budget
+            understanding what the file contains, then verify against
+            ground truth (does this command actually work? does this
+            path exist? does this symbol exist? does this match the
+            schema?).
+
+            Categorize findings into three buckets:
+
+            **A. Trivial mechanical fixes ONLY** — single-token or
+                single-line edits with no ambiguity:
+{{BUCKET_A_DEFINITION}}
+
+                Anything bigger than a one-line edit, anything requiring
+                surrounding context to fix, anything involving a choice
+                between reasonable rewrites — is NOT bucket A. Push it to
+                B or C so a triage worker handles it.
+
+            **B. Missing things** — referenced concept, command, env var,
+                or workflow with no existing implementation or doc:
+{{BUCKET_B_DEFINITION}}
+
+            **C. Quality / clarity issues** — present but confusing,
+                redundant, out-of-order, or simplifiable:
+{{BUCKET_C_DEFINITION}}
+
+            ## Aggressiveness
+
+            Mode for this run: **${{ steps.effort.outputs.mode }}**.
+
+            - `thorough` (queue ≤ {{EFFORT_BALANCED_THRESHOLD}}): file any
+              defensible finding. False positives are cheap.
+            - `balanced` (between thresholds): file findings you're
+              moderately confident about. Skim past minor preferences.
+            - `conservative` (queue > {{EFFORT_HOT_THRESHOLD}}): only flag
+              high-confidence findings. Reviewer queue is hot.
+
+            Always: dedup against open `{{ISSUE_LABEL_AUDIT}}` issues before
+            filing:
+              `gh issue list --label {{ISSUE_LABEL_AUDIT}} --state open --limit 200 --search "<key phrase>"`
+            Skip if a same-file, same-topic issue already exists open.
+
+            ## Outputs
+
+            ### If bucket A has any findings across the batch
+
+            Create a branch named exactly:
+
+                {{BRANCH_PREFIX_AUDIT}}round-<round>-run-$BRANCH_SUFFIX
+
+            where `$BRANCH_SUFFIX` is the value of the `BRANCH_SUFFIX`
+            environment variable (set to `github.run_id`). Do NOT use
+            `date +%s` — past runs invented stale timestamps that way.
+            Verify with `echo "$BRANCH_SUFFIX"` first.
+
+            Branch off `main`. Apply ONLY the bucket-A fixes. Commit.
+            Open a **ready-for-review** PR (no `--draft`):
+
+              Title: `{{NAME}}: auto-audit — round <round>, files <X+1>–<Y> of <T>`
+              Body: includes summary, files touched, notes about the round.
+
+            Use `gh pr create` with NO `--draft` flag.
+
+            ### For each bucket B or C finding
+
+            File a GitHub issue. Dedupe first.
+
+            Issue title: `{{ISSUE_TITLE_TEMPLATE}}`
+
+            Issue body should include: file path(s), category, finding
+            description (2-5 sentences), suggested improvement (2-5
+            sentences), and footer noting which round filed it.
+
+            Labels: `{{ISSUE_LABEL_DOMAIN}}`, `{{ISSUE_LABEL_AUDIT}}`. Create
+            labels if needed:
+              `gh label create {{ISSUE_LABEL_AUDIT}} --color BFD4F2 --description "Filed by the {{NAME}} cron" || true`
+
+            After creating each issue, also apply the `{{TRIAGE_LABEL}}` label
+            so the issue-triage workflow picks it up:
+              `gh issue edit <N> --add-label {{TRIAGE_LABEL}}`
+            Create that label first if needed:
+              `gh label create {{TRIAGE_LABEL}} --color 0E8A16 --description "Run the Claude issue-triage workflow on this issue" || true`
+
+            ## State commit
+
+            After processing the batch:
+            1. Move the batch entries from `files_remaining` to `files_audited`.
+            2. Update `last_run_at` to now (ISO8601 UTC).
+            3. Write the JSON back to `{{STATE_FILE}}` (2-space indent, trailing
+               newline, keys in the same order as the existing file).
+            4. Commit to `main` directly with the message
+               `chore({{NAME}}): advance sweep state [skip ci]` and push.
+               This is the ONLY direct-to-main commit you make.
+
+            ## Hard rules
+
+            - Never push to `main` except for the single state-file commit above.
+            - Never force-push, never `--no-verify`, never `--no-gpg-sign`.
+            - Never modify files outside: {{HARD_RULES_FILE_RESTRICTION}}.
+            - Never open more than 1 PR per run.
+            - Never file more than **${{ steps.effort.outputs.cap }}** issues per run.
+            - When dedup says skip, skip — don't refile.
+            - When mode is `thorough`, lean toward filing; when
+              `conservative`, lean toward skipping.
+
+            ## Wrap up
+
+            Print a one-screen summary:
+              ROUND: <n> (started <date>)
+              BATCH: <files in this batch>
+              PR opened: <#N or "none">
+              Issues filed: <#A #B ...>
+              Progress: <audited>/<total> files in this round
+              Next batch: <first 3 of files_remaining or "round complete">
+
+      - name: Push state-file changes
+        if: steps.dedup.outputs.go == 'true'
+        # Defensive: if the Claude step exits early, commit + push the
+        # state file here. [skip ci] keeps this from retriggering.
+        run: |
+          if git diff --quiet -- {{STATE_FILE}}; then
+            echo "State file unchanged."
+            exit 0
+          fi
+          git add {{STATE_FILE}}
+          git commit -m "chore({{NAME}}): advance sweep state [skip ci]"
+          git push origin HEAD:main
