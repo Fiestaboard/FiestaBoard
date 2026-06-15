@@ -340,14 +340,14 @@ claude mcp add fiestaboard --transport http \
 
 ### Available tools
 
-The MCP server exposes 26+ tools covering the full FiestaBoard API:
+The MCP server exposes 28 tools covering the full FiestaBoard API:
 
 | Category | Tools |
 |----------|-------|
-| Plugins | `list_installed_plugins`, `list_registry_plugins`, `install_plugin`, `enable_plugin`, `disable_plugin`, `uninstall_plugin`, `configure_plugin`, `update_plugin`, `get_template_variables` |
-| Pages | `list_pages`, `get_page`, `create_page`, `update_page`, `delete_page` |
+| Plugins | `list_installed_plugins`, `list_registry_plugins`, `install_plugin`, `enable_plugin`, `disable_plugin`, `uninstall_plugin`, `configure_plugin`, `update_plugin`, `get_template_variables`, `get_plugin_data` |
+| Pages | `list_pages`, `get_page`, `create_page`, `update_page`, `delete_page`, `render_page_preview` |
 | Schedules | `list_schedules`, `create_schedule`, `update_schedule`, `delete_schedule` |
-| Carousels | `list_carousels`, `create_carousel`, `update_carousel`, `delete_carousel` |
+| Collections | `list_collections`, `create_collection`, `update_collection`, `delete_collection` |
 | System | `get_system_status`, `get_settings_summary`, `set_active_page`, `set_schedule_mode` |
 
 The MCP server requires a bearer token for all requests. Generate one in **Settings → Integrations → MCP / external clients**. See [MCP Clients Setup](docs/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
