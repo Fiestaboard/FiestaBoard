@@ -27,7 +27,7 @@ for removing that flag is already satisfied.
 
 > **Outstanding action:** open a one-line PR that deletes
 > `continue-on-error: true` from the `Run visual regression tests` step
-> in `.github/workflows/ci.yml` (around line 647). That makes the step
+> in `.github/workflows/ci.yml`. That makes the step
 > required and any snapshot regression will block merge.
 
 ## Updating baselines
