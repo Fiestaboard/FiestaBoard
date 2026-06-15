@@ -22,8 +22,8 @@ In the FiestaBoard web UI:
 ### 2. Configure the plugin
 
 1. Click **Configure** on the Random card.
-2. Set your **Choices** — a list of 2–10 strings to pick from (e.g. dinner options, team names).
-3. Optionally adjust the **Refresh Interval** (how often the plugin re-rolls values).
+2. Set your **Choices** — a list of 2–10 strings the plugin picks from (e.g. `Pizza`, `Tacos`, `Sushi`).
+3. Optionally adjust the **Refresh Interval** (default: 60 seconds).
 4. Click **Save Changes**.
 
 ### 3. Add Random variables to a page
@@ -31,9 +31,10 @@ In the FiestaBoard web UI:
 In **Pages**, create or edit a page and add Random variables. A minimal example:
 
 ```jinja
-{center}TONIGHT'S DINNER
-
+{center}TODAY'S PICK
 {{random.choice}}
+
+COIN FLIP: {{random.coin_flip}}
 ```
 
 ### 4. View on your board
