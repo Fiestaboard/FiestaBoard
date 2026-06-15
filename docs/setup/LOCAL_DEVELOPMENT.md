@@ -45,7 +45,7 @@ The development Docker Compose mounts source code as volumes (`./src`, `./plugin
 Storybook is an **opt-in** service for interactive component development. It does not start when you run `docker-compose up` — it only runs when you explicitly request it.
 
 ```bash
-# Start Storybook (runs npm install on first launch — takes a minute)
+# Start Storybook (runs npm install on every startup — first launch takes a minute)
 docker-compose -f docker-compose.dev.yml up fiestaboard-storybook
 
 # Or use the profile flag to start core services + Storybook together
