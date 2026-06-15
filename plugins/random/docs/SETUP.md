@@ -19,16 +19,16 @@ In the FiestaBoard web UI:
 1. Open **Integrations**.
 2. Find **Random** and toggle it on.
 
-### 2. Configure Random
+### 2. Configure the plugin
 
 1. Click **Configure** on the Random card.
 2. Set your **Choices** — a list of 2–10 strings to pick from (e.g. dinner options, team names).
 3. Optionally adjust the **Refresh Interval** (how often the plugin re-rolls values).
 4. Click **Save Changes**.
 
-### 3. Create a Board Template
+### 3. Add Random variables to a page
 
-In **Pages**, create or edit a page template and add Random variables. A minimal example:
+In **Pages**, create or edit a page and add Random variables. A minimal example:
 
 ```jinja
 {center}TONIGHT'S DINNER
@@ -36,11 +36,11 @@ In **Pages**, create or edit a page template and add Random variables. A minimal
 {{random.choice}}
 ```
 
-### 4. View on Your Board
+### 4. View on your board
 
 Save the page. On the next refresh, your board will show a fresh random pick.
 
-![Random display on a Vestaboard](./board-display.png)
+![Random displayed on a Vestaboard](./board-display.png)
 
 ## Template Variables
 
