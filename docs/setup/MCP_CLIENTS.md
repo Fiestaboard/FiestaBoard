@@ -19,7 +19,7 @@ Docker installs and auth-enabled setups often need to configure the MCP token
 before the web UI is reachable. Set `FIESTABOARD_MCP_TOKEN` in your
 `docker-compose.yml` (or `.env` file) to skip the UI step entirely:
 
-```
+```bash
 FIESTABOARD_MCP_TOKEN=your-token-value-here
 ```
 
