@@ -44,7 +44,7 @@ services:
 Start it:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 Then open **http://localhost:4420** to connect your board and start the service.
