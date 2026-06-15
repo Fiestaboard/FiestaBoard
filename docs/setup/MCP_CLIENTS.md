@@ -13,6 +13,30 @@ This page walks through wiring each client up to a self-hosted FiestaBoard.
 
 > **Hostname tip:** Docker installs advertise as `fiestaboard.local`; the FiestaPi image advertises as `fiestapi.local`. Use whichever matches your install (or substitute the LAN IP if mDNS doesn't resolve on your network). The examples below use `fiestaboard.local`.
 
+## Token via environment variable
+
+Docker installs and auth-enabled setups often need to configure the MCP token
+before the web UI is reachable. Set `FIESTABOARD_MCP_TOKEN` in your
+`docker-compose.yml` (or `.env` file) to skip the UI step entirely:
+
+```
+FIESTABOARD_MCP_TOKEN=your-token-value-here
+```
+
+Generate a suitable value on any machine with Python:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Use the generated value in the `Authorization: Bearer` header of your MCP
+client config — it replaces `<YOUR_TOKEN>` in the examples below.
+
+> **Note:** When `FIESTABOARD_MCP_TOKEN` is set it takes precedence over any
+> token stored by the Settings UI, and the **Generate / Rotate token** buttons
+> in **Settings → Integrations** are disabled. To manage the token from the UI
+> again, unset the variable and restart the container.
+
 ## Why local hosting makes this awkward
 
 The MCP ecosystem is converging on three transports — stdio, HTTP, and
