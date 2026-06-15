@@ -61,7 +61,7 @@ The current preset list, sourced from `web/src/components/settings/ai-settings.t
    - **API Key** — paste the key. It is stored on this device's
      `data/config.json` and is masked (`***`) on read.
    - **Models** — type each model id and press Enter or click `+`
-     (e.g. `openai/gpt-4o-mini`, `claude-3-5-sonnet-20241022`).
+     (e.g. `openai/gpt-4o-mini`, `claude-sonnet-4-6`).
    - **Default model** — picked automatically once you add at least
      one model.
 4. (Optional) Click **Test connection** to send a one-token smoke
