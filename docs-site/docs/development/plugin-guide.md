@@ -162,7 +162,7 @@ These fields are not enforced by the manifest validator but should be included i
 | `repository` | string | - | GitHub repository URL. |
 | `documentation` | string | `"README.md"` | Path to documentation file relative to plugin directory. |
 | `env_vars` | array | `[]` | Environment variables the plugin can read (see [Environment Variables](#environment-variables)). |
-| `color_rules_schema` | object | `{}` | Schema for dynamic color rules. |
+| `color_rules_schema` | object | `{}` | Schema for dynamic color rules (see [Color Rules](#color-rules)). |
 
 ### Settings Schema
 
@@ -218,6 +218,70 @@ The `settings_schema` uses [JSON Schema](https://json-schema.org/) with UI widge
 | `textarea` | Multi-line text input |
 | `select` | Dropdown (automatically used for `enum` fields) |
 | `timezone` | Timezone picker with autocomplete |
+
+### Color Rules {#color-rules}
+
+`color_rules_schema` declares which variables support automatic color coding. When a rule fires, FiestaBoard prepends a color tile before the variable value in the template. No plugin code is required — the template engine handles it automatically.
+
+```json
+{
+  "color_rules_schema": {
+    "status": {
+      "type": "threshold",
+      "description": "Color based on status value",
+      "default_rules": [
+        { "condition": "==", "value": "OK",       "color": "green"  },
+        { "condition": "==", "value": "WARNING",   "color": "yellow" },
+        { "condition": "==", "value": "CRITICAL",  "color": "red"   }
+      ]
+    },
+    "temp_f": {
+      "type": "threshold",
+      "description": "Color based on temperature",
+      "default_rules": [
+        { "condition": ">=", "value": 90, "color": "red"    },
+        { "condition": ">=", "value": 70, "color": "yellow" },
+        { "condition": "<",  "value": 70, "color": "blue"   }
+      ]
+    }
+  }
+}
+```
+
+Each top-level key is a variable field name. The value is an object with:
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `type` | No | Informational label (e.g., `"threshold"`, `"exact"`) — not enforced by the engine |
+| `description` | No | Human-readable description shown in the UI |
+| `default_rules` | No | Rules applied when the user has not set custom rules |
+
+Each rule object has three fields:
+
+| Field | Description |
+|-------|-------------|
+| `condition` | Comparison operator: `==`, `!=`, `>`, `<`, `>=`, `<=` |
+| `value` | Value to compare against (number or string) |
+| `color` | One of: `red`, `orange`, `yellow`, `green`, `blue`, `violet` |
+
+Rules are checked in order. The first match wins; the rest are ignored. Numeric operators (`>`, `<`, `>=`, `<=`) coerce both sides to float. `==` and `!=` do case-insensitive string comparison when numeric coercion fails.
+
+**Using color rules in templates**
+
+Reference the variable as normal — color is applied automatically:
+
+```
+{{my_plugin.status}}
+{{my_plugin.temp_f}}°F
+```
+
+If `status` is `"WARNING"`, the board shows a yellow tile followed by `WARNING`. No special template syntax is needed.
+
+> **Note:** A colored line takes 2 characters of board width (tile + space). FiestaBoard accounts for this in max-length calculations automatically.
+
+**User overrides**
+
+Users can set their own rules per field in the FiestaBoard web UI. Custom rules replace the `default_rules` entirely. The `color_rules_schema` tells the UI which fields are eligible for color customization. Fields without `default_rules` appear in the UI but start with no rules applied.
 
 ### Variables {#variables}
 
