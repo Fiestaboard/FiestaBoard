@@ -86,7 +86,7 @@ This means beginners can skip the entire `variables` and `max_lengths` configura
 |---|---|
 | No `variables` section at all | **Yes** |
 | Empty `variables: {}` | **Yes** |
-| `variables` with `simple` or `arrays` declared | **No** (but undeclared data keys still appear in an "Other" group) |
+| `variables` with `simple` or `arrays` declared | **No** (but undeclared data keys still appear in a "General" group) |
 | Explicit `"auto_discover": true` | **Yes** (even with declared variables) |
 | Explicit `"auto_discover": false` | **No** (strict mode -- only declared variables) |
 
@@ -298,7 +298,7 @@ Template usage:
 
 ### Mixing declared and undeclared variables
 
-When your manifest declares some variables but your `fetch_data()` returns extra keys, those extras appear in the editor under an "Other" group by default. This is by design -- it means you can declare metadata for your main variables while still allowing new keys to be discovered.
+When your manifest declares some variables but your `fetch_data()` returns extra keys, those extras appear in the editor under a "General" group by default. This is by design -- it means you can declare metadata for your main variables while still allowing new keys to be discovered.
 
 ### Strict mode
 
