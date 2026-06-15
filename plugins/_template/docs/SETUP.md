@@ -85,4 +85,4 @@ MY_PLUGIN_API_KEY=your-api-key-here
 **Issue: Data not updating**
 - Check the refresh interval setting
 - Verify the API is not rate-limited
-- Check the Docker logs for error messages: `docker-compose logs -f`
+- Check the Docker logs for error messages: `docker compose logs -f`

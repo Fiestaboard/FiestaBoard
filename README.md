@@ -260,16 +260,16 @@ Run these from the folder you originally started FiestaBoard in (the one with yo
 
 ```bash
 # Stop FiestaBoard
-docker-compose down
+docker compose down
 
 # Start it again (no rebuild needed)
-docker-compose up -d
+docker compose up -d
 
 # View logs if something isn't working
-docker-compose logs -f
+docker compose logs -f
 ```
 
-If you pulled the image with `docker-compose.hub.yml`, add `-f docker-compose.hub.yml` to each command (for example `docker-compose -f docker-compose.hub.yml down`).
+If you pulled the image with `docker-compose.hub.yml`, add `-f docker-compose.hub.yml` to each command (for example `docker compose -f docker-compose.hub.yml down`).
 
 Then open **http://localhost:4420** — the service starts automatically once the container is running.
 
