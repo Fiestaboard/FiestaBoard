@@ -56,8 +56,10 @@ The current preset list, sourced from `web/src/components/settings/ai-settings.t
      quick-pick buttons below also set this for you.
    - **Base URL** — the API root, e.g.
      `https://openrouter.ai/api/v1` or `https://api.anthropic.com/v1`.
-     Quick-pick buttons are provided for OpenRouter, OpenAI,
-     Anthropic, and a local server.
+     A **Quick presets** panel below the field provides one-click
+     buttons for all supported providers — the same full list of cloud
+     and local options described in the **Quick setup with preset
+     pills** section above.
    - **API Key** — paste the key. It is stored on this device's
      `data/config.json` and is masked (`***`) on read.
    - **Models** — type each model id and press Enter or click `+`
