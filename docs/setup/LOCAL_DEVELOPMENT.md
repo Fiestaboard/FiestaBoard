@@ -38,7 +38,23 @@ If you're working in Claude Code, the project ships matching slash commands: `/s
 The development Docker Compose mounts source code as volumes (`./src`, `./plugins`, `./web`, `./tests`, `./scripts`, plus `./data`):
 
 - **Python API**: Changes to `src/` and `plugins/` trigger uvicorn `--reload` automatically — no restart needed.
-- **React Router / Vite Web UI**: The container serves the production build that was baked into the image, so UI changes need a container rebuild (`docker-compose -f docker-compose.dev.yml up --build` or `/restart`). For interactive UI work, run Storybook with `docker-compose -f docker-compose.dev.yml up fiestaboard-storybook` (port 6006) instead.
+- **React Router / Vite Web UI**: The container serves the production build that was baked into the image, so UI changes need a container rebuild (`docker-compose -f docker-compose.dev.yml up --build` or `/restart`). For interactive component work, Storybook is available as an opt-in service — see [Storybook](#storybook) below.
+
+### Storybook
+
+Storybook is an **opt-in** service for interactive component development. It does not start when you run `docker-compose up` — it only runs when you explicitly request it.
+
+```bash
+# Start Storybook (runs npm install on first launch — takes a minute)
+docker-compose -f docker-compose.dev.yml up fiestaboard-storybook
+
+# Or use the profile flag to start core services + Storybook together
+docker-compose -f docker-compose.dev.yml --profile storybook up
+```
+
+Once running, Storybook is available at **http://localhost:6006**.
+
+> **Note:** Storybook runs `npm install --force` on every startup because it shares the `web/` volume with the main container. The first run may take a minute; subsequent starts are faster.
 
 ### Stopping Services
 
@@ -137,6 +153,8 @@ The repo ships a `.devcontainer/` with `devcontainer.json`, a build `Dockerfile`
 | View logs | `docker-compose -f docker-compose.dev.yml logs -f` |
 | View API docs | http://localhost:4420/api/docs |
 | View Web UI | http://localhost:4420 |
+| Start Storybook (opt-in) | `docker-compose -f docker-compose.dev.yml up fiestaboard-storybook` |
+| View Storybook | http://localhost:6006 |
 
 ## Troubleshooting
 
