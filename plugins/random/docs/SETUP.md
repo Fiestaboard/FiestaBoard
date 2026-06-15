@@ -12,7 +12,7 @@ The Random plugin needs no API key or external service — it generates all valu
 
 ## Quick Setup
 
-### 1. Enable the Plugin
+### 1. Enable the plugin
 
 In the FiestaBoard web UI:
 
