@@ -43,7 +43,7 @@ In **Settings → AI Providers**, the **Quick presets** row gives you one-click 
 
 The current preset list, sourced from `web/src/components/settings/ai-settings.tsx`:
 
-- **Cloud:** OpenAI, OpenRouter, Anthropic, Groq, DeepSeek, Mistral, Together AI, Fireworks AI.
+- **Cloud:** OpenRouter, OpenAI, Anthropic, Groq, DeepSeek, Mistral, Together AI, Fireworks AI.
 - **Local:** Ollama (`http://localhost:11434/v1`), LM Studio (`http://localhost:1234/v1`), llama.cpp (`http://localhost:8080/v1`), vLLM (`http://localhost:8000/v1`).
 
 ## Configuration
