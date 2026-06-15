@@ -110,5 +110,8 @@ docs-site/.cache-loader/
 # Claude Code worktrees (per-user, ephemeral isolated checkouts).
 .claude/worktrees/
 
+# Skill-creator eval workspaces (per-iteration test artifacts, not source).
+.claude/skills/*-workspace/
+
 # Supervisor runtime PID file (created when supervisord runs locally).
 supervisord.pid
