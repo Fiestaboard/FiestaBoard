@@ -660,14 +660,10 @@ def test_validate_local_config_passes_when_only_multi_board_configured(tmp_path,
     cm = ConfigManager(config_path=str(config_path))
 
     fake_board_settings = MagicMock()
-    fake_board_settings.boards = [
-        {"api_mode": "local", "local_api_key": "real-key", "host": "10.0.0.5"}
-    ]
+    fake_board_settings.boards = [{"api_mode": "local", "local_api_key": "real-key", "host": "10.0.0.5"}]
     fake_service = MagicMock()
     fake_service.get_board_settings.return_value = fake_board_settings
-    monkeypatch.setattr(
-        "src.settings.service.get_settings_service", lambda: fake_service
-    )
+    monkeypatch.setattr("src.settings.service.get_settings_service", lambda: fake_service)
 
     valid, errors = cm.validate()
     assert valid is True, f"expected valid config, got errors: {errors}"
@@ -686,14 +682,10 @@ def test_validate_local_config_fails_when_multi_board_also_empty(tmp_path, monke
     cm = ConfigManager(config_path=str(config_path))
 
     fake_board_settings = MagicMock()
-    fake_board_settings.boards = [
-        {"api_mode": "local", "local_api_key": "", "host": ""}
-    ]
+    fake_board_settings.boards = [{"api_mode": "local", "local_api_key": "", "host": ""}]
     fake_service = MagicMock()
     fake_service.get_board_settings.return_value = fake_board_settings
-    monkeypatch.setattr(
-        "src.settings.service.get_settings_service", lambda: fake_service
-    )
+    monkeypatch.setattr("src.settings.service.get_settings_service", lambda: fake_service)
 
     valid, errors = cm.validate()
     assert valid is False
