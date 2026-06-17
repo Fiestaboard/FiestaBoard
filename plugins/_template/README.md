@@ -299,5 +299,5 @@ Registry plugins must follow the `fiestaboard-plugin--{name}` naming convention.
 
 See these plugins for reference implementations:
 
-- `plugins/date_time/` — Plugin with no external dependencies (100% coverage)
-- `plugins/countdown/` — Event countdown with timezone support (98% coverage)
+- `plugins/date_time/` — Plugin with no external dependencies (high coverage, no external deps)
+- `plugins/countdown/` — Event countdown with timezone support (comprehensive coverage; check CI for current numbers)
