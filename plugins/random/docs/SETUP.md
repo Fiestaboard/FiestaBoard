@@ -49,8 +49,10 @@ Save the page. On the next refresh, your board will show a fresh random pick.
 |----------|-------------|---------|
 | `{{random.choice}}` | Random pick from your configured choices | `Pizza` |
 | `{{random.coin_flip}}` | Heads or Tails | `Tails` |
-| `{{random.color}}` | Random board color as a rendered color tile (a solid colored square) | _(colored square)_ |
-| `{{random.color_name}}` | Random board color as text — `red`, `orange`, `yellow`, `green`, `blue`, or `violet` | `green` |
+| `{{random.color}}` | Random board color tile — picks from red, orange, yellow, green, blue, or violet | _(colored square)_ |
+| `{{random.color_name}}` | Random board color as text — one of: `red`, `orange`, `yellow`, `green`, `blue`, `violet` | `green` |
+
+> **Note:** White and black are not in the pool. They render inverted on white-model boards, which makes the color name label misleading.
 
 ## Configuration Reference
 
