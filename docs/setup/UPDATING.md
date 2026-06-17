@@ -77,6 +77,14 @@ docker compose pull
 docker compose up -d
 ```
 
+> **Note:** If you installed from Docker Hub using `docker-compose.hub.yml`, add `-f docker-compose.hub.yml` to each command:
+>
+> ```bash
+> cd ~/fiestaboard
+> docker compose -f docker-compose.hub.yml pull
+> docker compose -f docker-compose.hub.yml up -d
+> ```
+
 ## Security model
 
 - The updater listens on the Compose internal network only (not on a host port).
