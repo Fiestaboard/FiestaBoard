@@ -6,7 +6,7 @@ schedule>=1.2.2
 defusedxml>=0.7.1
 
 # Symmetric encryption for secrets at rest (see src/security/secrets.py)
-cryptography>=48.0.1
+cryptography>=49.0.0
 
 # API Server dependencies
 fastapi>=0.125.0
@@ -31,14 +31,14 @@ zeroconf>=0.149.16
 paho-mqtt>=2.1.0
 
 # iCalendar parsing (used by the calendar_sub plugin)
-icalendar>=7.1.2
+icalendar>=7.1.3
 recurring-ical-events>=3.8.2
 
 # Timezone support (used by santa_tracker, visual_clock, stardate, calendar_sub plugins)
 pytz>=2026.2
 
 # MCP (Model Context Protocol) server — exposes FiestaBoard as an MCP tool server
-mcp>=1.27.2
+mcp>=1.28.0
 
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0
