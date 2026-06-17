@@ -62,7 +62,7 @@ On first boot FiestaPi sets the Wi-Fi regulatory country, connects to Wi-Fi, and
 
 1. Insert the SD card into your Pi.
 2. Power it on.
-3. Wait about a minute (longer on the very first boot — it expands the filesystem and pulls Docker images).
+3. Wait **2–3 minutes** for first boot (the Pi expands its filesystem and pulls Docker images on first start).
 4. Open **http://fiestapi.local:4420** in any browser on the same network.
 
 If `.local` doesn't resolve (some Windows networks), find the Pi's IP from your router and use that instead.
