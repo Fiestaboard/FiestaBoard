@@ -292,7 +292,9 @@ Then open **http://localhost:4420** — the service starts automatically once th
 
 ### Plugin Issues
 
-- Check the plugin's setup guide: `plugins/<plugin_name>/docs/SETUP.md`
+- Find the setup guide for your plugin:
+  - **Built-in plugins** (Countdown, Date & Time, Random): `plugins/<plugin_name>/docs/SETUP.md` in this repo.
+  - **External plugins** (Weather, Stocks, Muni, and all others): open the plugin's GitHub repository, linked in the "All Available Plugins" table above, and look for `docs/SETUP.md` there. You can also reach setup docs from the **Integrations** page in the web UI.
 - Verify API keys are correct and have no extra spaces
 - Check API rate limits haven't been exceeded
 
