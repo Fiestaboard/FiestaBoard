@@ -1,4 +1,4 @@
-# Pre-release checklist (e.g. before making the repo public)
+# Pre-release security checklist (run before every release)
 
 Use this before publishing the repo or cutting a release to avoid leaking secrets or personal data.
 
