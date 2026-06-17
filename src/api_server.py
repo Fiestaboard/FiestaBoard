@@ -1568,9 +1568,24 @@ async def version():
 # System Management Endpoints
 # =============================================================================
 
-GITHUB_PACKAGE_URL = "https://github.com/Fiestaboard/FiestaBoard/releases/latest"
+GITHUB_RELEASES_URL = "https://github.com/Fiestaboard/FiestaBoard/releases"
+GITHUB_PACKAGE_URL = f"{GITHUB_RELEASES_URL}/latest"
 GITHUB_RELEASES_API = "https://api.github.com/repos/Fiestaboard/FiestaBoard/releases/latest"
 DOCKERHUB_TAGS_URL = "https://hub.docker.com/v2/repositories/fiestaboard/fiestaboard/tags"
+
+
+def _release_notes_url(version: str | None) -> str:
+    """Build the release-notes URL for a specific version.
+
+    Pinning to ``/releases/tag/v{version}`` guarantees the link goes to the
+    same release we surfaced in the banner — ``/releases/latest`` redirects
+    to whichever release GitHub currently has flagged Latest, which can lag
+    behind the Docker Hub tag we detected (or trail a newer GitHub release
+    that hasn't been flipped yet).
+    """
+    if not version:
+        return GITHUB_PACKAGE_URL
+    return f"{GITHUB_RELEASES_URL}/tag/v{version}"
 
 
 def _check_dockerhub_for_latest() -> str | None:
@@ -1670,7 +1685,7 @@ async def _perform_update_check() -> "UpdateCheckResponse":
                 current_version=__version__,
                 latest_version=latest_version,
                 update_available=update_available,
-                package_url=GITHUB_PACKAGE_URL,
+                package_url=_release_notes_url(latest_version),
                 is_production=is_production,
             )
 

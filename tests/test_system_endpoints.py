@@ -56,7 +56,7 @@ class TestUpdateCheck:
         assert data["update_available"] is True
         assert data["latest_version"] == "99.0.0"
         assert data["current_version"] is not None
-        assert data["package_url"] == "https://github.com/Fiestaboard/FiestaBoard/releases/latest"
+        assert data["package_url"] == "https://github.com/Fiestaboard/FiestaBoard/releases/tag/v99.0.0"
 
     def test_up_to_date(self, client):
         """Test when current version matches latest."""
@@ -87,6 +87,9 @@ class TestUpdateCheck:
         assert data["latest_version"] is None
         assert data["error"] is not None
         assert "Could not check for updates" in data["error"]
+        # When the version is unknown, fall back to /releases/latest so the
+        # banner's "View Release" button still links somewhere useful.
+        assert data["package_url"] == "https://github.com/Fiestaboard/FiestaBoard/releases/latest"
 
     def test_production_flag(self, client):
         """Test is_production flag is correctly set."""
