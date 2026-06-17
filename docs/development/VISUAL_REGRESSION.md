@@ -74,7 +74,7 @@ the resulting PR fails CI visual regression, fall back to Option B.
 gh workflow run bootstrap-visual-baselines.yml
 ```
 
-The `Bootstrap Visual Regression Baselines` workflow:
+The `Manual: Bootstrap Visual Baselines` workflow:
 
 1. Builds the production Docker image with the same arguments CI uses.
 2. Boots a single `fiestaboard` + `mock-board` pair.
