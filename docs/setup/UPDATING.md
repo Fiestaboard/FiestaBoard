@@ -24,7 +24,19 @@ COMPOSE_PROFILES=fiestaupdater
 FIESTAUPDATER_TOKEN=<a long random hex string>
 ```
 
-Generate a token with: `head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'` (or any 32+ random bytes hex-encoded).
+Generate a token on Linux/macOS:
+
+```bash
+head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'
+```
+
+Or on any platform with Python 3.6+:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Any 32+ random bytes hex-encoded will work.
 
 Then restart:
 
