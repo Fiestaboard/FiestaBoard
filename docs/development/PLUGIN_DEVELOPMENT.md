@@ -581,7 +581,7 @@ Rules are evaluated in order. The first rule that matches fires; the rest are ig
 
 Color is applied automatically when the variable is rendered. Use the variable as normal:
 
-```
+```jinja
 {{my_plugin.status}}
 {{my_plugin.temp_f}}°F
 ```
