@@ -51,6 +51,7 @@ export default defineConfig({
     baseURL: process.env.BASE_URL || "http://localhost:4420",
     trace: "off",
     screenshot: "only-on-failure",
+    serviceWorkers: "block",
   },
 
   projects: [

@@ -61,8 +61,10 @@ import { utcToLocalTime } from "@/lib/timezone-utils";
 import { cn } from "@/lib/utils";
 
 // Lazy load ScheduleCalendarView since it includes react-big-calendar (~150KB+)
+// Direct file import avoids Rolldown (Vite 8) collapsing this chunk with the
+// static ScheduleListView import from the same barrel index.ts.
 const ScheduleCalendarViewLazy = lazy(() =>
-  import("@/components/schedule").then((mod) => ({ default: mod.ScheduleCalendarView })),
+  import("@/components/schedule/schedule-calendar-view").then((mod) => ({ default: mod.ScheduleCalendarView })),
 );
 function ScheduleCalendarView(props: React.ComponentProps<typeof ScheduleCalendarViewLazy>) {
   return (
