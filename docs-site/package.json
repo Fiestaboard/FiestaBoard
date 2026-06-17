@@ -34,7 +34,9 @@
   },
   "overrides": {
     "serialize-javascript": ">=7.0.5",
-    "uuid": ">=14.0.0"
+    "uuid": ">=14.0.0",
+    "joi": ">=17.13.4",
+    "ws": ">=8.20.1"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.9.2",
