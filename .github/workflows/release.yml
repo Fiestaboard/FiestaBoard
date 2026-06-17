@@ -463,7 +463,14 @@ jobs:
       # Step 2 of 3 — Claude reads the gathered context and writes the
       # user-facing summary to /tmp/release-summary.md. Uses the same Claude
       # Code OAuth token as the @claude PR mention workflow — no API key needed.
+      #
+      # continue-on-error: the action rejects `push` events with
+      # "Unsupported event type" and historically has other transient
+      # failures. The publish step below tolerates a missing summary file,
+      # so a failure here must not block the actual GitHub release from
+      # being created — the AI summary is a nice-to-have, not a release gate.
       - name: Generate AI summary with Claude
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -585,7 +592,10 @@ jobs:
             releaseNotes += `- 💬 [Discord](https://discord.gg/JvN8y6ahaf)\n`;
             releaseNotes += `- 🐛 [Report an Issue](https://github.com/${context.repo.owner}/${context.repo.repo}/issues/new)\n`;
             
-            // Create the release
+            // Create the release. `make_latest: 'true'` is the API default,
+            // but pin it explicitly so the "View Release" link in the in-app
+            // update banner (which falls back to /releases/latest) always
+            // resolves to the freshest release if the default ever changes.
             const { data: release } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -593,7 +603,8 @@ jobs:
               name: `Release ${version}`,
               body: releaseNotes,
               draft: false,
-              prerelease: false
+              prerelease: false,
+              make_latest: 'true'
             });
             
             console.log(`Created release: ${release.html_url}`)
