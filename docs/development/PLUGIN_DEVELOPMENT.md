@@ -492,7 +492,16 @@ The docs-site build process copies the primary screenshot from `plugins/<id>/doc
 | `max_lengths` | Max character lengths (alternative to per-variable `max_length`) |
 | `color_rules_schema` | Schema for dynamic color rules (see [Color Rules](#color-rules)) |
 | `min_refresh_seconds` | Hard floor for refresh interval |
+| `live_data` | When `true`, bypasses caching entirely — `fetch_data()` is called on every render tick. Use for clocks, animations, or anything driven by the current time. Defaults to `false`. |
 | `screenshots` | Array of screenshot entries for galleries, docs, and the registry (see Documentation Standards) |
+
+#### `live_data` vs `min_refresh_seconds`
+
+Use `live_data: true` when your plugin's output is derived entirely from the current time — clocks, countdowns, animations — and stale data would produce a wrong display. The platform calls `fetch_data()` every render tick, so there is no cache at all.
+
+Use a short `min_refresh_seconds` (e.g., `5` or `10`) when your plugin calls an external API that changes frequently. The cache still exists; `min_refresh_seconds` just sets a floor so the user can't accidentally DDoS the API by setting a zero refresh. If you use `live_data: true` with an external API, every render tick hits the network — avoid this.
+
+> **Rule of thumb:** if `fetch_data()` reads from `datetime.now()` only, use `live_data`. If it calls a network endpoint, use `min_refresh_seconds` with a sensible floor instead.
 
 ### Settings Schema
 
