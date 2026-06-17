@@ -62,7 +62,7 @@ They also appear in the editor's variable picker automatically.
 ### 5. Run the dev container
 
 ```bash
-docker-compose -f docker-compose.dev.yml up
+docker compose -f docker-compose.dev.yml up
 ```
 
 Your plugin shows up in Integrations and your variables appear in the editor.

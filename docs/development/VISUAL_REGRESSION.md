@@ -41,14 +41,14 @@ Run the dev stack and regenerate from your laptop:
 
 ```bash
 # 1. Start the dev container (per CLAUDE.md, never run npm/python on host).
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # 2. Wait for the API to be ready.
 curl --retry 30 --retry-delay 1 --retry-connrefused http://localhost:4420/api/health
 
 # 3. Regenerate snapshots inside the web test container.
 #    Working dir inside the container is /app (mounted from ./web).
-docker-compose -f docker-compose.dev.yml --profile test run --rm web sh -c "
+docker compose -f docker-compose.dev.yml --profile test run --rm web sh -c "
   npm ci && npx playwright test visual-regression.spec.ts --update-snapshots --workers=1
 "
 
