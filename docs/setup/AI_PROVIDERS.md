@@ -64,8 +64,8 @@ The current preset list, sourced from `web/src/components/settings/ai-settings.t
      `data/config.json` and is masked (`***`) on read.
    - **Models** — type each model id and press Enter or click `+`.
      The format depends on your provider:
-     - OpenRouter: `openai/gpt-4o-mini`, `anthropic/claude-haiku-4-5-20251001`, `anthropic/claude-sonnet-4-6`
-     - Anthropic direct: `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`
+     - OpenRouter: `openai/gpt-4o-mini`, `anthropic/claude-haiku-4-5-20251001`, `anthropic/claude-sonnet-4-6`, `anthropic/claude-opus-4-8`
+     - Anthropic direct: `claude-fable-5`, `claude-opus-4-8`, `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`
      - OpenAI direct: `gpt-4o-mini`, `gpt-4o`
 
      See the **Recommended models** table below for a full list.
@@ -82,15 +82,19 @@ using the **Make default** button.
 
 These all work well with the FiestaBoard prompt format. Any current chat-completion model the provider exposes will work — these are just sensible defaults.
 
-| Provider     | Protocol  | Model                                  | Notes                              |
-| ------------ | --------- | -------------------------------------- | ---------------------------------- |
-| OpenRouter   | OpenAI    | `openai/gpt-4o-mini`                   | Cheap, fast, reliable JSON output. |
-| OpenRouter   | OpenAI    | `anthropic/claude-haiku-4-5-20251001`  | Cheap, fast Claude via OpenRouter. |
-| OpenRouter   | OpenAI    | `anthropic/claude-sonnet-4-6`          | High-quality, slower.              |
-| OpenAI       | OpenAI    | `gpt-4o-mini`                          | Same as via OpenRouter.            |
-| Anthropic    | Anthropic | `claude-sonnet-4-6`                    | Direct, no OpenRouter markup.      |
-| Anthropic    | Anthropic | `claude-haiku-4-5-20251001`            | Cheaper, fast.                     |
-| Local Ollama | OpenAI    | `qwen2.5:14b-instruct` or larger       | Needs a model that follows JSON.   |
+| Provider     | Protocol  | Model                                  | Notes                                   |
+| ------------ | --------- | -------------------------------------- | --------------------------------------- |
+| OpenRouter   | OpenAI    | `openai/gpt-4o-mini`                   | Cheap, fast, reliable JSON output.      |
+| OpenRouter   | OpenAI    | `anthropic/claude-opus-4-8`            | Best quality, higher cost.              |
+| OpenRouter   | OpenAI    | `anthropic/claude-fable-5`             | High quality, higher cost.              |
+| OpenRouter   | OpenAI    | `anthropic/claude-sonnet-4-6`          | High-quality, moderate cost.            |
+| OpenRouter   | OpenAI    | `anthropic/claude-haiku-4-5-20251001`  | Cheap, fast Claude via OpenRouter.      |
+| OpenAI       | OpenAI    | `gpt-4o-mini`                          | Same as via OpenRouter.                 |
+| Anthropic    | Anthropic | `claude-opus-4-8`                      | Best quality; direct, no markup.        |
+| Anthropic    | Anthropic | `claude-fable-5`                       | High quality; direct, no markup.        |
+| Anthropic    | Anthropic | `claude-sonnet-4-6`                    | High-quality; direct, no markup.        |
+| Anthropic    | Anthropic | `claude-haiku-4-5-20251001`            | Cheaper, fast.                          |
+| Local Ollama | OpenAI    | `qwen2.5:14b-instruct` or larger       | Needs a model that follows JSON.        |
 
 > **Note:** Model IDs are versioned and providers periodically rotate them. This table is updated periodically, but the authoritative list of current Claude model IDs lives at [docs.anthropic.com](https://docs.anthropic.com/). If a suggested ID returns an "unknown model" error, check there for the current name.
 
