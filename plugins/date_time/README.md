@@ -28,27 +28,27 @@ The Date & Time plugin exposes the current date and time in the timezone you con
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `{{date_time.date}}` | ISO date (`YYYY-MM-DD`) | `2025-03-21` |
-| `{{date_time.day_of_week}}` | Day name | `Friday` |
-| `{{date_time.day_of_week_abbr}}` | Day name abbreviation | `Fri` |
-| `{{date_time.day_of_week_num}}` | ISO day of week, 1-7 | `5` |
-| `{{date_time.day_of_year}}` | Day of year, 1-366 | `80` |
-| `{{date_time.day}}` | Day of month, 1–31 | `21` |
-| `{{date_time.month}}` | Full month name | `March` |
-| `{{date_time.month_abbr}}` | 3-letter month | `Mar` |
-| `{{date_time.month_number}}` | Month, 1–12 | `3` |
-| `{{date_time.month_number_padded}}` | Month, 01–12 | `03` |
-| `{{date_time.week_of_year}}` | ISO week number, 1-53 | `12` |
-| `{{date_time.quarter}}` | Quarter number, 1-4 | `1` |
-| `{{date_time.year}}` | 4-digit year | `2025` |
+| `{{date_time.date}}` | ISO date (`YYYY-MM-DD`) | `2026-07-04` |
+| `{{date_time.day_of_week}}` | Day name | `Saturday` |
+| `{{date_time.day_of_week_abbr}}` | Day name abbreviation | `Sat` |
+| `{{date_time.day_of_week_num}}` | ISO day of week, 1-7 | `6` |
+| `{{date_time.day_of_year}}` | Day of year, 1-366 | `185` |
+| `{{date_time.day}}` | Day of month, 1–31 | `4` |
+| `{{date_time.month}}` | Full month name | `July` |
+| `{{date_time.month_abbr}}` | 3-letter month | `Jul` |
+| `{{date_time.month_number}}` | Month, 1–12 | `7` |
+| `{{date_time.month_number_padded}}` | Month, 01–12 | `07` |
+| `{{date_time.week_of_year}}` | ISO week number, 1-53 | `27` |
+| `{{date_time.quarter}}` | Quarter number, 1-4 | `3` |
+| `{{date_time.year}}` | 4-digit year | `2026` |
 
 ### Formatted
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `{{date_time.datetime}}` | Date + 24h time | `2025-03-21 14:30` |
-| `{{date_time.date_us}}` | US date (`MM/DD/YYYY`) | `03/21/2025` |
-| `{{date_time.date_us_short}}` | Short US date (`MM/DD/YY`) | `03/21/25` |
+| `{{date_time.datetime}}` | Date + 24h time | `2026-07-04 14:30` |
+| `{{date_time.date_us}}` | US date (`MM/DD/YYYY`) | `07/04/2026` |
+| `{{date_time.date_us_short}}` | Short US date (`MM/DD/YY`) | `07/04/26` |
 | `{{date_time.time_english}}` | Spoken English time expression | `IT'S A QUARTER PAST ONE IN THE AFTERNOON.` |
 
 ## Example Templates
