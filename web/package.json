@@ -78,7 +78,8 @@
   "overrides": {
     "serialize-javascript": ">=7.0.3",
     "uuid": ">=14.0.0",
-    "postcss": ">=8.5.10"
+    "postcss": ">=8.5.10",
+    "esbuild": ">=0.28.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
