@@ -8,7 +8,7 @@ Display randomly selected values on your board, refreshed at a configurable inte
 
 ## Overview
 
-The Random plugin generates fresh random values on a schedule you control. It exposes three template variables: a pick from your own custom list of choices, a classic coin flip (Heads or Tails), and a random board color. Values are re-rolled at the configured refresh interval (default: every 60 seconds).
+The Random plugin generates fresh random values on a schedule you control. It exposes four template variables: a pick from your own custom list of choices, a classic coin flip (Heads or Tails), a random board color tile, and the color name as text. Values are re-rolled at the configured refresh interval (default: every 60 seconds).
 
 ## Template Variables
 
