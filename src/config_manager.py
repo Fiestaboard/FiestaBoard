@@ -1196,6 +1196,18 @@ class ConfigManager:
             if not board.get("host"):
                 errors.append("Board host is required when api_mode is 'local'")
 
+        # If the legacy board config is empty but any board instance configured
+        # via the multi-board settings service has connection credentials, the
+        # service can start fine — _build_board_clients() prefers settings.boards
+        # over Config when present. Without this, users who set up their board
+        # through Settings (rather than the first-run wizard) get stuck in a
+        # startup retry loop with the legacy-config validation errors above,
+        # even though the UI's /config/validate endpoint considers them
+        # configured. (issue #1102)
+        if errors and self._has_configured_board_instance():
+            board_error_prefixes = ("Board cloud_key", "Board local_api_key", "Board host")
+            errors = [e for e in errors if not e.startswith(board_error_prefixes)]
+
         # Validate features that are enabled
         features = config.get("features", {})
 
@@ -1217,6 +1229,26 @@ class ConfigManager:
                 errors.append("Guest WiFi password is required when enabled")
 
         return (len(errors) == 0, errors)
+
+    @staticmethod
+    def _has_configured_board_instance() -> bool:
+        """Return True if any board in the multi-board settings service has connection creds."""
+        try:
+            from .devices import BoardInstance
+            from .settings.service import get_settings_service
+
+            board_settings = get_settings_service().get_board_settings()
+        except Exception:
+            return False
+
+        for board_dict in board_settings.boards or []:
+            try:
+                instance = BoardInstance.from_dict(board_dict)
+            except Exception:
+                continue
+            if instance.is_connection_configured:
+                return True
+        return False
 
     def migrate_silence_schedule_to_utc(self) -> bool:
         """Migrate silence_schedule times from old HH:MM format to UTC ISO format.

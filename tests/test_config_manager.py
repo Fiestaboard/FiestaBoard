@@ -23,7 +23,7 @@ def mock_time_service():
 
 @pytest.fixture(autouse=True)
 def reset_singleton(tmp_path, monkeypatch):
-    """Reset ConfigManager singleton between tests and clear env vars."""
+    """Reset ConfigManager + SettingsService singletons and clear env vars."""
     # Clear environment variables that could interfere with validation tests
     monkeypatch.delenv("BOARD_READ_WRITE_KEY", raising=False)
     monkeypatch.delenv("FB_READ_WRITE_KEY", raising=False)
@@ -35,8 +35,32 @@ def reset_singleton(tmp_path, monkeypatch):
 
     ConfigManager._instance = None
     ConfigManager._lock = threading.Lock()
-    yield tmp_path
+
+    # Pre-seed ConfigManager singleton with an empty tmp config so that
+    # SettingsService._apply_global_connection() doesn't migrate the real
+    # global config from data/config.json into the fresh settings instance.
+    empty_config_path = tmp_path / "_empty_config.json"
+    empty_config_path.write_text('{"board": {}, "features": {}, "general": {}}')
+    ConfigManager(config_path=str(empty_config_path))
+
+    # Reset SettingsService singleton and point it at an empty tmp settings
+    # file so validate() doesn't pick up a real configured board from data/
+    # (e.g. when tests run inside a populated dev container).
+    import src.settings.service as settings_service_module
+
+    settings_service_module._settings_service = settings_service_module.SettingsService(
+        settings_file=str(tmp_path / "settings.json")
+    )
+
+    # Now clear the ConfigManager singleton so each test can pin its own
+    # config_path via ConfigManager(config_path=...).
     ConfigManager._instance = None
+    ConfigManager._lock = threading.Lock()
+
+    yield tmp_path
+
+    ConfigManager._instance = None
+    settings_service_module._settings_service = None
 
 
 # --- __init__ and _load_or_create ---
@@ -614,6 +638,59 @@ def test_validate_invalid_local_config_missing_key_or_host(tmp_path):
     valid, errors = cm.validate()
     assert valid is False
     assert any("local_api_key" in e or "host" in e for e in errors)
+
+
+def test_validate_local_config_passes_when_only_multi_board_configured(tmp_path, monkeypatch):
+    """Empty legacy board config still validates if a multi-board instance has creds.
+
+    Regression for issue #1102: users who configured their board through the
+    multi-board Settings flow (not the first-run wizard) ended up with an empty
+    legacy ``config["board"]`` block. ``Config.validate()`` at startup would
+    fail with ``Board local_api_key/host is required``, even though the
+    multi-board settings service had a fully configured board. The service
+    would then sit in a 60s retry loop refusing to initialize.
+    """
+    config_path = tmp_path / "config.json"
+    config_data = {
+        "board": {"api_mode": "local", "local_api_key": "", "host": ""},
+        "features": {},
+        "general": {},
+    }
+    config_path.write_text(json.dumps(config_data))
+    cm = ConfigManager(config_path=str(config_path))
+
+    fake_board_settings = MagicMock()
+    fake_board_settings.boards = [{"api_mode": "local", "local_api_key": "real-key", "host": "10.0.0.5"}]
+    fake_service = MagicMock()
+    fake_service.get_board_settings.return_value = fake_board_settings
+    monkeypatch.setattr("src.settings.service.get_settings_service", lambda: fake_service)
+
+    valid, errors = cm.validate()
+    assert valid is True, f"expected valid config, got errors: {errors}"
+    assert not any("local_api_key" in e or "host" in e for e in errors)
+
+
+def test_validate_local_config_fails_when_multi_board_also_empty(tmp_path, monkeypatch):
+    """Legacy and multi-board both empty: validation still reports board errors."""
+    config_path = tmp_path / "config.json"
+    config_data = {
+        "board": {"api_mode": "local", "local_api_key": "", "host": ""},
+        "features": {},
+        "general": {},
+    }
+    config_path.write_text(json.dumps(config_data))
+    cm = ConfigManager(config_path=str(config_path))
+
+    fake_board_settings = MagicMock()
+    fake_board_settings.boards = [{"api_mode": "local", "local_api_key": "", "host": ""}]
+    fake_service = MagicMock()
+    fake_service.get_board_settings.return_value = fake_board_settings
+    monkeypatch.setattr("src.settings.service.get_settings_service", lambda: fake_service)
+
+    valid, errors = cm.validate()
+    assert valid is False
+    assert any("local_api_key" in e for e in errors)
+    assert any("host" in e for e in errors)
 
 
 def test_validate_enabled_weather_without_api_key(tmp_path):
