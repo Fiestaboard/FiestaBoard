@@ -464,14 +464,21 @@ jobs:
       # user-facing summary to /tmp/release-summary.md. Uses the same Claude
       # Code OAuth token as the @claude PR mention workflow — no API key needed.
       #
-      # continue-on-error: the action rejects `push` events with
-      # "Unsupported event type" and historically has other transient
-      # failures. The publish step below tolerates a missing summary file,
-      # so a failure here must not block the actual GitHub release from
-      # being created — the AI summary is a nice-to-have, not a release gate.
+      # Uses claude-code-base-action (the primitive without event-type
+      # filtering); the higher-level claude-code-action@v1 rejects `push`
+      # events with "Unsupported event type", which is what broke every
+      # release after v7.3.0. The base action skips actor permission and
+      # trust-boundary checks — fine here because both the prompt and the
+      # input file (/tmp/release-context.md) are produced by this same
+      # workflow on a trusted push to main.
+      #
+      # continue-on-error: keep the AI summary strictly non-blocking. The
+      # publish step below already tolerates a missing summary file, so any
+      # transient API failure just ships the release without AI bullets
+      # instead of blocking the release entirely.
       - name: Generate AI summary with Claude
         continue-on-error: true
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-base-action@beta
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: '--model claude-haiku-4-5 --allowed-tools "Read,Write"'
