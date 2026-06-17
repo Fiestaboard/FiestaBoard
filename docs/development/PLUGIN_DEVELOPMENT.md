@@ -505,29 +505,31 @@ Use a short `min_refresh_seconds` (e.g., `5` or `10`) when your plugin calls an 
 
 ### env_vars
 
-`env_vars` is an array of environment variables the plugin reads at runtime. Each entry has four fields:
+`env_vars` is an array of environment variables the plugin reads at runtime. Each entry accepts the following fields:
 
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
 | `name` | Yes | string | The environment variable name (uppercase, underscores) |
-| `required` | Yes | boolean | Whether the plugin fails without this variable |
-| `description` | Yes | string | What the variable controls; include UI alternative if one exists |
+| `required` | No | boolean | Whether the plugin fails without this variable |
+| `description` | No | string | What the variable controls; include UI alternative if one exists |
 | `default` | No | string | Value used when the variable is absent |
 
 ```json
-"env_vars": [
-  {
-    "name": "MY_PLUGIN_API_KEY",
-    "required": false,
-    "description": "API key for the data provider (can also be set in the UI)"
-  },
-  {
-    "name": "MY_PLUGIN_TIMEZONE",
-    "required": false,
-    "description": "IANA timezone (e.g., America/New_York)",
-    "default": "America/New_York"
-  }
-]
+{
+  "env_vars": [
+    {
+      "name": "MY_PLUGIN_API_KEY",
+      "required": false,
+      "description": "API key for the data provider (can also be set in the UI)"
+    },
+    {
+      "name": "MY_PLUGIN_TIMEZONE",
+      "required": false,
+      "description": "IANA timezone (e.g., America/New_York)",
+      "default": "America/New_York"
+    }
+  ]
+}
 ```
 
 > **Tip:** Prefer UI configuration over environment variables for settings that change often — environment variables are a good fallback for secrets that must come from a secrets manager, or for values shared across multiple plugins (e.g., a shared `TIMEZONE`).
