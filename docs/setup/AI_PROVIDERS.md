@@ -64,7 +64,7 @@ The current preset list, sourced from `web/src/components/settings/ai-settings.t
      `data/config.json` and is masked (`***`) on read.
    - **Models** — type each model id and press Enter or click `+`.
      The format depends on your provider:
-     - OpenRouter: `openai/gpt-4o-mini`, `anthropic/claude-haiku-4-5-20251001`, `anthropic/claude-sonnet-4-6`, `anthropic/claude-opus-4-8`
+     - OpenRouter: `openai/gpt-4o-mini`, `anthropic/claude-opus-4-8`, `anthropic/claude-fable-5`, `anthropic/claude-sonnet-4-6`, `anthropic/claude-haiku-4-5-20251001`
      - Anthropic direct: `claude-fable-5`, `claude-opus-4-8`, `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`
      - OpenAI direct: `gpt-4o-mini`, `gpt-4o`
 
