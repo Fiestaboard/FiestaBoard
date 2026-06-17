@@ -21,8 +21,14 @@ job in `.github/workflows/ci.yml`. It runs on every PR (and pushes to
 because the 15 screenshot tests don't benefit from sharding.
 
 All 15 baseline snapshots are committed under
-`web/tests/visual-regression.spec.ts-snapshots/`. The step is a
-required CI gate — a snapshot regression will block merge.
+`web/tests/visual-regression.spec.ts-snapshots/`.
+
+> **Note:** The step currently runs with `continue-on-error: true` in
+> `.github/workflows/ci.yml`, so a snapshot failure is advisory — it
+> does not block merge. To make the step a hard CI gate, remove that
+> flag from the workflow file. The bootstrap workflow
+> (`bootstrap-visual-baselines.yml`) does this automatically when it
+> opens its baseline-refresh PR.
 
 ## Updating baselines
 
