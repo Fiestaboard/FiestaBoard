@@ -62,7 +62,7 @@ Save the page. On the next refresh, your board will show the countdown.
 | `{{countdown.minutes}}` | Minutes remaining (0–59) | `30` |
 | `{{countdown.seconds}}` | Seconds remaining (0–59) | `45` |
 | `{{countdown.total_seconds}}` | Total seconds until target | `7473045` |
-| `{{countdown.is_expired}}` | `"true"` once the target has passed | `false` |
+| `{{countdown.is_expired}}` | `"true"` once the target has passed | `"false"` |
 | `{{countdown.formatted}}` | Pre-formatted summary | `86D 14H 30M` |
 
 > **Note:** When `is_expired` is `"true"`, `formatted` becomes `Event has passed` and the day/hour/minute counters are `0`.
