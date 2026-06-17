@@ -4,11 +4,16 @@ Display randomly selected values on your Vestaboard, refreshed on a schedule you
 
 ## Overview
 
-The Random plugin needs no API key or external service — it generates all values locally.
+**What it does:**
 
-**What it does:** Picks a random item from your custom list, flips a coin, and selects a random board color. Each value is re-rolled at your configured refresh interval.
+- Picks a random item from your configured list of choices
+- Flips a coin (Heads or Tails)
+- Selects a random board color tile
+- Re-rolls all values at the configured refresh interval
 
-**Prerequisites:** None. No API key required.
+**Prerequisites:**
+
+- None. No API key required.
 
 ## Quick Setup
 
