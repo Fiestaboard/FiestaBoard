@@ -76,7 +76,8 @@
     "primaryNavigation": "Navegação principal",
     "secondaryNavigation": "Navegação secundária",
     "picks": "Seleções da equipa",
-    "skipToMainContent": "Pular para o conteúdo principal"
+    "skipToMainContent": "Pular para o conteúdo principal",
+    "prideCelebrationAriaLabel": "Celebrar o Mês do Orgulho"
   },
   "network": {
     "title": "Wi-Fi",

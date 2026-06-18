@@ -76,7 +76,8 @@
     "primaryNavigation": "Hauptnavigation",
     "secondaryNavigation": "Sekundärnavigation",
     "picks": "Empfehlungen",
-    "skipToMainContent": "Zum Hauptinhalt springen"
+    "skipToMainContent": "Zum Hauptinhalt springen",
+    "prideCelebrationAriaLabel": "Pride Month feiern"
   },
   "network": {
     "title": "WLAN",

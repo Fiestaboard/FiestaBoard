@@ -76,7 +76,8 @@
     "primaryNavigation": "Huvudnavigering",
     "secondaryNavigation": "Sekundär navigering",
     "picks": "Personalens val",
-    "skipToMainContent": "Hoppa till huvudinnehållet"
+    "skipToMainContent": "Hoppa till huvudinnehållet",
+    "prideCelebrationAriaLabel": "Fira Pride-månaden"
   },
   "network": {
     "title": "Wi-Fi",

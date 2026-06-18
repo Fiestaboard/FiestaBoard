@@ -76,7 +76,8 @@
     "primaryNavigation": "기본 탐색",
     "secondaryNavigation": "보조 탐색",
     "picks": "스태프 추천",
-    "skipToMainContent": "본문으로 건너뛰기"
+    "skipToMainContent": "본문으로 건너뛰기",
+    "prideCelebrationAriaLabel": "프라이드의 달 축하하기"
   },
   "network": {
     "title": "Wi-Fi",

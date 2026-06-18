@@ -76,7 +76,8 @@
     "primaryNavigation": "Hoofdnavigatie",
     "secondaryNavigation": "Subnavigatie",
     "picks": "Aanbevolen",
-    "skipToMainContent": "Naar hoofdinhoud"
+    "skipToMainContent": "Naar hoofdinhoud",
+    "prideCelebrationAriaLabel": "Vier Pride Month"
   },
   "network": {
     "title": "Wi-Fi",

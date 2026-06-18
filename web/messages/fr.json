@@ -76,7 +76,8 @@
     "primaryNavigation": "Navigation principale",
     "secondaryNavigation": "Navigation secondaire",
     "picks": "Sélections de l'équipe",
-    "skipToMainContent": "Aller au contenu principal"
+    "skipToMainContent": "Aller au contenu principal",
+    "prideCelebrationAriaLabel": "Célébrer le Mois des Fiertés"
   },
   "network": {
     "title": "Wi-Fi",

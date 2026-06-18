@@ -76,7 +76,8 @@
     "primaryNavigation": "Nawigacja główna",
     "secondaryNavigation": "Nawigacja drugorzędna",
     "picks": "Polecane",
-    "skipToMainContent": "Przejdź do treści głównej"
+    "skipToMainContent": "Przejdź do treści głównej",
+    "prideCelebrationAriaLabel": "Świętuj Miesiąc Dumy"
   },
   "network": {
     "title": "Wi-Fi",

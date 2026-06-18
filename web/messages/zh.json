@@ -76,7 +76,8 @@
     "primaryNavigation": "主导航",
     "secondaryNavigation": "次导航",
     "picks": "团队精选",
-    "skipToMainContent": "跳到主要内容"
+    "skipToMainContent": "跳到主要内容",
+    "prideCelebrationAriaLabel": "庆祝骄傲月"
   },
   "network": {
     "title": "Wi-Fi",
