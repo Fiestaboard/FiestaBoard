@@ -6,15 +6,7 @@ import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
-
-const ROWS = 6;
-const COLS = 22;
-
-// Device dimensions lookup
-const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
-  flagship: { rows: 6, cols: 22 },
-  note: { rows: 3, cols: 15 },
-};
+import { resolveDimensions } from "@/lib/board-dimensions";
 
 // All displayable board characters indexed by character code (0-71).
 // Undefined codes (43, 45, 51, 57, 58, 61) use ' ' as placeholder so
@@ -192,8 +184,8 @@ function parseLine(line: string): Token[] {
 // Convert message string to grid of tokens with configurable dimensions
 function messageToGrid(
   message: string,
-  rows: number = ROWS,
-  cols: number = COLS,
+  rows: number = 6,
+  cols: number = 22,
   deviceType: string = "flagship",
 ): Token[][] {
   const lines = message.split("\n");
@@ -1105,6 +1097,10 @@ interface BoardDisplayProps {
   /** Skip animation infrastructure and render plain divs per tile. Much
    *  cheaper for static previews that never animate. */
   isStatic?: boolean;
+  /** Notes wide (for note_array device; ignored otherwise). */
+  notesWide?: number;
+  /** Notes tall (for note_array device; ignored otherwise). */
+  notesTall?: number;
 }
 
 // Backward compatibility alias
@@ -1119,11 +1115,13 @@ export const BoardDisplay = memo(
     boardType = "black",
     deviceType = "flagship",
     isStatic = false,
+    notesWide = 1,
+    notesTall = 1,
   }: BoardDisplayProps) {
     const t = useTranslations("boardDisplay");
     const animationsEnabled = useBoardAnimationsEnabled();
     // Get dimensions for the device type
-    const dims = DEVICE_DIMS[deviceType] || DEVICE_DIMS.flagship;
+    const dims = resolveDimensions(deviceType, notesWide, notesTall);
 
     // Memoize grid calculation to avoid recalculating on every render
     const grid = useMemo(() => {

@@ -10,7 +10,6 @@ import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 // Direct import – bypasses next/dynamic chunk caching issues in dev mode.
 // TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
 import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
-import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -45,6 +44,7 @@ import type {
   PageUpdate,
 } from "@/lib/api";
 import { api } from "@/lib/api";
+import { resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
@@ -121,7 +121,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Device type: from prop (new pages) or from existing page (editing)
   const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp);
-  const dims = DEVICE_DIMENSIONS[deviceType] || DEVICE_DIMENSIONS.flagship;
+  const dims = resolveDimensions(deviceType);
   const numLines = dims.rows;
 
   // Preview board color - defaults to the user's configured board color
