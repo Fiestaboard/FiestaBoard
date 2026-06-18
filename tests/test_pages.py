@@ -17,6 +17,7 @@ from src.pages.storage import (
     _extract_alignment_from_line,
     _migrate_v0_to_v1,
     _migrate_v2_to_v3,
+    _migrate_v3_to_v4,
     _rewrite_plugin_id_references,
 )
 
@@ -670,6 +671,27 @@ class TestPageService:
 
         assert page.name == "Test"
         assert page.type == "single"
+
+    def test_create_note_array_page_threads_wxh(self, service):
+        """Creating a note_array page persists notes_wide/notes_tall from the request."""
+        data = PageCreate(
+            name="Array Page",
+            type="template",
+            device_type="note_array",
+            template=["HELLO"],
+            notes_wide=4,
+            notes_tall=1,
+        )
+        page = service.create_page(data)
+        assert page.notes_wide == 4
+        assert page.notes_tall == 1
+
+    def test_create_page_defaults_wxh_when_unspecified(self, service):
+        """W×H default to 1 when PageCreate leaves them unset (None)."""
+        data = PageCreate(name="Plain", type="single", display_type="weather")
+        page = service.create_page(data)
+        assert page.notes_wide == 1
+        assert page.notes_tall == 1
 
     def test_list_pages(self, service):
         """Test listing pages via service."""
@@ -1413,3 +1435,228 @@ class TestPageShareAPIEndpoints:
         response = client.post("/pages/import", json={"share_string": payload})
         assert response.status_code == 422
         assert "FiestaBoard" in response.json()["detail"]
+
+
+class TestMigrateV3ToV4:
+    """Tests for v3->v4 migration: add notes_wide/notes_tall fields to pages.
+
+    Covers issue #1173: CLAUDE.md requires a schema migration whenever the stored
+    page format changes. notes_wide/notes_tall are new fields that existing v3
+    pages lack; the migration sets them to 1 (the default) for any missing page.
+    """
+
+    def test_adds_notes_wide_and_notes_tall(self):
+        """Pages missing notes_wide/notes_tall get them set to 1."""
+        pages = [
+            {"id": "1", "type": "single", "display_type": "weather"},
+            {"id": "2", "type": "template", "template": ["HELLO"]},
+        ]
+        count = _migrate_v3_to_v4(pages)
+        assert count == 2
+        assert pages[0]["notes_wide"] == 1
+        assert pages[0]["notes_tall"] == 1
+        assert pages[1]["notes_wide"] == 1
+        assert pages[1]["notes_tall"] == 1
+
+    def test_skips_pages_already_having_fields(self):
+        """Pages that already have notes_wide/notes_tall are not modified."""
+        pages = [
+            {"id": "1", "type": "single", "display_type": "weather", "notes_wide": 2, "notes_tall": 1},
+        ]
+        count = _migrate_v3_to_v4(pages)
+        assert count == 0
+        assert pages[0]["notes_wide"] == 2  # unchanged
+
+    def test_mixed_pages_only_missing_ones_migrated(self):
+        """A mix of pages with and without the fields: only the missing ones are touched."""
+        pages = [
+            {"id": "1", "type": "single", "display_type": "weather"},  # missing
+            {"id": "2", "type": "template", "template": ["HI"], "notes_wide": 4, "notes_tall": 1},  # has
+            {"id": "3", "type": "single", "display_type": "date_time"},  # missing
+        ]
+        count = _migrate_v3_to_v4(pages)
+        assert count == 2
+        assert pages[0]["notes_wide"] == 1 and pages[0]["notes_tall"] == 1
+        assert pages[1]["notes_wide"] == 4 and pages[1]["notes_tall"] == 1  # unchanged
+        assert pages[2]["notes_wide"] == 1 and pages[2]["notes_tall"] == 1
+
+    def test_idempotent(self):
+        """Running the migration twice yields the same result."""
+        pages = [{"id": "1", "type": "single", "display_type": "weather"}]
+        _migrate_v3_to_v4(pages)
+        count2 = _migrate_v3_to_v4(pages)
+        assert count2 == 0
+        assert pages[0]["notes_wide"] == 1
+        assert pages[0]["notes_tall"] == 1
+
+    def test_empty_pages_list(self):
+        """Empty pages list returns 0 without error."""
+        assert _migrate_v3_to_v4([]) == 0
+
+    def test_v3_file_migrates_to_v4(self):
+        """Loading a v3 file triggers v3->v4 migration and notes_wide/notes_tall default to 1."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(
+                {
+                    "schema_version": 3,
+                    "pages": [
+                        {
+                            "id": "p1",
+                            "name": "Old Page",
+                            "type": "single",
+                            "device_type": "flagship",
+                            "display_type": "weather",
+                            "duration_seconds": 300,
+                            "created_at": datetime.now(UTC).isoformat(),
+                        }
+                    ],
+                },
+                f,
+            )
+            storage_path = f.name
+
+        try:
+            storage = PageStorage(storage_file=storage_path)
+            page = storage.get("p1")
+            assert page is not None
+            assert page.notes_wide == 1
+            assert page.notes_tall == 1
+
+            with open(storage_path) as sf:
+                data = json.load(sf)
+            assert data["schema_version"] == CURRENT_SCHEMA_VERSION
+        finally:
+            os.unlink(storage_path)
+
+
+class TestPageValidateConfigNoteArray:
+    """Page.validate_config correctly bounds-checks row indices for note_array pages.
+
+    Covers issue #1173: row-index validation must use resolve_dimensions with the
+    page's notes_wide/notes_tall so a 12-row array allows rows 0-11.
+    """
+
+    def test_page_has_notes_wide_notes_tall_fields(self):
+        """Page model has notes_wide and notes_tall with default 1."""
+        page = Page(name="Test", type="single", display_type="weather")
+        assert page.notes_wide == 1
+        assert page.notes_tall == 1
+
+    def test_note_array_page_device_type_accepted(self):
+        """Page with device_type='note_array' is valid."""
+        page = Page(
+            name="Test",
+            type="template",
+            device_type="note_array",
+            notes_wide=2,
+            notes_tall=1,
+            template=["Line 1", "Line 2", "Line 3"],
+        )
+        assert page.is_valid()
+
+    def test_12x15_allows_row_index_11(self):
+        """A 12-row array (notes_wide=1, notes_tall=4) allows rows 0-11."""
+        page = Page(
+            name="Test",
+            type="composite",
+            device_type="note_array",
+            notes_wide=1,
+            notes_tall=4,
+            rows=[
+                RowConfig(source="weather", row_index=11, target_row=11),
+            ],
+        )
+        assert page.is_valid()
+
+    def test_12x15_rejects_row_index_12(self):
+        """A 12-row array rejects row index 12 (max is 11)."""
+        page = Page(
+            name="Test",
+            type="composite",
+            device_type="note_array",
+            notes_wide=1,
+            notes_tall=4,
+            rows=[
+                RowConfig(source="weather", row_index=12, target_row=12),
+            ],
+        )
+        errors = page.validate_config()
+        assert len(errors) > 0
+        assert any("12" in e for e in errors)
+
+    def test_3x30_allows_row_index_2(self):
+        """A 3-row array (notes_wide=2, notes_tall=1) allows rows 0-2."""
+        page = Page(
+            name="Test",
+            type="composite",
+            device_type="note_array",
+            notes_wide=2,
+            notes_tall=1,
+            rows=[RowConfig(source="weather", row_index=2, target_row=2)],
+        )
+        assert page.is_valid()
+
+    def test_3x30_rejects_row_index_3(self):
+        """A 3-row array rejects row index 3 (max is 2)."""
+        page = Page(
+            name="Test",
+            type="composite",
+            device_type="note_array",
+            notes_wide=2,
+            notes_tall=1,
+            rows=[RowConfig(source="weather", row_index=3, target_row=3)],
+        )
+        errors = page.validate_config()
+        assert len(errors) > 0
+        assert any("3" in e for e in errors)
+
+    def test_flagship_row_bounds_unchanged(self):
+        """Flagship still allows max row index 5 (6 rows)."""
+        page = Page(
+            name="Test",
+            type="composite",
+            device_type="flagship",
+            rows=[RowConfig(source="weather", row_index=5, target_row=5)],
+        )
+        assert page.is_valid()
+
+    def test_note_row_bounds_unchanged(self):
+        """Note still allows max row index 2 (3 rows)."""
+        page = Page(
+            name="Test",
+            type="composite",
+            device_type="note",
+            rows=[RowConfig(source="weather", row_index=2, target_row=2)],
+        )
+        assert page.is_valid()
+
+    def test_template_page_note_array_valid(self):
+        """Template page with note_array device_type is valid."""
+        page = Page(
+            name="Test",
+            type="template",
+            device_type="note_array",
+            notes_wide=4,
+            notes_tall=1,
+            template=["Line 1", "Line 2", "Line 3"],
+        )
+        assert page.is_valid()
+
+    def test_notes_wide_notes_tall_passed_through_page_create(self):
+        """PageCreate accepts notes_wide/notes_tall."""
+        pc = PageCreate(
+            name="Wide Array",
+            type="template",
+            device_type="note_array",
+            notes_wide=2,
+            notes_tall=1,
+            template=["Hello"],
+        )
+        assert pc.notes_wide == 2
+        assert pc.notes_tall == 1
+
+    def test_notes_wide_notes_tall_passed_through_page_update(self):
+        """PageUpdate accepts notes_wide/notes_tall."""
+        pu = PageUpdate(notes_wide=4, notes_tall=2)
+        assert pu.notes_wide == 4
+        assert pu.notes_tall == 2

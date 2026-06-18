@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from src.devices import get_dimensions
+from src.devices import resolve_dimensions
 from src.displays.service import DisplayResult, get_display_service
 from src.plugins.manifest import DemoPageSchema
 from src.settings.service import get_settings_service
@@ -139,6 +139,9 @@ class PageService:
             line_metadata=data.line_metadata,
             duration_seconds=data.duration_seconds,
             demo_plugin_id=data.demo_plugin_id,
+            # PageCreate leaves W×H optional (None) — default to a single Note.
+            notes_wide=data.notes_wide or 1,
+            notes_tall=data.notes_tall or 1,
             created_at=datetime.now(UTC),
         )
 
@@ -352,7 +355,7 @@ class PageService:
                 error="Composite page missing row configuration",
             )
 
-        dims = get_dimensions(page.device_type)
+        dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
         display_service = get_display_service()
 
         # Initialize empty lines for the device
@@ -417,7 +420,12 @@ class PageService:
             # via _truncate_to_tiles() - color codes like {63} count as 1 tile each
             meta = [m.model_dump() for m in page.line_metadata] if page.line_metadata else None
             formatted = template_engine.render_lines(
-                page.template, context=context, line_metadata=meta, device_type=page.device_type
+                page.template,
+                context=context,
+                line_metadata=meta,
+                device_type=page.device_type,
+                notes_wide=page.notes_wide,
+                notes_tall=page.notes_tall,
             )
 
             # Note: We do NOT truncate/pad by character count here because:
