@@ -1,0 +1,302 @@
+name: 'Claude: A11y Live Axe'
+
+# =============================================================================
+# Weekly America/Los_Angeles RUNTIME accessibility sweep. Boots the unified
+# container (same way the CI e2e job does), runs axe-core against the main
+# routes via the existing web/tests/a11y.spec.ts (in DEBUG_A11Y full-findings
+# mode), then a Claude step triages the violations into GitHub issues.
+#
+# This is the live companion to claude-a11y-audit.yml (the static TSX source
+# sweep). The static sweep catches issues visible in the source; this catches
+# issues that only appear at runtime (computed ARIA after hydration, focus
+# order on a real DOM, axe rules that need a rendered page). Both file under
+# the SAME labels (`a11y` + `a11y-audit` + `claude-fix`) so the dedup,
+# triage, auto-review, and rejection-learning machinery is shared — one
+# queue, one memory.
+#
+# Findings → issues → claude-issue-triage.yml opens `a11y/issue-*` fix PRs.
+#
+# Cadence: Thursday noon PT (offset from the Monday static sweep to spread
+# reviewer load). The two UTC crons cover DST; the local-hour gate admits
+# only the noon hour so exactly one fires (no state file here, so the gate is
+# the dedup — no cooldown needed). workflow_dispatch always proceeds.
+#
+# NOTE: this job builds the Docker image and runs containers, so it is much
+# heavier than the static sweep. axe color-contrast is excluded (it's
+# excluded in a11y.spec.ts too — tracked separately).
+# =============================================================================
+
+on:
+  schedule:
+    - cron: '7 19 * * 4'   # 12:07 PDT (summer) Thu / 11:07 PST (gated off)
+    - cron: '7 20 * * 4'   # 12:07 PST (winter) Thu / 13:07 PDT (gated off)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize runs; don't let a dispatch abort a scheduled run mid-build.
+concurrency:
+  group: a11y-live-axe
+  cancel-in-progress: false
+
+jobs:
+  axe:
+    name: Boot app, run axe, file a11y issues
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    steps:
+      - name: Gate on America/Los_Angeles local hour window
+        id: gate
+        # Noon hour only (12:00–12:59 PT). With no state file there is no
+        # cooldown, so the gate must admit exactly ONE of the two paired UTC
+        # crons. Gating on hour==12 does that: only the in-DST noon cron
+        # lands on local hour 12. The :07 cron start tolerates ~50 min of
+        # GitHub Actions delay before slipping out of the hour.
+        # workflow_dispatch bypasses the gate.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hour=$(TZ=America/Los_Angeles date +%H)
+          minute=$(TZ=America/Los_Angeles date +%M)
+          echo "Local PT: $hour:$minute"
+          if [ "$hour" = "12" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: outside the noon PT hour."
+          fi
+
+      - name: Checkout repository
+        if: steps.gate.outputs.go == 'true'
+        uses: actions/checkout@v6
+
+      - name: Set up web E2E environment
+        if: steps.gate.outputs.go == 'true'
+        uses: ./.github/actions/setup-web-e2e
+
+      - name: Set up Docker Buildx
+        if: steps.gate.outputs.go == 'true'
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        # Avoid anonymous-pull rate limits when warming base layers. Scheduled
+        # and dispatch runs always have the secrets (not a fork PR).
+        if: steps.gate.outputs.go == 'true' && github.actor != 'dependabot[bot]'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build test image
+        if: steps.gate.outputs.go == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: fiestaboard:a11y
+          build-args: |
+            VERSION=dev
+          # Read whatever the CI build jobs already warmed; cold cache just
+          # means a full build.
+          cache-from: |
+            type=gha,scope=build-linux/amd64
+            type=gha,scope=build-test
+
+      - name: Start 1 mock board + FiestaBoard container
+        id: boot
+        if: steps.gate.outputs.go == 'true'
+        # Single worker is enough for an a11y sweep. Mirrors the CI e2e job's
+        # boot (mock-board + fiestaboard), wiring the same WORKER_* env the
+        # axe spec's helpers read.
+        run: |
+          docker run -d --name mock-board-0 \
+            -v ${{ github.workspace }}/integration-tests/mock-board:/app:ro \
+            -w /app \
+            python:3.11-slim python server.py
+
+          docker run -d --name fiestaboard-0 \
+            -e PRODUCTION=false \
+            -e FIESTABOARD_AUTH_ENABLED=false \
+            fiestaboard:a11y
+
+          FB_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard-0)
+          MOCK_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-board-0)
+          echo "FiestaBoard=$FB_IP  MockBoard=$MOCK_IP"
+
+          {
+            echo "WORKER_URLS=http://$FB_IP:3000"
+            echo "WORKER_MOCK_URLS=http://$MOCK_IP:7000"
+            echo "WORKER_MOCK_HOSTS=$MOCK_IP"
+          } >> "$GITHUB_ENV"
+
+      - name: Wait for container to be ready
+        if: steps.gate.outputs.go == 'true'
+        timeout-minutes: 3
+        run: |
+          IFS=',' read -ra URLS <<< "$WORKER_URLS"
+          for url in "${URLS[@]}"; do
+            echo "Waiting for $url..."
+            for i in $(seq 1 60); do
+              STATUS=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$url/api/health" 2>/dev/null || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "  Ready (attempt $i)"
+                break
+              fi
+              if [ "$i" = "60" ]; then
+                echo "  ❌ Failed to become ready"
+                exit 1
+              fi
+              sleep 1
+            done
+          done
+
+      - name: Run axe sweep (full findings)
+        if: steps.gate.outputs.go == 'true'
+        working-directory: web
+        # `continue-on-error` because a11y.spec.ts ASSERTS no critical/serious
+        # violations and we WANT it to surface them, not fail the workflow.
+        # DEBUG_A11Y=1 makes the spec log every finding (all impacts) as
+        # `[a11y] <route>: <json>`; we tee that to a log the Claude step
+        # parses. retries=0 keeps the log from double-printing on retry.
+        continue-on-error: true
+        env:
+          CI: 'true'
+          DEBUG_A11Y: '1'
+        run: |
+          set -o pipefail || true
+          npx playwright test a11y.spec.ts --workers=1 --retries=0 --reporter=list 2>&1 \
+            | tee a11y-run.log
+          echo "Axe sweep finished (exit code masked by continue-on-error)."
+
+      - name: Stop containers
+        if: always()
+        run: |
+          docker rm -f fiestaboard-0 mock-board-0 2>/dev/null || true
+
+      - name: Triage axe findings into issues
+        if: steps.gate.outputs.go == 'true'
+        uses: anthropics/claude-code-action@v1
+        env:
+          # RELEASE_PAT (a PAT, not GITHUB_TOKEN) so the issues + labels this
+          # step creates actually TRIGGER claude-issue-triage.yml. Events
+          # raised by the default GITHUB_TOKEN do not trigger other workflows.
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          RUN_ID: ${{ github.run_id }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: 'true'
+          # Read-only on the repo (no Edit/Write/git). Only `gh issue` /
+          # `gh label` are write actions, and they go through RELEASE_PAT.
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 120
+            --allowed-tools "Read,Glob,Grep,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(date:*),Bash(jq:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
+          prompt: |
+            You are the FiestaBoard **live accessibility triager**. The
+            workflow just booted the app and ran axe-core against the main
+            routes (via `web/tests/a11y.spec.ts` in `DEBUG_A11Y=1` mode). Your
+            job is to turn the axe output into well-scoped GitHub issues that
+            feed the shared a11y-fix pipeline. You do NOT edit code and you do
+            NOT open PRs — you file issues; a triage worker fixes them.
+
+            ## Step 1 — read the axe output
+
+            Read `web/a11y-run.log`. It contains, for each audited route, a
+            block of the form:
+
+                [a11y] /schedule: [
+                  { "id": "button-name", "impact": "serious", "help": "...",
+                    "helpUrl": "...", "nodes": 3, "sample": [["button.x"], ...] },
+                  ...
+                ]
+
+            Parse every `[a11y] <route>:` block. Each array element is one axe
+            rule violation on that route, with `id`, `impact`
+            (critical/serious/moderate/minor), `help`, `helpUrl`, `nodes`
+            (count), and `sample` (up to 3 CSS-selector targets). If the log
+            is missing, empty, or shows no `[a11y]` blocks (e.g. the app
+            failed to boot), file NO issues — print a short note saying the
+            sweep produced no parseable findings and stop.
+
+            ## Step 2 — prioritize
+
+            Group violations by `(route, rule id)`. Rank by impact:
+            **critical > serious > moderate > minor**. Skip `color-contrast`
+            (it's intentionally excluded from FiestaBoard's axe gate and
+            tracked separately) unless nothing else surfaced — and even then
+            file it as low priority. Lead with critical/serious.
+
+            ## Step 3 — learn from past rejections
+
+            Read `.github/a11y-audit/rejected-edits.jsonl` if it exists. Each
+            line is a previously-closed a11y fix PR. If the close comments
+            establish that a given finding is a false positive (e.g. axe flags
+            something the team has deliberately accepted), do not re-file that
+            same finding. Generalize the lesson.
+
+            ## Step 4 — dedup, then file issues
+
+            Before filing, dedup against open issues:
+              `gh issue list --label a11y-audit --state open --limit 200 --search "<rule id> <route>"`
+            Skip any `(route, rule id)` that already has an open issue.
+
+            For each surviving violation group, file ONE issue:
+
+            Title: `a11y: <rule id> on <route> — <short help> (<impact>)`
+              e.g. `a11y: button-name on /schedule — buttons must have discernible text (serious)`
+
+            Body:
+              ## Route
+              `<route>`
+
+              ## Axe rule
+              `<rule id>` (<impact>) — <help>
+              <helpUrl>
+
+              ## Affected elements (sample)
+              - `<selector>`
+              - ...
+              (<nodes> total node(s) flagged)
+
+              ## Suggested fix
+              <2–4 sentences. Any new user-facing string (incl. `aria-label`)
+              must be added as a `next-intl` key in `web/messages/en.json` —
+              do not hardcode English. Prefer semantic HTML / existing Radix
+              primitives in `web/src/components/ui/`.>
+
+              ---
+              _Filed by the a11y live-axe sweep (run $RUN_ID)._
+
+            Labels: `a11y`, `a11y-audit`. Create if missing:
+              `gh label create a11y --color 5319E7 --description "Accessibility / WCAG" || true`
+              `gh label create a11y-audit --color BFD4F2 --description "Filed by the a11y-audit cron" || true`
+
+            After creating each issue, apply `claude-fix` so the triage
+            worker picks it up:
+              `gh issue edit <N> --add-label claude-fix`
+              `gh label create claude-fix --color 0E8A16 --description "Run the Claude issue-triage workflow on this issue" || true`
+
+            ## Hard rules
+
+            - Read-only on the repo: never Edit, Write, create branches, or
+              open PRs. Filing issues + creating labels is the only output.
+            - Cap at **40** issues this run. If axe surfaced more, file the
+              top 40 by impact and note the rest in your wrap-up.
+            - When dedup says skip, skip.
+
+            ## Wrap up
+
+            Print:
+              Routes parsed: <list>
+              Violations found: <by impact>
+              Issues filed: <#N ...>
+              Skipped (dedup / rejection log): <count>

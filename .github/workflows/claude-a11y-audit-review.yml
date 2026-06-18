@@ -1,0 +1,155 @@
+name: 'Claude: A11y Auto-Review'
+
+# =============================================================================
+# Auto-runs a Claude ACCESSIBILITY review on any PR that touches the web UI
+# (`web/src/**/*.tsx`) or its translations (`web/messages/**`). Posts ONE
+# review comment focused only on the a11y dimension — general code review is
+# handled by other workflows. This is the quality gate on the a11y-fix
+# pipeline (triage-worker `a11y/issue-*` PRs) and on human UI PRs alike.
+#
+# `pull_request_target` runs from the base ref's workflow definition, so
+# malicious head-branch edits to this workflow file can't fire. We only check
+# out the BASE ref — never the PR head — per the CodeQL
+# `actions/untrusted-checkout` rule (the "pwn-request" pattern). PR head
+# content is read read-only via `gh api .../contents/<path>?ref=<head_sha>`
+# from inside the prompt: bytes piped through Claude as data, never
+# materialized where a later step could execute them. Belt and braces:
+# `--allowed-tools` is read-only (no Edit/Write, no git push, no PR state
+# changes).
+#
+# Draft PRs are skipped; the trigger includes `ready_for_review` so the
+# review fires when the author flips draft → ready.
+# =============================================================================
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'web/src/**/*.tsx'
+      - 'web/messages/**'
+
+permissions:
+  contents: read
+
+# Cancel a prior review for the same PR when a new push comes in — only the
+# latest diff matters and we don't want two reviews racing the same comment.
+concurrency:
+  group: claude-a11y-audit-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Claude reviews the a11y diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Skip drafts and Dependabot (its read-only token can't post a review).
+    if: >-
+      github.event.pull_request.draft == false
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout base ref (trusted)
+        uses: actions/checkout@v6
+        with:
+          # pull_request_target grants secrets — never check out PR head.
+          # Base ref gives Claude the trusted CLAUDE.md / a11y conventions /
+          # en.json reference. PR head content is read via
+          # `gh api .../contents/<path>?ref=<head_sha>` from inside the
+          # prompt — data piped through Claude, never executed.
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run Claude review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Skip the OIDC→claude[bot] App-token exchange and post under the
+          # workflow's own GITHUB_TOKEN. On pull_request_target the App
+          # exchange returns `401 Invalid OIDC token`; github_token bypasses
+          # it. Cost: review badge is `github-actions[bot]` — which is why the
+          # feedback-capture allowlists both bots.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Bot-authored PRs (triage worker) need reviewing too — the point.
+          allowed_bots: 'claude,github-actions'
+          show_full_output: 'true'
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 40
+            --allowed-tools "Read,Glob,Grep,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(jq:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api:*)"
+          prompt: |
+            You are the FiestaBoard **accessibility reviewer**. Review PR
+            #${{ github.event.pull_request.number }} — only the ACCESSIBILITY
+            of the web UI changes it makes. Skim non-a11y aspects for context
+            but don't review them; other workflows handle general code review.
+
+            ## Important — workspace is at BASE, not PR head
+
+            The workflow checked out the trusted base ref (CodeQL
+            untrusted-checkout rule), so `cat`/`Read`/`ls` see BASE content
+            (useful for CLAUDE.md, the a11y conventions, and the baseline
+            `web/messages/en.json`). Read the PR's version of a file via:
+
+                gh api \
+                  "repos/${{ github.repository }}/contents/<path>?ref=${{ github.event.pull_request.head.sha }}" \
+                  -H "Accept: application/vnd.github.raw"
+
+            That returns raw bytes (data only — never executed). Never
+            `git checkout` the PR head.
+
+            ## How to review
+
+            1. Run `gh pr diff ${{ github.event.pull_request.number }}` to see
+               the diff. Focus on `web/src/**/*.tsx` and `web/messages/**`.
+            2. For the changed TSX, check the a11y dimension against
+               FiestaBoard conventions (the axe baseline is
+               `web/tests/a11y.spec.ts`; WCAG bar is 2.2 AA):
+               - **Accessible names.** Every interactive element has one —
+                 icon-only `<button>`s need an `aria-label`; form controls
+                 need an associated label. (WCAG 4.1.2 / 1.3.1)
+               - **Semantics.** `<button>`/`<a href>` over
+                 `<div role="button">`; no `onClick` on a non-interactive
+                 element without role + keyboard support. (WCAG 2.1.1 / 4.1.2)
+               - **Strings via next-intl.** Any new user-facing string —
+                 including `aria-label`, `title`, `alt`, placeholders — must
+                 come from a `next-intl` key, NOT a hardcoded English literal.
+                 If the PR adds a key, confirm it exists in
+                 `web/messages/en.json` (fetch the PR's version via the
+                 `gh api` contents call). Flag a hardcoded literal loudly.
+               - **Headings & landmarks.** No skipped heading levels, single
+                 `<h1>`, headings not used purely for styling. (WCAG 1.3.1)
+               - **Images / icons.** Meaningful images have `alt`; decorative
+                 ones are `aria-hidden`. (WCAG 1.1.1)
+               - **Focus & dynamic regions.** Custom widgets move/trap/restore
+                 focus; toasts / async results announce via `role="status"` or
+                 `aria-live`. (WCAG 2.4.3 / 4.1.3)
+               - **Don't fail on color-contrast** — it's excluded from the
+                 axe gate; mention as a low-priority note only.
+            3. For `web/messages/**` changes, sanity-check that a11y-relevant
+               keys (labels) read naturally and aren't left as raw English in
+               non-English locale files.
+
+            ## Output — post ONE review
+
+            Post a single review via `gh pr review`:
+
+                gh pr review ${{ github.event.pull_request.number }} --comment --body "<markdown>"
+
+            Lead the body with a one-line **verdict** (e.g. "no a11y concerns"
+            / "small a11y fixes" / "a11y blockers"), then list findings with
+            `file:line` references and the WCAG criterion for each. For a
+            single-line fix with an obvious replacement you may include a
+            ```` ```suggestion ```` block. If the PR is clean from an a11y
+            standpoint, say so briefly — don't manufacture findings.
+
+            ## Hard rules
+
+            - Review only. Never APPROVE / REQUEST_CHANGES — always a plain
+              `--comment`. Sign-off stays human.
+            - No file edits, no pushes, no PR state changes.
+            - One review per run. If you'd post a second, consolidate.
+            - Stay on the a11y dimension. Don't review unrelated code.
