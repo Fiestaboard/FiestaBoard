@@ -325,6 +325,8 @@ const StaticGridRow = memo(function StaticGridRow({
     >
       {row.map((token, colIdx) => {
         const isColSeam = showSeams && colIdx > 0 && colIdx % NOTE_COLS === 0;
+        // Mirror the animated path's wrapper for DOM consistency; hosts the
+        // data-note-tile hook + note-array seam margin.
         return (
           <div
             key={`col-${rowIdx}-${colIdx}`}
@@ -378,6 +380,9 @@ const GridRow = memo(
       >
         {row.map((token, colIdx) => {
           const isColSeam = showSeams && colIdx > 0 && colIdx % NOTE_COLS === 0;
+          // The wrapper is structurally required: CharTile returns a fragment
+          // (flap-animation layers), so it needs a single containing flex item.
+          // It also hosts the data-note-tile hook + note-array seam margin.
           return (
             <div
               key={`col-${rowIdx}-${colIdx}`}

@@ -190,3 +190,33 @@ describe("BoardDisplay (isStatic=true) variable-size grid rendering", () => {
     expect(rowSeams).toHaveLength(0);
   });
 });
+
+describe("BoardDisplay (isStatic=false / animated) seam rendering", () => {
+  it("test 13: animated note_array 4×1 (3×60) has 9 col seams (cols 15/30/45 × 3 rows)", () => {
+    const { container } = render(
+      <BoardDisplay message="" deviceType="note_array" notesWide={4} notesTall={1} isStatic={false} />,
+      { wrapper: TestWrapper },
+    );
+    const tiles = container.querySelectorAll("[data-note-tile]");
+    expect(tiles).toHaveLength(180); // 3 rows × 60 cols
+    const colSeams = container.querySelectorAll("[data-note-col-seam='true']");
+    expect(colSeams).toHaveLength(9); // 3 seams/row (cols 15,30,45) × 3 rows
+  });
+
+  it("test 14: animated note_array 2×2 (6×30) has a row seam at rowIdx 3", () => {
+    const { container } = render(
+      <BoardDisplay message="" deviceType="note_array" notesWide={2} notesTall={2} isStatic={false} />,
+      { wrapper: TestWrapper },
+    );
+    const rowSeams = container.querySelectorAll("[data-note-row-seam='true']");
+    expect(rowSeams).toHaveLength(1); // single row boundary at row 3 (6 rows total)
+  });
+
+  it("test 15: animated flagship has no seam attributes", () => {
+    const { container } = render(<BoardDisplay message="" deviceType="flagship" isStatic={false} />, {
+      wrapper: TestWrapper,
+    });
+    expect(container.querySelectorAll("[data-note-col-seam]")).toHaveLength(0);
+    expect(container.querySelectorAll("[data-note-row-seam]")).toHaveLength(0);
+  });
+});
