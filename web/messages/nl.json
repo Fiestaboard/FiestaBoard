@@ -1510,5 +1510,8 @@
   "aiChatPanel": {
     "clearConversationAriaLabel": "Gesprek wissen",
     "closePanelAriaLabel": "FiestaBot (Beta) sluiten"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "Voortgang AI-taken"
   }
 }

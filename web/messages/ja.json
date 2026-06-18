@@ -1510,5 +1510,8 @@
   "aiChatPanel": {
     "clearConversationAriaLabel": "会話をクリア",
     "closePanelAriaLabel": "FiestaBot (Beta) を閉じる"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "AI タスクの進行状況"
   }
 }

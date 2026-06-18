@@ -1510,5 +1510,8 @@
   "aiChatPanel": {
     "clearConversationAriaLabel": "대화 지우기",
     "closePanelAriaLabel": "FiestaBot (Beta) 닫기"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "AI 작업 진행률"
   }
 }

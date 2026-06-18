@@ -1510,5 +1510,8 @@
   "aiChatPanel": {
     "clearConversationAriaLabel": "Cancella conversazione",
     "closePanelAriaLabel": "Chiudi FiestaBot (Beta)"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "Avanzamento attività IA"
   }
 }

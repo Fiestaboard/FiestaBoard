@@ -333,6 +333,7 @@ function TaskStatusIcon({ status }: { status: TaskStatus }) {
 }
 
 function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
+  const t = useTranslations("aiChat");
   const allDone = tasks.length > 0 && tasks.every((t) => t.status === "done" || t.status === "failed");
   const doneCount = tasks.filter((t) => t.status === "done").length;
   const [visible, setVisible] = useState(true);
@@ -356,7 +357,14 @@ function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
         <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           Tasks ({doneCount}/{tasks.length})
         </span>
-        <div className="h-1 w-20 rounded-full bg-muted overflow-hidden">
+        <div
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={t("taskProgressAriaLabel")}
+          className="h-1 w-20 rounded-full bg-muted overflow-hidden"
+        >
           <div className="h-full bg-brand-emphasis transition-all duration-300" style={{ width: `${pct}%` }} />
         </div>
       </div>

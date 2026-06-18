@@ -1510,5 +1510,8 @@
   "aiChatPanel": {
     "clearConversationAriaLabel": "Rensa konversation",
     "closePanelAriaLabel": "Stäng FiestaBot (Beta)"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "AI-uppgifters förlopp"
   }
 }
