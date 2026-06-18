@@ -709,6 +709,7 @@
     "exportFailed": "Nie udało się pobrać ciągu udostępniania",
     "exportDialogTitle": "Eksportuj stronę",
     "exportDialogDescription": "Skopiuj ten ciąg udostępniania, aby udostępnić stronę innym.",
+    "exportStringAriaLabel": "Ciąg udostępniania",
     "exportCopyAriaLabel": "Skopiuj ciąg udostępniania"
   },
   "displaySettings": {

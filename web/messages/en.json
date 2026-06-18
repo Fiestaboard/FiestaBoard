@@ -666,6 +666,7 @@
     "exportFailed": "Failed to get share string",
     "exportDialogTitle": "Export Page",
     "exportDialogDescription": "Copy this share string to share your page with others.",
+    "exportStringAriaLabel": "Share string",
     "exportCopyAriaLabel": "Copy share string"
   },
   "displaySettings": {

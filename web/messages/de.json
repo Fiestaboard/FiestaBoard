@@ -709,6 +709,7 @@
     "exportFailed": "Freigabezeichenfolge konnte nicht abgerufen werden",
     "exportDialogTitle": "Seite exportieren",
     "exportDialogDescription": "Kopiere diese Freigabezeichenfolge, um deine Seite mit anderen zu teilen.",
+    "exportStringAriaLabel": "Freigabezeichenfolge",
     "exportCopyAriaLabel": "Freigabezeichenfolge kopieren"
   },
   "displaySettings": {

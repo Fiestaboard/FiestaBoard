@@ -709,6 +709,7 @@
     "exportFailed": "Не удалось получить строку обмена",
     "exportDialogTitle": "Экспорт страницы",
     "exportDialogDescription": "Скопируйте эту строку обмена, чтобы поделиться страницей с другими.",
+    "exportStringAriaLabel": "Строка обмена",
     "exportCopyAriaLabel": "Скопировать строку обмена"
   },
   "displaySettings": {

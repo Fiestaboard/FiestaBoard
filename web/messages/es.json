@@ -709,6 +709,7 @@
     "exportFailed": "Error al obtener el código compartido",
     "exportDialogTitle": "Exportar página",
     "exportDialogDescription": "Copia este código compartido para compartir tu página con otros.",
+    "exportStringAriaLabel": "Código compartido",
     "exportCopyAriaLabel": "Copiar código compartido"
   },
   "displaySettings": {

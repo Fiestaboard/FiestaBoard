@@ -709,6 +709,7 @@
     "exportFailed": "Impossible d'obtenir la chaîne de partage",
     "exportDialogTitle": "Exporter la page",
     "exportDialogDescription": "Copiez cette chaîne de partage pour partager votre page avec d'autres.",
+    "exportStringAriaLabel": "Chaîne de partage",
     "exportCopyAriaLabel": "Copier la chaîne de partage"
   },
   "displaySettings": {

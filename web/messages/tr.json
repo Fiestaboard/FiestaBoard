@@ -709,6 +709,7 @@
     "exportFailed": "Paylaşım dizgesi alınamadı",
     "exportDialogTitle": "Sayfayı Dışa Aktar",
     "exportDialogDescription": "Sayfanızı başkalarıyla paylaşmak için bu paylaşım dizgesini kopyalayın.",
+    "exportStringAriaLabel": "Paylaşım dizgesi",
     "exportCopyAriaLabel": "Paylaşım dizgesini kopyala"
   },
   "displaySettings": {

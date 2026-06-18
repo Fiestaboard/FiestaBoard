@@ -709,6 +709,7 @@
     "exportFailed": "Kunde inte hämta delningssträng",
     "exportDialogTitle": "Exportera sida",
     "exportDialogDescription": "Kopiera denna delningssträng för att dela din sida med andra.",
+    "exportStringAriaLabel": "Delningssträng",
     "exportCopyAriaLabel": "Kopiera delningssträng"
   },
   "displaySettings": {
