@@ -24,7 +24,7 @@ This folder is the bot's memory of those teaching moments.
 
 ## How it works
 
-1. **`claude-a11y-audit-feedback.yml`** triggers on `pull_request.closed`. If
+1. **`claude-a11y-audit-feedback.yml`** triggers on `pull_request_target.closed`. If
    the PR is unmerged and the head branch starts with `a11y/issue-` (triage
    fix PRs) or `a11y-audit/` (reserved for any future inline-fix PRs), it
    runs `build_rejection.py` to bundle the PR's diff + every comment,
