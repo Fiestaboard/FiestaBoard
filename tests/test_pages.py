@@ -672,6 +672,27 @@ class TestPageService:
         assert page.name == "Test"
         assert page.type == "single"
 
+    def test_create_note_array_page_threads_wxh(self, service):
+        """Creating a note_array page persists notes_wide/notes_tall from the request."""
+        data = PageCreate(
+            name="Array Page",
+            type="template",
+            device_type="note_array",
+            template=["HELLO"],
+            notes_wide=4,
+            notes_tall=1,
+        )
+        page = service.create_page(data)
+        assert page.notes_wide == 4
+        assert page.notes_tall == 1
+
+    def test_create_page_defaults_wxh_when_unspecified(self, service):
+        """W×H default to 1 when PageCreate leaves them unset (None)."""
+        data = PageCreate(name="Plain", type="single", display_type="weather")
+        page = service.create_page(data)
+        assert page.notes_wide == 1
+        assert page.notes_tall == 1
+
     def test_list_pages(self, service):
         """Test listing pages via service."""
         service.create_page(PageCreate(name="Page 1", type="single", display_type="weather"))

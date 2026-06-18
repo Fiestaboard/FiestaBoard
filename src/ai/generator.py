@@ -239,12 +239,19 @@ def _validate_and_repair(
     # Final structural validation via Pydantic.
     try:
         validated = PageCreate(**page)
-        # Also run the Page-level structural validator.
-        page_obj = Page(**validated.model_dump())
+        # Bridge to the full Page model to run the Page-level structural
+        # validator. exclude_none so PageCreate's optional W×H (None when the
+        # model didn't supply them) fall back to Page's int defaults rather than
+        # failing int validation.
+        page_obj = Page(**validated.model_dump(exclude_none=True))
         config_errors = page_obj.validate_config()
         if config_errors:
             warnings.extend(config_errors)
         page = validated.model_dump(mode="json")
+        # Ensure W×H are concrete ints in the returned draft (PageCreate leaves
+        # them None when unspecified; default to a single Note).
+        page["notes_wide"] = page_obj.notes_wide
+        page["notes_tall"] = page_obj.notes_tall
     except ValidationError as exc:
         # Pydantic ValidationError messages are curated and safe to
         # surface — they describe the field that failed, not internals.

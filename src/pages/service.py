@@ -139,6 +139,9 @@ class PageService:
             line_metadata=data.line_metadata,
             duration_seconds=data.duration_seconds,
             demo_plugin_id=data.demo_plugin_id,
+            # PageCreate leaves W×H optional (None) — default to a single Note.
+            notes_wide=data.notes_wide or 1,
+            notes_tall=data.notes_tall or 1,
             created_at=datetime.now(UTC),
         )
 
