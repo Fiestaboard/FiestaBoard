@@ -6005,7 +6005,11 @@ async def debug_show_info():
     now = time_service.get_current_time()
     timestamp = now.strftime("%H:%M")
 
-    # Build debug info text (line/char limits sized to active board)
+    # Build debug info text. The per-line slice caps below are flagship-oriented
+    # (~22 col); the final grid is sized to the active board's dimensions when
+    # converted to a board array (see text_to_board_array call). On narrow boards
+    # the converter wraps/truncates to the real width. Per-line polish for exotic
+    # widths is deferred (see #1173).
     debug_text = f"""DEBUG INFO
 BOARD: {board_ip[:15]}
 SERVER: {server_ip[:14]}
@@ -6026,10 +6030,11 @@ V{version[:7]} {timestamp}"""
         return {**_paused_response(), "debug_info": debug_text}
 
     try:
-        # Convert text to board array
+        # Convert text to board array, sized to the active board's dimensions
         from .text_to_board import text_to_board_array
 
-        board_array = text_to_board_array(debug_text, use_color_tiles=False)
+        dims = _get_first_board_dims()
+        board_array = text_to_board_array(debug_text, use_color_tiles=False, rows=dims.rows, cols=dims.cols)
 
         success, was_sent = client.send_characters(board_array, force=True)
 

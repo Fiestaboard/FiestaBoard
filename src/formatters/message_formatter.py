@@ -327,18 +327,9 @@ class MessageFormatter:
                 # Very compact - color tile before temp
                 lines.append(f"{location}: {temp_color} {temp}F")
 
-        # Ensure we don't exceed 6 rows
-        result = "\n".join(lines[: self._rows])
-
-        # Truncate each line to 22 characters if needed (accounting for color markers)
-        result_lines = result.split("\n")
-        truncated = []
-        for line in result_lines:
-            # Don't count color markers toward the 22 char limit
-            # They get stripped during conversion
-            truncated.append(line)
-
-        return "\n".join(truncated)
+        # Cap at the board's row count; per-line width is enforced later during
+        # text->grid conversion (which strips color markers before measuring).
+        return "\n".join(lines[: self._rows])
 
     def _get_temp_color(self, temp: int) -> str:
         """
@@ -373,7 +364,7 @@ class MessageFormatter:
             max_lines: Maximum number of lines
 
         Returns:
-            List of lines (each max 22 characters)
+            List of lines (each at most self._cols characters)
         """
         lines = text.split("\n")
         result = []

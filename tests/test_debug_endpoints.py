@@ -58,8 +58,9 @@ class TestDebugBlank:
     """Tests for /debug/blank endpoint."""
 
     def test_blank_board_success(self, client, mock_board_client):
-        """Test blanking the board successfully."""
-        response = client.post("/debug/blank")
+        """Test blanking the board successfully (flagship → 6×22, env-independent)."""
+        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+            response = client.post("/debug/blank")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
@@ -112,8 +113,9 @@ class TestDebugFill:
     """Tests for /debug/fill endpoint."""
 
     def test_fill_board_success(self, client, mock_board_client):
-        """Test filling the board with a character."""
-        response = client.post("/debug/fill", json={"character_code": 63})
+        """Test filling the board with a character (flagship → 6×22, env-independent)."""
+        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+            response = client.post("/debug/fill", json={"character_code": 63})
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
@@ -221,8 +223,8 @@ class TestDebugInfo:
         assert response.status_code == 200
         assert response.json()["status"] == "success"
 
-    def test_info_note_array_does_not_crash(self, client, mock_board_client):
-        """Note-array board: /debug/info does not crash and returns success."""
+    def test_info_note_array_sized_to_board(self, client, mock_board_client):
+        """Note-array board: /debug/info sends a grid sized to the array (3×30 for 2-wide)."""
         with patch(
             "src.api_server.get_settings_service",
             return_value=_mock_ss("note_array", notes_wide=2, notes_tall=1),
@@ -230,6 +232,18 @@ class TestDebugInfo:
             response = client.post("/debug/info")
         assert response.status_code == 200
         assert response.json()["status"] == "success"
+        sent_grid = mock_board_client.send_characters.call_args[0][0]
+        assert len(sent_grid) == 3, "note array (2x1) has 3 rows"
+        assert all(len(row) == 30 for row in sent_grid), "note array (2x1) has 30 cols"
+
+    def test_info_flagship_sized_6x22(self, client, mock_board_client):
+        """Flagship board: /debug/info still sends a byte-identical 6×22 grid."""
+        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+            response = client.post("/debug/info")
+        assert response.status_code == 200
+        sent_grid = mock_board_client.send_characters.call_args[0][0]
+        assert len(sent_grid) == 6
+        assert all(len(row) == 22 for row in sent_grid)
 
 
 class TestDebugTestConnection:
