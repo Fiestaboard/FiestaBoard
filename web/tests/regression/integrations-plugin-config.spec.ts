@@ -269,6 +269,35 @@ test.describe("regression: integrations.plugin (config sheet + lifecycle)", () =
   });
 
   /**
+   * UX node: integrations.plugin.config-sheet.template-vars.grouped
+   * Route: /integrations (sheet)
+   * Preconditions: plugin:enabled, plugin:exposes-variables, manifest declares variables.groups
+   * Expected: the Template Variables table is organized under the plugin's
+   *   declared group labels (mirroring the page-builder variable picker), and
+   *   grouped variables still render as copyable rows beneath their group.
+   * Issue: https://github.com/Fiestaboard/FiestaBoard/issues/1104
+   */
+  test("integrations.plugin.config-sheet.template-vars — organized by manifest group", async ({ page }) => {
+    await openConfigSheet(page);
+
+    await expect(page.getByRole("heading", { name: /Template Variables/i })).toBeVisible({ timeout: 15_000 });
+
+    const dialog = page.locator('[role="dialog"]');
+    const varsTable = dialog.locator("table").filter({ hasText: "Current Value" }).filter({ hasText: "Max" });
+    await expect(varsTable).toBeVisible({ timeout: 5_000 });
+
+    // date_time's manifest declares variables.groups = Time / Date / Formatted.
+    // Each non-empty group becomes a sub-header (a colgroup header cell) in the table.
+    for (const label of ["Time", "Date", "Formatted"]) {
+      await expect(varsTable.getByRole("columnheader", { name: label, exact: true })).toBeVisible();
+    }
+
+    // A grouped variable still renders as a copyable row beneath its group header.
+    const timeRow = varsTable.getByRole("row", { name: new RegExp(`^${TEST_PLUGIN_ID}\\.time `) });
+    await expect(timeRow).toBeVisible({ timeout: 5_000 });
+  });
+
+  /**
    * UX node: integrations.plugin.config-sheet.template-vars.unconfigured
    * Route: /integrations (sheet)
    * Preconditions: plugin:enabled, raw-display:unavailable (missing config / fetch error)

@@ -195,7 +195,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/page-header";
@@ -254,6 +254,13 @@ import type { PluginInfo, RegistryEntry } from "@/lib/api";
 import { api } from "@/lib/api";
 import type { FiestaboardColorName } from "@/lib/board-colors";
 import { ALL_COLOR_CODES, AVAILABLE_COLORS, FIESTABOARD_COLORS } from "@/lib/board-colors";
+import {
+  buildVariablesList,
+  getVariableGroups,
+  groupVariableRows,
+  type PluginVariableRow,
+  type VariablesBlock,
+} from "@/lib/plugin-variables";
 import { cn } from "@/lib/utils";
 
 /**
@@ -1043,58 +1050,72 @@ function PluginCard({
     return required.every((field) => field === "enabled" || Boolean(config[field]));
   };
 
-  // Parse variables from plugin details - handles both array and object formats for variables.simple
-  const getVariablesList = () => {
-    if (!pluginDetails?.variables) return [];
-    const variables = pluginDetails.variables as {
-      simple?:
-        | string[]
-        | Record<string, { description?: string; max_length?: number; group?: string; example?: string }>;
-      arrays?: Record<string, { label_field: string; item_fields: string[] }>;
-    };
-    const list: Array<{ name: string; description: string; maxChars: number }> = [];
+  // Flatten the plugin's manifest variables into table rows, then read the
+  // declared groups so the table can be organized the same way the page-builder
+  // variable picker organizes them.
+  const variablesBlock = pluginDetails?.variables as VariablesBlock | undefined;
+  const variableRows = buildVariablesList(variablesBlock, pluginDetails?.max_lengths);
+  const variableGroups = getVariableGroups(variablesBlock);
+  const hasVariableGroups = Object.keys(variableGroups).length > 0;
 
-    if (variables.simple) {
-      if (Array.isArray(variables.simple)) {
-        variables.simple.forEach((name) => {
-          list.push({
-            name,
-            description: name.replace(/_/g, " "),
-            maxChars: pluginDetails.max_lengths?.[name] ?? 22,
-          });
-        });
-      } else {
-        Object.entries(variables.simple).forEach(([name, meta]) => {
-          list.push({
-            name,
-            description: meta.description ?? name.replace(/_/g, " "),
-            maxChars: pluginDetails.max_lengths?.[name] ?? meta.max_length ?? 22,
-          });
-        });
-      }
-    }
-
-    if (variables.arrays) {
-      Object.entries(variables.arrays).forEach(([arrayName, config]) => {
-        list.push({
-          name: `${arrayName}.{index}.${config.label_field}`,
-          description: `${arrayName} label`,
-          maxChars: pluginDetails.max_lengths?.[`${arrayName}.${config.label_field}`] ?? 22,
-        });
-        // Skip label_field in item_fields to avoid duplicate keys
-        config.item_fields
-          .filter((field) => field !== config.label_field)
-          .forEach((field) => {
-            list.push({
-              name: `${arrayName}.{index}.${field}`,
-              description: `${arrayName} ${field.replace(/_/g, " ")}`,
-              maxChars: pluginDetails.max_lengths?.[`${arrayName}.${field}`] ?? 22,
-            });
-          });
-      });
-    }
-
-    return list;
+  // Render one Template Variables row. Shared by the flat and grouped layouts so
+  // the two stay identical.
+  const renderVariableRow = (variable: PluginVariableRow) => {
+    const resolved = formatCurrentValue(
+      variable.name,
+      rawDisplay?.available ? (rawDisplay.data as Record<string, unknown>) : undefined,
+    );
+    return (
+      <tr
+        key={variable.name}
+        className="hover:bg-muted/30 cursor-pointer transition-colors"
+        onClick={() => handleCopyVar(variable.name)}
+      >
+        <td className="px-3 py-2 align-top">
+          <div className="flex items-center gap-1.5">
+            <code className="text-primary font-mono bg-primary/10 px-1.5 py-0.5 rounded text-[11px]">
+              {plugin.id}.{variable.name}
+            </code>
+            {copiedVar === variable.name ? (
+              <Check className="h-3 w-3 text-success" />
+            ) : (
+              <Copy className="h-3 w-3 text-muted-foreground" />
+            )}
+          </div>
+        </td>
+        <td className="px-3 py-2 text-muted-foreground capitalize align-top">{variable.description}</td>
+        <td className="px-3 py-2 align-top max-w-[200px]" onClick={(e) => e.stopPropagation()}>
+          {!plugin.enabled ? (
+            <span className="text-muted-foreground">—</span>
+          ) : isLoadingRawDisplay ? (
+            <Skeleton className="h-3 w-16" />
+          ) : rawDisplay && rawDisplay.available === false ? (
+            <span className="text-muted-foreground italic">Unavailable</span>
+          ) : resolved && resolved.short !== "" ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-1 truncate font-mono text-[11px]">
+                  {renderValueWithColors(resolved.short)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                className="max-w-[360px] whitespace-pre-wrap break-words font-mono text-[11px]"
+              >
+                <span className="inline-flex flex-wrap items-center gap-1">{renderValueWithColors(resolved.full)}</span>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </td>
+        <td className="px-3 py-2 text-center align-top">
+          <Badge variant="outline" className="text-[10px]">
+            {variable.maxChars}
+          </Badge>
+        </td>
+      </tr>
+    );
   };
 
   // Use icon from plugin manifest, falling back to Puzzle
@@ -1238,7 +1259,7 @@ function PluginCard({
                 )}
 
               {/* Template Variables Section */}
-              {getVariablesList().length > 0 && (
+              {variableRows.length > 0 && (
                 <TooltipProvider delayDuration={200}>
                   <div className="space-y-3">
                     <h4 className="text-sm font-medium text-muted-foreground">
@@ -1272,67 +1293,22 @@ function PluginCard({
                           </tr>
                         </thead>
                         <tbody className="divide-y">
-                          {getVariablesList().map((variable) => {
-                            const resolved = formatCurrentValue(
-                              variable.name,
-                              rawDisplay?.available ? (rawDisplay.data as Record<string, unknown>) : undefined,
-                            );
-                            return (
-                              <tr
-                                key={variable.name}
-                                className="hover:bg-muted/30 cursor-pointer transition-colors"
-                                onClick={() => handleCopyVar(variable.name)}
-                              >
-                                <td className="px-3 py-2 align-top">
-                                  <div className="flex items-center gap-1.5">
-                                    <code className="text-primary font-mono bg-primary/10 px-1.5 py-0.5 rounded text-[11px]">
-                                      {plugin.id}.{variable.name}
-                                    </code>
-                                    {copiedVar === variable.name ? (
-                                      <Check className="h-3 w-3 text-success" />
-                                    ) : (
-                                      <Copy className="h-3 w-3 text-muted-foreground" />
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-3 py-2 text-muted-foreground capitalize align-top">
-                                  {variable.description}
-                                </td>
-                                <td className="px-3 py-2 align-top max-w-[200px]" onClick={(e) => e.stopPropagation()}>
-                                  {!plugin.enabled ? (
-                                    <span className="text-muted-foreground">—</span>
-                                  ) : isLoadingRawDisplay ? (
-                                    <Skeleton className="h-3 w-16" />
-                                  ) : rawDisplay && rawDisplay.available === false ? (
-                                    <span className="text-muted-foreground italic">Unavailable</span>
-                                  ) : resolved && resolved.short !== "" ? (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span className="flex items-center gap-1 truncate font-mono text-[11px]">
-                                          {renderValueWithColors(resolved.short)}
-                                        </span>
-                                      </TooltipTrigger>
-                                      <TooltipContent
-                                        side="top"
-                                        className="max-w-[360px] whitespace-pre-wrap break-words font-mono text-[11px]"
-                                      >
-                                        <span className="inline-flex flex-wrap items-center gap-1">
-                                          {renderValueWithColors(resolved.full)}
-                                        </span>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  ) : (
-                                    <span className="text-muted-foreground">—</span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2 text-center align-top">
-                                  <Badge variant="outline" className="text-[10px]">
-                                    {variable.maxChars}
-                                  </Badge>
-                                </td>
-                              </tr>
-                            );
-                          })}
+                          {hasVariableGroups
+                            ? groupVariableRows(variableRows, variableGroups, "General").map((section) => (
+                                <Fragment key={section.groupId ?? "__general__"}>
+                                  <tr className="bg-muted/40">
+                                    <th
+                                      scope="colgroup"
+                                      colSpan={4}
+                                      className="text-left px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+                                    >
+                                      {section.label}
+                                    </th>
+                                  </tr>
+                                  {section.rows.map(renderVariableRow)}
+                                </Fragment>
+                              ))
+                            : variableRows.map(renderVariableRow)}
                         </tbody>
                       </table>
                     </div>
@@ -1398,7 +1374,7 @@ function PluginCard({
               {/* No config message */}
               {(!pluginDetails?.settings_schema ||
                 Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
-                getVariablesList().length === 0 && (
+                variableRows.length === 0 && (
                   <p className="text-sm text-muted-foreground">No configuration options available for this plugin.</p>
                 )}
             </>
