@@ -1102,9 +1102,7 @@ function PluginCard({
                 side="top"
                 className="max-w-[360px] whitespace-pre-wrap break-words font-mono text-[11px]"
               >
-                <span className="inline-flex flex-wrap items-center gap-1">
-                  {renderValueWithColors(resolved.full)}
-                </span>
+                <span className="inline-flex flex-wrap items-center gap-1">{renderValueWithColors(resolved.full)}</span>
               </TooltipContent>
             </Tooltip>
           ) : (
