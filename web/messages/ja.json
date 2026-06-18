@@ -76,7 +76,8 @@
     "primaryNavigation": "メインナビゲーション",
     "secondaryNavigation": "サブナビゲーション",
     "picks": "スタッフのおすすめ",
-    "skipToMainContent": "メインコンテンツへスキップ"
+    "skipToMainContent": "メインコンテンツへスキップ",
+    "prideCelebrationAriaLabel": "プライド月間を祝う"
   },
   "network": {
     "title": "Wi-Fi",

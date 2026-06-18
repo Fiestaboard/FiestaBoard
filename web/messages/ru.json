@@ -76,7 +76,8 @@
     "primaryNavigation": "Основная навигация",
     "secondaryNavigation": "Дополнительная навигация",
     "picks": "Подборка команды",
-    "skipToMainContent": "Перейти к основному содержимому"
+    "skipToMainContent": "Перейти к основному содержимому",
+    "prideCelebrationAriaLabel": "Отпраздновать месяц гордости"
   },
   "network": {
     "title": "Wi-Fi",

@@ -76,7 +76,8 @@
     "primaryNavigation": "Primary navigation",
     "secondaryNavigation": "Secondary navigation",
     "picks": "Staff Picks",
-    "skipToMainContent": "Skip to main content"
+    "skipToMainContent": "Skip to main content",
+    "prideCelebrationAriaLabel": "Celebrate Pride Month"
   },
   "home": {
     "title": "Dashboard",

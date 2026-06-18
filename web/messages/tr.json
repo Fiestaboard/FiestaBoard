@@ -76,7 +76,8 @@
     "primaryNavigation": "Ana gezinme",
     "secondaryNavigation": "İkincil gezinme",
     "picks": "Ekip Seçimleri",
-    "skipToMainContent": "Ana içeriğe geç"
+    "skipToMainContent": "Ana içeriğe geç",
+    "prideCelebrationAriaLabel": "Onur Ayı'nı kutla"
   },
   "network": {
     "title": "Wi-Fi",
