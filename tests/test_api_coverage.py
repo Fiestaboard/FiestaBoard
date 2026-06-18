@@ -436,6 +436,84 @@ class TestSendWelcomeMessage:
             welcome_text = mock_ttba.call_args.args[0]
             assert "HIYA FROM FIESTABOARD" in welcome_text
 
+    def test_welcome_uses_note_array_template(self, client):
+        """note_array 2-wide board: text_to_board_array called with rows=3, cols=30."""
+        with (
+            patch("src.api_server.Config") as mock_config,
+            patch("src.board_client.BoardClient") as MockBoardClient,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
+            mock_config.is_silence_mode_active.return_value = False
+            mock_config.BOARD_API_MODE = "local"
+            mock_config.get_board_api_key.return_value = "test_key_12345"
+            mock_config.BOARD_HOST = "192.168.1.100"
+
+            board_client = Mock()
+            board_client.send_characters.return_value = (True, True)
+            MockBoardClient.return_value = board_client
+
+            mock_ttba.return_value = [[0] * 30 for _ in range(3)]
+
+            ss = Mock()
+            transition = Mock()
+            transition.strategy = "column"
+            transition.step_interval_ms = 100
+            transition.step_size = 1
+            ss.get_transition_settings.return_value = transition
+            board_settings = Mock()
+            board_settings.boards = [{"device_type": "note_array", "notes_wide": 2, "notes_tall": 1}]
+            ss.get_board_settings.return_value = board_settings
+            mock_ss.return_value = ss
+
+            response = client.post("/send-welcome-message")
+            assert response.status_code == 200
+            assert response.json()["status"] == "success"
+
+            assert mock_ttba.call_count == 1
+            kwargs = mock_ttba.call_args.kwargs
+            assert kwargs.get("rows") == 3
+            assert kwargs.get("cols") == 30
+
+    def test_welcome_note_array_2tall(self, client):
+        """note_array 2-tall board: text_to_board_array called with rows=6, cols=15."""
+        with (
+            patch("src.api_server.Config") as mock_config,
+            patch("src.board_client.BoardClient") as MockBoardClient,
+            patch("src.api_server.text_to_board_array") as mock_ttba,
+            patch("src.api_server.get_settings_service") as mock_ss,
+        ):
+            mock_config.is_silence_mode_active.return_value = False
+            mock_config.BOARD_API_MODE = "local"
+            mock_config.get_board_api_key.return_value = "test_key_12345"
+            mock_config.BOARD_HOST = "192.168.1.100"
+
+            board_client = Mock()
+            board_client.send_characters.return_value = (True, True)
+            MockBoardClient.return_value = board_client
+
+            mock_ttba.return_value = [[0] * 15 for _ in range(6)]
+
+            ss = Mock()
+            transition = Mock()
+            transition.strategy = "column"
+            transition.step_interval_ms = 100
+            transition.step_size = 1
+            ss.get_transition_settings.return_value = transition
+            board_settings = Mock()
+            board_settings.boards = [{"device_type": "note_array", "notes_wide": 1, "notes_tall": 2}]
+            ss.get_board_settings.return_value = board_settings
+            mock_ss.return_value = ss
+
+            response = client.post("/send-welcome-message")
+            assert response.status_code == 200
+            assert response.json()["status"] == "success"
+
+            assert mock_ttba.call_count == 1
+            kwargs = mock_ttba.call_args.kwargs
+            assert kwargs.get("rows") == 6
+            assert kwargs.get("cols") == 15
+
 
 class TestBuildWelcomeTemplate:
     """Unit tests for _build_welcome_template helper."""
@@ -480,6 +558,38 @@ class TestBuildWelcomeTemplate:
         template = _build_welcome_template("unknown", "")
         assert len(template) == 6
         assert template[2] == "HIYA FROM FIESTABOARD"
+
+    def test_note_array_2wide_template_has_3_rows(self):
+        """note_array 2-wide (3×30) template has exactly 3 rows."""
+        from src.api_server import _build_welcome_template
+
+        template = _build_welcome_template("note_array", "", notes_wide=2, notes_tall=1)
+        assert len(template) == 3
+
+    def test_note_array_2wide_template_center_fits_cols(self):
+        """note_array 2-wide center row contains the custom message and fits ≤30 chars."""
+        from src.api_server import _build_welcome_template
+
+        template = _build_welcome_template("note_array", "HI", notes_wide=2, notes_tall=1)
+        # center row is at index dims.rows // 2 = 1
+        center_row = template[1]
+        assert center_row == "HI"
+        assert len(center_row) <= 30
+
+    def test_note_array_2tall_template_has_6_rows(self):
+        """note_array 2-tall (6×15) template has exactly 6 rows."""
+        from src.api_server import _build_welcome_template
+
+        template = _build_welcome_template("note_array", "", notes_wide=1, notes_tall=2)
+        assert len(template) == 6
+
+    def test_note_array_custom_msg_truncated_to_cols(self):
+        """note_array 2-wide truncates custom message to 30 chars."""
+        from src.api_server import _build_welcome_template
+
+        template = _build_welcome_template("note_array", "a" * 50, notes_wide=2, notes_tall=1)
+        center_row = template[1]
+        assert len(center_row) == 30
 
 
 # ===========================================================================

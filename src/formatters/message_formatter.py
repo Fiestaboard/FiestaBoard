@@ -16,13 +16,24 @@ logger = logging.getLogger(__name__)
 
 
 class MessageFormatter:
-    """Formats data for board 6x22 character grid."""
+    """Formats data for a configurable board character grid.
+
+    Class-level MAX_ROWS/MAX_COLS remain for backward compatibility.
+    Instance-level _rows/_cols reflect the target board's actual dimensions.
+    """
 
     MAX_ROWS = 6
     MAX_COLS = 22
 
-    def __init__(self):
-        """Initialize message formatter."""
+    def __init__(self, rows: int = 6, cols: int = 22) -> None:
+        """Initialize message formatter.
+
+        Args:
+            rows: Number of rows for the target board (default 6 for flagship).
+            cols: Number of columns for the target board (default 22 for flagship).
+        """
+        self._rows = rows
+        self._cols = cols
 
     def format_weather(self, weather_data: dict) -> str:
         """
@@ -72,7 +83,7 @@ class MessageFormatter:
             lines.append(" | ".join(info_parts))
 
         # Ensure we don't exceed 6 rows
-        return "\n".join(lines[: self.MAX_ROWS])
+        return "\n".join(lines[: self._rows])
 
     def format_datetime(self, datetime_data: dict) -> str:
         """
@@ -106,7 +117,7 @@ class MessageFormatter:
             else:
                 lines.append(time_str)
 
-        return "\n".join(lines[: self.MAX_ROWS])
+        return "\n".join(lines[: self._rows])
 
     def format_guest_wifi(self, ssid: str, password: str) -> str:
         """
@@ -132,14 +143,14 @@ class MessageFormatter:
 
         # SSID with blue tile indicator
         ssid_line = f"{{{{blue}}}} {ssid}"
-        lines.append(ssid_line[: self.MAX_COLS + 8])  # +8 for {{blue}} marker
+        lines.append(ssid_line[: self._cols + 8])  # +8 for {{blue}} marker
 
         # Password with violet tile indicator
         pass_line = f"{{{{violet}}}} {password}"
-        lines.append(pass_line[: self.MAX_COLS + 10])  # +10 for {{violet}} marker
+        lines.append(pass_line[: self._cols + 10])  # +10 for {{violet}} marker
 
         # Ensure we don't exceed 6 rows
-        return "\n".join(lines[: self.MAX_ROWS])
+        return "\n".join(lines[: self._rows])
 
     def format_star_trek_quote(self, quote_data: dict) -> str:
         """
@@ -177,20 +188,20 @@ class MessageFormatter:
         lines.extend(quote_lines)
 
         # Add separator if we have room
-        if len(lines) < self.MAX_ROWS - 1:
+        if len(lines) < self._rows - 1:
             lines.append("")
 
         # Add attribution with series color tile if we have room
-        if len(lines) < self.MAX_ROWS:
-            if series_color and len(lines) < self.MAX_ROWS - 1:
+        if len(lines) < self._rows:
+            if series_color and len(lines) < self._rows - 1:
                 # Room for character line and series line with color
-                lines.append(f"- {character}"[: self.MAX_COLS])
-                lines.append(f"{series_color} {series_display}"[: self.MAX_COLS + 8])
+                lines.append(f"- {character}"[: self._cols])
+                lines.append(f"{series_color} {series_display}"[: self._cols + 8])
             else:
                 # Combine into one line
-                lines.append(f"- {character} ({series_display})"[: self.MAX_COLS])
+                lines.append(f"- {character} ({series_display})"[: self._cols])
 
-        return "\n".join(lines[: self.MAX_ROWS])
+        return "\n".join(lines[: self._rows])
 
     def format_house_status(self, status_data: dict[str, dict]) -> str:
         """
@@ -215,7 +226,7 @@ class MessageFormatter:
 
         # Process each entity
         for name, info in status_data.items():
-            if len(lines) >= self.MAX_ROWS:
+            if len(lines) >= self._rows:
                 break
 
             state = info.get("state", "unknown").lower()
@@ -246,13 +257,13 @@ class MessageFormatter:
 
             # Format: "{color} Name: status"
             # Account for color marker length when truncating
-            max_name_len = self.MAX_COLS - len(f" : {status_text}") - 1  # -1 for indicator tile
+            max_name_len = self._cols - len(f" : {status_text}") - 1  # -1 for indicator tile
             display_name = name[:max_name_len] if len(name) > max_name_len else name
 
             line = f"{indicator} {display_name}: {status_text}"
             lines.append(line)
 
-        return "\n".join(lines[: self.MAX_ROWS])
+        return "\n".join(lines[: self._rows])
 
     def format_combined(self, weather_data: dict | None, datetime_data: dict | None) -> str:
         """
@@ -290,7 +301,7 @@ class MessageFormatter:
                 lines.append(time_str)
 
             # Add separator if we have weather
-            if weather_data and len(lines) < self.MAX_ROWS:
+            if weather_data and len(lines) < self._rows:
                 lines.append("")
 
         # Weather information
@@ -308,16 +319,16 @@ class MessageFormatter:
             temp_color = self._get_temp_color(temp)
 
             # Compact format to fit
-            if len(lines) + 2 <= self.MAX_ROWS:
+            if len(lines) + 2 <= self._rows:
                 lines.append(f"{location}: {symbol} {condition_display}")
                 # Temperature with color tile indicator before the number
                 lines.append(f"Temp: {temp_color} {temp}F")
-            elif len(lines) + 1 <= self.MAX_ROWS:
+            elif len(lines) + 1 <= self._rows:
                 # Very compact - color tile before temp
                 lines.append(f"{location}: {temp_color} {temp}F")
 
         # Ensure we don't exceed 6 rows
-        result = "\n".join(lines[: self.MAX_ROWS])
+        result = "\n".join(lines[: self._rows])
 
         # Truncate each line to 22 characters if needed (accounting for color markers)
         result_lines = result.split("\n")
@@ -369,12 +380,12 @@ class MessageFormatter:
 
         for line in lines[:max_lines]:
             # If line is too long, try to split on spaces
-            if len(line) > self.MAX_COLS:
+            if len(line) > self._cols:
                 words = line.split()
                 current_line = ""
 
                 for word in words:
-                    if len(current_line) + len(word) + 1 <= self.MAX_COLS:
+                    if len(current_line) + len(word) + 1 <= self._cols:
                         if current_line:
                             current_line += " " + word
                         else:
@@ -427,7 +438,7 @@ class MessageFormatter:
 
         # Stop name (if available and fits)
         if stop_name:
-            lines.append(stop_name[: self.MAX_COLS])
+            lines.append(stop_name[: self._cols])
 
         # Format arrival times
         if arrivals:
@@ -455,15 +466,15 @@ class MessageFormatter:
             if is_delayed:
                 arrival_line = f"{{{{red}}}}{arrival_line}"
 
-            lines.append(arrival_line[: self.MAX_COLS + 10])  # Account for color markers
+            lines.append(arrival_line[: self._cols + 10])  # Account for color markers
         else:
             lines.append(f"{line}: No arrivals")
 
         # Add delay description if present
-        if delay_description and len(lines) < self.MAX_ROWS:
-            lines.append(delay_description[: self.MAX_COLS])
+        if delay_description and len(lines) < self._rows:
+            lines.append(delay_description[: self._cols])
 
-        return "\n".join(lines[: self.MAX_ROWS])
+        return "\n".join(lines[: self._rows])
 
     def format_stocks(self, stocks_data: dict) -> str:
         """
@@ -491,9 +502,14 @@ class MessageFormatter:
                 lines.append(formatted)
 
         # Ensure we don't exceed 6 rows
-        return "\n".join(lines[: self.MAX_ROWS])
+        return "\n".join(lines[: self._rows])
 
 
-def get_message_formatter() -> MessageFormatter:
-    """Get message formatter instance."""
-    return MessageFormatter()
+def get_message_formatter(rows: int = 6, cols: int = 22) -> MessageFormatter:
+    """Get message formatter instance sized for a specific board.
+
+    Args:
+        rows: Number of rows for the target board (default 6 for flagship).
+        cols: Number of columns for the target board (default 22 for flagship).
+    """
+    return MessageFormatter(rows=rows, cols=cols)

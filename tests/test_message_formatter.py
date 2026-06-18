@@ -418,3 +418,78 @@ class TestFormatCombined:
 def test_get_message_formatter_returns_instance():
     instance = get_message_formatter()
     assert isinstance(instance, MessageFormatter)
+
+
+# ---------------------------------------------------------------------------
+# Per-instance dimensions (issue #1171)
+# ---------------------------------------------------------------------------
+
+
+class TestMessageFormatterDimensions:
+    def test_init_flagship_defaults(self):
+        """Default constructor produces 6×22 instance."""
+        fmt = MessageFormatter()
+        assert fmt._rows == 6
+        assert fmt._cols == 22
+
+    def test_init_note_dimensions(self):
+        """Note-sized constructor produces 3×15 instance."""
+        fmt = MessageFormatter(rows=3, cols=15)
+        assert fmt._rows == 3
+        assert fmt._cols == 15
+
+    def test_class_constants_unchanged(self):
+        """Class-level MAX_ROWS/MAX_COLS must remain 6/22 for backward compat."""
+        assert MessageFormatter.MAX_ROWS == 6
+        assert MessageFormatter.MAX_COLS == 22
+
+    def test_format_weather_note_truncates_at_3_rows(self):
+        """Note-sized formatter produces ≤3 rows for weather with many items."""
+        fmt = MessageFormatter(rows=3, cols=15)
+        data = {
+            "location": "SF",
+            "condition": "Sunny",
+            "temperature": 72,
+            "feels_like": 65,
+            "humidity": 60,
+            "wind_mph": 10,
+        }
+        result = fmt.format_weather(data)
+        assert len(result.split("\n")) <= 3
+
+    def test_format_weather_flagship_unchanged(self):
+        """Flagship formatter output is identical whether constructed explicitly or by default."""
+        data = {
+            "location": "SF",
+            "condition": "Sunny",
+            "temperature": 72,
+            "feels_like": 72,
+            "humidity": 60,
+            "wind_mph": 10,
+        }
+        default_result = MessageFormatter().format_weather(data)
+        explicit_result = MessageFormatter(rows=6, cols=22).format_weather(data)
+        assert default_result == explicit_result
+
+    def test_split_into_lines_note_cols_wraps_at_15(self):
+        """Note-sized formatter wraps each line at 15 characters."""
+        fmt = MessageFormatter(rows=3, cols=15)
+        long_text = "This is a long sentence that needs wrapping"
+        lines = fmt.split_into_lines(long_text)
+        for line in lines:
+            assert len(line) <= 15
+
+    def test_split_into_lines_note_array_wide(self):
+        """Wide note-array formatter wraps each line at 30 characters."""
+        fmt = MessageFormatter(rows=3, cols=30)
+        long_text = "This is a sentence that is longer than thirty characters total"
+        lines = fmt.split_into_lines(long_text)
+        for line in lines:
+            assert len(line) <= 30
+
+    def test_get_message_formatter_custom_dims(self):
+        """get_message_formatter factory passes rows/cols to instance."""
+        fmt = get_message_formatter(rows=3, cols=15)
+        assert isinstance(fmt, MessageFormatter)
+        assert fmt._rows == 3
+        assert fmt._cols == 15
