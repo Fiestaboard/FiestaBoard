@@ -7,9 +7,9 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Literal, NamedTuple
 
-DeviceType = Literal["flagship", "note"]
+DeviceType = Literal["flagship", "note", "note_array"]
 
-DEVICE_TYPES = ("flagship", "note")
+DEVICE_TYPES = ("flagship", "note", "note_array")
 
 
 class DeviceDimensions(NamedTuple):
@@ -25,6 +25,19 @@ DEVICE_DIMENSIONS: dict[str, DeviceDimensions] = {
     "note": DeviceDimensions(rows=3, cols=15),
 }
 
+
+# Note-array unit size and guardrail
+NOTE_ROWS: int = 3
+NOTE_COLS: int = 15
+MAX_NOTES_PER_AXIS: int = 8
+
+NOTE_ARRAY_PRESETS: list[dict] = [
+    {"id": "2_wide",   "label": "2 side-by-side",  "notes_wide": 2, "notes_tall": 1},  # → 3 rows × 30 cols
+    {"id": "4_wide",   "label": "4 side-by-side",  "notes_wide": 4, "notes_tall": 1},  # → 3 rows × 60 cols
+    {"id": "2_tall",   "label": "2 stacked",        "notes_wide": 1, "notes_tall": 2},  # → 6 rows × 15 cols
+    {"id": "4_tall",   "label": "4 stacked",        "notes_wide": 1, "notes_tall": 4},  # → 12 rows × 15 cols
+    {"id": "2x2_grid", "label": "2×2 grid",         "notes_wide": 2, "notes_tall": 2},  # → 6 rows × 30 cols
+]
 
 VALID_API_MODES = ("local", "cloud")
 
@@ -56,6 +69,8 @@ class BoardInstance:
     port: int = 7000  # Local API port (default Vestaboard); used for multi-board mock e2e
     local_api_key: str = ""
     cloud_key: str = ""
+    notes_wide: int = 1
+    notes_tall: int = 1
 
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
@@ -70,6 +85,15 @@ class BoardInstance:
             self.paused = bool(self.paused)
         if not self.name:
             self.name = "My Board"
+        # Normalize notes_wide / notes_tall: must be positive ints, clamped to MAX_NOTES_PER_AXIS
+        if not isinstance(self.notes_wide, int) or self.notes_wide < 1:
+            self.notes_wide = 1
+        if self.notes_wide > MAX_NOTES_PER_AXIS:
+            self.notes_wide = MAX_NOTES_PER_AXIS
+        if not isinstance(self.notes_tall, int) or self.notes_tall < 1:
+            self.notes_tall = 1
+        if self.notes_tall > MAX_NOTES_PER_AXIS:
+            self.notes_tall = MAX_NOTES_PER_AXIS
 
     @property
     def is_connection_configured(self) -> bool:
@@ -101,6 +125,8 @@ class BoardInstance:
             port=port if port is not None else 7000,
             local_api_key=data.get("local_api_key", ""),
             cloud_key=data.get("cloud_key", ""),
+            notes_wide=data.get("notes_wide", 1),
+            notes_tall=data.get("notes_tall", 1),
         )
 
 
@@ -119,6 +145,54 @@ def get_dimensions(device_type: str) -> DeviceDimensions:
     if device_type not in DEVICE_DIMENSIONS:
         raise ValueError(f"Unknown device type: {device_type}. Must be one of {DEVICE_TYPES}")
     return DEVICE_DIMENSIONS[device_type]
+
+
+def note_array_dimensions(notes_wide: int, notes_tall: int) -> DeviceDimensions:
+    """Return dimensions for a note array grid.
+
+    Does NOT validate inputs — call is_valid_note_array_grid separately if needed.
+    """
+    return DeviceDimensions(rows=notes_tall * NOTE_ROWS, cols=notes_wide * NOTE_COLS)
+
+
+def is_note_array(device_type: str) -> bool:
+    """Return True if device_type is 'note_array'."""
+    return device_type == "note_array"
+
+
+def is_valid_note_array_grid(rows: int, cols: int) -> bool:
+    """Return True if (rows, cols) is a valid note-array size.
+
+    Valid means:
+      - rows > 0 and cols > 0
+      - rows is a multiple of NOTE_ROWS (3)
+      - cols is a multiple of NOTE_COLS (15)
+      - notes_tall = rows // NOTE_ROWS <= MAX_NOTES_PER_AXIS
+      - notes_wide = cols // NOTE_COLS <= MAX_NOTES_PER_AXIS
+    """
+    if rows <= 0 or cols <= 0:
+        return False
+    if rows % NOTE_ROWS != 0 or cols % NOTE_COLS != 0:
+        return False
+    return (rows // NOTE_ROWS) <= MAX_NOTES_PER_AXIS and (cols // NOTE_COLS) <= MAX_NOTES_PER_AXIS
+
+
+def resolve_dimensions(
+    device_type: str,
+    notes_wide: int = 1,
+    notes_tall: int = 1,
+) -> DeviceDimensions:
+    """Resolve board dimensions for any device type.
+
+    For 'flagship' and 'note': looks up DEVICE_DIMENSIONS (notes_wide/notes_tall ignored).
+    For 'note_array': computes from notes_wide × notes_tall using NOTE_ROWS/NOTE_COLS.
+    Raises ValueError for unknown device types.
+    """
+    if device_type in DEVICE_DIMENSIONS:
+        return DEVICE_DIMENSIONS[device_type]
+    if device_type == "note_array":
+        return note_array_dimensions(notes_wide, notes_tall)
+    raise ValueError(f"Unknown device type: {device_type}. Must be one of {DEVICE_TYPES}")
 
 
 # Default device type for backward compatibility

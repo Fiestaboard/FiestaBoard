@@ -5,10 +5,18 @@ import pytest
 from src.devices import (
     DEVICE_DIMENSIONS,
     DEVICE_TYPES,
+    MAX_NOTES_PER_AXIS,
+    NOTE_ARRAY_PRESETS,
+    NOTE_COLS,
+    NOTE_ROWS,
     VALID_API_MODES,
     BoardInstance,
     DeviceDimensions,
     get_dimensions,
+    is_note_array,
+    is_valid_note_array_grid,
+    note_array_dimensions,
+    resolve_dimensions,
 )
 
 
@@ -51,10 +59,11 @@ class TestDeviceConstants:
     """Tests for DEVICE_TYPES and VALID_API_MODES constants."""
 
     def test_device_types(self):
-        """DEVICE_TYPES contains flagship and note."""
-        assert DEVICE_TYPES == ("flagship", "note")
+        """DEVICE_TYPES contains flagship, note, and note_array."""
+        assert DEVICE_TYPES == ("flagship", "note", "note_array")
         assert "flagship" in DEVICE_TYPES
         assert "note" in DEVICE_TYPES
+        assert "note_array" in DEVICE_TYPES
 
     def test_valid_api_modes(self):
         """VALID_API_MODES contains local and cloud."""
@@ -266,3 +275,226 @@ class TestBoardInstanceToDict:
         data = {"port": None}
         board = BoardInstance.from_dict(data)
         assert board.port == 7000
+
+
+class TestNoteArrayConstants:
+    """Tests for NOTE_ROWS, NOTE_COLS, MAX_NOTES_PER_AXIS constants."""
+
+    def test_note_rows_value(self):
+        assert NOTE_ROWS == 3
+
+    def test_note_cols_value(self):
+        assert NOTE_COLS == 15
+
+    def test_max_notes_per_axis_value(self):
+        assert MAX_NOTES_PER_AXIS == 8
+
+
+class TestNoteArrayDimensions:
+    """Tests for note_array_dimensions function."""
+
+    def test_2_side_by_side(self):
+        """2 wide × 1 tall → 3 rows, 30 cols."""
+        assert note_array_dimensions(2, 1) == DeviceDimensions(rows=3, cols=30)
+
+    def test_4_side_by_side(self):
+        """4 wide × 1 tall → 3 rows, 60 cols."""
+        assert note_array_dimensions(4, 1) == DeviceDimensions(rows=3, cols=60)
+
+    def test_2_stacked(self):
+        """1 wide × 2 tall → 6 rows, 15 cols."""
+        assert note_array_dimensions(1, 2) == DeviceDimensions(rows=6, cols=15)
+
+    def test_4_stacked(self):
+        """1 wide × 4 tall → 12 rows, 15 cols."""
+        assert note_array_dimensions(1, 4) == DeviceDimensions(rows=12, cols=15)
+
+    def test_2x2_grid(self):
+        """2 wide × 2 tall → 6 rows, 30 cols."""
+        assert note_array_dimensions(2, 2) == DeviceDimensions(rows=6, cols=30)
+
+    def test_custom_3x3(self):
+        """3 wide × 3 tall → 9 rows, 45 cols."""
+        assert note_array_dimensions(3, 3) == DeviceDimensions(rows=9, cols=45)
+
+
+class TestNoteArrayPresets:
+    """Tests for NOTE_ARRAY_PRESETS list."""
+
+    def test_preset_count(self):
+        """Exactly 5 presets defined."""
+        assert len(NOTE_ARRAY_PRESETS) == 5
+
+    def test_preset_ids_unique(self):
+        ids = [p["id"] for p in NOTE_ARRAY_PRESETS]
+        assert len(ids) == len(set(ids))
+
+    def test_preset_dimensions(self):
+        """Each preset produces the documented dimensions."""
+        expected = [
+            ("2_wide",   DeviceDimensions(3,  30)),
+            ("4_wide",   DeviceDimensions(3,  60)),
+            ("2_tall",   DeviceDimensions(6,  15)),
+            ("4_tall",   DeviceDimensions(12, 15)),
+            ("2x2_grid", DeviceDimensions(6,  30)),
+        ]
+        by_id = {p["id"]: p for p in NOTE_ARRAY_PRESETS}
+        for preset_id, expected_dims in expected:
+            p = by_id[preset_id]
+            assert note_array_dimensions(p["notes_wide"], p["notes_tall"]) == expected_dims, preset_id
+
+    def test_presets_have_required_keys(self):
+        for p in NOTE_ARRAY_PRESETS:
+            assert "id" in p
+            assert "label" in p
+            assert "notes_wide" in p
+            assert "notes_tall" in p
+
+
+class TestIsNoteArray:
+    """Tests for is_note_array function."""
+
+    def test_note_array_returns_true(self):
+        assert is_note_array("note_array") is True
+
+    def test_flagship_returns_false(self):
+        assert is_note_array("flagship") is False
+
+    def test_note_returns_false(self):
+        assert is_note_array("note") is False
+
+    def test_empty_returns_false(self):
+        assert is_note_array("") is False
+
+
+class TestIsValidNoteArrayGrid:
+    """Tests for is_valid_note_array_grid function."""
+
+    def test_valid_2x1_array(self):
+        """3 rows × 30 cols (2 wide × 1 tall) is valid."""
+        assert is_valid_note_array_grid(3, 30) is True
+
+    def test_valid_4x1_array(self):
+        """3 rows × 60 cols is valid."""
+        assert is_valid_note_array_grid(3, 60) is True
+
+    def test_valid_1x4_array(self):
+        """12 rows × 15 cols is valid."""
+        assert is_valid_note_array_grid(12, 15) is True
+
+    def test_valid_2x2_grid(self):
+        """6 rows × 30 cols is valid."""
+        assert is_valid_note_array_grid(6, 30) is True
+
+    def test_flagship_dimensions_are_invalid(self):
+        """6×22 flagship dims are not a valid note-array size (22 % 15 != 0)."""
+        assert is_valid_note_array_grid(6, 22) is False
+
+    def test_non_multiple_rows_invalid(self):
+        """7 rows is not a multiple of 3."""
+        assert is_valid_note_array_grid(7, 15) is False
+
+    def test_non_multiple_cols_invalid(self):
+        """16 cols is not a multiple of 15."""
+        assert is_valid_note_array_grid(3, 16) is False
+
+    def test_zero_rows_invalid(self):
+        assert is_valid_note_array_grid(0, 15) is False
+
+    def test_zero_cols_invalid(self):
+        assert is_valid_note_array_grid(3, 0) is False
+
+    def test_negative_values_invalid(self):
+        assert is_valid_note_array_grid(-3, 15) is False
+
+    def test_over_cap_rows_invalid(self):
+        """9 notes tall (27 rows) exceeds MAX_NOTES_PER_AXIS=8."""
+        assert is_valid_note_array_grid(27, 15) is False
+
+    def test_over_cap_cols_invalid(self):
+        """9 notes wide (135 cols) exceeds MAX_NOTES_PER_AXIS=8."""
+        assert is_valid_note_array_grid(3, 135) is False
+
+    def test_at_cap_is_valid(self):
+        """8 notes wide, 8 notes tall is exactly at the cap."""
+        assert is_valid_note_array_grid(24, 120) is True
+
+
+class TestResolveDimensions:
+    """Tests for resolve_dimensions function."""
+
+    def test_flagship(self):
+        assert resolve_dimensions("flagship") == DeviceDimensions(6, 22)
+
+    def test_note(self):
+        assert resolve_dimensions("note") == DeviceDimensions(3, 15)
+
+    def test_note_array_4x1(self):
+        """resolve_dimensions('note_array', 4, 1) → rows=3, cols=60."""
+        assert resolve_dimensions("note_array", 4, 1) == DeviceDimensions(rows=3, cols=60)
+
+    def test_note_array_2x2(self):
+        assert resolve_dimensions("note_array", 2, 2) == DeviceDimensions(rows=6, cols=30)
+
+    def test_note_array_defaults_1x1(self):
+        """Default notes_wide=1, notes_tall=1 → 3×15."""
+        assert resolve_dimensions("note_array") == DeviceDimensions(rows=3, cols=15)
+
+    def test_unknown_type_raises(self):
+        with pytest.raises(ValueError, match="Unknown device type: invalid"):
+            resolve_dimensions("invalid")
+
+    def test_flagship_ignores_notes_args(self):
+        """notes_wide/notes_tall are ignored for static types."""
+        assert resolve_dimensions("flagship", notes_wide=4, notes_tall=4) == DeviceDimensions(6, 22)
+
+
+class TestBoardInstanceNotesFields:
+    """Tests for notes_wide and notes_tall fields on BoardInstance."""
+
+    def test_default_notes_wide_and_tall(self):
+        board = BoardInstance()
+        assert board.notes_wide == 1
+        assert board.notes_tall == 1
+
+    def test_valid_notes_wide_set(self):
+        board = BoardInstance(notes_wide=4, notes_tall=2)
+        assert board.notes_wide == 4
+        assert board.notes_tall == 2
+
+    def test_notes_wide_zero_clamped_to_1(self):
+        board = BoardInstance(notes_wide=0)
+        assert board.notes_wide == 1
+
+    def test_notes_tall_negative_clamped_to_1(self):
+        board = BoardInstance(notes_tall=-1)
+        assert board.notes_tall == 1
+
+    def test_notes_wide_over_cap_clamped(self):
+        board = BoardInstance(notes_wide=MAX_NOTES_PER_AXIS + 1)
+        assert board.notes_wide == MAX_NOTES_PER_AXIS
+
+    def test_notes_tall_over_cap_clamped(self):
+        board = BoardInstance(notes_tall=MAX_NOTES_PER_AXIS + 1)
+        assert board.notes_tall == MAX_NOTES_PER_AXIS
+
+    def test_notes_round_trip_via_to_dict_from_dict(self):
+        original = BoardInstance(device_type="note_array", notes_wide=3, notes_tall=2)
+        data = original.to_dict()
+        assert data["notes_wide"] == 3
+        assert data["notes_tall"] == 2
+        restored = BoardInstance.from_dict(data)
+        assert restored.notes_wide == 3
+        assert restored.notes_tall == 2
+
+    def test_from_dict_missing_notes_fields_default_to_1(self):
+        """Old JSON without notes fields loads cleanly (migration check)."""
+        data = {"id": "x", "device_type": "flagship"}
+        board = BoardInstance.from_dict(data)
+        assert board.notes_wide == 1
+        assert board.notes_tall == 1
+
+    def test_note_array_device_type_accepted(self):
+        """'note_array' is now a valid device_type — not normalized to 'flagship'."""
+        board = BoardInstance(device_type="note_array")
+        assert board.device_type == "note_array"
