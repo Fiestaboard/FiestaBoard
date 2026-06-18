@@ -8,8 +8,11 @@ name: 'Claude: Issue Triage'
 #   3. Docs cron: any issue that gets the `docs-audit` label applied
 #      (filed by claude-docs-audit.yml; the bot-authored issues don't
 #      satisfy gate #1, and we want them auto-triaged anyway)
+#   4. A11y cron: any issue that gets the `a11y-audit` label applied
+#      (filed by claude-a11y-audit.yml / claude-a11y-live-axe.yml; same
+#      bot-author reasoning as #3 — these become `a11y/issue-*` fix PRs)
 #
-# This triple gate keeps drive-by issues from public reporters out of the
+# These gates keep drive-by issues from public reporters out of the
 # auto-run path while still letting you (or any maintainer) opt one in by
 # adding the label, and letting the docs-audit cron close its own loop.
 #
@@ -43,7 +46,8 @@ jobs:
         )) ||
         (github.event.action == 'labeled' && (
           github.event.label.name == 'claude-fix' ||
-          github.event.label.name == 'docs-audit'
+          github.event.label.name == 'docs-audit' ||
+          github.event.label.name == 'a11y-audit'
         ))
       )
     runs-on: ubuntu-latest
@@ -133,6 +137,18 @@ jobs:
                  **ready-for-review** — use `gh pr create` with NO
                  `--draft` flag — so the docs auto-review workflow fires
                  and the PR lands in the maintainer's normal review queue.
+               - For a11y-flavored issues (labels include `a11y` or
+                 `a11y-audit`): branch
+                 `a11y/issue-${{ github.event.issue.number }}-<short-slug>`,
+                 title prefix `fix(a11y):` (no `[Claude first-pass]` prefix).
+                 Open **ready-for-review** — `gh pr create` with NO `--draft`
+                 flag — so the a11y auto-review workflow
+                 (`claude-a11y-audit-review.yml`) fires. These are code
+                 fixes: add or update a test when practical, keep
+                 `web/tests/a11y.spec.ts` green, and route every new
+                 user-facing string (including `aria-label`) through
+                 `next-intl` (`web/messages/en.json` + the 13 sibling
+                 locales) — never a hardcoded English literal in JSX.
                - For everything else: branch
                  `claude/issue-${{ github.event.issue.number }}`, title
                  `[Claude first-pass] <short summary>`. Open as a draft
@@ -159,6 +175,24 @@ jobs:
               - Canonical README / SETUP section orders for plugin docs
                 (see `CLAUDE.md` and the existing `plugins/date_time/`,
                 `plugins/random/` docs as voice references)
+
+            ## A11y issues — conventions
+
+            If the issue labels include `a11y` or `a11y-audit`, you are
+            shipping an accessibility fix. Before editing, read
+            `.claude/agents/a11y-engineer.md` and apply its rules:
+              - Prefer semantic HTML over ARIA (`<button>` over
+                `<div role="button">`); use the Radix/shadcn primitives in
+                `web/src/components/ui/` rather than re-implementing keyboard
+                and focus behavior
+              - Every new user-facing string (including `aria-label`, `title`,
+                `alt`) goes through `next-intl` — add the key to
+                `web/messages/en.json`; never ship an English literal in JSX
+              - WCAG 2.2 AA is the bar; don't roll AAA-tier changes into the fix
+              - `web/tests/a11y.spec.ts` must still pass — run the web tests
+                before opening the PR
+              - Scope tightly to the reported finding; cite the WCAG criterion
+                in the PR body
 
             If you finish without opening a PR, leave a comment on the issue
             summarizing what you found and why no PR was opened.
