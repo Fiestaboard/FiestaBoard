@@ -12,14 +12,21 @@ import { server } from "./mocks/server";
 const API_BASE = "/api";
 import { ActivePageDisplay } from "@/components/active-page-display";
 
-const mockPush = vi.fn();
 vi.mock("@/hooks/use-router", () => ({
   useRouter: () => ({
-    push: mockPush,
+    push: vi.fn(),
     replace: vi.fn(),
     prefetch: vi.fn(),
     back: vi.fn(),
   }),
+}));
+
+vi.mock("@/components/smart-link", () => ({
+  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
@@ -108,7 +115,10 @@ describe("ActivePageDisplay", () => {
     });
   });
 
-  it("shows View Schedule button when schedule is enabled", async () => {
+  it("renders View Schedule as a link (not a button) when schedule is enabled", async () => {
+    // Regression: navigation actions must be <a href> so screen reader users
+    // hear "link" (navigation) rather than "button" (in-page action).
+    // See issue #1197 / WCAG 2.4.4.
     server.use(
       http.get(`${API_BASE}/schedules/active/page`, () =>
         HttpResponse.json({
@@ -122,14 +132,36 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      const viewScheduleBtn = screen.getByRole("button", { name: /View Schedule/i });
-      expect(viewScheduleBtn).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /View Schedule/i })).toBeInTheDocument();
     });
 
-    const viewScheduleBtn = screen.getByRole("button", { name: /View Schedule/i });
-    await userEvent.click(viewScheduleBtn);
+    const viewScheduleLink = screen.getByRole("link", { name: /View Schedule/i });
+    expect(viewScheduleLink).toHaveAttribute("href", "/schedule");
+    // It must NOT be exposed to assistive tech as a button.
+    expect(screen.queryByRole("button", { name: /View Schedule/i })).not.toBeInTheDocument();
+  });
 
-    expect(mockPush).toHaveBeenCalledWith("/schedule");
+  it("renders schedule gap link as a link (not a button)", async () => {
+    // Regression: the "Schedule settings" affordance inside the schedule-gap
+    // warning navigates to /schedule, so it must be an anchor too. See #1197.
+    server.use(
+      http.get(`${API_BASE}/schedules/active/page`, () =>
+        HttpResponse.json({
+          page_id: null,
+          source: "schedule",
+          schedule_enabled: true,
+        }),
+      ),
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /Schedule settings/i })).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("link", { name: /Schedule settings/i })).toHaveAttribute("href", "/schedule");
+    expect(screen.queryByRole("button", { name: /Schedule settings/i })).not.toBeInTheDocument();
   });
 
   it("derives schedule mode from active schedule endpoint without fetching full schedule list", async () => {
@@ -151,7 +183,7 @@ describe("ActivePageDisplay", () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /View Schedule/i })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /View Schedule/i })).toBeInTheDocument();
     });
   });
 
