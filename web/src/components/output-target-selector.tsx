@@ -97,6 +97,7 @@ export function OutputTargetSelector() {
               key={option.value}
               onClick={() => updateMutation.mutate(option.value)}
               disabled={updateMutation.isPending}
+              aria-pressed={isActive}
               className={`w-full p-4 rounded-lg border-2 text-left transition-all active:scale-[0.98] min-h-[64px] ${
                 isActive ? "border-brand bg-brand/5" : "border-muted hover:border-brand/50 active:bg-muted/50"
               }`}
