@@ -71,10 +71,11 @@ class TestDeviceConstants:
         assert "note_array" in DEVICE_TYPES
 
     def test_valid_api_modes(self):
-        """VALID_API_MODES contains local and cloud."""
+        """VALID_API_MODES contains only local and cloud (no note_array entry)."""
         assert VALID_API_MODES == ("local", "cloud")
         assert "local" in VALID_API_MODES
         assert "cloud" in VALID_API_MODES
+        assert "note_array" not in VALID_API_MODES
 
 
 class TestBoardInstanceDefaults:
@@ -192,6 +193,40 @@ class TestBoardInstanceConnectionConfigured:
         )
         assert board.is_connection_configured is False
 
+    def test_note_array_configured_with_token_and_valid_wh(self):
+        """Note-array board with token and valid W×H is configured."""
+        board = BoardInstance(device_type="note_array", note_array_token="tok-abc", notes_wide=2, notes_tall=1)
+        assert board.is_connection_configured is True
+
+    def test_note_array_not_configured_missing_token(self):
+        """Note-array board without token is not configured."""
+        board = BoardInstance(device_type="note_array", note_array_token="", notes_wide=2, notes_tall=1)
+        assert board.is_connection_configured is False
+
+    def test_note_array_not_configured_empty_token_even_with_cloud_key(self):
+        """cloud_key is irrelevant for note_array boards — token is required."""
+        board = BoardInstance(
+            device_type="note_array", note_array_token="", cloud_key="cloud-k", notes_wide=2, notes_tall=1
+        )
+        assert board.is_connection_configured is False
+
+    def test_note_array_token_does_not_affect_flagship_configured_check(self):
+        """Flagship board with note_array_token set but no local creds is still not configured."""
+        board = BoardInstance(
+            device_type="flagship", note_array_token="tok-abc", api_mode="local", local_api_key="", host=""
+        )
+        assert board.is_connection_configured is False
+
+    def test_cloud_mode_flagship_still_works_unchanged(self):
+        """Cloud mode flagship with cloud_key is configured (unchanged behaviour)."""
+        board = BoardInstance(device_type="flagship", api_mode="cloud", cloud_key="ck-xyz")
+        assert board.is_connection_configured is True
+
+    def test_local_mode_flagship_still_works_unchanged(self):
+        """Local mode flagship with key+host is configured (unchanged behaviour)."""
+        board = BoardInstance(api_mode="local", local_api_key="lk", host="192.168.1.1")
+        assert board.is_connection_configured is True
+
 
 class TestBoardInstanceToDict:
     """Tests for BoardInstance to_dict and from_dict."""
@@ -280,6 +315,54 @@ class TestBoardInstanceToDict:
         data = {"port": None}
         board = BoardInstance.from_dict(data)
         assert board.port == 7000
+
+
+class TestNoteArrayToken:
+    """Tests for the note_array_token field on BoardInstance."""
+
+    def test_note_array_token_default_is_empty_string(self):
+        """BoardInstance() initialises note_array_token to an empty string."""
+        board = BoardInstance()
+        assert board.note_array_token == ""
+
+    def test_note_array_token_explicit_value_preserved(self):
+        """An explicit note_array_token is stored unchanged."""
+        board = BoardInstance(note_array_token="tok-abc123")
+        assert board.note_array_token == "tok-abc123"
+
+    def test_note_array_token_round_trip_to_dict_from_dict(self):
+        """note_array_token survives a to_dict/from_dict round-trip."""
+        original = BoardInstance(device_type="note_array", note_array_token="tok-xyz", notes_wide=2, notes_tall=1)
+        data = original.to_dict()
+        assert data["note_array_token"] == "tok-xyz"
+        restored = BoardInstance.from_dict(data)
+        assert restored.note_array_token == "tok-xyz"
+
+    def test_note_array_token_absent_from_old_json_defaults_to_empty(self):
+        """Old JSON without note_array_token key loads with empty string default."""
+        data = {"id": "x", "device_type": "note_array", "notes_wide": 2, "notes_tall": 1}
+        board = BoardInstance.from_dict(data)
+        assert board.note_array_token == ""
+
+    def test_flagship_board_has_note_array_token_field(self):
+        """The note_array_token field exists on non-note-array boards too (dataclass symmetry)."""
+        board = BoardInstance(device_type="flagship")
+        assert board.note_array_token == ""
+
+    def test_note_array_token_whitespace_stripped_on_from_dict(self):
+        """from_dict strips surrounding whitespace (consistent with other credential fields)."""
+        board = BoardInstance.from_dict(
+            {"device_type": "note_array", "note_array_token": "  tok-trim  ", "notes_wide": 2, "notes_tall": 1}
+        )
+        assert board.note_array_token == "tok-trim"
+
+    def test_note_array_whitespace_only_token_not_configured(self):
+        """A whitespace-only token is stripped to empty, so the board is not configured."""
+        board = BoardInstance.from_dict(
+            {"device_type": "note_array", "note_array_token": "   ", "notes_wide": 2, "notes_tall": 1}
+        )
+        assert board.note_array_token == ""
+        assert board.is_connection_configured is False
 
 
 class TestNoteArrayConstants:

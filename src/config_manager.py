@@ -92,6 +92,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "api_mode": "local",
         "local_api_key": "",
         "cloud_key": "",
+        "note_array_token": "",
         "host": "",
         "transition_strategy": None,
         "transition_interval_ms": None,
@@ -294,6 +295,7 @@ SENSITIVE_FIELDS = {
     "api_key",
     "local_api_key",
     "cloud_key",
+    "note_array_token",
     "access_token",
     "password",
     "finnhub_api_key",
@@ -788,6 +790,7 @@ class ConfigManager:
         changed |= apply_str(board_config, "local_api_key", "BOARD_LOCAL_API_KEY", "FB_LOCAL_API_KEY")
         changed |= apply_str(board_config, "host", "BOARD_HOST", "FB_HOST")
         changed |= apply_str(board_config, "cloud_key", "BOARD_READ_WRITE_KEY", "FB_READ_WRITE_KEY")
+        changed |= apply_str(board_config, "note_array_token", "BOARD_NOTE_ARRAY_TOKEN")
         changed |= apply_str(board_config, "transition_strategy", "BOARD_TRANSITION_STRATEGY", "FB_TRANSITION_STRATEGY")
         changed |= apply_int(
             board_config, "transition_interval_ms", "BOARD_TRANSITION_INTERVAL_MS", "FB_TRANSITION_INTERVAL_MS"

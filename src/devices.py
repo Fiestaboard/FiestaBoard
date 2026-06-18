@@ -69,6 +69,7 @@ class BoardInstance:
     port: int = 7000  # Local API port (default Vestaboard); used for multi-board mock e2e
     local_api_key: str = ""
     cloud_key: str = ""
+    note_array_token: str = ""  # X-Vestaboard-Token for note-array boards
     notes_wide: int = 1
     notes_tall: int = 1
 
@@ -98,6 +99,10 @@ class BoardInstance:
 
     @property
     def is_connection_configured(self) -> bool:
+        if is_note_array(self.device_type):
+            # notes_wide/notes_tall are always >= 1 (clamped in __post_init__),
+            # so configuration hinges solely on having a token.
+            return bool(self.note_array_token)
         if self.api_mode == "cloud":
             return bool(self.cloud_key)
         return bool(self.local_api_key and self.host)
@@ -126,6 +131,7 @@ class BoardInstance:
             port=port if port is not None else 7000,
             local_api_key=data.get("local_api_key", ""),
             cloud_key=data.get("cloud_key", ""),
+            note_array_token=data.get("note_array_token", "").strip(),
             notes_wide=data.get("notes_wide", 1),
             notes_tall=data.get("notes_tall", 1),
         )
