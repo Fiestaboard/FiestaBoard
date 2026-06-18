@@ -478,6 +478,17 @@ class TestBoardInstanceNotesFields:
         board = BoardInstance(notes_tall=MAX_NOTES_PER_AXIS + 1)
         assert board.notes_tall == MAX_NOTES_PER_AXIS
 
+    def test_notes_wide_bool_rejected(self):
+        """bool is a subclass of int; True must not leak through as notes_wide."""
+        board = BoardInstance(notes_wide=True)
+        assert board.notes_wide == 1
+        assert board.notes_wide is not True
+
+    def test_notes_tall_bool_rejected(self):
+        board = BoardInstance(notes_tall=True)
+        assert board.notes_tall == 1
+        assert board.notes_tall is not True
+
     def test_notes_round_trip_via_to_dict_from_dict(self):
         original = BoardInstance(device_type="note_array", notes_wide=3, notes_tall=2)
         data = original.to_dict()

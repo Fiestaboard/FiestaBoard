@@ -85,12 +85,13 @@ class BoardInstance:
             self.paused = bool(self.paused)
         if not self.name:
             self.name = "My Board"
-        # Normalize notes_wide / notes_tall: must be positive ints, clamped to MAX_NOTES_PER_AXIS
-        if not isinstance(self.notes_wide, int) or self.notes_wide < 1:
+        # Normalize notes_wide / notes_tall: must be positive ints (bool is a
+        # subclass of int, so reject it explicitly), clamped to MAX_NOTES_PER_AXIS
+        if isinstance(self.notes_wide, bool) or not isinstance(self.notes_wide, int) or self.notes_wide < 1:
             self.notes_wide = 1
         if self.notes_wide > MAX_NOTES_PER_AXIS:
             self.notes_wide = MAX_NOTES_PER_AXIS
-        if not isinstance(self.notes_tall, int) or self.notes_tall < 1:
+        if isinstance(self.notes_tall, bool) or not isinstance(self.notes_tall, int) or self.notes_tall < 1:
             self.notes_tall = 1
         if self.notes_tall > MAX_NOTES_PER_AXIS:
             self.notes_tall = MAX_NOTES_PER_AXIS
