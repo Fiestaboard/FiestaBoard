@@ -379,7 +379,13 @@ const CollectionButton = memo(
     const count = stackPages.length;
 
     return (
-      <button onClick={handleClick} disabled={isPending} className={buttonClassName} type="button">
+      <button
+        onClick={handleClick}
+        disabled={isPending}
+        className={buttonClassName}
+        type="button"
+        aria-pressed={isActive}
+      >
         <div className="flex items-center gap-2.5 min-w-0">
           <GalleryHorizontalEnd className={iconClassName} />
           <span className={nameClassName}>{collection.name}</span>
