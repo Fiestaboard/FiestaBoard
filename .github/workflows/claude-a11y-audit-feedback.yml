@@ -1,0 +1,107 @@
+name: 'Claude: A11y Audit Feedback Capture'
+
+# =============================================================================
+# Captures rejected a11y-pipeline PRs so the cron auditor can learn from them.
+#
+# The a11y loop is issues-only, so the PRs that feed it come from the triage
+# worker:
+#   - `a11y/issue-*` — per-issue fix PRs from claude-issue-triage.yml (which
+#     fixes the issues the a11y-audit / a11y-live-axe sweeps file)
+#   - `a11y-audit/*` — reserved for any future inline-fix PRs from the sweep
+#     itself (none today; kept so the loop survives re-enabling bucket A)
+#
+# When either is closed without merging, the maintainer is telling the bot
+# "this fix (or the finding behind it) was wrong." This workflow bundles the
+# PR's diff, close metadata, and every comment/review into a single JSONL
+# line in .github/a11y-audit/rejected-edits.jsonl and commits it to main. The
+# next sweep reads the log and (a) never re-files the rejected finding, and
+# (b) generalizes from the closer's explanation.
+#
+# `workflow_dispatch` re-runs capture for a given PR — useful when a
+# maintainer adds an explanatory comment after the original close. Re-running
+# replaces the prior line for that PR rather than appending.
+#
+# Trigger is `pull_request_target` (not `pull_request`) so GitHub resolves
+# this workflow file from `main` rather than the PR's head ref. Branches cut
+# from `main` before this workflow existed would otherwise be invisible to
+# it. Safe here because the workflow checks out `main` (not PR code) and only
+# reads PR metadata via `gh`; no head-ref code is ever executed.
+# =============================================================================
+
+on:
+  pull_request_target:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to (re)capture into the rejection log'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+# Serialize commits to main. Two PRs closed at once would race the same log
+# file and lose a line; cancel-in-progress=false so each capture completes.
+concurrency:
+  group: a11y-audit-feedback
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    name: Capture rejected a11y edit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # On `pull_request_target.closed`, only fire for unmerged a11y-pipeline
+    # branches. Draft and ready-for-review PRs both fire `closed`. The script
+    # itself refuses to log a merged PR, so manual backfill stays safe.
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.pull_request.merged == false &&
+           (startsWith(github.event.pull_request.head.ref, 'a11y/issue-') ||
+            startsWith(github.event.pull_request.head.ref, 'a11y-audit/'))) }}
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+    steps:
+      - name: Determine PR number
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "number=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          # RELEASE_PAT so the log commit can push to main past branch
+          # protection — same pattern as the state-file commit.
+          ref: main
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 1
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Capture rejection
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          set -euo pipefail
+          python3 .github/a11y-audit/build_rejection.py "${{ steps.pr.outputs.number }}"
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- .github/a11y-audit/rejected-edits.jsonl; then
+            echo "Log unchanged — script bailed (merged PR, or no diff)."
+            exit 0
+          fi
+          git add .github/a11y-audit/rejected-edits.jsonl
+          git commit -m "chore(a11y-audit): capture rejection from PR #${{ steps.pr.outputs.number }} [skip ci]"
+          git push origin HEAD:main

@@ -1,0 +1,482 @@
+name: 'Claude: A11y Audit'
+
+# =============================================================================
+# Weekly America/Los_Angeles static accessibility sweep of the web UI source
+# by Claude Sonnet. Reads `web/src/**/*.tsx` in batches and FILES ISSUES for
+# WCAG 2.2 AA / accessibility problems it finds in the source — missing
+# `aria-label`s, non-semantic interactive elements, hardcoded user-facing
+# strings that should go through next-intl, heading-order problems, unlabeled
+# form controls, color-only state, focus-management gaps.
+#
+# This loop is ISSUES-ONLY: the sweep does NOT open code PRs itself (an a11y
+# fix nearly always touches TSX + 14 i18n locale files, so it's never a true
+# one-line mechanical edit). Every finding becomes a `a11y` + `a11y-audit` +
+# `claude-fix` labeled issue, and the shared claude-issue-triage.yml worker
+# opens a focused `a11y/issue-*` fix PR for each. Those PRs are auto-reviewed
+# by claude-a11y-audit-review.yml; rejections feed
+# .github/a11y-audit/rejected-edits.jsonl, which this sweep reads next run.
+#
+# A companion workflow (claude-a11y-live-axe.yml) catches RUNTIME a11y issues
+# by booting the app and running axe-core; it files into the same labels so
+# the dedup / triage / review / learning machinery is shared.
+#
+# Cadence: Monday noon PT. Each cron pair fires in UTC to absorb DST drift;
+# the local-hour gate below admits exactly the noon window. workflow_dispatch
+# always proceeds.
+#
+# Effort scales with the open `a11y-audit` issue queue (see "Compute dynamic
+# effort" step). Drained queue → thorough mode (batch 32, cap 100). Hot queue
+# → conservative mode (batch 12, cap 32). The audit self-throttles.
+#
+# Progress tracked in .github/a11y-audit-state.json; sweep restarts from the
+# top once every file has been audited.
+# =============================================================================
+
+on:
+  schedule:
+    # One pair of UTC crons for the Monday-noon PT window. Only one matches
+    # the local-hour gate depending on DST; the other is blocked by the gate
+    # or the short cooldown. workflow_dispatch bypasses both.
+    - cron: '7 19 * * 1'   # 12:07 PDT (summer) Mon / 11:07 PST (gated off)
+    - cron: '7 20 * * 1'   # 12:07 PST (winter) Mon / 13:07 PDT (gated by cooldown)
+  workflow_dispatch:
+    inputs:
+      focus:
+        description: 'Optional steering hint — narrow the sweep to a topic (e.g. "wizard", "schedule", "settings dialogs"). Leave blank for the default sweep. Focus runs do not advance sweep state.'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+# Serialize every a11y-audit run. Without this, two parallel runs read the
+# same state, pick the same batch, and file duplicate issues.
+# cancel-in-progress=false so a workflow_dispatch fired during a scheduled
+# run waits its turn rather than aborting it.
+concurrency:
+  group: a11y-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: A11y Audit with Claude
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Issues-only loop: no `pull-requests: write` — the sweep never opens PRs.
+    # `contents: write` is for the single state-file commit; `issues: write`
+    # files findings; `id-token: write` for the Claude action's OIDC exchange.
+    permissions:
+      contents: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Gate on America/Los_Angeles local hour window
+        id: gate
+        # Noon window: 12:00–13:30 PT. The 30-minute upper slop absorbs
+        # typical GitHub Actions cron delay (often 10–30 min) without letting
+        # a wrong-DST cron through. workflow_dispatch bypasses the gate.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hour=$(TZ=America/Los_Angeles date +%H)
+          minute=$(TZ=America/Los_Angeles date +%M)
+          echo "Local PT: $hour:$minute"
+          in_window=false
+          if [ "$hour" = "12" ] || { [ "$hour" = "13" ] && [ "$minute" -le 30 ]; }; then
+            in_window=true
+          fi
+          if [ "$in_window" = "true" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: outside 12:00–13:30 PT window."
+          fi
+
+      - name: Checkout repository
+        if: steps.gate.outputs.go == 'true'
+        uses: actions/checkout@v6
+        with:
+          # RELEASE_PAT so the state-file commit can push to main past branch
+          # protection — same pattern as the docs-audit state-file commit.
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
+
+      - name: Dedup against recent runs
+        id: dedup
+        if: steps.gate.outputs.go == 'true'
+        # Weekly cadence (Monday noon PT). The window has a paired UTC cron; a
+        # 3h cooldown blocks the second cron in the same window. There is no
+        # open-draft cap here — this loop opens no PRs of its own (issues
+        # only). workflow_dispatch bypasses the cooldown.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          last=$(jq -r '.last_run_at // empty' .github/a11y-audit-state.json)
+          if [ -n "$last" ]; then
+            last_epoch=$(date -u -d "$last" +%s 2>/dev/null || echo 0)
+            now_epoch=$(date -u +%s)
+            if [ "$last_epoch" -gt 0 ]; then
+              age_h=$(( (now_epoch - last_epoch) / 3600 ))
+              if [ "$age_h" -lt 3 ]; then
+                echo "Skipping: last run was ${age_h}h ago (<3h cooldown)."
+                echo "go=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+          fi
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+      - name: Compute dynamic effort
+        id: effort
+        if: steps.dedup.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        # Effort scales inverse to the open a11y-audit issue queue. A drained
+        # queue means triage is keeping up and the UI can absorb more
+        # findings; a hot queue means we back off so reviewers don't drown.
+        run: |
+          open_count=$(gh issue list --label a11y-audit --state open --limit 200 --json number --jq 'length')
+          echo "Open a11y-audit issues: ${open_count}"
+          if [ "$open_count" -gt 80 ]; then
+            mode="conservative"; batch=12; cap=32
+          elif [ "$open_count" -gt 40 ]; then
+            mode="balanced";     batch=24; cap=60
+          else
+            mode="thorough";     batch=32; cap=100
+          fi
+          echo "mode=${mode} batch=${batch} cap=${cap}"
+          {
+            echo "mode=${mode}"
+            echo "batch=${batch}"
+            echo "cap=${cap}"
+            echo "open_count=${open_count}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Configure git identity
+        if: steps.dedup.outputs.go == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run Claude a11y-audit
+        if: steps.dedup.outputs.go == 'true'
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          # github.run_id is unique + stable per run. Issue bodies reference
+          # it so a finding can be traced back to the run that filed it. Do
+          # NOT compute timestamps in the prompt — past loops invented stale
+          # `date +%s` values from the model's training cutoff.
+          BRANCH_SUFFIX: ${{ github.run_id }}
+          AUDIT_MODE: ${{ steps.effort.outputs.mode }}
+          AUDIT_BATCH_SIZE: ${{ steps.effort.outputs.batch }}
+          AUDIT_ISSUE_CAP: ${{ steps.effort.outputs.cap }}
+          AUDIT_QUEUE_OPEN: ${{ steps.effort.outputs.open_count }}
+          AUDIT_FOCUS: ${{ github.event.inputs.focus }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Surface the SDK transcript in the Actions log. Without this the
+          # action prints "full output hidden for security" and silent
+          # permission denials look like a clean success.
+          show_full_output: 'true'
+          # Sonnet — the sweep is read-heavy "find" work; the per-issue FIX
+          # is what runs on Opus (in claude-issue-triage.yml).
+          # --allowed-tools: the agent-mode default is read-only, so every
+          # Edit/Write/git/gh call must be allowlisted. This loop is
+          # ISSUES-ONLY, so the allowlist deliberately OMITS `gh pr *` and
+          # the branch-switching git verbs — the only writes are the state
+          # JSON (Edit/Write) and the single state commit/push.
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 250
+            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git rev-parse:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
+          prompt: |
+            You are the FiestaBoard **accessibility (a11y) auditor**. You run
+            unattended once a week and statically audit a batch of web UI
+            source files (`web/src/**/*.tsx`) for WCAG 2.2 AA and general
+            accessibility problems. Your job is to **find** problems — fixing
+            happens downstream via the issue-triage workflow, which spawns one
+            focused Claude worker per issue you file. Lean into filing issues;
+            each one becomes a short, scoped, high-success-rate fix task.
+
+            This loop is **issues-only**: you do **not** open PRs and you do
+            **not** edit any source code. The ONLY file you may write is the
+            sweep state file (see "Hard rules").
+
+            ## Effort for this run (computed by the workflow)
+
+            - **Mode:**       ${{ steps.effort.outputs.mode }}
+            - **Batch size:** ${{ steps.effort.outputs.batch }} files
+            - **Issue cap:**  ${{ steps.effort.outputs.cap }} per run
+            - **Queue depth:** ${{ steps.effort.outputs.open_count }} open `a11y-audit` issues
+
+            The mode/batch/cap were chosen by the workflow based on the queue
+            depth — you don't need to second-guess them. Just use them.
+
+            ## Focus directive (optional)
+
+            Maintainer-supplied focus for this run: `$AUDIT_FOCUS`
+
+            Verify by echoing `"$AUDIT_FOCUS"` before doing anything else.
+
+            **If `$AUDIT_FOCUS` is empty**, follow the default sweep logic
+            below — pick the next batch from `files_remaining`, audit it,
+            advance state.
+
+            **If `$AUDIT_FOCUS` is non-empty**, this is a targeted probe, not
+            a sweep tick:
+            - Ignore `files_remaining`/`files_audited`. Glob the same corpus
+              the round-restart step would (see "Sweep logic" step 2), then
+              filter to files matching the focus hint (substring on path plus
+              topical judgment — e.g. focus "wizard" includes
+              `web/src/components/wizard/**`).
+            - Take the first `${{ steps.effort.outputs.batch }}` of the
+              filtered list as your batch.
+            - Tag issues: add a line `_Focus: <AUDIT_FOCUS>._` under the
+              "Filed by" footer.
+            - Do **NOT** advance sweep state. Skip the entire "State commit"
+              section. The next scheduled sweep still covers these files in
+              the normal rotation.
+
+            ## Learning from past rejections
+
+            **Read `.github/a11y-audit/rejected-edits.jsonl` before doing
+            anything else.** Each non-empty line is a previous a11y fix PR
+            (opened by a triage worker for an issue you filed) that a human
+            closed without merging — i.e. the proposed fix was wrong, OR the
+            underlying finding was a false positive. The log is your single
+            most important input; it is how this audit gets better over time.
+
+            Each line is a JSON object with:
+              - `pr`, `title`, `head_ref`, `closed_at`
+              - `body` — the PR description
+              - `files` — list of `{path, patch}` for every file changed
+              - `comments`, `reviews`, `inline_comments` — every human
+                comment. These usually contain the *reason* for the close.
+
+            For each rejection:
+
+            1. **Don't re-file the rejected finding.** If the close comments
+               say the finding itself was wrong ("this `<div>` is decorative,
+               it shouldn't be a button"; "this label is set via
+               `aria-labelledby` on the parent, it's fine"), do not file that
+               same finding again — anywhere in the repo, not just that file.
+            2. **Read every comment.** Treat the closer's reasoning as
+               authoritative. Generalize: most rejections expose a *class* of
+               false positive (intentional decorative elements, labels
+               provided indirectly, Radix primitives that already handle
+               keyboard/focus, deliberately non-translated technical tokens).
+               Carry the class forward, not just the literal case.
+            3. **Cite when relevant.** If you skip a finding because a past
+               rejection covers it, mention the PR number in your wrap-up.
+
+            If the file does not exist or is empty, proceed normally.
+
+            ## Sweep state
+
+            State file: `.github/a11y-audit-state.json`
+            Schema:
+              - `schema_version`  — int, currently 1
+              - `round`           — int, sweep number (starts at 0; bumped each restart)
+              - `round_started_at`— ISO8601 string or null
+              - `last_run_at`     — ISO8601 string or null
+              - `files_remaining` — list of relative paths still to audit this round
+              - `files_audited`   — list of relative paths already audited this round
+
+            ## Sweep logic
+
+            1. Read the state file.
+            2. If `files_remaining` is empty:
+               - Glob the repo for web UI source. Include:
+                 `web/src/**/*.tsx`.
+                 Exclude: `web/src/**/*.test.tsx`, `web/src/**/*.stories.tsx`,
+                 `web/src/__tests__/**`, `web/src/stories/**`, and anything
+                 under `node_modules/`, `.git/`, or `.claude/`.
+               - Set `files_remaining` to the full glob, sorted.
+               - Set `files_audited` to `[]`.
+               - Bump `round` by 1 and set `round_started_at` to now (ISO8601 UTC).
+            3. Pick the first **${{ steps.effort.outputs.batch }}** entries
+               from `files_remaining` as this run's batch. If fewer remain,
+               use what's there.
+
+            ## For each file in the batch
+
+            Read it **carefully** — don't skim. Understand what renders, what's
+            interactive, and which strings reach the user. Then look for WCAG
+            2.2 AA / accessibility problems. FiestaBoard conventions you must
+            apply:
+
+            - **Strings go through next-intl.** Any user-facing string —
+              including `aria-label`, `title`, `alt`, placeholder, and visible
+              text — must come from a `next-intl` key in `web/messages/en.json`
+              (and its 13 sibling locales), NOT a hardcoded English literal in
+              JSX. A hardcoded English `aria-label="Delete"` is a finding.
+            - **Prefer semantic HTML / Radix.** `<button>` over
+              `<div role="button">`; `<a href>` for navigation. Radix / shadcn
+              primitives in `web/src/components/ui/` already provide keyboard
+              and focus behavior — re-implementing it by hand (or NOT using it
+              for a custom interactive widget) is a finding. Custom widgets in
+              `web/src/components/wizard/` and
+              `web/src/components/tiptap-template-editor/` get extra scrutiny.
+            - **The axe baseline** lives at `web/tests/a11y.spec.ts` (tags
+              `wcag2a, wcag2aa, wcag21a, wcag21aa, best-practice`). Color
+              contrast is intentionally excluded there and tracked separately
+              — so report contrast concerns as low-priority quality findings
+              (bucket C), never as the headline.
+
+            Categorize findings into two buckets (this loop has no
+            trivial-inline-fix bucket — everything is an issue):
+
+            **B. Accessibility defects / WCAG violations** — concrete barriers:
+                - Icon-only `<button>` / clickable with no accessible name
+                  (no text, no `aria-label`, no `aria-labelledby`) — WCAG
+                  4.1.2.
+                - Non-semantic interactive element: `<div>`/`<span>` with
+                  `onClick` but no `role`, `tabIndex`, or keyboard handler —
+                  WCAG 2.1.1 / 4.1.2.
+                - `<img>` (or meaningful icon) with no `alt` / not marked
+                  `aria-hidden` when decorative — WCAG 1.1.1.
+                - Form control with no associated `<label>` / `aria-label` /
+                  `aria-labelledby` — WCAG 1.3.1 / 4.1.2.
+                - Hardcoded user-facing string (incl. `aria-label`) instead of
+                  a next-intl key — a11y + i18n defect.
+                - Heading hierarchy: skipped levels, more than one `<h1>`,
+                  headings used for styling — WCAG 1.3.1.
+                - Non-descriptive link/button text ("click here", "read
+                  more", bare URL) — WCAG 2.4.4.
+                - Color/shape used as the ONLY signal for state (error,
+                  selected, online) with no text or icon — WCAG 1.4.1.
+                - Dialog / menu / disclosure with missing or wrong ARIA, or a
+                  custom one that doesn't move/trap/restore focus — WCAG
+                  4.1.2 / 2.4.3.
+                - Dynamic region (toast, async result, live status) with no
+                  `role="status"` / `aria-live` — WCAG 4.1.3.
+
+            **C. Accessibility quality / clarity** — present but improvable:
+                - Redundant or conflicting ARIA (e.g. `role="button"` on a
+                  `<button>`, `aria-label` duplicating visible text).
+                - Focus order that won't match visual order; missing visible
+                  focus affordance on a custom control.
+                - Overly verbose / unhelpful alt text or labels.
+                - Suspected color-contrast issues (low priority — contrast is
+                  excluded from the axe gate; mention but don't lead with it).
+
+            ## Aggressiveness
+
+            Mode for this run: **${{ steps.effort.outputs.mode }}**.
+
+            - `thorough` (queue ≤ 40): file any defensible finding. False
+              positives are cheap — the triage worker validates or comments.
+            - `balanced` (40 < queue ≤ 80): file findings you're moderately
+              confident about. Skim past minor preferences.
+            - `conservative` (queue > 80): only flag high-confidence findings.
+              The reviewer queue is hot; don't add noise.
+
+            Always: dedup against open `a11y-audit` issues before filing:
+              `gh issue list --label a11y-audit --state open --limit 200 --search "<key phrase>"`
+            Skip if a same-file, same-topic issue already exists open.
+
+            ## Outputs — file a GitHub issue for each finding
+
+            Dedupe first (see above). Then:
+
+            Issue title: `a11y: <verb> <file> — <one-line summary>`
+              e.g. `a11y: label icon-only buttons in schedule list (WCAG 2.2 AA 4.1.2)`
+                   `a11y: route Settings tab labels through next-intl`
+
+            Issue body:
+              ## File(s)
+              - `<path>` (cite the component / approximate line)
+
+              ## Category
+              <Accessibility defect / WCAG violation | Accessibility quality>
+
+              ## WCAG
+              <criterion, e.g. 4.1.2 Name, Role, Value — or "general a11y">
+
+              ## Finding
+              <2–5 sentences: what's wrong and who it affects (keyboard,
+              screen-reader, low-vision, etc.)>
+
+              ## Suggested fix
+              <2–5 sentences. If a new string is needed, say "add a next-intl
+              key" — do not invent an English literal. Prefer semantic
+              HTML / existing Radix primitives.>
+
+              ---
+              _Filed by the a11y-audit cron during round <round> (run $BRANCH_SUFFIX)._
+
+            Labels: `a11y`, `a11y-audit`. Create them if missing:
+              `gh label create a11y --color 5319E7 --description "Accessibility / WCAG" || true`
+              `gh label create a11y-audit --color BFD4F2 --description "Filed by the a11y-audit cron" || true`
+
+            After creating each issue, also apply the `claude-fix` label so the
+            issue-triage workflow picks it up and opens an `a11y/issue-*` fix
+            PR (issues filed by this bot don't satisfy the triage workflow's
+            author-association gate, so `claude-fix` / `a11y-audit` is what
+            opens that path):
+              `gh issue edit <N> --add-label claude-fix`
+            Create that label first if needed:
+              `gh label create claude-fix --color 0E8A16 --description "Run the Claude issue-triage workflow on this issue" || true`
+
+            ## State commit
+
+            (Skip this whole section if `$AUDIT_FOCUS` is non-empty.)
+
+            After processing the batch:
+            1. Move the batch entries from `files_remaining` to `files_audited`.
+            2. Update `last_run_at` to now (ISO8601 UTC).
+            3. Write the JSON back to `.github/a11y-audit-state.json` (2-space
+               indent, trailing newline, keys in the same order as the
+               existing file).
+            4. Commit to `main` directly and push:
+               ```bash
+               git add .github/a11y-audit-state.json
+               git commit -m "chore(a11y-audit): advance sweep state [skip ci]" || exit 0
+               git push origin HEAD:main
+               ```
+               This is the ONLY commit you make.
+
+            ## Hard rules
+
+            - **Edits are restricted to `.github/a11y-audit-state.json` only.**
+              Never edit, create, or delete any other file. You do not fix
+              code — you file issues. The triage worker fixes.
+            - Never open a PR. Never create a branch. (This loop is issues-only.)
+            - Never push to `main` except for the single state-file commit above.
+            - Never force-push, never `--no-verify`, never `--no-gpg-sign`.
+            - Never file more than **${{ steps.effort.outputs.cap }}** issues
+              this run. If you'd file more, keep the top
+              ${{ steps.effort.outputs.cap }} (most actionable) and discard
+              the rest.
+            - When dedup says skip, skip — don't refile. When mode is
+              `thorough`, lean toward filing; when `conservative`, lean toward
+              skipping.
+
+            ## Wrap up
+
+            Print a one-screen summary:
+              ROUND: <n> (started <date>)
+              BATCH: <files in this batch>
+              Issues filed: <#A #B ...>
+              Rejections applied: <PR #s you honored, or "none">
+              Progress: <audited>/<total> files in this round
+              Next batch: <first 3 of files_remaining or "round complete">
+
+      - name: Push state-file changes (fallback)
+        if: steps.dedup.outputs.go == 'true'
+        # Defensive: if the Claude step exits early (rate limit, allowlist
+        # denial, hallucination) with a staged-but-unpushed state change,
+        # commit + push it here. [skip ci] keeps this from retriggering.
+        run: |
+          if git diff --quiet -- .github/a11y-audit-state.json; then
+            echo "State file unchanged."
+            exit 0
+          fi
+          git add .github/a11y-audit-state.json
+          git commit -m "chore(a11y-audit): advance sweep state [skip ci]"
+          git push origin HEAD:main
