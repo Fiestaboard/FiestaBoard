@@ -26,7 +26,7 @@ export function PageHeader({
     >
       <div className="min-w-0">
         <h1 className="page-title flex items-center gap-3">
-          <Icon className="h-5 w-5 flex-shrink-0" style={{ stroke: "url(#page-icon-gradient)" }} />
+          <Icon className="h-5 w-5 flex-shrink-0" style={{ stroke: "url(#page-icon-gradient)" }} aria-hidden="true" />
           {title}
         </h1>
         <p className="page-description">{description}</p>
