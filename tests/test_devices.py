@@ -71,14 +71,10 @@ class TestDeviceConstants:
         assert "note_array" in DEVICE_TYPES
 
     def test_valid_api_modes(self):
-        """VALID_API_MODES contains local and cloud."""
+        """VALID_API_MODES contains only local and cloud (no note_array entry)."""
         assert VALID_API_MODES == ("local", "cloud")
         assert "local" in VALID_API_MODES
         assert "cloud" in VALID_API_MODES
-
-    def test_valid_api_modes_unchanged(self):
-        """VALID_API_MODES still only contains 'local' and 'cloud' — no 'note_array' entry."""
-        assert VALID_API_MODES == ("local", "cloud")
         assert "note_array" not in VALID_API_MODES
 
 
@@ -352,6 +348,21 @@ class TestNoteArrayToken:
         """The note_array_token field exists on non-note-array boards too (dataclass symmetry)."""
         board = BoardInstance(device_type="flagship")
         assert board.note_array_token == ""
+
+    def test_note_array_token_whitespace_stripped_on_from_dict(self):
+        """from_dict strips surrounding whitespace (consistent with other credential fields)."""
+        board = BoardInstance.from_dict(
+            {"device_type": "note_array", "note_array_token": "  tok-trim  ", "notes_wide": 2, "notes_tall": 1}
+        )
+        assert board.note_array_token == "tok-trim"
+
+    def test_note_array_whitespace_only_token_not_configured(self):
+        """A whitespace-only token is stripped to empty, so the board is not configured."""
+        board = BoardInstance.from_dict(
+            {"device_type": "note_array", "note_array_token": "   ", "notes_wide": 2, "notes_tall": 1}
+        )
+        assert board.note_array_token == ""
+        assert board.is_connection_configured is False
 
 
 class TestNoteArrayConstants:

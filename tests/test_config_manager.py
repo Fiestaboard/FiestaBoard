@@ -307,6 +307,26 @@ def test_apply_env_overrides_ignores_placeholder_values(monkeypatch, tmp_path):
     assert cm.get_board()["local_api_key"] == ""
 
 
+def test_apply_env_overrides_applies_note_array_token_when_empty(monkeypatch, tmp_path):
+    """BOARD_NOTE_ARRAY_TOKEN bootstraps the note-array token when config is empty."""
+    monkeypatch.setenv("BOARD_NOTE_ARRAY_TOKEN", "env-note-array-token")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {}, "features": {}, "general": {}}))
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_board()["note_array_token"] == "env-note-array-token"
+
+
+def test_apply_env_overrides_does_not_override_existing_note_array_token(monkeypatch, tmp_path):
+    """A token already stored (e.g. via the UI) is not clobbered by the env var."""
+    monkeypatch.setenv("BOARD_NOTE_ARRAY_TOKEN", "env-token-should-not-win")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps({"board": {"note_array_token": "ui-stored-token"}, "features": {}, "general": {}})
+    )
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_board()["note_array_token"] == "ui-stored-token"
+
+
 def test_apply_env_overrides_invalid_int_value(monkeypatch, tmp_path):
     """Handles invalid int env var values."""
     monkeypatch.setenv("BOARD_TRANSITION_INTERVAL_MS", "not_a_number")
