@@ -9,6 +9,8 @@ import requests
 from src.board_client import (
     VALID_STRATEGIES,
     BoardClient,
+    _is_valid_character_grid,
+    board_client_from_board_dict,
     is_successful_board_read_response,
     parse_read_message_payload,
     strip_color_markers,
@@ -771,3 +773,271 @@ class TestSendCharactersNoResponseOnError:
         success, was_sent = client.send_characters(grid)
         assert success is False
         assert was_sent is False
+
+
+# ---------------------------------------------------------------------------
+# Issue #1168 — Note-array Cloud API send/read in BoardClient
+# ---------------------------------------------------------------------------
+
+CLOUD_NOTE_ARRAY_URL = "https://cloud.vestaboard.com/"
+RW_CLOUD_URL = "https://rw.vestaboard.com/"
+
+
+class TestNoteArrayClientInit:
+    """BoardClient stores note-array state correctly."""
+
+    def test_note_array_client_has_is_note_array_flag(self):
+        client = BoardClient(
+            api_key="tok",
+            use_cloud=True,
+            note_array_token="tok",
+            notes_wide=4,
+            notes_tall=1,
+        )
+        assert client._is_note_array is True
+        assert client._note_array_token == "tok"
+        assert client._notes_wide == 4
+        assert client._notes_tall == 1
+
+    def test_non_note_array_client_is_note_array_false(self):
+        client = BoardClient(api_key="key", host="10.0.0.1")
+        assert client._is_note_array is False
+
+    def test_cloud_rw_client_is_note_array_false(self):
+        client = BoardClient(api_key="rw-key", use_cloud=True)
+        assert client._is_note_array is False
+
+
+class TestIsValidCharacterGridNoteArray:
+    """_is_valid_character_grid accepts valid note-array grids and rejects malformed ones."""
+
+    def test_valid_note_array_3x60(self):
+        # 4 notes wide × 1 note tall
+        grid = [[0] * 60 for _ in range(3)]
+        assert _is_valid_character_grid(grid) is True
+
+    def test_valid_note_array_6x30(self):
+        # 2 notes wide × 2 notes tall
+        grid = [[0] * 30 for _ in range(6)]
+        assert _is_valid_character_grid(grid) is True
+
+    def test_valid_note_array_3x15(self):
+        # 1×1 note: same as the Note device (already in _valid_grid_dimensions)
+        grid = [[0] * 15 for _ in range(3)]
+        assert _is_valid_character_grid(grid) is True
+
+    def test_valid_flagship_still_accepted(self):
+        grid = [[0] * 22 for _ in range(6)]
+        assert _is_valid_character_grid(grid) is True
+
+    def test_valid_note_still_accepted(self):
+        grid = [[0] * 15 for _ in range(3)]
+        assert _is_valid_character_grid(grid) is True
+
+    def test_invalid_note_array_non_multiple_rows(self):
+        # 4 rows is not a multiple of 3
+        grid = [[0] * 30 for _ in range(4)]
+        assert _is_valid_character_grid(grid) is False
+
+    def test_invalid_note_array_non_multiple_cols(self):
+        # 20 cols is not a multiple of 15
+        grid = [[0] * 20 for _ in range(3)]
+        assert _is_valid_character_grid(grid) is False
+
+    def test_invalid_arbitrary_size_rejected(self):
+        grid = [[0] * 10 for _ in range(4)]
+        assert _is_valid_character_grid(grid) is False
+
+
+class TestNoteArraySendCharacters:
+    """send_characters routes note-array boards to the new Cloud API."""
+
+    @pytest.fixture
+    def note_array_client(self):
+        return BoardClient(
+            api_key="na-tok",
+            use_cloud=True,
+            note_array_token="na-tok",
+            notes_wide=4,
+            notes_tall=1,
+        )
+
+    @pytest.fixture
+    def valid_3x60_grid(self):
+        return [[0] * 60 for _ in range(3)]
+
+    @pytest.fixture
+    def valid_6x30_grid(self):
+        return [[0] * 30 for _ in range(6)]
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_posts_to_cloud_note_array_url(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        note_array_client.send_characters(valid_3x60_grid)
+        assert mock_post.call_args.args[0] == CLOUD_NOTE_ARRAY_URL
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_uses_x_vestaboard_token_header(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        note_array_client.send_characters(valid_3x60_grid)
+        headers = mock_post.call_args.kwargs["headers"]
+        assert headers["X-Vestaboard-Token"] == "na-tok"
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_body_is_characters_dict(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        note_array_client.send_characters(valid_3x60_grid)
+        body = mock_post.call_args.kwargs["json"]
+        assert body == {"characters": valid_3x60_grid}
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_success_returns_true_true(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        result = note_array_client.send_characters(valid_3x60_grid)
+        assert result == (True, True)
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_network_error(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.side_effect = requests.exceptions.ConnectionError("connection refused")
+        result = note_array_client.send_characters(valid_3x60_grid)
+        assert result == (False, False)
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_6x30_grid_accepted(self, mock_post, note_array_client, valid_6x30_grid):
+        # The client is configured 4x1 (expects 3x60) but a 6x30 grid is still
+        # accepted: _is_valid_character_grid validates note-array shape, not the
+        # client's specific size (grid-size enforcement is a future follow-up).
+        mock_post.return_value.raise_for_status = Mock()
+        result = note_array_client.send_characters(valid_6x30_grid)
+        assert result == (True, True)
+
+    @patch("src.board_client.requests.post")
+    def test_send_text_not_supported_for_note_array(self, mock_post, note_array_client):
+        """send_text on a note-array board fails gracefully and never POSTs (Cloud API is characters-only)."""
+        result = note_array_client.send_text("HELLO")
+        assert result == (False, False)
+        mock_post.assert_not_called()
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_does_not_use_rw_cloud_url(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        note_array_client.send_characters(valid_3x60_grid)
+        assert mock_post.call_args.args[0] != RW_CLOUD_URL
+
+    @patch("src.board_client.requests.post")
+    def test_rw_cloud_still_sends_bare_array(self, mock_post):
+        """Existing RW Cloud API behavior must be unchanged (bare array, not wrapped)."""
+        rw_client = BoardClient(api_key="rw", use_cloud=True)
+        valid_6x22 = [[0] * 22 for _ in range(6)]
+        mock_post.return_value.raise_for_status = Mock()
+        rw_client.send_characters(valid_6x22)
+        body = mock_post.call_args.kwargs["json"]
+        assert body == valid_6x22
+
+
+class TestNoteArrayReadCurrentMessage:
+    """read_current_message routes note-array boards to the new Cloud API."""
+
+    @pytest.fixture
+    def note_array_client(self):
+        return BoardClient(
+            api_key="na-tok",
+            use_cloud=True,
+            note_array_token="na-tok",
+            notes_wide=4,
+            notes_tall=1,
+        )
+
+    def _make_layout_response(self, grid):
+        mock_resp = Mock()
+        mock_resp.raise_for_status = Mock()
+        mock_resp.json.return_value = {"currentMessage": {"layout": json.dumps(grid)}}
+        return mock_resp
+
+    @patch("src.board_client.requests.get")
+    def test_read_note_array_gets_cloud_note_array_url(self, mock_get, note_array_client):
+        grid = [[0] * 60 for _ in range(3)]
+        mock_get.return_value = self._make_layout_response(grid)
+        note_array_client.read_current_message()
+        assert mock_get.call_args.args[0] == CLOUD_NOTE_ARRAY_URL
+
+    @patch("src.board_client.requests.get")
+    def test_read_note_array_uses_x_vestaboard_token_header(self, mock_get, note_array_client):
+        grid = [[0] * 60 for _ in range(3)]
+        mock_get.return_value = self._make_layout_response(grid)
+        note_array_client.read_current_message()
+        headers = mock_get.call_args.kwargs["headers"]
+        assert headers["X-Vestaboard-Token"] == "na-tok"
+
+    @patch("src.board_client.requests.get")
+    def test_read_note_array_parses_layout_to_grid(self, mock_get, note_array_client):
+        grid = [[0] * 60 for _ in range(3)]
+        mock_get.return_value = self._make_layout_response(grid)
+        result = note_array_client.read_current_message()
+        assert result == grid
+
+    @patch("src.board_client.requests.get")
+    def test_read_note_array_6x30_parses_correctly(self, mock_get, note_array_client):
+        grid = [[0] * 30 for _ in range(6)]
+        mock_get.return_value = self._make_layout_response(grid)
+        result = note_array_client.read_current_message()
+        assert result == grid
+
+    @patch("src.board_client.requests.get")
+    def test_read_note_array_network_error_returns_none(self, mock_get, note_array_client):
+        mock_get.side_effect = requests.exceptions.ConnectionError("refused")
+        result = note_array_client.read_current_message()
+        assert result is None
+
+
+class TestBoardClientFactoryNoteArray:
+    """board_client_from_board_dict wires note-array boards correctly."""
+
+    def test_note_array_board_creates_client(self):
+        board = {
+            "device_type": "note_array",
+            "note_array_token": "tok",
+            "notes_wide": 4,
+            "notes_tall": 1,
+        }
+        client = board_client_from_board_dict(board)
+        assert client is not None
+        assert client._is_note_array is True
+        assert client._note_array_token == "tok"
+
+    def test_note_array_board_no_token_returns_none(self):
+        board = {
+            "device_type": "note_array",
+            "note_array_token": "",
+            "notes_wide": 4,
+            "notes_tall": 1,
+        }
+        assert board_client_from_board_dict(board) is None
+
+    def test_note_array_board_missing_token_returns_none(self):
+        board = {"device_type": "note_array"}
+        assert board_client_from_board_dict(board) is None
+
+    def test_note_array_notes_wide_tall_stored(self):
+        board = {
+            "device_type": "note_array",
+            "note_array_token": "tok",
+            "notes_wide": 2,
+            "notes_tall": 3,
+        }
+        client = board_client_from_board_dict(board)
+        assert client is not None
+        assert client._notes_wide == 2
+        assert client._notes_tall == 3
+
+    def test_flagship_board_cloud_unaffected(self):
+        board = {"api_mode": "cloud", "cloud_key": "rw-key"}
+        client = board_client_from_board_dict(board)
+        assert client is not None
+        assert client._is_note_array is False
+
+    def test_flagship_board_local_unaffected(self):
+        board = {"api_mode": "local", "local_api_key": "k", "host": "10.0.0.1"}
+        client = board_client_from_board_dict(board)
+        assert client is not None
+        assert client._is_note_array is False

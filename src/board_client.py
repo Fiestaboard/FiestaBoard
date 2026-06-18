@@ -79,7 +79,9 @@ def _is_valid_character_grid(rows: Any) -> bool:
         return False
     ncols = len(first)
     nrows = len(rows)
-    if (nrows, ncols) not in _valid_grid_dimensions():
+    from .devices import is_valid_note_array_grid
+
+    if (nrows, ncols) not in _valid_grid_dimensions() and not is_valid_note_array_grid(nrows, ncols):
         return False
     for row in rows:
         if not isinstance(row, list) or len(row) != ncols:
@@ -136,6 +138,7 @@ class BoardClient:
 
     LOCAL_API_PORT = 7000
     CLOUD_API_URL = "https://rw.vestaboard.com/"
+    CLOUD_NOTE_ARRAY_API_URL = "https://cloud.vestaboard.com/"
 
     def __init__(
         self,
@@ -144,6 +147,9 @@ class BoardClient:
         use_cloud: bool = False,
         skip_unchanged: bool = True,
         port: int | None = None,
+        note_array_token: str | None = None,
+        notes_wide: int = 1,
+        notes_tall: int = 1,
     ):
         """
         Initialize board API client.
@@ -154,6 +160,9 @@ class BoardClient:
             use_cloud: If True, use Cloud API instead of Local API
             skip_unchanged: If True (default), skip sending if message hasn't changed
             port: Local API port (default 7000). Used for multi-board e2e (e.g. second board on 7001).
+            note_array_token: X-Vestaboard-Token for note-array boards; non-empty enables note-array mode.
+            notes_wide: Number of Notes side-by-side (columns = notes_wide * 15).
+            notes_tall: Number of Notes stacked (rows = notes_tall * 3).
         """
         if not api_key:
             raise ValueError("api_key is required")
@@ -183,6 +192,22 @@ class BoardClient:
         self._last_text: str | None = None
         self._last_characters: list[list[int]] | None = None
 
+        # Note-array state. Note arrays are constructed with use_cloud=True, so
+        # base_url/headers above point at the RW Cloud API — but when
+        # _is_note_array is True the send/read paths OVERRIDE both with the new
+        # Cloud API URL + X-Vestaboard-Token, so the RW base_url/headers are unused.
+        self._note_array_token: str | None = note_array_token if note_array_token else None
+        # notes_wide/notes_tall are carried for downstream dimension enforcement;
+        # not yet read in send/read (grid-size enforcement is a follow-up).
+        self._notes_wide: int = notes_wide
+        self._notes_tall: int = notes_tall
+        self._is_note_array: bool = bool(note_array_token)
+
+    @property
+    def _note_array_headers(self) -> dict[str, str]:
+        """Headers for the note-array Cloud API (X-Vestaboard-Token auth)."""
+        return {"X-Vestaboard-Token": self._note_array_token, "Content-Type": "application/json"}
+
     def send_text(self, text: str, force: bool = False) -> tuple[bool, bool]:
         """
         Send plain text message to the board.
@@ -202,6 +227,12 @@ class BoardClient:
             - success: True if message was sent successfully OR skipped because unchanged
             - was_sent: True if message was actually sent to the board
         """
+        # Note-array boards use the Cloud API, which is characters-only — there is
+        # no text endpoint. Fail clearly instead of POSTing to the wrong (RW) URL.
+        if self._is_note_array:
+            logger.error("send_text is not supported for note-array boards; use send_characters()")
+            return (False, False)
+
         # Strip color markers and convert to uppercase (board requirement)
         clean_text = strip_color_markers(text).upper()
 
@@ -240,10 +271,10 @@ class BoardClient:
         """
         Send message using character array format with optional transitions.
 
-        Accepts both Flagship (6x22) and Note (3x15) character arrays.
+        Accepts Flagship (6x22), Note (3x15), and note-array (variable rows×cols) character arrays.
 
         Args:
-            characters: Board character array (6x22 for Flagship, 3x15 for Note)
+            characters: Board character array (6x22 for Flagship, 3x15 for Note, rows×cols for note-array)
             strategy: Transition animation type:
                 - "column": Wave (left-to-right)
                 - "reverse-column": Drift (right-to-left)
@@ -260,22 +291,12 @@ class BoardClient:
             - success: True if message was sent successfully OR skipped because unchanged
             - was_sent: True if message was actually sent to the board
         """
-        from .devices import DEVICE_DIMENSIONS
-
-        # Validate grid dimensions against known device types
-        valid_dims = {(d.rows, d.cols) for d in DEVICE_DIMENSIONS.values()}
-        num_rows = len(characters)
-        num_cols = len(characters[0]) if num_rows > 0 and isinstance(characters[0], list) else 0
-        if (num_rows, num_cols) not in valid_dims:
-            logger.error(
-                f"Invalid grid: {num_rows}x{num_cols} is not a supported device size. Valid sizes: {sorted(valid_dims)}"
-            )
+        # Validate grid (accepts flagship, note, and note-array sizes)
+        if not _is_valid_character_grid(characters):
+            num_rows = len(characters) if isinstance(characters, list) else 0
+            num_cols = len(characters[0]) if num_rows > 0 and isinstance(characters[0], list) else 0
+            logger.error(f"Invalid grid: {num_rows}x{num_cols} is not a supported device size.")
             return (False, False)
-
-        for i, row in enumerate(characters):
-            if len(row) != num_cols:
-                logger.error(f"Ragged row {i}: expected {num_cols} columns, got {len(row)}")
-                return (False, False)
 
         # Validate strategy if provided
         if strategy is not None and strategy not in VALID_STRATEGIES:
@@ -287,12 +308,15 @@ class BoardClient:
             logger.debug("Character array unchanged, skipping send")
             return (True, False)
 
-        # Build payload - format differs between Cloud and Local API
-        if self.use_cloud:
-            # Cloud API (Read/Write API) expects the array directly
+        # Build payload - format differs by API type
+        if self._is_note_array:
+            # Note-array Cloud API: POST {"characters": grid} to cloud.vestaboard.com
+            payload = {"characters": characters}
+        elif self.use_cloud:
+            # RW Cloud API: sends the array directly (no wrapper)
             payload = characters
         else:
-            # Local API expects {"characters": [...]} with optional transitions
+            # Local API: {"characters": [...]} with optional transitions
             payload = {"characters": characters}
             if strategy is not None:
                 payload["strategy"] = strategy
@@ -302,7 +326,13 @@ class BoardClient:
                 payload["step_size"] = step_size
 
         try:
-            response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=10)
+            if self._is_note_array:
+                url = self.CLOUD_NOTE_ARRAY_API_URL
+                hdrs = self._note_array_headers
+            else:
+                url = self.base_url
+                hdrs = self.headers
+            response = requests.post(url, headers=hdrs, json=payload, timeout=10)
             response.raise_for_status()
 
             self._last_characters = [row[:] for row in characters]
@@ -332,10 +362,17 @@ class BoardClient:
                         This is useful on startup to avoid unnecessary updates.
 
         Returns:
-            Character grid (Flagship 6x22 or Note 3x15), or None if failed or empty.
+            Character grid sized to the board (Flagship 6x22, Note 3x15, or a
+            note array's rows x cols), or None if failed or empty.
         """
         try:
-            response = requests.get(self.base_url, headers=self.headers, timeout=10)
+            if self._is_note_array:
+                url = self.CLOUD_NOTE_ARRAY_API_URL
+                hdrs = self._note_array_headers
+            else:
+                url = self.base_url
+                hdrs = self.headers
+            response = requests.get(url, headers=hdrs, timeout=10)
             response.raise_for_status()
             data = response.json()
             characters = parse_read_message_payload(data)
@@ -417,6 +454,30 @@ def board_client_from_board_dict(board: dict) -> Optional["BoardClient"]:
     """
     api_mode = (board.get("api_mode") or "local").lower()
     use_cloud = api_mode == "cloud"
+
+    # Note-array boards: detected by device_type (not api_mode).
+    # They use the new Cloud API with X-Vestaboard-Token.
+    from .devices import is_note_array
+
+    device_type = board.get("device_type") or "flagship"
+    if is_note_array(device_type):
+        token = board.get("note_array_token") or ""
+        if not token:
+            return None
+        notes_wide = board.get("notes_wide") or 1
+        notes_tall = board.get("notes_tall") or 1
+        # api_key is required by BoardClient.__init__ but unused for note arrays;
+        # pass the token as api_key to satisfy the non-empty guard.
+        return BoardClient(
+            api_key=token,
+            host=None,
+            use_cloud=True,
+            skip_unchanged=True,
+            note_array_token=token,
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+        )
+
     if use_cloud:
         key = board.get("cloud_key") or ""
         if not key:
