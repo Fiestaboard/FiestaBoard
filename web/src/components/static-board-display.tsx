@@ -5,11 +5,7 @@ import { memo, useMemo } from "react";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
-
-const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
-  flagship: { rows: 6, cols: 22 },
-  note: { rows: 3, cols: 15 },
-};
+import { resolveDimensions } from "@/lib/board-dimensions";
 
 const _BOARD_CHARS = [
   " ",
@@ -163,15 +159,21 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
   boardType = "black",
   deviceType = "flagship",
   className = "",
+  notesWide = 1,
+  notesTall = 1,
 }: {
   message: string | null;
   size?: "sm" | "md" | "lg";
   boardType?: "black" | "white";
   deviceType?: DeviceType;
   className?: string;
+  /** Notes wide (for note_array device; ignored otherwise). */
+  notesWide?: number;
+  /** Notes tall (for note_array device; ignored otherwise). */
+  notesTall?: number;
 }) {
   const t = useTranslations("boardDisplay");
-  const dims = DEVICE_DIMS[deviceType] || DEVICE_DIMS.flagship;
+  const dims = resolveDimensions(deviceType, notesWide, notesTall);
   const isWhiteBoard = boardType === "white";
   const tileBg = isWhiteBoard ? "var(--color-board-surface-light)" : "var(--color-board-surface-dark)";
   const textColor = isWhiteBoard ? "var(--color-board-text-on-light)" : "var(--color-board-text-on-dark)";

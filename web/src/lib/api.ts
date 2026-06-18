@@ -196,7 +196,7 @@ export interface SetActivePageResponse {
 export type PageType = "single" | "composite" | "template";
 
 // Device types
-export type DeviceType = "flagship" | "note";
+export type DeviceType = "flagship" | "note" | "note_array";
 
 export interface RowConfig {
   source: string;
@@ -227,6 +227,10 @@ export interface Page {
   transition_step_size?: number | null;
   created_at: string;
   updated_at?: string;
+  /** Number of Notes wide (note_array device_type only). */
+  notes_wide?: number;
+  /** Number of Notes tall (note_array device_type only). */
+  notes_tall?: number;
 }
 
 export interface PageCreate {
@@ -242,6 +246,10 @@ export interface PageCreate {
   transition_strategy?: string | null;
   transition_interval_ms?: number | null;
   transition_step_size?: number | null;
+  /** Number of Notes wide (note_array device_type only). */
+  notes_wide?: number;
+  /** Number of Notes tall (note_array device_type only). */
+  notes_tall?: number;
 }
 
 export interface PageUpdate {
@@ -255,6 +263,10 @@ export interface PageUpdate {
   transition_strategy?: string | null;
   transition_interval_ms?: number | null;
   transition_step_size?: number | null;
+  /** Number of Notes wide (note_array device_type only). */
+  notes_wide?: number;
+  /** Number of Notes tall (note_array device_type only). */
+  notes_tall?: number;
 }
 
 export interface PagesResponse {
@@ -496,6 +508,10 @@ export interface BoardInstance {
   host: string;
   local_api_key: string;
   cloud_key: string;
+  /** Number of Notes arranged horizontally (note_array only; default 1). */
+  notes_wide?: number;
+  /** Number of Notes arranged vertically (note_array only; default 1). */
+  notes_tall?: number;
 }
 
 export interface BoardSettings {

@@ -20,16 +20,12 @@ from __future__ import annotations
 
 import html
 
+from .devices import resolve_dimensions as _resolve_dimensions
+
 # ---------------------------------------------------------------------------
 # Constants — mirrored from web/src/lib/board-colors.ts and
-# web/src/components/board-display.tsx so the preview matches the web UI.
+# web/src/lib/board-dimensions.ts so the preview matches the web UI.
 # ---------------------------------------------------------------------------
-
-DEVICE_DIMS: dict[str, tuple[int, int]] = {
-    # device_type -> (rows, cols)
-    "flagship": (6, 22),
-    "note": (3, 15),
-}
 
 # 8-colour board palette (codes 63-71). 71 ("filled") renders as black, same
 # as the web UI.
@@ -249,6 +245,8 @@ def render_board_html(
     formatted: str,
     *,
     device_type: str = "flagship",
+    notes_wide: int = 1,
+    notes_tall: int = 1,
     page_name: str | None = None,
 ) -> str:
     """Render a board preview as a self-contained HTML document.
@@ -257,13 +255,21 @@ def render_board_html(
         formatted: The rendered template text (output of TemplateEngine.render
             or PageService.preview_page().formatted). May include ``{63}`` /
             ``{red}`` colour tokens and ``\\n``-separated lines.
-        device_type: ``"flagship"`` (22x6) or ``"note"`` (15x3).
+        device_type: ``"flagship"`` (22×6), ``"note"`` (15×3), or
+            ``"note_array"`` (dimensions computed from notes_wide/notes_tall).
+        notes_wide: Number of Notes wide (only used for ``"note_array"``).
+        notes_tall: Number of Notes tall (only used for ``"note_array"``).
         page_name: Optional label rendered above the board.
 
     Returns:
         A standalone HTML document string (``<!DOCTYPE html>...``).
     """
-    rows, cols = DEVICE_DIMS.get(device_type, DEVICE_DIMS["flagship"])
+    try:
+        _dims = _resolve_dimensions(device_type, notes_wide=notes_wide, notes_tall=notes_tall)
+        rows, cols = _dims.rows, _dims.cols
+    except ValueError:
+        # Unknown/corrupt device_type — fall back to flagship 6×22 rather than crash.
+        rows, cols = 6, 22
     is_note = device_type == "note"
     grid = _grid(formatted or "", rows, cols, device_type)
 
@@ -311,6 +317,8 @@ def render_page_preview_html(page: object) -> str:
         A standalone HTML document string.
     """
     device_type = getattr(page, "device_type", "flagship") or "flagship"
+    notes_wide = getattr(page, "notes_wide", 1) or 1
+    notes_tall = getattr(page, "notes_tall", 1) or 1
     page_id = getattr(page, "id", None)
     page_name = getattr(page, "name", None)
 
@@ -332,4 +340,10 @@ def render_page_preview_html(page: object) -> str:
         if template:
             formatted = "\n".join(template)
 
-    return render_board_html(formatted, device_type=device_type, page_name=page_name)
+    return render_board_html(
+        formatted,
+        device_type=device_type,
+        notes_wide=notes_wide,
+        notes_tall=notes_tall,
+        page_name=page_name,
+    )

@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
-import type { Collection, Page, PagePreviewResponse } from "@/lib/api";
+import type { Collection, DeviceType, Page, PagePreviewResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 
 // Cache key for batch previews in localStorage
@@ -222,7 +222,7 @@ const PageButton = memo(
             preview={preview}
             isLoading={isLoadingPreview}
             boardType={boardType}
-            deviceType={(page.device_type as "flagship" | "note") || "flagship"}
+            deviceType={(page.device_type as DeviceType) || "flagship"}
           />
         </div>
 
@@ -399,7 +399,7 @@ const CollectionButton = memo(
           ) : (
             <div className="absolute inset-0">
               {stackPages.map(({ pageId, page, preview }, idx) => {
-                const deviceType = (page?.device_type as "flagship" | "note") || "flagship";
+                const deviceType = (page?.device_type as DeviceType) || "flagship";
                 return (
                   <div
                     key={pageId}
@@ -461,7 +461,7 @@ export interface PageGridSelectorProps {
   /** Label text above the grid */
   label?: string;
   /** Filter pages by device type */
-  deviceTypeFilter?: "flagship" | "note";
+  deviceTypeFilter?: DeviceType;
   /** View mode: "grid" shows previews, "list" shows compact list */
   viewMode?: ViewMode;
   /** Whether to include collections in the grid */
