@@ -435,6 +435,45 @@ describe("PageGridSelector", () => {
     expect(onSelectPage).toHaveBeenCalledWith("collection:c1");
   });
 
+  it("sets aria-pressed on collection buttons to reflect selection state", async () => {
+    vi.mocked(api.getCollections).mockResolvedValue({
+      collections: [
+        {
+          id: "collection:c1",
+          name: "Selected Collection",
+          page_ids: ["page-1"],
+          selection_mode: "time",
+
+          time: { interval_seconds: 30 },
+
+          variable: null,
+          created_at: "2025-01-01T00:00:00Z",
+        },
+        {
+          id: "collection:c2",
+          name: "Unselected Collection",
+          page_ids: ["page-2"],
+          selection_mode: "time",
+
+          time: { interval_seconds: 60 },
+
+          variable: null,
+          created_at: "2025-01-01T00:00:00Z",
+        },
+      ],
+      total: 2,
+    });
+
+    render(<PageGridSelector activePageId="collection:c1" onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      const selected = screen.getByText("Selected Collection").closest("button");
+      const unselected = screen.getByText("Unselected Collection").closest("button");
+      expect(selected).toHaveAttribute("aria-pressed", "true");
+      expect(unselected).toHaveAttribute("aria-pressed", "false");
+    });
+  });
+
   describe("list view mode", () => {
     it("renders page names in list view without calling previewPagesBatch", async () => {
       render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} viewMode="list" />, { wrapper: TestWrapper });
