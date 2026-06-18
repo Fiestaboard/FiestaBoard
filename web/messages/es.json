@@ -1506,5 +1506,9 @@
     "requires": "Requiere",
     "pluginNotEnabled": "Activa el plugin {name} en Integraciones para usar esta plantilla",
     "importWithMissingPlugins": "Algunos plugins aún no están activados: {plugins}. Aún puedes importar y activarlos más tarde."
+  },
+  "aiChatPanel": {
+    "clearConversationAriaLabel": "Borrar conversación",
+    "closePanelAriaLabel": "Cerrar FiestaBot (Beta)"
   }
 }

@@ -1506,5 +1506,9 @@
     "requires": "필요",
     "pluginNotEnabled": "이 템플릿을 사용하려면 Integrations에서 {name} 플러그인을 활성화하세요",
     "importWithMissingPlugins": "일부 플러그인이 아직 활성화되지 않았습니다: {plugins}. 가져온 후 나중에 활성화할 수 있습니다."
+  },
+  "aiChatPanel": {
+    "clearConversationAriaLabel": "대화 지우기",
+    "closePanelAriaLabel": "FiestaBot (Beta) 닫기"
   }
 }

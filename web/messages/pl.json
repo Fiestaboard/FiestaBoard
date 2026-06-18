@@ -1506,5 +1506,9 @@
     "requires": "Wymaga",
     "pluginNotEnabled": "Włącz wtyczkę {name} w Integrations, aby użyć tego szablonu",
     "importWithMissingPlugins": "Niektóre wtyczki nie są jeszcze włączone: {plugins}. Możesz wciąż zaimportować i włączyć je później."
+  },
+  "aiChatPanel": {
+    "clearConversationAriaLabel": "Wyczyść rozmowę",
+    "closePanelAriaLabel": "Zamknij FiestaBot (Beta)"
   }
 }
