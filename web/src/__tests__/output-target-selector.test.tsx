@@ -55,6 +55,19 @@ describe("OutputTargetSelector", () => {
     });
   });
 
+  it("exposes selection state via aria-pressed", async () => {
+    render(<OutputTargetSelector />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Board Only/ })).toBeInTheDocument();
+    });
+
+    // mockOutputSettings.target === "board"
+    expect(screen.getByRole("button", { name: /Board Only/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /UI Only/ })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: /UI \+ Board/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("handles selection changes", async () => {
     const user = userEvent.setup();
     render(<OutputTargetSelector />, { wrapper: TestWrapper });
