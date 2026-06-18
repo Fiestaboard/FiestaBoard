@@ -1506,5 +1506,10 @@
     "requires": "必要",
     "pluginNotEnabled": "このテンプレートを使用するには、Integrations で {name} プラグインを有効化してください",
     "importWithMissingPlugins": "一部のプラグインがまだ有効化されていません: {plugins}。インポートして後で有効化することもできます。"
+  },
+  "boardSizeIndicator": {
+    "custom": "Custom",
+    "ariaLabel": "{rows} rows by {cols} columns",
+    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
   }
 }

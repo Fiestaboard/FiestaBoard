@@ -27,6 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, DeviceType } from "@/lib/api";
@@ -429,7 +430,11 @@ export function DisplaySettings() {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="capitalize">{board.device_type}</span>
                       <span>•</span>
-                      <span>{board.device_type === "flagship" ? "22×6" : "15×3"}</span>
+                      <BoardSizeIndicator
+                        deviceType={board.device_type}
+                        notesWide={board.notes_wide}
+                        notesTall={board.notes_tall}
+                      />
                       <span>•</span>
                       <div
                         className="h-3 w-3 rounded border"

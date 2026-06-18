@@ -1506,5 +1506,10 @@
     "requires": "Требуется",
     "pluginNotEnabled": "Включите плагин {name} в Integrations, чтобы использовать этот шаблон",
     "importWithMissingPlugins": "Некоторые плагины ещё не включены: {plugins}. Вы можете импортировать и включить их позже."
+  },
+  "boardSizeIndicator": {
+    "custom": "Custom",
+    "ariaLabel": "{rows} rows by {cols} columns",
+    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
   }
 }

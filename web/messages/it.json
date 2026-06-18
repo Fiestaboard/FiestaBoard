@@ -1506,5 +1506,10 @@
     "requires": "Richiede",
     "pluginNotEnabled": "Attiva il plugin {name} in Integrazioni per usare questo modello",
     "importWithMissingPlugins": "Alcuni plugin non sono ancora attivi: {plugins}. Puoi comunque importare e attivarli più tardi."
+  },
+  "boardSizeIndicator": {
+    "custom": "Custom",
+    "ariaLabel": "{rows} rows by {cols} columns",
+    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
   }
 }
