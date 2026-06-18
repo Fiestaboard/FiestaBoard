@@ -1446,6 +1446,19 @@ class TestMigrateV3ToV4:
         assert count == 0
         assert pages[0]["notes_wide"] == 2  # unchanged
 
+    def test_mixed_pages_only_missing_ones_migrated(self):
+        """A mix of pages with and without the fields: only the missing ones are touched."""
+        pages = [
+            {"id": "1", "type": "single", "display_type": "weather"},  # missing
+            {"id": "2", "type": "template", "template": ["HI"], "notes_wide": 4, "notes_tall": 1},  # has
+            {"id": "3", "type": "single", "display_type": "date_time"},  # missing
+        ]
+        count = _migrate_v3_to_v4(pages)
+        assert count == 2
+        assert pages[0]["notes_wide"] == 1 and pages[0]["notes_tall"] == 1
+        assert pages[1]["notes_wide"] == 4 and pages[1]["notes_tall"] == 1  # unchanged
+        assert pages[2]["notes_wide"] == 1 and pages[2]["notes_tall"] == 1
+
     def test_idempotent(self):
         """Running the migration twice yields the same result."""
         pages = [{"id": "1", "type": "single", "display_type": "weather"}]

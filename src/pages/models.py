@@ -12,7 +12,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.devices import DEFAULT_DEVICE_TYPE, DeviceType, resolve_dimensions
+from src.devices import DEFAULT_DEVICE_TYPE, MAX_NOTES_PER_AXIS, DeviceType, resolve_dimensions
 
 PageType = Literal["single", "composite", "template"]
 
@@ -88,8 +88,8 @@ class Page(BaseModel):
 
     # Note-array dimensions (only relevant when device_type is "note_array")
     # notes_wide × notes_tall determines the grid size: rows = notes_tall × 3, cols = notes_wide × 15
-    notes_wide: int = Field(default=1, ge=1, le=8)
-    notes_tall: int = Field(default=1, ge=1, le=8)
+    notes_wide: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
+    notes_tall: int = Field(default=1, ge=1, le=MAX_NOTES_PER_AXIS)
 
     # Metadata
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -157,8 +157,8 @@ class PageCreate(BaseModel):
     # Plugin demo page tracking
     demo_plugin_id: str | None = None
     # Note-array dimensions (only used when device_type is "note_array")
-    notes_wide: int | None = Field(default=None, ge=1, le=8)
-    notes_tall: int | None = Field(default=None, ge=1, le=8)
+    notes_wide: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)
+    notes_tall: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)
 
 
 class PageUpdate(BaseModel):
@@ -175,5 +175,5 @@ class PageUpdate(BaseModel):
     transition_interval_ms: int | None = Field(default=None, ge=0, le=5000)
     transition_step_size: int | None = Field(default=None, ge=1)
     # Note-array dimensions (only used when device_type is "note_array")
-    notes_wide: int | None = Field(default=None, ge=1, le=8)
-    notes_tall: int | None = Field(default=None, ge=1, le=8)
+    notes_wide: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)
+    notes_tall: int | None = Field(default=None, ge=1, le=MAX_NOTES_PER_AXIS)
