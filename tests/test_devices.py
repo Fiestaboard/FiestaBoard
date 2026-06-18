@@ -332,11 +332,11 @@ class TestNoteArrayPresets:
     def test_preset_dimensions(self):
         """Each preset produces the documented dimensions."""
         expected = [
-            ("2_wide",   DeviceDimensions(3,  30)),
-            ("4_wide",   DeviceDimensions(3,  60)),
-            ("2_tall",   DeviceDimensions(6,  15)),
-            ("4_tall",   DeviceDimensions(12, 15)),
-            ("2x2_grid", DeviceDimensions(6,  30)),
+            ("2_wide", DeviceDimensions(3, 30)),
+            ("4_wide", DeviceDimensions(3, 60)),
+            ("2_tall", DeviceDimensions(6, 15)),
+            ("4_tall", DeviceDimensions(12, 15)),
+            ("2x2_grid", DeviceDimensions(6, 30)),
         ]
         by_id = {p["id"]: p for p in NOTE_ARRAY_PRESETS}
         for preset_id, expected_dims in expected:

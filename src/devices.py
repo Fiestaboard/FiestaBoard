@@ -32,11 +32,11 @@ NOTE_COLS: int = 15
 MAX_NOTES_PER_AXIS: int = 8
 
 NOTE_ARRAY_PRESETS: list[dict] = [
-    {"id": "2_wide",   "label": "2 side-by-side",  "notes_wide": 2, "notes_tall": 1},  # → 3 rows × 30 cols
-    {"id": "4_wide",   "label": "4 side-by-side",  "notes_wide": 4, "notes_tall": 1},  # → 3 rows × 60 cols
-    {"id": "2_tall",   "label": "2 stacked",        "notes_wide": 1, "notes_tall": 2},  # → 6 rows × 15 cols
-    {"id": "4_tall",   "label": "4 stacked",        "notes_wide": 1, "notes_tall": 4},  # → 12 rows × 15 cols
-    {"id": "2x2_grid", "label": "2×2 grid",         "notes_wide": 2, "notes_tall": 2},  # → 6 rows × 30 cols
+    {"id": "2_wide", "label": "2 side-by-side", "notes_wide": 2, "notes_tall": 1},  # → 3 rows × 30 cols
+    {"id": "4_wide", "label": "4 side-by-side", "notes_wide": 4, "notes_tall": 1},  # → 3 rows × 60 cols
+    {"id": "2_tall", "label": "2 stacked", "notes_wide": 1, "notes_tall": 2},  # → 6 rows × 15 cols
+    {"id": "4_tall", "label": "4 stacked", "notes_wide": 1, "notes_tall": 4},  # → 12 rows × 15 cols
+    {"id": "2x2_grid", "label": "2×2 grid", "notes_wide": 2, "notes_tall": 2},  # → 6 rows × 30 cols
 ]
 
 VALID_API_MODES = ("local", "cloud")
