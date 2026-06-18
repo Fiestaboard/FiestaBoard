@@ -36,7 +36,7 @@ from .collections.models import CollectionCreate, CollectionUpdate, is_collectio
 from .collections.service import get_collection_service  # noqa: E402
 from .config import Config  # noqa: E402
 from .config_manager import get_config_manager  # noqa: E402
-from .devices import get_dimensions  # noqa: E402
+from .devices import get_dimensions, resolve_dimensions  # noqa: E402
 from .displays.service import get_display_service, reset_display_service  # noqa: E402
 from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
@@ -3087,7 +3087,12 @@ _WELCOME_TEMPLATE_NOTE = [
 ]
 
 
-def _build_welcome_template(device_type: str, custom_msg: str) -> list:
+def _build_welcome_template(
+    device_type: str,
+    custom_msg: str,
+    notes_wide: int = 1,
+    notes_tall: int = 1,
+) -> list:
     """Build the welcome message template for a given device type.
 
     Returns a list of template strings (one per row) sized appropriately
@@ -3095,16 +3100,29 @@ def _build_welcome_template(device_type: str, custom_msg: str) -> list:
     fit the device's column count.
 
     Args:
-        device_type: "flagship" or "note"
+        device_type: "flagship", "note", or "note_array"
         custom_msg: Optional user-configured welcome message; when empty,
             a device-appropriate default is used.
+        notes_wide: For note_array: number of notes side-by-side (default 1).
+        notes_tall: For note_array: number of notes stacked (default 1).
     """
+    try:
+        dims = resolve_dimensions(device_type, notes_wide=notes_wide, notes_tall=notes_tall)
+    except ValueError:
+        dims = resolve_dimensions("flagship")
+
+    cols = dims.cols
+
     if device_type == "note":
-        cols = 15
         default_msg = _DEFAULT_WELCOME_NOTE
         rows = list(_WELCOME_TEMPLATE_NOTE)
+    elif device_type == "note_array":
+        default_msg = _DEFAULT_WELCOME_NOTE
+        # Generate a plain template: blank rows with center row carrying text
+        center_idx = dims.rows // 2
+        rows = [""] * dims.rows
+        rows[center_idx] = "{center}"
     else:
-        cols = 22
         default_msg = _DEFAULT_WELCOME_FLAGSHIP
         rows = list(_WELCOME_TEMPLATE_FLAGSHIP)
 
@@ -3165,10 +3183,11 @@ async def send_welcome_message():
         settings_service = get_settings_service()
         transition = settings_service.get_transition_settings()
 
-        # Determine device type from configured boards (defaults to flagship).
-        # The Note has different dimensions (3x15 vs flagship's 6x22), so we
-        # render a smaller welcome message that fits its display.
+        # Determine device type and array dimensions from configured boards
+        # (defaults to flagship 6×22). Note arrays use notes_wide/notes_tall
+        # to compute the actual grid size.
         device_type = "flagship"
+        nw, nt = 1, 1
         try:
             board_settings = settings_service.get_board_settings()
             boards = getattr(board_settings, "boards", None) or []
@@ -3176,18 +3195,22 @@ async def send_welcome_message():
                 first = boards[0]
                 if isinstance(first, dict):
                     dt = first.get("device_type", "flagship")
+                    nw = first.get("notes_wide", 1)
+                    nt = first.get("notes_tall", 1)
                 else:
                     dt = getattr(first, "device_type", "flagship")
-                if dt in ("flagship", "note"):
+                    nw = getattr(first, "notes_wide", 1)
+                    nt = getattr(first, "notes_tall", 1)
+                if dt in ("flagship", "note", "note_array"):
                     device_type = dt
         except Exception as exc:  # pragma: no cover - defensive
-            logger.debug(f"Could not determine device type for welcome message: {exc}")
+            logger.debug("Could not determine device type for welcome message: %s", exc)
 
-        welcome_template = _build_welcome_template(device_type, custom_msg)
+        welcome_template = _build_welcome_template(device_type, custom_msg, notes_wide=nw, notes_tall=nt)
 
         # Convert template to board array sized for the target device
         welcome_text = "\n".join(welcome_template)
-        dims = get_dimensions(device_type)
+        dims = resolve_dimensions(device_type, notes_wide=nw, notes_tall=nt)
         board_array = text_to_board_array(welcome_text, rows=dims.rows, cols=dims.cols)
 
         success, was_sent = board_client.send_characters(
@@ -5825,6 +5848,32 @@ def _get_board_client():
     return None
 
 
+def _get_first_board_dims():
+    """Return resolved dimensions for the first configured board.
+
+    Falls back to flagship 6×22 when the boards list is empty or settings
+    cannot be read. Safe to call from any endpoint — never raises.
+    """
+    try:
+        settings_service = get_settings_service()
+        board_settings = settings_service.get_board_settings()
+        boards = getattr(board_settings, "boards", None) or []
+        if boards:
+            first = boards[0]
+            if isinstance(first, dict):
+                dt = first.get("device_type", "flagship")
+                nw = first.get("notes_wide", 1)
+                nt = first.get("notes_tall", 1)
+            else:
+                dt = getattr(first, "device_type", "flagship")
+                nw = getattr(first, "notes_wide", 1)
+                nt = getattr(first, "notes_tall", 1)
+            return resolve_dimensions(dt, notes_wide=nw, notes_tall=nt)
+    except Exception as exc:
+        logger.debug("Could not resolve board dims (using flagship default): %s", exc)
+    return resolve_dimensions("flagship")
+
+
 def _board_is_paused(board_id: str | None = None) -> bool:
     """Return True when the target board (or default board) is paused.
 
@@ -5872,9 +5921,10 @@ async def debug_blank_board():
         logger.info("Board is paused - blocking debug blank send")
         return _paused_response()
 
+    dims = _get_first_board_dims()
     try:
-        # Create a 6x22 array filled with spaces (code 0)
-        blank_array = [[0] * 22 for _ in range(6)]
+        # Create an array of spaces (code 0) sized for the active board
+        blank_array = [[0] * dims.cols for _ in range(dims.rows)]
         success, was_sent = client.send_characters(blank_array, force=True)
 
         if success:
@@ -5915,9 +5965,10 @@ async def debug_fill_board(request: dict):
         logger.info("Board is paused - blocking debug fill send")
         return _paused_response()
 
+    dims = _get_first_board_dims()
     try:
-        # Create a 6x22 array filled with the specified character
-        fill_array = [[character_code] * 22 for _ in range(6)]
+        # Create an array filled with the specified character, sized for the active board
+        fill_array = [[character_code] * dims.cols for _ in range(dims.rows)]
         success, was_sent = client.send_characters(fill_array, force=True)
 
         if success:
@@ -5954,7 +6005,11 @@ async def debug_show_info():
     now = time_service.get_current_time()
     timestamp = now.strftime("%H:%M")
 
-    # Build debug info text (6 lines max, 22 chars each)
+    # Build debug info text. The per-line slice caps below are flagship-oriented
+    # (~22 col); the final grid is sized to the active board's dimensions when
+    # converted to a board array (see text_to_board_array call). On narrow boards
+    # the converter wraps/truncates to the real width. Per-line polish for exotic
+    # widths is deferred (see #1173).
     debug_text = f"""DEBUG INFO
 BOARD: {board_ip[:15]}
 SERVER: {server_ip[:14]}
@@ -5975,10 +6030,11 @@ V{version[:7]} {timestamp}"""
         return {**_paused_response(), "debug_info": debug_text}
 
     try:
-        # Convert text to board array
+        # Convert text to board array, sized to the active board's dimensions
         from .text_to_board import text_to_board_array
 
-        board_array = text_to_board_array(debug_text, use_color_tiles=False)
+        dims = _get_first_board_dims()
+        board_array = text_to_board_array(debug_text, use_color_tiles=False, rows=dims.rows, cols=dims.cols)
 
         success, was_sent = client.send_characters(board_array, force=True)
 

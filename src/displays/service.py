@@ -10,8 +10,6 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from src.formatters.message_formatter import get_message_formatter
-
 # Import plugin system
 try:
     from src.plugins import PluginRegistry, get_plugin_registry
@@ -49,7 +47,6 @@ class DisplayService:
 
     def __init__(self):
         """Initialize display service with plugin registry."""
-        self.formatter = get_message_formatter()
         self._plugin_registry: PluginRegistry | None = None
 
         if PLUGIN_SYSTEM_AVAILABLE:
