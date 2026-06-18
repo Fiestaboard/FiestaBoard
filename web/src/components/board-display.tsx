@@ -6,7 +6,7 @@ import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
-import { resolveDimensions } from "@/lib/board-dimensions";
+import { isNoteArray, NOTE_COLS, NOTE_ROWS, resolveDimensions } from "@/lib/board-dimensions";
 
 // All displayable board characters indexed by character code (0-71).
 // Undefined codes (43, 45, 51, 57, 58, 61) use ' ' as placeholder so
@@ -182,12 +182,7 @@ function parseLine(line: string): Token[] {
 }
 
 // Convert message string to grid of tokens with configurable dimensions
-function messageToGrid(
-  message: string,
-  rows: number = 6,
-  cols: number = 22,
-  deviceType: string = "flagship",
-): Token[][] {
+function messageToGrid(message: string, rows: number, cols: number, deviceType: string = "flagship"): Token[][] {
   const lines = message.split("\n");
   const grid: Token[][] = [];
   const isNote = deviceType === "note";
@@ -308,18 +303,39 @@ const StaticGridRow = memo(function StaticGridRow({
   size,
   gapClass,
   boardType,
+  showSeams = false,
+  isRowSeam = false,
+  seamGap = "6px",
 }: {
   row: Token[];
   rowIdx: number;
   size: "sm" | "md" | "lg";
   gapClass: string;
   boardType: "black" | "white";
+  showSeams?: boolean;
+  isRowSeam?: boolean;
+  seamGap?: string;
 }) {
   return (
-    <div className={`flex ${gapClass} justify-center`}>
-      {row.map((token, colIdx) => (
-        <StaticTile key={`col-${rowIdx}-${colIdx}`} token={token} size={size} boardType={boardType} />
-      ))}
+    <div
+      data-note-row=""
+      {...(isRowSeam ? { "data-note-row-seam": "true" } : {})}
+      className={`flex ${gapClass} justify-center`}
+      style={isRowSeam ? { marginTop: seamGap } : undefined}
+    >
+      {row.map((token, colIdx) => {
+        const isColSeam = showSeams && colIdx > 0 && colIdx % NOTE_COLS === 0;
+        return (
+          <div
+            key={`col-${rowIdx}-${colIdx}`}
+            data-note-tile=""
+            {...(isColSeam ? { "data-note-col-seam": "true" } : {})}
+            style={isColSeam ? { marginLeft: seamGap } : undefined}
+          >
+            <StaticTile token={token} size={size} boardType={boardType} />
+          </div>
+        );
+      })}
     </div>
   );
 });
@@ -338,6 +354,9 @@ const GridRow = memo(
     boardType = "black",
     isAnimating = false,
     animationsEnabled = true,
+    showSeams = false,
+    isRowSeam = false,
+    seamGap = "6px",
   }: {
     row: Token[];
     rowIdx: number;
@@ -346,21 +365,38 @@ const GridRow = memo(
     boardType?: "black" | "white";
     isAnimating?: boolean;
     animationsEnabled?: boolean;
+    showSeams?: boolean;
+    isRowSeam?: boolean;
+    seamGap?: string;
   }) {
     return (
-      <div className={`flex ${gapClass} justify-center`}>
-        {row.map((token, colIdx) => (
-          <CharTile
-            key={`col-${rowIdx}-${colIdx}`}
-            token={token}
-            size={size}
-            boardType={boardType}
-            isAnimating={isAnimating}
-            animationsEnabled={animationsEnabled}
-            rowIdx={rowIdx}
-            colIdx={colIdx}
-          />
-        ))}
+      <div
+        data-note-row=""
+        {...(isRowSeam ? { "data-note-row-seam": "true" } : {})}
+        className={`flex ${gapClass} justify-center`}
+        style={isRowSeam ? { marginTop: seamGap } : undefined}
+      >
+        {row.map((token, colIdx) => {
+          const isColSeam = showSeams && colIdx > 0 && colIdx % NOTE_COLS === 0;
+          return (
+            <div
+              key={`col-${rowIdx}-${colIdx}`}
+              data-note-tile=""
+              {...(isColSeam ? { "data-note-col-seam": "true" } : {})}
+              style={isColSeam ? { marginLeft: seamGap } : undefined}
+            >
+              <CharTile
+                token={token}
+                size={size}
+                boardType={boardType}
+                isAnimating={isAnimating}
+                animationsEnabled={animationsEnabled}
+                rowIdx={rowIdx}
+                colIdx={colIdx}
+              />
+            </div>
+          );
+        })}
       </div>
     );
   },
@@ -372,6 +408,9 @@ const GridRow = memo(
     if (prevProps.boardType !== nextProps.boardType) return false;
     if (prevProps.isAnimating !== nextProps.isAnimating) return false;
     if (prevProps.animationsEnabled !== nextProps.animationsEnabled) return false;
+    if (prevProps.showSeams !== nextProps.showSeams) return false;
+    if (prevProps.isRowSeam !== nextProps.isRowSeam) return false;
+    if (prevProps.seamGap !== nextProps.seamGap) return false;
 
     // Deep compare tokens
     for (let i = 0; i < prevProps.row.length; i++) {
@@ -1122,6 +1161,9 @@ export const BoardDisplay = memo(
     const animationsEnabled = useBoardAnimationsEnabled();
     // Get dimensions for the device type
     const dims = resolveDimensions(deviceType, notesWide, notesTall);
+    const showSeams = isNoteArray(deviceType);
+    // Seam gap: additional left/top margin applied at Note physical boundaries
+    const seamGap = size === "sm" ? "6px" : size === "md" ? "8px" : "10px";
 
     // Memoize grid calculation to avoid recalculating on every render
     const grid = useMemo(() => {
@@ -1163,11 +1205,7 @@ export const BoardDisplay = memo(
       inset 0 0 0 1px rgba(255,255,255,0.03)
     `;
 
-    // Calculate minimum width needed - these are now just used for documentation
-    // Actual width is determined by responsive CSS classes on tiles
-    // Mobile (base): 22*14 + 21*2 + padding ≈ 360px
-    // Tablet (sm): 22*20 + 21*4 + padding ≈ 520px
-    // Desktop (md+): 22*24+ + 21*5+ + padding ≈ 620px+
+    // Width is determined entirely by tile CSS classes × col count; no fixed minimum.
 
     // Adjust border and corner styles based on size
     const borderClasses =
@@ -1211,8 +1249,9 @@ export const BoardDisplay = memo(
             }}
           >
             <div className={`flex flex-col ${gapClasses[size]}`}>
-              {grid.map((row, rowIdx) =>
-                isStatic ? (
+              {grid.map((row, rowIdx) => {
+                const isRowSeam = showSeams && rowIdx > 0 && rowIdx % NOTE_ROWS === 0;
+                return isStatic ? (
                   <StaticGridRow
                     key={`row-${rowIdx}`}
                     row={row}
@@ -1220,6 +1259,9 @@ export const BoardDisplay = memo(
                     size={size}
                     gapClass={gapClasses[size]}
                     boardType={boardType}
+                    showSeams={showSeams}
+                    isRowSeam={isRowSeam}
+                    seamGap={seamGap}
                   />
                 ) : (
                   <GridRow
@@ -1231,9 +1273,12 @@ export const BoardDisplay = memo(
                     boardType={boardType}
                     isAnimating={isLoading}
                     animationsEnabled={animationsEnabled}
+                    showSeams={showSeams}
+                    isRowSeam={isRowSeam}
+                    seamGap={seamGap}
                   />
-                ),
-              )}
+                );
+              })}
             </div>
           </div>
         </div>
