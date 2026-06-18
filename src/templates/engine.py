@@ -33,7 +33,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from src.devices import DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS
+from src.devices import DEFAULT_DEVICE_TYPE, resolve_dimensions
 from src.plugins import get_plugin_registry
 from src.text_utils import extract_alignment_from_line
 
@@ -277,6 +277,8 @@ class TemplateEngine:
         context: dict[str, Any] | None = None,
         line_metadata: list[dict] | None = None,
         device_type: str | None = None,
+        notes_wide: int = 1,
+        notes_tall: int = 1,
     ) -> str:
         """Render a list of template lines (for template pages).
 
@@ -287,15 +289,20 @@ class TemplateEngine:
 
         Args:
             template_lines: List of template lines, padded or truncated to
-                match the device's row count (6 for flagship, 3 for note).
+                match the device's row count (6 for flagship, 3 for note,
+                or notes_tall×3 for note_array).
                 Pure content when line_metadata is provided; may contain
                 legacy prefixes otherwise.
             context: Optional pre-fetched context
             line_metadata: Optional per-line metadata dicts with 'alignment' and
                 'wrap' keys.  When provided, template_lines are treated as pure
                 content (no prefix parsing).
-            device_type: Device type ('flagship' or 'note') to determine board
-                dimensions. Defaults to flagship (22 cols, 6 rows).
+            device_type: Device type ('flagship', 'note', or 'note_array') to
+                determine board dimensions. Defaults to flagship (22 cols, 6 rows).
+            notes_wide: For 'note_array' device type, the number of notes side by
+                side (determines cols = notes_wide × 15). Ignored for other types.
+            notes_tall: For 'note_array' device type, the number of notes stacked
+                vertically (determines rows = notes_tall × 3). Ignored for other types.
 
         Returns:
             Rendered string with newlines
@@ -303,7 +310,7 @@ class TemplateEngine:
         if context is None:
             context = self._build_context()
 
-        dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+        dims = resolve_dimensions(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall)
         num_rows = dims.rows
         board_width = dims.cols
 
@@ -1339,11 +1346,15 @@ class TemplateEngine:
             return []
         return list(self._plugin_registry.enabled_plugins.keys())
 
-    def validate_template(self, template: str) -> list[TemplateError]:
+    def validate_template(self, template: str, cols: int = 22) -> list[TemplateError]:
         """Validate template syntax.
 
         Args:
             template: Template string to validate
+            cols: Board column width to check against. Defaults to 22 (flagship).
+                  Pass the actual board width for note/note_array devices.
+                  TODO(#1176): callers in the web template editor should pass the
+                  actual board width once web preview rendering is updated.
 
         Returns:
             List of validation errors (empty if valid)
@@ -1362,11 +1373,13 @@ class TemplateEngine:
                 errors.append(TemplateError(line=line_num, column=0, message="Mismatched variable braces {{}}"))
 
             # Calculate max possible line length
-            max_length = self._calculate_max_line_length(line)
-            if max_length > 22:
+            max_length = self._calculate_max_line_length(line, cols=cols)
+            if max_length > cols:
                 errors.append(
                     TemplateError(
-                        line=line_num, column=22, message=f"Line may be too long (up to {max_length} chars, max 22)"
+                        line=line_num,
+                        column=cols,
+                        message=f"Line may be too long (up to {max_length} chars, max {cols})",
                     )
                 )
 
@@ -1413,24 +1426,25 @@ class TemplateEngine:
             return set()
         return set(self._plugin_registry.plugins.keys())
 
-    def _calculate_max_line_length(self, line: str) -> int:
+    def _calculate_max_line_length(self, line: str, cols: int = 22) -> int:
         """Calculate maximum possible rendered length of a template line.
 
         Considers:
         - Static text (counted as-is)
         - Variables (replaced with their max character length)
         - Color markers (not counted - they become tiles)
-        - |wrap filter (returns 22 since it handles overflow)
+        - |wrap filter (returns cols since it handles overflow)
 
         Args:
             line: Template line to analyze
+            cols: Board column width. Defaults to 22 (flagship).
 
         Returns:
             Maximum possible character count after rendering
         """
         # If line has |wrap, it handles overflow automatically
         if "|wrap}}" in line or "|wrap|" in line:
-            return 22  # Wrap ensures lines don't overflow
+            return cols  # Wrap ensures lines don't overflow
 
         # Start with the line
         result = line
@@ -1479,7 +1493,7 @@ class TemplateEngine:
                         color_prefix_len = 2  # Color tile + space
                 except Exception:
                     logger.debug("Error getting color rules for variable %s", var_part, exc_info=True)
-            max_len = max_lengths.get(var_part, 22)  # Default to full board width
+            max_len = max_lengths.get(var_part, cols)  # Default to full board width
             return "X" * (max_len + color_prefix_len)
 
         result = VAR_PATTERN.sub(replace_with_max_length, result)
