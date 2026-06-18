@@ -121,6 +121,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Device type: from prop (new pages) or from existing page (editing)
   const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp);
+  // NOTE: note_array W×H aren't threaded into the page builder yet, so a
+  // note_array page resolves to a single Note (1×1). Configuring note-array
+  // page dimensions in the editor is handled when the settings UI lands (#1178).
   const dims = resolveDimensions(deviceType);
   const numLines = dims.rows;
 

@@ -222,7 +222,7 @@ const PageButton = memo(
             preview={preview}
             isLoading={isLoadingPreview}
             boardType={boardType}
-            deviceType={(page.device_type as "flagship" | "note") || "flagship"}
+            deviceType={(page.device_type as DeviceType) || "flagship"}
           />
         </div>
 
@@ -399,7 +399,7 @@ const CollectionButton = memo(
           ) : (
             <div className="absolute inset-0">
               {stackPages.map(({ pageId, page, preview }, idx) => {
-                const deviceType = (page?.device_type as "flagship" | "note") || "flagship";
+                const deviceType = (page?.device_type as DeviceType) || "flagship";
                 return (
                   <div
                     key={pageId}

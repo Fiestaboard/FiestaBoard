@@ -1248,6 +1248,8 @@ export const BoardDisplay = memo(
       prevProps.className === nextProps.className &&
       prevProps.boardType === nextProps.boardType &&
       prevProps.deviceType === nextProps.deviceType &&
+      prevProps.notesWide === nextProps.notesWide &&
+      prevProps.notesTall === nextProps.notesTall &&
       prevProps.isStatic === nextProps.isStatic
     );
   },

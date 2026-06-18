@@ -12,10 +12,10 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from src.board_html_renderer import (
-    DEVICE_DIMS,
     render_board_html,
     render_page_preview_html,
 )
+from src.devices import resolve_dimensions
 
 
 def _count(html: str, needle: str) -> int:
@@ -29,7 +29,7 @@ class TestDimensions:
 
     def test_flagship_renders_22_cols_per_row(self):
         html = render_board_html("HELLO", device_type="flagship")
-        rows, cols = DEVICE_DIMS["flagship"]
+        rows, cols = resolve_dimensions("flagship")
         # 6 rows * 22 cols = 132 tiles
         assert _count(html, 'class="tile"') + _count(html, 'class="tile note"') == rows * cols
 
@@ -39,7 +39,7 @@ class TestDimensions:
 
     def test_note_renders_15_cols_per_row(self):
         html = render_board_html("HI", device_type="note")
-        rows, cols = DEVICE_DIMS["note"]
+        rows, cols = resolve_dimensions("note")
         # Note tiles carry the .note class.
         assert _count(html, 'class="tile note"') == rows * cols
 

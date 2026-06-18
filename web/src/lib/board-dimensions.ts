@@ -59,7 +59,8 @@ export function isNoteArray(deviceType: string): boolean {
  * - "note_array"         → computes from notes_wide × notes_tall
  * - unknown              → falls back to flagship (matches Python board_html_renderer.py)
  *
- * Mirrors Python resolve_dimensions().
+ * Mirrors Python resolve_dimensions(), except unknown device types fall back
+ * to flagship (matching board_html_renderer.py) rather than raising.
  *
  * @param deviceType  "flagship" | "note" | "note_array"
  * @param notes_wide  Number of notes wide (only used for "note_array"; default 1)

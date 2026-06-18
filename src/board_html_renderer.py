@@ -27,12 +27,6 @@ from .devices import resolve_dimensions as _resolve_dimensions
 # web/src/lib/board-dimensions.ts so the preview matches the web UI.
 # ---------------------------------------------------------------------------
 
-# _STATIC_DEVICE_DIMS kept for reference; use _resolve_dimensions() in render functions.
-_STATIC_DEVICE_DIMS: dict[str, tuple[int, int]] = {
-    "flagship": (6, 22),
-    "note": (3, 15),
-}
-
 # 8-colour board palette (codes 63-71). 71 ("filled") renders as black, same
 # as the web UI.
 COLOR_CODE_MAP: dict[str, str] = {
@@ -274,7 +268,8 @@ def render_board_html(
         _dims = _resolve_dimensions(device_type, notes_wide=notes_wide, notes_tall=notes_tall)
         rows, cols = _dims.rows, _dims.cols
     except ValueError:
-        rows, cols = _STATIC_DEVICE_DIMS["flagship"]
+        # Unknown/corrupt device_type — fall back to flagship 6×22 rather than crash.
+        rows, cols = 6, 22
     is_note = device_type == "note"
     grid = _grid(formatted or "", rows, cols, device_type)
 
