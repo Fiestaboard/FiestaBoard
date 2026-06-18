@@ -192,11 +192,21 @@ class BoardClient:
         self._last_text: str | None = None
         self._last_characters: list[list[int]] | None = None
 
-        # Note-array state
+        # Note-array state. Note arrays are constructed with use_cloud=True, so
+        # base_url/headers above point at the RW Cloud API — but when
+        # _is_note_array is True the send/read paths OVERRIDE both with the new
+        # Cloud API URL + X-Vestaboard-Token, so the RW base_url/headers are unused.
         self._note_array_token: str | None = note_array_token if note_array_token else None
+        # notes_wide/notes_tall are carried for downstream dimension enforcement;
+        # not yet read in send/read (grid-size enforcement is a follow-up).
         self._notes_wide: int = notes_wide
         self._notes_tall: int = notes_tall
         self._is_note_array: bool = bool(note_array_token)
+
+    @property
+    def _note_array_headers(self) -> dict[str, str]:
+        """Headers for the note-array Cloud API (X-Vestaboard-Token auth)."""
+        return {"X-Vestaboard-Token": self._note_array_token, "Content-Type": "application/json"}
 
     def send_text(self, text: str, force: bool = False) -> tuple[bool, bool]:
         """
@@ -217,6 +227,12 @@ class BoardClient:
             - success: True if message was sent successfully OR skipped because unchanged
             - was_sent: True if message was actually sent to the board
         """
+        # Note-array boards use the Cloud API, which is characters-only — there is
+        # no text endpoint. Fail clearly instead of POSTing to the wrong (RW) URL.
+        if self._is_note_array:
+            logger.error("send_text is not supported for note-array boards; use send_characters()")
+            return (False, False)
+
         # Strip color markers and convert to uppercase (board requirement)
         clean_text = strip_color_markers(text).upper()
 
@@ -312,7 +328,7 @@ class BoardClient:
         try:
             if self._is_note_array:
                 url = self.CLOUD_NOTE_ARRAY_API_URL
-                hdrs = {"X-Vestaboard-Token": self._note_array_token, "Content-Type": "application/json"}
+                hdrs = self._note_array_headers
             else:
                 url = self.base_url
                 hdrs = self.headers
@@ -346,12 +362,13 @@ class BoardClient:
                         This is useful on startup to avoid unnecessary updates.
 
         Returns:
-            Character grid (Flagship 6x22 or Note 3x15), or None if failed or empty.
+            Character grid sized to the board (Flagship 6x22, Note 3x15, or a
+            note array's rows x cols), or None if failed or empty.
         """
         try:
             if self._is_note_array:
                 url = self.CLOUD_NOTE_ARRAY_API_URL
-                hdrs = {"X-Vestaboard-Token": self._note_array_token, "Content-Type": "application/json"}
+                hdrs = self._note_array_headers
             else:
                 url = self.base_url
                 hdrs = self.headers

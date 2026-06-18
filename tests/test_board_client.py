@@ -904,9 +904,19 @@ class TestNoteArraySendCharacters:
 
     @patch("src.board_client.requests.post")
     def test_send_note_array_6x30_grid_accepted(self, mock_post, note_array_client, valid_6x30_grid):
+        # The client is configured 4x1 (expects 3x60) but a 6x30 grid is still
+        # accepted: _is_valid_character_grid validates note-array shape, not the
+        # client's specific size (grid-size enforcement is a future follow-up).
         mock_post.return_value.raise_for_status = Mock()
         result = note_array_client.send_characters(valid_6x30_grid)
         assert result == (True, True)
+
+    @patch("src.board_client.requests.post")
+    def test_send_text_not_supported_for_note_array(self, mock_post, note_array_client):
+        """send_text on a note-array board fails gracefully and never POSTs (Cloud API is characters-only)."""
+        result = note_array_client.send_text("HELLO")
+        assert result == (False, False)
+        mock_post.assert_not_called()
 
     @patch("src.board_client.requests.post")
     def test_send_note_array_does_not_use_rw_cloud_url(self, mock_post, note_array_client, valid_3x60_grid):
