@@ -1506,5 +1506,9 @@
     "requires": "必要",
     "pluginNotEnabled": "このテンプレートを使用するには、Integrations で {name} プラグインを有効化してください",
     "importWithMissingPlugins": "一部のプラグインがまだ有効化されていません: {plugins}。インポートして後で有効化することもできます。"
+  },
+  "aiChatPanel": {
+    "clearConversationAriaLabel": "会話をクリア",
+    "closePanelAriaLabel": "FiestaBot (Beta) を閉じる"
   }
 }

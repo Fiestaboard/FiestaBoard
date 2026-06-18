@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslations } from "@/i18n/translations";
 import type {
   ChainingMode,
   ChatMessage,
@@ -91,6 +92,7 @@ export function AiChatPanel({
   taskList,
   onConversationReset,
 }: AiChatPanelProps) {
+  const t = useTranslations("aiChatPanel");
   const [providerId, setProviderId] = useState<string>("");
   const [model, setModel] = useState<string>("");
   const [draft, setDraft] = useState("");
@@ -193,8 +195,8 @@ export function AiChatPanel({
                 variant="ghost"
                 className="h-7 w-7"
                 onClick={handleReset}
-                title="Clear conversation"
-                aria-label="Clear conversation"
+                title={t("clearConversationAriaLabel")}
+                aria-label={t("clearConversationAriaLabel")}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -205,8 +207,8 @@ export function AiChatPanel({
               variant="ghost"
               className="h-7 w-7"
               onClick={onClose}
-              title="Close FiestaBot (Beta)"
-              aria-label="Close FiestaBot (Beta)"
+              title={t("closePanelAriaLabel")}
+              aria-label={t("closePanelAriaLabel")}
             >
               <X className="h-4 w-4" />
             </Button>

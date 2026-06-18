@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import enMessages from "../../messages/en.json";
 import { AiChatPanel } from "@/components/ai-chat-panel";
 
 import { server } from "./mocks/server";
@@ -313,6 +314,41 @@ describe("AiChatPanel", () => {
     });
     // ChainingModePicker renders a button with the mode name
     expect(await screen.findByTitle(/ai mode: manual/i)).toBeInTheDocument();
+  });
+
+  it("header buttons resolve their aria-label through next-intl (no hardcoded English)", async () => {
+    // Regression test for issue #1190: the close + clear-conversation
+    // buttons must read their accessible name from the `aiChatPanel`
+    // namespace in `web/messages/*.json`, not from a hardcoded literal
+    // in JSX. We assert the rendered aria-label matches the en bundle
+    // exactly — if anyone reverts to a literal that drifts from the
+    // translation key, this test fails.
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [CONFIGURED_PROVIDER],
+          default_provider_id: "p1",
+        }),
+      ),
+    );
+    hookResult = {
+      ...defaultHookResult,
+      messages: [{ role: "user", content: "hi" }],
+    };
+
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+
+    expect(
+      await screen.findByRole("button", {
+        name: enMessages.aiChatPanel.clearConversationAriaLabel,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", {
+        name: enMessages.aiChatPanel.closePanelAriaLabel,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("does not show ChainingModePicker when onChainingModeChange is absent", async () => {

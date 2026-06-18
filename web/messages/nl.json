@@ -1506,5 +1506,9 @@
     "requires": "Vereist",
     "pluginNotEnabled": "Schakel de {name}-plugin in bij Integrations om dit sjabloon te gebruiken",
     "importWithMissingPlugins": "Sommige plugins zijn nog niet ingeschakeld: {plugins}. Je kunt nog steeds importeren en ze later inschakelen."
+  },
+  "aiChatPanel": {
+    "clearConversationAriaLabel": "Gesprek wissen",
+    "closePanelAriaLabel": "FiestaBot (Beta) sluiten"
   }
 }
