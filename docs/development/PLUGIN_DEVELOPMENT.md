@@ -88,7 +88,7 @@ This means beginners can skip the entire `variables` and `max_lengths` configura
 | Empty `variables: {}` | **Yes** |
 | `variables` with `simple` or `arrays` declared | **No** (but undeclared data keys still appear in a "General" group) |
 | Explicit `"auto_discover": true` | **Yes** (even with declared variables) |
-| Explicit `"auto_discover": false` | **No** (strict mode -- only declared variables) |
+| Explicit `"auto_discover": false` | **No** (strict mode — only declared variables) |
 
 ---
 
@@ -144,7 +144,7 @@ With this format, the editor shows:
 | `group` | string | Group ID to organise this variable under |
 | `example` | string | Example value shown in documentation |
 
-All fields are optional. You can mix and match -- add just `description` if that's all you need.
+All fields are optional. You can mix and match — add just `description` if that's all you need.
 
 The `max_length` field in metadata replaces the need for a separate top-level `max_lengths` section. If both are present, the top-level `max_lengths` takes precedence.
 
@@ -298,7 +298,7 @@ Template usage:
 
 ### Mixing declared and undeclared variables
 
-When your manifest declares some variables but your `fetch_data()` returns extra keys, those extras appear in the editor under a "General" group by default. This is by design -- it means you can declare metadata for your main variables while still allowing new keys to be discovered.
+When your manifest declares some variables but your `fetch_data()` returns extra keys, those extras appear in the editor under a "General" group by default. This is by design — it means you can declare metadata for your main variables while still allowing new keys to be discovered.
 
 ### Strict mode
 
@@ -477,7 +477,7 @@ The docs-site build process copies the primary screenshot from `plugins/<id>/doc
 |-------|-------------|
 | `description` | Brief description of the plugin |
 | `author` | Author name |
-| `icon` | Lucide icon name (default: "puzzle") -- shown in the editor |
+| `icon` | Lucide icon name (default: "puzzle") — shown in the editor |
 | `category` | Category for grouping: `art`, `data`, `entertainment`, `home`, `transit`, `utility`, `weather` |
 
 ### Optional Fields

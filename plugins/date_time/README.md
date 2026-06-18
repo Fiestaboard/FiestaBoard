@@ -31,15 +31,15 @@ The Date & Time plugin exposes the current date and time in the timezone you con
 | `{{date_time.date}}` | ISO date (`YYYY-MM-DD`) | `2026-07-04` |
 | `{{date_time.day_of_week}}` | Day name | `Saturday` |
 | `{{date_time.day_of_week_abbr}}` | Day name abbreviation | `Sat` |
-| `{{date_time.day_of_week_num}}` | ISO day of week, 1-7 | `6` |
-| `{{date_time.day_of_year}}` | Day of year, 1-366 | `185` |
+| `{{date_time.day_of_week_num}}` | ISO day of week, 1–7 | `6` |
+| `{{date_time.day_of_year}}` | Day of year, 1–366 | `185` |
 | `{{date_time.day}}` | Day of month, 1–31 | `4` |
 | `{{date_time.month}}` | Full month name | `July` |
 | `{{date_time.month_abbr}}` | 3-letter month | `Jul` |
 | `{{date_time.month_number}}` | Month, 1–12 | `7` |
 | `{{date_time.month_number_padded}}` | Month, 01–12 | `07` |
-| `{{date_time.week_of_year}}` | ISO week number, 1-53 | `27` |
-| `{{date_time.quarter}}` | Quarter number, 1-4 | `3` |
+| `{{date_time.week_of_year}}` | ISO week number, 1–53 | `27` |
+| `{{date_time.quarter}}` | Quarter number, 1–4 | `3` |
 | `{{date_time.year}}` | 4-digit year | `2026` |
 
 ### Formatted
