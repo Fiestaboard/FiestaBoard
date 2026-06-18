@@ -105,7 +105,7 @@ class PollingSettings:
         )
 
 
-BOARD_SENSITIVE_FIELDS = {"local_api_key", "cloud_key"}
+BOARD_SENSITIVE_FIELDS = {"local_api_key", "cloud_key", "note_array_token"}
 
 
 @dataclass

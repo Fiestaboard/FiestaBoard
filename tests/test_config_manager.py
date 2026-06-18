@@ -1103,3 +1103,95 @@ def test_no_pre_boot_snapshot_on_brand_new_install(tmp_path):
 
     snapshot_dir = tmp_path / "update-backups"
     assert not snapshot_dir.exists() or not list(snapshot_dir.glob("pre-update-*.json"))
+
+
+# ---------------------------------------------------------------------------
+# note_array_token — persistence, masking, and connection-configured check
+# ---------------------------------------------------------------------------
+
+
+def test_note_array_token_persists_through_settings_service_round_trip(tmp_path):
+    """Save a note-array board via SettingsService, reload, confirm token + W×H survive."""
+    import src.settings.service as settings_service_module
+    from src.devices import BoardInstance
+
+    svc = settings_service_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
+
+    board_dict = BoardInstance(
+        device_type="note_array",
+        note_array_token="tok-roundtrip",
+        notes_wide=2,
+        notes_tall=1,
+    ).to_dict()
+    svc.set_boards([board_dict])
+
+    # Reload from disk
+    svc2 = settings_service_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
+    boards = svc2.get_board_settings().boards
+    assert len(boards) == 1
+    b = boards[0]
+    assert b["device_type"] == "note_array"
+    assert b["note_array_token"] == "tok-roundtrip"
+    assert b["notes_wide"] == 2
+    assert b["notes_tall"] == 1
+
+
+def test_note_array_token_masked_in_get_board_settings(tmp_path):
+    """note_array_token is masked to '***' in masked board settings."""
+    import src.settings.service as settings_service_module
+    from src.devices import BoardInstance
+
+    svc = settings_service_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
+    board_dict = BoardInstance(
+        device_type="note_array",
+        note_array_token="tok-secret",
+        notes_wide=2,
+        notes_tall=1,
+    ).to_dict()
+    svc.set_boards([board_dict])
+
+    boards = svc.get_board_settings().to_dict(mask_secrets=True)["boards"]
+    assert boards[0]["note_array_token"] == "***"
+
+
+def test_note_array_token_preserved_when_update_sends_masked_value(tmp_path):
+    """Sending '***' as the token preserves the stored real value (UI round-trip)."""
+    import src.settings.service as settings_service_module
+    from src.devices import BoardInstance
+
+    svc = settings_service_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
+    board_dict = BoardInstance(
+        device_type="note_array",
+        note_array_token="tok-real",
+        notes_wide=2,
+        notes_tall=1,
+    ).to_dict()
+    svc.set_boards([board_dict])
+
+    # Simulate the UI echoing masked value back
+    masked_board = dict(svc.get_board_settings().to_dict(mask_secrets=True)["boards"][0])
+    assert masked_board["note_array_token"] == "***"
+    svc.set_boards([masked_board])
+
+    reloaded = svc.get_board_settings().boards
+    assert reloaded[0]["note_array_token"] == "tok-real"
+
+
+def test_note_array_board_is_connection_configured_via_settings_service(tmp_path, monkeypatch):
+    """_has_configured_board_instance returns True for a note-array board with a token."""
+    import src.settings.service as settings_service_module
+    from src.devices import BoardInstance
+
+    svc = settings_service_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
+    board_dict = BoardInstance(
+        device_type="note_array",
+        note_array_token="tok-abc",
+        notes_wide=2,
+        notes_tall=1,
+    ).to_dict()
+    svc.set_boards([board_dict])
+
+    # Point the global settings service at our tmp instance so ConfigManager sees it
+    monkeypatch.setattr("src.settings.service.get_settings_service", lambda: svc)
+
+    assert ConfigManager._has_configured_board_instance() is True
