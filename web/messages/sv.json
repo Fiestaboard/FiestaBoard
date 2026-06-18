@@ -1506,5 +1506,8 @@
     "requires": "Kräver",
     "pluginNotEnabled": "Aktivera {name}-pluginen i Integrations för att använda denna mall",
     "importWithMissingPlugins": "Vissa plugins är inte aktiverade än: {plugins}. Du kan ändå importera och aktivera dem senare."
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "AI-uppgifters förlopp"
   }
 }

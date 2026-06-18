@@ -1506,5 +1506,8 @@
     "requires": "Gerektirir",
     "pluginNotEnabled": "Bu şablonu kullanmak için Integrations'ta {name} eklentisini etkinleştirin",
     "importWithMissingPlugins": "Bazı eklentiler henüz etkin değil: {plugins}. Yine de içe aktarıp daha sonra etkinleştirebilirsiniz."
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "AI görev ilerlemesi"
   }
 }

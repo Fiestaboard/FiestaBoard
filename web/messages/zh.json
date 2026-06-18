@@ -1506,5 +1506,8 @@
     "requires": "需要",
     "pluginNotEnabled": "在 Integrations 中启用 {name} 插件以使用此模板",
     "importWithMissingPlugins": "某些插件尚未启用:{plugins}。您仍然可以导入并稍后启用它们。"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "AI 任务进度"
   }
 }

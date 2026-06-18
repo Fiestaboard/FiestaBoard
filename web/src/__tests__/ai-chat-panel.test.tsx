@@ -329,4 +329,29 @@ describe("AiChatPanel", () => {
     await screen.findByText("FiestaBot (Beta)");
     expect(screen.queryByTitle(/ai mode:/i)).not.toBeInTheDocument();
   });
+
+  it("task progress bar exposes role=progressbar with ARIA value attributes", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [CONFIGURED_PROVIDER],
+          default_provider_id: "p1",
+        }),
+      ),
+    );
+    const taskList = [
+      { id: "1", label: "Read docs", status: "done" as const },
+      { id: "2", label: "Patch component", status: "in_progress" as const },
+      { id: "3", label: "Run tests", status: "pending" as const },
+      { id: "4", label: "Open PR", status: "pending" as const },
+    ];
+    render(<AiChatPanel {...defaultProps} taskList={taskList} />, { wrapper: Wrapper });
+
+    const progressbar = await screen.findByRole("progressbar");
+    expect(progressbar).toHaveAttribute("aria-valuenow", "25");
+    expect(progressbar).toHaveAttribute("aria-valuemin", "0");
+    expect(progressbar).toHaveAttribute("aria-valuemax", "100");
+    expect(progressbar).toHaveAccessibleName();
+  });
 });

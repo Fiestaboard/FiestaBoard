@@ -1506,5 +1506,8 @@
     "requires": "Requires",
     "pluginNotEnabled": "Enable the {name} plugin in Integrations to use this template",
     "importWithMissingPlugins": "Some plugins aren't enabled yet: {plugins}. You can still import and enable them later."
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "AI task progress"
   }
 }
