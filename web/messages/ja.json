@@ -709,6 +709,7 @@
     "exportFailed": "共有文字列の取得に失敗",
     "exportDialogTitle": "ページをエクスポート",
     "exportDialogDescription": "この共有文字列をコピーしてページを他の人と共有します。",
+    "exportStringAriaLabel": "共有文字列",
     "exportCopyAriaLabel": "共有文字列をコピー"
   },
   "displaySettings": {

@@ -709,6 +709,7 @@
     "exportFailed": "Deelreeks ophalen mislukt",
     "exportDialogTitle": "Pagina exporteren",
     "exportDialogDescription": "Kopieer deze deelreeks om je pagina met anderen te delen.",
+    "exportStringAriaLabel": "Deelreeks",
     "exportCopyAriaLabel": "Deelreeks kopiëren"
   },
   "displaySettings": {

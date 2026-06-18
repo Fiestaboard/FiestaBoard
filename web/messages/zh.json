@@ -709,6 +709,7 @@
     "exportFailed": "获取分享字符串失败",
     "exportDialogTitle": "导出页面",
     "exportDialogDescription": "复制此分享字符串以与他人分享您的页面。",
+    "exportStringAriaLabel": "分享字符串",
     "exportCopyAriaLabel": "复制分享字符串"
   },
   "displaySettings": {

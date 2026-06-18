@@ -709,6 +709,7 @@
     "exportFailed": "Impossibile ottenere la stringa di condivisione",
     "exportDialogTitle": "Esporta pagina",
     "exportDialogDescription": "Copia questa stringa di condivisione per condividere la tua pagina con altri.",
+    "exportStringAriaLabel": "Stringa di condivisione",
     "exportCopyAriaLabel": "Copia stringa di condivisione"
   },
   "displaySettings": {
