@@ -144,7 +144,11 @@ def get_dimensions(device_type: str) -> DeviceDimensions:
         ValueError: If device_type is not recognized
     """
     if device_type not in DEVICE_DIMENSIONS:
-        raise ValueError(f"Unknown device type: {device_type}. Must be one of {DEVICE_TYPES}")
+        raise ValueError(
+            f"Unknown device type: {device_type}. "
+            f"get_dimensions() supports {tuple(DEVICE_DIMENSIONS)}; "
+            "for note arrays use resolve_dimensions()."
+        )
     return DEVICE_DIMENSIONS[device_type]
 
 

@@ -54,6 +54,11 @@ class TestDeviceDimensions:
         with pytest.raises(ValueError, match="Unknown device type"):
             get_dimensions("")
 
+    def test_get_dimensions_note_array_raises(self):
+        """note_array is not supported by get_dimensions; use resolve_dimensions instead."""
+        with pytest.raises(ValueError, match="resolve_dimensions"):
+            get_dimensions("note_array")
+
 
 class TestDeviceConstants:
     """Tests for DEVICE_TYPES and VALID_API_MODES constants."""
