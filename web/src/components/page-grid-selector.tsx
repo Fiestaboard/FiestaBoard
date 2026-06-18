@@ -213,7 +213,7 @@ const PageButton = memo(
         aria-pressed={isActive}
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          <TypeIcon className={iconClassName} />
+          <TypeIcon className={iconClassName} aria-hidden="true" />
           <span className={nameClassName}>{page.name}</span>
         </div>
 
@@ -302,11 +302,11 @@ const PageListItem = memo(
         type="button"
         aria-pressed={isActive}
       >
-        <LayoutTemplate className={iconClassName} />
+        <LayoutTemplate className={iconClassName} aria-hidden="true" />
         <span className={nameClassName}>{page.name}</span>
         {formattedDate && (
           <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-            <Clock className="h-3 w-3" />
+            <Clock className="h-3 w-3" aria-hidden="true" />
             {formattedDate}
           </span>
         )}
@@ -381,7 +381,7 @@ const CollectionButton = memo(
     return (
       <button onClick={handleClick} disabled={isPending} className={buttonClassName} type="button">
         <div className="flex items-center gap-2.5 min-w-0">
-          <GalleryHorizontalEnd className={iconClassName} />
+          <GalleryHorizontalEnd className={iconClassName} aria-hidden="true" />
           <span className={nameClassName}>{collection.name}</span>
           <Badge variant="secondary" className="text-[10px] ml-auto flex-shrink-0">
             {tCommon("pageCount", { count: collection.page_ids.length })}
@@ -713,11 +713,11 @@ export function PageGridSelector({
       <Tabs defaultValue={defaultTab}>
         <TabsList className="w-full">
           <TabsTrigger value="pages" className="flex-1 gap-1.5">
-            <LayoutTemplate className="h-4 w-4" />
+            <LayoutTemplate className="h-4 w-4" aria-hidden="true" />
             {t("pagesTab", { count: pages.length })}
           </TabsTrigger>
           <TabsTrigger value="collections" className="flex-1 gap-1.5">
-            <GalleryHorizontalEnd className="h-4 w-4" />
+            <GalleryHorizontalEnd className="h-4 w-4" aria-hidden="true" />
             {t("collectionsTab", { count: collections.length })}
           </TabsTrigger>
         </TabsList>

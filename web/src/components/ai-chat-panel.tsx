@@ -320,13 +320,13 @@ export function AiChatPanel({
 function TaskStatusIcon({ status }: { status: TaskStatus }) {
   switch (status) {
     case "done":
-      return <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />;
+      return <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" aria-hidden="true" />;
     case "failed":
-      return <XCircle className="h-3 w-3 shrink-0 text-destructive" />;
+      return <XCircle className="h-3 w-3 shrink-0 text-destructive" aria-hidden="true" />;
     case "in_progress":
-      return <Loader2 className="h-3 w-3 shrink-0 animate-spin text-brand-emphasis" />;
+      return <Loader2 className="h-3 w-3 shrink-0 animate-spin text-brand-emphasis" aria-hidden="true" />;
     case "pending":
-      return <Circle className="h-3 w-3 shrink-0 text-muted-foreground/50" />;
+      return <Circle className="h-3 w-3 shrink-0 text-muted-foreground/50" aria-hidden="true" />;
   }
 }
 

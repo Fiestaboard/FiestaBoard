@@ -90,7 +90,7 @@ export function PagePickerDialog({
           }`}
         >
           <div className="flex items-center gap-2">
-            <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground" />
+            <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <span className="text-sm font-medium">{collection.name}</span>
             <Badge variant="secondary" className="text-[10px]">
               {t("pageCount", { count: collection.page_ids.length })}
@@ -121,11 +121,11 @@ export function PagePickerDialog({
       <Tabs defaultValue={defaultTab}>
         <TabsList className="w-full">
           <TabsTrigger value="pages" className="flex-1 gap-1.5">
-            <LayoutTemplate className="h-4 w-4" />
+            <LayoutTemplate className="h-4 w-4" aria-hidden="true" />
             {t("pagesTab", { count: pages.length })}
           </TabsTrigger>
           <TabsTrigger value="collections" className="flex-1 gap-1.5">
-            <GalleryHorizontalEnd className="h-4 w-4" />
+            <GalleryHorizontalEnd className="h-4 w-4" aria-hidden="true" />
             {t("collectionsTab", { count: collections.length })}
           </TabsTrigger>
         </TabsList>
