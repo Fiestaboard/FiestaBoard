@@ -1506,5 +1506,10 @@
     "requires": "Vereist",
     "pluginNotEnabled": "Schakel de {name}-plugin in bij Integrations om dit sjabloon te gebruiken",
     "importWithMissingPlugins": "Sommige plugins zijn nog niet ingeschakeld: {plugins}. Je kunt nog steeds importeren en ze later inschakelen."
+  },
+  "boardSizeIndicator": {
+    "custom": "Custom",
+    "ariaLabel": "{rows} rows by {cols} columns",
+    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
   }
 }

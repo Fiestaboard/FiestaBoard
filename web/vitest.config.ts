@@ -27,6 +27,7 @@ export default defineConfig({
         "src/lib/**",
         "src/hooks/**",
         "src/components/board-display.tsx",
+        "src/components/board-size-indicator.tsx",
         "src/components/active-page-display.tsx",
         "src/components/navigation-sidebar.tsx",
         "src/components/service-status.tsx",

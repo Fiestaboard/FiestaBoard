@@ -1506,5 +1506,10 @@
     "requires": "Wymaga",
     "pluginNotEnabled": "Włącz wtyczkę {name} w Integrations, aby użyć tego szablonu",
     "importWithMissingPlugins": "Niektóre wtyczki nie są jeszcze włączone: {plugins}. Możesz wciąż zaimportować i włączyć je później."
+  },
+  "boardSizeIndicator": {
+    "custom": "Custom",
+    "ariaLabel": "{rows} rows by {cols} columns",
+    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
   }
 }

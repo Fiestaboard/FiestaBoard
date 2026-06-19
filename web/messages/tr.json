@@ -1506,5 +1506,10 @@
     "requires": "Gerektirir",
     "pluginNotEnabled": "Bu şablonu kullanmak için Integrations'ta {name} eklentisini etkinleştirin",
     "importWithMissingPlugins": "Bazı eklentiler henüz etkin değil: {plugins}. Yine de içe aktarıp daha sonra etkinleştirebilirsiniz."
+  },
+  "boardSizeIndicator": {
+    "custom": "Custom",
+    "ariaLabel": "{rows} rows by {cols} columns",
+    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
   }
 }

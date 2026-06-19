@@ -20,6 +20,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { Badge as BadgeUI } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -429,7 +430,11 @@ export function DisplaySettings() {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="capitalize">{board.device_type}</span>
                       <span>•</span>
-                      <span>{board.device_type === "flagship" ? "22×6" : "15×3"}</span>
+                      <BoardSizeIndicator
+                        deviceType={board.device_type}
+                        notesWide={board.notes_wide}
+                        notesTall={board.notes_tall}
+                      />
                       <span>•</span>
                       <div
                         className="h-3 w-3 rounded border"

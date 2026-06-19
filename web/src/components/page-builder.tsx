@@ -5,6 +5,7 @@ import { ArrowLeft, Check, Copy, Radio, Save, Trash2, Upload } from "lucide-reac
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 // Direct import – bypasses next/dynamic chunk caching issues in dev mode.
@@ -1424,7 +1425,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 {/* Live preview */}
                 <div className="mt-4">
                   <div className="flex flex-wrap items-center justify-between gap-y-1 mb-2">
-                    <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
+                      {/* TODO(#1178): pass notesWide/notesTall for note_array pages (defaults to 1×1 today). */}
+                      <BoardSizeIndicator deviceType={deviceType} className="ml-1" />
+                    </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-[10px] text-muted-foreground mr-0.5">{t("boardColorLabel")}</span>
                       <button
