@@ -259,9 +259,11 @@ def classify_dimensions(rows: int, cols: int) -> dict:
             "matched_preset": matched_preset,
         }
 
+    # All dimensions in this message are rows×cols (matching the "{rows}×{cols}"
+    # grid description) so the comparison sizes read consistently.
     raise ValueError(
-        f"Grid {rows}×{cols} is unclassifiable: not a flagship ({flagship.cols}×{flagship.rows}), "
-        f"not a Note ({note.cols}×{note.rows}), and not a valid note-array grid "
+        f"Grid {rows}×{cols} is unclassifiable: not a flagship ({flagship.rows}×{flagship.cols}), "
+        f"not a Note ({note.rows}×{note.cols}), and not a valid note-array grid "
         f"(rows must be a multiple of {NOTE_ROWS}, cols a multiple of {NOTE_COLS}, "
         f"each axis ≤ {MAX_NOTES_PER_AXIS} notes)."
     )
