@@ -45,6 +45,7 @@ import type {
 } from "@/lib/ai-chat-types";
 import { type AISettings, api } from "@/lib/api";
 import { useAiChat } from "@/lib/use-ai-chat";
+import { cn } from "@/lib/utils";
 
 export interface AiChatPanelProps {
   /** Per-turn editor context (device type + current page snapshot). */

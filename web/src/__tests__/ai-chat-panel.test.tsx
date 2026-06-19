@@ -4,9 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import enMessages from "../../messages/en.json";
 import { AiChatPanel } from "@/components/ai-chat-panel";
 
+import enMessages from "../../messages/en.json";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
