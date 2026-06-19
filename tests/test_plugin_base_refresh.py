@@ -7,6 +7,7 @@ from src.plugins.base import (
     MIN_REFRESH_SECONDS,
     PluginBase,
     PluginResult,
+    _DEFAULT_CACHE_KEY,
 )
 
 MANIFEST_WITH_REFRESH = {
@@ -228,7 +229,7 @@ class TestGetDataCaching:
         plugin.get_data()
         assert plugin.fetch_call_count == 1
 
-        plugin._last_fetch_time = datetime.now() - timedelta(seconds=120)
+        plugin._last_fetch_times[_DEFAULT_CACHE_KEY] = datetime.now() - timedelta(seconds=120)
         plugin.get_data()
         assert plugin.fetch_call_count == 2
 
@@ -259,7 +260,7 @@ class TestGetDataCaching:
         plugin.get_data()
         assert plugin.fetch_call_count == 1
 
-        plugin._last_fetch_time = datetime.now() - timedelta(seconds=DEFAULT_REFRESH_SECONDS + 1)
+        plugin._last_fetch_times[_DEFAULT_CACHE_KEY] = datetime.now() - timedelta(seconds=DEFAULT_REFRESH_SECONDS + 1)
         plugin.get_data()
         assert plugin.fetch_call_count == 2
 
@@ -276,8 +277,8 @@ class TestGetDataCaching:
         plugin = ConcretePlugin(MANIFEST_LIVE_DATA)
 
         plugin.get_data()
-        assert plugin._cached_result is None
-        assert plugin._last_fetch_time is None
+        assert plugin._cached_results == {}
+        assert plugin._last_fetch_times == {}
 
     def test_does_not_cache_failed_result(self):
         plugin = FailingPlugin(MANIFEST_WITH_REFRESH)
@@ -288,7 +289,7 @@ class TestGetDataCaching:
 
         assert not result1.available
         assert not result2.available
-        assert plugin._cached_result is None
+        assert plugin._cached_results == {}
 
     def test_uses_manifest_default_refresh(self):
         plugin = ConcretePlugin(MANIFEST_WITH_REFRESH)
@@ -304,7 +305,7 @@ class TestGetDataCaching:
         plugin._config = {"refresh_seconds": 300}
 
         plugin.get_data()
-        plugin._last_fetch_time = datetime.now() - timedelta(seconds=100)
+        plugin._last_fetch_times[_DEFAULT_CACHE_KEY] = datetime.now() - timedelta(seconds=100)
 
         result = plugin.get_data()
         assert plugin.fetch_call_count == 1
@@ -331,13 +332,13 @@ class TestClearCache:
         plugin = ConcretePlugin(MANIFEST_WITH_REFRESH)
         plugin.get_data()
 
-        assert plugin._cached_result is not None
-        assert plugin._last_fetch_time is not None
+        assert _DEFAULT_CACHE_KEY in plugin._cached_results
+        assert _DEFAULT_CACHE_KEY in plugin._last_fetch_times
 
         plugin.clear_cache()
 
-        assert plugin._cached_result is None
-        assert plugin._last_fetch_time is None
+        assert plugin._cached_results == {}
+        assert plugin._last_fetch_times == {}
 
 
 # --- config change clears cache ---
@@ -382,7 +383,7 @@ class TestDisableClearsCache:
         assert plugin.fetch_call_count == 1
 
         plugin.enabled = False
-        assert plugin._cached_result is None
+        assert plugin._cached_results == {}
 
         plugin.enabled = True
         plugin.get_data()

@@ -7,6 +7,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from plugins.countdown import CountdownPlugin
+from src.devices import BoardContext
 
 
 class TestCountdownPlugin:
@@ -372,3 +373,89 @@ class TestCountdownManifestMetadata:
         assert len(groups) > 0, "Manifest should define at least one group"
         for group_id, group_def in groups.items():
             assert "label" in group_def, f"Group '{group_id}' missing label"
+
+
+class TestCountdownBoardAwareness:
+    """The countdown display adapts to the board it renders on."""
+
+    @patch("plugins.countdown.datetime")
+    def test_flagship_unchanged_six_lines(self, mock_datetime, sample_manifest, sample_config):
+        """Flagship (22x6) keeps the full six-line labelled layout."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = sample_config
+        result = plugin.get_data(BoardContext.from_device_type("flagship"))
+
+        lines = result.formatted_lines
+        assert lines is not None
+        assert len(lines) == 6
+        assert all(len(line) <= 22 for line in lines)
+        assert "COUNTDOWN" in lines[0].upper()
+
+    @patch("plugins.countdown.datetime")
+    def test_note_compact_three_lines(self, mock_datetime, sample_manifest, sample_config):
+        """Note (15x3) drops to a compact three-line layout that fits 15 cols."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = sample_config
+        result = plugin.get_data(BoardContext.from_device_type("note"))
+
+        lines = result.formatted_lines
+        assert lines is not None
+        assert len(lines) == 3
+        assert all(len(line) <= 15 for line in lines)
+
+    @patch("plugins.countdown.datetime")
+    def test_note_compact_expired(self, mock_datetime, sample_manifest, sample_config):
+        """An expired event on a Note still fits the compact three-line layout."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 7, 1, 0, 0, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = sample_config
+        lines = plugin.get_data(BoardContext.from_device_type("note")).formatted_lines
+
+        assert lines is not None
+        assert len(lines) == 3
+        assert all(len(line) <= 15 for line in lines)
+        assert any("PASSED" in line.upper() for line in lines)
+
+    @patch("plugins.countdown.datetime")
+    def test_per_board_cache_isolation(self, mock_datetime, sample_manifest, sample_config):
+        """Flagship and Note renders cache independently (no cross-contamination)."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = sample_config
+
+        flagship_lines = plugin.get_data(BoardContext.from_device_type("flagship")).formatted_lines
+        note_lines = plugin.get_data(BoardContext.from_device_type("note")).formatted_lines
+
+        assert len(flagship_lines) == 6
+        assert len(note_lines) == 3
+        # Re-fetching flagship within TTL must still return the 6-line layout,
+        # not the 3-line note variant that was cached afterwards.
+        assert len(plugin.get_data(BoardContext.from_device_type("flagship")).formatted_lines) == 6
+
+    @patch("plugins.countdown.datetime")
+    def test_no_board_defaults_to_flagship(self, mock_datetime, sample_manifest, sample_config):
+        """With no board bound, output matches the historical 22x6 layout."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = sample_config
+        result = plugin.get_data()  # no board
+
+        assert result.formatted_lines is not None
+        assert len(result.formatted_lines) == 6

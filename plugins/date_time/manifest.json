@@ -1,7 +1,7 @@
 {
   "id": "date_time",
   "name": "Date & Time",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Display current date and time in configurable formats",
   "author": "FiestaBoard Team",
   "repository": "https://github.com/FiestaBoard/FiestaBoard",
@@ -195,6 +195,24 @@
         "group": "formatting",
         "max_length": 50,
         "example": "IT'S A QUARTER PAST ONE IN THE AFTERNOON."
+      },
+      "day_of_week_adaptive": {
+        "description": "Day name, full on wide boards / abbreviated on narrow boards",
+        "group": "formatting",
+        "max_length": 9,
+        "example": "Friday"
+      },
+      "month_adaptive": {
+        "description": "Month name, full on wide boards / abbreviated on narrow boards",
+        "group": "formatting",
+        "max_length": 9,
+        "example": "August"
+      },
+      "date_pretty": {
+        "description": "Friendly date that adapts to board width (e.g. 'Friday, August 27' on Flagship, 'Fri, Aug 27' on Note)",
+        "group": "formatting",
+        "max_length": 22,
+        "example": "Friday, August 27"
       }
     }
   },

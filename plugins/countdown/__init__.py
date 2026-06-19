@@ -138,16 +138,42 @@ class CountdownPlugin(PluginBase):
         return self._format_display(result.data)
 
     def _format_display(self, data: dict[str, Any]) -> list[str]:
-        """Format countdown data for the 6-line board display."""
+        """Format countdown data for the board display, adapted to its size.
+
+        Flagship (22x6) gets the full labelled layout; a short board like the
+        Note (15x3) gets a compact 3-line layout with shorter labels so the
+        countdown still fits. ``self.board`` is None outside a board-scoped
+        render — fall back to the Flagship 22x6 layout.
+        """
+        board = self.board
+        width = board.width if board else 22
+        height = board.height if board else 6
+
         event_name = data.get("event_name", "Event")
         is_expired = data.get("is_expired") == "true"
+
+        if height <= 3:
+            # Compact layout for short boards (e.g. Note).
+            if is_expired:
+                return [
+                    event_name[:width].upper().center(width),
+                    "EVENT".center(width),
+                    "HAS PASSED".center(width),
+                ]
+            days = data.get("days", "0")
+            hours = data.get("hours", "0")
+            return [
+                event_name[:width].upper().center(width),
+                f"{days}D {hours}H".center(width),
+                "TO GO".center(width),
+            ]
 
         if is_expired:
             lines = [
                 "COUNTDOWN",
-                event_name[:22].upper().center(22),
+                event_name[:width].upper().center(width),
                 "",
-                "EVENT HAS PASSED".center(22),
+                "EVENT HAS PASSED".center(width),
                 "",
                 "",
             ]
@@ -157,15 +183,15 @@ class CountdownPlugin(PluginBase):
             minutes = data.get("minutes", "0")
 
             lines = [
-                "COUNTDOWN UNTIL".center(22),
-                event_name[:22].upper().center(22),
+                "COUNTDOWN UNTIL".center(width),
+                event_name[:width].upper().center(width),
                 "",
-                f"{days} DAYS".center(22),
-                f"{hours} HOURS".center(22),
-                f"{minutes} MINUTES".center(22),
+                f"{days} DAYS".center(width),
+                f"{hours} HOURS".center(width),
+                f"{minutes} MINUTES".center(width),
             ]
 
-        return lines
+        return lines[:height]
 
 
 # Export the plugin class
