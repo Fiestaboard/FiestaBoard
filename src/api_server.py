@@ -671,6 +671,16 @@ async def lifespan(app: FastAPI):
     # Set up file-based logging
     _setup_file_logging()
 
+    # Auto-heal config dropped on an upgrade boot (#1102/#948) BEFORE the
+    # service + plugin registry read it. No-op unless this is a version-change
+    # boot with a snapshot that still holds the lost data.
+    try:
+        _restored = _auto_restore_post_upgrade_regression()
+        if _restored:
+            logger.warning("Post-upgrade auto-restore applied from snapshot: %s", _restored)
+    except Exception:  # pragma: no cover - safety net must never block boot
+        logger.debug("Post-upgrade auto-restore failed", exc_info=True)
+
     # If the most recent settings snapshot looks materially richer than the
     # live config (more enabled plugins, etc.), tell the user loudly on
     # startup so they don't have to discover the recovery path on their own.
