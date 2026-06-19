@@ -180,7 +180,9 @@ class Handler(BaseHTTPRequestHandler):
             grid = body["characters"]
             dims = _grid_dimensions(grid)
             if dims is None:
-                self._send_json(400, {"error": "Request must include 'characters'"})
+                # Distinct from the missing-key error above: the key is present but
+                # the value isn't a non-empty rectangular 2-D int grid.
+                self._send_json(400, {"error": "'characters' must be a non-empty rectangular 2-D int array"})
                 return
 
             rows, cols = dims

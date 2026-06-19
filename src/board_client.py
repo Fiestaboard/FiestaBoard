@@ -317,15 +317,27 @@ class BoardClient:
             logger.error(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES}")
             return (False, False)
 
-        # Note-array boards do not support transitions; strip and warn.
-        if self._is_note_array and strategy is not None:
-            logger.debug("Note-array board: transition strategy %r is not supported and will be ignored.", strategy)
+        # Note-array boards do not support transitions; strip and warn. Guard on
+        # ANY transition param (not just strategy) so a caller passing only
+        # step_interval_ms/step_size still gets the debug breadcrumb explaining
+        # why their animation param was dropped.
+        if self._is_note_array and any(p is not None for p in (strategy, step_interval_ms, step_size)):
+            logger.debug(
+                "Note-array board: transition params (strategy=%r, step_interval_ms=%r, step_size=%r) "
+                "are not supported and will be ignored.",
+                strategy,
+                step_interval_ms,
+                step_size,
+            )
             strategy = None
             step_interval_ms = None
             step_size = None
 
         # Rate-limit note-array sends to >= NOTE_ARRAY_MIN_SEND_INTERVAL seconds.
         # Read the clock once and reuse it for the success-path timestamp below.
+        # The check+update below is not locked: FiestaBoard's send paths run on a
+        # single-threaded main loop, so the TOCTOU window is unreachable in
+        # practice. If sends ever become concurrent, guard this with a per-token lock.
         now = self._time_func() if self._is_note_array else None
         if self._is_note_array:
             last = _note_array_last_send.get(self._note_array_token)
