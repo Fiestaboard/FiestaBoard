@@ -2096,6 +2096,58 @@ def _list_settings_snapshots() -> list[dict[str, Any]]:
     return out
 
 
+# Config fields we know are user-set and safe to auto-restore from a snapshot.
+_RESTORABLE_GENERAL_FIELDS = ("timezone", "instance_name")
+
+
+def _build_post_upgrade_restore_set(
+    snap_config: dict[str, Any], live_config: dict[str, Any]
+) -> dict[str, Any]:
+    """Compute which config.json keys regressed vs a pre-update snapshot.
+
+    Returns ``{"general": {...}, "plugins": {...}}`` with only the keys worth
+    restoring; an empty dict means nothing regressed. See plan Task 2 for rules.
+    """
+    from src.config_manager import DEFAULT_CONFIG, SENSITIVE_FIELDS
+
+    result: dict[str, Any] = {}
+
+    snap_general = snap_config.get("general") or {}
+    live_general = live_config.get("general") or {}
+    default_general = DEFAULT_CONFIG.get("general", {})
+    general: dict[str, Any] = {}
+    for field in _RESTORABLE_GENERAL_FIELDS:
+        snap_val = snap_general.get(field)
+        if not isinstance(snap_val, str) or not snap_val:
+            continue
+        live_val = live_general.get(field)
+        if live_val == snap_val:
+            continue
+        if live_val in ("", None, default_general.get(field)):
+            general[field] = snap_val
+    if general:
+        result["general"] = general
+
+    snap_plugins = snap_config.get("plugins") or {}
+    live_plugins = live_config.get("plugins") or {}
+    plugins: dict[str, Any] = {}
+    for pid, snap_cfg in snap_plugins.items():
+        if not (isinstance(snap_cfg, dict) and snap_cfg.get("enabled") is True):
+            continue  # only auto-restore plugins the user had ENABLED (#937 invariant)
+        live_cfg = live_plugins.get(pid)
+        lost_enable = not (isinstance(live_cfg, dict) and live_cfg.get("enabled") is True)
+        lost_secret = isinstance(live_cfg, dict) and any(
+            key in SENSITIVE_FIELDS and snap_cfg.get(key) and not live_cfg.get(key)
+            for key in snap_cfg
+        )
+        if lost_enable or lost_secret:
+            plugins[pid] = snap_cfg
+    if plugins:
+        result["plugins"] = plugins
+
+    return result
+
+
 def _detect_post_upgrade_regression() -> dict[str, Any] | None:
     """Return a hint payload when the live config looks regressed against the
     newest pre-update snapshot.
