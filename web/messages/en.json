@@ -723,7 +723,28 @@
     "boardNamePlaceholder": "e.g. Kitchen Board, Office Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
-    "failedToEnable": "Failed to enable local API"
+    "failedToEnable": "Failed to enable local API",
+    "deviceTypeAriaLabel": "Board type and size",
+    "deviceGroupLabel": "Devices",
+    "noteArrayGroupLabel": "Note arrays",
+    "customLabel": "Custom…",
+    "presets": {
+      "2_wide": "2 side-by-side",
+      "4_wide": "4 side-by-side",
+      "2_tall": "2 stacked",
+      "4_tall": "4 stacked",
+      "2x2_grid": "2×2 grid"
+    },
+    "notesWideLabel": "Notes wide",
+    "notesTallLabel": "Notes tall",
+    "customRangeError": "Each dimension must be between 1 and {max}.",
+    "noteArrayTokenLabel": "Cloud API Token",
+    "noteArrayTokenPlaceholder": "Enter X-Vestaboard-Token",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (set)",
+    "noteArrayTokenHelp": "The X-Vestaboard-Token for this Note array, from your Vestaboard Cloud API subscription.",
+    "autoDetect": "Auto-detect from board",
+    "detecting": "Detecting…",
+    "detectFailed": "Could not detect the board configuration."
   },
   "systemUpdate": {
     "updateAvailable": "Update Available",

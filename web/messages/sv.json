@@ -766,7 +766,28 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "Tavlans typ och storlek",
+    "deviceGroupLabel": "Enheter",
+    "noteArrayGroupLabel": "Note-matriser",
+    "customLabel": "Anpassad…",
+    "presets": {
+      "2_wide": "2 sida vid sida",
+      "4_wide": "4 sida vid sida",
+      "2_tall": "2 staplade",
+      "4_tall": "4 staplade",
+      "2x2_grid": "2×2-rutnät"
+    },
+    "notesWideLabel": "Notes breda",
+    "notesTallLabel": "Notes höga",
+    "customRangeError": "Varje dimension måste vara mellan 1 och {max}.",
+    "noteArrayTokenLabel": "Moln-API-token",
+    "noteArrayTokenPlaceholder": "Ange X-Vestaboard-Token",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (angiven)",
+    "noteArrayTokenHelp": "X-Vestaboard-Token för denna Note-matris, från din Vestaboard Cloud API-prenumeration.",
+    "autoDetect": "Identifiera automatiskt från tavlan",
+    "detecting": "Identifierar…",
+    "detectFailed": "Det gick inte att identifiera tavlans konfiguration."
   },
   "systemUpdate": {
     "updateAvailable": "Uppdatering tillgänglig",

@@ -1,0 +1,372 @@
+/**
+ * Tests for the note-array settings UI in DisplaySettings:
+ *  - Grouped device/preset Select (replaces the old flagship/note pills)
+ *  - Custom W×H inputs with 1..MAX_NOTES_PER_AXIS validation
+ *  - note_array_token field (masked-secret round trip)
+ *  - Auto-detect from board (success → flagship/note/array, errors inline)
+ *
+ * The per-board controls live inside a collapsed Radix Collapsible, so each
+ * test expands the card first by clicking its trigger. Radix Select / detect
+ * interactions rely on the pointer-capture + scrollIntoView mocks in setup.ts.
+ */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { DisplaySettings } from "@/components/settings/display-settings";
+
+import { server } from "./mocks/server";
+
+const API_BASE = "/api";
+
+type BoardOverride = Record<string, unknown>;
+type BoardRecord = Record<string, unknown>;
+
+/**
+ * Stateful board fixture. GET returns the current board; PUT persists the
+ * incoming boards and records the request body — mirroring the real backend
+ * so the component's invalidate→refetch cycle reflects each save (the
+ * controlled Select reads from the refetched query data, not local state).
+ *
+ * `put.body` is `null` until a PUT fires; reset it between assertions.
+ */
+function setupBoard(board: BoardOverride) {
+  const state: { boards: BoardRecord[] } = {
+    boards: [
+      {
+        id: "default",
+        name: "My Board",
+        board_color: "black",
+        api_mode: "cloud",
+        cloud_key: "***",
+        ...board,
+      },
+    ],
+  };
+  const put: { body: { boards?: BoardRecord[] } | null } = { body: null };
+
+  server.use(
+    http.get(`${API_BASE}/settings/board`, () =>
+      HttpResponse.json({
+        board_type: "black",
+        boards: state.boards,
+        devices: state.boards.map((b) => b.device_type),
+      }),
+    ),
+    http.put(`${API_BASE}/settings/board`, async ({ request }) => {
+      const body = (await request.json()) as { boards?: BoardRecord[] };
+      put.body = body;
+      if (body.boards) {
+        // Persist, masking the token like the real backend would on read-back.
+        state.boards = body.boards.map((b) => ({
+          ...b,
+          note_array_token: b.note_array_token ? "***" : b.note_array_token,
+        }));
+      }
+      return HttpResponse.json({
+        status: "success",
+        settings: { board_type: "black", boards: state.boards, devices: state.boards.map((b) => b.device_type) },
+      });
+    }),
+  );
+
+  return put;
+}
+
+function TestWrapper({ children }: { children: React.ReactNode }) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+
+/** Render, wait for the board card, expand it, and return the card element. */
+async function renderAndExpand(user: ReturnType<typeof userEvent.setup>) {
+  render(<DisplaySettings />, { wrapper: TestWrapper });
+  const trigger = await screen.findByText("My Board");
+  await user.click(trigger);
+  const card = await screen.findByTestId("board-card");
+  return card;
+}
+
+describe("DisplaySettings — note-array selector", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders grouped device + preset options", async () => {
+    const user = userEvent.setup();
+    setupBoard({ device_type: "flagship" });
+    await renderAndExpand(user);
+
+    const combo = screen.getByLabelText("Board type and size");
+    await user.click(combo);
+
+    await waitFor(() => {
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+    });
+    const listbox = screen.getByRole("listbox");
+    // Group labels
+    expect(within(listbox).getByText("Devices")).toBeInTheDocument();
+    expect(within(listbox).getByText("Note arrays")).toBeInTheDocument();
+    // Options
+    expect(within(listbox).getByRole("option", { name: "Flagship" })).toBeInTheDocument();
+    expect(within(listbox).getByRole("option", { name: "Note" })).toBeInTheDocument();
+    expect(within(listbox).getByRole("option", { name: "2 side-by-side" })).toBeInTheDocument();
+    expect(within(listbox).getByRole("option", { name: "4 side-by-side" })).toBeInTheDocument();
+    expect(within(listbox).getByRole("option", { name: "2 stacked" })).toBeInTheDocument();
+    expect(within(listbox).getByRole("option", { name: "4 stacked" })).toBeInTheDocument();
+    expect(within(listbox).getByRole("option", { name: "2×2 grid" })).toBeInTheDocument();
+    expect(within(listbox).getByRole("option", { name: "Custom…" })).toBeInTheDocument();
+  });
+
+  it("selecting a preset saves note_array dimensions", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship" });
+    await renderAndExpand(user);
+
+    const combo = screen.getByLabelText("Board type and size");
+    await user.click(combo);
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: "2×2 grid" }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const b = put.body!.boards![0];
+    expect(b.device_type).toBe("note_array");
+    expect(b.notes_wide).toBe(2);
+    expect(b.notes_tall).toBe(2);
+  });
+
+  it("selecting Flagship from a note array saves device_type", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "note_array", notes_wide: 2, notes_tall: 2 });
+    await renderAndExpand(user);
+
+    const combo = screen.getByLabelText("Board type and size");
+    await user.click(combo);
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: "Flagship" }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    expect(put.body!.boards![0].device_type).toBe("flagship");
+  });
+});
+
+describe("DisplaySettings — custom W×H inputs", () => {
+  it("selecting Custom reveals the W×H inputs", async () => {
+    const user = userEvent.setup();
+    setupBoard({ device_type: "flagship" });
+    const card = await renderAndExpand(user);
+
+    const combo = screen.getByLabelText("Board type and size");
+    await user.click(combo);
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: "Custom…" }));
+
+    // Two number inputs render once Custom is chosen (local customOpen state).
+    expect(await within(card).findByLabelText("Notes wide")).toBeInTheDocument();
+    expect(within(card).getByLabelText("Notes tall")).toBeInTheDocument();
+  });
+
+  it("custom inputs validate the range (block out-of-range, persist valid)", async () => {
+    const user = userEvent.setup();
+    // 3×1 is a note array that matches no preset → renders as "Custom" with inputs.
+    const put = setupBoard({ device_type: "note_array", notes_wide: 3, notes_tall: 1 });
+    const card = await renderAndExpand(user);
+
+    const wide = (await within(card).findByLabelText("Notes wide")) as HTMLInputElement;
+    expect(within(card).getByLabelText("Notes tall")).toBeInTheDocument();
+    put.body = null;
+
+    // Out-of-range value → inline error, no PUT. fireEvent.change sets the exact
+    // value in one shot (controlled number inputs drift under clear()+type()).
+    fireEvent.change(wide, { target: { value: "9" } });
+    expect(await within(card).findByText("Each dimension must be between 1 and 8.")).toBeInTheDocument();
+    expect(put.body).toBeNull();
+
+    // Valid value → error clears, PUT carries the new dim.
+    fireEvent.change(wide, { target: { value: "5" } });
+    await waitFor(() => expect(put.body).not.toBeNull());
+    expect(put.body!.boards![0].notes_wide).toBe(5);
+    expect(within(card).queryByText("Each dimension must be between 1 and 8.")).not.toBeInTheDocument();
+  });
+
+  it("custom inputs block zero values", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "note_array", notes_wide: 3, notes_tall: 1 });
+    const card = await renderAndExpand(user);
+
+    const wide = (await within(card).findByLabelText("Notes wide")) as HTMLInputElement;
+    put.body = null;
+
+    fireEvent.change(wide, { target: { value: "0" } });
+    expect(await within(card).findByText("Each dimension must be between 1 and 8.")).toBeInTheDocument();
+    expect(put.body).toBeNull();
+
+    // Empty value is likewise blocked (NaN guard).
+    fireEvent.change(wide, { target: { value: "" } });
+    expect(within(card).getByText("Each dimension must be between 1 and 8.")).toBeInTheDocument();
+    expect(put.body).toBeNull();
+  });
+});
+
+describe("DisplaySettings — note_array_token field", () => {
+  it("hides the token field for flagship and shows it for a note array", async () => {
+    const user = userEvent.setup();
+    setupBoard({ device_type: "flagship" });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).queryByText("Cloud API Token")).not.toBeInTheDocument();
+
+    const combo = screen.getByLabelText("Board type and size");
+    await user.click(combo);
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: "2×2 grid" }));
+
+    expect(await within(card).findByText("Cloud API Token")).toBeInTheDocument();
+  });
+
+  it("token field is masked and saves a freshly typed value", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "note_array", notes_wide: 2, notes_tall: 2, note_array_token: "***" });
+    const card = await renderAndExpand(user);
+
+    const label = await within(card).findByText("Cloud API Token");
+    const tokenInput = label.parentElement!.querySelector("input") as HTMLInputElement;
+    // Masked: empty value with the "(set)" placeholder.
+    expect(tokenInput.value).toBe("");
+    expect(tokenInput.placeholder).toBe("••••••••••• (set)");
+
+    // Leaving it untouched fires no token change.
+    tokenInput.focus();
+    tokenInput.blur();
+    expect(put.body).toBeNull();
+
+    // Typing a new value + blur persists it.
+    await user.type(tokenInput, "new-secret-token");
+    tokenInput.blur();
+    await waitFor(() => expect(put.body).not.toBeNull());
+    expect(put.body!.boards![0].note_array_token).toBe("new-secret-token");
+  });
+});
+
+describe("DisplaySettings — auto-detect", () => {
+  it("success → note array resolves the matching preset and persists", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship" });
+    server.use(
+      http.post(`${API_BASE}/settings/board/:boardId/detect-size`, () =>
+        HttpResponse.json({
+          device_type: "note_array",
+          rows: 6,
+          cols: 30,
+          notes_wide: 2,
+          notes_tall: 2,
+          matched_preset: "2×2 grid",
+        }),
+      ),
+    );
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByRole("button", { name: "Auto-detect from board" }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const b = put.body!.boards![0];
+    expect(b.device_type).toBe("note_array");
+    expect(b.notes_wide).toBe(2);
+    expect(b.notes_tall).toBe(2);
+  });
+
+  it("success → flagship hides the token field", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "note_array", notes_wide: 2, notes_tall: 2 });
+    server.use(
+      http.post(`${API_BASE}/settings/board/:boardId/detect-size`, () =>
+        HttpResponse.json({ device_type: "flagship", rows: 6, cols: 22 }),
+      ),
+    );
+    const card = await renderAndExpand(user);
+
+    // Token field visible for the note array.
+    expect(within(card).getByText("Cloud API Token")).toBeInTheDocument();
+
+    await user.click(within(card).getByRole("button", { name: "Auto-detect from board" }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    expect(put.body!.boards![0].device_type).toBe("flagship");
+  });
+
+  it("success → custom (no preset) opens the W×H inputs", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship" });
+    server.use(
+      http.post(`${API_BASE}/settings/board/:boardId/detect-size`, () =>
+        HttpResponse.json({
+          device_type: "note_array",
+          rows: 3,
+          cols: 45,
+          notes_wide: 3,
+          notes_tall: 1,
+          matched_preset: null,
+        }),
+      ),
+    );
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByRole("button", { name: "Auto-detect from board" }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    expect(put.body!.boards![0].notes_wide).toBe(3);
+    // Custom inputs reveal because 3×1 matches no preset.
+    expect(await within(card).findByLabelText("Notes wide")).toBeInTheDocument();
+    expect(within(card).getByLabelText("Notes tall")).toBeInTheDocument();
+  });
+
+  it("error (422) shows the FastAPI detail inline and fires no board PUT", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship" });
+    server.use(
+      http.post(`${API_BASE}/settings/board/:boardId/detect-size`, () =>
+        HttpResponse.json({ detail: "Board returned no layout — board may be blank or unreachable" }, { status: 422 }),
+      ),
+    );
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByRole("button", { name: "Auto-detect from board" }));
+
+    expect(
+      await within(card).findByText("Board returned no layout — board may be blank or unreachable"),
+    ).toBeInTheDocument();
+    expect(put.body).toBeNull();
+  });
+
+  it("error (404) surfaces the detail string", async () => {
+    const user = userEvent.setup();
+    setupBoard({ device_type: "flagship" });
+    server.use(
+      http.post(`${API_BASE}/settings/board/:boardId/detect-size`, () =>
+        HttpResponse.json({ detail: "Board not found" }, { status: 404 }),
+      ),
+    );
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByRole("button", { name: "Auto-detect from board" }));
+    expect(await within(card).findByText("Board not found")).toBeInTheDocument();
+  });
+
+  it("error (400) surfaces the detail string", async () => {
+    const user = userEvent.setup();
+    setupBoard({ device_type: "flagship" });
+    server.use(
+      http.post(`${API_BASE}/settings/board/:boardId/detect-size`, () =>
+        HttpResponse.json({ detail: "Board is not configured" }, { status: 400 }),
+      ),
+    );
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByRole("button", { name: "Auto-detect from board" }));
+    expect(await within(card).findByText("Board is not configured")).toBeInTheDocument();
+  });
+});

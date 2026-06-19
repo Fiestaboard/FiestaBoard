@@ -164,7 +164,7 @@ test.describe("Settings – Board Instance CRUD", () => {
     expect(types.filter((t: string) => t === "flagship").length).toBe(2);
   });
 
-  test("can change device type via type pills", async ({ page }) => {
+  test("can change device type via the type selector", async ({ page }) => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
 
@@ -172,12 +172,14 @@ test.describe("Settings – Board Instance CRUD", () => {
 
     // Expand board card
     await page.getByText("My Board").first().click();
-    await expect(page.getByText("Type").first()).toBeVisible({
-      timeout: 5_000,
-    });
 
-    // Click Note pill (the small pill button, not the header text)
-    await page.getByRole("button", { name: "Note", exact: true }).first().click();
+    // Open the device-type Select (grouped flagship/note + note-array presets)
+    const typeSelect = page.getByRole("combobox", { name: "Board type and size" }).first();
+    await expect(typeSelect).toBeVisible({ timeout: 5_000 });
+    await typeSelect.click();
+
+    // Choose "Note" from the Devices group
+    await page.getByRole("option", { name: "Note", exact: true }).click();
     await page.waitForTimeout(1_500);
 
     // Header should now show 15 × 3 dimensions
@@ -188,6 +190,87 @@ test.describe("Settings – Board Instance CRUD", () => {
     const res = await fetch(`${API_URL}/settings/board`);
     const data = await res.json();
     expect(data.boards[0].device_type).toBe("note");
+  });
+
+  test("can select a note-array preset and persist W×H + token", async ({ page }) => {
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+
+    await openSettingsTab(page, "Hardware");
+
+    // Expand board card
+    await page.getByText("My Board").first().click();
+
+    // Open the type Select and pick the "4 side-by-side" note-array preset
+    const typeSelect = page.getByRole("combobox", { name: "Board type and size" }).first();
+    await expect(typeSelect).toBeVisible({ timeout: 5_000 });
+    await typeSelect.click();
+    await page.getByRole("option", { name: "4 side-by-side" }).click();
+    await page.waitForTimeout(1_500);
+
+    // 4×1 notes → 60 × 3 characters
+    await expect(page.getByText("60 × 3").first()).toBeVisible({ timeout: 5_000 });
+
+    let res = await fetch(`${API_URL}/settings/board`);
+    let data = await res.json();
+    expect(data.boards[0].device_type).toBe("note_array");
+    expect(data.boards[0].notes_wide).toBe(4);
+    expect(data.boards[0].notes_tall).toBe(1);
+
+    // The Cloud API Token field appears for note arrays — enter a token.
+    const tokenInput = page.getByText("Cloud API Token").locator("..").locator("input");
+    await tokenInput.fill("test-vestaboard-token");
+    await tokenInput.blur();
+    await page.waitForTimeout(1_500);
+
+    // Reload and confirm the selection + token persisted (token masked as "***").
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    await openSettingsTab(page, "Hardware");
+    await expect(page.getByText("60 × 3").first()).toBeVisible({ timeout: 10_000 });
+
+    res = await fetch(`${API_URL}/settings/board`);
+    data = await res.json();
+    expect(data.boards[0].notes_wide).toBe(4);
+    expect(data.boards[0].note_array_token).toBe("***");
+  });
+
+  test("auto-detect populates type + dimensions from a mocked board read", async ({ page }) => {
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+
+    await openSettingsTab(page, "Hardware");
+
+    // Route-mock the detect-size endpoint to return a 2×2 grid (6×30 chars).
+    await page.route("**/settings/board/*/detect-size", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          device_type: "note_array",
+          rows: 6,
+          cols: 30,
+          notes_wide: 2,
+          notes_tall: 2,
+          matched_preset: "2×2 grid",
+        }),
+      });
+    });
+
+    // Expand board card and click Auto-detect.
+    await page.getByText("My Board").first().click();
+    const detectBtn = page.getByRole("button", { name: "Auto-detect from board" }).first();
+    await expect(detectBtn).toBeVisible({ timeout: 5_000 });
+    await detectBtn.click();
+
+    // The selector lands on the 2×2 grid preset → 30 × 6 characters.
+    await expect(page.getByText("30 × 6").first()).toBeVisible({ timeout: 10_000 });
+
+    const res = await fetch(`${API_URL}/settings/board`);
+    const data = await res.json();
+    expect(data.boards[0].device_type).toBe("note_array");
+    expect(data.boards[0].notes_wide).toBe(2);
+    expect(data.boards[0].notes_tall).toBe(2);
   });
 
   test("can change board color via swatches", async ({ page }) => {

@@ -766,7 +766,28 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "보드 유형 및 크기",
+    "deviceGroupLabel": "기기",
+    "noteArrayGroupLabel": "Note 어레이",
+    "customLabel": "사용자 지정…",
+    "presets": {
+      "2_wide": "가로 2개",
+      "4_wide": "가로 4개",
+      "2_tall": "세로 2개",
+      "4_tall": "세로 4개",
+      "2x2_grid": "2×2 그리드"
+    },
+    "notesWideLabel": "Note 가로 수",
+    "notesTallLabel": "Note 세로 수",
+    "customRangeError": "각 치수는 1에서 {max} 사이여야 합니다.",
+    "noteArrayTokenLabel": "클라우드 API 토큰",
+    "noteArrayTokenPlaceholder": "X-Vestaboard-Token 입력",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (설정됨)",
+    "noteArrayTokenHelp": "이 Note 어레이의 X-Vestaboard-Token으로, Vestaboard 클라우드 API 구독에서 가져옵니다.",
+    "autoDetect": "보드에서 자동 감지",
+    "detecting": "감지 중…",
+    "detectFailed": "보드 구성을 감지할 수 없습니다."
   },
   "systemUpdate": {
     "updateAvailable": "업데이트 가능",

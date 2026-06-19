@@ -766,7 +766,28 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "Тип и размер табло",
+    "deviceGroupLabel": "Устройства",
+    "noteArrayGroupLabel": "Массивы Note",
+    "customLabel": "Пользовательский…",
+    "presets": {
+      "2_wide": "2 в ряд",
+      "4_wide": "4 в ряд",
+      "2_tall": "2 в столбик",
+      "4_tall": "4 в столбик",
+      "2x2_grid": "Сетка 2×2"
+    },
+    "notesWideLabel": "Note в ширину",
+    "notesTallLabel": "Note в высоту",
+    "customRangeError": "Каждый размер должен быть от 1 до {max}.",
+    "noteArrayTokenLabel": "Токен облачного API",
+    "noteArrayTokenPlaceholder": "Введите X-Vestaboard-Token",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (задан)",
+    "noteArrayTokenHelp": "Токен X-Vestaboard-Token для этого массива Note из вашей подписки на облачный API Vestaboard.",
+    "autoDetect": "Автоопределение с табло",
+    "detecting": "Определение…",
+    "detectFailed": "Не удалось определить конфигурацию табло."
   },
   "systemUpdate": {
     "updateAvailable": "Доступно обновление",

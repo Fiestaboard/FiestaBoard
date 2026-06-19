@@ -766,7 +766,28 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "板子类型和尺寸",
+    "deviceGroupLabel": "设备",
+    "noteArrayGroupLabel": "Note 阵列",
+    "customLabel": "自定义…",
+    "presets": {
+      "2_wide": "2 个并排",
+      "4_wide": "4 个并排",
+      "2_tall": "2 个堆叠",
+      "4_tall": "4 个堆叠",
+      "2x2_grid": "2×2 网格"
+    },
+    "notesWideLabel": "Note 宽度",
+    "notesTallLabel": "Note 高度",
+    "customRangeError": "每个尺寸必须介于 1 和 {max} 之间。",
+    "noteArrayTokenLabel": "云 API 令牌",
+    "noteArrayTokenPlaceholder": "输入 X-Vestaboard-Token",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (已设置)",
+    "noteArrayTokenHelp": "此 Note 阵列的 X-Vestaboard-Token，来自您的 Vestaboard 云 API 订阅。",
+    "autoDetect": "从板子自动检测",
+    "detecting": "检测中…",
+    "detectFailed": "无法检测板子的配置。"
   },
   "systemUpdate": {
     "updateAvailable": "有可用更新",

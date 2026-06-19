@@ -766,7 +766,28 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "ボードの種類とサイズ",
+    "deviceGroupLabel": "デバイス",
+    "noteArrayGroupLabel": "Note アレイ",
+    "customLabel": "カスタム…",
+    "presets": {
+      "2_wide": "横2枚",
+      "4_wide": "横4枚",
+      "2_tall": "縦2枚",
+      "4_tall": "縦4枚",
+      "2x2_grid": "2×2 グリッド"
+    },
+    "notesWideLabel": "Note 横数",
+    "notesTallLabel": "Note 縦数",
+    "customRangeError": "各寸法は 1 ～ {max} の範囲でなければなりません。",
+    "noteArrayTokenLabel": "クラウド API トークン",
+    "noteArrayTokenPlaceholder": "X-Vestaboard-Token を入力",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (設定済み)",
+    "noteArrayTokenHelp": "この Note アレイの X-Vestaboard-Token。Vestaboard クラウド API サブスクリプションから取得します。",
+    "autoDetect": "ボードから自動検出",
+    "detecting": "検出中…",
+    "detectFailed": "ボードの構成を検出できませんでした。"
   },
   "systemUpdate": {
     "updateAvailable": "アップデートがあります",
