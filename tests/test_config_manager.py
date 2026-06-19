@@ -1103,3 +1103,39 @@ def test_no_pre_boot_snapshot_on_brand_new_install(tmp_path):
 
     snapshot_dir = tmp_path / "update-backups"
     assert not snapshot_dir.exists() or not list(snapshot_dir.glob("pre-update-*.json"))
+
+
+# --- version_changed_on_load ---
+
+
+def test_version_changed_on_load_true_after_upgrade(tmp_path, monkeypatch):
+    """An existing config with an older app_version_seen flags a version change."""
+    import src
+
+    monkeypatch.setattr(src, "__version__", "9.9.9")
+    cfg = tmp_path / "config.json"
+    cfg.write_text(
+        json.dumps({"app_version_seen": "1.0.0", "plugins": {"weather": {"enabled": True}}})
+    )
+    cm = ConfigManager(config_path=str(cfg))
+    assert cm.version_changed_on_load is True
+
+
+def test_version_changed_on_load_false_same_version(tmp_path, monkeypatch):
+    """Restart on the same version is not a version change."""
+    import src
+
+    monkeypatch.setattr(src, "__version__", "9.9.9")
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({"app_version_seen": "9.9.9", "plugins": {}}))
+    cm = ConfigManager(config_path=str(cfg))
+    assert cm.version_changed_on_load is False
+
+
+def test_version_changed_on_load_false_fresh_install(tmp_path, monkeypatch):
+    """A brand-new config (no file) is not a version change."""
+    import src
+
+    monkeypatch.setattr(src, "__version__", "9.9.9")
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    assert cm.version_changed_on_load is False

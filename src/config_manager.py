@@ -341,6 +341,7 @@ class ConfigManager:
 
         self._config: dict[str, Any] = {}
         self._raw_features: dict[str, Any] = {}
+        self._version_changed_on_load = False
         self._load_or_create()
         self._auto_migrate_features_to_plugins()
         self._migrate_renamed_plugins()
@@ -445,6 +446,7 @@ class ConfigManager:
             return
 
         seen = self._config.get(APP_VERSION_SEEN_KEY)
+        self._version_changed_on_load = seen is not None and seen != current_version
         if seen == current_version:
             return
 
@@ -891,6 +893,15 @@ class ConfigManager:
         self._load_or_create()
         self._apply_env_overrides()
         logger.info("Configuration reloaded from file")
+
+    @property
+    def version_changed_on_load(self) -> bool:
+        """True if this process loaded an existing config from an older app version.
+
+        False on fresh installs, corrupt-config resets, and same-version restarts.
+        Drives the post-upgrade auto-restore so it only runs on a real upgrade boot.
+        """
+        return self._version_changed_on_load
 
     def get_all(self) -> dict[str, Any]:
         """Get full configuration (internal use - includes secrets)."""
