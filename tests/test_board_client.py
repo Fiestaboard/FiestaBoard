@@ -10,11 +10,25 @@ from src.board_client import (
     VALID_STRATEGIES,
     BoardClient,
     _is_valid_character_grid,
+    _note_array_last_send,
     board_client_from_board_dict,
     is_successful_board_read_response,
     parse_read_message_payload,
     strip_color_markers,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_note_array_throttle():
+    """Clear the module-level note-array throttle state before each test.
+
+    ``_note_array_last_send`` persists for the process lifetime by design, so
+    without this reset a timestamp left by one test would throttle the first
+    send of an unrelated test that reuses the same token.
+    """
+    _note_array_last_send.clear()
+    yield
+    _note_array_last_send.clear()
 
 
 class TestStripColorMarkers:
@@ -1041,3 +1055,170 @@ class TestBoardClientFactoryNoteArray:
         client = board_client_from_board_dict(board)
         assert client is not None
         assert client._is_note_array is False
+
+
+# ---------------------------------------------------------------------------
+# Issue #1169 — Note-array send constraints (no transitions, 15s rate limit)
+# ---------------------------------------------------------------------------
+
+
+def _clock(*values):
+    """Return a callable that yields the given values in order, then repeats the last."""
+    seq = list(values)
+
+    def _next():
+        return seq.pop(0) if len(seq) > 1 else seq[0]
+
+    return _next
+
+
+class TestNoteArrayConstraints:
+    """Note-array sends strip transitions and enforce a 15s rate limit."""
+
+    @pytest.fixture
+    def note_array_client_with_clock(self):
+        """Factory: call with (time_func, token) to get a throttle-testable client."""
+
+        def _make(time_func, token):
+            return BoardClient(
+                api_key=token,
+                use_cloud=True,
+                note_array_token=token,
+                notes_wide=4,
+                notes_tall=1,
+                _time_func=time_func,
+            )
+
+        return _make
+
+    @pytest.fixture
+    def note_array_client(self):
+        return BoardClient(
+            api_key="na-tok",
+            use_cloud=True,
+            note_array_token="na-strip-tok",
+            notes_wide=4,
+            notes_tall=1,
+        )
+
+    @pytest.fixture
+    def valid_3x60_grid(self):
+        return [[0] * 60 for _ in range(3)]
+
+    @pytest.fixture
+    def other_3x60_grid(self):
+        # A distinct grid to bypass the content-unchanged cache on a second send.
+        return [[1] * 60 for _ in range(3)]
+
+    # --- transition stripping -------------------------------------------------
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_send_omits_strategy_even_when_passed(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+
+        result = note_array_client.send_characters(
+            valid_3x60_grid, strategy="column", step_interval_ms=500, step_size=2
+        )
+
+        body = mock_post.call_args.kwargs["json"]
+        assert "strategy" not in body
+        assert "step_interval_ms" not in body
+        assert "step_size" not in body
+        assert result == (True, True)
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_send_omits_strategy_none_also_fine(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+
+        note_array_client.send_characters(valid_3x60_grid, strategy=None)
+
+        body = mock_post.call_args.kwargs["json"]
+        assert body == {"characters": valid_3x60_grid}
+
+    # --- throttle -------------------------------------------------------------
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_second_send_within_15s_is_throttled(
+        self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid, caplog
+    ):
+        mock_post.return_value.raise_for_status = Mock()
+        # First send at t=0, throttle-check on second send at t=10 (<15s).
+        client = note_array_client_with_clock(_clock(0.0, 10.0), "na-throttle-within")
+
+        first = client.send_characters(valid_3x60_grid)
+        assert first == (True, True)
+        assert mock_post.call_count == 1
+
+        with caplog.at_level("WARNING"):
+            second = client.send_characters(other_3x60_grid)
+
+        assert second == (True, False)
+        assert mock_post.call_count == 1  # not sent again
+        assert any(record.levelname == "WARNING" and "throttled" in record.message for record in caplog.records)
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_second_send_at_exactly_15s_goes_through(
+        self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid
+    ):
+        mock_post.return_value.raise_for_status = Mock()
+        client = note_array_client_with_clock(_clock(0.0, 15.0), "na-throttle-exact")
+
+        assert client.send_characters(valid_3x60_grid) == (True, True)
+        assert client.send_characters(other_3x60_grid) == (True, True)
+        assert mock_post.call_count == 2
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_second_send_after_15s_goes_through(
+        self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid
+    ):
+        mock_post.return_value.raise_for_status = Mock()
+        client = note_array_client_with_clock(_clock(0.0, 16.0), "na-throttle-after")
+
+        assert client.send_characters(valid_3x60_grid) == (True, True)
+        assert client.send_characters(other_3x60_grid) == (True, True)
+        assert mock_post.call_count == 2
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_first_send_always_goes_through(self, mock_post, note_array_client_with_clock, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        # Token never previously seen in _note_array_last_send.
+        client = note_array_client_with_clock(_clock(100.0), "na-throttle-first")
+
+        assert client.send_characters(valid_3x60_grid) == (True, True)
+        assert mock_post.call_count == 1
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_throttle_state_persists_across_client_recreation(
+        self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid
+    ):
+        """A new BoardClient with the same token still sees the prior send's timestamp."""
+        mock_post.return_value.raise_for_status = Mock()
+        token = "na-throttle-persist"
+
+        first_client = note_array_client_with_clock(_clock(0.0), token)
+        assert first_client.send_characters(valid_3x60_grid) == (True, True)
+        assert mock_post.call_count == 1
+
+        # New instance (simulating reinitialize_board_client), clock at t=5 (<15s).
+        second_client = note_array_client_with_clock(_clock(5.0), token)
+        result = second_client.send_characters(other_3x60_grid)
+
+        assert result == (True, False)
+        assert mock_post.call_count == 1  # second instance's send was throttled
+
+    # --- regression -----------------------------------------------------------
+
+    @patch("src.board_client.requests.post")
+    def test_flagship_transitions_unchanged(self, mock_post):
+        """Flagship local sends still carry transition params."""
+        client = BoardClient(api_key="local-key", host="192.168.0.11")
+        grid = [[0] * 22 for _ in range(6)]
+        mock_post.return_value.raise_for_status = Mock()
+
+        result = client.send_characters(grid, strategy="column", step_interval_ms=500, step_size=2)
+
+        body = mock_post.call_args.kwargs["json"]
+        assert body["strategy"] == "column"
+        assert body["step_interval_ms"] == 500
+        assert body["step_size"] == 2
+        assert result == (True, True)
