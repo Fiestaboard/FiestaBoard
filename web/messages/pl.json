@@ -1064,6 +1064,10 @@
       "failure": "Nie udało się włączyć logowania"
     }
   },
+  "aiChatPanel": {
+    "messagesAriaLabel": "Wiadomości czatu",
+    "taskStatusAriaLabel": "Postęp zadań"
+  },
   "aiActionConfirmation": {
     "deny": "Odmów",
     "allow": "Zezwól",

@@ -1064,6 +1064,10 @@
       "failure": "Det gick inte att aktivera inloggning"
     }
   },
+  "aiChatPanel": {
+    "messagesAriaLabel": "Chattmeddelanden",
+    "taskStatusAriaLabel": "Uppgiftsförlopp"
+  },
   "aiActionConfirmation": {
     "deny": "Neka",
     "allow": "Tillåt",

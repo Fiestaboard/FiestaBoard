@@ -1021,6 +1021,10 @@
       "failure": "Could not enable login"
     }
   },
+  "aiChatPanel": {
+    "messagesAriaLabel": "Chat messages",
+    "taskStatusAriaLabel": "Task progress"
+  },
   "aiActionConfirmation": {
     "deny": "Deny",
     "allow": "Allow",

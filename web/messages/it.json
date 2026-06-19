@@ -1064,6 +1064,10 @@
       "failure": "Impossibile attivare l'accesso"
     }
   },
+  "aiChatPanel": {
+    "messagesAriaLabel": "Messaggi della chat",
+    "taskStatusAriaLabel": "Avanzamento delle attività"
+  },
   "aiActionConfirmation": {
     "deny": "Nega",
     "allow": "Consenti",

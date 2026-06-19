@@ -1064,6 +1064,10 @@
       "failure": "Oturum açma etkinleştirilemedi"
     }
   },
+  "aiChatPanel": {
+    "messagesAriaLabel": "Sohbet mesajları",
+    "taskStatusAriaLabel": "Görev ilerlemesi"
+  },
   "aiActionConfirmation": {
     "deny": "Reddet",
     "allow": "İzin ver",

@@ -311,8 +311,10 @@ describe("AiChatPanel", () => {
     render(<AiChatPanel {...defaultProps} chainingMode="manual" onChainingModeChange={onModeChange} />, {
       wrapper: Wrapper,
     });
-    // ChainingModePicker renders a button with the mode name
-    expect(await screen.findByTitle(/ai mode: manual/i)).toBeInTheDocument();
+    // ChainingModePicker exposes the current mode through the trigger's
+    // accessible name (aria-label), which stays present even when the
+    // visible label is hidden at narrow widths.
+    expect(await screen.findByRole("button", { name: /ai chaining mode: manual/i })).toBeInTheDocument();
   });
 
   it("does not show ChainingModePicker when onChainingModeChange is absent", async () => {

@@ -1064,6 +1064,10 @@
       "failure": "Не удалось включить вход"
     }
   },
+  "aiChatPanel": {
+    "messagesAriaLabel": "Сообщения чата",
+    "taskStatusAriaLabel": "Ход выполнения задач"
+  },
   "aiActionConfirmation": {
     "deny": "Отклонить",
     "allow": "Разрешить",

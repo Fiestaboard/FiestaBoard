@@ -42,6 +42,7 @@ import type {
   ToolCall,
   ToolCallDisplay,
 } from "@/lib/ai-chat-types";
+import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
 import { useAiChat } from "@/lib/use-ai-chat";
 
@@ -91,6 +92,7 @@ export function AiChatPanel({
   taskList,
   onConversationReset,
 }: AiChatPanelProps) {
+  const t = useTranslations("aiChatPanel");
   const [providerId, setProviderId] = useState<string>("");
   const [model, setModel] = useState<string>("");
   const [draft, setDraft] = useState("");
@@ -216,9 +218,18 @@ export function AiChatPanel({
         {/* Task list panel — shown when the AI has an active task list */}
         {(taskList?.length ?? 0) > 0 && <TaskListPanel tasks={taskList!} />}
 
-        {/* Messages — scrollable middle section */}
+        {/* Messages — scrollable middle section. The list is an
+            aria-live region so streamed assistant replies are announced
+            to screen-reader users as they arrive (additions + text
+            changes), without re-reading the entire transcript. */}
         <ScrollArea className="min-h-0 flex-1 overflow-x-hidden">
-          <div className="min-w-0 max-w-full overflow-x-hidden space-y-3 px-4 py-4">
+          <div
+            className="min-w-0 max-w-full overflow-x-hidden space-y-3 px-4 py-4"
+            aria-live="polite"
+            aria-atomic="false"
+            aria-relevant="additions text"
+            aria-label={t("messagesAriaLabel")}
+          >
             {messages.length === 0 && <EmptyState blocked={blocked} aiDisabled={aiDisabled} />}
             {messages.map((m, i) => (
               <MessageBubble
@@ -331,8 +342,9 @@ function TaskStatusIcon({ status }: { status: TaskStatus }) {
 }
 
 function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
-  const allDone = tasks.length > 0 && tasks.every((t) => t.status === "done" || t.status === "failed");
-  const doneCount = tasks.filter((t) => t.status === "done").length;
+  const t = useTranslations("aiChatPanel");
+  const allDone = tasks.length > 0 && tasks.every((task) => task.status === "done" || task.status === "failed");
+  const doneCount = tasks.filter((task) => task.status === "done").length;
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
@@ -349,7 +361,13 @@ function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
   const pct = tasks.length > 0 ? (doneCount / tasks.length) * 100 : 0;
 
   return (
-    <div className="border-b px-4 py-2 bg-muted/30 flex-shrink-0">
+    <div
+      className="border-b px-4 py-2 bg-muted/30 flex-shrink-0"
+      role="status"
+      aria-live="polite"
+      aria-atomic="false"
+      aria-label={t("taskStatusAriaLabel")}
+    >
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           Tasks ({doneCount}/{tasks.length})

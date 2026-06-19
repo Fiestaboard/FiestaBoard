@@ -1064,6 +1064,10 @@
       "failure": "Kon aanmelden niet inschakelen"
     }
   },
+  "aiChatPanel": {
+    "messagesAriaLabel": "Chatberichten",
+    "taskStatusAriaLabel": "Taakvoortgang"
+  },
   "aiActionConfirmation": {
     "deny": "Weigeren",
     "allow": "Toestaan",

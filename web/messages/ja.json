@@ -1064,6 +1064,10 @@
       "failure": "ログインを有効化できませんでした"
     }
   },
+  "aiChatPanel": {
+    "messagesAriaLabel": "チャットメッセージ",
+    "taskStatusAriaLabel": "タスクの進捗"
+  },
   "aiActionConfirmation": {
     "deny": "拒否",
     "allow": "許可",

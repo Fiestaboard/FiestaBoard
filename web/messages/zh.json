@@ -1064,6 +1064,10 @@
       "failure": "无法开启登录"
     }
   },
+  "aiChatPanel": {
+    "messagesAriaLabel": "聊天消息",
+    "taskStatusAriaLabel": "任务进度"
+  },
   "aiActionConfirmation": {
     "deny": "拒绝",
     "allow": "允许",

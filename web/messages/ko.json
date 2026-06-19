@@ -1064,6 +1064,10 @@
       "failure": "로그인을 활성화할 수 없습니다"
     }
   },
+  "aiChatPanel": {
+    "messagesAriaLabel": "채팅 메시지",
+    "taskStatusAriaLabel": "작업 진행 상황"
+  },
   "aiActionConfirmation": {
     "deny": "거부",
     "allow": "허용",
