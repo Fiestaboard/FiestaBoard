@@ -1000,7 +1000,10 @@
       "wifi": "WiFi",
       "quotes": "Frases",
       "rotation": "Rotación"
-    }
+    },
+    "on": "Activado",
+    "off": "Desactivado",
+    "toggleServiceAriaLabel": "Alternar {name}"
   },
   "aiActionConfirmation": {
     "deny": "Denegar",

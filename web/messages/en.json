@@ -957,7 +957,10 @@
       "wifi": "WiFi",
       "quotes": "Quotes",
       "rotation": "Rotation"
-    }
+    },
+    "on": "On",
+    "off": "Off",
+    "toggleServiceAriaLabel": "Toggle {name}"
   },
   "aiActionConfirmation": {
     "deny": "Deny",

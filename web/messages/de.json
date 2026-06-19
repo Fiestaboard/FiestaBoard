@@ -1000,7 +1000,10 @@
       "wifi": "WLAN",
       "quotes": "Zitate",
       "rotation": "Drehung"
-    }
+    },
+    "on": "An",
+    "off": "Aus",
+    "toggleServiceAriaLabel": "{name} umschalten"
   },
   "aiActionConfirmation": {
     "deny": "Ablehnen",

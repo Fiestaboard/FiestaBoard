@@ -1000,7 +1000,10 @@
       "wifi": "WiFi",
       "quotes": "名言",
       "rotation": "轮换"
-    }
+    },
+    "on": "开",
+    "off": "关",
+    "toggleServiceAriaLabel": "切换{name}"
   },
   "aiActionConfirmation": {
     "deny": "拒绝",

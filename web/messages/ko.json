@@ -1000,7 +1000,10 @@
       "wifi": "WiFi",
       "quotes": "명언",
       "rotation": "회전"
-    }
+    },
+    "on": "켜짐",
+    "off": "꺼짐",
+    "toggleServiceAriaLabel": "{name} 전환"
   },
   "aiActionConfirmation": {
     "deny": "거부",

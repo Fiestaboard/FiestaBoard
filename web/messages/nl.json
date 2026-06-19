@@ -1000,7 +1000,10 @@
       "wifi": "WiFi",
       "quotes": "Citaten",
       "rotation": "Rotatie"
-    }
+    },
+    "on": "Aan",
+    "off": "Uit",
+    "toggleServiceAriaLabel": "{name} in-/uitschakelen"
   },
   "aiActionConfirmation": {
     "deny": "Weigeren",

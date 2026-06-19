@@ -1000,7 +1000,10 @@
       "wifi": "WiFi",
       "quotes": "Cytaty",
       "rotation": "Rotacja"
-    }
+    },
+    "on": "Wł.",
+    "off": "Wył.",
+    "toggleServiceAriaLabel": "Przełącz {name}"
   },
   "aiActionConfirmation": {
     "deny": "Odmów",

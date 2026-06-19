@@ -1000,7 +1000,10 @@
       "wifi": "WiFi",
       "quotes": "Alıntılar",
       "rotation": "Rotasyon"
-    }
+    },
+    "on": "Açık",
+    "off": "Kapalı",
+    "toggleServiceAriaLabel": "{name} aç/kapat"
   },
   "aiActionConfirmation": {
     "deny": "Reddet",

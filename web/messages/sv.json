@@ -1000,7 +1000,10 @@
       "wifi": "WiFi",
       "quotes": "Citat",
       "rotation": "Rotation"
-    }
+    },
+    "on": "På",
+    "off": "Av",
+    "toggleServiceAriaLabel": "Växla {name}"
   },
   "aiActionConfirmation": {
     "deny": "Neka",

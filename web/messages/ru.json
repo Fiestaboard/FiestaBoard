@@ -1000,7 +1000,10 @@
       "wifi": "WiFi",
       "quotes": "Цитаты",
       "rotation": "Ротация"
-    }
+    },
+    "on": "Вкл.",
+    "off": "Выкл.",
+    "toggleServiceAriaLabel": "Переключить {name}"
   },
   "aiActionConfirmation": {
     "deny": "Отклонить",
