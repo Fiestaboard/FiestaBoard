@@ -1005,6 +1005,65 @@
     "off": "Disattivo",
     "toggleServiceAriaLabel": "Attiva/disattiva {name}"
   },
+  "accountSection": {
+    "signedIn": {
+      "title": "Accesso effettuato",
+      "description": "Hai effettuato l'accesso come <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Cambia nome utente",
+      "description": "Scegli un nuovo nome di accesso. Richiede la password attuale.",
+      "formAriaLabel": "Cambia nome utente",
+      "newUsernameLabel": "Nuovo nome utente",
+      "currentPasswordLabel": "Password attuale",
+      "submit": "Salva nome utente",
+      "submitting": "Salvataggio…",
+      "success": "Nome utente aggiornato",
+      "failure": "Modifica del nome utente non riuscita"
+    },
+    "changePassword": {
+      "title": "Cambia password",
+      "description": "Cambia la tua password. Tutte le altre sessioni connesse con la vecchia password verranno disconnesse.",
+      "formAriaLabel": "Cambia password",
+      "currentPasswordLabel": "Password attuale",
+      "newPasswordLabel": "Nuova password",
+      "newPasswordHint": "Almeno 8 caratteri.",
+      "confirmPasswordLabel": "Conferma nuova password",
+      "submit": "Salva password",
+      "submitting": "Salvataggio…",
+      "success": "Password aggiornata",
+      "failure": "Modifica della password non riuscita",
+      "tooShort": "La nuova password deve contenere almeno 8 caratteri.",
+      "mismatch": "Le password non corrispondono."
+    },
+    "signOut": {
+      "title": "Esci",
+      "description": "Termina la sessione corrente. Tornerai alla pagina di accesso.",
+      "button": "Esci"
+    },
+    "disableLogin": {
+      "title": "Disabilita l'accesso",
+      "description": "Disabilita completamente l'autenticazione. Chiunque possa raggiungere questo FiestaBoard sulla rete potrà modificare le impostazioni e leggere le chiavi API. Sconsigliato a meno che questo dispositivo non si trovi su una rete privata completamente affidabile.",
+      "button": "Disabilita l'accesso",
+      "dialogTitle": "Disabilitare l'accesso per questo FiestaBoard?",
+      "dialogBody1": "Disabilitare l'accesso rimuove l'account <name>{username}</name> e apre questo FiestaBoard a chiunque possa raggiungerlo sulla rete — potranno leggere le tue chiavi API, modificare la configurazione del tuo tabellone e cambiare qualsiasi impostazione.",
+      "dialogBody2": "Fallo solo se questo dispositivo si trova su una rete privata completamente affidabile (nessun coinquilino, nessun ospite, nessun dispositivo smart-home che non controlli). <strong>Fortemente sconsigliato</strong> se questo FiestaBoard è raggiungibile da internet.",
+      "dialogBody3": "Il tuo tabellone continua a funzionare normalmente in entrambi i casi — questo controlla solo chi può accedere per modificare le impostazioni.",
+      "confirmPasswordLabel": "Conferma la tua password attuale per continuare",
+      "confirm": "Sì, disabilita l'accesso",
+      "confirming": "Disabilitazione…",
+      "success": "Autenticazione disabilitata",
+      "failure": "Impossibile disabilitare l'autenticazione"
+    },
+    "enableLogin": {
+      "title": "Attiva l'accesso",
+      "description": "L'accesso è attualmente <strong>disattivato</strong>. Chiunque possa raggiungere questo FiestaBoard sulla rete può leggere le tue chiavi API, modificare la configurazione del tuo tabellone e cambiare qualsiasi impostazione.",
+      "body": "Fortemente consigliato se condividi il Wi-Fi con persone di cui non ti fidi completamente (coinquilini, ospiti, dispositivi smart-home), o se questo FiestaBoard è raggiungibile da internet. Il tuo tabellone continua a funzionare normalmente in entrambi i casi — l'accesso controlla solo chi può accedere per modificare le impostazioni.",
+      "button": "Configura un nome utente e una password",
+      "submitting": "Attivazione…",
+      "failure": "Impossibile attivare l'accesso"
+    }
+  },
   "aiActionConfirmation": {
     "deny": "Nega",
     "allow": "Consenti",

@@ -1005,6 +1005,65 @@
     "off": "Kapalı",
     "toggleServiceAriaLabel": "{name} aç/kapat"
   },
+  "accountSection": {
+    "signedIn": {
+      "title": "Oturum açıldı",
+      "description": "Şu anda <name>{username}</name> olarak oturum açtınız."
+    },
+    "changeUsername": {
+      "title": "Kullanıcı adını değiştir",
+      "description": "Yeni bir oturum açma adı seçin. Mevcut parolanızı gerektirir.",
+      "formAriaLabel": "Kullanıcı adını değiştir",
+      "newUsernameLabel": "Yeni kullanıcı adı",
+      "currentPasswordLabel": "Mevcut parola",
+      "submit": "Kullanıcı adını kaydet",
+      "submitting": "Kaydediliyor…",
+      "success": "Kullanıcı adı güncellendi",
+      "failure": "Kullanıcı adı değiştirilemedi"
+    },
+    "changePassword": {
+      "title": "Parolayı değiştir",
+      "description": "Parolanızı değiştirin. Eski parolayla oturum açmış diğer tüm oturumların oturumu kapatılır.",
+      "formAriaLabel": "Parolayı değiştir",
+      "currentPasswordLabel": "Mevcut parola",
+      "newPasswordLabel": "Yeni parola",
+      "newPasswordHint": "En az 8 karakter.",
+      "confirmPasswordLabel": "Yeni parolayı onayla",
+      "submit": "Parolayı kaydet",
+      "submitting": "Kaydediliyor…",
+      "success": "Parola güncellendi",
+      "failure": "Parola değiştirilemedi",
+      "tooShort": "Yeni parola en az 8 karakter olmalıdır.",
+      "mismatch": "Parolalar eşleşmiyor."
+    },
+    "signOut": {
+      "title": "Oturumu kapat",
+      "description": "Mevcut oturumunuzu sonlandırın. Oturum açma sayfasına geri gönderileceksiniz.",
+      "button": "Oturumu kapat"
+    },
+    "disableLogin": {
+      "title": "Oturum açmayı devre dışı bırak",
+      "description": "Kimlik doğrulamayı tamamen kapatın. Bu FiestaBoard'a ağ üzerinden erişebilen herkes ayarları değiştirebilir ve API anahtarlarını okuyabilir. Bu cihaz tamamen güvenilir bir özel ağda değilse önerilmez.",
+      "button": "Oturum açmayı devre dışı bırak",
+      "dialogTitle": "Bu FiestaBoard için oturum açma devre dışı bırakılsın mı?",
+      "dialogBody1": "Oturum açmayı devre dışı bırakmak <name>{username}</name> hesabını kaldırır ve bu FiestaBoard'ı ağ üzerinden erişebilen herkese açar — API anahtarlarınızı okuyabilir, pano yapılandırmanızı değiştirebilir ve tüm ayarları düzenleyebilirler.",
+      "dialogBody2": "Bunu yalnızca bu cihaz tamamen güvenilir bir özel ağdaysa yapın (ev arkadaşı yok, misafir yok, kontrol etmediğiniz akıllı ev cihazları yok). Bu FiestaBoard internetten erişilebiliyorsa <strong>kesinlikle önerilmez</strong>.",
+      "dialogBody3": "Panonuz her iki durumda da normal şekilde görüntülenmeye devam eder — bu yalnızca ayarları değiştirmek için kimin oturum açabileceğini kontrol eder.",
+      "confirmPasswordLabel": "Devam etmek için mevcut parolanızı onaylayın",
+      "confirm": "Evet, oturum açmayı devre dışı bırak",
+      "confirming": "Devre dışı bırakılıyor…",
+      "success": "Kimlik doğrulama devre dışı bırakıldı",
+      "failure": "Kimlik doğrulama devre dışı bırakılamadı"
+    },
+    "enableLogin": {
+      "title": "Oturum açmayı etkinleştir",
+      "description": "Oturum açma şu anda <strong>kapalı</strong>. Bu FiestaBoard'a ağ üzerinden erişebilen herkes API anahtarlarınızı okuyabilir, pano yapılandırmanızı değiştirebilir ve tüm ayarları düzenleyebilir.",
+      "body": "Tam olarak güvenmediğiniz kişilerle (ev arkadaşları, misafirler, akıllı ev cihazları) Wi-Fi paylaşıyorsanız veya bu FiestaBoard internetten erişilebiliyorsa kesinlikle önerilir. Panonuz her iki durumda da normal şekilde görüntülenmeye devam eder — oturum açma yalnızca ayarları değiştirmek için kimin oturum açabileceğini kontrol eder.",
+      "button": "Bir kullanıcı adı ve parola ayarla",
+      "submitting": "Etkinleştiriliyor…",
+      "failure": "Oturum açma etkinleştirilemedi"
+    }
+  },
   "aiActionConfirmation": {
     "deny": "Reddet",
     "allow": "İzin ver",

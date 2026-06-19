@@ -1005,6 +1005,65 @@
     "off": "Desligado",
     "toggleServiceAriaLabel": "Alternar {name}"
   },
+  "accountSection": {
+    "signedIn": {
+      "title": "Sessão iniciada",
+      "description": "Atualmente tem a sessão iniciada como <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Alterar nome de utilizador",
+      "description": "Escolha um novo nome de início de sessão. Requer a sua palavra-passe atual.",
+      "formAriaLabel": "Alterar nome de utilizador",
+      "newUsernameLabel": "Novo nome de utilizador",
+      "currentPasswordLabel": "Palavra-passe atual",
+      "submit": "Guardar nome de utilizador",
+      "submitting": "A guardar…",
+      "success": "Nome de utilizador atualizado",
+      "failure": "Não foi possível alterar o nome de utilizador"
+    },
+    "changePassword": {
+      "title": "Alterar palavra-passe",
+      "description": "Altere a sua palavra-passe. Todas as outras sessões iniciadas com a palavra-passe antiga serão terminadas.",
+      "formAriaLabel": "Alterar palavra-passe",
+      "currentPasswordLabel": "Palavra-passe atual",
+      "newPasswordLabel": "Nova palavra-passe",
+      "newPasswordHint": "Pelo menos 8 caracteres.",
+      "confirmPasswordLabel": "Confirmar nova palavra-passe",
+      "submit": "Guardar palavra-passe",
+      "submitting": "A guardar…",
+      "success": "Palavra-passe atualizada",
+      "failure": "Não foi possível alterar a palavra-passe",
+      "tooShort": "A nova palavra-passe deve ter pelo menos 8 caracteres.",
+      "mismatch": "As palavras-passe não coincidem."
+    },
+    "signOut": {
+      "title": "Terminar sessão",
+      "description": "Termine a sua sessão atual. Será reencaminhado para a página de início de sessão.",
+      "button": "Terminar sessão"
+    },
+    "disableLogin": {
+      "title": "Desativar início de sessão",
+      "description": "Desativar a autenticação por completo. Qualquer pessoa que consiga aceder a este FiestaBoard na rede poderá alterar definições e ler chaves de API. Não recomendado, a menos que este dispositivo esteja numa rede privada totalmente fiável.",
+      "button": "Desativar início de sessão",
+      "dialogTitle": "Desativar o início de sessão para este FiestaBoard?",
+      "dialogBody1": "Desativar o início de sessão remove a conta <name>{username}</name> e abre este FiestaBoard a qualquer pessoa que consiga aceder-lhe na rede — poderão ler as suas chaves de API, alterar a configuração do seu quadro e modificar quaisquer definições.",
+      "dialogBody2": "Faça-o apenas se este dispositivo estiver numa rede privada totalmente fiável (sem colegas de casa, sem convidados, sem dispositivos domésticos inteligentes que não controla). <strong>Fortemente desaconselhado</strong> se este FiestaBoard for acessível a partir da internet.",
+      "dialogBody3": "O seu quadro continua a apresentar normalmente em qualquer dos casos — isto controla apenas quem pode iniciar sessão para alterar definições.",
+      "confirmPasswordLabel": "Confirme a sua palavra-passe atual para continuar",
+      "confirm": "Sim, desativar início de sessão",
+      "confirming": "A desativar…",
+      "success": "Autenticação desativada",
+      "failure": "Não foi possível desativar a autenticação"
+    },
+    "enableLogin": {
+      "title": "Ativar início de sessão",
+      "description": "O início de sessão está atualmente <strong>desativado</strong>. Qualquer pessoa que consiga aceder a este FiestaBoard na rede pode ler as suas chaves de API, alterar a configuração do seu quadro e modificar quaisquer definições.",
+      "body": "Fortemente recomendado se partilha o Wi-Fi com pessoas em quem não confia totalmente (colegas de casa, convidados, dispositivos domésticos inteligentes), ou se este FiestaBoard for acessível a partir da internet. O seu quadro continua a apresentar normalmente em qualquer dos casos — o início de sessão controla apenas quem pode iniciar sessão para alterar definições.",
+      "button": "Configurar um nome de utilizador e palavra-passe",
+      "submitting": "A ativar…",
+      "failure": "Não foi possível ativar o início de sessão"
+    }
+  },
   "aiActionConfirmation": {
     "deny": "Negar",
     "allow": "Permitir",

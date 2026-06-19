@@ -1005,6 +1005,65 @@
     "off": "关",
     "toggleServiceAriaLabel": "切换{name}"
   },
+  "accountSection": {
+    "signedIn": {
+      "title": "已登录",
+      "description": "您当前以 <name>{username}</name> 身份登录。"
+    },
+    "changeUsername": {
+      "title": "更改用户名",
+      "description": "选择一个新的登录名。需要您当前的密码。",
+      "formAriaLabel": "更改用户名",
+      "newUsernameLabel": "新用户名",
+      "currentPasswordLabel": "当前密码",
+      "submit": "保存用户名",
+      "submitting": "正在保存…",
+      "success": "用户名已更新",
+      "failure": "更改用户名失败"
+    },
+    "changePassword": {
+      "title": "更改密码",
+      "description": "更改您的密码。使用旧密码登录的所有其他会话都将被注销。",
+      "formAriaLabel": "更改密码",
+      "currentPasswordLabel": "当前密码",
+      "newPasswordLabel": "新密码",
+      "newPasswordHint": "至少 8 个字符。",
+      "confirmPasswordLabel": "确认新密码",
+      "submit": "保存密码",
+      "submitting": "正在保存…",
+      "success": "密码已更新",
+      "failure": "更改密码失败",
+      "tooShort": "新密码至少需要 8 个字符。",
+      "mismatch": "两次密码不一致。"
+    },
+    "signOut": {
+      "title": "退出登录",
+      "description": "结束您当前的会话。您将被送回登录页面。",
+      "button": "退出登录"
+    },
+    "disableLogin": {
+      "title": "禁用登录",
+      "description": "完全关闭身份验证。任何能在网络中访问此 FiestaBoard 的人都将能够更改设置并读取 API 密钥。除非此设备位于完全受信任的专用网络中，否则不建议这样做。",
+      "button": "禁用登录",
+      "dialogTitle": "禁用此 FiestaBoard 的登录？",
+      "dialogBody1": "禁用登录会删除 <name>{username}</name> 账户，并将此 FiestaBoard 开放给任何能在网络中访问它的人——他们将能够读取您的 API 密钥、更改您的看板配置以及修改任何设置。",
+      "dialogBody2": "仅当此设备位于完全受信任的专用网络中（没有室友、没有访客、没有您无法控制的智能家居设备）时才执行此操作。如果此 FiestaBoard 可从互联网访问，则<strong>强烈不建议</strong>这样做。",
+      "dialogBody3": "无论哪种方式，您的看板都会照常显示——这只控制谁可以登录以更改设置。",
+      "confirmPasswordLabel": "确认您当前的密码以继续",
+      "confirm": "是的，禁用登录",
+      "confirming": "正在禁用…",
+      "success": "身份验证已禁用",
+      "failure": "禁用身份验证失败"
+    },
+    "enableLogin": {
+      "title": "开启登录",
+      "description": "登录目前为<strong>关闭</strong>状态。任何能在网络中访问此 FiestaBoard 的人都可以读取您的 API 密钥、更改您的看板配置以及修改任何设置。",
+      "body": "如果您与并非完全信任的人（室友、访客、智能家居设备）共享 Wi-Fi，或者此 FiestaBoard 可从互联网访问，则强烈建议开启。无论哪种方式，您的看板都会照常显示——登录只控制谁可以登录以更改设置。",
+      "button": "设置用户名和密码",
+      "submitting": "正在开启…",
+      "failure": "无法开启登录"
+    }
+  },
   "aiActionConfirmation": {
     "deny": "拒绝",
     "allow": "允许",

@@ -1005,6 +1005,65 @@
     "off": "Av",
     "toggleServiceAriaLabel": "Växla {name}"
   },
+  "accountSection": {
+    "signedIn": {
+      "title": "Inloggad",
+      "description": "Du är för närvarande inloggad som <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Ändra användarnamn",
+      "description": "Välj ett nytt inloggningsnamn. Kräver ditt nuvarande lösenord.",
+      "formAriaLabel": "Ändra användarnamn",
+      "newUsernameLabel": "Nytt användarnamn",
+      "currentPasswordLabel": "Nuvarande lösenord",
+      "submit": "Spara användarnamn",
+      "submitting": "Sparar…",
+      "success": "Användarnamn uppdaterat",
+      "failure": "Det gick inte att ändra användarnamnet"
+    },
+    "changePassword": {
+      "title": "Ändra lösenord",
+      "description": "Byt ditt lösenord. Alla andra sessioner som är inloggade med det gamla lösenordet loggas ut.",
+      "formAriaLabel": "Ändra lösenord",
+      "currentPasswordLabel": "Nuvarande lösenord",
+      "newPasswordLabel": "Nytt lösenord",
+      "newPasswordHint": "Minst 8 tecken.",
+      "confirmPasswordLabel": "Bekräfta nytt lösenord",
+      "submit": "Spara lösenord",
+      "submitting": "Sparar…",
+      "success": "Lösenord uppdaterat",
+      "failure": "Det gick inte att ändra lösenordet",
+      "tooShort": "Det nya lösenordet måste vara minst 8 tecken.",
+      "mismatch": "Lösenorden matchar inte."
+    },
+    "signOut": {
+      "title": "Logga ut",
+      "description": "Avsluta din nuvarande session. Du skickas tillbaka till inloggningssidan.",
+      "button": "Logga ut"
+    },
+    "disableLogin": {
+      "title": "Inaktivera inloggning",
+      "description": "Stäng av autentisering helt. Alla som kan nå detta FiestaBoard i nätverket kan då ändra inställningar och läsa API-nycklar. Rekommenderas inte om inte denna enhet finns i ett helt betrott privat nätverk.",
+      "button": "Inaktivera inloggning",
+      "dialogTitle": "Inaktivera inloggning för detta FiestaBoard?",
+      "dialogBody1": "Att stänga av inloggningen tar bort kontot <name>{username}</name> och öppnar detta FiestaBoard för alla som kan nå det i nätverket — de kan läsa dina API-nycklar, ändra din tavelkonfiguration och ändra alla inställningar.",
+      "dialogBody2": "Gör detta endast om denna enhet finns i ett helt betrott privat nätverk (inga rumskamrater, inga gäster, inga smarta hem-enheter som du inte kontrollerar). <strong>Avråds starkt</strong> om detta FiestaBoard är nåbart från internet.",
+      "dialogBody3": "Din tavla fortsätter att visas som vanligt oavsett — detta styr bara vem som kan logga in för att ändra inställningar.",
+      "confirmPasswordLabel": "Bekräfta ditt nuvarande lösenord för att fortsätta",
+      "confirm": "Ja, inaktivera inloggning",
+      "confirming": "Inaktiverar…",
+      "success": "Autentisering inaktiverad",
+      "failure": "Det gick inte att inaktivera autentiseringen"
+    },
+    "enableLogin": {
+      "title": "Aktivera inloggning",
+      "description": "Inloggning är för närvarande <strong>av</strong>. Alla som kan nå detta FiestaBoard i nätverket kan läsa dina API-nycklar, ändra din tavelkonfiguration och ändra alla inställningar.",
+      "body": "Rekommenderas starkt om du delar Wi-Fi med personer du inte helt litar på (rumskamrater, gäster, smarta hem-enheter), eller om detta FiestaBoard är nåbart från internet. Din tavla fortsätter att visas som vanligt oavsett — inloggning styr bara vem som kan logga in för att ändra inställningar.",
+      "button": "Konfigurera ett användarnamn och lösenord",
+      "submitting": "Aktiverar…",
+      "failure": "Det gick inte att aktivera inloggning"
+    }
+  },
   "aiActionConfirmation": {
     "deny": "Neka",
     "allow": "Tillåt",

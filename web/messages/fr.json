@@ -1005,6 +1005,65 @@
     "off": "Désactivé",
     "toggleServiceAriaLabel": "Basculer {name}"
   },
+  "accountSection": {
+    "signedIn": {
+      "title": "Connecté",
+      "description": "Vous êtes actuellement connecté en tant que <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Changer le nom d'utilisateur",
+      "description": "Choisissez un nouveau nom de connexion. Nécessite votre mot de passe actuel.",
+      "formAriaLabel": "Changer le nom d'utilisateur",
+      "newUsernameLabel": "Nouveau nom d'utilisateur",
+      "currentPasswordLabel": "Mot de passe actuel",
+      "submit": "Enregistrer le nom d'utilisateur",
+      "submitting": "Enregistrement…",
+      "success": "Nom d'utilisateur mis à jour",
+      "failure": "Échec du changement de nom d'utilisateur"
+    },
+    "changePassword": {
+      "title": "Changer le mot de passe",
+      "description": "Changez votre mot de passe. Toutes les autres sessions connectées avec l'ancien mot de passe seront déconnectées.",
+      "formAriaLabel": "Changer le mot de passe",
+      "currentPasswordLabel": "Mot de passe actuel",
+      "newPasswordLabel": "Nouveau mot de passe",
+      "newPasswordHint": "Au moins 8 caractères.",
+      "confirmPasswordLabel": "Confirmer le nouveau mot de passe",
+      "submit": "Enregistrer le mot de passe",
+      "submitting": "Enregistrement…",
+      "success": "Mot de passe mis à jour",
+      "failure": "Échec du changement de mot de passe",
+      "tooShort": "Le nouveau mot de passe doit comporter au moins 8 caractères.",
+      "mismatch": "Les mots de passe ne correspondent pas."
+    },
+    "signOut": {
+      "title": "Se déconnecter",
+      "description": "Mettez fin à votre session actuelle. Vous serez renvoyé vers la page de connexion.",
+      "button": "Se déconnecter"
+    },
+    "disableLogin": {
+      "title": "Désactiver la connexion",
+      "description": "Désactiver entièrement l'authentification. Toute personne pouvant atteindre ce FiestaBoard sur le réseau pourra modifier les paramètres et lire les clés API. Non recommandé sauf si cet appareil se trouve sur un réseau privé entièrement fiable.",
+      "button": "Désactiver la connexion",
+      "dialogTitle": "Désactiver la connexion pour ce FiestaBoard ?",
+      "dialogBody1": "Désactiver la connexion supprime le compte <name>{username}</name> et ouvre ce FiestaBoard à toute personne pouvant l'atteindre sur le réseau — elle pourra lire vos clés API, modifier la configuration de votre tableau et changer tous les paramètres.",
+      "dialogBody2": "Ne le faites que si cet appareil se trouve sur un réseau privé entièrement fiable (pas de colocataires, pas d'invités, pas d'appareils domotiques que vous ne contrôlez pas). <strong>Fortement déconseillé</strong> si ce FiestaBoard est accessible depuis internet.",
+      "dialogBody3": "Votre tableau continue de s'afficher normalement dans tous les cas — cela contrôle uniquement qui peut se connecter pour modifier les paramètres.",
+      "confirmPasswordLabel": "Confirmez votre mot de passe actuel pour continuer",
+      "confirm": "Oui, désactiver la connexion",
+      "confirming": "Désactivation…",
+      "success": "Authentification désactivée",
+      "failure": "Échec de la désactivation de l'authentification"
+    },
+    "enableLogin": {
+      "title": "Activer la connexion",
+      "description": "La connexion est actuellement <strong>désactivée</strong>. Toute personne pouvant atteindre ce FiestaBoard sur le réseau peut lire vos clés API, modifier la configuration de votre tableau et changer tous les paramètres.",
+      "body": "Fortement recommandé si vous partagez le Wi-Fi avec des personnes en qui vous n'avez pas entièrement confiance (colocataires, invités, appareils domotiques), ou si ce FiestaBoard est accessible depuis internet. Votre tableau continue de s'afficher normalement dans tous les cas — la connexion contrôle uniquement qui peut se connecter pour modifier les paramètres.",
+      "button": "Configurer un nom d'utilisateur et un mot de passe",
+      "submitting": "Activation…",
+      "failure": "Impossible d'activer la connexion"
+    }
+  },
   "aiActionConfirmation": {
     "deny": "Refuser",
     "allow": "Autoriser",

@@ -1005,6 +1005,65 @@
     "off": "Wył.",
     "toggleServiceAriaLabel": "Przełącz {name}"
   },
+  "accountSection": {
+    "signedIn": {
+      "title": "Zalogowano",
+      "description": "Jesteś obecnie zalogowany jako <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Zmień nazwę użytkownika",
+      "description": "Wybierz nową nazwę logowania. Wymaga obecnego hasła.",
+      "formAriaLabel": "Zmień nazwę użytkownika",
+      "newUsernameLabel": "Nowa nazwa użytkownika",
+      "currentPasswordLabel": "Obecne hasło",
+      "submit": "Zapisz nazwę użytkownika",
+      "submitting": "Zapisywanie…",
+      "success": "Zaktualizowano nazwę użytkownika",
+      "failure": "Zmiana nazwy użytkownika nie powiodła się"
+    },
+    "changePassword": {
+      "title": "Zmień hasło",
+      "description": "Zmień swoje hasło. Wszystkie inne sesje zalogowane przy użyciu starego hasła zostaną wylogowane.",
+      "formAriaLabel": "Zmień hasło",
+      "currentPasswordLabel": "Obecne hasło",
+      "newPasswordLabel": "Nowe hasło",
+      "newPasswordHint": "Co najmniej 8 znaków.",
+      "confirmPasswordLabel": "Potwierdź nowe hasło",
+      "submit": "Zapisz hasło",
+      "submitting": "Zapisywanie…",
+      "success": "Zaktualizowano hasło",
+      "failure": "Zmiana hasła nie powiodła się",
+      "tooShort": "Nowe hasło musi mieć co najmniej 8 znaków.",
+      "mismatch": "Hasła nie są zgodne."
+    },
+    "signOut": {
+      "title": "Wyloguj się",
+      "description": "Zakończ bieżącą sesję. Zostaniesz przekierowany z powrotem na stronę logowania.",
+      "button": "Wyloguj się"
+    },
+    "disableLogin": {
+      "title": "Wyłącz logowanie",
+      "description": "Całkowicie wyłącz uwierzytelnianie. Każdy, kto może uzyskać dostęp do tego FiestaBoard w sieci, będzie mógł zmieniać ustawienia i odczytywać klucze API. Niezalecane, chyba że to urządzenie znajduje się w pełni zaufanej sieci prywatnej.",
+      "button": "Wyłącz logowanie",
+      "dialogTitle": "Wyłączyć logowanie dla tego FiestaBoard?",
+      "dialogBody1": "Wyłączenie logowania usuwa konto <name>{username}</name> i otwiera ten FiestaBoard dla każdego, kto może uzyskać do niego dostęp w sieci — będą mogli odczytywać Twoje klucze API, zmieniać konfigurację tablicy i modyfikować dowolne ustawienia.",
+      "dialogBody2": "Zrób to tylko wtedy, gdy to urządzenie znajduje się w pełni zaufanej sieci prywatnej (bez współlokatorów, bez gości, bez urządzeń smart home, których nie kontrolujesz). <strong>Zdecydowanie niezalecane</strong>, jeśli ten FiestaBoard jest dostępny z internetu.",
+      "dialogBody3": "Twoja tablica nadal wyświetla się normalnie w obu przypadkach — kontroluje to tylko, kto może się zalogować, aby zmienić ustawienia.",
+      "confirmPasswordLabel": "Potwierdź swoje obecne hasło, aby kontynuować",
+      "confirm": "Tak, wyłącz logowanie",
+      "confirming": "Wyłączanie…",
+      "success": "Uwierzytelnianie wyłączone",
+      "failure": "Nie udało się wyłączyć uwierzytelniania"
+    },
+    "enableLogin": {
+      "title": "Włącz logowanie",
+      "description": "Logowanie jest obecnie <strong>wyłączone</strong>. Każdy, kto może uzyskać dostęp do tego FiestaBoard w sieci, może odczytywać Twoje klucze API, zmieniać konfigurację tablicy i modyfikować dowolne ustawienia.",
+      "body": "Zdecydowanie zalecane, jeśli dzielisz Wi-Fi z osobami, którym nie do końca ufasz (współlokatorzy, goście, urządzenia smart home), lub jeśli ten FiestaBoard jest dostępny z internetu. Twoja tablica nadal wyświetla się normalnie w obu przypadkach — logowanie kontroluje tylko, kto może się zalogować, aby zmienić ustawienia.",
+      "button": "Skonfiguruj nazwę użytkownika i hasło",
+      "submitting": "Włączanie…",
+      "failure": "Nie udało się włączyć logowania"
+    }
+  },
   "aiActionConfirmation": {
     "deny": "Odmów",
     "allow": "Zezwól",

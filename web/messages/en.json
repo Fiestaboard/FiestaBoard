@@ -962,6 +962,65 @@
     "off": "Off",
     "toggleServiceAriaLabel": "Toggle {name}"
   },
+  "accountSection": {
+    "signedIn": {
+      "title": "Signed in",
+      "description": "You're currently signed in as <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Change username",
+      "description": "Pick a new sign-in name. Requires your current password.",
+      "formAriaLabel": "Change username",
+      "newUsernameLabel": "New username",
+      "currentPasswordLabel": "Current password",
+      "submit": "Save username",
+      "submitting": "Saving…",
+      "success": "Username updated",
+      "failure": "Username change failed"
+    },
+    "changePassword": {
+      "title": "Change password",
+      "description": "Rotate your password. Any other sessions signed in with the old password will be signed out.",
+      "formAriaLabel": "Change password",
+      "currentPasswordLabel": "Current password",
+      "newPasswordLabel": "New password",
+      "newPasswordHint": "At least 8 characters.",
+      "confirmPasswordLabel": "Confirm new password",
+      "submit": "Save password",
+      "submitting": "Saving…",
+      "success": "Password updated",
+      "failure": "Password change failed",
+      "tooShort": "New password must be at least 8 characters.",
+      "mismatch": "Passwords do not match."
+    },
+    "signOut": {
+      "title": "Sign out",
+      "description": "End your current session. You'll be sent back to the sign-in page.",
+      "button": "Sign out"
+    },
+    "disableLogin": {
+      "title": "Disable login",
+      "description": "Turn off authentication entirely. Anyone who can reach this FiestaBoard on the network will be able to change settings and read API keys. Not recommended unless this device is on a fully trusted private network.",
+      "button": "Disable login",
+      "dialogTitle": "Disable login for this FiestaBoard?",
+      "dialogBody1": "Turning off login removes the <name>{username}</name> account and opens this FiestaBoard up to anyone who can reach it on the network — they'll be able to read your API keys, change your board configuration, and modify any settings.",
+      "dialogBody2": "Only do this if this device is on a fully trusted private network (no roommates, no guests, no smart-home devices you don't control). Strongly <strong>not recommended</strong> if this FiestaBoard is reachable from the internet.",
+      "dialogBody3": "Your board keeps displaying as normal either way — this only controls who can sign in to change settings.",
+      "confirmPasswordLabel": "Confirm your current password to continue",
+      "confirm": "Yes, disable login",
+      "confirming": "Disabling…",
+      "success": "Authentication disabled",
+      "failure": "Failed to disable auth"
+    },
+    "enableLogin": {
+      "title": "Turn on login",
+      "description": "Login is currently <strong>off</strong>. Anyone who can reach this FiestaBoard on the network can read your API keys, change your board configuration, and modify any settings.",
+      "body": "Strongly recommended if you share Wi-Fi with people you don't fully trust (roommates, guests, smart-home devices), or if this FiestaBoard is reachable from the internet. Your board keeps displaying as normal either way — login only controls who can sign in to change settings.",
+      "button": "Set up a username & password",
+      "submitting": "Enabling…",
+      "failure": "Could not enable login"
+    }
+  },
   "aiActionConfirmation": {
     "deny": "Deny",
     "allow": "Allow",

@@ -1005,6 +1005,65 @@
     "off": "Uit",
     "toggleServiceAriaLabel": "{name} in-/uitschakelen"
   },
+  "accountSection": {
+    "signedIn": {
+      "title": "Aangemeld",
+      "description": "Je bent momenteel aangemeld als <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Gebruikersnaam wijzigen",
+      "description": "Kies een nieuwe aanmeldnaam. Vereist je huidige wachtwoord.",
+      "formAriaLabel": "Gebruikersnaam wijzigen",
+      "newUsernameLabel": "Nieuwe gebruikersnaam",
+      "currentPasswordLabel": "Huidig wachtwoord",
+      "submit": "Gebruikersnaam opslaan",
+      "submitting": "Opslaan…",
+      "success": "Gebruikersnaam bijgewerkt",
+      "failure": "Wijzigen van gebruikersnaam mislukt"
+    },
+    "changePassword": {
+      "title": "Wachtwoord wijzigen",
+      "description": "Wijzig je wachtwoord. Alle andere sessies die met het oude wachtwoord zijn aangemeld, worden afgemeld.",
+      "formAriaLabel": "Wachtwoord wijzigen",
+      "currentPasswordLabel": "Huidig wachtwoord",
+      "newPasswordLabel": "Nieuw wachtwoord",
+      "newPasswordHint": "Minstens 8 tekens.",
+      "confirmPasswordLabel": "Nieuw wachtwoord bevestigen",
+      "submit": "Wachtwoord opslaan",
+      "submitting": "Opslaan…",
+      "success": "Wachtwoord bijgewerkt",
+      "failure": "Wijzigen van wachtwoord mislukt",
+      "tooShort": "Het nieuwe wachtwoord moet minstens 8 tekens bevatten.",
+      "mismatch": "De wachtwoorden komen niet overeen."
+    },
+    "signOut": {
+      "title": "Afmelden",
+      "description": "Beëindig je huidige sessie. Je wordt teruggestuurd naar de aanmeldpagina.",
+      "button": "Afmelden"
+    },
+    "disableLogin": {
+      "title": "Aanmelden uitschakelen",
+      "description": "Schakel authenticatie volledig uit. Iedereen die dit FiestaBoard op het netwerk kan bereiken, kan dan instellingen wijzigen en API-sleutels lezen. Niet aanbevolen, tenzij dit apparaat zich op een volledig vertrouwd privénetwerk bevindt.",
+      "button": "Aanmelden uitschakelen",
+      "dialogTitle": "Aanmelden voor dit FiestaBoard uitschakelen?",
+      "dialogBody1": "Het uitschakelen van aanmelden verwijdert het account <name>{username}</name> en stelt dit FiestaBoard open voor iedereen die het op het netwerk kan bereiken — zij kunnen je API-sleutels lezen, je bordconfiguratie wijzigen en alle instellingen aanpassen.",
+      "dialogBody2": "Doe dit alleen als dit apparaat zich op een volledig vertrouwd privénetwerk bevindt (geen huisgenoten, geen gasten, geen smarthome-apparaten die je niet beheert). <strong>Sterk afgeraden</strong> als dit FiestaBoard bereikbaar is vanaf internet.",
+      "dialogBody3": "Je bord blijft in beide gevallen normaal weergeven — dit bepaalt alleen wie zich kan aanmelden om instellingen te wijzigen.",
+      "confirmPasswordLabel": "Bevestig je huidige wachtwoord om door te gaan",
+      "confirm": "Ja, aanmelden uitschakelen",
+      "confirming": "Uitschakelen…",
+      "success": "Authenticatie uitgeschakeld",
+      "failure": "Authenticatie uitschakelen mislukt"
+    },
+    "enableLogin": {
+      "title": "Aanmelden inschakelen",
+      "description": "Aanmelden staat momenteel <strong>uit</strong>. Iedereen die dit FiestaBoard op het netwerk kan bereiken, kan je API-sleutels lezen, je bordconfiguratie wijzigen en alle instellingen aanpassen.",
+      "body": "Sterk aanbevolen als je wifi deelt met mensen die je niet volledig vertrouwt (huisgenoten, gasten, smarthome-apparaten), of als dit FiestaBoard bereikbaar is vanaf internet. Je bord blijft in beide gevallen normaal weergeven — aanmelden bepaalt alleen wie zich kan aanmelden om instellingen te wijzigen.",
+      "button": "Een gebruikersnaam en wachtwoord instellen",
+      "submitting": "Inschakelen…",
+      "failure": "Kon aanmelden niet inschakelen"
+    }
+  },
   "aiActionConfirmation": {
     "deny": "Weigeren",
     "allow": "Toestaan",

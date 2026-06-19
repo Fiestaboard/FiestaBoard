@@ -1005,6 +1005,65 @@
     "off": "꺼짐",
     "toggleServiceAriaLabel": "{name} 전환"
   },
+  "accountSection": {
+    "signedIn": {
+      "title": "로그인됨",
+      "description": "현재 <name>{username}</name>(으)로 로그인되어 있습니다."
+    },
+    "changeUsername": {
+      "title": "사용자 이름 변경",
+      "description": "새 로그인 이름을 선택하세요. 현재 비밀번호가 필요합니다.",
+      "formAriaLabel": "사용자 이름 변경",
+      "newUsernameLabel": "새 사용자 이름",
+      "currentPasswordLabel": "현재 비밀번호",
+      "submit": "사용자 이름 저장",
+      "submitting": "저장 중…",
+      "success": "사용자 이름이 업데이트되었습니다",
+      "failure": "사용자 이름 변경에 실패했습니다"
+    },
+    "changePassword": {
+      "title": "비밀번호 변경",
+      "description": "비밀번호를 변경합니다. 이전 비밀번호로 로그인된 다른 모든 세션은 로그아웃됩니다.",
+      "formAriaLabel": "비밀번호 변경",
+      "currentPasswordLabel": "현재 비밀번호",
+      "newPasswordLabel": "새 비밀번호",
+      "newPasswordHint": "최소 8자.",
+      "confirmPasswordLabel": "새 비밀번호 확인",
+      "submit": "비밀번호 저장",
+      "submitting": "저장 중…",
+      "success": "비밀번호가 업데이트되었습니다",
+      "failure": "비밀번호 변경에 실패했습니다",
+      "tooShort": "새 비밀번호는 최소 8자 이상이어야 합니다.",
+      "mismatch": "비밀번호가 일치하지 않습니다."
+    },
+    "signOut": {
+      "title": "로그아웃",
+      "description": "현재 세션을 종료합니다. 로그인 페이지로 돌아갑니다.",
+      "button": "로그아웃"
+    },
+    "disableLogin": {
+      "title": "로그인 비활성화",
+      "description": "인증을 완전히 끕니다. 네트워크에서 이 FiestaBoard에 접근할 수 있는 사람은 누구나 설정을 변경하고 API 키를 읽을 수 있게 됩니다. 이 기기가 완전히 신뢰할 수 있는 사설 네트워크에 있지 않다면 권장하지 않습니다.",
+      "button": "로그인 비활성화",
+      "dialogTitle": "이 FiestaBoard의 로그인을 비활성화하시겠습니까?",
+      "dialogBody1": "로그인을 비활성화하면 <name>{username}</name> 계정이 제거되고 네트워크에서 접근할 수 있는 모든 사람에게 이 FiestaBoard가 열립니다. 그들은 API 키를 읽고, 보드 구성을 변경하고, 모든 설정을 수정할 수 있게 됩니다.",
+      "dialogBody2": "이 기기가 완전히 신뢰할 수 있는 사설 네트워크에 있는 경우(룸메이트, 손님, 제어할 수 없는 스마트홈 기기가 없는 경우)에만 수행하세요. 이 FiestaBoard가 인터넷에서 접근 가능한 경우 <strong>강력히 권장하지 않습니다</strong>.",
+      "dialogBody3": "어느 경우든 보드는 평소처럼 계속 표시됩니다. 이것은 설정을 변경하기 위해 로그인할 수 있는 사람만 제어합니다.",
+      "confirmPasswordLabel": "계속하려면 현재 비밀번호를 확인하세요",
+      "confirm": "예, 로그인을 비활성화합니다",
+      "confirming": "비활성화 중…",
+      "success": "인증이 비활성화되었습니다",
+      "failure": "인증을 비활성화하지 못했습니다"
+    },
+    "enableLogin": {
+      "title": "로그인 활성화",
+      "description": "로그인이 현재 <strong>꺼져</strong> 있습니다. 네트워크에서 이 FiestaBoard에 접근할 수 있는 사람은 누구나 API 키를 읽고, 보드 구성을 변경하고, 모든 설정을 수정할 수 있습니다.",
+      "body": "완전히 신뢰하지 않는 사람들(룸메이트, 손님, 스마트홈 기기)과 Wi-Fi를 공유하거나, 이 FiestaBoard가 인터넷에서 접근 가능한 경우 강력히 권장합니다. 어느 경우든 보드는 평소처럼 계속 표시됩니다. 로그인은 설정을 변경하기 위해 로그인할 수 있는 사람만 제어합니다.",
+      "button": "사용자 이름과 비밀번호 설정",
+      "submitting": "활성화 중…",
+      "failure": "로그인을 활성화할 수 없습니다"
+    }
+  },
   "aiActionConfirmation": {
     "deny": "거부",
     "allow": "허용",

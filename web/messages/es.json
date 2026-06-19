@@ -1005,6 +1005,65 @@
     "off": "Desactivado",
     "toggleServiceAriaLabel": "Alternar {name}"
   },
+  "accountSection": {
+    "signedIn": {
+      "title": "Sesión iniciada",
+      "description": "Actualmente tienes la sesión iniciada como <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Cambiar nombre de usuario",
+      "description": "Elige un nuevo nombre de inicio de sesión. Requiere tu contraseña actual.",
+      "formAriaLabel": "Cambiar nombre de usuario",
+      "newUsernameLabel": "Nuevo nombre de usuario",
+      "currentPasswordLabel": "Contraseña actual",
+      "submit": "Guardar nombre de usuario",
+      "submitting": "Guardando…",
+      "success": "Nombre de usuario actualizado",
+      "failure": "No se pudo cambiar el nombre de usuario"
+    },
+    "changePassword": {
+      "title": "Cambiar contraseña",
+      "description": "Cambia tu contraseña. Cualquier otra sesión iniciada con la contraseña anterior se cerrará.",
+      "formAriaLabel": "Cambiar contraseña",
+      "currentPasswordLabel": "Contraseña actual",
+      "newPasswordLabel": "Nueva contraseña",
+      "newPasswordHint": "Al menos 8 caracteres.",
+      "confirmPasswordLabel": "Confirmar nueva contraseña",
+      "submit": "Guardar contraseña",
+      "submitting": "Guardando…",
+      "success": "Contraseña actualizada",
+      "failure": "No se pudo cambiar la contraseña",
+      "tooShort": "La nueva contraseña debe tener al menos 8 caracteres.",
+      "mismatch": "Las contraseñas no coinciden."
+    },
+    "signOut": {
+      "title": "Cerrar sesión",
+      "description": "Finaliza tu sesión actual. Volverás a la página de inicio de sesión.",
+      "button": "Cerrar sesión"
+    },
+    "disableLogin": {
+      "title": "Desactivar inicio de sesión",
+      "description": "Desactiva la autenticación por completo. Cualquiera que pueda acceder a este FiestaBoard en la red podrá cambiar la configuración y leer las claves de API. No se recomienda a menos que este dispositivo esté en una red privada totalmente confiable.",
+      "button": "Desactivar inicio de sesión",
+      "dialogTitle": "¿Desactivar el inicio de sesión de este FiestaBoard?",
+      "dialogBody1": "Desactivar el inicio de sesión elimina la cuenta <name>{username}</name> y abre este FiestaBoard a cualquiera que pueda acceder a él en la red — podrán leer tus claves de API, cambiar la configuración de tu tablero y modificar cualquier ajuste.",
+      "dialogBody2": "Hazlo solo si este dispositivo está en una red privada totalmente confiable (sin compañeros de piso, sin invitados, sin dispositivos de domótica que no controles). <strong>Muy poco recomendable</strong> si este FiestaBoard es accesible desde internet.",
+      "dialogBody3": "Tu tablero seguirá mostrándose con normalidad en cualquier caso — esto solo controla quién puede iniciar sesión para cambiar la configuración.",
+      "confirmPasswordLabel": "Confirma tu contraseña actual para continuar",
+      "confirm": "Sí, desactivar inicio de sesión",
+      "confirming": "Desactivando…",
+      "success": "Autenticación desactivada",
+      "failure": "No se pudo desactivar la autenticación"
+    },
+    "enableLogin": {
+      "title": "Activar inicio de sesión",
+      "description": "El inicio de sesión está actualmente <strong>desactivado</strong>. Cualquiera que pueda acceder a este FiestaBoard en la red puede leer tus claves de API, cambiar la configuración de tu tablero y modificar cualquier ajuste.",
+      "body": "Muy recomendable si compartes la Wi-Fi con personas en las que no confías plenamente (compañeros de piso, invitados, dispositivos de domótica), o si este FiestaBoard es accesible desde internet. Tu tablero seguirá mostrándose con normalidad en cualquier caso — el inicio de sesión solo controla quién puede iniciar sesión para cambiar la configuración.",
+      "button": "Configurar un nombre de usuario y contraseña",
+      "submitting": "Activando…",
+      "failure": "No se pudo activar el inicio de sesión"
+    }
+  },
   "aiActionConfirmation": {
     "deny": "Denegar",
     "allow": "Permitir",
