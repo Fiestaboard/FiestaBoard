@@ -12,6 +12,7 @@ from src.devices import (
     VALID_API_MODES,
     BoardInstance,
     DeviceDimensions,
+    classify_dimensions,
     get_dimensions,
     is_note_array,
     is_valid_note_array_grid,
@@ -597,3 +598,118 @@ class TestBoardInstanceNotesFields:
         """'note_array' is now a valid device_type — not normalized to 'flagship'."""
         board = BoardInstance(device_type="note_array")
         assert board.device_type == "note_array"
+
+
+class TestClassifyDimensions:
+    """Tests for classify_dimensions(rows, cols) — auto-detect from a live grid."""
+
+    # --- Flagship ---
+    def test_flagship_6x22(self):
+        """6×22 → flagship (no note-array keys)."""
+        result = classify_dimensions(6, 22)
+        assert result["device_type"] == "flagship"
+        assert result["rows"] == 6
+        assert result["cols"] == 22
+        assert "notes_wide" not in result
+        assert "notes_tall" not in result
+        assert "matched_preset" not in result
+
+    # --- Note ---
+    def test_note_3x15(self):
+        """3×15 → note (checked before the note-array branch)."""
+        result = classify_dimensions(3, 15)
+        assert result["device_type"] == "note"
+        assert result["rows"] == 3
+        assert result["cols"] == 15
+        assert "notes_wide" not in result
+
+    # --- Note array, preset matches ---
+    def test_note_array_2x2_grid(self):
+        """6×30 → note_array, 2 wide × 2 tall, preset '2×2 grid'."""
+        result = classify_dimensions(6, 30)
+        assert result["device_type"] == "note_array"
+        assert result["notes_wide"] == 2
+        assert result["notes_tall"] == 2
+        assert result["matched_preset"] == "2×2 grid"
+        assert result["rows"] == 6
+        assert result["cols"] == 30
+
+    def test_note_array_4_side_by_side(self):
+        """3×60 → note_array, 4 wide × 1 tall, preset '4 side-by-side'."""
+        result = classify_dimensions(3, 60)
+        assert result["device_type"] == "note_array"
+        assert result["notes_wide"] == 4
+        assert result["notes_tall"] == 1
+        assert result["matched_preset"] == "4 side-by-side"
+
+    def test_note_array_2_side_by_side(self):
+        """3×30 → note_array, 2 wide × 1 tall, preset '2 side-by-side'."""
+        result = classify_dimensions(3, 30)
+        assert result["device_type"] == "note_array"
+        assert result["notes_wide"] == 2
+        assert result["notes_tall"] == 1
+        assert result["matched_preset"] == "2 side-by-side"
+
+    def test_note_array_2_stacked(self):
+        """6×15 → note_array, 1 wide × 2 tall, preset '2 stacked'."""
+        result = classify_dimensions(6, 15)
+        assert result["device_type"] == "note_array"
+        assert result["notes_wide"] == 1
+        assert result["notes_tall"] == 2
+        assert result["matched_preset"] == "2 stacked"
+
+    def test_note_array_4_stacked(self):
+        """12×15 → note_array, 1 wide × 4 tall, preset '4 stacked'."""
+        result = classify_dimensions(12, 15)
+        assert result["device_type"] == "note_array"
+        assert result["notes_wide"] == 1
+        assert result["notes_tall"] == 4
+        assert result["matched_preset"] == "4 stacked"
+
+    # --- Note array, no preset match ---
+    def test_note_array_no_preset_match(self):
+        """9×45 (3 wide × 3 tall) → note_array, matched_preset is None."""
+        result = classify_dimensions(9, 45)
+        assert result["device_type"] == "note_array"
+        assert result["notes_wide"] == 3
+        assert result["notes_tall"] == 3
+        assert result["matched_preset"] is None
+
+    def test_note_array_8x8_at_cap_no_preset(self):
+        """24×120 (8 wide × 8 tall) is at MAX_NOTES_PER_AXIS cap, no preset."""
+        result = classify_dimensions(24, 120)
+        assert result["device_type"] == "note_array"
+        assert result["notes_wide"] == 8
+        assert result["notes_tall"] == 8
+        assert result["matched_preset"] is None
+
+    # --- Unclassifiable ---
+    def test_unclassifiable_5x15_non_multiple_rows(self):
+        """5×15: 5 % 3 != 0 → ValueError."""
+        with pytest.raises(ValueError, match="unclassifiable"):
+            classify_dimensions(5, 15)
+
+    def test_unclassifiable_6x16_non_multiple_cols(self):
+        """6×16: 16 % 15 != 0 → ValueError."""
+        with pytest.raises(ValueError, match="unclassifiable"):
+            classify_dimensions(6, 16)
+
+    def test_unclassifiable_4x4(self):
+        """4×4: not flagship, not note, not valid note-array → ValueError."""
+        with pytest.raises(ValueError, match="unclassifiable"):
+            classify_dimensions(4, 4)
+
+    def test_unclassifiable_over_axis_cap(self):
+        """27×15 (9 notes tall > MAX_NOTES_PER_AXIS=8) → ValueError."""
+        with pytest.raises(ValueError, match="unclassifiable"):
+            classify_dimensions(27, 15)
+
+    def test_unclassifiable_zero_rows(self):
+        """0×15 → ValueError."""
+        with pytest.raises(ValueError):
+            classify_dimensions(0, 15)
+
+    def test_unclassifiable_zero_cols(self):
+        """3×0 → ValueError."""
+        with pytest.raises(ValueError):
+            classify_dimensions(3, 0)
