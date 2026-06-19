@@ -1071,6 +1071,12 @@
       }
     }
   },
+  "bootGate": {
+    "waiting": "起動を待機中…",
+    "errorHeading": "FiestaBoard に接続できませんでした",
+    "errorDescription": "アプリが起動していることを確認し、ページを再読み込みしてください。",
+    "refreshPage": "ページを再読み込み"
+  },
   "plainTextEditor": {
     "placeholder": "テンプレートテキストを入力...",
     "lineCount": "{current} / {total} 行",

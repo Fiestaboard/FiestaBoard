@@ -1071,6 +1071,12 @@
       }
     }
   },
+  "bootGate": {
+    "waiting": "Väntar på start…",
+    "errorHeading": "Det gick inte att ansluta till FiestaBoard",
+    "errorDescription": "Kontrollera att appen körs och försök ladda om sidan.",
+    "refreshPage": "Ladda om sidan"
+  },
   "plainTextEditor": {
     "placeholder": "Skriv din malltext...",
     "lineCount": "{current} / {total} rader",

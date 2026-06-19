@@ -1071,6 +1071,12 @@
       }
     }
   },
+  "bootGate": {
+    "waiting": "En attente de démarrage…",
+    "errorHeading": "Impossible de se connecter à FiestaBoard",
+    "errorDescription": "Vérifiez que l'application est en cours d'exécution et essayez de recharger la page.",
+    "refreshPage": "Recharger la page"
+  },
   "plainTextEditor": {
     "placeholder": "Tapez votre texte de modèle...",
     "lineCount": "{current} / {total} lignes",

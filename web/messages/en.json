@@ -1028,6 +1028,12 @@
       }
     }
   },
+  "bootGate": {
+    "waiting": "Waiting to start…",
+    "errorHeading": "Couldn't connect to FiestaBoard",
+    "errorDescription": "Check that the app is running and try refreshing the page.",
+    "refreshPage": "Refresh page"
+  },
   "plainTextEditor": {
     "placeholder": "Type your template text...",
     "lineCount": "{current} / {total} lines",

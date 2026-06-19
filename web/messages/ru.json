@@ -1071,6 +1071,12 @@
       }
     }
   },
+  "bootGate": {
+    "waiting": "Ожидание запуска…",
+    "errorHeading": "Не удалось подключиться к FiestaBoard",
+    "errorDescription": "Убедитесь, что приложение запущено, и попробуйте обновить страницу.",
+    "refreshPage": "Обновить страницу"
+  },
   "plainTextEditor": {
     "placeholder": "Введите текст шаблона...",
     "lineCount": "{current} / {total} строк",

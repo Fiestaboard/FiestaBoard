@@ -5,6 +5,7 @@ import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { FiestaLogo } from "@/components/fiesta-logo";
+import { useTranslations } from "@/i18n/translations";
 
 /** How long to wait before showing the splash (avoids a flash for fast startups). */
 const SHOW_SPLASH_DELAY_MS = 600;
@@ -22,6 +23,7 @@ const ERROR_TIMEOUT_MS = 30_000;
  *   A brief connection hiccup during normal use never re-shows the splash.
  */
 export function BootGate({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("bootGate");
   const [hasConnected, setHasConnected] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
@@ -72,7 +74,12 @@ export function BootGate({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-6 text-center px-6 max-w-sm">
+      <div
+        className="flex flex-col items-center gap-6 text-center px-6 max-w-sm"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         {/* Branding */}
         <div className="flex items-center gap-3">
           <img src="/icons/favicon-32x32.png" alt="" width={36} height={36} className="flex-shrink-0" />
@@ -82,25 +89,27 @@ export function BootGate({ children }: { children: React.ReactNode }) {
         {timedOut ? (
           /* ── Error state ── */
           <>
-            <WifiOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
+            <WifiOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
             <div className="space-y-1.5">
-              <p className="text-base font-semibold">Couldn&apos;t connect to FiestaBoard</p>
-              <p className="text-sm text-muted-foreground">
-                Check that the app is running and try refreshing the page.
-              </p>
+              <p className="text-base font-semibold">{t("errorHeading")}</p>
+              <p className="text-sm text-muted-foreground">{t("errorDescription")}</p>
             </div>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              Refresh page
+              {t("refreshPage")}
             </button>
           </>
         ) : (
           /* ── Waiting state ── */
           <>
-            <div className="h-8 w-8 rounded-full border-[2.5px] border-muted-foreground/25 border-t-muted-foreground animate-spin" />
-            <p className="text-sm text-muted-foreground">Waiting to start…</p>
+            <div
+              className="h-8 w-8 rounded-full border-[2.5px] border-muted-foreground/25 border-t-muted-foreground animate-spin"
+              role="img"
+              aria-label={t("waiting")}
+            />
+            <p className="text-sm text-muted-foreground">{t("waiting")}</p>
           </>
         )}
       </div>

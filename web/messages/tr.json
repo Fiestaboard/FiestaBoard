@@ -1071,6 +1071,12 @@
       }
     }
   },
+  "bootGate": {
+    "waiting": "Başlatılması bekleniyor…",
+    "errorHeading": "FiestaBoard'a bağlanılamadı",
+    "errorDescription": "Uygulamanın çalıştığından emin olun ve sayfayı yenilemeyi deneyin.",
+    "refreshPage": "Sayfayı yenile"
+  },
   "plainTextEditor": {
     "placeholder": "Şablon metninizi yazın...",
     "lineCount": "{current} / {total} satır",

@@ -1071,6 +1071,12 @@
       }
     }
   },
+  "bootGate": {
+    "waiting": "Warten auf den Start…",
+    "errorHeading": "Verbindung zu FiestaBoard fehlgeschlagen",
+    "errorDescription": "Prüfe, ob die App läuft, und versuche, die Seite neu zu laden.",
+    "refreshPage": "Seite neu laden"
+  },
   "plainTextEditor": {
     "placeholder": "Vorlagentext eingeben...",
     "lineCount": "{current} / {total} Zeilen",

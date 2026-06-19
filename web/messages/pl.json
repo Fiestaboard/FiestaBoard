@@ -1071,6 +1071,12 @@
       }
     }
   },
+  "bootGate": {
+    "waiting": "Oczekiwanie na uruchomienie…",
+    "errorHeading": "Nie można połączyć się z FiestaBoard",
+    "errorDescription": "Sprawdź, czy aplikacja działa, i spróbuj odświeżyć stronę.",
+    "refreshPage": "Odśwież stronę"
+  },
   "plainTextEditor": {
     "placeholder": "Wpisz tekst szablonu...",
     "lineCount": "{current} / {total} linii",

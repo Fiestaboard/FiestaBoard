@@ -1071,6 +1071,12 @@
       }
     }
   },
+  "bootGate": {
+    "waiting": "Wachten op opstarten…",
+    "errorHeading": "Kan geen verbinding maken met FiestaBoard",
+    "errorDescription": "Controleer of de app draait en probeer de pagina opnieuw te laden.",
+    "refreshPage": "Pagina vernieuwen"
+  },
   "plainTextEditor": {
     "placeholder": "Typ je sjabloontekst...",
     "lineCount": "{current} / {total} regels",

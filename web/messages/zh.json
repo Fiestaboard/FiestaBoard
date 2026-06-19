@@ -1071,6 +1071,12 @@
       }
     }
   },
+  "bootGate": {
+    "waiting": "正在等待启动…",
+    "errorHeading": "无法连接到 FiestaBoard",
+    "errorDescription": "请确认应用正在运行，然后尝试刷新页面。",
+    "refreshPage": "刷新页面"
+  },
   "plainTextEditor": {
     "placeholder": "输入您的模板文本...",
     "lineCount": "{current} / {total} 行",

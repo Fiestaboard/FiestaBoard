@@ -1071,6 +1071,12 @@
       }
     }
   },
+  "bootGate": {
+    "waiting": "A aguardar o início…",
+    "errorHeading": "Não foi possível ligar ao FiestaBoard",
+    "errorDescription": "Verifica se a aplicação está em execução e tenta recarregar a página.",
+    "refreshPage": "Recarregar página"
+  },
   "plainTextEditor": {
     "placeholder": "Digite o texto do seu template...",
     "lineCount": "{current} / {total} linhas",
