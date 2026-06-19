@@ -680,6 +680,7 @@ async def lifespan(app: FastAPI):
             logger.warning("Post-upgrade auto-restore applied from snapshot: %s", _restored)
     except Exception:  # pragma: no cover - safety net must never block boot
         logger.debug("Post-upgrade auto-restore failed", exc_info=True)
+    _log_config_boot_snapshot("post-restore")
 
     # If the most recent settings snapshot looks materially richer than the
     # live config (more enabled plugins, etc.), tell the user loudly on
@@ -724,6 +725,7 @@ async def lifespan(app: FastAPI):
             logger.warning("Service can be started manually via /start endpoint after configuration is fixed")
     else:
         logger.warning("Service instance could not be created - check logs for initialization errors")
+    _log_config_boot_snapshot("post-service-init")
 
     # Start mDNS/Bonjour advertisement (fiestaboard.local)
     try:
@@ -2200,6 +2202,25 @@ def _auto_restore_post_upgrade_regression() -> dict[str, Any]:
     # Restored timezone won't take effect until the cached TimeService is rebuilt.
     reset_time_service()
     return summary
+
+
+def _log_config_boot_snapshot(stage: str) -> None:
+    """Log a one-line config fingerprint at a boot stage (issue #1102 forensics)."""
+    try:
+        cm = get_config_manager()
+        general = cm.get_general()
+        plugins = cm.get_all_plugin_configs()
+        enabled = sum(1 for c in plugins.values() if isinstance(c, dict) and c.get("enabled"))
+        logger.info(
+            "config boot snapshot [%s]: %d plugin(s), %d enabled, timezone=%r, instance_name=%r",
+            stage,
+            len(plugins),
+            enabled,
+            general.get("timezone"),
+            general.get("instance_name"),
+        )
+    except Exception:  # pragma: no cover - diagnostics must never block boot
+        logger.debug("config boot snapshot [%s] failed", stage, exc_info=True)
 
 
 def _detect_post_upgrade_regression() -> dict[str, Any] | None:
