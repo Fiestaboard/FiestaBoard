@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useConfig } from "@/hooks/use-board";
 import type { ServiceKey } from "@/hooks/use-config-overrides";
 import { useConfigOverrides } from "@/hooks/use-config-overrides";
+import { useTranslations } from "@/i18n/translations";
 
 // Vulcan salute component - uses emoji with CSS filter to match icon theme
 // Converts emoji to grayscale so it matches the monochrome icon style
@@ -25,6 +26,7 @@ const VulcanSalute = ({ className }: { className?: string }) => {
 
   return (
     <span
+      aria-hidden="true"
       className={className}
       style={{
         fontSize: "1rem",
@@ -46,17 +48,23 @@ const VulcanSalute = ({ className }: { className?: string }) => {
   );
 };
 
-// Config item display with icon - use short labels for compact display
-const configItems: Array<{ key: ServiceKey; label: string; icon: ComponentType<{ className?: string }> }> = [
-  { key: "datetime_enabled" as ServiceKey, label: "Date", icon: Calendar },
-  { key: "weather_enabled" as ServiceKey, label: "Weather", icon: Cloud },
-  { key: "home_assistant_enabled" as ServiceKey, label: "Home", icon: Home },
-  { key: "guest_wifi_enabled" as ServiceKey, label: "WiFi", icon: Wifi },
-  { key: "star_trek_quotes_enabled" as ServiceKey, label: "Quotes", icon: VulcanSalute },
-  { key: "rotation_enabled" as ServiceKey, label: "Rotation", icon: RotateCw },
+// Config item display with icon - use short labels for compact display.
+// `labelKey` maps to the `configDisplay.items.*` i18n keys.
+const configItems: Array<{
+  key: ServiceKey;
+  labelKey: "date" | "weather" | "home" | "wifi" | "quotes" | "rotation";
+  icon: ComponentType<{ className?: string }>;
+}> = [
+  { key: "datetime_enabled" as ServiceKey, labelKey: "date", icon: Calendar },
+  { key: "weather_enabled" as ServiceKey, labelKey: "weather", icon: Cloud },
+  { key: "home_assistant_enabled" as ServiceKey, labelKey: "home", icon: Home },
+  { key: "guest_wifi_enabled" as ServiceKey, labelKey: "wifi", icon: Wifi },
+  { key: "star_trek_quotes_enabled" as ServiceKey, labelKey: "quotes", icon: VulcanSalute },
+  { key: "rotation_enabled" as ServiceKey, labelKey: "rotation", icon: RotateCw },
 ];
 
 export function ConfigDisplay() {
+  const t = useTranslations("configDisplay");
   const { data, isLoading } = useConfig();
   const { overrides, setOverride, getEffectiveValue, isOverridden } = useConfigOverrides();
 
@@ -78,7 +86,7 @@ export function ConfigDisplay() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Configuration</CardTitle>
+          <CardTitle className="text-lg">{t("title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-2">
@@ -95,20 +103,23 @@ export function ConfigDisplay() {
     <Card>
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
-          Configuration
-          <span className="text-xs font-normal text-muted-foreground">(click to toggle preview)</span>
+          {t("title")}
+          <span className="text-xs font-normal text-muted-foreground">({t("clickToToggle")})</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-2">
-          {configItems.map(({ key, label, icon: Icon }) => {
+          {configItems.map(({ key, labelKey, icon: Icon }) => {
             const backendValue = (data?.[key] ?? false) as boolean;
             const enabled = getEffectiveValue(key, backendValue);
             const overridden = isOverridden(key);
+            const label = t(`items.${labelKey}`);
             return (
               <button
                 key={key}
                 onClick={() => handleToggle(key)}
+                aria-pressed={enabled}
+                aria-label={t("toggleServiceAriaLabel", { name: label })}
                 className={`flex items-center gap-2 p-2 rounded-md border transition-all duration-200 ${
                   enabled
                     ? "bg-primary/10 border-primary/30 hover:bg-primary/15"
@@ -131,7 +142,7 @@ export function ConfigDisplay() {
                     enabled ? "bg-fiesta-green hover:bg-fiesta-green" : ""
                   }`}
                 >
-                  {enabled ? "On" : "Off"}
+                  {enabled ? t("on") : t("off")}
                 </Badge>
               </button>
             );

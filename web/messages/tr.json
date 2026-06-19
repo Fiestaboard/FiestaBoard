@@ -1002,7 +1002,147 @@
       "wifi": "WiFi",
       "quotes": "Alıntılar",
       "rotation": "Rotasyon"
+    },
+    "on": "Açık",
+    "off": "Kapalı",
+    "toggleServiceAriaLabel": "{name} aç/kapat"
+  },
+  "accountSection": {
+    "signedIn": {
+      "title": "Oturum açıldı",
+      "description": "Şu anda <name>{username}</name> olarak oturum açtınız."
+    },
+    "changeUsername": {
+      "title": "Kullanıcı adını değiştir",
+      "description": "Yeni bir oturum açma adı seçin. Mevcut parolanızı gerektirir.",
+      "formAriaLabel": "Kullanıcı adını değiştir",
+      "newUsernameLabel": "Yeni kullanıcı adı",
+      "currentPasswordLabel": "Mevcut parola",
+      "submit": "Kullanıcı adını kaydet",
+      "submitting": "Kaydediliyor…",
+      "success": "Kullanıcı adı güncellendi",
+      "failure": "Kullanıcı adı değiştirilemedi"
+    },
+    "changePassword": {
+      "title": "Parolayı değiştir",
+      "description": "Parolanızı değiştirin. Eski parolayla oturum açmış diğer tüm oturumların oturumu kapatılır.",
+      "formAriaLabel": "Parolayı değiştir",
+      "currentPasswordLabel": "Mevcut parola",
+      "newPasswordLabel": "Yeni parola",
+      "newPasswordHint": "En az 8 karakter.",
+      "confirmPasswordLabel": "Yeni parolayı onayla",
+      "submit": "Parolayı kaydet",
+      "submitting": "Kaydediliyor…",
+      "success": "Parola güncellendi",
+      "failure": "Parola değiştirilemedi",
+      "tooShort": "Yeni parola en az 8 karakter olmalıdır.",
+      "mismatch": "Parolalar eşleşmiyor."
+    },
+    "signOut": {
+      "title": "Oturumu kapat",
+      "description": "Mevcut oturumunuzu sonlandırın. Oturum açma sayfasına geri gönderileceksiniz.",
+      "button": "Oturumu kapat"
+    },
+    "disableLogin": {
+      "title": "Oturum açmayı devre dışı bırak",
+      "description": "Kimlik doğrulamayı tamamen kapatın. Bu FiestaBoard'a ağ üzerinden erişebilen herkes ayarları değiştirebilir ve API anahtarlarını okuyabilir. Bu cihaz tamamen güvenilir bir özel ağda değilse önerilmez.",
+      "button": "Oturum açmayı devre dışı bırak",
+      "dialogTitle": "Bu FiestaBoard için oturum açma devre dışı bırakılsın mı?",
+      "dialogBody1": "Oturum açmayı devre dışı bırakmak <name>{username}</name> hesabını kaldırır ve bu FiestaBoard'ı ağ üzerinden erişebilen herkese açar — API anahtarlarınızı okuyabilir, pano yapılandırmanızı değiştirebilir ve tüm ayarları düzenleyebilirler.",
+      "dialogBody2": "Bunu yalnızca bu cihaz tamamen güvenilir bir özel ağdaysa yapın (ev arkadaşı yok, misafir yok, kontrol etmediğiniz akıllı ev cihazları yok). Bu FiestaBoard internetten erişilebiliyorsa <strong>kesinlikle önerilmez</strong>.",
+      "dialogBody3": "Panonuz her iki durumda da normal şekilde görüntülenmeye devam eder — bu yalnızca ayarları değiştirmek için kimin oturum açabileceğini kontrol eder.",
+      "confirmPasswordLabel": "Devam etmek için mevcut parolanızı onaylayın",
+      "confirm": "Evet, oturum açmayı devre dışı bırak",
+      "confirming": "Devre dışı bırakılıyor…",
+      "success": "Kimlik doğrulama devre dışı bırakıldı",
+      "failure": "Kimlik doğrulama devre dışı bırakılamadı"
+    },
+    "enableLogin": {
+      "title": "Oturum açmayı etkinleştir",
+      "description": "Oturum açma şu anda <strong>kapalı</strong>. Bu FiestaBoard'a ağ üzerinden erişebilen herkes API anahtarlarınızı okuyabilir, pano yapılandırmanızı değiştirebilir ve tüm ayarları düzenleyebilir.",
+      "body": "Tam olarak güvenmediğiniz kişilerle (ev arkadaşları, misafirler, akıllı ev cihazları) Wi-Fi paylaşıyorsanız veya bu FiestaBoard internetten erişilebiliyorsa kesinlikle önerilir. Panonuz her iki durumda da normal şekilde görüntülenmeye devam eder — oturum açma yalnızca ayarları değiştirmek için kimin oturum açabileceğini kontrol eder.",
+      "button": "Bir kullanıcı adı ve parola ayarla",
+      "submitting": "Etkinleştiriliyor…",
+      "failure": "Oturum açma etkinleştirilemedi"
     }
+  },
+  "aiActionConfirmation": {
+    "deny": "Reddet",
+    "allow": "İzin ver",
+    "working": "Çalışıyor…",
+    "done": "Tamam",
+    "denied": "Reddedildi",
+    "noChanges": "değişiklik yok",
+    "noValues": "değer yok",
+    "noChangesSpecified": "Değişiklik belirtilmedi.",
+    "openEnd": "açık",
+    "label": {
+      "installPlugin": "Eklenti yükle: {id}",
+      "updatePluginConfig": "Eklentiyi yapılandır: {id}",
+      "updatePlugin": "Eklentiyi güncelle: {id}",
+      "enablePlugin": "Eklentiyi etkinleştir: {id}",
+      "disablePlugin": "Eklentiyi devre dışı bırak: {id}",
+      "uninstallPlugin": "Eklentiyi kaldır: {id}",
+      "updateSetting": "Ayarı değiştir: {category}",
+      "createCollection": "Koleksiyon oluştur: \"{name}\"",
+      "updateCollection": "Koleksiyonu güncelle",
+      "createSchedule": "Zamanlama oluştur",
+      "updateSchedule": "Zamanlamayı güncelle",
+      "deleteSchedule": "Zamanlamayı sil",
+      "triggerSystemUpdate": "Sistem güncellemesi"
+    },
+    "description": {
+      "installPlugin": "\"{id}\" eklentisini resmi kayıttan yükler.",
+      "installPluginEnable": "\"{id}\" eklentisini resmi kayıttan yükler ve etkinleştirir.",
+      "updatePluginConfig": "\"{id}\" yapılandırmasını günceller: {keys}.",
+      "updatePlugin": "\"{id}\" eklentisinin en son kayıt sürümünü indirir ve yükler.",
+      "enablePlugin": "\"{id}\" eklentisini panolarınıza veri sağlayabilmesi için etkinleştirir.",
+      "disablePlugin": "\"{id}\" eklentisini kaldırmadan devre dışı bırakır. Daha sonra tekrar etkinleştirilebilir.",
+      "uninstallPlugin": "\"{id}\" eklentisini kalıcı olarak kaldırır. Bu işlem geri alınamaz.",
+      "updateSetting": "{category} ayarlarında {values} değerini ayarlar.",
+      "createCollection": "{count, plural, one {# sayfa} other {# sayfa}} içeren bir koleksiyon oluşturur, her {interval}s'de bir döner.",
+      "createSchedule": "\"{page}\" sayfasını {days} günlerinde {time} arasında gösterir.",
+      "deleteSchedule": "\"{id}\" zamanlamasını kalıcı olarak kaldırır. Bu işlem geri alınamaz.",
+      "triggerSystemUpdate": "En son FiestaBoard güncellemesini indirir ve yükler. Sistem kısa süreliğine yeniden başlar."
+    },
+    "change": {
+      "rename": "\"{name}\" olarak yeniden adlandır",
+      "setPages": "{count, plural, one {# sayfa} other {# sayfa}} ayarla",
+      "interval": "aralık → {interval}s",
+      "page": "sayfa → {page}",
+      "start": "başlangıç → {start}",
+      "end": "bitiş → {end}",
+      "days": "günler → {days}",
+      "enable": "etkinleştir",
+      "disable": "devre dışı bırak"
+    }
+  },
+  "chainingModePicker": {
+    "menuTitle": "Yapay zeka zincirleme modu",
+    "triggerAriaLabel": "Yapay zeka zincirleme modu: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manuel",
+        "description": "Her işlemden sonra tekrar soracağım"
+      },
+      "autoContinue": {
+        "label": "Otomatik devam",
+        "description": "İşlemleri zincirler, her adımı onaylar"
+      },
+      "autonomous": {
+        "label": "Otonom",
+        "description": "Tamamlanana kadar çalışır, onayları atlar"
+      }
+    }
+  },
+  "bootGate": {
+    "waiting": "Başlatılması bekleniyor…",
+    "errorHeading": "FiestaBoard'a bağlanılamadı",
+    "errorDescription": "Uygulamanın çalıştığından emin olun ve sayfayı yenilemeyi deneyin.",
+    "refreshPage": "Sayfayı yenile"
+  },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot yapay zeka sohbeti"
   },
   "plainTextEditor": {
     "placeholder": "Şablon metninizi yazın...",
@@ -1212,7 +1352,8 @@
     "change": "Değiştir",
     "selectAttribute": "Öznitelik Seç",
     "valueLabel": "Değer",
-    "insert": "Ekle"
+    "insert": "Ekle",
+    "searchAriaLabel": "Varlıkları ara"
   },
   "pluginSettings": {
     "title": "Eklenti Güncellemeleri",
@@ -1510,10 +1651,10 @@
     "importWithMissingPlugins": "Bazı eklentiler henüz etkin değil: {plugins}. Yine de içe aktarıp daha sonra etkinleştirebilirsiniz."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Sohbet mesajları",
+    "taskStatusAriaLabel": "Görev ilerlemesi",
+    "taskProgressAriaLabel": "AI görev ilerlemesi",
     "clearConversationAriaLabel": "Konuşmayı temizle",
     "closePanelAriaLabel": "FiestaBot (Beta)'yı kapat"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "AI görev ilerlemesi"
   }
 }

@@ -1002,7 +1002,147 @@
       "wifi": "WiFi",
       "quotes": "名言",
       "rotation": "ローテーション"
+    },
+    "on": "オン",
+    "off": "オフ",
+    "toggleServiceAriaLabel": "{name}を切り替え"
+  },
+  "accountSection": {
+    "signedIn": {
+      "title": "サインイン中",
+      "description": "現在 <name>{username}</name> としてサインインしています。"
+    },
+    "changeUsername": {
+      "title": "ユーザー名を変更",
+      "description": "新しいサインイン名を選択します。現在のパスワードが必要です。",
+      "formAriaLabel": "ユーザー名を変更",
+      "newUsernameLabel": "新しいユーザー名",
+      "currentPasswordLabel": "現在のパスワード",
+      "submit": "ユーザー名を保存",
+      "submitting": "保存中…",
+      "success": "ユーザー名を更新しました",
+      "failure": "ユーザー名の変更に失敗しました"
+    },
+    "changePassword": {
+      "title": "パスワードを変更",
+      "description": "パスワードを変更します。古いパスワードでサインインしている他のセッションはすべてサインアウトされます。",
+      "formAriaLabel": "パスワードを変更",
+      "currentPasswordLabel": "現在のパスワード",
+      "newPasswordLabel": "新しいパスワード",
+      "newPasswordHint": "8文字以上。",
+      "confirmPasswordLabel": "新しいパスワードを確認",
+      "submit": "パスワードを保存",
+      "submitting": "保存中…",
+      "success": "パスワードを更新しました",
+      "failure": "パスワードの変更に失敗しました",
+      "tooShort": "新しいパスワードは8文字以上にしてください。",
+      "mismatch": "パスワードが一致しません。"
+    },
+    "signOut": {
+      "title": "サインアウト",
+      "description": "現在のセッションを終了します。サインインページに戻ります。",
+      "button": "サインアウト"
+    },
+    "disableLogin": {
+      "title": "ログインを無効化",
+      "description": "認証を完全に無効にします。ネットワーク上でこの FiestaBoard にアクセスできる人は誰でも設定を変更し、API キーを読み取れるようになります。このデバイスが完全に信頼できるプライベートネットワーク上にある場合を除き、おすすめしません。",
+      "button": "ログインを無効化",
+      "dialogTitle": "この FiestaBoard のログインを無効にしますか？",
+      "dialogBody1": "ログインを無効にすると <name>{username}</name> アカウントが削除され、ネットワーク上でアクセスできる人全員にこの FiestaBoard が開かれます。彼らは API キーを読み取り、ボードの構成を変更し、あらゆる設定を変更できるようになります。",
+      "dialogBody2": "このデバイスが完全に信頼できるプライベートネットワーク上にある場合（ルームメイト、ゲスト、管理外のスマートホーム機器がない場合）にのみ実行してください。この FiestaBoard がインターネットから到達可能な場合は<strong>強くおすすめしません</strong>。",
+      "dialogBody3": "いずれの場合もボードは通常どおり表示され続けます。これは設定を変更するためにサインインできる人を制御するだけです。",
+      "confirmPasswordLabel": "続行するには現在のパスワードを確認してください",
+      "confirm": "はい、ログインを無効化します",
+      "confirming": "無効化中…",
+      "success": "認証を無効化しました",
+      "failure": "認証の無効化に失敗しました"
+    },
+    "enableLogin": {
+      "title": "ログインを有効化",
+      "description": "ログインは現在<strong>オフ</strong>です。ネットワーク上でこの FiestaBoard にアクセスできる人は誰でも API キーを読み取り、ボードの構成を変更し、あらゆる設定を変更できます。",
+      "body": "完全には信頼していない人（ルームメイト、ゲスト、スマートホーム機器）と Wi-Fi を共有している場合、またはこの FiestaBoard がインターネットから到達可能な場合は強くおすすめします。いずれの場合もボードは通常どおり表示され続けます。ログインは設定を変更するためにサインインできる人を制御するだけです。",
+      "button": "ユーザー名とパスワードを設定",
+      "submitting": "有効化中…",
+      "failure": "ログインを有効化できませんでした"
     }
+  },
+  "aiActionConfirmation": {
+    "deny": "拒否",
+    "allow": "許可",
+    "working": "実行中…",
+    "done": "完了",
+    "denied": "拒否しました",
+    "noChanges": "変更なし",
+    "noValues": "値なし",
+    "noChangesSpecified": "変更が指定されていません。",
+    "openEnd": "未指定",
+    "label": {
+      "installPlugin": "プラグインをインストール: {id}",
+      "updatePluginConfig": "プラグインを設定: {id}",
+      "updatePlugin": "プラグインを更新: {id}",
+      "enablePlugin": "プラグインを有効化: {id}",
+      "disablePlugin": "プラグインを無効化: {id}",
+      "uninstallPlugin": "プラグインをアンインストール: {id}",
+      "updateSetting": "設定を変更: {category}",
+      "createCollection": "コレクションを作成: \"{name}\"",
+      "updateCollection": "コレクションを更新",
+      "createSchedule": "スケジュールを作成",
+      "updateSchedule": "スケジュールを更新",
+      "deleteSchedule": "スケジュールを削除",
+      "triggerSystemUpdate": "システム更新"
+    },
+    "description": {
+      "installPlugin": "公式レジストリから「{id}」をインストールします。",
+      "installPluginEnable": "公式レジストリから「{id}」をインストールして有効化します。",
+      "updatePluginConfig": "「{id}」の設定を更新します: {keys}。",
+      "updatePlugin": "「{id}」の最新のレジストリ版をダウンロードしてインストールします。",
+      "enablePlugin": "「{id}」を有効にして、ボードにデータを提供できるようにします。",
+      "disablePlugin": "「{id}」を削除せずに無効化します。後で再び有効化できます。",
+      "uninstallPlugin": "「{id}」を完全に削除します。この操作は元に戻せません。",
+      "updateSetting": "{category} 設定に {values} を設定します。",
+      "createCollection": "{count, plural, other {# ページ}}のコレクションを作成し、{interval}秒ごとに切り替えます。",
+      "createSchedule": "「{page}」ページを {days} の日に {time} に表示します。",
+      "deleteSchedule": "スケジュール「{id}」を完全に削除します。この操作は元に戻せません。",
+      "triggerSystemUpdate": "最新の FiestaBoard アップデートをダウンロードしてインストールします。システムは短時間再起動します。"
+    },
+    "change": {
+      "rename": "「{name}」に名前を変更",
+      "setPages": "{count, plural, other {# ページ}}を設定",
+      "interval": "間隔 → {interval}秒",
+      "page": "ページ → {page}",
+      "start": "開始 → {start}",
+      "end": "終了 → {end}",
+      "days": "曜日 → {days}",
+      "enable": "有効化",
+      "disable": "無効化"
+    }
+  },
+  "chainingModePicker": {
+    "menuTitle": "AI チェーンモード",
+    "triggerAriaLabel": "AI チェーンモード: {mode}",
+    "modes": {
+      "manual": {
+        "label": "手動",
+        "description": "各操作のあとに再確認します"
+      },
+      "autoContinue": {
+        "label": "自動継続",
+        "description": "操作を連鎖し、各ステップを確認します"
+      },
+      "autonomous": {
+        "label": "自律",
+        "description": "完了まで実行し、確認をスキップします"
+      }
+    }
+  },
+  "bootGate": {
+    "waiting": "起動を待機中…",
+    "errorHeading": "FiestaBoard に接続できませんでした",
+    "errorDescription": "アプリが起動していることを確認し、ページを再読み込みしてください。",
+    "refreshPage": "ページを再読み込み"
+  },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot AI チャット"
   },
   "plainTextEditor": {
     "placeholder": "テンプレートテキストを入力...",
@@ -1212,7 +1352,8 @@
     "change": "変更",
     "selectAttribute": "属性を選択",
     "valueLabel": "値",
-    "insert": "挿入"
+    "insert": "挿入",
+    "searchAriaLabel": "エンティティを検索"
   },
   "pluginSettings": {
     "title": "プラグイン更新",
@@ -1510,10 +1651,10 @@
     "importWithMissingPlugins": "一部のプラグインがまだ有効化されていません: {plugins}。インポートして後で有効化することもできます。"
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "チャットメッセージ",
+    "taskStatusAriaLabel": "タスクの進捗",
+    "taskProgressAriaLabel": "AI タスクの進行状況",
     "clearConversationAriaLabel": "会話をクリア",
     "closePanelAriaLabel": "FiestaBot (Beta) を閉じる"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "AI タスクの進行状況"
   }
 }

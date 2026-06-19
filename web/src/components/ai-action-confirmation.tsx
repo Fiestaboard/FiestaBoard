@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useTranslations } from "@/i18n/translations";
 import type {
   CreateCollectionArgs,
   CreateScheduleArgs,
@@ -49,102 +50,106 @@ interface AiActionConfirmationProps {
   autoAllow?: boolean;
 }
 
-function actionLabel(call: AiActionConfirmationProps["call"]): string {
+type TranslateFn = (key: string, params?: Record<string, unknown>) => string;
+
+function actionLabel(call: AiActionConfirmationProps["call"], t: TranslateFn): string {
   switch (call.op) {
     case "install_plugin":
-      return `Install plugin: ${(call.args as InstallPluginArgs).plugin_id}`;
+      return t("label.installPlugin", { id: (call.args as InstallPluginArgs).plugin_id });
     case "update_plugin_config":
-      return `Configure plugin: ${(call.args as UpdatePluginConfigArgs).plugin_id}`;
+      return t("label.updatePluginConfig", { id: (call.args as UpdatePluginConfigArgs).plugin_id });
     case "update_plugin":
-      return `Update plugin: ${(call.args as UpdatePluginArgs).plugin_id}`;
+      return t("label.updatePlugin", { id: (call.args as UpdatePluginArgs).plugin_id });
     case "enable_plugin":
-      return `Enable plugin: ${(call.args as EnablePluginArgs).plugin_id}`;
+      return t("label.enablePlugin", { id: (call.args as EnablePluginArgs).plugin_id });
     case "disable_plugin":
-      return `Disable plugin: ${(call.args as DisablePluginArgs).plugin_id}`;
+      return t("label.disablePlugin", { id: (call.args as DisablePluginArgs).plugin_id });
     case "uninstall_plugin":
-      return `Uninstall plugin: ${(call.args as UninstallPluginArgs).plugin_id}`;
+      return t("label.uninstallPlugin", { id: (call.args as UninstallPluginArgs).plugin_id });
     case "update_setting":
-      return `Change setting: ${(call.args as UpdateSettingArgs).category}`;
+      return t("label.updateSetting", { category: (call.args as UpdateSettingArgs).category });
     case "create_collection":
-      return `Create collection: "${(call.args as CreateCollectionArgs).name}"`;
+      return t("label.createCollection", { name: (call.args as CreateCollectionArgs).name });
     case "update_collection":
-      return `Update collection`;
+      return t("label.updateCollection");
     case "create_schedule":
-      return `Create schedule`;
+      return t("label.createSchedule");
     case "update_schedule":
-      return `Update schedule`;
+      return t("label.updateSchedule");
     case "delete_schedule":
-      return `Delete schedule`;
+      return t("label.deleteSchedule");
     case "trigger_system_update":
-      return `System update`;
+      return t("label.triggerSystemUpdate");
   }
 }
 
-function actionDescription(call: AiActionConfirmationProps["call"]): string {
+function actionDescription(call: AiActionConfirmationProps["call"], t: TranslateFn): string {
   switch (call.op) {
     case "install_plugin": {
       const a = call.args as InstallPluginArgs;
-      return `Installs "${a.plugin_id}" from the official registry${a.auto_enable !== false ? " and enables it" : ""}.`;
+      return a.auto_enable !== false
+        ? t("description.installPluginEnable", { id: a.plugin_id })
+        : t("description.installPlugin", { id: a.plugin_id });
     }
     case "update_plugin_config": {
       const a = call.args as UpdatePluginConfigArgs;
       const keys = Object.keys(a.config).join(", ");
-      return `Updates configuration for "${a.plugin_id}": ${keys || "no changes"}.`;
+      return t("description.updatePluginConfig", { id: a.plugin_id, keys: keys || t("noChanges") });
     }
     case "update_plugin": {
       const a = call.args as UpdatePluginArgs;
-      return `Downloads and installs the latest registry version of "${a.plugin_id}".`;
+      return t("description.updatePlugin", { id: a.plugin_id });
     }
     case "enable_plugin": {
       const a = call.args as EnablePluginArgs;
-      return `Enables "${a.plugin_id}" so it can provide data to your boards.`;
+      return t("description.enablePlugin", { id: a.plugin_id });
     }
     case "disable_plugin": {
       const a = call.args as DisablePluginArgs;
-      return `Disables "${a.plugin_id}" without removing it. It can be re-enabled later.`;
+      return t("description.disablePlugin", { id: a.plugin_id });
     }
     case "uninstall_plugin": {
       const a = call.args as UninstallPluginArgs;
-      return `Permanently removes "${a.plugin_id}". This cannot be undone.`;
+      return t("description.uninstallPlugin", { id: a.plugin_id });
     }
     case "update_setting": {
       const a = call.args as UpdateSettingArgs;
       const entries = Object.entries(a.values)
         .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
         .join(", ");
-      return `Sets ${entries || "no values"} in ${a.category} settings.`;
+      return t("description.updateSetting", { values: entries || t("noValues"), category: a.category });
     }
     case "create_collection": {
       const a = call.args as CreateCollectionArgs;
-      return `Creates a collection with ${a.page_ids.length} page(s), rotating every ${a.interval_seconds}s.`;
+      return t("description.createCollection", { count: a.page_ids.length, interval: a.interval_seconds });
     }
     case "update_collection": {
       const a = call.args as UpdateCollectionArgs;
       const changes: string[] = [];
-      if (a.name != null) changes.push(`rename to "${a.name}"`);
-      if (a.page_ids != null) changes.push(`set ${a.page_ids.length} page(s)`);
-      if (a.interval_seconds != null) changes.push(`interval → ${a.interval_seconds}s`);
-      return changes.length ? changes.join(", ") + "." : "No changes specified.";
+      if (a.name != null) changes.push(t("change.rename", { name: a.name }));
+      if (a.page_ids != null) changes.push(t("change.setPages", { count: a.page_ids.length }));
+      if (a.interval_seconds != null) changes.push(t("change.interval", { interval: a.interval_seconds }));
+      return changes.length ? changes.join(", ") + "." : t("noChangesSpecified");
     }
     case "create_schedule": {
       const a = call.args as CreateScheduleArgs;
       const time = `${a.start_time}${a.end_time ? `–${a.end_time}` : "+"}`;
-      return `Shows page "${a.page_id}" from ${time} on ${a.day_pattern} days.`;
+      return t("description.createSchedule", { page: a.page_id, time, days: a.day_pattern });
     }
     case "update_schedule": {
       const a = call.args as UpdateScheduleArgs;
       const changes: string[] = [];
-      if (a.page_id != null) changes.push(`page → ${a.page_id}`);
-      if (a.start_time != null) changes.push(`start → ${a.start_time}`);
-      if (a.end_time !== undefined) changes.push(`end → ${a.end_time ?? "open"}`);
-      if (a.day_pattern != null) changes.push(`days → ${a.day_pattern}`);
-      if (a.enabled != null) changes.push(a.enabled ? "enable" : "disable");
-      return changes.length ? changes.join(", ") + "." : "No changes specified.";
+      if (a.page_id != null) changes.push(t("change.page", { page: a.page_id }));
+      if (a.start_time != null) changes.push(t("change.start", { start: a.start_time }));
+      if (a.end_time !== undefined) changes.push(t("change.end", { end: a.end_time ?? t("openEnd") }));
+      if (a.day_pattern != null) changes.push(t("change.days", { days: a.day_pattern }));
+      if (a.enabled != null) changes.push(a.enabled ? t("change.enable") : t("change.disable"));
+      return changes.length ? changes.join(", ") + "." : t("noChangesSpecified");
     }
     case "delete_schedule":
-      return `Permanently removes schedule "${(call.args as DeleteScheduleArgs).schedule_id}". This cannot be undone.`;
+      return t("description.deleteSchedule", { id: (call.args as DeleteScheduleArgs).schedule_id });
     case "trigger_system_update":
-      return "Downloads and installs the latest FiestaBoard update. The system will restart briefly.";
+      return t("description.triggerSystemUpdate");
   }
 }
 
@@ -152,32 +157,33 @@ function ActionIcon({ op }: { op: ConfirmableOp }) {
   const cls = "h-4 w-4 shrink-0 text-muted-foreground";
   switch (op) {
     case "install_plugin":
-      return <Download className={cls} />;
+      return <Download className={cls} aria-hidden="true" />;
     case "update_plugin_config":
-      return <Sliders className={cls} />;
+      return <Sliders className={cls} aria-hidden="true" />;
     case "update_plugin":
-      return <RefreshCw className={cls} />;
+      return <RefreshCw className={cls} aria-hidden="true" />;
     case "enable_plugin":
-      return <Power className={cls} />;
+      return <Power className={cls} aria-hidden="true" />;
     case "disable_plugin":
-      return <PowerOff className={cls} />;
+      return <PowerOff className={cls} aria-hidden="true" />;
     case "uninstall_plugin":
-      return <Trash2 className={cls} />;
+      return <Trash2 className={cls} aria-hidden="true" />;
     case "update_setting":
-      return <Settings className={cls} />;
+      return <Settings className={cls} aria-hidden="true" />;
     case "create_collection":
     case "update_collection":
-      return <ListVideo className={cls} />;
+      return <ListVideo className={cls} aria-hidden="true" />;
     case "create_schedule":
     case "update_schedule":
     case "delete_schedule":
-      return <Calendar className={cls} />;
+      return <Calendar className={cls} aria-hidden="true" />;
     case "trigger_system_update":
-      return <RefreshCw className={cls} />;
+      return <RefreshCw className={cls} aria-hidden="true" />;
   }
 }
 
 export function AiActionConfirmation({ call, onAllow, onDeny, autoAllow = false }: AiActionConfirmationProps) {
+  const t = useTranslations("aiActionConfirmation");
   const [state, setState] = useState<ActionState>("pending");
 
   const handleAllow = async () => {
@@ -215,8 +221,8 @@ export function AiActionConfirmation({ call, onAllow, onDeny, autoAllow = false 
       <div className="flex items-start gap-2">
         <ActionIcon op={call.op} />
         <div className="flex-1 min-w-0">
-          <p className="font-medium leading-tight">{actionLabel(call)}</p>
-          <p className="text-muted-foreground mt-0.5 leading-snug">{actionDescription(call)}</p>
+          <p className="font-medium leading-tight">{actionLabel(call, t)}</p>
+          <p className="text-muted-foreground mt-0.5 leading-snug">{actionDescription(call, t)}</p>
         </div>
       </div>
 
@@ -229,7 +235,7 @@ export function AiActionConfirmation({ call, onAllow, onDeny, autoAllow = false 
             disabled={state === "running"}
             className="h-7 px-3 text-xs"
           >
-            Deny
+            {t("deny")}
           </Button>
           <Button
             size="sm"
@@ -238,22 +244,22 @@ export function AiActionConfirmation({ call, onAllow, onDeny, autoAllow = false 
             variant={isDestructive ? "destructive" : "default"}
             className="h-7 px-3 text-xs"
           >
-            {state === "running" ? "Working…" : "Allow"}
+            {state === "running" ? t("working") : t("allow")}
           </Button>
         </div>
       )}
 
       {state === "done" && (
         <div className="flex items-center gap-1.5 mt-2 text-xs text-green-600 dark:text-green-400">
-          <CheckCircle className="h-3.5 w-3.5" />
-          Done
+          <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
+          {t("done")}
         </div>
       )}
 
       {state === "denied" && (
         <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
-          <XCircle className="h-3.5 w-3.5" />
-          Denied
+          <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
+          {t("denied")}
         </div>
       )}
     </Card>

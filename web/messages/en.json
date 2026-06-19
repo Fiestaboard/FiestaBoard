@@ -959,7 +959,147 @@
       "wifi": "WiFi",
       "quotes": "Quotes",
       "rotation": "Rotation"
+    },
+    "on": "On",
+    "off": "Off",
+    "toggleServiceAriaLabel": "Toggle {name}"
+  },
+  "accountSection": {
+    "signedIn": {
+      "title": "Signed in",
+      "description": "You're currently signed in as <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Change username",
+      "description": "Pick a new sign-in name. Requires your current password.",
+      "formAriaLabel": "Change username",
+      "newUsernameLabel": "New username",
+      "currentPasswordLabel": "Current password",
+      "submit": "Save username",
+      "submitting": "Saving…",
+      "success": "Username updated",
+      "failure": "Username change failed"
+    },
+    "changePassword": {
+      "title": "Change password",
+      "description": "Rotate your password. Any other sessions signed in with the old password will be signed out.",
+      "formAriaLabel": "Change password",
+      "currentPasswordLabel": "Current password",
+      "newPasswordLabel": "New password",
+      "newPasswordHint": "At least 8 characters.",
+      "confirmPasswordLabel": "Confirm new password",
+      "submit": "Save password",
+      "submitting": "Saving…",
+      "success": "Password updated",
+      "failure": "Password change failed",
+      "tooShort": "New password must be at least 8 characters.",
+      "mismatch": "Passwords do not match."
+    },
+    "signOut": {
+      "title": "Sign out",
+      "description": "End your current session. You'll be sent back to the sign-in page.",
+      "button": "Sign out"
+    },
+    "disableLogin": {
+      "title": "Disable login",
+      "description": "Turn off authentication entirely. Anyone who can reach this FiestaBoard on the network will be able to change settings and read API keys. Not recommended unless this device is on a fully trusted private network.",
+      "button": "Disable login",
+      "dialogTitle": "Disable login for this FiestaBoard?",
+      "dialogBody1": "Turning off login removes the <name>{username}</name> account and opens this FiestaBoard up to anyone who can reach it on the network — they'll be able to read your API keys, change your board configuration, and modify any settings.",
+      "dialogBody2": "Only do this if this device is on a fully trusted private network (no roommates, no guests, no smart-home devices you don't control). Strongly <strong>not recommended</strong> if this FiestaBoard is reachable from the internet.",
+      "dialogBody3": "Your board keeps displaying as normal either way — this only controls who can sign in to change settings.",
+      "confirmPasswordLabel": "Confirm your current password to continue",
+      "confirm": "Yes, disable login",
+      "confirming": "Disabling…",
+      "success": "Authentication disabled",
+      "failure": "Failed to disable auth"
+    },
+    "enableLogin": {
+      "title": "Turn on login",
+      "description": "Login is currently <strong>off</strong>. Anyone who can reach this FiestaBoard on the network can read your API keys, change your board configuration, and modify any settings.",
+      "body": "Strongly recommended if you share Wi-Fi with people you don't fully trust (roommates, guests, smart-home devices), or if this FiestaBoard is reachable from the internet. Your board keeps displaying as normal either way — login only controls who can sign in to change settings.",
+      "button": "Set up a username & password",
+      "submitting": "Enabling…",
+      "failure": "Could not enable login"
     }
+  },
+  "aiActionConfirmation": {
+    "deny": "Deny",
+    "allow": "Allow",
+    "working": "Working…",
+    "done": "Done",
+    "denied": "Denied",
+    "noChanges": "no changes",
+    "noValues": "no values",
+    "noChangesSpecified": "No changes specified.",
+    "openEnd": "open",
+    "label": {
+      "installPlugin": "Install plugin: {id}",
+      "updatePluginConfig": "Configure plugin: {id}",
+      "updatePlugin": "Update plugin: {id}",
+      "enablePlugin": "Enable plugin: {id}",
+      "disablePlugin": "Disable plugin: {id}",
+      "uninstallPlugin": "Uninstall plugin: {id}",
+      "updateSetting": "Change setting: {category}",
+      "createCollection": "Create collection: \"{name}\"",
+      "updateCollection": "Update collection",
+      "createSchedule": "Create schedule",
+      "updateSchedule": "Update schedule",
+      "deleteSchedule": "Delete schedule",
+      "triggerSystemUpdate": "System update"
+    },
+    "description": {
+      "installPlugin": "Installs \"{id}\" from the official registry.",
+      "installPluginEnable": "Installs \"{id}\" from the official registry and enables it.",
+      "updatePluginConfig": "Updates configuration for \"{id}\": {keys}.",
+      "updatePlugin": "Downloads and installs the latest registry version of \"{id}\".",
+      "enablePlugin": "Enables \"{id}\" so it can provide data to your boards.",
+      "disablePlugin": "Disables \"{id}\" without removing it. It can be re-enabled later.",
+      "uninstallPlugin": "Permanently removes \"{id}\". This cannot be undone.",
+      "updateSetting": "Sets {values} in {category} settings.",
+      "createCollection": "Creates a collection with {count, plural, one {# page} other {# pages}}, rotating every {interval}s.",
+      "createSchedule": "Shows page \"{page}\" from {time} on {days} days.",
+      "deleteSchedule": "Permanently removes schedule \"{id}\". This cannot be undone.",
+      "triggerSystemUpdate": "Downloads and installs the latest FiestaBoard update. The system will restart briefly."
+    },
+    "change": {
+      "rename": "rename to \"{name}\"",
+      "setPages": "set {count, plural, one {# page} other {# pages}}",
+      "interval": "interval → {interval}s",
+      "page": "page → {page}",
+      "start": "start → {start}",
+      "end": "end → {end}",
+      "days": "days → {days}",
+      "enable": "enable",
+      "disable": "disable"
+    }
+  },
+  "chainingModePicker": {
+    "menuTitle": "AI chaining mode",
+    "triggerAriaLabel": "AI chaining mode: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manual",
+        "description": "I'll re-prompt after each action"
+      },
+      "autoContinue": {
+        "label": "Auto-continue",
+        "description": "Chain actions, confirm each step"
+      },
+      "autonomous": {
+        "label": "Autonomous",
+        "description": "Run to completion, skip confirmations"
+      }
+    }
+  },
+  "bootGate": {
+    "waiting": "Waiting to start…",
+    "errorHeading": "Couldn't connect to FiestaBoard",
+    "errorDescription": "Check that the app is running and try refreshing the page.",
+    "refreshPage": "Refresh page"
+  },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot AI chat"
   },
   "plainTextEditor": {
     "placeholder": "Type your template text...",
@@ -1169,7 +1309,8 @@
     "change": "Change",
     "selectAttribute": "Select Attribute",
     "valueLabel": "Value",
-    "insert": "Insert"
+    "insert": "Insert",
+    "searchAriaLabel": "Search entities"
   },
   "pluginSettings": {
     "title": "Plugin Updates",
@@ -1510,10 +1651,10 @@
     "importWithMissingPlugins": "Some plugins aren't enabled yet: {plugins}. You can still import and enable them later."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Chat messages",
+    "taskStatusAriaLabel": "Task progress",
+    "taskProgressAriaLabel": "AI task progress",
     "clearConversationAriaLabel": "Clear conversation",
     "closePanelAriaLabel": "Close FiestaBot (Beta)"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "AI task progress"
   }
 }

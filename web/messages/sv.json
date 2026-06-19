@@ -1002,7 +1002,147 @@
       "wifi": "WiFi",
       "quotes": "Citat",
       "rotation": "Rotation"
+    },
+    "on": "På",
+    "off": "Av",
+    "toggleServiceAriaLabel": "Växla {name}"
+  },
+  "accountSection": {
+    "signedIn": {
+      "title": "Inloggad",
+      "description": "Du är för närvarande inloggad som <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Ändra användarnamn",
+      "description": "Välj ett nytt inloggningsnamn. Kräver ditt nuvarande lösenord.",
+      "formAriaLabel": "Ändra användarnamn",
+      "newUsernameLabel": "Nytt användarnamn",
+      "currentPasswordLabel": "Nuvarande lösenord",
+      "submit": "Spara användarnamn",
+      "submitting": "Sparar…",
+      "success": "Användarnamn uppdaterat",
+      "failure": "Det gick inte att ändra användarnamnet"
+    },
+    "changePassword": {
+      "title": "Ändra lösenord",
+      "description": "Byt ditt lösenord. Alla andra sessioner som är inloggade med det gamla lösenordet loggas ut.",
+      "formAriaLabel": "Ändra lösenord",
+      "currentPasswordLabel": "Nuvarande lösenord",
+      "newPasswordLabel": "Nytt lösenord",
+      "newPasswordHint": "Minst 8 tecken.",
+      "confirmPasswordLabel": "Bekräfta nytt lösenord",
+      "submit": "Spara lösenord",
+      "submitting": "Sparar…",
+      "success": "Lösenord uppdaterat",
+      "failure": "Det gick inte att ändra lösenordet",
+      "tooShort": "Det nya lösenordet måste vara minst 8 tecken.",
+      "mismatch": "Lösenorden matchar inte."
+    },
+    "signOut": {
+      "title": "Logga ut",
+      "description": "Avsluta din nuvarande session. Du skickas tillbaka till inloggningssidan.",
+      "button": "Logga ut"
+    },
+    "disableLogin": {
+      "title": "Inaktivera inloggning",
+      "description": "Stäng av autentisering helt. Alla som kan nå detta FiestaBoard i nätverket kan då ändra inställningar och läsa API-nycklar. Rekommenderas inte om inte denna enhet finns i ett helt betrott privat nätverk.",
+      "button": "Inaktivera inloggning",
+      "dialogTitle": "Inaktivera inloggning för detta FiestaBoard?",
+      "dialogBody1": "Att stänga av inloggningen tar bort kontot <name>{username}</name> och öppnar detta FiestaBoard för alla som kan nå det i nätverket — de kan läsa dina API-nycklar, ändra din tavelkonfiguration och ändra alla inställningar.",
+      "dialogBody2": "Gör detta endast om denna enhet finns i ett helt betrott privat nätverk (inga rumskamrater, inga gäster, inga smarta hem-enheter som du inte kontrollerar). <strong>Avråds starkt</strong> om detta FiestaBoard är nåbart från internet.",
+      "dialogBody3": "Din tavla fortsätter att visas som vanligt oavsett — detta styr bara vem som kan logga in för att ändra inställningar.",
+      "confirmPasswordLabel": "Bekräfta ditt nuvarande lösenord för att fortsätta",
+      "confirm": "Ja, inaktivera inloggning",
+      "confirming": "Inaktiverar…",
+      "success": "Autentisering inaktiverad",
+      "failure": "Det gick inte att inaktivera autentiseringen"
+    },
+    "enableLogin": {
+      "title": "Aktivera inloggning",
+      "description": "Inloggning är för närvarande <strong>av</strong>. Alla som kan nå detta FiestaBoard i nätverket kan läsa dina API-nycklar, ändra din tavelkonfiguration och ändra alla inställningar.",
+      "body": "Rekommenderas starkt om du delar Wi-Fi med personer du inte helt litar på (rumskamrater, gäster, smarta hem-enheter), eller om detta FiestaBoard är nåbart från internet. Din tavla fortsätter att visas som vanligt oavsett — inloggning styr bara vem som kan logga in för att ändra inställningar.",
+      "button": "Konfigurera ett användarnamn och lösenord",
+      "submitting": "Aktiverar…",
+      "failure": "Det gick inte att aktivera inloggning"
     }
+  },
+  "aiActionConfirmation": {
+    "deny": "Neka",
+    "allow": "Tillåt",
+    "working": "Arbetar…",
+    "done": "Klar",
+    "denied": "Nekad",
+    "noChanges": "inga ändringar",
+    "noValues": "inga värden",
+    "noChangesSpecified": "Inga ändringar angivna.",
+    "openEnd": "öppet",
+    "label": {
+      "installPlugin": "Installera plugin: {id}",
+      "updatePluginConfig": "Konfigurera plugin: {id}",
+      "updatePlugin": "Uppdatera plugin: {id}",
+      "enablePlugin": "Aktivera plugin: {id}",
+      "disablePlugin": "Inaktivera plugin: {id}",
+      "uninstallPlugin": "Avinstallera plugin: {id}",
+      "updateSetting": "Ändra inställning: {category}",
+      "createCollection": "Skapa samling: \"{name}\"",
+      "updateCollection": "Uppdatera samling",
+      "createSchedule": "Skapa schema",
+      "updateSchedule": "Uppdatera schema",
+      "deleteSchedule": "Ta bort schema",
+      "triggerSystemUpdate": "Systemuppdatering"
+    },
+    "description": {
+      "installPlugin": "Installerar \"{id}\" från det officiella registret.",
+      "installPluginEnable": "Installerar \"{id}\" från det officiella registret och aktiverar det.",
+      "updatePluginConfig": "Uppdaterar konfigurationen för \"{id}\": {keys}.",
+      "updatePlugin": "Laddar ner och installerar den senaste registerversionen av \"{id}\".",
+      "enablePlugin": "Aktiverar \"{id}\" så att det kan leverera data till dina tavlor.",
+      "disablePlugin": "Inaktiverar \"{id}\" utan att ta bort det. Det kan aktiveras igen senare.",
+      "uninstallPlugin": "Tar bort \"{id}\" permanent. Detta kan inte ångras.",
+      "updateSetting": "Ställer in {values} i inställningarna för {category}.",
+      "createCollection": "Skapar en samling med {count, plural, one {# sida} other {# sidor}}, som växlar var {interval}:e sekund.",
+      "createSchedule": "Visar sidan \"{page}\" från {time} på {days}-dagar.",
+      "deleteSchedule": "Tar bort schemat \"{id}\" permanent. Detta kan inte ångras.",
+      "triggerSystemUpdate": "Laddar ner och installerar den senaste FiestaBoard-uppdateringen. Systemet startar om en kort stund."
+    },
+    "change": {
+      "rename": "byt namn till \"{name}\"",
+      "setPages": "ange {count, plural, one {# sida} other {# sidor}}",
+      "interval": "intervall → {interval}s",
+      "page": "sida → {page}",
+      "start": "start → {start}",
+      "end": "slut → {end}",
+      "days": "dagar → {days}",
+      "enable": "aktivera",
+      "disable": "inaktivera"
+    }
+  },
+  "chainingModePicker": {
+    "menuTitle": "AI-kedjeläge",
+    "triggerAriaLabel": "AI-kedjeläge: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manuell",
+        "description": "Jag frågar igen efter varje åtgärd"
+      },
+      "autoContinue": {
+        "label": "Fortsätt automatiskt",
+        "description": "Kedjar åtgärder, bekräftar varje steg"
+      },
+      "autonomous": {
+        "label": "Autonom",
+        "description": "Kör till slutet, hoppar över bekräftelser"
+      }
+    }
+  },
+  "bootGate": {
+    "waiting": "Väntar på start…",
+    "errorHeading": "Det gick inte att ansluta till FiestaBoard",
+    "errorDescription": "Kontrollera att appen körs och försök ladda om sidan.",
+    "refreshPage": "Ladda om sidan"
+  },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot AI-chatt"
   },
   "plainTextEditor": {
     "placeholder": "Skriv din malltext...",
@@ -1212,7 +1352,8 @@
     "change": "Ändra",
     "selectAttribute": "Välj attribut",
     "valueLabel": "Värde",
-    "insert": "Infoga"
+    "insert": "Infoga",
+    "searchAriaLabel": "Sök entiteter"
   },
   "pluginSettings": {
     "title": "Plugin-uppdateringar",
@@ -1510,10 +1651,10 @@
     "importWithMissingPlugins": "Vissa plugins är inte aktiverade än: {plugins}. Du kan ändå importera och aktivera dem senare."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Chattmeddelanden",
+    "taskStatusAriaLabel": "Uppgiftsförlopp",
+    "taskProgressAriaLabel": "AI-uppgifters förlopp",
     "clearConversationAriaLabel": "Rensa konversation",
     "closePanelAriaLabel": "Stäng FiestaBot (Beta)"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "AI-uppgifters förlopp"
   }
 }

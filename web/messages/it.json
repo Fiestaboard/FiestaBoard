@@ -1002,7 +1002,147 @@
       "wifi": "WiFi",
       "quotes": "Citazioni",
       "rotation": "Rotazione"
+    },
+    "on": "Attivo",
+    "off": "Disattivo",
+    "toggleServiceAriaLabel": "Attiva/disattiva {name}"
+  },
+  "accountSection": {
+    "signedIn": {
+      "title": "Accesso effettuato",
+      "description": "Hai effettuato l'accesso come <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Cambia nome utente",
+      "description": "Scegli un nuovo nome di accesso. Richiede la password attuale.",
+      "formAriaLabel": "Cambia nome utente",
+      "newUsernameLabel": "Nuovo nome utente",
+      "currentPasswordLabel": "Password attuale",
+      "submit": "Salva nome utente",
+      "submitting": "Salvataggio…",
+      "success": "Nome utente aggiornato",
+      "failure": "Modifica del nome utente non riuscita"
+    },
+    "changePassword": {
+      "title": "Cambia password",
+      "description": "Cambia la tua password. Tutte le altre sessioni connesse con la vecchia password verranno disconnesse.",
+      "formAriaLabel": "Cambia password",
+      "currentPasswordLabel": "Password attuale",
+      "newPasswordLabel": "Nuova password",
+      "newPasswordHint": "Almeno 8 caratteri.",
+      "confirmPasswordLabel": "Conferma nuova password",
+      "submit": "Salva password",
+      "submitting": "Salvataggio…",
+      "success": "Password aggiornata",
+      "failure": "Modifica della password non riuscita",
+      "tooShort": "La nuova password deve contenere almeno 8 caratteri.",
+      "mismatch": "Le password non corrispondono."
+    },
+    "signOut": {
+      "title": "Esci",
+      "description": "Termina la sessione corrente. Tornerai alla pagina di accesso.",
+      "button": "Esci"
+    },
+    "disableLogin": {
+      "title": "Disabilita l'accesso",
+      "description": "Disabilita completamente l'autenticazione. Chiunque possa raggiungere questo FiestaBoard sulla rete potrà modificare le impostazioni e leggere le chiavi API. Sconsigliato a meno che questo dispositivo non si trovi su una rete privata completamente affidabile.",
+      "button": "Disabilita l'accesso",
+      "dialogTitle": "Disabilitare l'accesso per questo FiestaBoard?",
+      "dialogBody1": "Disabilitare l'accesso rimuove l'account <name>{username}</name> e apre questo FiestaBoard a chiunque possa raggiungerlo sulla rete — potranno leggere le tue chiavi API, modificare la configurazione del tuo tabellone e cambiare qualsiasi impostazione.",
+      "dialogBody2": "Fallo solo se questo dispositivo si trova su una rete privata completamente affidabile (nessun coinquilino, nessun ospite, nessun dispositivo smart-home che non controlli). <strong>Fortemente sconsigliato</strong> se questo FiestaBoard è raggiungibile da internet.",
+      "dialogBody3": "Il tuo tabellone continua a funzionare normalmente in entrambi i casi — questo controlla solo chi può accedere per modificare le impostazioni.",
+      "confirmPasswordLabel": "Conferma la tua password attuale per continuare",
+      "confirm": "Sì, disabilita l'accesso",
+      "confirming": "Disabilitazione…",
+      "success": "Autenticazione disabilitata",
+      "failure": "Impossibile disabilitare l'autenticazione"
+    },
+    "enableLogin": {
+      "title": "Attiva l'accesso",
+      "description": "L'accesso è attualmente <strong>disattivato</strong>. Chiunque possa raggiungere questo FiestaBoard sulla rete può leggere le tue chiavi API, modificare la configurazione del tuo tabellone e cambiare qualsiasi impostazione.",
+      "body": "Fortemente consigliato se condividi il Wi-Fi con persone di cui non ti fidi completamente (coinquilini, ospiti, dispositivi smart-home), o se questo FiestaBoard è raggiungibile da internet. Il tuo tabellone continua a funzionare normalmente in entrambi i casi — l'accesso controlla solo chi può accedere per modificare le impostazioni.",
+      "button": "Configura un nome utente e una password",
+      "submitting": "Attivazione…",
+      "failure": "Impossibile attivare l'accesso"
     }
+  },
+  "aiActionConfirmation": {
+    "deny": "Nega",
+    "allow": "Consenti",
+    "working": "In corso…",
+    "done": "Fatto",
+    "denied": "Negato",
+    "noChanges": "nessuna modifica",
+    "noValues": "nessun valore",
+    "noChangesSpecified": "Nessuna modifica specificata.",
+    "openEnd": "aperto",
+    "label": {
+      "installPlugin": "Installa plugin: {id}",
+      "updatePluginConfig": "Configura plugin: {id}",
+      "updatePlugin": "Aggiorna plugin: {id}",
+      "enablePlugin": "Abilita plugin: {id}",
+      "disablePlugin": "Disabilita plugin: {id}",
+      "uninstallPlugin": "Disinstalla plugin: {id}",
+      "updateSetting": "Cambia impostazione: {category}",
+      "createCollection": "Crea collezione: \"{name}\"",
+      "updateCollection": "Aggiorna collezione",
+      "createSchedule": "Crea pianificazione",
+      "updateSchedule": "Aggiorna pianificazione",
+      "deleteSchedule": "Elimina pianificazione",
+      "triggerSystemUpdate": "Aggiornamento di sistema"
+    },
+    "description": {
+      "installPlugin": "Installa \"{id}\" dal registro ufficiale.",
+      "installPluginEnable": "Installa \"{id}\" dal registro ufficiale e lo abilita.",
+      "updatePluginConfig": "Aggiorna la configurazione di \"{id}\": {keys}.",
+      "updatePlugin": "Scarica e installa l'ultima versione del registro di \"{id}\".",
+      "enablePlugin": "Abilita \"{id}\" affinché possa fornire dati alle tue board.",
+      "disablePlugin": "Disabilita \"{id}\" senza rimuoverlo. Può essere riabilitato in seguito.",
+      "uninstallPlugin": "Rimuove definitivamente \"{id}\". Questa azione non può essere annullata.",
+      "updateSetting": "Imposta {values} nelle impostazioni {category}.",
+      "createCollection": "Crea una collezione con {count, plural, one {# pagina} other {# pagine}}, alternando ogni {interval}s.",
+      "createSchedule": "Mostra la pagina \"{page}\" dalle {time} nei giorni {days}.",
+      "deleteSchedule": "Rimuove definitivamente la pianificazione \"{id}\". Questa azione non può essere annullata.",
+      "triggerSystemUpdate": "Scarica e installa l'ultimo aggiornamento di FiestaBoard. Il sistema si riavvierà brevemente."
+    },
+    "change": {
+      "rename": "rinomina in \"{name}\"",
+      "setPages": "imposta {count, plural, one {# pagina} other {# pagine}}",
+      "interval": "intervallo → {interval}s",
+      "page": "pagina → {page}",
+      "start": "inizio → {start}",
+      "end": "fine → {end}",
+      "days": "giorni → {days}",
+      "enable": "abilita",
+      "disable": "disabilita"
+    }
+  },
+  "chainingModePicker": {
+    "menuTitle": "Modalità di concatenamento IA",
+    "triggerAriaLabel": "Modalità di concatenamento IA: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manuale",
+        "description": "Ti chiederò di nuovo dopo ogni azione"
+      },
+      "autoContinue": {
+        "label": "Continuazione automatica",
+        "description": "Concatena le azioni, conferma ogni passaggio"
+      },
+      "autonomous": {
+        "label": "Autonomo",
+        "description": "Esegue fino al completamento, salta le conferme"
+      }
+    }
+  },
+  "bootGate": {
+    "waiting": "In attesa di avvio…",
+    "errorHeading": "Impossibile connettersi a FiestaBoard",
+    "errorDescription": "Verifica che l'app sia in esecuzione e prova a ricaricare la pagina.",
+    "refreshPage": "Ricarica la pagina"
+  },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "Chat IA di FiestaBot"
   },
   "plainTextEditor": {
     "placeholder": "Scrivi il testo del template...",
@@ -1212,7 +1352,8 @@
     "change": "Cambia",
     "selectAttribute": "Seleziona attributo",
     "valueLabel": "Valore",
-    "insert": "Inserisci"
+    "insert": "Inserisci",
+    "searchAriaLabel": "Cerca entità"
   },
   "pluginSettings": {
     "title": "Aggiornamenti plugin",
@@ -1510,10 +1651,10 @@
     "importWithMissingPlugins": "Alcuni plugin non sono ancora attivi: {plugins}. Puoi comunque importare e attivarli più tardi."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Messaggi della chat",
+    "taskStatusAriaLabel": "Avanzamento delle attività",
+    "taskProgressAriaLabel": "Avanzamento attività IA",
     "clearConversationAriaLabel": "Cancella conversazione",
     "closePanelAriaLabel": "Chiudi FiestaBot (Beta)"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "Avanzamento attività IA"
   }
 }
