@@ -407,3 +407,72 @@ class TestDebugUtilityFunctions:
             uptime = _get_service_uptime()
             assert uptime is not None
             assert 99 <= uptime <= 101  # Allow small variation
+
+
+class TestGetFirstBoardDims:
+    """Tests for _get_first_board_dims — the note-array geometry helper used by
+    /debug/fill, /debug/blank, /debug/info and the welcome message.
+
+    The debug-endpoint tests above exercise the dict-shaped board path; these
+    cover the object-attribute path, the empty-boards fallback, and the
+    exception fallback (the helper must never raise).
+    """
+
+    def _ss_with_boards(self, boards):
+        ss = Mock()
+        board_settings = Mock()
+        board_settings.boards = boards
+        ss.get_board_settings.return_value = board_settings
+        return ss
+
+    def test_note_array_dict_board_resolves_to_array_dims(self):
+        """A dict note_array board (2 wide × 2 tall) → 6 rows × 30 cols."""
+        from src.api_server import _get_first_board_dims
+
+        ss = self._ss_with_boards([{"device_type": "note_array", "notes_wide": 2, "notes_tall": 2}])
+        with patch("src.api_server.get_settings_service", return_value=ss):
+            dims = _get_first_board_dims()
+        assert (dims.rows, dims.cols) == (6, 30)
+
+    def test_note_array_object_board_resolves_via_getattr(self):
+        """An object-shaped note_array board uses the getattr branch (4 wide × 1 tall → 3×60)."""
+        from types import SimpleNamespace
+
+        from src.api_server import _get_first_board_dims
+
+        board = SimpleNamespace(device_type="note_array", notes_wide=4, notes_tall=1)
+        ss = self._ss_with_boards([board])
+        with patch("src.api_server.get_settings_service", return_value=ss):
+            dims = _get_first_board_dims()
+        assert (dims.rows, dims.cols) == (3, 60)
+
+    def test_flagship_object_board_resolves_via_getattr(self):
+        """A flagship object board (no notes attrs) falls back to 6×22 via getattr defaults."""
+        from types import SimpleNamespace
+
+        from src.api_server import _get_first_board_dims
+
+        board = SimpleNamespace(device_type="flagship")
+        ss = self._ss_with_boards([board])
+        with patch("src.api_server.get_settings_service", return_value=ss):
+            dims = _get_first_board_dims()
+        assert (dims.rows, dims.cols) == (6, 22)
+
+    def test_empty_boards_falls_back_to_flagship(self):
+        """No configured boards → flagship 6×22 default."""
+        from src.api_server import _get_first_board_dims
+
+        ss = self._ss_with_boards([])
+        with patch("src.api_server.get_settings_service", return_value=ss):
+            dims = _get_first_board_dims()
+        assert (dims.rows, dims.cols) == (6, 22)
+
+    def test_settings_error_falls_back_to_flagship(self):
+        """If settings can't be read the helper swallows the error and returns flagship dims."""
+        from src.api_server import _get_first_board_dims
+
+        ss = Mock()
+        ss.get_board_settings.side_effect = RuntimeError("settings unavailable")
+        with patch("src.api_server.get_settings_service", return_value=ss):
+            dims = _get_first_board_dims()
+        assert (dims.rows, dims.cols) == (6, 22)

@@ -48,6 +48,59 @@ class TestDimensions:
         assert _count(html, 'class="row"') == 6
 
 
+class TestNoteArrayPresetRendering:
+    """Each note-array preset renders a grid sized to notes_wide × notes_tall.
+
+    Covers issue #1173's "every preset size renders + validates" requirement at
+    the renderer level: a note_array board is not the Note device, so its tiles
+    use the plain ``.tile`` class (no ``.note`` degree→heart substitution), and
+    the full grid is rows × cols where rows = notes_tall × 3, cols = notes_wide
+    × 15.
+    """
+
+    # (preset_id, notes_wide, notes_tall, expected_rows, expected_cols)
+    PRESETS = [
+        ("2_wide", 2, 1, 3, 30),
+        ("4_wide", 4, 1, 3, 60),
+        ("2_tall", 1, 2, 6, 15),
+        ("4_tall", 1, 4, 12, 15),
+        ("2x2_grid", 2, 2, 6, 30),
+    ]
+
+    def test_each_preset_renders_correct_row_count(self):
+        for preset_id, nw, nt, rows, _cols in self.PRESETS:
+            html = render_board_html("HI", device_type="note_array", notes_wide=nw, notes_tall=nt)
+            assert _count(html, 'class="row"') == rows, preset_id
+
+    def test_each_preset_renders_full_tile_grid(self):
+        for preset_id, nw, nt, rows, cols in self.PRESETS:
+            html = render_board_html("HI", device_type="note_array", notes_wide=nw, notes_tall=nt)
+            # Note arrays use the plain .tile class (not .note), so a total
+            # tile count of rows*cols proves the grid is fully laid out.
+            total = _count(html, 'class="tile"') + _count(html, 'class="tile note"')
+            assert total == rows * cols, preset_id
+            assert resolve_dimensions("note_array", notes_wide=nw, notes_tall=nt) == (rows, cols), preset_id
+
+    def test_note_array_tiles_are_not_note_class(self):
+        """note_array is distinct from the Note device — no .note tile styling."""
+        html = render_board_html("HI", device_type="note_array", notes_wide=2, notes_tall=1)
+        assert _count(html, 'class="tile note"') == 0
+        assert _count(html, 'class="tile"') == 3 * 30
+
+    def test_preset_label_shows_cols_by_rows(self):
+        """The optional label reports the note-array geometry as cols×rows."""
+        html = render_board_html("HI", device_type="note_array", notes_wide=4, notes_tall=1, page_name="Wide Board")
+        # Label format: "<name> · note_array <cols>×<rows>" (× is &times;).
+        assert "note_array 60&times;3" in html
+        assert "Wide Board" in html
+
+    def test_custom_3x3_array_renders(self):
+        """A non-preset 3×3 array (9×45) still renders a full grid."""
+        html = render_board_html("HI", device_type="note_array", notes_wide=3, notes_tall=3)
+        assert _count(html, 'class="row"') == 9
+        assert _count(html, 'class="tile"') == 9 * 45
+
+
 class TestCharacterRendering:
     def test_uppercases_letters(self):
         html = render_board_html("hi", device_type="flagship")
