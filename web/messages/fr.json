@@ -1002,6 +1002,57 @@
       "rotation": "Rotation"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "Refuser",
+    "allow": "Autoriser",
+    "working": "En cours…",
+    "done": "Terminé",
+    "denied": "Refusé",
+    "noChanges": "aucun changement",
+    "noValues": "aucune valeur",
+    "noChangesSpecified": "Aucun changement spécifié.",
+    "openEnd": "ouvert",
+    "label": {
+      "installPlugin": "Installer le module : {id}",
+      "updatePluginConfig": "Configurer le module : {id}",
+      "updatePlugin": "Mettre à jour le module : {id}",
+      "enablePlugin": "Activer le module : {id}",
+      "disablePlugin": "Désactiver le module : {id}",
+      "uninstallPlugin": "Désinstaller le module : {id}",
+      "updateSetting": "Modifier le paramètre : {category}",
+      "createCollection": "Créer une collection : \"{name}\"",
+      "updateCollection": "Mettre à jour la collection",
+      "createSchedule": "Créer une programmation",
+      "updateSchedule": "Mettre à jour la programmation",
+      "deleteSchedule": "Supprimer la programmation",
+      "triggerSystemUpdate": "Mise à jour du système"
+    },
+    "description": {
+      "installPlugin": "Installe \"{id}\" depuis le registre officiel.",
+      "installPluginEnable": "Installe \"{id}\" depuis le registre officiel et l'active.",
+      "updatePluginConfig": "Met à jour la configuration de \"{id}\" : {keys}.",
+      "updatePlugin": "Télécharge et installe la dernière version du registre de \"{id}\".",
+      "enablePlugin": "Active \"{id}\" pour qu'il puisse fournir des données à vos tableaux.",
+      "disablePlugin": "Désactive \"{id}\" sans le supprimer. Il peut être réactivé plus tard.",
+      "uninstallPlugin": "Supprime définitivement \"{id}\". Cette action est irréversible.",
+      "updateSetting": "Définit {values} dans les paramètres {category}.",
+      "createCollection": "Crée une collection avec {count, plural, one {# page} other {# pages}}, en alternant toutes les {interval}s.",
+      "createSchedule": "Affiche la page \"{page}\" de {time} les jours {days}.",
+      "deleteSchedule": "Supprime définitivement la programmation \"{id}\". Cette action est irréversible.",
+      "triggerSystemUpdate": "Télécharge et installe la dernière mise à jour de FiestaBoard. Le système redémarrera brièvement."
+    },
+    "change": {
+      "rename": "renommer en \"{name}\"",
+      "setPages": "définir {count, plural, one {# page} other {# pages}}",
+      "interval": "intervalle → {interval}s",
+      "page": "page → {page}",
+      "start": "début → {start}",
+      "end": "fin → {end}",
+      "days": "jours → {days}",
+      "enable": "activer",
+      "disable": "désactiver"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Tapez votre texte de modèle...",
     "lineCount": "{current} / {total} lignes",

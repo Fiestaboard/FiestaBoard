@@ -1002,6 +1002,57 @@
       "rotation": "轮换"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "拒绝",
+    "allow": "允许",
+    "working": "处理中…",
+    "done": "完成",
+    "denied": "已拒绝",
+    "noChanges": "无更改",
+    "noValues": "无值",
+    "noChangesSpecified": "未指定更改。",
+    "openEnd": "未设定",
+    "label": {
+      "installPlugin": "安装插件：{id}",
+      "updatePluginConfig": "配置插件：{id}",
+      "updatePlugin": "更新插件：{id}",
+      "enablePlugin": "启用插件：{id}",
+      "disablePlugin": "禁用插件：{id}",
+      "uninstallPlugin": "卸载插件：{id}",
+      "updateSetting": "更改设置：{category}",
+      "createCollection": "创建合集：\"{name}\"",
+      "updateCollection": "更新合集",
+      "createSchedule": "创建日程",
+      "updateSchedule": "更新日程",
+      "deleteSchedule": "删除日程",
+      "triggerSystemUpdate": "系统更新"
+    },
+    "description": {
+      "installPlugin": "从官方注册表安装“{id}”。",
+      "installPluginEnable": "从官方注册表安装“{id}”并启用它。",
+      "updatePluginConfig": "更新“{id}”的配置：{keys}。",
+      "updatePlugin": "下载并安装“{id}”的最新注册表版本。",
+      "enablePlugin": "启用“{id}”，使其能够向你的看板提供数据。",
+      "disablePlugin": "禁用“{id}”但不移除它。稍后可重新启用。",
+      "uninstallPlugin": "永久移除“{id}”。此操作无法撤销。",
+      "updateSetting": "在 {category} 设置中设置 {values}。",
+      "createCollection": "创建一个包含 {count, plural, other {# 个页面}} 的合集，每 {interval} 秒轮换一次。",
+      "createSchedule": "在 {days} 的 {time} 显示页面“{page}”。",
+      "deleteSchedule": "永久移除日程“{id}”。此操作无法撤销。",
+      "triggerSystemUpdate": "下载并安装最新的 FiestaBoard 更新。系统将短暂重启。"
+    },
+    "change": {
+      "rename": "重命名为“{name}”",
+      "setPages": "设置 {count, plural, other {# 个页面}}",
+      "interval": "间隔 → {interval}秒",
+      "page": "页面 → {page}",
+      "start": "开始 → {start}",
+      "end": "结束 → {end}",
+      "days": "日期 → {days}",
+      "enable": "启用",
+      "disable": "禁用"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "输入您的模板文本...",
     "lineCount": "{current} / {total} 行",

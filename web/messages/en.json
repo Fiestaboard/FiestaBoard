@@ -959,6 +959,57 @@
       "rotation": "Rotation"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "Deny",
+    "allow": "Allow",
+    "working": "Working…",
+    "done": "Done",
+    "denied": "Denied",
+    "noChanges": "no changes",
+    "noValues": "no values",
+    "noChangesSpecified": "No changes specified.",
+    "openEnd": "open",
+    "label": {
+      "installPlugin": "Install plugin: {id}",
+      "updatePluginConfig": "Configure plugin: {id}",
+      "updatePlugin": "Update plugin: {id}",
+      "enablePlugin": "Enable plugin: {id}",
+      "disablePlugin": "Disable plugin: {id}",
+      "uninstallPlugin": "Uninstall plugin: {id}",
+      "updateSetting": "Change setting: {category}",
+      "createCollection": "Create collection: \"{name}\"",
+      "updateCollection": "Update collection",
+      "createSchedule": "Create schedule",
+      "updateSchedule": "Update schedule",
+      "deleteSchedule": "Delete schedule",
+      "triggerSystemUpdate": "System update"
+    },
+    "description": {
+      "installPlugin": "Installs \"{id}\" from the official registry.",
+      "installPluginEnable": "Installs \"{id}\" from the official registry and enables it.",
+      "updatePluginConfig": "Updates configuration for \"{id}\": {keys}.",
+      "updatePlugin": "Downloads and installs the latest registry version of \"{id}\".",
+      "enablePlugin": "Enables \"{id}\" so it can provide data to your boards.",
+      "disablePlugin": "Disables \"{id}\" without removing it. It can be re-enabled later.",
+      "uninstallPlugin": "Permanently removes \"{id}\". This cannot be undone.",
+      "updateSetting": "Sets {values} in {category} settings.",
+      "createCollection": "Creates a collection with {count, plural, one {# page} other {# pages}}, rotating every {interval}s.",
+      "createSchedule": "Shows page \"{page}\" from {time} on {days} days.",
+      "deleteSchedule": "Permanently removes schedule \"{id}\". This cannot be undone.",
+      "triggerSystemUpdate": "Downloads and installs the latest FiestaBoard update. The system will restart briefly."
+    },
+    "change": {
+      "rename": "rename to \"{name}\"",
+      "setPages": "set {count, plural, one {# page} other {# pages}}",
+      "interval": "interval → {interval}s",
+      "page": "page → {page}",
+      "start": "start → {start}",
+      "end": "end → {end}",
+      "days": "days → {days}",
+      "enable": "enable",
+      "disable": "disable"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Type your template text...",
     "lineCount": "{current} / {total} lines",

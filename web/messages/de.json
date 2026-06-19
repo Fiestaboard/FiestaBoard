@@ -1002,6 +1002,57 @@
       "rotation": "Drehung"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "Ablehnen",
+    "allow": "Zulassen",
+    "working": "Wird ausgeführt…",
+    "done": "Fertig",
+    "denied": "Abgelehnt",
+    "noChanges": "keine Änderungen",
+    "noValues": "keine Werte",
+    "noChangesSpecified": "Keine Änderungen angegeben.",
+    "openEnd": "offen",
+    "label": {
+      "installPlugin": "Plugin installieren: {id}",
+      "updatePluginConfig": "Plugin konfigurieren: {id}",
+      "updatePlugin": "Plugin aktualisieren: {id}",
+      "enablePlugin": "Plugin aktivieren: {id}",
+      "disablePlugin": "Plugin deaktivieren: {id}",
+      "uninstallPlugin": "Plugin deinstallieren: {id}",
+      "updateSetting": "Einstellung ändern: {category}",
+      "createCollection": "Sammlung erstellen: \"{name}\"",
+      "updateCollection": "Sammlung aktualisieren",
+      "createSchedule": "Zeitplan erstellen",
+      "updateSchedule": "Zeitplan aktualisieren",
+      "deleteSchedule": "Zeitplan löschen",
+      "triggerSystemUpdate": "Systemaktualisierung"
+    },
+    "description": {
+      "installPlugin": "Installiert \"{id}\" aus der offiziellen Registry.",
+      "installPluginEnable": "Installiert \"{id}\" aus der offiziellen Registry und aktiviert es.",
+      "updatePluginConfig": "Aktualisiert die Konfiguration von \"{id}\": {keys}.",
+      "updatePlugin": "Lädt die neueste Registry-Version von \"{id}\" herunter und installiert sie.",
+      "enablePlugin": "Aktiviert \"{id}\", damit es Daten für deine Boards bereitstellen kann.",
+      "disablePlugin": "Deaktiviert \"{id}\", ohne es zu entfernen. Es kann später wieder aktiviert werden.",
+      "uninstallPlugin": "Entfernt \"{id}\" dauerhaft. Dies kann nicht rückgängig gemacht werden.",
+      "updateSetting": "Setzt {values} in den {category}-Einstellungen.",
+      "createCollection": "Erstellt eine Sammlung mit {count, plural, one {# Seite} other {# Seiten}}, die alle {interval}s wechselt.",
+      "createSchedule": "Zeigt Seite \"{page}\" von {time} an {days}-Tagen.",
+      "deleteSchedule": "Entfernt den Zeitplan \"{id}\" dauerhaft. Dies kann nicht rückgängig gemacht werden.",
+      "triggerSystemUpdate": "Lädt die neueste FiestaBoard-Aktualisierung herunter und installiert sie. Das System startet kurz neu."
+    },
+    "change": {
+      "rename": "umbenennen in \"{name}\"",
+      "setPages": "{count, plural, one {# Seite} other {# Seiten}} festlegen",
+      "interval": "Intervall → {interval}s",
+      "page": "Seite → {page}",
+      "start": "Start → {start}",
+      "end": "Ende → {end}",
+      "days": "Tage → {days}",
+      "enable": "aktivieren",
+      "disable": "deaktivieren"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Vorlagentext eingeben...",
     "lineCount": "{current} / {total} Zeilen",

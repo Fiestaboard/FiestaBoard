@@ -1002,6 +1002,57 @@
       "rotation": "ローテーション"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "拒否",
+    "allow": "許可",
+    "working": "実行中…",
+    "done": "完了",
+    "denied": "拒否しました",
+    "noChanges": "変更なし",
+    "noValues": "値なし",
+    "noChangesSpecified": "変更が指定されていません。",
+    "openEnd": "未指定",
+    "label": {
+      "installPlugin": "プラグインをインストール: {id}",
+      "updatePluginConfig": "プラグインを設定: {id}",
+      "updatePlugin": "プラグインを更新: {id}",
+      "enablePlugin": "プラグインを有効化: {id}",
+      "disablePlugin": "プラグインを無効化: {id}",
+      "uninstallPlugin": "プラグインをアンインストール: {id}",
+      "updateSetting": "設定を変更: {category}",
+      "createCollection": "コレクションを作成: \"{name}\"",
+      "updateCollection": "コレクションを更新",
+      "createSchedule": "スケジュールを作成",
+      "updateSchedule": "スケジュールを更新",
+      "deleteSchedule": "スケジュールを削除",
+      "triggerSystemUpdate": "システム更新"
+    },
+    "description": {
+      "installPlugin": "公式レジストリから「{id}」をインストールします。",
+      "installPluginEnable": "公式レジストリから「{id}」をインストールして有効化します。",
+      "updatePluginConfig": "「{id}」の設定を更新します: {keys}。",
+      "updatePlugin": "「{id}」の最新のレジストリ版をダウンロードしてインストールします。",
+      "enablePlugin": "「{id}」を有効にして、ボードにデータを提供できるようにします。",
+      "disablePlugin": "「{id}」を削除せずに無効化します。後で再び有効化できます。",
+      "uninstallPlugin": "「{id}」を完全に削除します。この操作は元に戻せません。",
+      "updateSetting": "{category} 設定に {values} を設定します。",
+      "createCollection": "{count, plural, other {# ページ}}のコレクションを作成し、{interval}秒ごとに切り替えます。",
+      "createSchedule": "「{page}」ページを {days} の日に {time} に表示します。",
+      "deleteSchedule": "スケジュール「{id}」を完全に削除します。この操作は元に戻せません。",
+      "triggerSystemUpdate": "最新の FiestaBoard アップデートをダウンロードしてインストールします。システムは短時間再起動します。"
+    },
+    "change": {
+      "rename": "「{name}」に名前を変更",
+      "setPages": "{count, plural, other {# ページ}}を設定",
+      "interval": "間隔 → {interval}秒",
+      "page": "ページ → {page}",
+      "start": "開始 → {start}",
+      "end": "終了 → {end}",
+      "days": "曜日 → {days}",
+      "enable": "有効化",
+      "disable": "無効化"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "テンプレートテキストを入力...",
     "lineCount": "{current} / {total} 行",

@@ -1002,6 +1002,57 @@
       "rotation": "Rotation"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "Neka",
+    "allow": "Tillåt",
+    "working": "Arbetar…",
+    "done": "Klar",
+    "denied": "Nekad",
+    "noChanges": "inga ändringar",
+    "noValues": "inga värden",
+    "noChangesSpecified": "Inga ändringar angivna.",
+    "openEnd": "öppet",
+    "label": {
+      "installPlugin": "Installera plugin: {id}",
+      "updatePluginConfig": "Konfigurera plugin: {id}",
+      "updatePlugin": "Uppdatera plugin: {id}",
+      "enablePlugin": "Aktivera plugin: {id}",
+      "disablePlugin": "Inaktivera plugin: {id}",
+      "uninstallPlugin": "Avinstallera plugin: {id}",
+      "updateSetting": "Ändra inställning: {category}",
+      "createCollection": "Skapa samling: \"{name}\"",
+      "updateCollection": "Uppdatera samling",
+      "createSchedule": "Skapa schema",
+      "updateSchedule": "Uppdatera schema",
+      "deleteSchedule": "Ta bort schema",
+      "triggerSystemUpdate": "Systemuppdatering"
+    },
+    "description": {
+      "installPlugin": "Installerar \"{id}\" från det officiella registret.",
+      "installPluginEnable": "Installerar \"{id}\" från det officiella registret och aktiverar det.",
+      "updatePluginConfig": "Uppdaterar konfigurationen för \"{id}\": {keys}.",
+      "updatePlugin": "Laddar ner och installerar den senaste registerversionen av \"{id}\".",
+      "enablePlugin": "Aktiverar \"{id}\" så att det kan leverera data till dina tavlor.",
+      "disablePlugin": "Inaktiverar \"{id}\" utan att ta bort det. Det kan aktiveras igen senare.",
+      "uninstallPlugin": "Tar bort \"{id}\" permanent. Detta kan inte ångras.",
+      "updateSetting": "Ställer in {values} i inställningarna för {category}.",
+      "createCollection": "Skapar en samling med {count, plural, one {# sida} other {# sidor}}, som växlar var {interval}:e sekund.",
+      "createSchedule": "Visar sidan \"{page}\" från {time} på {days}-dagar.",
+      "deleteSchedule": "Tar bort schemat \"{id}\" permanent. Detta kan inte ångras.",
+      "triggerSystemUpdate": "Laddar ner och installerar den senaste FiestaBoard-uppdateringen. Systemet startar om en kort stund."
+    },
+    "change": {
+      "rename": "byt namn till \"{name}\"",
+      "setPages": "ange {count, plural, one {# sida} other {# sidor}}",
+      "interval": "intervall → {interval}s",
+      "page": "sida → {page}",
+      "start": "start → {start}",
+      "end": "slut → {end}",
+      "days": "dagar → {days}",
+      "enable": "aktivera",
+      "disable": "inaktivera"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Skriv din malltext...",
     "lineCount": "{current} / {total} rader",

@@ -1002,6 +1002,57 @@
       "rotation": "Rotatie"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "Weigeren",
+    "allow": "Toestaan",
+    "working": "Bezig…",
+    "done": "Klaar",
+    "denied": "Geweigerd",
+    "noChanges": "geen wijzigingen",
+    "noValues": "geen waarden",
+    "noChangesSpecified": "Geen wijzigingen opgegeven.",
+    "openEnd": "open",
+    "label": {
+      "installPlugin": "Plug-in installeren: {id}",
+      "updatePluginConfig": "Plug-in configureren: {id}",
+      "updatePlugin": "Plug-in bijwerken: {id}",
+      "enablePlugin": "Plug-in inschakelen: {id}",
+      "disablePlugin": "Plug-in uitschakelen: {id}",
+      "uninstallPlugin": "Plug-in verwijderen: {id}",
+      "updateSetting": "Instelling wijzigen: {category}",
+      "createCollection": "Collectie maken: \"{name}\"",
+      "updateCollection": "Collectie bijwerken",
+      "createSchedule": "Planning maken",
+      "updateSchedule": "Planning bijwerken",
+      "deleteSchedule": "Planning verwijderen",
+      "triggerSystemUpdate": "Systeemupdate"
+    },
+    "description": {
+      "installPlugin": "Installeert \"{id}\" uit het officiële register.",
+      "installPluginEnable": "Installeert \"{id}\" uit het officiële register en schakelt het in.",
+      "updatePluginConfig": "Werkt de configuratie van \"{id}\" bij: {keys}.",
+      "updatePlugin": "Downloadt en installeert de nieuwste registerversie van \"{id}\".",
+      "enablePlugin": "Schakelt \"{id}\" in zodat het gegevens aan je borden kan leveren.",
+      "disablePlugin": "Schakelt \"{id}\" uit zonder het te verwijderen. Het kan later opnieuw worden ingeschakeld.",
+      "uninstallPlugin": "Verwijdert \"{id}\" definitief. Dit kan niet ongedaan worden gemaakt.",
+      "updateSetting": "Stelt {values} in bij de instellingen voor {category}.",
+      "createCollection": "Maakt een collectie met {count, plural, one {# pagina} other {# pagina's}}, die elke {interval}s wisselt.",
+      "createSchedule": "Toont pagina \"{page}\" vanaf {time} op {days}-dagen.",
+      "deleteSchedule": "Verwijdert planning \"{id}\" definitief. Dit kan niet ongedaan worden gemaakt.",
+      "triggerSystemUpdate": "Downloadt en installeert de nieuwste FiestaBoard-update. Het systeem start kort opnieuw op."
+    },
+    "change": {
+      "rename": "hernoemen naar \"{name}\"",
+      "setPages": "{count, plural, one {# pagina} other {# pagina's}} instellen",
+      "interval": "interval → {interval}s",
+      "page": "pagina → {page}",
+      "start": "begin → {start}",
+      "end": "einde → {end}",
+      "days": "dagen → {days}",
+      "enable": "inschakelen",
+      "disable": "uitschakelen"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Typ je sjabloontekst...",
     "lineCount": "{current} / {total} regels",

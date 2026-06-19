@@ -1002,6 +1002,57 @@
       "rotation": "회전"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "거부",
+    "allow": "허용",
+    "working": "처리 중…",
+    "done": "완료",
+    "denied": "거부됨",
+    "noChanges": "변경 없음",
+    "noValues": "값 없음",
+    "noChangesSpecified": "지정된 변경 사항이 없습니다.",
+    "openEnd": "미지정",
+    "label": {
+      "installPlugin": "플러그인 설치: {id}",
+      "updatePluginConfig": "플러그인 구성: {id}",
+      "updatePlugin": "플러그인 업데이트: {id}",
+      "enablePlugin": "플러그인 활성화: {id}",
+      "disablePlugin": "플러그인 비활성화: {id}",
+      "uninstallPlugin": "플러그인 제거: {id}",
+      "updateSetting": "설정 변경: {category}",
+      "createCollection": "컬렉션 만들기: \"{name}\"",
+      "updateCollection": "컬렉션 업데이트",
+      "createSchedule": "일정 만들기",
+      "updateSchedule": "일정 업데이트",
+      "deleteSchedule": "일정 삭제",
+      "triggerSystemUpdate": "시스템 업데이트"
+    },
+    "description": {
+      "installPlugin": "공식 레지스트리에서 \"{id}\"을(를) 설치합니다.",
+      "installPluginEnable": "공식 레지스트리에서 \"{id}\"을(를) 설치하고 활성화합니다.",
+      "updatePluginConfig": "\"{id}\"의 구성을 업데이트합니다: {keys}.",
+      "updatePlugin": "\"{id}\"의 최신 레지스트리 버전을 다운로드하여 설치합니다.",
+      "enablePlugin": "\"{id}\"을(를) 활성화하여 보드에 데이터를 제공할 수 있도록 합니다.",
+      "disablePlugin": "\"{id}\"을(를) 제거하지 않고 비활성화합니다. 나중에 다시 활성화할 수 있습니다.",
+      "uninstallPlugin": "\"{id}\"을(를) 영구적으로 제거합니다. 이 작업은 취소할 수 없습니다.",
+      "updateSetting": "{category} 설정에서 {values}을(를) 설정합니다.",
+      "createCollection": "{count, plural, other {# 페이지}}로 컬렉션을 만들고 {interval}초마다 전환합니다.",
+      "createSchedule": "\"{page}\" 페이지를 {days} 요일에 {time}에 표시합니다.",
+      "deleteSchedule": "일정 \"{id}\"을(를) 영구적으로 제거합니다. 이 작업은 취소할 수 없습니다.",
+      "triggerSystemUpdate": "최신 FiestaBoard 업데이트를 다운로드하여 설치합니다. 시스템이 잠시 다시 시작됩니다."
+    },
+    "change": {
+      "rename": "\"{name}\"(으)로 이름 변경",
+      "setPages": "{count, plural, other {# 페이지}} 설정",
+      "interval": "간격 → {interval}초",
+      "page": "페이지 → {page}",
+      "start": "시작 → {start}",
+      "end": "종료 → {end}",
+      "days": "요일 → {days}",
+      "enable": "활성화",
+      "disable": "비활성화"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "템플릿 텍스트를 입력하세요...",
     "lineCount": "{current} / {total} 줄",

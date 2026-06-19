@@ -1002,6 +1002,57 @@
       "rotation": "Rotação"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "Negar",
+    "allow": "Permitir",
+    "working": "A processar…",
+    "done": "Concluído",
+    "denied": "Negado",
+    "noChanges": "sem alterações",
+    "noValues": "sem valores",
+    "noChangesSpecified": "Nenhuma alteração especificada.",
+    "openEnd": "aberto",
+    "label": {
+      "installPlugin": "Instalar plugin: {id}",
+      "updatePluginConfig": "Configurar plugin: {id}",
+      "updatePlugin": "Atualizar plugin: {id}",
+      "enablePlugin": "Ativar plugin: {id}",
+      "disablePlugin": "Desativar plugin: {id}",
+      "uninstallPlugin": "Desinstalar plugin: {id}",
+      "updateSetting": "Alterar definição: {category}",
+      "createCollection": "Criar coleção: \"{name}\"",
+      "updateCollection": "Atualizar coleção",
+      "createSchedule": "Criar agendamento",
+      "updateSchedule": "Atualizar agendamento",
+      "deleteSchedule": "Eliminar agendamento",
+      "triggerSystemUpdate": "Atualização do sistema"
+    },
+    "description": {
+      "installPlugin": "Instala \"{id}\" a partir do registo oficial.",
+      "installPluginEnable": "Instala \"{id}\" a partir do registo oficial e ativa-o.",
+      "updatePluginConfig": "Atualiza a configuração de \"{id}\": {keys}.",
+      "updatePlugin": "Transfere e instala a versão mais recente do registo de \"{id}\".",
+      "enablePlugin": "Ativa \"{id}\" para que possa fornecer dados aos teus quadros.",
+      "disablePlugin": "Desativa \"{id}\" sem o remover. Pode ser reativado mais tarde.",
+      "uninstallPlugin": "Remove permanentemente \"{id}\". Esta ação não pode ser anulada.",
+      "updateSetting": "Define {values} nas definições de {category}.",
+      "createCollection": "Cria uma coleção com {count, plural, one {# página} other {# páginas}}, alternando a cada {interval}s.",
+      "createSchedule": "Mostra a página \"{page}\" das {time} nos dias {days}.",
+      "deleteSchedule": "Remove permanentemente o agendamento \"{id}\". Esta ação não pode ser anulada.",
+      "triggerSystemUpdate": "Transfere e instala a atualização mais recente do FiestaBoard. O sistema reiniciará brevemente."
+    },
+    "change": {
+      "rename": "renomear para \"{name}\"",
+      "setPages": "definir {count, plural, one {# página} other {# páginas}}",
+      "interval": "intervalo → {interval}s",
+      "page": "página → {page}",
+      "start": "início → {start}",
+      "end": "fim → {end}",
+      "days": "dias → {days}",
+      "enable": "ativar",
+      "disable": "desativar"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Digite o texto do seu template...",
     "lineCount": "{current} / {total} linhas",

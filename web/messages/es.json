@@ -1002,6 +1002,57 @@
       "rotation": "Rotación"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "Denegar",
+    "allow": "Permitir",
+    "working": "Trabajando…",
+    "done": "Hecho",
+    "denied": "Denegado",
+    "noChanges": "sin cambios",
+    "noValues": "sin valores",
+    "noChangesSpecified": "No se especificaron cambios.",
+    "openEnd": "abierto",
+    "label": {
+      "installPlugin": "Instalar complemento: {id}",
+      "updatePluginConfig": "Configurar complemento: {id}",
+      "updatePlugin": "Actualizar complemento: {id}",
+      "enablePlugin": "Activar complemento: {id}",
+      "disablePlugin": "Desactivar complemento: {id}",
+      "uninstallPlugin": "Desinstalar complemento: {id}",
+      "updateSetting": "Cambiar ajuste: {category}",
+      "createCollection": "Crear colección: \"{name}\"",
+      "updateCollection": "Actualizar colección",
+      "createSchedule": "Crear programación",
+      "updateSchedule": "Actualizar programación",
+      "deleteSchedule": "Eliminar programación",
+      "triggerSystemUpdate": "Actualización del sistema"
+    },
+    "description": {
+      "installPlugin": "Instala \"{id}\" desde el registro oficial.",
+      "installPluginEnable": "Instala \"{id}\" desde el registro oficial y lo activa.",
+      "updatePluginConfig": "Actualiza la configuración de \"{id}\": {keys}.",
+      "updatePlugin": "Descarga e instala la última versión del registro de \"{id}\".",
+      "enablePlugin": "Activa \"{id}\" para que pueda proporcionar datos a tus tableros.",
+      "disablePlugin": "Desactiva \"{id}\" sin eliminarlo. Se puede volver a activar más tarde.",
+      "uninstallPlugin": "Elimina \"{id}\" de forma permanente. Esto no se puede deshacer.",
+      "updateSetting": "Establece {values} en los ajustes de {category}.",
+      "createCollection": "Crea una colección con {count, plural, one {# página} other {# páginas}}, rotando cada {interval}s.",
+      "createSchedule": "Muestra la página \"{page}\" de {time} los días {days}.",
+      "deleteSchedule": "Elimina permanentemente la programación \"{id}\". Esto no se puede deshacer.",
+      "triggerSystemUpdate": "Descarga e instala la última actualización de FiestaBoard. El sistema se reiniciará brevemente."
+    },
+    "change": {
+      "rename": "renombrar a \"{name}\"",
+      "setPages": "establecer {count, plural, one {# página} other {# páginas}}",
+      "interval": "intervalo → {interval}s",
+      "page": "página → {page}",
+      "start": "inicio → {start}",
+      "end": "fin → {end}",
+      "days": "días → {days}",
+      "enable": "activar",
+      "disable": "desactivar"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Escribe el texto de tu plantilla...",
     "lineCount": "{current} / {total} líneas",

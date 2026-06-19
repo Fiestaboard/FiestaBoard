@@ -1002,6 +1002,57 @@
       "rotation": "Rotazione"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "Nega",
+    "allow": "Consenti",
+    "working": "In corso…",
+    "done": "Fatto",
+    "denied": "Negato",
+    "noChanges": "nessuna modifica",
+    "noValues": "nessun valore",
+    "noChangesSpecified": "Nessuna modifica specificata.",
+    "openEnd": "aperto",
+    "label": {
+      "installPlugin": "Installa plugin: {id}",
+      "updatePluginConfig": "Configura plugin: {id}",
+      "updatePlugin": "Aggiorna plugin: {id}",
+      "enablePlugin": "Abilita plugin: {id}",
+      "disablePlugin": "Disabilita plugin: {id}",
+      "uninstallPlugin": "Disinstalla plugin: {id}",
+      "updateSetting": "Cambia impostazione: {category}",
+      "createCollection": "Crea collezione: \"{name}\"",
+      "updateCollection": "Aggiorna collezione",
+      "createSchedule": "Crea pianificazione",
+      "updateSchedule": "Aggiorna pianificazione",
+      "deleteSchedule": "Elimina pianificazione",
+      "triggerSystemUpdate": "Aggiornamento di sistema"
+    },
+    "description": {
+      "installPlugin": "Installa \"{id}\" dal registro ufficiale.",
+      "installPluginEnable": "Installa \"{id}\" dal registro ufficiale e lo abilita.",
+      "updatePluginConfig": "Aggiorna la configurazione di \"{id}\": {keys}.",
+      "updatePlugin": "Scarica e installa l'ultima versione del registro di \"{id}\".",
+      "enablePlugin": "Abilita \"{id}\" affinché possa fornire dati alle tue board.",
+      "disablePlugin": "Disabilita \"{id}\" senza rimuoverlo. Può essere riabilitato in seguito.",
+      "uninstallPlugin": "Rimuove definitivamente \"{id}\". Questa azione non può essere annullata.",
+      "updateSetting": "Imposta {values} nelle impostazioni {category}.",
+      "createCollection": "Crea una collezione con {count, plural, one {# pagina} other {# pagine}}, alternando ogni {interval}s.",
+      "createSchedule": "Mostra la pagina \"{page}\" dalle {time} nei giorni {days}.",
+      "deleteSchedule": "Rimuove definitivamente la pianificazione \"{id}\". Questa azione non può essere annullata.",
+      "triggerSystemUpdate": "Scarica e installa l'ultimo aggiornamento di FiestaBoard. Il sistema si riavvierà brevemente."
+    },
+    "change": {
+      "rename": "rinomina in \"{name}\"",
+      "setPages": "imposta {count, plural, one {# pagina} other {# pagine}}",
+      "interval": "intervallo → {interval}s",
+      "page": "pagina → {page}",
+      "start": "inizio → {start}",
+      "end": "fine → {end}",
+      "days": "giorni → {days}",
+      "enable": "abilita",
+      "disable": "disabilita"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Scrivi il testo del template...",
     "lineCount": "{current} / {total} righe",

@@ -1002,6 +1002,57 @@
       "rotation": "Rotacja"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "Odmów",
+    "allow": "Zezwól",
+    "working": "Trwa…",
+    "done": "Gotowe",
+    "denied": "Odmówiono",
+    "noChanges": "brak zmian",
+    "noValues": "brak wartości",
+    "noChangesSpecified": "Nie określono zmian.",
+    "openEnd": "otwarte",
+    "label": {
+      "installPlugin": "Zainstaluj wtyczkę: {id}",
+      "updatePluginConfig": "Skonfiguruj wtyczkę: {id}",
+      "updatePlugin": "Zaktualizuj wtyczkę: {id}",
+      "enablePlugin": "Włącz wtyczkę: {id}",
+      "disablePlugin": "Wyłącz wtyczkę: {id}",
+      "uninstallPlugin": "Odinstaluj wtyczkę: {id}",
+      "updateSetting": "Zmień ustawienie: {category}",
+      "createCollection": "Utwórz kolekcję: \"{name}\"",
+      "updateCollection": "Zaktualizuj kolekcję",
+      "createSchedule": "Utwórz harmonogram",
+      "updateSchedule": "Zaktualizuj harmonogram",
+      "deleteSchedule": "Usuń harmonogram",
+      "triggerSystemUpdate": "Aktualizacja systemu"
+    },
+    "description": {
+      "installPlugin": "Instaluje \"{id}\" z oficjalnego rejestru.",
+      "installPluginEnable": "Instaluje \"{id}\" z oficjalnego rejestru i włącza ją.",
+      "updatePluginConfig": "Aktualizuje konfigurację \"{id}\": {keys}.",
+      "updatePlugin": "Pobiera i instaluje najnowszą wersję \"{id}\" z rejestru.",
+      "enablePlugin": "Włącza \"{id}\", aby mogła dostarczać dane do Twoich tablic.",
+      "disablePlugin": "Wyłącza \"{id}\" bez usuwania. Można ją później ponownie włączyć.",
+      "uninstallPlugin": "Trwale usuwa \"{id}\". Tej operacji nie można cofnąć.",
+      "updateSetting": "Ustawia {values} w ustawieniach {category}.",
+      "createCollection": "Tworzy kolekcję z {count, plural, one {# stroną} other {# stronami}}, zmieniając co {interval}s.",
+      "createSchedule": "Pokazuje stronę \"{page}\" od {time} w dni {days}.",
+      "deleteSchedule": "Trwale usuwa harmonogram \"{id}\". Tej operacji nie można cofnąć.",
+      "triggerSystemUpdate": "Pobiera i instaluje najnowszą aktualizację FiestaBoard. System na chwilę uruchomi się ponownie."
+    },
+    "change": {
+      "rename": "zmień nazwę na \"{name}\"",
+      "setPages": "ustaw {count, plural, one {# stronę} other {# stron}}",
+      "interval": "interwał → {interval}s",
+      "page": "strona → {page}",
+      "start": "początek → {start}",
+      "end": "koniec → {end}",
+      "days": "dni → {days}",
+      "enable": "włącz",
+      "disable": "wyłącz"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Wpisz tekst szablonu...",
     "lineCount": "{current} / {total} linii",

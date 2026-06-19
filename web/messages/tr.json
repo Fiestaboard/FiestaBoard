@@ -1002,6 +1002,57 @@
       "rotation": "Rotasyon"
     }
   },
+  "aiActionConfirmation": {
+    "deny": "Reddet",
+    "allow": "İzin ver",
+    "working": "Çalışıyor…",
+    "done": "Tamam",
+    "denied": "Reddedildi",
+    "noChanges": "değişiklik yok",
+    "noValues": "değer yok",
+    "noChangesSpecified": "Değişiklik belirtilmedi.",
+    "openEnd": "açık",
+    "label": {
+      "installPlugin": "Eklenti yükle: {id}",
+      "updatePluginConfig": "Eklentiyi yapılandır: {id}",
+      "updatePlugin": "Eklentiyi güncelle: {id}",
+      "enablePlugin": "Eklentiyi etkinleştir: {id}",
+      "disablePlugin": "Eklentiyi devre dışı bırak: {id}",
+      "uninstallPlugin": "Eklentiyi kaldır: {id}",
+      "updateSetting": "Ayarı değiştir: {category}",
+      "createCollection": "Koleksiyon oluştur: \"{name}\"",
+      "updateCollection": "Koleksiyonu güncelle",
+      "createSchedule": "Zamanlama oluştur",
+      "updateSchedule": "Zamanlamayı güncelle",
+      "deleteSchedule": "Zamanlamayı sil",
+      "triggerSystemUpdate": "Sistem güncellemesi"
+    },
+    "description": {
+      "installPlugin": "\"{id}\" eklentisini resmi kayıttan yükler.",
+      "installPluginEnable": "\"{id}\" eklentisini resmi kayıttan yükler ve etkinleştirir.",
+      "updatePluginConfig": "\"{id}\" yapılandırmasını günceller: {keys}.",
+      "updatePlugin": "\"{id}\" eklentisinin en son kayıt sürümünü indirir ve yükler.",
+      "enablePlugin": "\"{id}\" eklentisini panolarınıza veri sağlayabilmesi için etkinleştirir.",
+      "disablePlugin": "\"{id}\" eklentisini kaldırmadan devre dışı bırakır. Daha sonra tekrar etkinleştirilebilir.",
+      "uninstallPlugin": "\"{id}\" eklentisini kalıcı olarak kaldırır. Bu işlem geri alınamaz.",
+      "updateSetting": "{category} ayarlarında {values} değerini ayarlar.",
+      "createCollection": "{count, plural, one {# sayfa} other {# sayfa}} içeren bir koleksiyon oluşturur, her {interval}s'de bir döner.",
+      "createSchedule": "\"{page}\" sayfasını {days} günlerinde {time} arasında gösterir.",
+      "deleteSchedule": "\"{id}\" zamanlamasını kalıcı olarak kaldırır. Bu işlem geri alınamaz.",
+      "triggerSystemUpdate": "En son FiestaBoard güncellemesini indirir ve yükler. Sistem kısa süreliğine yeniden başlar."
+    },
+    "change": {
+      "rename": "\"{name}\" olarak yeniden adlandır",
+      "setPages": "{count, plural, one {# sayfa} other {# sayfa}} ayarla",
+      "interval": "aralık → {interval}s",
+      "page": "sayfa → {page}",
+      "start": "başlangıç → {start}",
+      "end": "bitiş → {end}",
+      "days": "günler → {days}",
+      "enable": "etkinleştir",
+      "disable": "devre dışı bırak"
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Şablon metninizi yazın...",
     "lineCount": "{current} / {total} satır",
