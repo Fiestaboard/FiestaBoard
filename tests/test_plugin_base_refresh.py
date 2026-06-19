@@ -3,11 +3,11 @@
 from datetime import datetime, timedelta
 
 from src.plugins.base import (
+    _DEFAULT_CACHE_KEY,
     DEFAULT_REFRESH_SECONDS,
     MIN_REFRESH_SECONDS,
     PluginBase,
     PluginResult,
-    _DEFAULT_CACHE_KEY,
 )
 
 MANIFEST_WITH_REFRESH = {

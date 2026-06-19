@@ -40,7 +40,7 @@ class TestBoardContext:
 
     def test_is_frozen(self):
         board = BoardContext.from_device_type("flagship")
-        with pytest.raises(Exception):
+        with pytest.raises(AttributeError):
             board.cols = 99  # type: ignore[misc]
 
     def test_from_unknown_device_type_raises(self):

@@ -17,9 +17,7 @@ MANIFEST = {
     "version": "1.0.0",
     "settings_schema": {
         "type": "object",
-        "properties": {
-            "refresh_seconds": {"type": "integer", "default": 300, "minimum": 10, "maximum": 600}
-        },
+        "properties": {"refresh_seconds": {"type": "integer", "default": 300, "minimum": 10, "maximum": 600}},
     },
 }
 
@@ -116,10 +114,7 @@ class TestConcurrentBinding:
             board = BoardContext.from_device_type(device_type)
             results[device_type] = plugin.get_data(board).data["device"]
 
-        threads = [
-            threading.Thread(target=fetch, args=(dt,))
-            for dt in ("flagship", "note", "flagship", "note")
-        ]
+        threads = [threading.Thread(target=fetch, args=(dt,)) for dt in ("flagship", "note", "flagship", "note")]
         for t in threads:
             t.start()
         for t in threads:

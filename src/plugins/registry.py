@@ -1133,9 +1133,7 @@ class PluginRegistry:
         # unbounded number of threads when many plugins are enabled.
         max_workers = min(len(enabled), 8)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
-                executor.submit(self.fetch_plugin_data, plugin_id, board): plugin_id for plugin_id in enabled
-            }
+            futures = {executor.submit(self.fetch_plugin_data, plugin_id, board): plugin_id for plugin_id in enabled}
             done, not_done = futures_wait(futures, timeout=15)
 
             if not_done:
