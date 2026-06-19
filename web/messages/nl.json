@@ -1066,10 +1066,6 @@
       "failure": "Kon aanmelden niet inschakelen"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "Chatberichten",
-    "taskStatusAriaLabel": "Taakvoortgang"
-  },
   "aiActionConfirmation": {
     "deny": "Weigeren",
     "allow": "Toestaan",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "Sommige plugins zijn nog niet ingeschakeld: {plugins}. Je kunt nog steeds importeren en ze later inschakelen."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Chatberichten",
+    "taskStatusAriaLabel": "Taakvoortgang",
+    "taskProgressAriaLabel": "Voortgang AI-taken",
     "clearConversationAriaLabel": "Gesprek wissen",
     "closePanelAriaLabel": "FiestaBot (Beta) sluiten"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "Voortgang AI-taken"
   }
 }

@@ -106,8 +106,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
           <>
             <div
               className="h-8 w-8 rounded-full border-[2.5px] border-muted-foreground/25 border-t-muted-foreground animate-spin"
-              role="img"
-              aria-label={t("waiting")}
+              aria-hidden="true"
             />
             <p className="text-sm text-muted-foreground">{t("waiting")}</p>
           </>

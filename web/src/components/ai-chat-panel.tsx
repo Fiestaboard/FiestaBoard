@@ -43,7 +43,6 @@ import type {
   ToolCall,
   ToolCallDisplay,
 } from "@/lib/ai-chat-types";
-import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
 import { useAiChat } from "@/lib/use-ai-chat";
 import { cn } from "@/lib/utils";

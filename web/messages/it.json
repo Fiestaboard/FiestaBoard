@@ -1066,10 +1066,6 @@
       "failure": "Impossibile attivare l'accesso"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "Messaggi della chat",
-    "taskStatusAriaLabel": "Avanzamento delle attività"
-  },
   "aiActionConfirmation": {
     "deny": "Nega",
     "allow": "Consenti",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "Alcuni plugin non sono ancora attivi: {plugins}. Puoi comunque importare e attivarli più tardi."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Messaggi della chat",
+    "taskStatusAriaLabel": "Avanzamento delle attività",
+    "taskProgressAriaLabel": "Avanzamento attività IA",
     "clearConversationAriaLabel": "Cancella conversazione",
     "closePanelAriaLabel": "Chiudi FiestaBot (Beta)"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "Avanzamento attività IA"
   }
 }

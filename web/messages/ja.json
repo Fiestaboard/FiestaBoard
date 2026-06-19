@@ -1066,10 +1066,6 @@
       "failure": "ログインを有効化できませんでした"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "チャットメッセージ",
-    "taskStatusAriaLabel": "タスクの進捗"
-  },
   "aiActionConfirmation": {
     "deny": "拒否",
     "allow": "許可",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "一部のプラグインがまだ有効化されていません: {plugins}。インポートして後で有効化することもできます。"
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "チャットメッセージ",
+    "taskStatusAriaLabel": "タスクの進捗",
+    "taskProgressAriaLabel": "AI タスクの進行状況",
     "clearConversationAriaLabel": "会話をクリア",
     "closePanelAriaLabel": "FiestaBot (Beta) を閉じる"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "AI タスクの進行状況"
   }
 }

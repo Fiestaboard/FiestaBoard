@@ -1066,10 +1066,6 @@
       "failure": "Det gick inte att aktivera inloggning"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "Chattmeddelanden",
-    "taskStatusAriaLabel": "Uppgiftsförlopp"
-  },
   "aiActionConfirmation": {
     "deny": "Neka",
     "allow": "Tillåt",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "Vissa plugins är inte aktiverade än: {plugins}. Du kan ändå importera och aktivera dem senare."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Chattmeddelanden",
+    "taskStatusAriaLabel": "Uppgiftsförlopp",
+    "taskProgressAriaLabel": "AI-uppgifters förlopp",
     "clearConversationAriaLabel": "Rensa konversation",
     "closePanelAriaLabel": "Stäng FiestaBot (Beta)"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "AI-uppgifters förlopp"
   }
 }

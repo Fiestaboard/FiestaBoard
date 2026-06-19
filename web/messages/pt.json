@@ -1066,10 +1066,6 @@
       "failure": "Não foi possível ativar o início de sessão"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "Mensagens do chat",
-    "taskStatusAriaLabel": "Progresso das tarefas"
-  },
   "aiActionConfirmation": {
     "deny": "Negar",
     "allow": "Permitir",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "Alguns plugins ainda não estão ativados: {plugins}. Pode importar e ativá-los mais tarde."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Mensagens do chat",
+    "taskStatusAriaLabel": "Progresso das tarefas",
+    "taskProgressAriaLabel": "Progresso das tarefas de IA",
     "clearConversationAriaLabel": "Limpar conversa",
     "closePanelAriaLabel": "Fechar FiestaBot (Beta)"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "Progresso das tarefas de IA"
   }
 }

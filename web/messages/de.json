@@ -1066,10 +1066,6 @@
       "failure": "Anmeldung konnte nicht aktiviert werden"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "Chat-Nachrichten",
-    "taskStatusAriaLabel": "Aufgabenfortschritt"
-  },
   "aiActionConfirmation": {
     "deny": "Ablehnen",
     "allow": "Zulassen",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "Einige Plugins sind noch nicht aktiviert: {plugins}. Du kannst trotzdem importieren und sie später aktivieren."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Chat-Nachrichten",
+    "taskStatusAriaLabel": "Aufgabenfortschritt",
+    "taskProgressAriaLabel": "Fortschritt der KI-Aufgaben",
     "clearConversationAriaLabel": "Konversation löschen",
     "closePanelAriaLabel": "FiestaBot (Beta) schließen"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "Fortschritt der KI-Aufgaben"
   }
 }

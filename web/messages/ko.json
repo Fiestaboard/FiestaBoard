@@ -1066,10 +1066,6 @@
       "failure": "로그인을 활성화할 수 없습니다"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "채팅 메시지",
-    "taskStatusAriaLabel": "작업 진행 상황"
-  },
   "aiActionConfirmation": {
     "deny": "거부",
     "allow": "허용",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "일부 플러그인이 아직 활성화되지 않았습니다: {plugins}. 가져온 후 나중에 활성화할 수 있습니다."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "채팅 메시지",
+    "taskStatusAriaLabel": "작업 진행 상황",
+    "taskProgressAriaLabel": "AI 작업 진행률",
     "clearConversationAriaLabel": "대화 지우기",
     "closePanelAriaLabel": "FiestaBot (Beta) 닫기"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "AI 작업 진행률"
   }
 }

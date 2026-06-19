@@ -1066,10 +1066,6 @@
       "failure": "无法开启登录"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "聊天消息",
-    "taskStatusAriaLabel": "任务进度"
-  },
   "aiActionConfirmation": {
     "deny": "拒绝",
     "allow": "允许",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "某些插件尚未启用:{plugins}。您仍然可以导入并稍后启用它们。"
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "聊天消息",
+    "taskStatusAriaLabel": "任务进度",
+    "taskProgressAriaLabel": "AI 任务进度",
     "clearConversationAriaLabel": "清除对话",
     "closePanelAriaLabel": "关闭 FiestaBot (Beta)"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "AI 任务进度"
   }
 }

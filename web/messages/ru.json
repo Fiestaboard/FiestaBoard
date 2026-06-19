@@ -1066,10 +1066,6 @@
       "failure": "Не удалось включить вход"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "Сообщения чата",
-    "taskStatusAriaLabel": "Ход выполнения задач"
-  },
   "aiActionConfirmation": {
     "deny": "Отклонить",
     "allow": "Разрешить",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "Некоторые плагины ещё не включены: {plugins}. Вы можете импортировать и включить их позже."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Сообщения чата",
+    "taskStatusAriaLabel": "Ход выполнения задач",
+    "taskProgressAriaLabel": "Прогресс задач ИИ",
     "clearConversationAriaLabel": "Очистить разговор",
     "closePanelAriaLabel": "Закрыть FiestaBot (Beta)"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "Прогресс задач ИИ"
   }
 }

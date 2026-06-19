@@ -1066,10 +1066,6 @@
       "failure": "Impossible d'activer la connexion"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "Messages du chat",
-    "taskStatusAriaLabel": "Progression des tâches"
-  },
   "aiActionConfirmation": {
     "deny": "Refuser",
     "allow": "Autoriser",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "Certains plugins ne sont pas encore activés : {plugins}. Vous pouvez quand même importer et les activer plus tard."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Messages du chat",
+    "taskStatusAriaLabel": "Progression des tâches",
+    "taskProgressAriaLabel": "Progression des tâches IA",
     "clearConversationAriaLabel": "Effacer la conversation",
     "closePanelAriaLabel": "Fermer FiestaBot (Beta)"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "Progression des tâches IA"
   }
 }

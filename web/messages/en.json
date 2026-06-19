@@ -1023,10 +1023,6 @@
       "failure": "Could not enable login"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "Chat messages",
-    "taskStatusAriaLabel": "Task progress"
-  },
   "aiActionConfirmation": {
     "deny": "Deny",
     "allow": "Allow",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "Some plugins aren't enabled yet: {plugins}. You can still import and enable them later."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Chat messages",
+    "taskStatusAriaLabel": "Task progress",
+    "taskProgressAriaLabel": "AI task progress",
     "clearConversationAriaLabel": "Clear conversation",
     "closePanelAriaLabel": "Close FiestaBot (Beta)"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "AI task progress"
   }
 }

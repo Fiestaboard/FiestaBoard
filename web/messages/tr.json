@@ -1066,10 +1066,6 @@
       "failure": "Oturum açma etkinleştirilemedi"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "Sohbet mesajları",
-    "taskStatusAriaLabel": "Görev ilerlemesi"
-  },
   "aiActionConfirmation": {
     "deny": "Reddet",
     "allow": "İzin ver",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "Bazı eklentiler henüz etkin değil: {plugins}. Yine de içe aktarıp daha sonra etkinleştirebilirsiniz."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Sohbet mesajları",
+    "taskStatusAriaLabel": "Görev ilerlemesi",
+    "taskProgressAriaLabel": "AI görev ilerlemesi",
     "clearConversationAriaLabel": "Konuşmayı temizle",
     "closePanelAriaLabel": "FiestaBot (Beta)'yı kapat"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "AI görev ilerlemesi"
   }
 }

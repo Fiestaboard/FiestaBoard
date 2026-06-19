@@ -1066,10 +1066,6 @@
       "failure": "Nie udało się włączyć logowania"
     }
   },
-  "aiChatPanel": {
-    "messagesAriaLabel": "Wiadomości czatu",
-    "taskStatusAriaLabel": "Postęp zadań"
-  },
   "aiActionConfirmation": {
     "deny": "Odmów",
     "allow": "Zezwól",
@@ -1655,10 +1651,10 @@
     "importWithMissingPlugins": "Niektóre wtyczki nie są jeszcze włączone: {plugins}. Możesz wciąż zaimportować i włączyć je później."
   },
   "aiChatPanel": {
+    "messagesAriaLabel": "Wiadomości czatu",
+    "taskStatusAriaLabel": "Postęp zadań",
+    "taskProgressAriaLabel": "Postęp zadań AI",
     "clearConversationAriaLabel": "Wyczyść rozmowę",
     "closePanelAriaLabel": "Zamknij FiestaBot (Beta)"
-  },
-  "aiChat": {
-    "taskProgressAriaLabel": "Postęp zadań AI"
   }
 }
