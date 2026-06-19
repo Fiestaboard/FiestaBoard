@@ -76,7 +76,8 @@
     "primaryNavigation": "メインナビゲーション",
     "secondaryNavigation": "サブナビゲーション",
     "picks": "スタッフのおすすめ",
-    "skipToMainContent": "メインコンテンツへスキップ"
+    "skipToMainContent": "メインコンテンツへスキップ",
+    "prideCelebrationAriaLabel": "プライド月間を祝う"
   },
   "network": {
     "title": "Wi-Fi",
@@ -709,6 +710,7 @@
     "exportFailed": "共有文字列の取得に失敗",
     "exportDialogTitle": "ページをエクスポート",
     "exportDialogDescription": "この共有文字列をコピーしてページを他の人と共有します。",
+    "exportStringAriaLabel": "共有文字列",
     "exportCopyAriaLabel": "共有文字列をコピー"
   },
   "displaySettings": {
@@ -1506,5 +1508,12 @@
     "requires": "必要",
     "pluginNotEnabled": "このテンプレートを使用するには、Integrations で {name} プラグインを有効化してください",
     "importWithMissingPlugins": "一部のプラグインがまだ有効化されていません: {plugins}。インポートして後で有効化することもできます。"
+  },
+  "aiChatPanel": {
+    "clearConversationAriaLabel": "会話をクリア",
+    "closePanelAriaLabel": "FiestaBot (Beta) を閉じる"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "AI タスクの進行状況"
   }
 }
