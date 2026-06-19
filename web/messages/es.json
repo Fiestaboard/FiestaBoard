@@ -766,7 +766,28 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "Tipo y tamaño del tablero",
+    "deviceGroupLabel": "Dispositivos",
+    "noteArrayGroupLabel": "Matrices de Note",
+    "customLabel": "Personalizado…",
+    "presets": {
+      "2_wide": "2 en paralelo",
+      "4_wide": "4 en paralelo",
+      "2_tall": "2 apilados",
+      "4_tall": "4 apilados",
+      "2x2_grid": "Cuadrícula 2×2"
+    },
+    "notesWideLabel": "Notes de ancho",
+    "notesTallLabel": "Notes de alto",
+    "customRangeError": "Cada dimensión debe estar entre 1 y {max}.",
+    "noteArrayTokenLabel": "Token de API en la nube",
+    "noteArrayTokenPlaceholder": "Introduce X-Vestaboard-Token",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (configurado)",
+    "noteArrayTokenHelp": "El X-Vestaboard-Token de esta matriz de Note, de tu suscripción a la API en la nube de Vestaboard.",
+    "autoDetect": "Detectar automáticamente del tablero",
+    "detecting": "Detectando…",
+    "detectFailed": "No se pudo detectar la configuración del tablero."
   },
   "systemUpdate": {
     "updateAvailable": "Actualización disponible",

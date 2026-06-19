@@ -26,12 +26,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
+import { isNoteArray, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
 
 function BoardConnectionForm({
   board,
@@ -49,6 +59,7 @@ function BoardConnectionForm({
   const apiMode = board.api_mode ?? "local";
   const hasLocalKey = board.local_api_key === "***" || (board.local_api_key && board.local_api_key.length > 0);
   const hasCloudKey = board.cloud_key === "***" || (board.cloud_key && board.cloud_key.length > 0);
+  const hasNoteArrayToken = board.note_array_token === "***" || Boolean(board.note_array_token);
   const hasHost = board.host && board.host.length > 0;
 
   const isConfigured = (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
@@ -287,6 +298,38 @@ function BoardConnectionForm({
         </div>
       )}
 
+      {/* Note-array Cloud API token (X-Vestaboard-Token) */}
+      {isNoteArray(board.device_type) && (
+        <div className="space-y-1">
+          <label className="text-xs font-medium">{t("noteArrayTokenLabel")}</label>
+          <div className="flex gap-1.5">
+            <input
+              type={showSecrets.note_array_token ? "text" : "password"}
+              defaultValue={board.note_array_token === "***" ? "" : (board.note_array_token ?? "")}
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val && val !== "***" && val !== board.note_array_token) {
+                  onUpdate(board.id, { note_array_token: val });
+                }
+              }}
+              placeholder={hasNoteArrayToken ? t("noteArrayTokenSetPlaceholder") : t("noteArrayTokenPlaceholder")}
+              className="flex-1 h-8 px-2 text-xs rounded-md border bg-background font-mono"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSecrets((prev) => ({ ...prev, note_array_token: !prev.note_array_token }))}
+              className="h-8 w-8 p-0"
+              disabled={board.note_array_token === "***"}
+            >
+              {showSecrets.note_array_token ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">{t("noteArrayTokenHelp")}</p>
+        </div>
+      )}
+
       {/* Validation message */}
       {!isConfigured && (
         <div className="flex items-center gap-1.5 p-1.5 rounded-md bg-destructive/10 text-foreground text-[10px]">
@@ -304,6 +347,11 @@ export function DisplaySettings() {
   const queryClient = useQueryClient();
   const { data: boardSettings, isLoading } = useBoardSettings();
   const [showTypePicker, setShowTypePicker] = useState(false);
+  // Per-board UI state for the note-array selector / custom inputs / auto-detect.
+  const [customOpen, setCustomOpen] = useState<Record<string, boolean>>({});
+  const [dimError, setDimError] = useState<Record<string, string | undefined>>({});
+  const [detectingBoardId, setDetectingBoardId] = useState<string | null>(null);
+  const [detectError, setDetectError] = useState<Record<string, string | undefined>>({});
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.boardSettings });
     queryClient.invalidateQueries({ queryKey: ["all-settings"] });
@@ -364,6 +412,76 @@ export function DisplaySettings() {
   const handleUpdateBoard = (boardId: string, updates: Partial<BoardInstance>) => {
     const updated = boards.map((b) => (b.id === boardId ? { ...b, ...updates } : b));
     updateMutation.mutate({ boards: updated });
+  };
+
+  // Map a board to the synthetic Select value. Note arrays whose dims match a
+  // preset resolve to that preset; otherwise to "custom". (Match by dimensions,
+  // never by the detect endpoint's `matched_preset` label string.)
+  const currentConfigValue = (board: BoardInstance): string => {
+    if (board.device_type !== "note_array") return board.device_type; // "flagship" | "note"
+    const match = NOTE_ARRAY_PRESETS.find(
+      (p) => p.notes_wide === (board.notes_wide ?? 1) && p.notes_tall === (board.notes_tall ?? 1),
+    );
+    return match ? `preset:${match.id}` : "custom";
+  };
+
+  const handleConfigChange = (board: BoardInstance, value: string) => {
+    if (value === "flagship" || value === "note") {
+      setCustomOpen((prev) => ({ ...prev, [board.id]: false }));
+      handleUpdateBoard(board.id, { device_type: value });
+      return;
+    }
+    if (value === "custom") {
+      setCustomOpen((prev) => ({ ...prev, [board.id]: true }));
+      const w = board.device_type === "note_array" ? (board.notes_wide ?? 1) : 1;
+      const h = board.device_type === "note_array" ? (board.notes_tall ?? 1) : 1;
+      handleUpdateBoard(board.id, { device_type: "note_array", notes_wide: w, notes_tall: h });
+      return;
+    }
+    // value === "preset:<id>"
+    setCustomOpen((prev) => ({ ...prev, [board.id]: false }));
+    const preset = NOTE_ARRAY_PRESETS.find((p) => `preset:${p.id}` === value);
+    if (!preset) return;
+    handleUpdateBoard(board.id, {
+      device_type: "note_array",
+      notes_wide: preset.notes_wide,
+      notes_tall: preset.notes_tall,
+    });
+  };
+
+  const handleCustomDim = (board: BoardInstance, key: "notes_wide" | "notes_tall", rawValue: string) => {
+    const n = Number.parseInt(rawValue, 10);
+    if (!Number.isInteger(n) || n < 1 || n > MAX_NOTES_PER_AXIS) {
+      setDimError((prev) => ({ ...prev, [board.id]: t("customRangeError", { max: MAX_NOTES_PER_AXIS }) }));
+      return; // Block the save — never persist an invalid dimension.
+    }
+    setDimError((prev) => ({ ...prev, [board.id]: undefined }));
+    handleUpdateBoard(board.id, { device_type: "note_array", [key]: n });
+  };
+
+  const handleAutoDetect = async (board: BoardInstance) => {
+    setDetectingBoardId(board.id);
+    setDetectError((prev) => ({ ...prev, [board.id]: undefined }));
+    try {
+      const res = await api.detectBoardSize(board.id);
+      if (res.device_type === "note_array") {
+        const w = res.notes_wide ?? 1;
+        const h = res.notes_tall ?? 1;
+        const isPreset = NOTE_ARRAY_PRESETS.some((p) => p.notes_wide === w && p.notes_tall === h);
+        setCustomOpen((prev) => ({ ...prev, [board.id]: !isPreset }));
+        handleUpdateBoard(board.id, { device_type: "note_array", notes_wide: w, notes_tall: h });
+      } else {
+        setCustomOpen((prev) => ({ ...prev, [board.id]: false }));
+        handleUpdateBoard(board.id, { device_type: res.device_type });
+      }
+    } catch (err) {
+      setDetectError((prev) => ({
+        ...prev,
+        [board.id]: err instanceof Error ? err.message : t("detectFailed"),
+      }));
+    } finally {
+      setDetectingBoardId(null);
+    }
   };
 
   const pauseMutation = useMutation({
@@ -503,58 +621,116 @@ export function DisplaySettings() {
                     </div>
 
                     {/* Type + Color row */}
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-muted-foreground">Type</span>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => handleUpdateBoard(board.id, { device_type: "flagship" })}
-                            aria-pressed={board.device_type === "flagship"}
-                            className={`px-2.5 py-1 rounded-full border text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                              board.device_type === "flagship"
-                                ? "border-primary bg-primary/10 text-foreground"
-                                : "border-transparent text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            {t("flagshipLabel")}
-                          </button>
-                          <button
-                            onClick={() => handleUpdateBoard(board.id, { device_type: "note" })}
-                            aria-pressed={board.device_type === "note"}
-                            className={`px-2.5 py-1 rounded-full border text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                              board.device_type === "note"
-                                ? "border-primary bg-primary/10 text-foreground"
-                                : "border-transparent text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            {t("noteLabel")}
-                          </button>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-muted-foreground">{t("typeLabel")}</span>
+                          <Select value={currentConfigValue(board)} onValueChange={(v) => handleConfigChange(board, v)}>
+                            <SelectTrigger className="h-7 w-[200px] text-xs" aria-label={t("deviceTypeAriaLabel")}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                <SelectLabel>{t("deviceGroupLabel")}</SelectLabel>
+                                <SelectItem value="flagship">{t("flagshipLabel")}</SelectItem>
+                                <SelectItem value="note">{t("noteLabel")}</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>{t("noteArrayGroupLabel")}</SelectLabel>
+                                {NOTE_ARRAY_PRESETS.map((p) => (
+                                  <SelectItem key={p.id} value={`preset:${p.id}`}>
+                                    {t(`presets.${p.id}`)}
+                                  </SelectItem>
+                                ))}
+                                <SelectItem value="custom">{t("customLabel")}</SelectItem>
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-muted-foreground">{t("colorLabel")}</span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleUpdateBoard(board.id, { board_color: "black" })}
+                              aria-label={t("blackAriaLabel")}
+                              aria-pressed={board.board_color === "black"}
+                              className={`h-6 w-6 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                                board.board_color === "black"
+                                  ? "border-primary ring-2 ring-primary/30"
+                                  : "border-border hover:border-muted-foreground"
+                              }`}
+                            />
+                            <button
+                              onClick={() => handleUpdateBoard(board.id, { board_color: "white" })}
+                              aria-label={t("whiteAriaLabel")}
+                              aria-pressed={board.board_color === "white"}
+                              className={`h-6 w-6 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                                board.board_color === "white"
+                                  ? "border-primary ring-2 ring-primary/30"
+                                  : "border-border hover:border-muted-foreground"
+                              }`}
+                            />
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-muted-foreground">{t("colorLabel")}</span>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleUpdateBoard(board.id, { board_color: "black" })}
-                            aria-label={t("blackAriaLabel")}
-                            aria-pressed={board.board_color === "black"}
-                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                              board.board_color === "black"
-                                ? "border-primary ring-2 ring-primary/30"
-                                : "border-border hover:border-muted-foreground"
-                            }`}
-                          />
-                          <button
-                            onClick={() => handleUpdateBoard(board.id, { board_color: "white" })}
-                            aria-label={t("whiteAriaLabel")}
-                            aria-pressed={board.board_color === "white"}
-                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                              board.board_color === "white"
-                                ? "border-primary ring-2 ring-primary/30"
-                                : "border-border hover:border-muted-foreground"
-                            }`}
-                          />
+
+                      {/* Custom W×H inputs (note arrays only) */}
+                      {(customOpen[board.id] || currentConfigValue(board) === "custom") && (
+                        <div className="space-y-1">
+                          <div className="flex items-end gap-2">
+                            <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                              {t("notesWideLabel")}
+                              <input
+                                type="number"
+                                min={1}
+                                max={MAX_NOTES_PER_AXIS}
+                                value={board.notes_wide ?? 1}
+                                onChange={(e) => handleCustomDim(board, "notes_wide", e.target.value)}
+                                className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
+                              />
+                            </label>
+                            <span className="pb-1.5 text-xs text-muted-foreground">×</span>
+                            <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                              {t("notesTallLabel")}
+                              <input
+                                type="number"
+                                min={1}
+                                max={MAX_NOTES_PER_AXIS}
+                                value={board.notes_tall ?? 1}
+                                onChange={(e) => handleCustomDim(board, "notes_tall", e.target.value)}
+                                className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
+                              />
+                            </label>
+                          </div>
+                          {dimError[board.id] && <p className="text-[10px] text-destructive">{dimError[board.id]}</p>}
                         </div>
+                      )}
+
+                      {/* Auto-detect from board */}
+                      <div className="space-y-1">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="h-7 text-[11px]"
+                          disabled={detectingBoardId === board.id}
+                          onClick={() => handleAutoDetect(board)}
+                        >
+                          {detectingBoardId === board.id ? (
+                            <>
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              {t("detecting")}
+                            </>
+                          ) : (
+                            t("autoDetect")
+                          )}
+                        </Button>
+                        {detectError[board.id] && (
+                          <div className="flex items-center gap-1.5 text-destructive text-[10px]">
+                            <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                            <span>{detectError[board.id]}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 

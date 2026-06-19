@@ -766,7 +766,28 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "Bordtype en -grootte",
+    "deviceGroupLabel": "Apparaten",
+    "noteArrayGroupLabel": "Note-arrays",
+    "customLabel": "Aangepast…",
+    "presets": {
+      "2_wide": "2 naast elkaar",
+      "4_wide": "4 naast elkaar",
+      "2_tall": "2 gestapeld",
+      "4_tall": "4 gestapeld",
+      "2x2_grid": "2×2-raster"
+    },
+    "notesWideLabel": "Notes breed",
+    "notesTallLabel": "Notes hoog",
+    "customRangeError": "Elke dimensie moet tussen 1 en {max} liggen.",
+    "noteArrayTokenLabel": "Cloud-API-token",
+    "noteArrayTokenPlaceholder": "Voer X-Vestaboard-Token in",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (ingesteld)",
+    "noteArrayTokenHelp": "De X-Vestaboard-Token voor deze Note-array, uit je Vestaboard Cloud API-abonnement.",
+    "autoDetect": "Automatisch detecteren vanaf bord",
+    "detecting": "Detecteren…",
+    "detectFailed": "Kan de bordconfiguratie niet detecteren."
   },
   "systemUpdate": {
     "updateAvailable": "Update beschikbaar",

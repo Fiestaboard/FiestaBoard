@@ -1330,6 +1330,20 @@ export const handlers = [
     });
   }),
 
+  // Auto-detect board size. Default returns a 2×2 note array; tests override
+  // per-case via server.use(...). MSW runs with onUnhandledRequest: "error",
+  // so this handler must exist for any auto-detect interaction.
+  http.post(`${API_BASE}/settings/board/:boardId/detect-size`, () => {
+    return HttpResponse.json({
+      device_type: "note_array",
+      rows: 6,
+      cols: 30,
+      notes_wide: 2,
+      notes_tall: 2,
+      matched_preset: "2×2 grid",
+    });
+  }),
+
   // Location settings endpoints
   http.get(`${API_BASE}/settings/location`, () => {
     return HttpResponse.json({

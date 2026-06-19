@@ -766,7 +766,28 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "Pano türü ve boyutu",
+    "deviceGroupLabel": "Cihazlar",
+    "noteArrayGroupLabel": "Note dizileri",
+    "customLabel": "Özel…",
+    "presets": {
+      "2_wide": "2 yan yana",
+      "4_wide": "4 yan yana",
+      "2_tall": "2 üst üste",
+      "4_tall": "4 üst üste",
+      "2x2_grid": "2×2 ızgara"
+    },
+    "notesWideLabel": "Note genişliği",
+    "notesTallLabel": "Note yüksekliği",
+    "customRangeError": "Her boyut 1 ile {max} arasında olmalıdır.",
+    "noteArrayTokenLabel": "Bulut API Belirteci",
+    "noteArrayTokenPlaceholder": "X-Vestaboard-Token girin",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (ayarlandı)",
+    "noteArrayTokenHelp": "Bu Note dizisi için X-Vestaboard-Token; Vestaboard Bulut API aboneliğinizden alınır.",
+    "autoDetect": "Panodan otomatik algıla",
+    "detecting": "Algılanıyor…",
+    "detectFailed": "Pano yapılandırması algılanamadı."
   },
   "systemUpdate": {
     "updateAvailable": "Güncelleme Mevcut",

@@ -508,6 +508,8 @@ export interface BoardInstance {
   host: string;
   local_api_key: string;
   cloud_key: string;
+  /** X-Vestaboard-Token for a Note array (note_array only). Masked as "***" on read. */
+  note_array_token?: string;
   /** Number of Notes arranged horizontally (note_array only; default 1). */
   notes_wide?: number;
   /** Number of Notes arranged vertically (note_array only; default 1). */
@@ -518,6 +520,22 @@ export interface BoardSettings {
   board_type: "black" | "white" | null;
   boards: BoardInstance[];
   devices: DeviceType[]; // Computed from boards for backward compat
+}
+
+/**
+ * Response from POST /settings/board/{id}/detect-size. Mirrors the Python
+ * `classify_dimensions()` return shape. For flagship/note only `device_type`,
+ * `rows`, `cols` are present; for note arrays the note-grid fields are filled.
+ * `matched_preset` is a human-readable preset LABEL (not an id) or null — do
+ * not key UI off it; match presets by (notes_wide, notes_tall) instead.
+ */
+export interface DetectBoardSizeResponse {
+  device_type: DeviceType;
+  rows: number;
+  cols: number;
+  notes_wide?: number;
+  notes_tall?: number;
+  matched_preset?: string | null;
 }
 
 // Schedule types
@@ -1728,6 +1746,10 @@ export const api = {
         body: JSON.stringify({ paused }),
       },
     ),
+  detectBoardSize: (boardId: string) =>
+    fetchApi<DetectBoardSizeResponse>(`/settings/board/${boardId}/detect-size`, {
+      method: "POST",
+    }),
   getAllSettings: () => fetchApi<AllSettingsResponse>("/settings/all"),
 
   // Display settings
