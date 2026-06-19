@@ -16,6 +16,8 @@ Cloud API Reference:
 import json
 import logging
 import re
+import time as _time_module
+from collections.abc import Callable
 from typing import Any, Literal, Optional
 
 import requests
@@ -62,6 +64,13 @@ TransitionStrategy = Literal[
 ]
 
 VALID_STRATEGIES = ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
+
+# Minimum interval (seconds) between note-array sends enforced client-side.
+NOTE_ARRAY_MIN_SEND_INTERVAL: float = 15.0
+
+# Module-level per-board throttle state. Key = note_array_token (board id proxy).
+# Persists across BoardClient recreations within a process.
+_note_array_last_send: dict[str, float] = {}
 
 
 def _valid_grid_dimensions() -> set:
@@ -150,6 +159,7 @@ class BoardClient:
         note_array_token: str | None = None,
         notes_wide: int = 1,
         notes_tall: int = 1,
+        _time_func: Callable[[], float] | None = None,
     ):
         """
         Initialize board API client.
@@ -163,6 +173,8 @@ class BoardClient:
             note_array_token: X-Vestaboard-Token for note-array boards; non-empty enables note-array mode.
             notes_wide: Number of Notes side-by-side (columns = notes_wide * 15).
             notes_tall: Number of Notes stacked (rows = notes_tall * 3).
+            _time_func: Injectable monotonic clock for note-array throttle tests.
+                Defaults to ``time.monotonic``.
         """
         if not api_key:
             raise ValueError("api_key is required")
@@ -202,6 +214,8 @@ class BoardClient:
         self._notes_wide: int = notes_wide
         self._notes_tall: int = notes_tall
         self._is_note_array: bool = bool(note_array_token)
+        # Injectable monotonic clock for the note-array send throttle (tests).
+        self._time_func: Callable[[], float] = _time_func if _time_func is not None else _time_module.monotonic
 
     @property
     def _note_array_headers(self) -> dict[str, str]:
@@ -303,6 +317,28 @@ class BoardClient:
             logger.error(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES}")
             return (False, False)
 
+        # Note-array boards do not support transitions; strip and warn.
+        if self._is_note_array and strategy is not None:
+            logger.debug("Note-array board: transition strategy %r is not supported and will be ignored.", strategy)
+            strategy = None
+            step_interval_ms = None
+            step_size = None
+
+        # Rate-limit note-array sends to >= NOTE_ARRAY_MIN_SEND_INTERVAL seconds.
+        # Read the clock once and reuse it for the success-path timestamp below.
+        now = self._time_func() if self._is_note_array else None
+        if self._is_note_array:
+            last = _note_array_last_send.get(self._note_array_token)
+            if last is not None:
+                elapsed = now - last
+                if elapsed < NOTE_ARRAY_MIN_SEND_INTERVAL:
+                    logger.warning(
+                        "Note-array send throttled: %.1fs since last send (min %.0fs); skipping.",
+                        elapsed,
+                        NOTE_ARRAY_MIN_SEND_INTERVAL,
+                    )
+                    return (True, False)
+
         # Check if characters have changed (client-side caching)
         if self.skip_unchanged and not force and self._last_characters == characters:
             logger.debug("Character array unchanged, skipping send")
@@ -337,6 +373,9 @@ class BoardClient:
 
             self._last_characters = [row[:] for row in characters]
             self._last_text = None
+
+            if self._is_note_array:
+                _note_array_last_send[self._note_array_token] = now
 
             transition_info = ""
             if strategy:
