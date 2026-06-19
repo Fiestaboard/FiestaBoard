@@ -206,5 +206,66 @@ def resolve_dimensions(
     raise ValueError(f"Unknown device type: {device_type}. Must be one of {DEVICE_TYPES}")
 
 
+def classify_dimensions(rows: int, cols: int) -> dict:
+    """Classify a grid (rows × cols) into a device type and optional note-array geometry.
+
+    Used to auto-detect a board's type/size from a live layout read.
+
+    Returns a dict with at minimum ``{"device_type", "rows", "cols"}``:
+
+      - flagship / note:
+        ``{"device_type": "flagship"|"note", "rows": int, "cols": int}``
+      - note array (rows a multiple of NOTE_ROWS, cols a multiple of NOTE_COLS,
+        each axis within MAX_NOTES_PER_AXIS, and not the fixed flagship/note size)::
+
+            {
+                "device_type": "note_array",
+                "rows": int,
+                "cols": int,
+                "notes_wide": cols // NOTE_COLS,
+                "notes_tall": rows // NOTE_ROWS,
+                "matched_preset": <preset label> | None,
+            }
+
+    Order matters: an exact 6×22 is a flagship and an exact 3×15 is a Note —
+    both are checked before the note-array branch, so a single Note never
+    classifies as a 1×1 array.
+
+    Raises ValueError for a grid that is neither the flagship size, the Note
+    size, nor a valid note-array grid.
+    """
+    flagship = DEVICE_DIMENSIONS["flagship"]
+    if rows == flagship.rows and cols == flagship.cols:
+        return {"device_type": "flagship", "rows": rows, "cols": cols}
+
+    note = DEVICE_DIMENSIONS["note"]
+    if rows == note.rows and cols == note.cols:
+        return {"device_type": "note", "rows": rows, "cols": cols}
+
+    if is_valid_note_array_grid(rows, cols):
+        notes_wide = cols // NOTE_COLS
+        notes_tall = rows // NOTE_ROWS
+        matched_preset: str | None = None
+        for preset in NOTE_ARRAY_PRESETS:
+            if preset["notes_wide"] == notes_wide and preset["notes_tall"] == notes_tall:
+                matched_preset = preset["label"]
+                break
+        return {
+            "device_type": "note_array",
+            "rows": rows,
+            "cols": cols,
+            "notes_wide": notes_wide,
+            "notes_tall": notes_tall,
+            "matched_preset": matched_preset,
+        }
+
+    raise ValueError(
+        f"Grid {rows}×{cols} is unclassifiable: not a flagship ({flagship.cols}×{flagship.rows}), "
+        f"not a Note ({note.cols}×{note.rows}), and not a valid note-array grid "
+        f"(rows must be a multiple of {NOTE_ROWS}, cols a multiple of {NOTE_COLS}, "
+        f"each axis ≤ {MAX_NOTES_PER_AXIS} notes)."
+    )
+
+
 # Default device type for backward compatibility
 DEFAULT_DEVICE_TYPE: DeviceType = "flagship"

@@ -36,7 +36,7 @@ from .collections.models import CollectionCreate, CollectionUpdate, is_collectio
 from .collections.service import get_collection_service  # noqa: E402
 from .config import Config  # noqa: E402
 from .config_manager import get_config_manager  # noqa: E402
-from .devices import get_dimensions, resolve_dimensions  # noqa: E402
+from .devices import classify_dimensions, get_dimensions, resolve_dimensions  # noqa: E402
 from .displays.service import get_display_service, reset_display_service  # noqa: E402
 from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
@@ -5494,6 +5494,52 @@ async def set_board_paused(board_id: str, request: dict):
         "paused": paused,
         "settings": settings_service.get_board_settings().to_dict(),
     }
+
+
+@app.post("/settings/board/{board_id}/detect-size")
+async def detect_board_size(board_id: str):
+    """Auto-detect a board's device type and dimensions from its live layout.
+
+    Reads the board's current message over its own transport (local / cloud /
+    note-array, via ``board_client_from_board_dict``) and classifies the grid
+    shape with :func:`classify_dimensions`.
+
+    Returns ``device_type``, ``rows``, ``cols`` and — for note arrays —
+    ``notes_wide``, ``notes_tall`` and ``matched_preset``.
+
+    Errors: 404 (unknown board), 400 (board not configured), 422 (board
+    returned no layout, or an unclassifiable grid).
+    """
+    settings_service = get_settings_service()
+    boards = settings_service.get_board_settings().boards or []
+
+    board_dict = next((b for b in boards if b.get("id") == board_id), None)
+    if board_dict is None:
+        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
+
+    client = board_client_from_board_dict(board_dict)
+    if client is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Board {board_id} is not configured (missing credentials)",
+        )
+
+    grid = client.read_current_message()
+    if grid is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Board {board_id} returned no layout — board may be blank or unreachable",
+        )
+
+    rows = len(grid)
+    cols = len(grid[0]) if rows > 0 else 0
+    try:
+        return classify_dimensions(rows, cols)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Board {board_id} returned an unclassifiable grid ({rows}×{cols}): {exc}",
+        ) from exc
 
 
 @app.get("/settings/display")
