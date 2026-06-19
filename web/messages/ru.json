@@ -76,7 +76,8 @@
     "primaryNavigation": "Основная навигация",
     "secondaryNavigation": "Дополнительная навигация",
     "picks": "Подборка команды",
-    "skipToMainContent": "Перейти к основному содержимому"
+    "skipToMainContent": "Перейти к основному содержимому",
+    "prideCelebrationAriaLabel": "Отпраздновать месяц гордости"
   },
   "network": {
     "title": "Wi-Fi",
@@ -709,6 +710,7 @@
     "exportFailed": "Не удалось получить строку обмена",
     "exportDialogTitle": "Экспорт страницы",
     "exportDialogDescription": "Скопируйте эту строку обмена, чтобы поделиться страницей с другими.",
+    "exportStringAriaLabel": "Строка обмена",
     "exportCopyAriaLabel": "Скопировать строку обмена"
   },
   "displaySettings": {
@@ -1506,5 +1508,12 @@
     "requires": "Требуется",
     "pluginNotEnabled": "Включите плагин {name} в Integrations, чтобы использовать этот шаблон",
     "importWithMissingPlugins": "Некоторые плагины ещё не включены: {plugins}. Вы можете импортировать и включить их позже."
+  },
+  "aiChatPanel": {
+    "clearConversationAriaLabel": "Очистить разговор",
+    "closePanelAriaLabel": "Закрыть FiestaBot (Beta)"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "Прогресс задач ИИ"
   }
 }

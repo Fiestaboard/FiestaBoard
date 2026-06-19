@@ -76,7 +76,8 @@
     "primaryNavigation": "Ana gezinme",
     "secondaryNavigation": "İkincil gezinme",
     "picks": "Ekip Seçimleri",
-    "skipToMainContent": "Ana içeriğe geç"
+    "skipToMainContent": "Ana içeriğe geç",
+    "prideCelebrationAriaLabel": "Onur Ayı'nı kutla"
   },
   "network": {
     "title": "Wi-Fi",
@@ -709,6 +710,7 @@
     "exportFailed": "Paylaşım dizgesi alınamadı",
     "exportDialogTitle": "Sayfayı Dışa Aktar",
     "exportDialogDescription": "Sayfanızı başkalarıyla paylaşmak için bu paylaşım dizgesini kopyalayın.",
+    "exportStringAriaLabel": "Paylaşım dizgesi",
     "exportCopyAriaLabel": "Paylaşım dizgesini kopyala"
   },
   "displaySettings": {
@@ -1506,5 +1508,12 @@
     "requires": "Gerektirir",
     "pluginNotEnabled": "Bu şablonu kullanmak için Integrations'ta {name} eklentisini etkinleştirin",
     "importWithMissingPlugins": "Bazı eklentiler henüz etkin değil: {plugins}. Yine de içe aktarıp daha sonra etkinleştirebilirsiniz."
+  },
+  "aiChatPanel": {
+    "clearConversationAriaLabel": "Konuşmayı temizle",
+    "closePanelAriaLabel": "FiestaBot (Beta)'yı kapat"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "AI görev ilerlemesi"
   }
 }

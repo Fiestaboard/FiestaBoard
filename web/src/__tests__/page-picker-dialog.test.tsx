@@ -124,6 +124,30 @@ describe("PagePickerDialog", () => {
     expect(collectionsTab).toHaveTextContent("1");
   });
 
+  it("marks decorative tab icons as aria-hidden so screen readers don't announce them", () => {
+    const collections = [
+      {
+        id: COLLECTION_ID,
+        name: "Rotating Display",
+        page_ids: ["page-1", "page-2"],
+        selection_mode: "time" as const,
+        time: { interval_seconds: 30 },
+        variable: null,
+        created_at: "2025-01-01T00:00:00Z",
+      },
+    ];
+    render(<PagePickerDialog pages={PAGES} collections={collections} selectedPageId={null} onSelect={vi.fn()} />);
+
+    // Tabs already have visible text labels, so the Lucide icons inside
+    // them are decorative — they must be hidden from AT (WCAG 2.2 AA 1.1.1).
+    for (const tabName of [/pages/i, /collections/i]) {
+      const tab = screen.getByRole("tab", { name: tabName });
+      const svg = tab.querySelector("svg");
+      expect(svg).not.toBeNull();
+      expect(svg).toHaveAttribute("aria-hidden", "true");
+    }
+  });
+
   it("defaults to collections tab when a collection id is selected", () => {
     const collections = [
       {

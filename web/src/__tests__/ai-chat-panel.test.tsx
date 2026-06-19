@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AiChatPanel } from "@/components/ai-chat-panel";
 
+import enMessages from "../../messages/en.json";
 import { server } from "./mocks/server";
 
 const API_BASE = "/api";
@@ -315,6 +316,41 @@ describe("AiChatPanel", () => {
     expect(await screen.findByTitle(/ai mode: manual/i)).toBeInTheDocument();
   });
 
+  it("header buttons resolve their aria-label through next-intl (no hardcoded English)", async () => {
+    // Regression test for issue #1190: the close + clear-conversation
+    // buttons must read their accessible name from the `aiChatPanel`
+    // namespace in `web/messages/*.json`, not from a hardcoded literal
+    // in JSX. We assert the rendered aria-label matches the en bundle
+    // exactly — if anyone reverts to a literal that drifts from the
+    // translation key, this test fails.
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [CONFIGURED_PROVIDER],
+          default_provider_id: "p1",
+        }),
+      ),
+    );
+    hookResult = {
+      ...defaultHookResult,
+      messages: [{ role: "user", content: "hi" }],
+    };
+
+    render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
+
+    expect(
+      await screen.findByRole("button", {
+        name: enMessages.aiChatPanel.clearConversationAriaLabel,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", {
+        name: enMessages.aiChatPanel.closePanelAriaLabel,
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("does not show ChainingModePicker when onChainingModeChange is absent", async () => {
     server.use(
       http.get(`${API_BASE}/settings/ai`, () =>
@@ -328,5 +364,30 @@ describe("AiChatPanel", () => {
     render(<AiChatPanel {...defaultProps} />, { wrapper: Wrapper });
     await screen.findByText("FiestaBot (Beta)");
     expect(screen.queryByTitle(/ai mode:/i)).not.toBeInTheDocument();
+  });
+
+  it("task progress bar exposes role=progressbar with ARIA value attributes", async () => {
+    server.use(
+      http.get(`${API_BASE}/settings/ai`, () =>
+        HttpResponse.json({
+          enabled: true,
+          providers: [CONFIGURED_PROVIDER],
+          default_provider_id: "p1",
+        }),
+      ),
+    );
+    const taskList = [
+      { id: "1", label: "Read docs", status: "done" as const },
+      { id: "2", label: "Patch component", status: "in_progress" as const },
+      { id: "3", label: "Run tests", status: "pending" as const },
+      { id: "4", label: "Open PR", status: "pending" as const },
+    ];
+    render(<AiChatPanel {...defaultProps} taskList={taskList} />, { wrapper: Wrapper });
+
+    const progressbar = await screen.findByRole("progressbar");
+    expect(progressbar).toHaveAttribute("aria-valuenow", "25");
+    expect(progressbar).toHaveAttribute("aria-valuemin", "0");
+    expect(progressbar).toHaveAttribute("aria-valuemax", "100");
+    expect(progressbar).toHaveAccessibleName();
   });
 });
