@@ -76,7 +76,8 @@
     "primaryNavigation": "Nawigacja główna",
     "secondaryNavigation": "Nawigacja drugorzędna",
     "picks": "Polecane",
-    "skipToMainContent": "Przejdź do treści głównej"
+    "skipToMainContent": "Przejdź do treści głównej",
+    "prideCelebrationAriaLabel": "Świętuj Miesiąc Dumy"
   },
   "network": {
     "title": "Wi-Fi",
@@ -709,6 +710,7 @@
     "exportFailed": "Nie udało się pobrać ciągu udostępniania",
     "exportDialogTitle": "Eksportuj stronę",
     "exportDialogDescription": "Skopiuj ten ciąg udostępniania, aby udostępnić stronę innym.",
+    "exportStringAriaLabel": "Ciąg udostępniania",
     "exportCopyAriaLabel": "Skopiuj ciąg udostępniania"
   },
   "displaySettings": {
@@ -1651,5 +1653,12 @@
     "requires": "Wymaga",
     "pluginNotEnabled": "Włącz wtyczkę {name} w Integrations, aby użyć tego szablonu",
     "importWithMissingPlugins": "Niektóre wtyczki nie są jeszcze włączone: {plugins}. Możesz wciąż zaimportować i włączyć je później."
+  },
+  "aiChatPanel": {
+    "clearConversationAriaLabel": "Wyczyść rozmowę",
+    "closePanelAriaLabel": "Zamknij FiestaBot (Beta)"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "Postęp zadań AI"
   }
 }

@@ -76,7 +76,8 @@
     "primaryNavigation": "Hoofdnavigatie",
     "secondaryNavigation": "Subnavigatie",
     "picks": "Aanbevolen",
-    "skipToMainContent": "Naar hoofdinhoud"
+    "skipToMainContent": "Naar hoofdinhoud",
+    "prideCelebrationAriaLabel": "Vier Pride Month"
   },
   "network": {
     "title": "Wi-Fi",
@@ -709,6 +710,7 @@
     "exportFailed": "Deelreeks ophalen mislukt",
     "exportDialogTitle": "Pagina exporteren",
     "exportDialogDescription": "Kopieer deze deelreeks om je pagina met anderen te delen.",
+    "exportStringAriaLabel": "Deelreeks",
     "exportCopyAriaLabel": "Deelreeks kopiëren"
   },
   "displaySettings": {
@@ -1651,5 +1653,12 @@
     "requires": "Vereist",
     "pluginNotEnabled": "Schakel de {name}-plugin in bij Integrations om dit sjabloon te gebruiken",
     "importWithMissingPlugins": "Sommige plugins zijn nog niet ingeschakeld: {plugins}. Je kunt nog steeds importeren en ze later inschakelen."
+  },
+  "aiChatPanel": {
+    "clearConversationAriaLabel": "Gesprek wissen",
+    "closePanelAriaLabel": "FiestaBot (Beta) sluiten"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "Voortgang AI-taken"
   }
 }

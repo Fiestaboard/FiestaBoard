@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslations } from "@/i18n/translations";
 import type {
   ChainingMode,
   ChatMessage,
@@ -45,6 +46,7 @@ import type {
 import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
 import { useAiChat } from "@/lib/use-ai-chat";
+import { cn } from "@/lib/utils";
 
 export interface AiChatPanelProps {
   /** Per-turn editor context (device type + current page snapshot). */
@@ -195,8 +197,8 @@ export function AiChatPanel({
                 variant="ghost"
                 className="h-7 w-7"
                 onClick={handleReset}
-                title="Clear conversation"
-                aria-label="Clear conversation"
+                title={t("clearConversationAriaLabel")}
+                aria-label={t("clearConversationAriaLabel")}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -207,8 +209,8 @@ export function AiChatPanel({
               variant="ghost"
               className="h-7 w-7"
               onClick={onClose}
-              title="Close FiestaBot (Beta)"
-              aria-label="Close FiestaBot (Beta)"
+              title={t("closePanelAriaLabel")}
+              aria-label={t("closePanelAriaLabel")}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -331,13 +333,13 @@ export function AiChatPanel({
 function TaskStatusIcon({ status }: { status: TaskStatus }) {
   switch (status) {
     case "done":
-      return <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />;
+      return <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" aria-hidden="true" />;
     case "failed":
-      return <XCircle className="h-3 w-3 shrink-0 text-destructive" />;
+      return <XCircle className="h-3 w-3 shrink-0 text-destructive" aria-hidden="true" />;
     case "in_progress":
-      return <Loader2 className="h-3 w-3 shrink-0 animate-spin text-brand-emphasis" />;
+      return <Loader2 className="h-3 w-3 shrink-0 animate-spin text-brand-emphasis" aria-hidden="true" />;
     case "pending":
-      return <Circle className="h-3 w-3 shrink-0 text-muted-foreground/50" />;
+      return <Circle className="h-3 w-3 shrink-0 text-muted-foreground/50" aria-hidden="true" />;
   }
 }
 
@@ -372,7 +374,14 @@ function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
         <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           Tasks ({doneCount}/{tasks.length})
         </span>
-        <div className="h-1 w-20 rounded-full bg-muted overflow-hidden">
+        <div
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={t("taskProgressAriaLabel")}
+          className="h-1 w-20 rounded-full bg-muted overflow-hidden"
+        >
           <div className="h-full bg-brand-emphasis transition-all duration-300" style={{ width: `${pct}%` }} />
         </div>
       </div>

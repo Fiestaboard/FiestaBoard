@@ -76,7 +76,8 @@
     "primaryNavigation": "主导航",
     "secondaryNavigation": "次导航",
     "picks": "团队精选",
-    "skipToMainContent": "跳到主要内容"
+    "skipToMainContent": "跳到主要内容",
+    "prideCelebrationAriaLabel": "庆祝骄傲月"
   },
   "network": {
     "title": "Wi-Fi",
@@ -709,6 +710,7 @@
     "exportFailed": "获取分享字符串失败",
     "exportDialogTitle": "导出页面",
     "exportDialogDescription": "复制此分享字符串以与他人分享您的页面。",
+    "exportStringAriaLabel": "分享字符串",
     "exportCopyAriaLabel": "复制分享字符串"
   },
   "displaySettings": {
@@ -1651,5 +1653,12 @@
     "requires": "需要",
     "pluginNotEnabled": "在 Integrations 中启用 {name} 插件以使用此模板",
     "importWithMissingPlugins": "某些插件尚未启用:{plugins}。您仍然可以导入并稍后启用它们。"
+  },
+  "aiChatPanel": {
+    "clearConversationAriaLabel": "清除对话",
+    "closePanelAriaLabel": "关闭 FiestaBot (Beta)"
+  },
+  "aiChat": {
+    "taskProgressAriaLabel": "AI 任务进度"
   }
 }

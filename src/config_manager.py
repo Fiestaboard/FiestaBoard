@@ -317,6 +317,14 @@ class ConfigManager:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
                     cls._instance._initialized = False
+                    # Initialised once per singleton lifetime (NOT in __init__,
+                    # which can re-run before _initialized flips — see the latch
+                    # in _maybe_snapshot_on_version_change). A re-entrant
+                    # ConfigManager() during the first __init__ (plugin-registry
+                    # init reaches back through get_config_manager) would
+                    # otherwise reset this to False and silently disable the
+                    # post-upgrade auto-restore (#1102).
+                    cls._instance._version_changed_on_load = False
         return cls._instance
 
     def __init__(self, config_path: str | None = None) -> None:
@@ -445,6 +453,12 @@ class ConfigManager:
             return
 
         seen = self._config.get(APP_VERSION_SEEN_KEY)
+        # Latch: once True for this process it stays True. A second load (e.g. a
+        # re-entrant get_config_manager() during plugin-registry init, or an
+        # explicit reload()) runs AFTER _stamp_app_version_seen has rewritten
+        # app_version_seen to the current version — recomputing from scratch
+        # would clear the flag and silently disable the auto-restore (#1102).
+        self._version_changed_on_load = self._version_changed_on_load or (seen is not None and seen != current_version)
         if seen == current_version:
             return
 
@@ -891,6 +905,15 @@ class ConfigManager:
         self._load_or_create()
         self._apply_env_overrides()
         logger.info("Configuration reloaded from file")
+
+    @property
+    def version_changed_on_load(self) -> bool:
+        """True if this process loaded an existing config from an older app version.
+
+        False on fresh installs, corrupt-config resets, and same-version restarts.
+        Drives the post-upgrade auto-restore so it only runs on a real upgrade boot.
+        """
+        return self._version_changed_on_load
 
     def get_all(self) -> dict[str, Any]:
         """Get full configuration (internal use - includes secrets)."""
