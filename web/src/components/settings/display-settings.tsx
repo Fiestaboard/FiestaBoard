@@ -20,6 +20,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { Badge as BadgeUI } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +28,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, DeviceType } from "@/lib/api";

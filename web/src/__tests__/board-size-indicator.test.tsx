@@ -6,13 +6,12 @@ import { BoardSizeIndicator } from "@/components/board-size-indicator";
 describe("BoardSizeIndicator", () => {
   // ── Flagship ──────────────────────────────────────────────────────────────────
   describe("flagship", () => {
-    it('renders "6 × 22" for flagship', () => {
+    it('renders "22 × 6" for flagship (width × height, matching the rest of the app)', () => {
       render(<BoardSizeIndicator deviceType="flagship" />);
-      expect(screen.getByText(/6/)).toBeInTheDocument();
-      expect(screen.getByText(/22/)).toBeInTheDocument();
-      // Check the full accessible label
-      const el = screen.getByRole("img", { hidden: true });
-      expect(el).toHaveAttribute("aria-label", "6 rows by 22 columns");
+      // Visual order is cols × rows so it reads the same as the wizard's "22 × 6 characters".
+      expect(screen.getByRole("img")).toHaveTextContent("22 × 6");
+      // The accessible label names each dimension explicitly (order-independent).
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "6 rows by 22 columns");
     });
 
     it("does NOT render the · separator for flagship", () => {
@@ -23,9 +22,10 @@ describe("BoardSizeIndicator", () => {
 
   // ── Note ─────────────────────────────────────────────────────────────────────
   describe("note", () => {
-    it('renders "3 × 15" for note', () => {
+    it('renders "15 × 3" for note (width × height)', () => {
       render(<BoardSizeIndicator deviceType="note" />);
-      const el = screen.getByRole("img", { hidden: true });
+      const el = screen.getByRole("img");
+      expect(el).toHaveTextContent("15 × 3");
       expect(el).toHaveAttribute("aria-label", "3 rows by 15 columns");
     });
 
@@ -37,64 +37,59 @@ describe("BoardSizeIndicator", () => {
 
   // ── note_array — all 5 presets ────────────────────────────────────────────────
   describe("note_array presets", () => {
-    it("2 side-by-side: 3 × 30 · 2 side-by-side", () => {
+    it("2 side-by-side: 30 × 3 · 2 side-by-side", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={2} notesTall={1} />);
+      expect(screen.getByRole("img")).toHaveTextContent("30 × 3");
       expect(screen.getByText("·")).toBeInTheDocument();
       expect(screen.getByText("2 side-by-side")).toBeInTheDocument();
-      expect(screen.getByRole("img", { hidden: true })).toHaveAttribute(
-        "aria-label",
-        "3 rows by 30 columns, 2 side-by-side",
-      );
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "3 rows by 30 columns, 2 side-by-side");
     });
 
-    it("4 side-by-side: 3 × 60 · 4 side-by-side", () => {
+    it("4 side-by-side: 60 × 3 · 4 side-by-side", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={4} notesTall={1} />);
+      expect(screen.getByRole("img")).toHaveTextContent("60 × 3");
       expect(screen.getByText("·")).toBeInTheDocument();
       expect(screen.getByText("4 side-by-side")).toBeInTheDocument();
-      expect(screen.getByRole("img", { hidden: true })).toHaveAttribute(
-        "aria-label",
-        "3 rows by 60 columns, 4 side-by-side",
-      );
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "3 rows by 60 columns, 4 side-by-side");
     });
 
-    it("2 stacked: 6 × 15 · 2 stacked", () => {
+    it("2 stacked: 15 × 6 · 2 stacked", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={1} notesTall={2} />);
+      expect(screen.getByRole("img")).toHaveTextContent("15 × 6");
       expect(screen.getByText("·")).toBeInTheDocument();
       expect(screen.getByText("2 stacked")).toBeInTheDocument();
-      expect(screen.getByRole("img", { hidden: true })).toHaveAttribute(
-        "aria-label",
-        "6 rows by 15 columns, 2 stacked",
-      );
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "6 rows by 15 columns, 2 stacked");
     });
 
-    it("4 stacked: 12 × 15 · 4 stacked", () => {
+    it("4 stacked: 15 × 12 · 4 stacked", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={1} notesTall={4} />);
+      expect(screen.getByRole("img")).toHaveTextContent("15 × 12");
       expect(screen.getByText("·")).toBeInTheDocument();
       expect(screen.getByText("4 stacked")).toBeInTheDocument();
-      expect(screen.getByRole("img", { hidden: true })).toHaveAttribute(
-        "aria-label",
-        "12 rows by 15 columns, 4 stacked",
-      );
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "12 rows by 15 columns, 4 stacked");
     });
 
-    it("2×2 grid: 6 × 30 · 2×2 grid (brief acceptance case)", () => {
+    it("2×2 grid: 30 × 6 · 2×2 grid (brief acceptance case)", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={2} notesTall={2} />);
+      expect(screen.getByRole("img")).toHaveTextContent("30 × 6");
       expect(screen.getByText("·")).toBeInTheDocument();
       expect(screen.getByText("2×2 grid")).toBeInTheDocument();
-      expect(screen.getByRole("img", { hidden: true })).toHaveAttribute("aria-label", "6 rows by 30 columns, 2×2 grid");
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "6 rows by 30 columns, 2×2 grid");
     });
   });
 
   // ── note_array — custom (no matching preset) ──────────────────────────────────
   describe("note_array custom", () => {
-    it("3×2 (custom, no preset): 6 × 45 · Custom", () => {
+    it("3×2 (custom, no preset): 45 × 6 · Custom", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={3} notesTall={2} />);
+      expect(screen.getByRole("img")).toHaveTextContent("45 × 6");
       expect(screen.getByText("·")).toBeInTheDocument();
       expect(screen.getByText("Custom")).toBeInTheDocument();
     });
 
-    it("1×1 (custom, not a preset): 3 × 15 · Custom", () => {
+    it("1×1 (custom, not a preset): 15 × 3 · Custom", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={1} notesTall={1} />);
+      expect(screen.getByRole("img")).toHaveTextContent("15 × 3");
       expect(screen.getByText("·")).toBeInTheDocument();
       expect(screen.getByText("Custom")).toBeInTheDocument();
     });
@@ -104,12 +99,12 @@ describe("BoardSizeIndicator", () => {
   describe("i18n / accessibility", () => {
     it("aria-label for flagship uses ariaLabel key: '6 rows by 22 columns'", () => {
       render(<BoardSizeIndicator deviceType="flagship" />);
-      expect(screen.getByRole("img", { hidden: true })).toHaveAttribute("aria-label", "6 rows by 22 columns");
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "6 rows by 22 columns");
     });
 
     it("aria-label for note_array 2×2 uses ariaLabelWithLayout key", () => {
       render(<BoardSizeIndicator deviceType="note_array" notesWide={2} notesTall={2} />);
-      expect(screen.getByRole("img", { hidden: true })).toHaveAttribute("aria-label", "6 rows by 30 columns, 2×2 grid");
+      expect(screen.getByRole("img")).toHaveAttribute("aria-label", "6 rows by 30 columns, 2×2 grid");
     });
   });
 

@@ -1427,6 +1427,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <div className="flex flex-wrap items-center justify-between gap-y-1 mb-2">
                     <div className="flex items-center gap-2">
                       <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
+                      {/* TODO(#1178): pass notesWide/notesTall for note_array pages (defaults to 1×1 today). */}
                       <BoardSizeIndicator deviceType={deviceType} className="ml-1" />
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">

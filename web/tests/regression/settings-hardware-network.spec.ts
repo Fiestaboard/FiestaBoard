@@ -83,9 +83,9 @@ test.describe("regression: settings.hardware", () => {
 
     await openSettingsTab(page, "Hardware");
 
-    // Expand the Note board (15×3) to access its Remove button
-    await expect(page.getByText("15×3").first()).toBeVisible({ timeout: 10_000 });
-    await page.getByText("15×3").first().click();
+    // Expand the Note board (15 × 3) to access its Remove button
+    await expect(page.getByText("15 × 3").first()).toBeVisible({ timeout: 10_000 });
+    await page.getByText("15 × 3").first().click();
 
     const removeBtn = page.getByRole("button", { name: /Remove Board/i }).first();
     await expect(removeBtn).toBeEnabled({ timeout: 10_000 });

@@ -12,19 +12,22 @@ interface BoardSizeIndicatorProps {
   className?: string;
 }
 
-function resolvePresetLabel(notesWide: number, notesTall: number, tCustom: string): string {
+function resolvePresetLabel(notesWide: number, notesTall: number): string | null {
   const match = NOTE_ARRAY_PRESETS.find((p) => p.notes_wide === notesWide && p.notes_tall === notesTall);
-  return match ? match.label : tCustom;
+  return match ? match.label : null;
 }
 
 export function BoardSizeIndicator({ deviceType, notesWide = 1, notesTall = 1, className }: BoardSizeIndicatorProps) {
   const t = useTranslations("boardSizeIndicator");
   const { rows, cols } = resolveDimensions(deviceType, notesWide, notesTall);
   const noteArray = isNoteArray(deviceType);
-  const presetLabel = noteArray ? resolvePresetLabel(notesWide, notesTall, t("custom")) : null;
+  // Single fallback point: a matched preset's label, else "Custom".
+  const presetLabel = noteArray ? (resolvePresetLabel(notesWide, notesTall) ?? t("custom")) : null;
 
+  // aria-label explicitly names each dimension (rows/columns), so screen-reader
+  // users get an unambiguous reading regardless of the visual order below.
   const ariaLabel = noteArray
-    ? t("ariaLabelWithLayout", { rows, cols, layout: presetLabel ?? t("custom") })
+    ? t("ariaLabelWithLayout", { rows, cols, layout: presetLabel })
     : t("ariaLabel", { rows, cols });
 
   return (
@@ -33,7 +36,9 @@ export function BoardSizeIndicator({ deviceType, notesWide = 1, notesTall = 1, c
       aria-label={ariaLabel}
       className={`inline-flex items-center gap-1 text-xs text-muted-foreground font-mono tabular-nums${className ? ` ${className}` : ""}`}
     >
-      {rows} × {cols}
+      {/* Width × height (cols × rows) to match the rest of the app: the setup
+          wizard shows "22 × 6 characters" and board cards historically "22×6". */}
+      {cols} × {rows}
       {noteArray && (
         <>
           <span className="text-muted-foreground/50 mx-0.5">·</span>
