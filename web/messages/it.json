@@ -1326,7 +1326,10 @@
     "loading": "Caricamento display board",
     "empty": "Display board vuoto",
     "preview": "Anteprima board",
-    "withMessage": "Display board: {message}"
+    "withMessage": "Display board: {message}",
+    "previewSizeLabel": "Dimensione anteprima",
+    "fitMode": "Adatta",
+    "actualMode": "Dimensione reale"
   },
   "updateOverlay": {
     "takingLonger": "L'aggiornamento sta impiegando più del previsto",

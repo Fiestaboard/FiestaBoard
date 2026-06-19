@@ -1326,7 +1326,10 @@
     "loading": "Chargement de l'affichage du tableau",
     "empty": "Affichage du tableau vide",
     "preview": "Aperçu du tableau",
-    "withMessage": "Affichage du tableau : {message}"
+    "withMessage": "Affichage du tableau : {message}",
+    "previewSizeLabel": "Taille de l'aperçu",
+    "fitMode": "Ajuster",
+    "actualMode": "Taille réelle"
   },
   "updateOverlay": {
     "takingLonger": "La mise à jour prend plus de temps que prévu",

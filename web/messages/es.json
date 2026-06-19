@@ -1326,7 +1326,10 @@
     "loading": "Cargando visualización del tablero",
     "empty": "Visualización del tablero vacía",
     "preview": "Vista previa del tablero",
-    "withMessage": "Visualización del tablero: {message}"
+    "withMessage": "Visualización del tablero: {message}",
+    "previewSizeLabel": "Tamaño de vista previa",
+    "fitMode": "Ajustar",
+    "actualMode": "Tamaño real"
   },
   "updateOverlay": {
     "takingLonger": "La actualización está tardando más de lo esperado",

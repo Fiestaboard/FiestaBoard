@@ -1326,7 +1326,10 @@
     "loading": "보드 디스플레이 로드 중",
     "empty": "보드 디스플레이가 비어 있음",
     "preview": "보드 미리보기",
-    "withMessage": "보드 디스플레이: {message}"
+    "withMessage": "보드 디스플레이: {message}",
+    "previewSizeLabel": "미리보기 크기",
+    "fitMode": "맞춤",
+    "actualMode": "실제 크기"
   },
   "updateOverlay": {
     "takingLonger": "업데이트가 예상보다 오래 걸립니다",

@@ -1326,7 +1326,10 @@
     "loading": "Board-weergave laden",
     "empty": "Lege board-weergave",
     "preview": "Board-preview",
-    "withMessage": "Board-weergave: {message}"
+    "withMessage": "Board-weergave: {message}",
+    "previewSizeLabel": "Voorbeeldgrootte",
+    "fitMode": "Passend",
+    "actualMode": "Werkelijke grootte"
   },
   "updateOverlay": {
     "takingLonger": "Update duurt langer dan verwacht",

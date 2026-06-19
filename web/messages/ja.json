@@ -1326,7 +1326,10 @@
     "loading": "ボード表示を読み込み中",
     "empty": "ボード表示は空です",
     "preview": "ボードプレビュー",
-    "withMessage": "ボード表示: {message}"
+    "withMessage": "ボード表示: {message}",
+    "previewSizeLabel": "プレビューサイズ",
+    "fitMode": "全体表示",
+    "actualMode": "実寸表示"
   },
   "updateOverlay": {
     "takingLonger": "更新に予想より時間がかかっています",

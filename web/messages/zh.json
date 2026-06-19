@@ -1326,7 +1326,10 @@
     "loading": "加载 board 显示中",
     "empty": "Board 显示为空",
     "preview": "Board 预览",
-    "withMessage": "Board 显示:{message}"
+    "withMessage": "Board 显示:{message}",
+    "previewSizeLabel": "预览尺寸",
+    "fitMode": "适应",
+    "actualMode": "实际大小"
   },
   "updateOverlay": {
     "takingLonger": "更新比预期时间更长",

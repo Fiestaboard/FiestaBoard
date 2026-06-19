@@ -1326,7 +1326,10 @@
     "loading": "Board ekranı yükleniyor",
     "empty": "Boş board ekranı",
     "preview": "Board önizlemesi",
-    "withMessage": "Board ekranı: {message}"
+    "withMessage": "Board ekranı: {message}",
+    "previewSizeLabel": "Önizleme boyutu",
+    "fitMode": "Sığdır",
+    "actualMode": "Gerçek boyut"
   },
   "updateOverlay": {
     "takingLonger": "Güncelleme beklenenden uzun sürüyor",
