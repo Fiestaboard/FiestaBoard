@@ -47,6 +47,7 @@ from .schedules.models import ScheduleCreate, ScheduleUpdate  # noqa: E402
 from .schedules.service import get_schedule_service  # noqa: E402
 from .settings.service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, get_settings_service  # noqa: E402
 from .templates.engine import get_template_engine, reset_template_engine  # noqa: E402
+from .time_service import reset_time_service  # noqa: E402
 from .templates.expressions import function_signatures  # noqa: E402
 from .text_to_board import text_to_board_array  # noqa: E402
 
@@ -2146,6 +2147,49 @@ def _build_post_upgrade_restore_set(
         result["plugins"] = plugins
 
     return result
+
+
+def _auto_restore_post_upgrade_regression() -> dict[str, Any]:
+    """Restore config keys lost on an upgrade boot from the newest pre-update
+    snapshot, before the service/registry reads config. Returns a summary of
+    what was restored (empty when it did nothing). See issue #1102 / #948.
+    """
+    if os.environ.get("FIESTABOARD_AUTO_RESTORE", "1").strip().lower() in ("0", "false", "no"):
+        return {}
+
+    cm = get_config_manager()
+    if not getattr(cm, "version_changed_on_load", False):
+        return {}
+
+    newest = _resolve_snapshot_name(None)
+    if newest is None:
+        return {}
+    try:
+        snap_doc = json.loads(newest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    snap_config = (snap_doc.get("data") or {}).get("config") or {}
+    if not snap_config:
+        return {}
+
+    restore_set = _build_post_upgrade_restore_set(snap_config, cm.get_all())
+    if not restore_set:
+        return {}
+
+    summary: dict[str, Any] = {}
+    general = restore_set.get("general")
+    if general:
+        cm.set_general(general)
+        summary["general"] = sorted(general)
+    plugins = restore_set.get("plugins")
+    if plugins:
+        for pid, cfg in plugins.items():
+            cm.set_plugin_config(pid, cfg)
+        summary["plugins"] = sorted(plugins)
+
+    # Restored timezone won't take effect until the cached TimeService is rebuilt.
+    reset_time_service()
+    return summary
 
 
 def _detect_post_upgrade_regression() -> dict[str, Any] | None:

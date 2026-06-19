@@ -51,3 +51,81 @@ def test_restore_set_empty_when_nothing_regressed():
     snap = {"general": {"timezone": "America/New_York"}, "plugins": {"weather": {"enabled": True}}}
     live = {"general": {"timezone": "America/New_York"}, "plugins": {"weather": {"enabled": True}}}
     assert _build_post_upgrade_restore_set(snap, live) == {}
+
+
+import json
+from unittest.mock import MagicMock
+
+import src.api_server as api_server
+
+
+def _seed_snapshot(tmp_path, config_payload):
+    snap = tmp_path / "pre-update-20260101T000000.000Z.json"
+    snap.write_text(json.dumps({"data": {"config": config_payload}}))
+    return snap
+
+
+def test_auto_restore_applies_general_and_plugins(tmp_path, monkeypatch):
+    snap_path = _seed_snapshot(
+        tmp_path,
+        {
+            "general": {"timezone": "America/New_York", "instance_name": "Kitchen"},
+            "plugins": {"weather": {"enabled": True, "api_key": "real"}},
+        },
+    )
+    cm = MagicMock()
+    cm.version_changed_on_load = True
+    cm.get_all.return_value = {
+        "general": {"timezone": "America/Los_Angeles", "instance_name": ""},
+        "plugins": {"weather": {"enabled": False}},
+    }
+    monkeypatch.setattr(api_server, "get_config_manager", lambda: cm)
+    monkeypatch.setattr(api_server, "_resolve_snapshot_name", lambda name=None: snap_path)
+    reset_called = MagicMock()
+    monkeypatch.setattr(api_server, "reset_time_service", reset_called)
+    monkeypatch.delenv("FIESTABOARD_AUTO_RESTORE", raising=False)
+
+    summary = api_server._auto_restore_post_upgrade_regression()
+
+    cm.set_general.assert_called_once()
+    assert cm.set_general.call_args[0][0] == {
+        "timezone": "America/New_York",
+        "instance_name": "Kitchen",
+    }
+    cm.set_plugin_config.assert_called_once_with("weather", {"enabled": True, "api_key": "real"})
+    reset_called.assert_called_once()
+    # summary lists are sorted() -> alphabetical
+    assert summary == {"general": ["instance_name", "timezone"], "plugins": ["weather"]}
+
+
+def test_auto_restore_noop_when_not_version_change(tmp_path, monkeypatch):
+    cm = MagicMock()
+    cm.version_changed_on_load = False
+    monkeypatch.setattr(api_server, "get_config_manager", lambda: cm)
+    monkeypatch.delenv("FIESTABOARD_AUTO_RESTORE", raising=False)
+    assert api_server._auto_restore_post_upgrade_regression() == {}
+    cm.set_general.assert_not_called()
+
+
+def test_auto_restore_noop_when_disabled_by_env(tmp_path, monkeypatch):
+    cm = MagicMock()
+    cm.version_changed_on_load = True
+    monkeypatch.setattr(api_server, "get_config_manager", lambda: cm)
+    monkeypatch.setenv("FIESTABOARD_AUTO_RESTORE", "0")
+    assert api_server._auto_restore_post_upgrade_regression() == {}
+    cm.set_general.assert_not_called()
+
+
+def test_auto_restore_noop_when_nothing_regressed(tmp_path, monkeypatch):
+    snap_path = _seed_snapshot(
+        tmp_path, {"general": {"timezone": "America/New_York"}, "plugins": {}}
+    )
+    cm = MagicMock()
+    cm.version_changed_on_load = True
+    cm.get_all.return_value = {"general": {"timezone": "America/New_York"}, "plugins": {}}
+    monkeypatch.setattr(api_server, "get_config_manager", lambda: cm)
+    monkeypatch.setattr(api_server, "_resolve_snapshot_name", lambda name=None: snap_path)
+    monkeypatch.setattr(api_server, "reset_time_service", MagicMock())
+    monkeypatch.delenv("FIESTABOARD_AUTO_RESTORE", raising=False)
+    assert api_server._auto_restore_post_upgrade_regression() == {}
+    cm.set_general.assert_not_called()
