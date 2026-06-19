@@ -10,6 +10,7 @@ import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { useRouter } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import type {
   ChainingMode,
   ChatTurnContext,
@@ -30,8 +31,6 @@ import type {
 } from "@/lib/ai-chat-types";
 import { type AISettings, api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-
-import { useTranslations } from "@/i18n/translations";
 
 // ---------------------------------------------------------------------------
 // Helpers for building tool-result chain messages
