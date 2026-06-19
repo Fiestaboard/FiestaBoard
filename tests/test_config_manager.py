@@ -1114,9 +1114,7 @@ def test_version_changed_on_load_true_after_upgrade(tmp_path, monkeypatch):
 
     monkeypatch.setattr(src, "__version__", "9.9.9")
     cfg = tmp_path / "config.json"
-    cfg.write_text(
-        json.dumps({"app_version_seen": "1.0.0", "plugins": {"weather": {"enabled": True}}})
-    )
+    cfg.write_text(json.dumps({"app_version_seen": "1.0.0", "plugins": {"weather": {"enabled": True}}}))
     cm = ConfigManager(config_path=str(cfg))
     assert cm.version_changed_on_load is True
 

@@ -1,5 +1,9 @@
 """Tests for post-upgrade config auto-restore (#1102 / #948)."""
 
+import json
+from unittest.mock import MagicMock
+
+import src.api_server as api_server
 from src.api_server import _build_post_upgrade_restore_set
 
 
@@ -51,12 +55,6 @@ def test_restore_set_empty_when_nothing_regressed():
     snap = {"general": {"timezone": "America/New_York"}, "plugins": {"weather": {"enabled": True}}}
     live = {"general": {"timezone": "America/New_York"}, "plugins": {"weather": {"enabled": True}}}
     assert _build_post_upgrade_restore_set(snap, live) == {}
-
-
-import json
-from unittest.mock import MagicMock
-
-import src.api_server as api_server
 
 
 def _seed_snapshot(tmp_path, config_payload):
@@ -117,9 +115,7 @@ def test_auto_restore_noop_when_disabled_by_env(tmp_path, monkeypatch):
 
 
 def test_auto_restore_noop_when_nothing_regressed(tmp_path, monkeypatch):
-    snap_path = _seed_snapshot(
-        tmp_path, {"general": {"timezone": "America/New_York"}, "plugins": {}}
-    )
+    snap_path = _seed_snapshot(tmp_path, {"general": {"timezone": "America/New_York"}, "plugins": {}})
     cm = MagicMock()
     cm.version_changed_on_load = True
     cm.get_all.return_value = {"general": {"timezone": "America/New_York"}, "plugins": {}}

@@ -47,9 +47,9 @@ from .schedules.models import ScheduleCreate, ScheduleUpdate  # noqa: E402
 from .schedules.service import get_schedule_service  # noqa: E402
 from .settings.service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, get_settings_service  # noqa: E402
 from .templates.engine import get_template_engine, reset_template_engine  # noqa: E402
-from .time_service import reset_time_service  # noqa: E402
 from .templates.expressions import function_signatures  # noqa: E402
 from .text_to_board import text_to_board_array  # noqa: E402
+from .time_service import reset_time_service  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
