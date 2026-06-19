@@ -1326,7 +1326,10 @@
     "loading": "Ładowanie wyświetlacza boarda",
     "empty": "Pusty wyświetlacz boarda",
     "preview": "Podgląd boarda",
-    "withMessage": "Wyświetlacz boarda: {message}"
+    "withMessage": "Wyświetlacz boarda: {message}",
+    "previewSizeLabel": "Rozmiar podglądu",
+    "fitMode": "Dopasuj",
+    "actualMode": "Rzeczywisty rozmiar"
   },
   "updateOverlay": {
     "takingLonger": "Aktualizacja trwa dłużej niż oczekiwano",

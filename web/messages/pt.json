@@ -1326,7 +1326,10 @@
     "loading": "A carregar visualização do board",
     "empty": "Visualização do board vazia",
     "preview": "Pré-visualização do board",
-    "withMessage": "Visualização do board: {message}"
+    "withMessage": "Visualização do board: {message}",
+    "previewSizeLabel": "Tamanho da pré-visualização",
+    "fitMode": "Ajustar",
+    "actualMode": "Tamanho real"
   },
   "updateOverlay": {
     "takingLonger": "A atualização está a demorar mais do que o esperado",

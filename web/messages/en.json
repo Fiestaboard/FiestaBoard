@@ -1283,7 +1283,10 @@
     "loading": "Loading board display",
     "empty": "Empty board display",
     "preview": "Board preview",
-    "withMessage": "Board display: {message}"
+    "withMessage": "Board display: {message}",
+    "previewSizeLabel": "Preview size",
+    "fitMode": "Fit",
+    "actualMode": "Actual size"
   },
   "updateOverlay": {
     "takingLonger": "Update taking longer than expected",

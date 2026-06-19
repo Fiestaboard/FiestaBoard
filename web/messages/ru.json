@@ -1326,7 +1326,10 @@
     "loading": "Загрузка дисплея board",
     "empty": "Пустой дисплей board",
     "preview": "Предпросмотр board",
-    "withMessage": "Дисплей board: {message}"
+    "withMessage": "Дисплей board: {message}",
+    "previewSizeLabel": "Размер предпросмотра",
+    "fitMode": "По ширине",
+    "actualMode": "Реальный размер"
   },
   "updateOverlay": {
     "takingLonger": "Обновление занимает больше времени, чем ожидалось",

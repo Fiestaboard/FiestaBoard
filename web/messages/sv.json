@@ -1326,7 +1326,10 @@
     "loading": "Laddar board-display",
     "empty": "Tom board-display",
     "preview": "Board-förhandsgranskning",
-    "withMessage": "Board-display: {message}"
+    "withMessage": "Board-display: {message}",
+    "previewSizeLabel": "Förhandsvisningsstorlek",
+    "fitMode": "Anpassa",
+    "actualMode": "Verklig storlek"
   },
   "updateOverlay": {
     "takingLonger": "Uppdateringen tar längre tid än väntat",
