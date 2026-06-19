@@ -85,6 +85,29 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Mock Vestaboard Cloud API (cloud.vestaboard.com) - for note-array integration tests
+  fiestaboard-mock-cloud:
+    image: python:3.11-alpine
+    container_name: fiestaboard-mock-cloud
+    volumes:
+      - ./integration-tests/mock-cloud/server.py:/server.py:ro
+    # Host port avoids collisions with the Local API mock (17000/17001).
+    # Inside the container the mock listens on 9200 (Vestaboard Cloud API).
+    ports:
+      - "19200:9200"
+    environment:
+      - PORT=9200
+      - ROWS=6
+      - COLS=30
+    command: python /server.py
+    networks:
+      - fiestaboard-dev
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # Storybook - Component development and testing (opt-in via profile)
   fiestaboard-storybook:
     image: node:20-alpine
