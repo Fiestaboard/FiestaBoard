@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from src.devices import get_dimensions
+from src.devices import DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS, BoardContext, get_dimensions
 from src.displays.service import DisplayResult, get_display_service
 from src.plugins.manifest import DemoPageSchema
 from src.settings.service import get_settings_service
@@ -318,6 +318,12 @@ class PageService:
             display_type="page", formatted="", raw={}, available=False, error=f"Unknown page type: {page.type}"
         )
 
+    @staticmethod
+    def _board_for_page(page: Page) -> BoardContext:
+        """Build a BoardContext for a page, falling back to the default device."""
+        device_type = page.device_type if page.device_type in DEVICE_DIMENSIONS else DEFAULT_DEVICE_TYPE
+        return BoardContext.from_device_type(device_type)
+
     def _render_single(self, page: Page) -> DisplayResult:
         """Render a single-source page."""
         if not page.display_type:
@@ -330,7 +336,8 @@ class PageService:
             )
 
         display_service = get_display_service()
-        result = display_service.get_display(page.display_type)
+        board = self._board_for_page(page)
+        result = display_service.get_display(page.display_type, board=board)
 
         # Wrap result with page metadata
         return DisplayResult(
@@ -354,14 +361,16 @@ class PageService:
 
         dims = get_dimensions(page.device_type)
         display_service = get_display_service()
+        board = self._board_for_page(page)
 
         # Initialize empty lines for the device
         output_lines = [" " * dims.cols] * dims.rows
         source_data = {}
 
         for row_config in page.rows:
-            # Get the source display
-            result = display_service.get_display(row_config.source)
+            # Get the source display. The row source plugin receives the whole
+            # board's context (full width/height) — it can't know its row budget.
+            result = display_service.get_display(row_config.source, board=board)
             if not result.available:
                 continue
 
@@ -515,20 +524,30 @@ class PageService:
 
             pages_to_render.append((page_id, page))
 
-        # Build shared template context once if any template pages need rendering
-        shared_context = None
-        has_template_pages = any(p.type == "template" for _, p in pages_to_render)
-        if has_template_pages:
+        # Build shared template context once per distinct device type. Plugins
+        # may emit different data per board size, so a single shared context
+        # would be wrong when pages target different devices; fanning out once
+        # per device type (not per page) keeps the efficiency win.
+        contexts_by_device: dict[str, dict] = {}
+        template_device_types = {
+            (p.device_type if p.device_type in DEVICE_DIMENSIONS else DEFAULT_DEVICE_TYPE)
+            for _, p in pages_to_render
+            if p.type == "template"
+        }
+        if template_device_types:
             try:
-                template_engine = get_template_engine()
-                shared_context = template_engine._build_context()
+                from src.plugins.registry import get_plugin_registry
+
+                boards = {dt: BoardContext.from_device_type(dt) for dt in template_device_types}
+                contexts_by_device = get_plugin_registry().build_template_contexts_for(boards)
             except Exception as e:
                 logger.error(f"Failed to build shared template context: {e}")
 
         # Second pass: render pages that missed cache
         for page_id, page in pages_to_render:
             try:
-                result = self.render_page(page, context=shared_context)
+                page_device = page.device_type if page.device_type in DEVICE_DIMENSIONS else DEFAULT_DEVICE_TYPE
+                result = self.render_page(page, context=contexts_by_device.get(page_device))
 
                 # Cache the result
                 self._preview_cache[page_id] = CachedPreview(

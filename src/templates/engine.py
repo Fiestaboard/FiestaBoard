@@ -33,7 +33,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from src.devices import DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS
+from src.devices import DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS, BoardContext
 from src.plugins import get_plugin_registry
 from src.text_utils import extract_alignment_from_line
 
@@ -300,10 +300,16 @@ class TemplateEngine:
         Returns:
             Rendered string with newlines
         """
-        if context is None:
-            context = self._build_context()
+        # Resolve to a known device type, falling back to the default so a bad
+        # value never crashes a render. This is the single place a BoardContext
+        # is constructed for callers that only know the device_type string.
+        resolved_device_type = device_type if device_type in DEVICE_DIMENSIONS else DEFAULT_DEVICE_TYPE
+        board = BoardContext.from_device_type(resolved_device_type)
 
-        dims = DEVICE_DIMENSIONS.get(device_type or DEFAULT_DEVICE_TYPE, DEVICE_DIMENSIONS[DEFAULT_DEVICE_TYPE])
+        if context is None:
+            context = self._build_context(board)
+
+        dims = DEVICE_DIMENSIONS[resolved_device_type]
         num_rows = dims.rows
         board_width = dims.cols
 
@@ -737,8 +743,12 @@ class TemplateEngine:
 
         return lines
 
-    def _build_context(self) -> dict[str, Any]:
+    def _build_context(self, board: BoardContext | None = None) -> dict[str, Any]:
         """Build context by fetching all available data from enabled plugins.
+
+        Args:
+            board: Board being rendered on, forwarded to plugins so board-aware
+                ones can adapt their data. ``None`` keeps board-agnostic behavior.
 
         Returns:
             Dictionary mapping plugin_id to plugin data
@@ -746,7 +756,7 @@ class TemplateEngine:
         if not self._plugin_registry:
             return {}
 
-        return self._plugin_registry.build_template_context()
+        return self._plugin_registry.build_template_context(board)
 
     def _render_variables(self, template: str, context: dict[str, Any]) -> str:
         """Replace {{source.field}} variables with values from context.

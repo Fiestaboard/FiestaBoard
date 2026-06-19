@@ -6,10 +6,46 @@ from src.devices import (
     DEVICE_DIMENSIONS,
     DEVICE_TYPES,
     VALID_API_MODES,
+    BoardContext,
     BoardInstance,
     DeviceDimensions,
     get_dimensions,
 )
+
+
+class TestBoardContext:
+    """Tests for the BoardContext value object passed to plugins."""
+
+    def test_from_flagship(self):
+        board = BoardContext.from_device_type("flagship")
+        assert board.device_type == "flagship"
+        assert (board.rows, board.cols) == (6, 22)
+        assert (board.height, board.width) == (6, 22)
+
+    def test_from_note(self):
+        board = BoardContext.from_device_type("note")
+        assert board.device_type == "note"
+        assert (board.rows, board.cols) == (3, 15)
+        assert (board.height, board.width) == (3, 15)
+
+    def test_width_height_aliases_track_cols_rows(self):
+        board = BoardContext(device_type="note", rows=3, cols=15)
+        assert board.width == board.cols
+        assert board.height == board.rows
+
+    def test_supports_composite_dimensions(self):
+        """Raw construction supports future multi-board composite sizes."""
+        board = BoardContext(device_type="composite", rows=6, cols=30)
+        assert (board.width, board.height) == (30, 6)
+
+    def test_is_frozen(self):
+        board = BoardContext.from_device_type("flagship")
+        with pytest.raises(AttributeError):
+            board.cols = 99  # type: ignore[misc]
+
+    def test_from_unknown_device_type_raises(self):
+        with pytest.raises(ValueError):
+            BoardContext.from_device_type("bogus")
 
 
 class TestDeviceDimensions:
