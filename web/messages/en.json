@@ -1034,6 +1034,9 @@
     "errorDescription": "Check that the app is running and try refreshing the page.",
     "refreshPage": "Refresh page"
   },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot AI chat"
+  },
   "plainTextEditor": {
     "placeholder": "Type your template text...",
     "lineCount": "{current} / {total} lines",

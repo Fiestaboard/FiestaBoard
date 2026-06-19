@@ -1077,6 +1077,9 @@
     "errorDescription": "Убедитесь, что приложение запущено, и попробуйте обновить страницу.",
     "refreshPage": "Обновить страницу"
   },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "ИИ-чат FiestaBot"
+  },
   "plainTextEditor": {
     "placeholder": "Введите текст шаблона...",
     "lineCount": "{current} / {total} строк",

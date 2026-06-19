@@ -1077,6 +1077,9 @@
     "errorDescription": "Controleer of de app draait en probeer de pagina opnieuw te laden.",
     "refreshPage": "Pagina vernieuwen"
   },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot AI-chat"
+  },
   "plainTextEditor": {
     "placeholder": "Typ je sjabloontekst...",
     "lineCount": "{current} / {total} regels",

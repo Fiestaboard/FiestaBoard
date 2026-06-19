@@ -1077,6 +1077,9 @@
     "errorDescription": "Prüfe, ob die App läuft, und versuche, die Seite neu zu laden.",
     "refreshPage": "Seite neu laden"
   },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot-KI-Chat"
+  },
   "plainTextEditor": {
     "placeholder": "Vorlagentext eingeben...",
     "lineCount": "{current} / {total} Zeilen",

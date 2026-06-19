@@ -1077,6 +1077,9 @@
     "errorDescription": "アプリが起動していることを確認し、ページを再読み込みしてください。",
     "refreshPage": "ページを再読み込み"
   },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot AI チャット"
+  },
   "plainTextEditor": {
     "placeholder": "テンプレートテキストを入力...",
     "lineCount": "{current} / {total} 行",

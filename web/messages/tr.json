@@ -1077,6 +1077,9 @@
     "errorDescription": "Uygulamanın çalıştığından emin olun ve sayfayı yenilemeyi deneyin.",
     "refreshPage": "Sayfayı yenile"
   },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot yapay zeka sohbeti"
+  },
   "plainTextEditor": {
     "placeholder": "Şablon metninizi yazın...",
     "lineCount": "{current} / {total} satır",

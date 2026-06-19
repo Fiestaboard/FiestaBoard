@@ -1077,6 +1077,9 @@
     "errorDescription": "请确认应用正在运行，然后尝试刷新页面。",
     "refreshPage": "刷新页面"
   },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot AI 聊天"
+  },
   "plainTextEditor": {
     "placeholder": "输入您的模板文本...",
     "lineCount": "{current} / {total} 行",

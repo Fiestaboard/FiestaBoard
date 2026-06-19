@@ -1077,6 +1077,9 @@
     "errorDescription": "Sprawdź, czy aplikacja działa, i spróbuj odświeżyć stronę.",
     "refreshPage": "Odśwież stronę"
   },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "Czat AI FiestaBot"
+  },
   "plainTextEditor": {
     "placeholder": "Wpisz tekst szablonu...",
     "lineCount": "{current} / {total} linii",

@@ -1077,6 +1077,9 @@
     "errorDescription": "Verifica se a aplicação está em execução e tenta recarregar a página.",
     "refreshPage": "Recarregar página"
   },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "Chat de IA do FiestaBot"
+  },
   "plainTextEditor": {
     "placeholder": "Digite o texto do seu template...",
     "lineCount": "{current} / {total} linhas",

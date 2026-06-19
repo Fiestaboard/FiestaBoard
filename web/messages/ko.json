@@ -1077,6 +1077,9 @@
     "errorDescription": "앱이 실행 중인지 확인하고 페이지를 새로 고쳐 보세요.",
     "refreshPage": "페이지 새로 고침"
   },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot AI 채팅"
+  },
   "plainTextEditor": {
     "placeholder": "템플릿 텍스트를 입력하세요...",
     "lineCount": "{current} / {total} 줄",
