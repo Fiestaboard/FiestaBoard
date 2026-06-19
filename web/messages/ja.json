@@ -1288,7 +1288,8 @@
     "change": "変更",
     "selectAttribute": "属性を選択",
     "valueLabel": "値",
-    "insert": "挿入"
+    "insert": "挿入",
+    "searchAriaLabel": "エンティティを検索"
   },
   "pluginSettings": {
     "title": "プラグイン更新",

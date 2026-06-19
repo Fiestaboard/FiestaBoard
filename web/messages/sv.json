@@ -1288,7 +1288,8 @@
     "change": "Ändra",
     "selectAttribute": "Välj attribut",
     "valueLabel": "Värde",
-    "insert": "Infoga"
+    "insert": "Infoga",
+    "searchAriaLabel": "Sök entiteter"
   },
   "pluginSettings": {
     "title": "Plugin-uppdateringar",

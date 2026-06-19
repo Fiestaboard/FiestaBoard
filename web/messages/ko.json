@@ -1288,7 +1288,8 @@
     "change": "변경",
     "selectAttribute": "속성 선택",
     "valueLabel": "값",
-    "insert": "삽입"
+    "insert": "삽입",
+    "searchAriaLabel": "엔터티 검색"
   },
   "pluginSettings": {
     "title": "플러그인 업데이트",

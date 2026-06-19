@@ -1288,7 +1288,8 @@
     "change": "更改",
     "selectAttribute": "选择属性",
     "valueLabel": "值",
-    "insert": "插入"
+    "insert": "插入",
+    "searchAriaLabel": "搜索实体"
   },
   "pluginSettings": {
     "title": "插件更新",

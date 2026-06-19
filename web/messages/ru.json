@@ -1288,7 +1288,8 @@
     "change": "Изменить",
     "selectAttribute": "Выбрать атрибут",
     "valueLabel": "Значение",
-    "insert": "Вставить"
+    "insert": "Вставить",
+    "searchAriaLabel": "Поиск сущностей"
   },
   "pluginSettings": {
     "title": "Обновления плагинов",

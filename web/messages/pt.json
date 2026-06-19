@@ -1288,7 +1288,8 @@
     "change": "Alterar",
     "selectAttribute": "Selecionar atributo",
     "valueLabel": "Valor",
-    "insert": "Inserir"
+    "insert": "Inserir",
+    "searchAriaLabel": "Pesquisar entidades"
   },
   "pluginSettings": {
     "title": "Atualizações de plugins",

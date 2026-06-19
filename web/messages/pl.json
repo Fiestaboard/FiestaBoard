@@ -1288,7 +1288,8 @@
     "change": "Zmień",
     "selectAttribute": "Wybierz atrybut",
     "valueLabel": "Wartość",
-    "insert": "Wstaw"
+    "insert": "Wstaw",
+    "searchAriaLabel": "Szukaj encji"
   },
   "pluginSettings": {
     "title": "Aktualizacje wtyczek",

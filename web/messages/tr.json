@@ -1288,7 +1288,8 @@
     "change": "Değiştir",
     "selectAttribute": "Öznitelik Seç",
     "valueLabel": "Değer",
-    "insert": "Ekle"
+    "insert": "Ekle",
+    "searchAriaLabel": "Varlıkları ara"
   },
   "pluginSettings": {
     "title": "Eklenti Güncellemeleri",

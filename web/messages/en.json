@@ -1245,7 +1245,8 @@
     "change": "Change",
     "selectAttribute": "Select Attribute",
     "valueLabel": "Value",
-    "insert": "Insert"
+    "insert": "Insert",
+    "searchAriaLabel": "Search entities"
   },
   "pluginSettings": {
     "title": "Plugin Updates",

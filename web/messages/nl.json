@@ -1288,7 +1288,8 @@
     "change": "Wijzigen",
     "selectAttribute": "Selecteer attribuut",
     "valueLabel": "Waarde",
-    "insert": "Invoegen"
+    "insert": "Invoegen",
+    "searchAriaLabel": "Entiteiten zoeken"
   },
   "pluginSettings": {
     "title": "Plugin-updates",
