@@ -1053,6 +1053,24 @@
       "disable": "отключить"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "Режим цепочки ИИ",
+    "triggerAriaLabel": "Режим цепочки ИИ: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Ручной",
+        "description": "Буду переспрашивать после каждого действия"
+      },
+      "autoContinue": {
+        "label": "Автопродолжение",
+        "description": "Связывает действия, подтверждает каждый шаг"
+      },
+      "autonomous": {
+        "label": "Автономный",
+        "description": "Выполняет до конца, пропускает подтверждения"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Введите текст шаблона...",
     "lineCount": "{current} / {total} строк",

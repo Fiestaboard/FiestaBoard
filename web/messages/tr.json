@@ -1053,6 +1053,24 @@
       "disable": "devre dışı bırak"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "Yapay zeka zincirleme modu",
+    "triggerAriaLabel": "Yapay zeka zincirleme modu: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manuel",
+        "description": "Her işlemden sonra tekrar soracağım"
+      },
+      "autoContinue": {
+        "label": "Otomatik devam",
+        "description": "İşlemleri zincirler, her adımı onaylar"
+      },
+      "autonomous": {
+        "label": "Otonom",
+        "description": "Tamamlanana kadar çalışır, onayları atlar"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Şablon metninizi yazın...",
     "lineCount": "{current} / {total} satır",

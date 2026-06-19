@@ -1053,6 +1053,24 @@
       "disable": "비활성화"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "AI 체이닝 모드",
+    "triggerAriaLabel": "AI 체이닝 모드: {mode}",
+    "modes": {
+      "manual": {
+        "label": "수동",
+        "description": "각 작업 후에 다시 확인합니다"
+      },
+      "autoContinue": {
+        "label": "자동 계속",
+        "description": "작업을 연결하고 각 단계를 확인합니다"
+      },
+      "autonomous": {
+        "label": "자율",
+        "description": "완료될 때까지 실행하며 확인을 건너뜁니다"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "템플릿 텍스트를 입력하세요...",
     "lineCount": "{current} / {total} 줄",

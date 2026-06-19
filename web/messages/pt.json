@@ -1053,6 +1053,24 @@
       "disable": "desativar"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "Modo de encadeamento de IA",
+    "triggerAriaLabel": "Modo de encadeamento de IA: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manual",
+        "description": "Vou perguntar de novo após cada ação"
+      },
+      "autoContinue": {
+        "label": "Continuação automática",
+        "description": "Encadeia ações, confirma cada passo"
+      },
+      "autonomous": {
+        "label": "Autónomo",
+        "description": "Executa até ao fim, ignora confirmações"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Digite o texto do seu template...",
     "lineCount": "{current} / {total} linhas",

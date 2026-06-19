@@ -1053,6 +1053,24 @@
       "disable": "無効化"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "AI チェーンモード",
+    "triggerAriaLabel": "AI チェーンモード: {mode}",
+    "modes": {
+      "manual": {
+        "label": "手動",
+        "description": "各操作のあとに再確認します"
+      },
+      "autoContinue": {
+        "label": "自動継続",
+        "description": "操作を連鎖し、各ステップを確認します"
+      },
+      "autonomous": {
+        "label": "自律",
+        "description": "完了まで実行し、確認をスキップします"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "テンプレートテキストを入力...",
     "lineCount": "{current} / {total} 行",

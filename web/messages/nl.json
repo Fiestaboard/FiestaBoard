@@ -1053,6 +1053,24 @@
       "disable": "uitschakelen"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "AI-koppelingsmodus",
+    "triggerAriaLabel": "AI-koppelingsmodus: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Handmatig",
+        "description": "Ik vraag het na elke actie opnieuw"
+      },
+      "autoContinue": {
+        "label": "Automatisch doorgaan",
+        "description": "Koppel acties, bevestig elke stap"
+      },
+      "autonomous": {
+        "label": "Autonoom",
+        "description": "Voer tot het einde uit, sla bevestigingen over"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Typ je sjabloontekst...",
     "lineCount": "{current} / {total} regels",

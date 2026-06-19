@@ -1053,6 +1053,24 @@
       "disable": "désactiver"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "Mode de chaînage IA",
+    "triggerAriaLabel": "Mode de chaînage IA : {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manuel",
+        "description": "Je redemanderai après chaque action"
+      },
+      "autoContinue": {
+        "label": "Continuation auto",
+        "description": "Enchaîne les actions, confirme chaque étape"
+      },
+      "autonomous": {
+        "label": "Autonome",
+        "description": "Exécute jusqu'au bout, ignore les confirmations"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Tapez votre texte de modèle...",
     "lineCount": "{current} / {total} lignes",

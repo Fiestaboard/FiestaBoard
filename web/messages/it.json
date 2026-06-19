@@ -1053,6 +1053,24 @@
       "disable": "disabilita"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "Modalità di concatenamento IA",
+    "triggerAriaLabel": "Modalità di concatenamento IA: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manuale",
+        "description": "Ti chiederò di nuovo dopo ogni azione"
+      },
+      "autoContinue": {
+        "label": "Continuazione automatica",
+        "description": "Concatena le azioni, conferma ogni passaggio"
+      },
+      "autonomous": {
+        "label": "Autonomo",
+        "description": "Esegue fino al completamento, salta le conferme"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Scrivi il testo del template...",
     "lineCount": "{current} / {total} righe",

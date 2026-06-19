@@ -1053,6 +1053,24 @@
       "disable": "禁用"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "AI 链式模式",
+    "triggerAriaLabel": "AI 链式模式：{mode}",
+    "modes": {
+      "manual": {
+        "label": "手动",
+        "description": "每次操作后我会再次询问"
+      },
+      "autoContinue": {
+        "label": "自动继续",
+        "description": "串联操作，逐步确认"
+      },
+      "autonomous": {
+        "label": "自主",
+        "description": "运行至完成，跳过确认"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "输入您的模板文本...",
     "lineCount": "{current} / {total} 行",

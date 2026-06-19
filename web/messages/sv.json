@@ -1053,6 +1053,24 @@
       "disable": "inaktivera"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "AI-kedjeläge",
+    "triggerAriaLabel": "AI-kedjeläge: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manuell",
+        "description": "Jag frågar igen efter varje åtgärd"
+      },
+      "autoContinue": {
+        "label": "Fortsätt automatiskt",
+        "description": "Kedjar åtgärder, bekräftar varje steg"
+      },
+      "autonomous": {
+        "label": "Autonom",
+        "description": "Kör till slutet, hoppar över bekräftelser"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Skriv din malltext...",
     "lineCount": "{current} / {total} rader",

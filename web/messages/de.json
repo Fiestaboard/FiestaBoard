@@ -1053,6 +1053,24 @@
       "disable": "deaktivieren"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "KI-Verkettungsmodus",
+    "triggerAriaLabel": "KI-Verkettungsmodus: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manuell",
+        "description": "Ich frage nach jeder Aktion erneut nach"
+      },
+      "autoContinue": {
+        "label": "Auto-Fortsetzung",
+        "description": "Aktionen verketten, jeden Schritt bestätigen"
+      },
+      "autonomous": {
+        "label": "Autonom",
+        "description": "Bis zum Abschluss ausführen, Bestätigungen überspringen"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Vorlagentext eingeben...",
     "lineCount": "{current} / {total} Zeilen",

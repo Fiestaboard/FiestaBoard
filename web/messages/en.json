@@ -1010,6 +1010,24 @@
       "disable": "disable"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "AI chaining mode",
+    "triggerAriaLabel": "AI chaining mode: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manual",
+        "description": "I'll re-prompt after each action"
+      },
+      "autoContinue": {
+        "label": "Auto-continue",
+        "description": "Chain actions, confirm each step"
+      },
+      "autonomous": {
+        "label": "Autonomous",
+        "description": "Run to completion, skip confirmations"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Type your template text...",
     "lineCount": "{current} / {total} lines",

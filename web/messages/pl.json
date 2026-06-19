@@ -1053,6 +1053,24 @@
       "disable": "wyłącz"
     }
   },
+  "chainingModePicker": {
+    "menuTitle": "Tryb łączenia AI",
+    "triggerAriaLabel": "Tryb łączenia AI: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Ręczny",
+        "description": "Zapytam ponownie po każdej akcji"
+      },
+      "autoContinue": {
+        "label": "Automatyczna kontynuacja",
+        "description": "Łączy akcje, potwierdza każdy krok"
+      },
+      "autonomous": {
+        "label": "Autonomiczny",
+        "description": "Wykonuje do końca, pomija potwierdzenia"
+      }
+    }
+  },
   "plainTextEditor": {
     "placeholder": "Wpisz tekst szablonu...",
     "lineCount": "{current} / {total} linii",
