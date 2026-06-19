@@ -40,7 +40,8 @@ def test_restore_set_recovers_plugin_that_lost_only_its_secret():
     snap = {"plugins": {"weather": {"enabled": True, "openweathermap_api_key": "real"}}}
     live = {"plugins": {"weather": {"enabled": True, "openweathermap_api_key": ""}}}
     result = _build_post_upgrade_restore_set(snap, live)
-    assert result["plugins"]["weather"]["openweathermap_api_key"] == "real"
+    # the FULL snapshot plugin config is restored, not just the lost secret key
+    assert result["plugins"]["weather"] == snap["plugins"]["weather"]
 
 
 def test_restore_set_does_not_resurrect_disabled_plugin():

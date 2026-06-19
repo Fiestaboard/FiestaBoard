@@ -1160,3 +1160,19 @@ def test_version_changed_on_load_latches_across_second_load(tmp_path, monkeypatc
     # config.json now carries the current version; a second load must not clear it.
     cm.reload()
     assert cm.version_changed_on_load is True
+
+
+def test_version_changed_on_load_false_corrupt_config(tmp_path, monkeypatch):
+    """A corrupt config that resets to defaults is not a version change.
+
+    The JSONDecodeError branch of _load_or_create skips the version-change
+    check, so the flag stays at its __new__ default of False — a corrupt-config
+    reset must NOT trigger a restore from a (possibly stale) snapshot.
+    """
+    import src
+
+    monkeypatch.setattr(src, "__version__", "9.9.9")
+    cfg = tmp_path / "config.json"
+    cfg.write_text("not valid json {{{")
+    cm = ConfigManager(config_path=str(cfg))
+    assert cm.version_changed_on_load is False
