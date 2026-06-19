@@ -1137,3 +1137,26 @@ def test_version_changed_on_load_false_fresh_install(tmp_path, monkeypatch):
     monkeypatch.setattr(src, "__version__", "9.9.9")
     cm = ConfigManager(config_path=str(tmp_path / "config.json"))
     assert cm.version_changed_on_load is False
+
+
+def test_version_changed_on_load_latches_across_second_load(tmp_path, monkeypatch):
+    """The flag must stay True after a second load that sees the stamped version.
+
+    Regression for #1102: the first load stamps ``app_version_seen`` to the
+    current version and resaves. A second ``_load_or_create`` in the same
+    process — triggered in production by the plugin registry reaching back
+    through ``get_config_manager()`` during the first ``__init__``, reproduced
+    here with an explicit ``reload()`` — then reads the already-stamped config.
+    Recomputing the flag from scratch would clear it to False and silently
+    disable the post-upgrade auto-restore. It must latch True for the process.
+    """
+    import src
+
+    monkeypatch.setattr(src, "__version__", "9.9.9")
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({"app_version_seen": "1.0.0", "plugins": {"weather": {"enabled": True}}}))
+    cm = ConfigManager(config_path=str(cfg))
+    assert cm.version_changed_on_load is True
+    # config.json now carries the current version; a second load must not clear it.
+    cm.reload()
+    assert cm.version_changed_on_load is True
