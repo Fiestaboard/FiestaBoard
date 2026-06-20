@@ -82,6 +82,33 @@ def render(template: str, tokens: dict) -> str:
     return out
 
 
+def resolve_owner(explicit: str | None) -> tuple[str, bool]:
+    """The GitHub owner for the repository URL in the generated manifest.
+
+    Explicit --owner wins. Otherwise default to the *authenticated user's own login*
+    (via gh) — NEVER silently assume the Fiestaboard org, which only maintainers can
+    publish under. If gh isn't available/authed, fall back to an obvious placeholder so
+    the wrong owner can't slip into a committed manifest unnoticed.
+
+    Returns (owner, is_placeholder).
+    """
+    if explicit:
+        return explicit.strip(), False
+    try:
+        import subprocess
+
+        r = subprocess.run(
+            ["gh", "api", "user", "-q", ".login"],
+            capture_output=True, text=True, timeout=8,
+        )
+        login = r.stdout.strip()
+        if r.returncode == 0 and login:
+            return login, False
+    except Exception:
+        pass
+    return "YOUR-GITHUB-USERNAME", True
+
+
 # --------------------------------------------------------------------------- #
 # Placeholder board image — a 22x6 tile grid (Vestaboard flagship geometry).
 # Pure stdlib PNG writer so we need no Pillow. MUST be replaced with a real
@@ -141,7 +168,7 @@ logger = logging.getLogger(__name__)
 
 # TODO: point these at your real data source.
 API_URL = "https://example.com/api"
-USER_AGENT = "FiestaBoard __NAME__ Plugin (https://github.com/Fiestaboard/__REPO__)"
+USER_AGENT = "FiestaBoard __NAME__ Plugin (https://github.com/__OWNER__/__REPO__)"
 
 
 class __CLASS_NAME__(PluginBase):
@@ -270,7 +297,7 @@ MANIFEST = {
     "version": "1.0.0",
     "description": "__DESCRIPTION__",
     "author": "__AUTHOR__",
-    "repository": "https://github.com/Fiestaboard/__REPO__",
+    "repository": "https://github.com/__OWNER__/__REPO__",
     "documentation": "README.md",
     "icon": "__ICON__",
     "category": "__CATEGORY__",
@@ -974,6 +1001,12 @@ def main() -> int:
     p.add_argument("--name", required=True, help='Display name, e.g. "Tide Times"')
     p.add_argument("--description", required=True, help="One-sentence description.")
     p.add_argument("--author", default="FiestaBoard Team")
+    p.add_argument(
+        "--owner",
+        default=None,
+        help="GitHub owner for the repository URL (your username or an org you can create in). "
+        "Defaults to your authenticated `gh` login; do NOT assume the Fiestaboard org.",
+    )
     p.add_argument("--category", default="utility", choices=sorted(VALID_CATEGORIES))
     p.add_argument("--icon", default="puzzle", help="Lucide icon name.")
     p.add_argument("--type", default="http", choices=["http", "simple"], dest="ptype")
@@ -989,6 +1022,7 @@ def main() -> int:
     args = p.parse_args()
 
     names = derive_names(args.slug)
+    owner, owner_is_placeholder = resolve_owner(args.owner)
     try:
         year = datetime.now().year
     except Exception:
@@ -999,6 +1033,7 @@ def main() -> int:
         "SLUG": names["slug"],
         "REPO": names["repo"],
         "CLASS_NAME": names["class_name"],
+        "OWNER": owner,
         "NAME": args.name,
         "NAME_UPPER": args.name.upper(),
         "DESCRIPTION": args.description,
@@ -1027,6 +1062,11 @@ def main() -> int:
     print(f"  class  {names['class_name']}")
     if not args.bundled:
         print(f"  repo   {names['repo']}")
+        print(f"  owner  {owner}   (manifest repository -> github.com/{owner}/{names['repo']})")
+        if owner_is_placeholder:
+            print("  WARNING: could not detect your GitHub login (gh not authed?). The manifest")
+            print("           'repository' URL uses a PLACEHOLDER owner. Re-run with --owner <you>")
+            print("           or fix manifest.json before publishing.")
     print("\nFiles:")
     for rel in created:
         print(f"  {rel}")

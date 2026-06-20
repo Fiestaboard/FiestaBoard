@@ -112,6 +112,13 @@ python3 .claude/skills/new-plugin/scripts/scaffold_plugin.py \
   --output-dir ..        # creates ../fiestaboard-plugin--tide-times
 ```
 
+The generated `manifest.json` `repository` URL needs the right **GitHub owner**. The script
+defaults it to your authenticated `gh` login (run `gh api user -q .login` to see it) — it
+does **not** assume the `Fiestaboard` org, which only maintainers can publish under. Pass
+`--owner <username-or-org>` to override (e.g. a maintainer using `--owner Fiestaboard`, or to
+publish under an org you have create-access to). If the script can't detect a login it writes
+a `YOUR-GITHUB-USERNAME` placeholder and warns — fix it before publishing.
+
 Use `python3` (the host may not have a bare `python`). For a bundled plugin add `--bundled`
 and `--output-dir .` (creates `plugins/<id>/` in the current repo). Run
 `scaffold_plugin.py --help` for all flags.
@@ -191,12 +198,23 @@ Only after the user confirms. Each network action is outward-facing — confirm 
 
 1. **Commit** on `main` in the new repo with a conventional message
    (`feat: initial <name> plugin`).
-2. **Create the GitHub repo** under the `Fiestaboard` org and push:
+2. **Pick the repo owner — do NOT assume the `Fiestaboard` org.** The repo is created under
+   whatever account/org the user actually has create-access to, which for most contributors
+   is their own GitHub account. Determine the options and confirm with the user before
+   creating:
    ```bash
-   gh repo create Fiestaboard/fiestaboard-plugin--tide-times --public --source=. --push
+   gh api user -q .login              # the user's own login — the default owner
+   gh api user/orgs -q '.[].login'    # orgs they belong to (Fiestaboard appears here only for maintainers)
    ```
-   (If the user isn't an org member, create under their account and note the repo URL must
-   use their namespace in the registry entry.)
+   Use `Fiestaboard` only if it shows up in that org list and the user wants it there;
+   otherwise default to their own account (or another org they can create in). Then create
+   and push under the chosen owner:
+   ```bash
+   OWNER=<the-user's-login-or-an-org-they-can-create-in>
+   gh repo create "$OWNER/fiestaboard-plugin--tide-times" --public --source=. --push
+   ```
+   Whatever owner you use, the registry entry's `repository` URL (Step 7) **must** point at
+   that exact namespace — `https://github.com/$OWNER/fiestaboard-plugin--tide-times`.
 3. **Watch CI go green** on the pushed branch (`gh run watch` / `gh run list`). CI is the
    authoritative gate — the container run in Step 3 is the local mirror, but the registry
    checklist requires CI passing on the default branch.

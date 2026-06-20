@@ -11,15 +11,22 @@ Each of these is an outward, hard-to-undo action. Confirm before each.
 ```bash
 # In the new ../fiestaboard-plugin--<slug> repo, on a clean `main`:
 git add -A && git commit -m "feat: initial <name> plugin"
-gh repo create Fiestaboard/fiestaboard-plugin--<slug> --public --source=. --push
-gh run watch    # confirm CI goes green on the default branch
+
+# Pick the owner — DON'T assume the Fiestaboard org. Default to the user's own account.
+gh api user -q .login            # default owner = the user's login
+gh api user/orgs -q '.[].login'  # orgs they belong to (Fiestaboard only for maintainers)
+OWNER=<the-user's-login-or-an-org-they-can-create-in>
+
+gh repo create "$OWNER/fiestaboard-plugin--<slug>" --public --source=. --push
+gh run watch                     # confirm CI goes green on the default branch
 ```
 
 - The repo **must** be named `fiestaboard-plugin--<slug>` and the manifest `id` must equal
   `<slug>` with hyphens→underscores. CI validation rejects mismatches.
-- If the user can't create repos under the `Fiestaboard` org, create under their own
-  account; the `repository` URL in the registry entry must then use *their* namespace. The
-  repo-name convention (`fiestaboard-plugin--<slug>`) still applies.
+- **Owner is per-contributor.** Only Fiestaboard maintainers can create under the
+  `Fiestaboard` org; everyone else creates under their own account (or an org they have
+  create-access to). The `repository` URL in the registry entry must use *that* exact
+  namespace. The repo-name convention (`fiestaboard-plugin--<slug>`) applies regardless of owner.
 - CI on the default branch is the **authoritative** test gate. The container run during
   development is the faithful local mirror, but the registry checklist requires green CI.
 
