@@ -222,11 +222,8 @@ class DisplayService:
 
     @staticmethod
     def _get_first_board_id() -> str | None:
-        """Return the ID of the first configured board, or None."""
-        boards = get_settings_service().get_board_settings().boards or []
-        if boards and isinstance(boards[0], dict):
-            return boards[0].get("id")
-        return None
+        """Return the ID of the primary (first) configured board, or None."""
+        return get_settings_service().get_primary_board_id()
 
     def check_and_send_active_page(self) -> bool:
         """Check the active page and send to board if content changed.

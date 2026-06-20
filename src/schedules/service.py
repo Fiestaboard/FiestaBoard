@@ -61,8 +61,7 @@ class ScheduleService:
         # mode), include those rows so pre-migration and API-created entries still
         # appear for the primary board.
         if board_id:
-            boards = get_settings_service().get_board_settings().boards or []
-            first_id = boards[0].get("id") if boards else None
+            first_id = get_settings_service().get_primary_board_id()
             if first_id and board_id == first_id:
                 legacy = self.storage.list_all(board_id=None)
                 seen = {s.id for s in schedules}
