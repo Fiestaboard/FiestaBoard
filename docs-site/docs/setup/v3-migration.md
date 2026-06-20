@@ -33,6 +33,7 @@ V3 is backward compatible for all existing plugin configurations, pages, and boa
 The `GET /plugins` endpoint now includes a `source` object for each plugin, describing where it was loaded from.
 
 **V2 response (per plugin):**
+
 ```json
 {
   "id": "weather",
@@ -45,6 +46,7 @@ The `GET /plugins` endpoint now includes a `source` object for each plugin, desc
 ```
 
 **V3 response (per plugin):**
+
 ```json
 {
   "id": "weather",

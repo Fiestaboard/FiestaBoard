@@ -29,6 +29,7 @@ docker compose -f docker-compose.dev.yml logs -f
 If you're working in Claude Code, the project ships matching slash commands: `/start` (up -d), `/stop` (down), and `/restart` (down + `--no-cache` rebuild + up -d).
 
 **Access:**
+
 - Web UI and API: http://localhost:4420 (single container, same as production)
 - API base path: http://localhost:4420/api/
 - API Docs: http://localhost:4420/api/docs

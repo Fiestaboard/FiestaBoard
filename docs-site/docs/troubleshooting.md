@@ -26,22 +26,28 @@ The `./data` path is resolved relative to **the directory you run `docker compos
 **Fix (recover your data):**
 
 1. Stop the empty container:
+
    ```bash
    docker compose -f docker-compose.hub.yml down
    ```
+
 2. Find your original `data` folder. It's wherever you first ran `docker compose up -d`. Common locations to check:
+
    ```bash
    ls -la ~/data ~/fiestaboard/data ~/Downloads/data 2>/dev/null
    find ~ -maxdepth 4 -name 'config.json' -path '*/data/*' 2>/dev/null
    ```
+
 3. `cd` into the folder that contains the populated `data/` directory (the one with `config.json`, `pages.json`, etc.).
 4. Make sure `docker-compose.hub.yml` lives in that same folder (download it again if needed), then start FiestaBoard from there:
+
    ```bash
    cd /path/to/your/original/folder
    docker compose -f docker-compose.hub.yml up -d
    ```
 
 **Prevent it next time:** Always `cd` to the same folder before running any `docker compose` command. The simplest habit:
+
 ```bash
 mkdir -p ~/fiestaboard && cd ~/fiestaboard
 # ... all docker compose commands from here on out
@@ -54,6 +60,7 @@ If you want a setup that doesn't depend on which folder you're in, you can switc
 **What you see:** `Cannot connect to the Docker daemon`
 
 **Fix:** Make sure Docker Desktop is open and running.
+
 - **Mac:** Look for the whale icon in the menu bar at the top of the screen
 - **Windows:** Look for the whale icon in the system tray (bottom-right corner)
 - **Linux:** Run `sudo systemctl start docker`
@@ -65,6 +72,7 @@ If you want a setup that doesn't depend on which folder you're in, you can switc
 **Fix:** Something else is already using port 4420. You have two options:
 
 1. **Find and stop it:**
+
    ```bash
    # Mac/Linux
    lsof -i :4420
@@ -74,10 +82,12 @@ If you want a setup that doesn't depend on which folder you're in, you can switc
    ```
 
 2. **Use a different port** by editing the `ports` line in your `docker-compose.yml` (or `docker-compose.hub.yml`):
+
    ```yaml
    ports:
      - "9090:3000"   # Change 9090 to any free port
    ```
+
    Then access FiestaBoard at `http://localhost:9090` instead.
 
 ### Container won't start
@@ -85,11 +95,13 @@ If you want a setup that doesn't depend on which folder you're in, you can switc
 **What you see:** Container exits immediately or shows errors.
 
 **Fix:** Check the logs for the actual error:
+
 ```bash
 docker-compose logs fiestaboard
 ```
 
 Common causes:
+
 - Missing `.env` file (run `cp env.example .env` if you cloned the repo)
 - Docker doesn't have enough memory allocated (check Docker Desktop settings)
 - Corrupted build cache: try `docker-compose down && docker-compose up -d --build`
@@ -115,6 +127,7 @@ This is the most common issue. Work through this checklist:
 3. **Is the API mode correct?** Make sure you're using the right mode (Local API or Cloud API) for the key you entered.
 4. **For Local API:** Is your board on the same WiFi network as the computer running FiestaBoard?
 5. **Check the logs** for specific error messages:
+
    ```bash
    docker-compose logs -f fiestaboard
    ```
@@ -124,6 +137,7 @@ This is the most common issue. Work through this checklist:
 **What you see:** "401 Unauthorized" or "Invalid API key" errors in the logs.
 
 **Fix:**
+
 - Double-check your API key has no extra spaces or line breaks
 - For Cloud API: verify the key is still active in [your Vestaboard account at web.vestaboard.com](https://web.vestaboard.com)
 - Try regenerating the key and entering the new one in Settings
@@ -131,11 +145,13 @@ This is the most common issue. Work through this checklist:
 ### Board updates are slow or laggy
 
 **Possible causes:**
+
 - **Cloud API mode** has a 15-second rate limit between messages. This is normal.
 - **High refresh interval** - Check Settings to see how often FiestaBoard checks for updates
 - **Network issues** - For Local API, check your WiFi connection
 
 **Fix:** If using Cloud API, set the refresh interval to at least 30 seconds in Settings. For Local API, try restarting FiestaBoard:
+
 ```bash
 docker-compose restart
 ```
@@ -145,6 +161,7 @@ docker-compose restart
 ### Web UI won't load at http://localhost:4420
 
 **Checklist:**
+
 1. Wait 30-60 seconds after starting - the server needs time to initialize
 2. Check if the container is running: `docker ps`
 3. Try the health endpoint: `http://localhost:4420/api/health`
@@ -157,17 +174,21 @@ docker-compose restart
 ### Changes not saving
 
 **Possible causes:**
+
 - The `data/` volume mount isn't working. Check your `docker-compose.yml` has:
+
   ```yaml
   volumes:
     - ./data:/app/data
   ```
+
 - File permissions on the `data/` directory. Try: `chmod -R 755 data/`
 - Container isn't running. Check with `docker ps`
 
 ### Page previews look wrong
 
 **Fix:** The preview in the editor should match your board exactly. If it doesn't:
+
 - Make sure you're editing a page for the right device type (Flagship vs Note)
 - Check that template variables resolve correctly by looking at the live preview
 - Refresh the page in your browser
@@ -184,6 +205,7 @@ docker-compose restart
 ### Traffic plugin returns errors
 
 Common causes:
+
 - Google Routes API is not enabled in Google Cloud Console
 - Billing is not set up (required even for the free tier)
 - Invalid address format - try using coordinates instead of street addresses
@@ -199,6 +221,7 @@ See the [Traffic Plugin](/docs/plugins/traffic) guide for detailed setup.
 ### A plugin shows stale or outdated data
 
 Plugins refresh their data at the interval set in Settings (default: 300 seconds). If data seems stuck:
+
 1. Try a **Force Refresh** from the API: `curl -X POST http://localhost:4420/api/force-refresh`
 2. Check plugin logs for errors: `docker-compose logs -f fiestaboard | grep plugin_name`
 3. Verify the external API hasn't hit rate limits
@@ -227,6 +250,7 @@ Visit **http://localhost:4420/api/docs** for the Swagger UI where you can test A
 - **[GitHub Issues](https://github.com/Fiestaboard/FiestaBoard/issues)** - Report bugs or request features
 
 When reporting an issue, include:
+
 - What you expected vs. what happened
 - Steps to reproduce the problem
 - Relevant log output (`docker-compose logs fiestaboard`)

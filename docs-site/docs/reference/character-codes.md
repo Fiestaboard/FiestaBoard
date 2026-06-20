@@ -11,7 +11,7 @@ The split-flap display uses character codes to represent letters, numbers, and s
 ## Letters (Codes 1–26)
 
 | Code | Character | | Code | Character |
-|------|-----------|-|------|-----------| 
+|------|-----------|-|------|-----------|
 | 1 | A | | 14 | N |
 | 2 | B | | 15 | O |
 | 3 | C | | 16 | P |

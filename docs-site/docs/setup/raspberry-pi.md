@@ -53,6 +53,7 @@ The **Customisation** step in the Imager sidebar is only used during the flash â
 :::
 
 Alternative tools: [Balena Etcher](https://etcher.balena.io/) works too. On Linux/macOS with `dd`:
+
 ```bash
 xz -d FiestaPi-<version>-arm64.img.xz
 sudo dd if=FiestaPi-<version>-arm64.img of=/dev/<your-sd-card> bs=4M status=progress
@@ -67,7 +68,7 @@ After flashing, plug the SD card back into your computer. A small FAT32 drive ca
 1. Create a file called **`fiestapi-wifi.txt`** in the root of the `bootfs` drive
 2. Paste in your Wi-Fi details:
 
-   ```
+   ```text
    SSID=YourNetworkName
    PASSWORD=YourPassword
    COUNTRY=US

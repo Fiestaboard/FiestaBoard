@@ -32,6 +32,14 @@
     "build:web": "cd web && npm run build",
     "start:web": "cd web && npm run start",
     "test:web": "cd web && npm run test:run",
-    "lint:web": "cd web && npm run lint"
+    "lint:web": "cd web && npm run lint",
+    "docs:lint": "npm run docs:lint:frontmatter && npm run docs:lint:markdown && npm run docs:lint:spell",
+    "docs:lint:frontmatter": "node scripts/lint-docs-frontmatter.mjs",
+    "docs:lint:markdown": "markdownlint-cli2",
+    "docs:lint:spell": "cspell lint --no-progress --no-must-find-files"
+  },
+  "devDependencies": {
+    "cspell": "^10.0.1",
+    "markdownlint-cli2": "^0.22.1"
   }
 }

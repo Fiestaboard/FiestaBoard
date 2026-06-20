@@ -108,6 +108,7 @@ With 4 routes updating every 5 minutes, you'd make about 35,000 requests/month, 
 ### Rate Limiting
 
 If you see rate limit errors:
+
 - Increase the refresh interval
 - Use coordinates instead of addresses (avoids geocoding calls)
 

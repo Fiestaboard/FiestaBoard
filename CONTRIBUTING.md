@@ -45,10 +45,12 @@ git checkout -b docs-update-readme  # for documentation
 
 - Edit code and docs on your branch.
 - For API/web changes, use the dev stack so code is mounted and reloads:
+
   ```bash
   docker-compose -f docker-compose.dev.yml up
   ```
-- Run tests before opening a PR (see [Testing](#testing)).
+
+- Run tests before opening a PR (see [Run tests locally](#3-run-tests-locally)).
 
 ### 3. Run tests locally
 

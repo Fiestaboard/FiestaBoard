@@ -29,8 +29,8 @@ Plugins are data sources - they pull information like weather, time, stock price
 | **Surf Conditions** | Wave height and quality at popular surf spots |
 | **Guest WiFi** | Your WiFi network name and password |
 
-3. Toggle each plugin **on** to enable it
-4. For Guest WiFi, enter your WiFi network name and password when prompted
+1. Toggle each plugin **on** to enable it
+2. For Guest WiFi, enter your WiFi network name and password when prompted
 
 :::tip
 You can always come back and enable more plugins later, including ones that need API keys (weather, traffic, stocks, etc.). The Integrations page links to setup instructions for each one.
@@ -60,6 +60,7 @@ The editor shows a grid matching your board's dimensions. Click on a row and sta
 This is where it gets fun. Click the **Variables** button in the editor toolbar. You'll see a list of all the variables available from your enabled plugins.
 
 For example, if you enabled the Date & Time plugin, you'll see variables like:
+
 - `{date_time.datetime}` - Inserts the current date and time
 - `{date_time.date}` - Inserts just the date
 - `{date_time.time}` - Inserts just the time

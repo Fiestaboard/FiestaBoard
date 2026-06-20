@@ -83,6 +83,10 @@ scan-results/
 # API keys reference (optional - remove if you want to track it)
 API_KEYS.md
 
+# Root node_modules (docs lint tooling: cspell, markdownlint-cli2 — installed
+# only in CI via `npm ci`, never committed)
+/node_modules/
+
 # Docs site build artifacts
 docs-site/node_modules/
 docs-site/build/

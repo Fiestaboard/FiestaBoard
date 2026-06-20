@@ -60,6 +60,7 @@ docker-compose -f docker-compose.dev.yml up --build
 ```
 
 The dev environment gives you:
+
 - **Web UI** at `http://localhost:4420` (hot reloads on frontend changes)
 - **API** at `http://localhost:4420` (auto-reloads on Python changes, proxied via nginx)
 
@@ -270,7 +271,7 @@ Rules are checked in order. The first match wins; the rest are ignored. Numeric 
 
 Reference the variable as normal — color is applied automatically:
 
-```
+```jinja
 {{my_plugin.status}}
 {{my_plugin.temp_f}}°F
 ```
@@ -779,6 +780,7 @@ curl http://localhost:4420/api/plugins/my_plugin/data
 ```
 
 The validator checks:
+
 - `id` matches directory name and follows the naming rules (lowercase, underscores, starts with letter)
 - `version` follows semantic versioning (`X.Y.Z`)
 - `category` is a valid value
@@ -821,6 +823,7 @@ Before opening a PR, verify every item:
 ### Opening the PR
 
 1. **Push** your feature branch:
+
    ```bash
    git push origin feat-plugin-my-plugin
    ```

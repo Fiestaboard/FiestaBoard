@@ -203,10 +203,12 @@ Restart the container after making changes.
 ## Step 4: Verify the connection
 
 **In FiestaBoard:**
+
 - Go to **Settings → Home Assistant (MQTT)**
 - The status should show **MQTT Connected**
 
 **In Home Assistant:**
+
 1. Go to **Settings → Devices & Services → MQTT**
 2. Look for a device named **FiestaBoard**
 3. Click it — you should see all available controls and sensors

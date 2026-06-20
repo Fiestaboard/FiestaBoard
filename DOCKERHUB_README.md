@@ -91,6 +91,7 @@ FiestaBoard has a catalog of **50+ plugins**. Many work without any API key at a
 ## Multi-Architecture Support
 
 Images are available for:
+
 - `linux/amd64` (standard x86_64 desktops and servers)
 - `linux/arm64` (Raspberry Pi 3B+/4/5 with 64-bit OS, Apple Silicon)
 
