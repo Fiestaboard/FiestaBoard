@@ -141,7 +141,7 @@ With this format, the editor shows:
 | `description` | string | Tooltip text shown in the editor |
 | `type` | string | `"string"`, `"number"`, or `"boolean"` |
 | `max_length` | integer | Max characters this variable can produce |
-| `group` | string | Group ID to organise this variable under |
+| `group` | string | Group ID to organize this variable under |
 | `example` | string | Example value shown in documentation |
 
 All fields are optional. You can mix and match — add just `description` if that's all you need.
