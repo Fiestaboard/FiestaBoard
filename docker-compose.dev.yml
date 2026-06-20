@@ -25,6 +25,10 @@ services:
       - BOARD_API_MODE=local
       - BOARD_HOST=fiestaboard-mock-board
       - BOARD_LOCAL_API_KEY=mock-dev-key
+      # Point note-array (Cloud API) boards at the bundled mock so they can be
+      # registered & exercised by hand in dev — its live board UI is at
+      # http://localhost:19200/ui. Unset this to talk to the real Vestaboard Cloud.
+      - VESTABOARD_CLOUD_API_URL=http://fiestaboard-mock-cloud:9200/
     volumes:
       - ./data:/app/data
       - ./src:/app/src

@@ -263,3 +263,62 @@ class TestBoardClientIntegrationWithMock:
                 notes_wide=2,
                 notes_tall=2,
             )
+
+
+class TestMockCloudDevTools:
+    """The /ui front-end and /mock/configure runtime-reconfigure (manual dev tool)."""
+
+    def test_ui_serves_html(self, client: httpx.Client) -> None:
+        resp = client.get("/ui")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/html")
+        assert "Mock Vestaboard" in resp.text
+        assert 'id="board"' in resp.text  # the live grid container
+
+    def test_configure_by_notes_reconfigures_and_resets(self, client: httpx.Client) -> None:
+        resp = client.post("/mock/configure", json={"notes_wide": 4, "notes_tall": 1})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True, "configured_rows": 3, "configured_cols": 60}
+        state = client.get("/mock/state").json()
+        assert state["configured_rows"] == 3
+        assert state["configured_cols"] == 60
+        assert len(state["current_grid"]) == 3 and len(state["current_grid"][0]) == 60
+        assert state["request_count"] == 0  # grid reset
+
+    def test_configure_by_rows_cols(self, client: httpx.Client) -> None:
+        resp = client.post("/mock/configure", json={"rows": 12, "cols": 15})
+        assert resp.status_code == 200
+        assert resp.json()["configured_rows"] == 12
+        assert client.get("/mock/state").json()["configured_cols"] == 15
+
+    def test_send_at_reconfigured_size_succeeds(self, client: httpx.Client) -> None:
+        """After reconfiguring to 3×60, a 3×60 send is accepted (strict dims follow)."""
+        client.post("/mock/configure", json={"notes_wide": 4, "notes_tall": 1})
+        grid = _grid(3, 60, fill=66)
+        resp = client.post("/", json={"characters": grid}, headers=_TOKEN_HEADERS)
+        assert resp.status_code == 200
+        assert client.get("/mock/state").json()["current_grid"] == grid
+
+    def test_configure_rejects_out_of_range_notes(self, client: httpx.Client) -> None:
+        resp = client.post("/mock/configure", json={"notes_wide": 9, "notes_tall": 1})
+        assert resp.status_code == 400
+
+    def test_configure_rejects_bad_body(self, client: httpx.Client) -> None:
+        resp = client.post("/mock/configure", json={"foo": "bar"})
+        assert resp.status_code == 400
+
+
+def test_board_client_cloud_url_env_override() -> None:
+    """VESTABOARD_CLOUD_API_URL overrides the note-array Cloud API base URL.
+
+    Verified in a subprocess so the module-level read of the env var happens
+    at a fresh import (and doesn't pollute the suite's already-imported module).
+    """
+    import os
+    import subprocess
+    import sys
+
+    env = {**os.environ, "VESTABOARD_CLOUD_API_URL": "http://mock-host:9200/", "PYTHONPATH": str(_PROJECT_ROOT)}
+    code = "from src.board_client import BoardClient; print(BoardClient.CLOUD_NOTE_ARRAY_API_URL)"
+    out = subprocess.check_output([sys.executable, "-c", code], env=env, text=True).strip()
+    assert out == "http://mock-host:9200/"
