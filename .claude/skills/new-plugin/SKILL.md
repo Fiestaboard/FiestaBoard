@@ -95,8 +95,13 @@ Richer shapes — **art** (color-tile grids), **trigger** (push a page on an eve
 **webhook** (receive inbound payloads) — start from `http`/`simple` and are hand-extended.
 Read `references/plugin-types.md` when the idea is one of those.
 
-If the data source needs an API key, plan a `settings_schema` field with
-`"ui:widget": "password"` and a matching `env_vars` entry. **Never hardcode a real key.**
+**Auth matters more than it looks — ask about it now.** FiestaBoard usually runs as a LAN
+appliance with no public domain, so **redirect-based OAuth typically can't complete** (no
+reachable `redirect_uri`). Before committing to an integration, confirm there's a viable
+path: an API key / token the user pastes in (a `password`-widget setting + `env_vars` entry;
+never hardcode it), an OAuth **device-authorization flow**, or a long-lived token. If the
+service only offers redirect OAuth, surface that now — it's a poor fit. The auth section of
+`references/design-guidance.md` covers the patterns.
 
 ### Step 2 — Scaffold
 
@@ -150,7 +155,10 @@ Work in small steps, re-running Step 3 after each so you never drift far from gr
 
 Read `references/pluginbase-contract.md` (the methods, `PluginResult`, the board-output
 format) and `references/manifest-reference.md` (every manifest field) before writing real
-logic. The essentials:
+logic — and `references/design-guidance.md`, which is what turns a correct plugin into a
+good one: how to design variables people actually want on a board (display-ready values,
+units, color tiles, graceful unavailable states) and a config a non-developer can complete
+(minimal required fields, clear titles, actionable validation). The essentials:
 
 - **`fetch_data(self) -> PluginResult`** is the one required method. Do the real fetch/
   compute, return `PluginResult(available=True, data={...})`. **It must never raise** —
@@ -280,6 +288,7 @@ validation rules. In short:
 
 - `references/pluginbase-contract.md` — every method, `PluginResult`, the board-output format.
 - `references/manifest-reference.md` — full `manifest.json` field reference.
+- `references/design-guidance.md` — **auth on a domain-less appliance**, variable design, config UX.
 - `references/plugin-types.md` — simple / http / art / trigger / webhook variants.
 - `references/publishing-and-registry.md` — repo creation, the registry entry schema, validation.
 - Real examples next to this repo: `../fiestaboard-plugin--dad-jokes` (simple http, **root
