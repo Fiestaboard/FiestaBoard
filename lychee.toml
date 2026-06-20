@@ -1,0 +1,57 @@
+# lychee configuration for FiestaBoard's markdown link check.
+#
+# Division of responsibility for link checking:
+#   - The published Docusaurus site (docs-site/docs/**) is validated by the
+#     docs build (`onBrokenLinks: "throw"` in docusaurus.config.ts), which is
+#     the only checker that understands Docusaurus routing (route paths like
+#     `/docs/plugins/overview`, the static/ asset dir, extension stripping).
+#     lychee can't model that, so docs-site is excluded here.
+#   - lychee covers the markdown the site build never sees: the internal dev
+#     guides under docs/**, every plugin's README + docs/, and the root *.md
+#     files. For those it verifies external URLs AND relative file links
+#     against the filesystem.
+#
+# Together the two checkers give repo-wide link coverage.
+
+# URL fragments/anchors are intentionally NOT verified (off by default in
+# lychee). GitHub-rendered headings and any custom IDs don't share one slug
+# algorithm, so fragment checking would produce false positives.
+
+# Treat these response codes as success. 403/429 are common from bot
+# protection and rate limiting on otherwise-valid external links, and would
+# otherwise make the check flaky.
+accept = ["200..=299", "403", "429"]
+
+max_retries = 2
+retry_wait_time = 2
+timeout = 20
+no_progress = true
+
+# Some hosts reject the default lychee user agent with a 403.
+user_agent = "Mozilla/5.0 (compatible; FiestaBoard-docs-linkcheck)"
+
+# Links that should not be network/file checked.
+exclude = [
+  # Stray server-absolute paths (validated by the docs build where they live).
+  '^/',
+  # Local / placeholder hosts used in setup examples.
+  '^https?://localhost',
+  '^https?://127\.0\.0\.1',
+  '^https?://(\w+\.)*fiestaboard\.local',
+  '^https?://(\w+\.)*fiestapi\.local',
+  '^https?://192\.168\.',
+  '^https?://10\.\d',
+  '^https?://example\.(com|org)',
+  # Generic placeholders that appear in templated config snippets.
+  'your-username',
+  'your-api-key',
+  'YOUR_',
+]
+
+# Directories never scanned for links.
+exclude_path = [
+  "node_modules",
+  "docs-site",
+  "docs/superpowers",
+  ".claude",
+]

@@ -1,0 +1,65 @@
+{
+  // Markdownlint config for FiestaBoard's repository markdown: the internal
+  // dev guides under docs/**, the published Docusaurus site under
+  // docs-site/docs/**, every plugin's README + docs/, and the root-level
+  // markdown (README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, DOCKERHUB).
+  //
+  // Rules are tuned to the conventions already used across these files:
+  //   - Headings use ATX style (`#`), lists use `-`, code fences carry a
+  //     language tag and use the fenced style.
+  //   - Docusaurus pages put the page title in YAML frontmatter, so MD025 is
+  //     told to ignore the frontmatter title and MD041 (first line H1) is off.
+  //   - Plugin READMEs/docs legitimately repeat section headings across the
+  //     canonical structure, so MD024 (duplicate headings) is off.
+  //   - Long prose lines are intentional; no hard wrap is enforced (MD013).
+  //   - Inline HTML is allowed because MDX uses it and READMEs carry badges.
+  "config": {
+    "default": true,
+    "MD003": { "style": "atx" },
+    "MD004": { "style": "dash" },
+    "MD013": false,
+    "MD024": false,
+    "MD025": { "front_matter_title": "" },
+    "MD033": false,
+    "MD034": false,
+    "MD036": false,
+    "MD040": true,
+    "MD041": false,
+    "MD046": { "style": "fenced" },
+    // MD028 (blank line in blockquote) flags two consecutive callout
+    // blockquotes separated by a blank line. We use that pattern
+    // deliberately for distinct adjacent tips, so it's disabled.
+    "MD028": false,
+    // MD051 (link fragments) validates `#anchor` links using a GitHub-style
+    // slug algorithm. Docusaurus pages use custom heading IDs (`{#id}`) that
+    // this algorithm can't resolve, producing false positives. Heading-anchor
+    // integrity for the published site is enforced authoritatively by the
+    // Docusaurus build (`onBrokenLinks: 'throw'`) instead.
+    "MD051": false,
+    // MD060 (table column style) enforces pipe spacing/alignment across every
+    // table cell. The existing docs mix compact and aligned tables; enforcing
+    // it would churn every table for no readability gain, so it's disabled.
+    "MD060": false
+  },
+  "globs": [
+    "docs/**/*.md",
+    "docs-site/docs/**/*.md",
+    "docs-site/docs/**/*.mdx",
+    "plugins/*/README.md",
+    "plugins/*/docs/**/*.md",
+    "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "CODE_OF_CONDUCT.md",
+    "DOCKERHUB_README.md"
+  ],
+  "ignores": [
+    "**/node_modules/**",
+    "docs-site/build/**",
+    "docs-site/.docusaurus/**",
+    "docs-site/versioned_docs/**",
+    "docs/superpowers/**",
+    "CLAUDE.md",
+    ".claude/**"
+  ]
+}
