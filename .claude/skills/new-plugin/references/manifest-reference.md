@@ -100,7 +100,7 @@ object. Each entry:
 
 ```json
 "screenshots": [
-  { "src": "docs/board-display.png", "alt": "Tide Times on a Vestaboard",
+  { "src": "docs/board-display.png", "alt": "Tide Times displayed on a Vestaboard",
     "caption": "Default template", "primary": true }
 ]
 ```
