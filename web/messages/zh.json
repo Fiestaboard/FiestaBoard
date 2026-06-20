@@ -77,7 +77,10 @@
     "secondaryNavigation": "次导航",
     "picks": "团队精选",
     "skipToMainContent": "跳到主要内容",
-    "prideCelebrationAriaLabel": "庆祝骄傲月"
+    "prideCelebrationAriaLabel": "庆祝骄傲月",
+    "boardSelector": "选择要管理的板",
+    "selectBoard": "选择板",
+    "unnamedBoard": "未命名的板"
   },
   "network": {
     "title": "Wi-Fi",

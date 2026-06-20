@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CurrentBoardProvider } from "@/components/current-board-context";
 import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
 import { SidebarProvider } from "@/components/sidebar-context";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
@@ -45,11 +47,13 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <GlobalAiPanelProvider>
         <SidebarProvider>
-          <ConfigOverridesProvider>
-            <ThemeProvider attribute="class" defaultTheme="light">
-              {children}
-            </ThemeProvider>
-          </ConfigOverridesProvider>
+          <CurrentBoardProvider>
+            <ConfigOverridesProvider>
+              <ThemeProvider attribute="class" defaultTheme="light">
+                {children}
+              </ThemeProvider>
+            </ConfigOverridesProvider>
+          </CurrentBoardProvider>
         </SidebarProvider>
       </GlobalAiPanelProvider>
     </QueryClientProvider>
@@ -326,5 +330,92 @@ describe("NavigationSidebar AI Assistant visibility (issue #806)", () => {
     await waitFor(() => {
       expect(screen.queryByText("AI Assistant")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("NavigationSidebar board selector (issue #1246)", () => {
+  const API_BASE = "/api";
+
+  beforeEach(() => {
+    mockPathname.mockReturnValue("/");
+    localStorage.clear();
+  });
+
+  function mockBoards(boards: Array<{ id: string; name: string }>) {
+    server.use(
+      http.get(`${API_BASE}/settings/board`, () =>
+        HttpResponse.json({
+          board_type: "black",
+          boards: boards.map((b) => ({ ...b, device_type: "flagship", board_color: "black" })),
+          devices: ["flagship"],
+        }),
+      ),
+    );
+  }
+
+  it("hides the selector for single-board installs", async () => {
+    mockBoards([{ id: "default", name: "Flagship" }]);
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    // Give the board-settings query time to resolve, then assert absence.
+    await waitFor(() => {
+      expect(screen.getAllByLabelText("Primary navigation").length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByLabelText("Select board to manage")).not.toBeInTheDocument();
+  });
+
+  it("shows the selector when more than one board is configured", async () => {
+    mockBoards([
+      { id: "one", name: "Kitchen" },
+      { id: "two", name: "Office" },
+    ]);
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    // Desktop sidebar + mobile drawer each render a trigger.
+    await waitFor(() => {
+      expect(screen.getAllByLabelText("Select board to manage").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("opens the dropdown and lists all configured boards", async () => {
+    const user = userEvent.setup();
+    mockBoards([
+      { id: "one", name: "Kitchen" },
+      { id: "two", name: "Office" },
+    ]);
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const triggers = await screen.findAllByLabelText("Select board to manage");
+    await user.click(triggers[0]);
+
+    await waitFor(() => {
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("option", { name: "Kitchen" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Office" })).toBeInTheDocument();
+  });
+
+  it("restores the persisted board selection across reloads", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("fiestaboard_current_board", "two");
+    mockBoards([
+      { id: "one", name: "Kitchen" },
+      { id: "two", name: "Office" },
+    ]);
+
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    const triggers = await screen.findAllByLabelText("Select board to manage");
+    await user.click(triggers[0]);
+
+    await waitFor(() => {
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+    });
+    // The persisted board ("Office") is the selected option when the menu opens.
+    expect(screen.getByRole("option", { name: "Office" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("option", { name: "Kitchen" })).toHaveAttribute("aria-selected", "false");
   });
 });

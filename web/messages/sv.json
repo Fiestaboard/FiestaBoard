@@ -77,7 +77,10 @@
     "secondaryNavigation": "Sekundär navigering",
     "picks": "Personalens val",
     "skipToMainContent": "Hoppa till huvudinnehållet",
-    "prideCelebrationAriaLabel": "Fira Pride-månaden"
+    "prideCelebrationAriaLabel": "Fira Pride-månaden",
+    "boardSelector": "Välj tavla att hantera",
+    "selectBoard": "Välj tavla",
+    "unnamedBoard": "Namnlös tavla"
   },
   "network": {
     "title": "Wi-Fi",

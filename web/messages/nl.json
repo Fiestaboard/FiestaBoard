@@ -77,7 +77,10 @@
     "secondaryNavigation": "Subnavigatie",
     "picks": "Aanbevolen",
     "skipToMainContent": "Naar hoofdinhoud",
-    "prideCelebrationAriaLabel": "Vier Pride Month"
+    "prideCelebrationAriaLabel": "Vier Pride Month",
+    "boardSelector": "Te beheren board selecteren",
+    "selectBoard": "Board selecteren",
+    "unnamedBoard": "Naamloos board"
   },
   "network": {
     "title": "Wi-Fi",

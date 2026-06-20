@@ -77,7 +77,10 @@
     "secondaryNavigation": "Secondary navigation",
     "picks": "Staff Picks",
     "skipToMainContent": "Skip to main content",
-    "prideCelebrationAriaLabel": "Celebrate Pride Month"
+    "prideCelebrationAriaLabel": "Celebrate Pride Month",
+    "boardSelector": "Select board to manage",
+    "selectBoard": "Select board",
+    "unnamedBoard": "Unnamed board"
   },
   "home": {
     "title": "Dashboard",

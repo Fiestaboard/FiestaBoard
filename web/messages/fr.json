@@ -77,7 +77,10 @@
     "secondaryNavigation": "Navigation secondaire",
     "picks": "Sélections de l'équipe",
     "skipToMainContent": "Aller au contenu principal",
-    "prideCelebrationAriaLabel": "Célébrer le Mois des Fiertés"
+    "prideCelebrationAriaLabel": "Célébrer le Mois des Fiertés",
+    "boardSelector": "Sélectionner le tableau à gérer",
+    "selectBoard": "Sélectionner un tableau",
+    "unnamedBoard": "Tableau sans nom"
   },
   "network": {
     "title": "Wi-Fi",

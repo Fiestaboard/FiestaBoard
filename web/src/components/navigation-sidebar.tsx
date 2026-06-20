@@ -11,6 +11,7 @@ import {
   HelpCircle,
   Home,
   Menu,
+  Monitor,
   Puzzle,
   Settings,
   Sparkles,
@@ -18,6 +19,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { useCurrentBoard } from "@/components/current-board-context";
 import { FiestaLogo } from "@/components/fiesta-logo";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { SidebarAccount } from "@/components/sidebar-account";
@@ -26,6 +28,7 @@ import { SidebarAuroraHorizontal } from "@/components/sidebar-aurora-horizontal"
 import { useSidebar } from "@/components/sidebar-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { VersionDisplay } from "@/components/version-display";
 import { ViewTransitionLink } from "@/components/view-transition-link";
@@ -60,6 +63,64 @@ const secondaryItems: NavItem[] = [
 
 const PRIDE_COLORS = ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"];
 
+/**
+ * Board picker for the sidebar. Selects the board the rest of the app manages
+ * (Dashboard/Schedule consume `useCurrentBoard()`). Renders only for multi-board
+ * installs; single-board users never see it. In the collapsed desktop sidebar it
+ * shrinks to an icon-only trigger with a tooltip showing the current board name,
+ * mirroring the collapsed nav-item pattern (`opacity-0 max-w-0` on the label).
+ */
+function BoardSelector({ collapsed = false }: { collapsed?: boolean }) {
+  const { boards, currentBoardId, setCurrentBoardId, currentBoard } = useCurrentBoard();
+  const t = useTranslations("navigation");
+
+  if (boards.length <= 1) return null;
+
+  const currentName = currentBoard?.name || t("unnamedBoard");
+
+  const trigger = (
+    <SelectTrigger
+      aria-label={t("boardSelector")}
+      className={cn(
+        "h-9 gap-2 transition-[width,padding] duration-100",
+        collapsed ? "w-9 justify-center px-0 [&>svg:last-child]:hidden" : "w-full",
+      )}
+    >
+      <Monitor className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+      <span
+        className={cn(
+          "min-w-0 flex-1 overflow-hidden whitespace-nowrap text-left transition-opacity duration-100",
+          collapsed ? "max-w-0 opacity-0" : "max-w-48 opacity-100 delay-150",
+        )}
+      >
+        <SelectValue placeholder={t("selectBoard")} />
+      </span>
+    </SelectTrigger>
+  );
+
+  return (
+    <Select value={currentBoardId} onValueChange={setCurrentBoardId}>
+      {collapsed ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {currentName}
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        trigger
+      )}
+      <SelectContent>
+        {boards.map((board) => (
+          <SelectItem key={board.id} value={board.id}>
+            {board.name || t("unnamedBoard")}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export function NavigationSidebar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -68,6 +129,7 @@ export function NavigationSidebar() {
   const { collapsed, transitioning, toggle, onTransitionEnd } = useSidebar();
   const t = useTranslations("navigation");
   const { isOpen: aiPanelOpen, open: openAiPanel } = useGlobalAiPanel();
+  const { boards } = useCurrentBoard();
 
   const isPrideMonth = usePrideActive();
 
@@ -339,6 +401,11 @@ export function NavigationSidebar() {
             </button>
           )}
         </nav>
+        {boards.length > 1 && (
+          <div className="shrink-0 border-t border-sidebar-border mx-3 px-3 py-3">
+            <BoardSelector />
+          </div>
+        )}
         <div className="shrink-0 border-t border-sidebar-border mx-3" />
         <div className="shrink-0 px-3 py-3 text-sidebar-foreground">
           <nav aria-label={t("secondaryNavigation")} className="space-y-1">
@@ -418,6 +485,15 @@ export function NavigationSidebar() {
             <nav aria-label={t("primaryNavigation")} className="min-h-0 flex-1 space-y-1 overflow-y-auto py-4 px-2">
               {primaryItems.map(renderDesktopNavItem)}
             </nav>
+
+            {boards.length > 1 && (
+              <>
+                <div className="mx-2 border-t border-sidebar-border" />
+                <div className="shrink-0 px-2 py-2">
+                  <BoardSelector collapsed={collapsed} />
+                </div>
+              </>
+            )}
 
             {hasAiProviders && (
               <>

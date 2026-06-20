@@ -77,7 +77,10 @@
     "secondaryNavigation": "İkincil gezinme",
     "picks": "Ekip Seçimleri",
     "skipToMainContent": "Ana içeriğe geç",
-    "prideCelebrationAriaLabel": "Onur Ayı'nı kutla"
+    "prideCelebrationAriaLabel": "Onur Ayı'nı kutla",
+    "boardSelector": "Yönetilecek panoyu seçin",
+    "selectBoard": "Pano seçin",
+    "unnamedBoard": "Adsız pano"
   },
   "network": {
     "title": "Wi-Fi",
