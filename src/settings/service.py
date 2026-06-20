@@ -80,9 +80,12 @@ class ActivePageSettings:
 
     @classmethod
     def from_dict(cls, data: dict) -> "ActivePageSettings":
-        by_board = data.get("by_board") or {}
+        raw_by_board = data.get("by_board") or {}
         # Defensively coerce to a plain str->str dict; ignore malformed entries.
-        clean = {str(k): str(v) for k, v in by_board.items() if isinstance(v, str)} if isinstance(by_board, dict) else {}
+        if isinstance(raw_by_board, dict):
+            clean = {str(k): str(v) for k, v in raw_by_board.items() if isinstance(v, str)}
+        else:
+            clean = {}
         return cls(page_id=data.get("page_id"), by_board=clean)
 
 

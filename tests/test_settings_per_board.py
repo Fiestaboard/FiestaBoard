@@ -60,6 +60,11 @@ def _two_board_raw(active_page=None, schedule=None, schema_version=None):
     return data
 
 
+def _write_raw(settings_file, raw):
+    """Write a raw settings dict to the given file path."""
+    Path(settings_file).write_text(json.dumps(raw))
+
+
 # ==================== ActivePageSettings dataclass ====================
 
 
@@ -95,7 +100,7 @@ class TestPrimaryBoardHelpers:
         assert primary_board_id_from_raw({"board": {"boards": [{"name": "no id"}]}}) is None
 
     def test_get_primary_board_id_matches_first_board(self, settings_file, mock_config):
-        Path(settings_file).write_text(json.dumps(_two_board_raw()))
+        _write_raw(settings_file, _two_board_raw())
         svc = SettingsService(settings_file=settings_file)
         assert svc.get_primary_board_id() == "board-1"
 
@@ -110,22 +115,14 @@ class TestPrimaryBoardHelpers:
 
 class TestCarouselMigration:
     def test_rewrites_active_page_and_override_refs(self, settings_file, mock_config):
-        Path(settings_file).write_text(
-            json.dumps(
-                _two_board_raw(
-                    active_page={"page_id": "carousel:abc"},
-                    schedule={"enabled": False},
-                )
-                | {
-                    "temporary_override": {
-                        "page_id": "carousel:def",
-                        "expires_at": "2999-01-01T00:00:00+00:00",
-                        "revert_mode": "page",
-                        "revert_page_id": "carousel:ghi",
-                    }
-                }
-            )
-        )
+        raw = _two_board_raw(active_page={"page_id": "carousel:abc"}, schedule={"enabled": False})
+        raw["temporary_override"] = {
+            "page_id": "carousel:def",
+            "expires_at": "2999-01-01T00:00:00+00:00",
+            "revert_mode": "page",
+            "revert_page_id": "carousel:ghi",
+        }
+        _write_raw(settings_file, raw)
         SettingsService(settings_file=settings_file)
         data = json.loads(Path(settings_file).read_text())
         # active_page.page_id rewritten and moved to by_board for primary
@@ -140,9 +137,7 @@ class TestCarouselMigration:
 
 class TestActivePageMigration:
     def test_global_active_page_moves_to_primary_board(self, settings_file, mock_config):
-        Path(settings_file).write_text(
-            json.dumps(_two_board_raw(active_page={"page_id": "page-1"}))
-        )
+        _write_raw(settings_file, _two_board_raw(active_page={"page_id": "page-1"}))
         svc = SettingsService(settings_file=settings_file)
 
         data = json.loads(Path(settings_file).read_text())
@@ -158,19 +153,14 @@ class TestActivePageMigration:
         assert svc.get_active_page_id(board_id="board-2") is None
 
     def test_skips_when_by_board_already_set(self, settings_file, mock_config):
-        Path(settings_file).write_text(
-            json.dumps(
-                _two_board_raw(active_page={"page_id": "page-1", "by_board": {"board-1": "already"}})
-            )
-        )
+        raw = _two_board_raw(active_page={"page_id": "page-1", "by_board": {"board-1": "already"}})
+        _write_raw(settings_file, raw)
         svc = SettingsService(settings_file=settings_file)
         assert svc.get_active_page_id(board_id="board-1") == "already"
 
     def test_deferred_when_no_boards(self, settings_file, mock_config):
         # No boards configured yet: leave the mirror, read-path fallback covers it.
-        Path(settings_file).write_text(
-            json.dumps({"active_page": {"page_id": "page-1"}, "board": {"boards": []}})
-        )
+        _write_raw(settings_file, {"active_page": {"page_id": "page-1"}, "board": {"boards": []}})
         svc = SettingsService(settings_file=settings_file)
         # A default board is created on load; read with no board_id still returns
         # the mirror value (no by_board entry was written by the migration).
@@ -182,17 +172,13 @@ class TestActivePageMigration:
 
 class TestScheduleEnabledMigration:
     def test_global_schedule_enabled_moves_to_primary(self, settings_file, mock_config):
-        Path(settings_file).write_text(
-            json.dumps(_two_board_raw(schedule={"enabled": True}))
-        )
+        _write_raw(settings_file, _two_board_raw(schedule={"enabled": True}))
         svc = SettingsService(settings_file=settings_file)
 
         data = json.loads(Path(settings_file).read_text())
         assert data["board"]["boards"][0]["schedule_enabled"] is True
         # Second board untouched.
-        assert "schedule_enabled" not in data["board"]["boards"][1] or (
-            data["board"]["boards"][1].get("schedule_enabled") is False
-        )
+        assert data["board"]["boards"][1].get("schedule_enabled", False) is False
 
         assert svc.is_schedule_enabled() is True
         assert svc.is_schedule_enabled(board_id="board-1") is True
@@ -201,14 +187,12 @@ class TestScheduleEnabledMigration:
     def test_does_not_override_existing_primary_flag(self, settings_file, mock_config):
         raw = _two_board_raw(schedule={"enabled": True})
         raw["board"]["boards"][0]["schedule_enabled"] = False
-        Path(settings_file).write_text(json.dumps(raw))
+        _write_raw(settings_file, raw)
         svc = SettingsService(settings_file=settings_file)
         assert svc.is_schedule_enabled(board_id="board-1") is False
 
     def test_global_disabled_no_change(self, settings_file, mock_config):
-        Path(settings_file).write_text(
-            json.dumps(_two_board_raw(schedule={"enabled": False}))
-        )
+        _write_raw(settings_file, _two_board_raw(schedule={"enabled": False}))
         svc = SettingsService(settings_file=settings_file)
         assert svc.is_schedule_enabled(board_id="board-1") is False
 
@@ -218,9 +202,8 @@ class TestScheduleEnabledMigration:
 
 class TestMigrationMechanics:
     def test_idempotent_rerun_is_noop(self, settings_file, mock_config):
-        Path(settings_file).write_text(
-            json.dumps(_two_board_raw(active_page={"page_id": "page-1"}, schedule={"enabled": True}))
-        )
+        raw = _two_board_raw(active_page={"page_id": "page-1"}, schedule={"enabled": True})
+        _write_raw(settings_file, raw)
         SettingsService(settings_file=settings_file)
         first = Path(settings_file).read_text()
 
@@ -231,9 +214,7 @@ class TestMigrationMechanics:
         assert json.loads(second)["schema_version"] == CURRENT_SETTINGS_SCHEMA_VERSION
 
     def test_backup_created_before_migration(self, settings_file, mock_config):
-        Path(settings_file).write_text(
-            json.dumps(_two_board_raw(active_page={"page_id": "page-1"}))
-        )
+        _write_raw(settings_file, _two_board_raw(active_page={"page_id": "page-1"}))
         SettingsService(settings_file=settings_file)
         backup = Path(settings_file).with_suffix(".json.v0_backup")
         assert backup.exists()
@@ -247,7 +228,7 @@ class TestMigrationMechanics:
             active_page={"page_id": "page-1", "by_board": {"board-1": "page-1"}},
             schema_version=CURRENT_SETTINGS_SCHEMA_VERSION,
         )
-        Path(settings_file).write_text(json.dumps(raw))
+        _write_raw(settings_file, raw)
         SettingsService(settings_file=settings_file)
         backup = Path(settings_file).with_suffix(f".json.v{CURRENT_SETTINGS_SCHEMA_VERSION}_backup")
         assert not backup.exists()
@@ -264,11 +245,10 @@ class TestMigrationMechanics:
                 "boards": [{"id": "only-board", "name": "My Board", "device_type": "flagship"}],
             },
         }
-        Path(settings_file).write_text(json.dumps(raw))
+        _write_raw(settings_file, raw)
         svc = SettingsService(settings_file=settings_file)
 
         # Reads with no board_id behave exactly as before migration.
-        assert svc.get_active_page_id() is None or svc.get_active_page_id() == "my-page"
         assert svc.get_active_page_id() == "my-page"
         assert svc.is_schedule_enabled() is True
         # And these resolve to the single board.
@@ -282,7 +262,7 @@ class TestMigrationMechanics:
 class TestPerBoardActivePage:
     @pytest.fixture
     def two_board_service(self, settings_file, mock_config):
-        Path(settings_file).write_text(json.dumps(_two_board_raw()))
+        _write_raw(settings_file, _two_board_raw())
         return SettingsService(settings_file=settings_file)
 
     def test_set_get_independent_per_board(self, two_board_service):
@@ -331,7 +311,7 @@ class TestPerBoardActivePage:
 class TestPerBoardScheduleEnabled:
     @pytest.fixture
     def two_board_service(self, settings_file, mock_config):
-        Path(settings_file).write_text(json.dumps(_two_board_raw()))
+        _write_raw(settings_file, _two_board_raw())
         return SettingsService(settings_file=settings_file)
 
     def test_independent_per_board(self, two_board_service):
