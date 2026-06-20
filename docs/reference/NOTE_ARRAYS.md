@@ -139,9 +139,33 @@ note-array branch, so a single Note never classifies as a 1 × 1 array.
 > `notes_tall` against the preset table to drive the dropdown — it does not rely
 > on the `matched_preset` label string, which is a human-readable hint only.
 
+## Local development — mock Cloud board
+
+Note arrays talk to the Vestaboard **Cloud** API, so there's no local hardware to
+point at. A bundled mock stands in — and it has a live web front-end so you can
+watch and reconfigure a "board" by hand.
+
+- **Server:** `integration-tests/mock-cloud/server.py` — a stdlib HTTP server that
+  faithfully mimics `cloud.vestaboard.com` (token check, dimension + cell-code
+  validation, `currentMessage.layout` reads, request history).
+- **Wired up automatically:** `docker-compose.dev.yml` runs it as
+  `fiestaboard-mock-cloud` and sets `VESTABOARD_CLOUD_API_URL` on the app so
+  note-array boards send/read against the mock. (`BoardClient.CLOUD_NOTE_ARRAY_API_URL`
+  reads that env var; unset it to use the real Cloud API.)
+- **Live front-end:** open **http://localhost:19200/ui** — it renders the current
+  grid as split-flap tiles (characters + color codes), shows the message count /
+  last update, and lets you **Reset** the board or **reconfigure its size** at
+  runtime (the 5 presets, Flagship/Note, or a custom W×H).
+
+Typical loop: `/start` the dev stack → Settings → add a note-array board (any
+token) → build/send a page → watch it land at `/ui`. Control endpoints
+(`GET /mock/state`, `POST /mock/reset`, `POST /mock/configure`) back the UI and
+are handy for scripted/manual testing.
+
 ## See also
 
 - [Note Array setup guide](../setup/NOTE_ARRAYS.md) — user-facing configuration.
 - `src/devices.py` — geometry constants, presets, `resolve_dimensions`,
   `classify_dimensions`.
 - `src/board_client.py` — Cloud API send/read and rate limiting.
+- `integration-tests/mock-cloud/server.py` — the mock Cloud board + its `/ui`.

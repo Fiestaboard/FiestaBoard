@@ -15,6 +15,7 @@ Cloud API Reference:
 
 import json
 import logging
+import os
 import re
 import time as _time_module
 from collections.abc import Callable
@@ -147,7 +148,11 @@ class BoardClient:
 
     LOCAL_API_PORT = 7000
     CLOUD_API_URL = "https://rw.vestaboard.com/"
-    CLOUD_NOTE_ARRAY_API_URL = "https://cloud.vestaboard.com/"
+    # Note-array Cloud API base URL. Overridable via VESTABOARD_CLOUD_API_URL so a
+    # local dev environment can point note-array boards at the mock Cloud server
+    # (docker-compose.dev.yml sets it to the fiestaboard-mock-cloud service);
+    # defaults to the real Vestaboard Cloud API in production.
+    CLOUD_NOTE_ARRAY_API_URL = os.environ.get("VESTABOARD_CLOUD_API_URL") or "https://cloud.vestaboard.com/"
 
     def __init__(
         self,
