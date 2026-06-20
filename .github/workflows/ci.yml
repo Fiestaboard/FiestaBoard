@@ -80,6 +80,18 @@ jobs:
               - 'scripts/version-sync.js'
             docs:
               - 'docs-site/**'
+            markdown:
+              # Any markdown anywhere, plus the docs-lint tooling/config, so
+              # the lint-markdown + link-check jobs run when prose or their
+              # own configuration changes.
+              - '**/*.md'
+              - '**/*.mdx'
+              - 'cspell.json'
+              - '.markdownlint-cli2.jsonc'
+              - 'lychee.toml'
+              - 'scripts/lint-docs-frontmatter.mjs'
+              - 'package.json'
+              - 'package-lock.json'
 
   dependency-review:
     name: Dependency Review
@@ -1043,10 +1055,70 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
         fi
 
+  # Docs quality gate: spell-check, markdown-lint, and frontmatter-lint over
+  # all repository markdown (config: cspell.json, .markdownlint-cli2.jsonc).
+  # Runs on its own Node 22 because cspell 10 requires Node >= 22.18, whereas
+  # the docs-site jobs (lint-docs, build-docs) pin Node 20.
+  lint-markdown:
+    name: Lint Markdown
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.markdown == 'true' || needs.detect-changes.outputs.shared == 'true'
+    timeout-minutes: 5
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: package-lock.json
+
+    - name: Install docs lint tooling
+      run: npm ci
+
+    - name: Validate docs frontmatter
+      run: npm run docs:lint:frontmatter
+
+    - name: Lint markdown
+      run: npm run docs:lint:markdown
+
+    - name: Spell check
+      run: npm run docs:lint:spell
+
+  # Repo-wide broken-link check for the GitHub-rendered markdown (docs/**,
+  # plugins/**, root *.md). The published Docusaurus site (docs-site/**) is
+  # excluded here and validated by build-docs (onBrokenLinks: 'throw'), the
+  # only checker that understands Docusaurus routing. Config: lychee.toml.
+  link-check:
+    name: Check Markdown Links
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.markdown == 'true' || needs.detect-changes.outputs.shared == 'true'
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Check links with lychee
+      uses: lycheeverse/lychee-action@v2
+      with:
+        args: >-
+          --config lychee.toml
+          'docs/**/*.md'
+          'plugins/*/README.md'
+          'plugins/*/docs/**/*.md'
+          README.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md DOCKERHUB_README.md
+        fail: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, lint-docs, test-ui, a11y-tests, build-test-image, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, build, build-docs]
+    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, lint-docs, test-ui, a11y-tests, build-test-image, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, build, build-docs, lint-markdown, link-check]
     if: always()
     steps:
       - name: Check all jobs passed or were skipped
@@ -1069,6 +1141,8 @@ jobs:
             auth-e2e-tests
             build
             build-docs
+            lint-markdown
+            link-check
           RESULTS: ${{ toJSON(needs.*.result) }}
         run: |
           python3 - <<'PY'
