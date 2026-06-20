@@ -143,7 +143,7 @@ export function ScaledBoardDisplay(props: BoardProps) {
       ro.disconnect();
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [props.message, props.size, props.deviceType, mode]);
+  }, [props.message, props.size, props.deviceType, props.notesWide, props.notesTall, mode]);
 
   const toggle = showToggle ? (
     <div className="mb-1 flex w-full justify-center" role="group" aria-label={t("previewSizeLabel")}>
