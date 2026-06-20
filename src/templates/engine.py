@@ -33,7 +33,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from src.devices import DEFAULT_DEVICE_TYPE, resolve_dimensions
+from src.devices import DEFAULT_DEVICE_TYPE, BoardContext, resolve_dimensions
 from src.plugins import get_plugin_registry
 from src.text_utils import extract_alignment_from_line
 
@@ -307,10 +307,22 @@ class TemplateEngine:
         Returns:
             Rendered string with newlines
         """
-        if context is None:
-            context = self._build_context()
+        # Resolve to a known device type, falling back to the default so a bad
+        # value never crashes a render. This is the single place a BoardContext
+        # is constructed for callers that only know the device_type string.
+        # Resolve dims (note-array aware); fall back to the default device for an
+        # unknown type so a bad value never crashes a render.
+        render_device_type = device_type or DEFAULT_DEVICE_TYPE
+        try:
+            dims = resolve_dimensions(render_device_type, notes_wide, notes_tall)
+        except ValueError:
+            render_device_type = DEFAULT_DEVICE_TYPE
+            dims = resolve_dimensions(render_device_type, notes_wide, notes_tall)
 
-        dims = resolve_dimensions(device_type or DEFAULT_DEVICE_TYPE, notes_wide, notes_tall)
+        # Build the BoardContext from the resolved dims so plugins receive the true
+        # board size — including note arrays (no fixed DEVICE_DIMENSIONS entry).
+        if context is None:
+            context = self._build_context(BoardContext(render_device_type, rows=dims.rows, cols=dims.cols))
         num_rows = dims.rows
         board_width = dims.cols
 
@@ -744,8 +756,12 @@ class TemplateEngine:
 
         return lines
 
-    def _build_context(self) -> dict[str, Any]:
+    def _build_context(self, board: BoardContext | None = None) -> dict[str, Any]:
         """Build context by fetching all available data from enabled plugins.
+
+        Args:
+            board: Board being rendered on, forwarded to plugins so board-aware
+                ones can adapt their data. ``None`` keeps board-agnostic behavior.
 
         Returns:
             Dictionary mapping plugin_id to plugin data
@@ -753,7 +769,7 @@ class TemplateEngine:
         if not self._plugin_registry:
             return {}
 
-        return self._plugin_registry.build_template_context()
+        return self._plugin_registry.build_template_context(board)
 
     def _render_variables(self, template: str, context: dict[str, Any]) -> str:
         """Replace {{source.field}} variables with values from context.

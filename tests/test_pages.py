@@ -774,7 +774,7 @@ class TestPageService:
         """Test rendering a composite page."""
         mock_display_service = Mock()
 
-        def mock_get_display_fn(display_type):
+        def mock_get_display_fn(display_type, board=None):
             if display_type == "weather":
                 return DisplayResult(
                     display_type="weather", formatted="Sunny Line 1\nSunny Line 2", raw={}, available=True
@@ -915,15 +915,19 @@ class TestPageService:
         assert page1.id in stats["cached_pages"]
         assert page2.id in stats["cached_pages"]
 
+    @patch("src.plugins.registry.get_plugin_registry")
     @patch("src.pages.service.get_template_engine")
-    def test_preview_pages_batch_shares_context(self, mock_get_engine, service):
-        """Test that batch preview builds template context only once."""
+    def test_preview_pages_batch_shares_context(self, mock_get_engine, mock_get_registry, service):
+        """Test that batch preview builds template context once per device type."""
         mock_engine = Mock()
-        mock_engine._build_context.return_value = {"weather": {"temp": 72}}
         mock_engine.render_lines.return_value = "Hello World\n\n\n\n\n"
         mock_get_engine.return_value = mock_engine
 
-        # Create multiple template pages
+        mock_registry = Mock()
+        mock_registry.build_template_contexts_for.return_value = {"flagship": {"weather": {"temp": 72}}}
+        mock_get_registry.return_value = mock_registry
+
+        # Create multiple template pages (all default to the flagship device)
         page1 = service.create_page(PageCreate(name="Page 1", type="template", template=["Hello", "", "", "", "", ""]))
         page2 = service.create_page(PageCreate(name="Page 2", type="template", template=["World", "", "", "", "", ""]))
         page3 = service.create_page(PageCreate(name="Page 3", type="template", template=["Test", "", "", "", "", ""]))
@@ -934,8 +938,11 @@ class TestPageService:
         assert len(results) == 3
         assert all(r is not None and r.available for r in results.values())
 
-        # Context should be built only once, not three times
-        assert mock_engine._build_context.call_count == 1
+        # Context fan-out happens once for the single (flagship) device type,
+        # not once per page.
+        assert mock_registry.build_template_contexts_for.call_count == 1
+        boards_arg = mock_registry.build_template_contexts_for.call_args.args[0]
+        assert set(boards_arg) == {"flagship"}
         # But render_lines should be called three times (once per page)
         assert mock_engine.render_lines.call_count == 3
 

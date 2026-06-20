@@ -274,13 +274,22 @@ export function NavigationSidebar() {
               <Menu className="h-6 w-6" />
             )}
           </Button>
-          <div
-            className={cn("flex items-center gap-3 min-w-0 flex-1 ml-2", isPrideMonth && "cursor-pointer")}
-            onClick={isPrideMonth ? firePrideCelebration : undefined}
-          >
-            <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
-            <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
-          </div>
+          {isPrideMonth ? (
+            <button
+              type="button"
+              onClick={firePrideCelebration}
+              aria-label={t("prideCelebrationAriaLabel")}
+              className="flex items-center gap-3 min-w-0 flex-1 ml-2 cursor-pointer text-left"
+            >
+              <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+              <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-3 min-w-0 flex-1 ml-2">
+              <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+              <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
+            </div>
+          )}
         </div>
       </header>
 
@@ -376,18 +385,32 @@ export function NavigationSidebar() {
 
           <div className="relative z-[1] flex h-full flex-col overflow-hidden">
             {/* Header */}
-            <div
-              className={cn("flex items-center gap-2 overflow-hidden px-4 py-4", isPrideMonth && "cursor-pointer")}
-              onClick={isPrideMonth ? firePrideCelebration : undefined}
-            >
-              <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
-              <FiestaLogo
-                className={cn(
-                  "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",
-                  collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
-                )}
-              />
-            </div>
+            {isPrideMonth ? (
+              <button
+                type="button"
+                onClick={firePrideCelebration}
+                aria-label={t("prideCelebrationAriaLabel")}
+                className="flex items-center gap-2 overflow-hidden px-4 py-4 cursor-pointer text-left w-full"
+              >
+                <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+                <FiestaLogo
+                  className={cn(
+                    "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",
+                    collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
+                  )}
+                />
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 overflow-hidden px-4 py-4">
+                <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+                <FiestaLogo
+                  className={cn(
+                    "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",
+                    collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
+                  )}
+                />
+              </div>
+            )}
 
             <div className="mx-2 border-t border-sidebar-border" />
 

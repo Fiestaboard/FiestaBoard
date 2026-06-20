@@ -36,7 +36,9 @@ test.describe("regression: pages.edit", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await expect(dialog.getByText("Export Page", { exact: true })).toBeVisible();
-    const textarea = dialog.locator("textarea");
+    // The share-string textarea must be reachable by its accessible name
+    // (WCAG 2.2 AA 4.1.2 Name, Role, Value / 1.3.1 Info and Relationships).
+    const textarea = dialog.getByRole("textbox", { name: "Share string" });
     await expect(textarea).toBeVisible();
     await expect(textarea).not.toHaveValue("");
     await page.keyboard.press("Escape");

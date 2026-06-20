@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "round": 11,
-  "round_started_at": "2026-06-17T04:57:45Z",
-  "last_run_at": "2026-06-17T22:30:00Z",
+  "round": 12,
+  "round_started_at": "2026-06-20T00:30:21Z",
+  "last_run_at": "2026-06-20T00:30:21Z",
   "files_remaining": [],
   "files_audited": [
     "README.md",
@@ -17,7 +17,9 @@
     "docs/setup/RASPBERRY_PI.md",
     "docs/setup/RELEASE_CHECKLIST.md",
     "docs/setup/UPDATING.md",
+    "docs/superpowers/plans/2026-06-18-config-loss-on-upgrade-1102.md",
     "docs/superpowers/specs/2026-06-14-actions-sidebar-cleanup-design.md",
+    "docs/superpowers/specs/2026-06-18-config-loss-on-upgrade-1102-design.md",
     "plugins/_template/README.md",
     "plugins/_template/docs/SETUP.md",
     "plugins/countdown/README.md",

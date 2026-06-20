@@ -16,7 +16,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCircle2, UserCog } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -34,9 +34,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 export function AccountSection() {
+  const t = useTranslations("accountSection");
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -94,10 +96,12 @@ export function AccountSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <UserCircle2 className="h-4 w-4 text-muted-foreground" />
-            Signed in
+            {t("signedIn.title")}
           </CardTitle>
           <CardDescription>
-            You&apos;re currently signed in as <span className="font-mono text-foreground">{username}</span>.
+            {t.rich("signedIn.description", {
+              name: () => <span className="font-mono text-foreground">{username}</span>,
+            })}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -106,9 +110,9 @@ export function AccountSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <UserCog className="h-4 w-4 text-muted-foreground" />
-            Change username
+            {t("changeUsername.title")}
           </CardTitle>
-          <CardDescription>Pick a new sign-in name. Requires your current password.</CardDescription>
+          <CardDescription>{t("changeUsername.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ChangeUsernameForm currentUsername={username} />
@@ -119,11 +123,9 @@ export function AccountSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <KeyRound className="h-4 w-4 text-muted-foreground" />
-            Change password
+            {t("changePassword.title")}
           </CardTitle>
-          <CardDescription>
-            Rotate your password. Any other sessions signed in with the old password will be signed out.
-          </CardDescription>
+          <CardDescription>{t("changePassword.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ChangePasswordForm />
@@ -134,13 +136,13 @@ export function AccountSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <LogOut className="h-4 w-4 text-muted-foreground" />
-            Sign out
+            {t("signOut.title")}
           </CardTitle>
-          <CardDescription>End your current session. You&apos;ll be sent back to the sign-in page.</CardDescription>
+          <CardDescription>{t("signOut.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button type="button" variant="outline" onClick={handleSignOut}>
-            <LogOut className="h-4 w-4" /> Sign out
+            <LogOut className="h-4 w-4" /> {t("signOut.button")}
           </Button>
         </CardContent>
       </Card>
@@ -149,12 +151,9 @@ export function AccountSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <ShieldOff className="h-4 w-4 text-destructive" />
-            Disable login
+            {t("disableLogin.title")}
           </CardTitle>
-          <CardDescription>
-            Turn off authentication entirely. Anyone who can reach this FiestaBoard on the network will be able to
-            change settings and read API keys. Not recommended unless this device is on a fully trusted private network.
-          </CardDescription>
+          <CardDescription>{t("disableLogin.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <DisableAuthDialog username={username} />
@@ -165,6 +164,7 @@ export function AccountSection() {
 }
 
 function ChangeUsernameForm({ currentUsername }: { currentUsername: string }) {
+  const t = useTranslations("accountSection");
   const queryClient = useQueryClient();
   const [newUsername, setNewUsername] = useState(currentUsername);
   const [password, setPassword] = useState("");
@@ -177,10 +177,10 @@ function ChangeUsernameForm({ currentUsername }: { currentUsername: string }) {
     try {
       await api.changeUsername(password, newUsername.trim());
       setPassword("");
-      toast.success("Username updated");
+      toast.success(t("changeUsername.success"));
       queryClient.invalidateQueries({ queryKey: ["auth-status"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Username change failed");
+      toast.error(err instanceof Error ? err.message : t("changeUsername.failure"));
     } finally {
       setSubmitting(false);
     }
@@ -189,9 +189,9 @@ function ChangeUsernameForm({ currentUsername }: { currentUsername: string }) {
   const unchanged = newUsername.trim() === currentUsername;
 
   return (
-    <form className="space-y-4 max-w-sm" onSubmit={onSubmit} aria-label="Change username">
+    <form className="space-y-4 max-w-sm" onSubmit={onSubmit} aria-label={t("changeUsername.formAriaLabel")}>
       <div className="space-y-2">
-        <Label htmlFor="account-username">New username</Label>
+        <Label htmlFor="account-username">{t("changeUsername.newUsernameLabel")}</Label>
         <Input
           id="account-username"
           autoComplete="username"
@@ -203,7 +203,7 @@ function ChangeUsernameForm({ currentUsername }: { currentUsername: string }) {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="account-username-password">Current password</Label>
+        <Label htmlFor="account-username-password">{t("changeUsername.currentPasswordLabel")}</Label>
         <Input
           id="account-username-password"
           type="password"
@@ -215,13 +215,14 @@ function ChangeUsernameForm({ currentUsername }: { currentUsername: string }) {
         />
       </div>
       <Button type="submit" disabled={submitting || unchanged || !password}>
-        {submitting ? "Saving…" : "Save username"}
+        {submitting ? t("changeUsername.submitting") : t("changeUsername.submit")}
       </Button>
     </form>
   );
 }
 
 function ChangePasswordForm() {
+  const t = useTranslations("accountSection");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -232,11 +233,11 @@ function ChangePasswordForm() {
     e.preventDefault();
     setError(null);
     if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
+      setError(t("changePassword.tooShort"));
       return;
     }
     if (newPassword !== confirm) {
-      setError("Passwords do not match.");
+      setError(t("changePassword.mismatch"));
       return;
     }
     setSubmitting(true);
@@ -245,18 +246,18 @@ function ChangePasswordForm() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirm("");
-      toast.success("Password updated");
+      toast.success(t("changePassword.success"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Password change failed");
+      setError(err instanceof Error ? err.message : t("changePassword.failure"));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <form className="space-y-4 max-w-sm" onSubmit={onSubmit} aria-label="Change password">
+    <form className="space-y-4 max-w-sm" onSubmit={onSubmit} aria-label={t("changePassword.formAriaLabel")}>
       <div className="space-y-2">
-        <Label htmlFor="account-current-password">Current password</Label>
+        <Label htmlFor="account-current-password">{t("changePassword.currentPasswordLabel")}</Label>
         <Input
           id="account-current-password"
           type="password"
@@ -268,7 +269,7 @@ function ChangePasswordForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="account-new-password">New password</Label>
+        <Label htmlFor="account-new-password">{t("changePassword.newPasswordLabel")}</Label>
         <Input
           id="account-new-password"
           type="password"
@@ -279,10 +280,10 @@ function ChangePasswordForm() {
           required
           minLength={8}
         />
-        <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+        <p className="text-xs text-muted-foreground">{t("changePassword.newPasswordHint")}</p>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="account-confirm-password">Confirm new password</Label>
+        <Label htmlFor="account-confirm-password">{t("changePassword.confirmPasswordLabel")}</Label>
         <Input
           id="account-confirm-password"
           type="password"
@@ -300,13 +301,15 @@ function ChangePasswordForm() {
         </p>
       )}
       <Button type="submit" disabled={submitting || !currentPassword || !newPassword}>
-        {submitting ? "Saving…" : "Save password"}
+        {submitting ? t("changePassword.submitting") : t("changePassword.submit")}
       </Button>
     </form>
   );
 }
 
 function DisableAuthDialog({ username }: { username: string }) {
+  const t = useTranslations("accountSection");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -321,7 +324,7 @@ function DisableAuthDialog({ username }: { username: string }) {
     setSubmitting(true);
     try {
       await api.disableAuth(password);
-      toast.success("Authentication disabled");
+      toast.success(t("disableLogin.success"));
       setPassword("");
       setOpen(false);
       // The install is now wide open — drop cached auth state and
@@ -329,7 +332,7 @@ function DisableAuthDialog({ username }: { username: string }) {
       queryClient.removeQueries({ queryKey: ["auth-status"] });
       router.replace("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to disable auth");
+      setError(err instanceof Error ? err.message : t("disableLogin.failure"));
     } finally {
       setSubmitting(false);
     }
@@ -348,37 +351,34 @@ function DisableAuthDialog({ username }: { username: string }) {
     >
       <AlertDialogTrigger asChild>
         <Button type="button" variant="destructive">
-          <ShieldOff className="h-4 w-4" /> Disable login
+          <ShieldOff className="h-4 w-4" /> {t("disableLogin.button")}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <ShieldAlert className="h-5 w-5 text-destructive" />
-            Disable login for this FiestaBoard?
+            {t("disableLogin.dialogTitle")}
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-3 text-sm">
               <p>
-                Turning off login removes the <span className="font-mono">{username}</span> account and opens this
-                FiestaBoard up to anyone who can reach it on the network — they&apos;ll be able to read your API keys,
-                change your board configuration, and modify any settings.
+                {t.rich("disableLogin.dialogBody1", {
+                  name: () => <span className="font-mono">{username}</span>,
+                })}
               </p>
               <p>
-                Only do this if this device is on a fully trusted private network (no roommates, no guests, no
-                smart-home devices you don&apos;t control). Strongly <strong>not recommended</strong> if this
-                FiestaBoard is reachable from the internet.
+                {t.rich("disableLogin.dialogBody2", {
+                  strong: (chunks: ReactNode) => <strong>{chunks}</strong>,
+                })}
               </p>
-              <p>
-                Your board keeps displaying as normal either way — this only controls who can sign in to change
-                settings.
-              </p>
+              <p>{t("disableLogin.dialogBody3")}</p>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <form onSubmit={onConfirm} className="space-y-3">
           <div className="space-y-2">
-            <Label htmlFor="disable-auth-password">Confirm your current password to continue</Label>
+            <Label htmlFor="disable-auth-password">{t("disableLogin.confirmPasswordLabel")}</Label>
             <Input
               id="disable-auth-password"
               type="password"
@@ -400,10 +400,10 @@ function DisableAuthDialog({ username }: { username: string }) {
                 AlertDialogAction so the Radix primitives don't
                 pre-close the dialog and shadow the form submit. */}
             <Button type="button" variant="outline" disabled={submitting} onClick={() => setOpen(false)}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
             <Button type="submit" variant="destructive" disabled={submitting || !password}>
-              {submitting ? "Disabling…" : "Yes, disable login"}
+              {submitting ? t("disableLogin.confirming") : t("disableLogin.confirm")}
             </Button>
           </AlertDialogFooter>
         </form>
@@ -413,6 +413,7 @@ function DisableAuthDialog({ username }: { username: string }) {
 }
 
 function EnableLoginCard() {
+  const t = useTranslations("accountSection");
   const router = useRouter();
   const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
@@ -427,7 +428,7 @@ function EnableLoginCard() {
       queryClient.removeQueries({ queryKey: ["auth-status"] });
       router.push("/login");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not enable login");
+      toast.error(err instanceof Error ? err.message : t("enableLogin.failure"));
       setSubmitting(false);
     }
   };
@@ -437,22 +438,19 @@ function EnableLoginCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <ShieldCheck className="h-4 w-4 text-brand" />
-          Turn on login
+          {t("enableLogin.title")}
         </CardTitle>
         <CardDescription>
-          Login is currently <strong>off</strong>. Anyone who can reach this FiestaBoard on the network can read your
-          API keys, change your board configuration, and modify any settings.
+          {t.rich("enableLogin.description", {
+            strong: (chunks: ReactNode) => <strong>{chunks}</strong>,
+          })}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Strongly recommended if you share Wi-Fi with people you don&apos;t fully trust (roommates, guests, smart-home
-          devices), or if this FiestaBoard is reachable from the internet. Your board keeps displaying as normal either
-          way — login only controls who can sign in to change settings.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("enableLogin.body")}</p>
         <Button type="button" variant="brand" onClick={onEnable} disabled={submitting}>
           <ShieldCheck className="h-4 w-4" />
-          {submitting ? "Enabling…" : "Set up a username & password"}
+          {submitting ? t("enableLogin.submitting") : t("enableLogin.button")}
         </Button>
       </CardContent>
     </Card>

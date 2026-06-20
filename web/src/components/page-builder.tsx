@@ -1545,6 +1545,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             <textarea
               readOnly
               value={exportShareString}
+              aria-label={t("exportStringAriaLabel")}
               className="w-full h-28 px-3 py-2 pr-10 text-xs font-mono rounded-md border bg-muted resize-none focus-visible:outline-none"
               onFocus={(e) => e.target.select()}
             />

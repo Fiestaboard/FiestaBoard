@@ -15,6 +15,8 @@ from concurrent.futures import wait as futures_wait
 from pathlib import Path
 from typing import Any, Optional
 
+from src.devices import BoardContext
+
 from .base import PluginBase, PluginResult
 from .loader import PluginLoader
 from .manifest import PluginManifest, VariableMetadata
@@ -629,11 +631,13 @@ class PluginRegistry:
         """
         return self._configs.get(plugin_id)
 
-    def fetch_plugin_data(self, plugin_id: str) -> PluginResult:
+    def fetch_plugin_data(self, plugin_id: str, board: BoardContext | None = None) -> PluginResult:
         """Fetch data from a plugin.
 
         Args:
             plugin_id: Plugin identifier
+            board: Board being rendered on, forwarded to the plugin so it can
+                adapt its content. ``None`` keeps the board-agnostic behavior.
 
         Returns:
             PluginResult with data or error
@@ -647,7 +651,7 @@ class PluginRegistry:
         plugin = self._plugins[plugin_id]
 
         try:
-            return plugin.get_data()
+            return plugin.get_data(board)
         except Exception as e:
             logger.exception(f"Error fetching data from {plugin_id}")
             return PluginResult(available=False, error=str(e))
@@ -1105,11 +1109,16 @@ class PluginRegistry:
             if self._enabled.get(pid, False) and plugin.supports_triggers
         }
 
-    def build_template_context(self) -> dict[str, Any]:
+    def build_template_context(self, board: BoardContext | None = None) -> dict[str, Any]:
         """Build context dictionary for template rendering.
 
         Fetches data from all enabled plugins in parallel so that slow or
         unresponsive external data sources do not block each other.
+
+        Args:
+            board: Board being rendered on, forwarded to every plugin so
+                board-aware plugins can adapt their data. ``None`` keeps the
+                board-agnostic behavior.
 
         Returns:
             Dictionary mapping plugin_id to plugin data
@@ -1124,7 +1133,7 @@ class PluginRegistry:
         # unbounded number of threads when many plugins are enabled.
         max_workers = min(len(enabled), 8)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(self.fetch_plugin_data, plugin_id): plugin_id for plugin_id in enabled}
+            futures = {executor.submit(self.fetch_plugin_data, plugin_id, board): plugin_id for plugin_id in enabled}
             done, not_done = futures_wait(futures, timeout=15)
 
             if not_done:
@@ -1144,6 +1153,24 @@ class PluginRegistry:
                     logger.exception(f"Plugin {plugin_id} raised an error during context build")
 
         return context
+
+    def build_template_contexts_for(self, boards: dict[str, BoardContext]) -> dict[str, dict[str, Any]]:
+        """Build one template context per distinct board.
+
+        Used by batch rendering (e.g. the page-grid preview) where pages
+        target different board sizes. Plugins may emit different data per
+        board, so a single shared context would be incorrect; this fans out
+        once per board instead of once per page, preserving efficiency.
+
+        Args:
+            boards: Mapping of a key (typically ``device_type``) to the
+                :class:`BoardContext` to build a context for.
+
+        Returns:
+            Mapping of the same keys to their rendered ``{plugin_id: data}``
+            context dictionaries.
+        """
+        return {key: self.build_template_context(board) for key, board in boards.items()}
 
 
 def get_plugin_registry() -> PluginRegistry:

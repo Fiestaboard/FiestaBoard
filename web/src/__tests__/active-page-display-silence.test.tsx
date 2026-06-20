@@ -22,6 +22,14 @@ vi.mock("@/hooks/use-router", () => ({
   }),
 }));
 
+vi.mock("@/components/smart-link", () => ({
+  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+
 import { ActivePageDisplay } from "@/components/active-page-display";
 
 function TestWrapper({ children }: { children: React.ReactNode }) {

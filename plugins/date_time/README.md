@@ -50,6 +50,11 @@ The Date & Time plugin exposes the current date and time in the timezone you con
 | `{{date_time.date_us}}` | US date (`MM/DD/YYYY`) | `07/04/2026` |
 | `{{date_time.date_us_short}}` | Short US date (`MM/DD/YY`) | `07/04/26` |
 | `{{date_time.time_english}}` | Spoken English time expression | `IT'S A QUARTER PAST ONE IN THE AFTERNOON.` |
+| `{{date_time.day_of_week_adaptive}}` | Day name, full on wide boards / abbreviated on narrow boards | `Friday` (Flagship) / `Fri` (Note) |
+| `{{date_time.month_adaptive}}` | Month name, full on wide boards / abbreviated on narrow boards | `August` (Flagship) / `Aug` (Note) |
+| `{{date_time.date_pretty}}` | Friendly date that adapts to board width | `Friday, August 27` (Flagship) / `Fri, Aug 27` (Note) |
+
+The `*_adaptive` variables and `date_pretty` change automatically based on the board they render on — full forms on a Flagship (22 wide), abbreviated on a Note (15 wide) — so the same template fits both boards.
 
 ## Example Templates
 

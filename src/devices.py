@@ -137,6 +137,50 @@ class BoardInstance:
         )
 
 
+@dataclass(frozen=True)
+class BoardContext:
+    """Read-only description of the board a plugin is rendering on.
+
+    Passed to plugins at render time so their code can adapt content to the
+    physical board — e.g. show "Friday, August 27" on a Flagship (22x6) but
+    "Fri, Aug 27" on a Note (15x3). Plugins read this via ``self.board``.
+
+    ``rows``/``cols`` match the existing :class:`DeviceDimensions` convention;
+    ``width``/``height`` are provided as readability aliases. Dimensions are
+    stored explicitly (not re-derived from ``device_type``) so a future
+    composite multi-board render can construct, e.g.,
+    ``BoardContext("composite", rows=6, cols=30)`` directly without needing a
+    matching :data:`DEVICE_DIMENSIONS` entry.
+    """
+
+    device_type: str  # "flagship" | "note" | future/composite
+    rows: int  # height in tiles
+    cols: int  # width in tiles
+
+    @property
+    def width(self) -> int:
+        """Board width in tiles (alias for ``cols``)."""
+        return self.cols
+
+    @property
+    def height(self) -> int:
+        """Board height in tiles (alias for ``rows``)."""
+        return self.rows
+
+    @classmethod
+    def from_device_type(cls, device_type: str) -> "BoardContext":
+        """Build a context from a known device type.
+
+        Args:
+            device_type: "flagship" or "note"
+
+        Raises:
+            ValueError: If device_type is not recognized.
+        """
+        dims = get_dimensions(device_type)
+        return cls(device_type=device_type, rows=dims.rows, cols=dims.cols)
+
+
 def get_dimensions(device_type: str) -> DeviceDimensions:
     """Get board dimensions for a device type.
 

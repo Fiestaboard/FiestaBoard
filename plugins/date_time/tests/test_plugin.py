@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from plugins.date_time import DateTimePlugin, _time_to_english
+from src.devices import BoardContext
 
 
 class TestDateTimePlugin:
@@ -481,3 +482,81 @@ class TestTimeToEnglish:
     @pytest.fixture
     def sample_config(self):
         return {"timezone": "America/Los_Angeles", "enabled": True}
+
+
+class TestDateTimeBoardAwareness:
+    """Date & Time adapts its content to the board it renders on."""
+
+    @patch("plugins.date_time.datetime")
+    def test_date_pretty_full_on_flagship(self, mock_datetime, sample_manifest, sample_config):
+        """On a wide board, date_pretty spells the weekday and month out fully."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 8, 27, 9, 0, 0, tzinfo=tz)  # Wednesday
+
+        plugin = DateTimePlugin(sample_manifest)
+        plugin.config = sample_config
+        data = plugin.get_data(BoardContext.from_device_type("flagship")).data
+
+        assert data["day_of_week_adaptive"] == "Wednesday"
+        assert data["month_adaptive"] == "August"
+        assert data["date_pretty"] == "Wednesday, August 27"
+
+    @patch("plugins.date_time.datetime")
+    def test_date_pretty_abbreviated_on_note(self, mock_datetime, sample_manifest, sample_config):
+        """On a narrow board (Note), date_pretty uses abbreviated forms that fit."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 8, 27, 9, 0, 0, tzinfo=tz)
+
+        plugin = DateTimePlugin(sample_manifest)
+        plugin.config = sample_config
+        data = plugin.get_data(BoardContext.from_device_type("note")).data
+
+        assert data["day_of_week_adaptive"] == "Wed"
+        assert data["month_adaptive"] == "Aug"
+        assert data["date_pretty"] == "Wed, Aug 27"
+        assert len(data["date_pretty"]) <= 15
+
+    @patch("plugins.date_time.datetime")
+    def test_no_board_defaults_to_full(self, mock_datetime, sample_manifest, sample_config):
+        """With no board bound, the long form is used (backward compatible)."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 8, 27, 9, 0, 0, tzinfo=tz)
+
+        plugin = DateTimePlugin(sample_manifest)
+        plugin.config = sample_config
+        data = plugin.get_data().data
+
+        assert data["date_pretty"] == "Wednesday, August 27"
+
+    @patch("plugins.date_time.datetime")
+    def test_formatted_display_note_is_compact(self, mock_datetime, sample_manifest, sample_config):
+        """get_formatted_display drops to 3 lines that fit 15 cols on a Note."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 1, 15, 14, 30, 0, tzinfo=tz)
+
+        plugin = DateTimePlugin(sample_manifest)
+        plugin.config = sample_config
+        with plugin._bound_board(BoardContext.from_device_type("note")):
+            lines = plugin.get_formatted_display()
+
+        assert lines is not None
+        assert len(lines) == 3
+        assert all(len(line) <= 15 for line in lines)
+        assert "WED" in lines[0].upper()
+
+    @patch("plugins.date_time.datetime")
+    def test_per_board_cache_isolation(self, mock_datetime, sample_manifest, sample_config):
+        """Flagship and Note variables cache independently."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 8, 27, 9, 0, 0, tzinfo=tz)
+
+        plugin = DateTimePlugin(sample_manifest)
+        plugin.config = sample_config
+
+        flagship = plugin.get_data(BoardContext.from_device_type("flagship")).data["date_pretty"]
+        note = plugin.get_data(BoardContext.from_device_type("note")).data["date_pretty"]
+
+        assert flagship == "Wednesday, August 27"
+        assert note == "Wed, Aug 27"
+        # Flagship re-fetch within TTL still returns the full form.
+        assert plugin.get_data(BoardContext.from_device_type("flagship")).data["date_pretty"] == flagship

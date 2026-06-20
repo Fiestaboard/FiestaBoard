@@ -49,6 +49,7 @@ from .settings.service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, get_settin
 from .templates.engine import get_template_engine, reset_template_engine  # noqa: E402
 from .templates.expressions import function_signatures  # noqa: E402
 from .text_to_board import text_to_board_array  # noqa: E402
+from .time_service import reset_time_service  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -670,6 +671,17 @@ async def lifespan(app: FastAPI):
     # Set up file-based logging
     _setup_file_logging()
 
+    # Auto-heal config dropped on an upgrade boot (#1102/#948) BEFORE the
+    # service + plugin registry read it. No-op unless this is a version-change
+    # boot with a snapshot that still holds the lost data.
+    try:
+        _restored = _auto_restore_post_upgrade_regression()
+        if _restored:
+            logger.warning("Post-upgrade auto-restore applied from snapshot: %s", _restored)
+    except Exception:  # pragma: no cover - safety net must never block boot
+        logger.debug("Post-upgrade auto-restore failed", exc_info=True)
+    _log_config_boot_snapshot("post-restore")
+
     # If the most recent settings snapshot looks materially richer than the
     # live config (more enabled plugins, etc.), tell the user loudly on
     # startup so they don't have to discover the recovery path on their own.
@@ -713,6 +725,7 @@ async def lifespan(app: FastAPI):
             logger.warning("Service can be started manually via /start endpoint after configuration is fixed")
     else:
         logger.warning("Service instance could not be created - check logs for initialization errors")
+    _log_config_boot_snapshot("post-service-init")
 
     # Start mDNS/Bonjour advertisement (fiestaboard.local)
     try:
@@ -2094,6 +2107,120 @@ def _list_settings_snapshots() -> list[dict[str, Any]]:
             }
         )
     return out
+
+
+# Config fields we know are user-set and safe to auto-restore from a snapshot.
+_RESTORABLE_GENERAL_FIELDS = ("timezone", "instance_name")
+
+
+def _build_post_upgrade_restore_set(
+    snap_config: dict[str, Any], live_config: dict[str, Any]
+) -> dict[str, Any]:
+    """Compute which config.json keys regressed vs a pre-update snapshot.
+
+    Returns ``{"general": {...}, "plugins": {...}}`` with only the keys worth
+    restoring; an empty dict means nothing regressed. See plan Task 2 for rules.
+    """
+    from src.config_manager import DEFAULT_CONFIG, SENSITIVE_FIELDS
+
+    result: dict[str, Any] = {}
+
+    snap_general = snap_config.get("general") or {}
+    live_general = live_config.get("general") or {}
+    default_general = DEFAULT_CONFIG.get("general", {})
+    general: dict[str, Any] = {}
+    for field in _RESTORABLE_GENERAL_FIELDS:
+        snap_val = snap_general.get(field)
+        if not isinstance(snap_val, str) or not snap_val:
+            continue
+        live_val = live_general.get(field)
+        if live_val == snap_val:
+            continue
+        if live_val in ("", None, default_general.get(field)):
+            general[field] = snap_val
+    if general:
+        result["general"] = general
+
+    snap_plugins = snap_config.get("plugins") or {}
+    live_plugins = live_config.get("plugins") or {}
+    plugins: dict[str, Any] = {}
+    for pid, snap_cfg in snap_plugins.items():
+        if not (isinstance(snap_cfg, dict) and snap_cfg.get("enabled") is True):
+            continue  # only auto-restore plugins the user had ENABLED (#937 invariant)
+        live_cfg = live_plugins.get(pid)
+        lost_enable = not (isinstance(live_cfg, dict) and live_cfg.get("enabled") is True)
+        lost_secret = isinstance(live_cfg, dict) and any(
+            key in SENSITIVE_FIELDS and snap_cfg.get(key) and not live_cfg.get(key)
+            for key in snap_cfg
+        )
+        if lost_enable or lost_secret:
+            plugins[pid] = snap_cfg
+    if plugins:
+        result["plugins"] = plugins
+
+    return result
+
+
+def _auto_restore_post_upgrade_regression() -> dict[str, Any]:
+    """Restore config keys lost on an upgrade boot from the newest pre-update
+    snapshot, before the service/registry reads config. Returns a summary of
+    what was restored (empty when it did nothing). See issue #1102 / #948.
+    """
+    if os.environ.get("FIESTABOARD_AUTO_RESTORE", "1").strip().lower() in ("0", "false", "no"):
+        return {}
+
+    cm = get_config_manager()
+    if not getattr(cm, "version_changed_on_load", False):
+        return {}
+
+    newest = _resolve_snapshot_name(None)
+    if newest is None:
+        return {}
+    try:
+        snap_doc = json.loads(newest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    snap_config = (snap_doc.get("data") or {}).get("config") or {}
+    if not snap_config:
+        return {}
+
+    restore_set = _build_post_upgrade_restore_set(snap_config, cm.get_all())
+    if not restore_set:
+        return {}
+
+    summary: dict[str, Any] = {}
+    general = restore_set.get("general")
+    if general:
+        cm.set_general(general)
+        summary["general"] = sorted(general)
+    plugins = restore_set.get("plugins")
+    if plugins:
+        for pid, cfg in plugins.items():
+            cm.set_plugin_config(pid, cfg)
+        summary["plugins"] = sorted(plugins)
+
+    # Restored timezone won't take effect until the cached TimeService is rebuilt.
+    reset_time_service()
+    return summary
+
+
+def _log_config_boot_snapshot(stage: str) -> None:
+    """Log a one-line config fingerprint at a boot stage (issue #1102 forensics)."""
+    try:
+        cm = get_config_manager()
+        general = cm.get_general()
+        plugins = cm.get_all_plugin_configs()
+        enabled = sum(1 for c in plugins.values() if isinstance(c, dict) and c.get("enabled"))
+        logger.info(
+            "config boot snapshot [%s]: %d plugin(s), %d enabled, timezone=%r, instance_name=%r",
+            stage,
+            len(plugins),
+            enabled,
+            general.get("timezone"),
+            general.get("instance_name"),
+        )
+    except Exception:  # pragma: no cover - diagnostics must never block boot
+        logger.debug("config boot snapshot [%s] failed", stage, exc_info=True)
 
 
 def _detect_post_upgrade_regression() -> dict[str, Any] | None:

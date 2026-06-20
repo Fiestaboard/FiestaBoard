@@ -61,4 +61,15 @@ describe("LanguageSelector", () => {
     const trigger = screen.getByRole("combobox", { name: /language/i });
     expect(trigger).toHaveAttribute("aria-label", "Language");
   });
+
+  it("marks the decorative Globe icon as aria-hidden so it is not announced", () => {
+    render(<LanguageSelector />);
+    // The Globe icon is decorative — it sits next to a visible label
+    // inside the trigger, so it must be hidden from assistive tech
+    // (WCAG 2.2 AA 1.1.1 Non-text Content).
+    const trigger = screen.getByRole("combobox", { name: /language/i });
+    const svg = trigger.querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(svg).toHaveAttribute("aria-hidden", "true");
+  });
 });
