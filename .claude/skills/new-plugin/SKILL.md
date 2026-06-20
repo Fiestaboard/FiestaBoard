@@ -27,7 +27,7 @@ layout, symlink CI, registry PR). **Secondary mode:** a bundled in-repo plugin u
 
 - Modifying an **existing** plugin's behavior → just edit it; you don't need scaffolding.
 - A core/platform feature in `src/` → that's `new-feature`, not a plugin.
-- "Register a plugin that already exists as a repo" → you only need [Step 6](#step-6--register-gated)
+- "Register a plugin that already exists as a repo" -> you only need [Step 7](#step-7--register-gated)
   (the registry PR). Skip scaffolding.
 
 ## The shape of a plugin
