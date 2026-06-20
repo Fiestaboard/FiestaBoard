@@ -141,6 +141,7 @@ The `screenshots` array makes plugin images discoverable by the docs site, API, 
 | `primary` | no | Mark exactly one screenshot as the hero image (`true`) |
 
 **Image naming convention:**
+
 - `docs/board-display.png` — Primary hero image (required for published plugins)
 - `docs/configuration.png` — Plugin config dialog (optional)
 - `docs/integrations.png` — Plugin card on the Integrations page (optional)
@@ -279,7 +280,7 @@ jobs:
 
 Your standalone repository should have the same layout as a built-in plugin:
 
-```
+```text
 fiestaboard-plugin--my-weather/
 ├── __init__.py
 ├── manifest.json

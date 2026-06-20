@@ -24,10 +24,12 @@ The Air Quality & Fog plugin provides:
 ### 1. Get API Keys
 
 **PurpleAir (for AQI):**
+
 1. Sign up at [PurpleAir](https://www.purpleair.com/)
 2. Request an API key from the PurpleAir data page
 
 **OpenWeatherMap (for visibility/fog):**
+
 1. Sign up at [OpenWeatherMap](https://openweathermap.org/api)
 2. Free tier: 1,000 calls/day
 

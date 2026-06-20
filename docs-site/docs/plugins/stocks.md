@@ -47,6 +47,7 @@ No API key is required for stock data. An optional Finnhub API key enables bette
 ## Color Coding
 
 Stock prices are automatically color-coded:
+
 - **Green** (`{66}`) for positive changes
 - **Red** (`{63}`) for negative changes
 

@@ -9,6 +9,7 @@ keywords: [FiestaBoard environment variables, .env config, configuration referen
 This is a **reference page** for developers and advanced users. Most users don't need to edit `.env` at all. The [install wizard](/docs/setup/quick-start) creates it during setup, and **all plugin configuration (API keys, settings, etc.) is done through the web UI's Integrations page**.
 
 This reference is useful for:
+
 - **Development** - setting up a local dev environment
 - **Advanced configuration** - tuning settings the web UI doesn't expose
 - **Troubleshooting** - understanding what each variable controls

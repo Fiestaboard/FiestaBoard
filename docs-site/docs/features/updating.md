@@ -60,11 +60,13 @@ FIESTAUPDATER_TOKEN=<64-hex-char random string>
 ```
 
 Generate a token:
+
 ```bash
 head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'
 ```
 
 Then restart:
+
 ```bash
 docker compose up -d
 ```

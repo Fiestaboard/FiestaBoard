@@ -75,7 +75,7 @@ future request.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `FIESTABOARD_AUTH_ENABLED` | _(unset, first-run picker)_ | `true`/`1`/`yes`/`on` force-enables, `false`/`0`/`no`/`off` force-disables. Unset = use stored preference; if none, show the first-run picker. |
+| `FIESTABOARD_AUTH_ENABLED` | *(unset, first-run picker)* | `true`/`1`/`yes`/`on` force-enables, `false`/`0`/`no`/`off` force-disables. Unset = use stored preference; if none, show the first-run picker. |
 | `FIESTABOARD_SESSION_TTL_SECONDS` | `604800` (7d) | Lifetime for a normal sign-in (without "Keep me logged in"), in seconds. Caps the session-cookie token. |
 | `FIESTABOARD_REMEMBER_ME_TTL_SECONDS` | `2592000` (30d) | Lifetime when "Keep me logged in" is checked, in seconds. Sets both the persistent cookie's `Max-Age` and the token expiry. |
 
@@ -108,7 +108,7 @@ The corresponding API endpoints are also available:
 | --- | --- | --- |
 | `POST` | `/api/auth/change-username` | `{ "current_password", "new_username" }` |
 | `POST` | `/api/auth/change-password` | `{ "current_password", "new_password" }` |
-| `POST` | `/api/auth/logout` | _(none)_ |
+| `POST` | `/api/auth/logout` | *(none)* |
 
 ## Recovering from a lost password
 

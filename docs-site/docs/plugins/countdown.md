@@ -46,6 +46,7 @@ Countdown requires no external service or API key. All values are computed local
 ## Example Templates
 
 **Classic countdown:**
+
 ```jinja
 {center}COUNTDOWN UNTIL
 {{countdown.event_name}}
@@ -56,12 +57,14 @@ Countdown requires no external service or API key. All values are computed local
 ```
 
 **Compact:**
+
 ```jinja
 {center}{{countdown.event_name}}
 {{countdown.days}}D {{countdown.hours}}H {{countdown.minutes}}M
 ```
 
 **Days only:**
+
 ```jinja
 {center}{{countdown.days}} DAYS UNTIL
 {{countdown.event_name}}

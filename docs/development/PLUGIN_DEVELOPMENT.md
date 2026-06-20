@@ -130,6 +130,7 @@ This is backward-compatible with the original format. Variables show up in the e
 ```
 
 With this format, the editor shows:
+
 - **Descriptions** as tooltips when hovering over variable pills
 - **Live preview values** next to each variable
 - **Type hints** for validation
@@ -1009,7 +1010,7 @@ The FiestaBoard plugin registry (`plugin-registry.json` at the repository root) 
 
 Repository names must match:
 
-```
+```text
 fiestaboard-plugin--{name}
 ```
 
@@ -1034,7 +1035,7 @@ Open a pull request against the FiestaBoard repository that adds one entry to th
 }
 ```
 
-Set `fiestaboard_version` to the minimum FiestaBoard version your plugin requires. Use an existing `category` value (see [Plugin Categories](#plugin-categories) above).
+Set `fiestaboard_version` to the minimum FiestaBoard version your plugin requires. Use an existing `category` value (`art`, `data`, `entertainment`, `home`, `transit`, `utility`, `weather`).
 
 ### Registry checklist
 

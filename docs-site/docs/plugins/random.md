@@ -43,23 +43,27 @@ Random requires no external service or API key. All values are generated locally
 ## Example Templates
 
 **Coin flip:**
+
 ```jinja
 COIN FLIP
 {{random.coin_flip}}
 ```
 
 **Pick from a custom list:**
+
 ```jinja
 TONIGHT'S DINNER
 {{random.choice}}
 ```
 
 **Random color tile with name:**
+
 ```jinja
 {{random.color}} {{random.color_name}}
 ```
 
 **Combined:**
+
 ```jinja
 
 FLIP: {{random.coin_flip}}
