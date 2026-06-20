@@ -404,6 +404,37 @@ describe("PageGridSelector", () => {
     expect(screen.getByText("1 page")).toBeInTheDocument();
   });
 
+  it("marks decorative tab icons as aria-hidden so screen readers don't announce them", async () => {
+    vi.mocked(api.getCollections).mockResolvedValue({
+      collections: [
+        {
+          id: "collection:c1",
+          name: "My Collection",
+          page_ids: ["page-1"],
+          selection_mode: "time",
+          time: { interval_seconds: 30 },
+          variable: null,
+          created_at: "2025-01-01T00:00:00Z",
+        },
+      ],
+      total: 1,
+    });
+
+    render(<PageGridSelector activePageId={null} onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
+
+    // Tabs already have visible text labels, so the Lucide icons inside
+    // them are decorative — they must be hidden from AT (WCAG 2.2 AA 1.1.1).
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Pages/i })).toBeInTheDocument();
+    });
+    for (const tabName of [/Pages/i, /Collections/i]) {
+      const tab = screen.getByRole("tab", { name: tabName });
+      const svg = tab.querySelector("svg");
+      expect(svg).not.toBeNull();
+      expect(svg).toHaveAttribute("aria-hidden", "true");
+    }
+  });
+
   it("highlights active collection and handles click", async () => {
     vi.mocked(api.getCollections).mockResolvedValue({
       collections: [
@@ -433,6 +464,45 @@ describe("PageGridSelector", () => {
 
     screen.getByText("Active Collection").closest("button")!.click();
     expect(onSelectPage).toHaveBeenCalledWith("collection:c1");
+  });
+
+  it("sets aria-pressed on collection buttons to reflect selection state", async () => {
+    vi.mocked(api.getCollections).mockResolvedValue({
+      collections: [
+        {
+          id: "collection:c1",
+          name: "Selected Collection",
+          page_ids: ["page-1"],
+          selection_mode: "time",
+
+          time: { interval_seconds: 30 },
+
+          variable: null,
+          created_at: "2025-01-01T00:00:00Z",
+        },
+        {
+          id: "collection:c2",
+          name: "Unselected Collection",
+          page_ids: ["page-2"],
+          selection_mode: "time",
+
+          time: { interval_seconds: 60 },
+
+          variable: null,
+          created_at: "2025-01-01T00:00:00Z",
+        },
+      ],
+      total: 2,
+    });
+
+    render(<PageGridSelector activePageId="collection:c1" onSelectPage={vi.fn()} />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      const selected = screen.getByText("Selected Collection").closest("button");
+      const unselected = screen.getByText("Unselected Collection").closest("button");
+      expect(selected).toHaveAttribute("aria-pressed", "true");
+      expect(unselected).toHaveAttribute("aria-pressed", "false");
+    });
   });
 
   describe("list view mode", () => {

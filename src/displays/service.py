@@ -10,6 +10,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from src.devices import BoardContext
+
 # Import plugin system
 try:
     from src.plugins import PluginRegistry, get_plugin_registry
@@ -92,11 +94,14 @@ class DisplayService:
             )
         return displays
 
-    def get_display(self, display_type: str) -> DisplayResult:
+    def get_display(self, display_type: str, board: BoardContext | None = None) -> DisplayResult:
         """Get formatted and raw data for a specific display type (plugin).
 
         Args:
             display_type: Plugin ID
+            board: Board being rendered on, forwarded to the plugin so it can
+                adapt content (e.g. its pre-formatted display) to the board's
+                size. ``None`` keeps the board-agnostic behavior.
 
         Returns:
             DisplayResult with formatted text and raw data
@@ -119,7 +124,7 @@ class DisplayService:
             )
 
         try:
-            plugin_result = self._plugin_registry.fetch_plugin_data(display_type)
+            plugin_result = self._plugin_registry.fetch_plugin_data(display_type, board=board)
 
             if plugin_result.available:
                 # Convert PluginResult to DisplayResult

@@ -76,7 +76,8 @@
     "primaryNavigation": "Hoofdnavigatie",
     "secondaryNavigation": "Subnavigatie",
     "picks": "Aanbevolen",
-    "skipToMainContent": "Naar hoofdinhoud"
+    "skipToMainContent": "Naar hoofdinhoud",
+    "prideCelebrationAriaLabel": "Vier Pride Month"
   },
   "network": {
     "title": "Wi-Fi",
@@ -709,6 +710,7 @@
     "exportFailed": "Deelreeks ophalen mislukt",
     "exportDialogTitle": "Pagina exporteren",
     "exportDialogDescription": "Kopieer deze deelreeks om je pagina met anderen te delen.",
+    "exportStringAriaLabel": "Deelreeks",
     "exportCopyAriaLabel": "Deelreeks kopiëren"
   },
   "displaySettings": {
@@ -1021,7 +1023,147 @@
       "wifi": "WiFi",
       "quotes": "Citaten",
       "rotation": "Rotatie"
+    },
+    "on": "Aan",
+    "off": "Uit",
+    "toggleServiceAriaLabel": "{name} in-/uitschakelen"
+  },
+  "accountSection": {
+    "signedIn": {
+      "title": "Aangemeld",
+      "description": "Je bent momenteel aangemeld als <name>{username}</name>."
+    },
+    "changeUsername": {
+      "title": "Gebruikersnaam wijzigen",
+      "description": "Kies een nieuwe aanmeldnaam. Vereist je huidige wachtwoord.",
+      "formAriaLabel": "Gebruikersnaam wijzigen",
+      "newUsernameLabel": "Nieuwe gebruikersnaam",
+      "currentPasswordLabel": "Huidig wachtwoord",
+      "submit": "Gebruikersnaam opslaan",
+      "submitting": "Opslaan…",
+      "success": "Gebruikersnaam bijgewerkt",
+      "failure": "Wijzigen van gebruikersnaam mislukt"
+    },
+    "changePassword": {
+      "title": "Wachtwoord wijzigen",
+      "description": "Wijzig je wachtwoord. Alle andere sessies die met het oude wachtwoord zijn aangemeld, worden afgemeld.",
+      "formAriaLabel": "Wachtwoord wijzigen",
+      "currentPasswordLabel": "Huidig wachtwoord",
+      "newPasswordLabel": "Nieuw wachtwoord",
+      "newPasswordHint": "Minstens 8 tekens.",
+      "confirmPasswordLabel": "Nieuw wachtwoord bevestigen",
+      "submit": "Wachtwoord opslaan",
+      "submitting": "Opslaan…",
+      "success": "Wachtwoord bijgewerkt",
+      "failure": "Wijzigen van wachtwoord mislukt",
+      "tooShort": "Het nieuwe wachtwoord moet minstens 8 tekens bevatten.",
+      "mismatch": "De wachtwoorden komen niet overeen."
+    },
+    "signOut": {
+      "title": "Afmelden",
+      "description": "Beëindig je huidige sessie. Je wordt teruggestuurd naar de aanmeldpagina.",
+      "button": "Afmelden"
+    },
+    "disableLogin": {
+      "title": "Aanmelden uitschakelen",
+      "description": "Schakel authenticatie volledig uit. Iedereen die dit FiestaBoard op het netwerk kan bereiken, kan dan instellingen wijzigen en API-sleutels lezen. Niet aanbevolen, tenzij dit apparaat zich op een volledig vertrouwd privénetwerk bevindt.",
+      "button": "Aanmelden uitschakelen",
+      "dialogTitle": "Aanmelden voor dit FiestaBoard uitschakelen?",
+      "dialogBody1": "Het uitschakelen van aanmelden verwijdert het account <name>{username}</name> en stelt dit FiestaBoard open voor iedereen die het op het netwerk kan bereiken — zij kunnen je API-sleutels lezen, je bordconfiguratie wijzigen en alle instellingen aanpassen.",
+      "dialogBody2": "Doe dit alleen als dit apparaat zich op een volledig vertrouwd privénetwerk bevindt (geen huisgenoten, geen gasten, geen smarthome-apparaten die je niet beheert). <strong>Sterk afgeraden</strong> als dit FiestaBoard bereikbaar is vanaf internet.",
+      "dialogBody3": "Je bord blijft in beide gevallen normaal weergeven — dit bepaalt alleen wie zich kan aanmelden om instellingen te wijzigen.",
+      "confirmPasswordLabel": "Bevestig je huidige wachtwoord om door te gaan",
+      "confirm": "Ja, aanmelden uitschakelen",
+      "confirming": "Uitschakelen…",
+      "success": "Authenticatie uitgeschakeld",
+      "failure": "Authenticatie uitschakelen mislukt"
+    },
+    "enableLogin": {
+      "title": "Aanmelden inschakelen",
+      "description": "Aanmelden staat momenteel <strong>uit</strong>. Iedereen die dit FiestaBoard op het netwerk kan bereiken, kan je API-sleutels lezen, je bordconfiguratie wijzigen en alle instellingen aanpassen.",
+      "body": "Sterk aanbevolen als je wifi deelt met mensen die je niet volledig vertrouwt (huisgenoten, gasten, smarthome-apparaten), of als dit FiestaBoard bereikbaar is vanaf internet. Je bord blijft in beide gevallen normaal weergeven — aanmelden bepaalt alleen wie zich kan aanmelden om instellingen te wijzigen.",
+      "button": "Een gebruikersnaam en wachtwoord instellen",
+      "submitting": "Inschakelen…",
+      "failure": "Kon aanmelden niet inschakelen"
     }
+  },
+  "aiActionConfirmation": {
+    "deny": "Weigeren",
+    "allow": "Toestaan",
+    "working": "Bezig…",
+    "done": "Klaar",
+    "denied": "Geweigerd",
+    "noChanges": "geen wijzigingen",
+    "noValues": "geen waarden",
+    "noChangesSpecified": "Geen wijzigingen opgegeven.",
+    "openEnd": "open",
+    "label": {
+      "installPlugin": "Plug-in installeren: {id}",
+      "updatePluginConfig": "Plug-in configureren: {id}",
+      "updatePlugin": "Plug-in bijwerken: {id}",
+      "enablePlugin": "Plug-in inschakelen: {id}",
+      "disablePlugin": "Plug-in uitschakelen: {id}",
+      "uninstallPlugin": "Plug-in verwijderen: {id}",
+      "updateSetting": "Instelling wijzigen: {category}",
+      "createCollection": "Collectie maken: \"{name}\"",
+      "updateCollection": "Collectie bijwerken",
+      "createSchedule": "Planning maken",
+      "updateSchedule": "Planning bijwerken",
+      "deleteSchedule": "Planning verwijderen",
+      "triggerSystemUpdate": "Systeemupdate"
+    },
+    "description": {
+      "installPlugin": "Installeert \"{id}\" uit het officiële register.",
+      "installPluginEnable": "Installeert \"{id}\" uit het officiële register en schakelt het in.",
+      "updatePluginConfig": "Werkt de configuratie van \"{id}\" bij: {keys}.",
+      "updatePlugin": "Downloadt en installeert de nieuwste registerversie van \"{id}\".",
+      "enablePlugin": "Schakelt \"{id}\" in zodat het gegevens aan je borden kan leveren.",
+      "disablePlugin": "Schakelt \"{id}\" uit zonder het te verwijderen. Het kan later opnieuw worden ingeschakeld.",
+      "uninstallPlugin": "Verwijdert \"{id}\" definitief. Dit kan niet ongedaan worden gemaakt.",
+      "updateSetting": "Stelt {values} in bij de instellingen voor {category}.",
+      "createCollection": "Maakt een collectie met {count, plural, one {# pagina} other {# pagina's}}, die elke {interval}s wisselt.",
+      "createSchedule": "Toont pagina \"{page}\" vanaf {time} op {days}-dagen.",
+      "deleteSchedule": "Verwijdert planning \"{id}\" definitief. Dit kan niet ongedaan worden gemaakt.",
+      "triggerSystemUpdate": "Downloadt en installeert de nieuwste FiestaBoard-update. Het systeem start kort opnieuw op."
+    },
+    "change": {
+      "rename": "hernoemen naar \"{name}\"",
+      "setPages": "{count, plural, one {# pagina} other {# pagina's}} instellen",
+      "interval": "interval → {interval}s",
+      "page": "pagina → {page}",
+      "start": "begin → {start}",
+      "end": "einde → {end}",
+      "days": "dagen → {days}",
+      "enable": "inschakelen",
+      "disable": "uitschakelen"
+    }
+  },
+  "chainingModePicker": {
+    "menuTitle": "AI-koppelingsmodus",
+    "triggerAriaLabel": "AI-koppelingsmodus: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Handmatig",
+        "description": "Ik vraag het na elke actie opnieuw"
+      },
+      "autoContinue": {
+        "label": "Automatisch doorgaan",
+        "description": "Koppel acties, bevestig elke stap"
+      },
+      "autonomous": {
+        "label": "Autonoom",
+        "description": "Voer tot het einde uit, sla bevestigingen over"
+      }
+    }
+  },
+  "bootGate": {
+    "waiting": "Wachten op opstarten…",
+    "errorHeading": "Kan geen verbinding maken met FiestaBoard",
+    "errorDescription": "Controleer of de app draait en probeer de pagina opnieuw te laden.",
+    "refreshPage": "Pagina vernieuwen"
+  },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot AI-chat"
   },
   "plainTextEditor": {
     "placeholder": "Typ je sjabloontekst...",
@@ -1231,7 +1373,8 @@
     "change": "Wijzigen",
     "selectAttribute": "Selecteer attribuut",
     "valueLabel": "Waarde",
-    "insert": "Invoegen"
+    "insert": "Invoegen",
+    "searchAriaLabel": "Entiteiten zoeken"
   },
   "pluginSettings": {
     "title": "Plugin-updates",
@@ -1530,6 +1673,13 @@
     "requires": "Vereist",
     "pluginNotEnabled": "Schakel de {name}-plugin in bij Integrations om dit sjabloon te gebruiken",
     "importWithMissingPlugins": "Sommige plugins zijn nog niet ingeschakeld: {plugins}. Je kunt nog steeds importeren en ze later inschakelen."
+  },
+  "aiChatPanel": {
+    "messagesAriaLabel": "Chatberichten",
+    "taskStatusAriaLabel": "Taakvoortgang",
+    "taskProgressAriaLabel": "Voortgang AI-taken",
+    "clearConversationAriaLabel": "Gesprek wissen",
+    "closePanelAriaLabel": "FiestaBot (Beta) sluiten"
   },
   "boardSizeIndicator": {
     "custom": "Custom",

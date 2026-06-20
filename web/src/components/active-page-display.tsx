@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { BoardDisplay } from "@/components/board-display";
 import { ForceSetDialog } from "@/components/force-set-dialog";
 import { PageGridSelector } from "@/components/page-grid-selector";
+import Link from "@/components/smart-link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,6 @@ import {
   usePages,
   useSetActivePage,
 } from "@/hooks/use-board";
-import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardCurrentMessageResponse, Collection, SilenceStatus } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
@@ -53,7 +53,6 @@ export function ActivePageDisplay() {
   const t = useTranslations("activeDisplay");
   const _tc = useTranslations("common");
   const tPause = useTranslations("displaySettings.pause");
-  const router = useRouter();
 
   // Sheet open state
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -370,13 +369,12 @@ export function ActivePageDisplay() {
             <CardTitle className="text-lg">{t("title")}</CardTitle>
             <div className="flex items-center gap-2">
               {scheduleEnabled && (
-                <button
-                  type="button"
-                  onClick={() => router.push("/schedule")}
+                <Link
+                  href="/schedule"
                   className="text-xs text-muted-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                 >
                   {t("viewSchedule")} →
-                </button>
+                </Link>
               )}
               <Button
                 variant="outline"
@@ -475,12 +473,12 @@ export function ActivePageDisplay() {
               <AlertTriangle className="h-4 w-4 text-warning" />
               <AlertDescription className="text-sm">
                 {t("noPageScheduled")}{" "}
-                <button
-                  onClick={() => router.push("/schedule")}
+                <Link
+                  href="/schedule"
                   className="underline font-medium hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                 >
                   {t("scheduleSettingsLink")}
-                </button>
+                </Link>
                 .
               </AlertDescription>
             </Alert>

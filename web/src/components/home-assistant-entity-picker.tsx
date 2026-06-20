@@ -89,6 +89,7 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
               <div className="space-y-2 flex-1 min-h-0 flex flex-col">
                 <Input
                   placeholder={t("searchPlaceholder")}
+                  aria-label={t("searchAriaLabel")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoFocus

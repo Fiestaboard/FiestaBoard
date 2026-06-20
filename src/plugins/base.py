@@ -4,12 +4,22 @@ All plugins must inherit from PluginBase and implement the required methods.
 """
 
 import logging
+import threading
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from src.devices import BoardContext
+
 logger = logging.getLogger(__name__)
+
+# Cache key used when a plugin is fetched without a specific board (legacy
+# callers, unit tests, non-adopting plugins). Keeps the per-board cache dicts
+# uniform while preserving the historical board-agnostic behavior.
+_DEFAULT_CACHE_KEY = "__default__"
 
 DEFAULT_REFRESH_SECONDS = 300
 MIN_REFRESH_SECONDS = 10
@@ -127,9 +137,42 @@ class PluginBase(ABC):
         self._manifest = manifest
         self._config: dict[str, Any] = {}
         self._enabled = False
-        self._cached_result: PluginResult | None = None
-        self._last_fetch_time: datetime | None = None
+        # Per-board caches keyed by board.device_type (or _DEFAULT_CACHE_KEY).
+        # A Flagship render must not serve its cached data to a Note render.
+        self._cached_results: dict[str, PluginResult] = {}
+        self._last_fetch_times: dict[str, datetime] = {}
+        self._cache_lock = threading.Lock()
+        # Thread-local holder for the board currently being rendered, so
+        # build_template_context()'s ThreadPoolExecutor fan-out is safe.
+        self._board_tls = threading.local()
         logger.debug(f"Plugin initialized: {self.plugin_id}")
+
+    @property
+    def board(self) -> BoardContext | None:
+        """The board this plugin is currently rendering on, if any.
+
+        Set transiently by the registry/render pipeline around a fetch via
+        :meth:`get_data`. Plugins read this inside :meth:`fetch_data` or
+        :meth:`get_formatted_display` to adapt content to the board's size.
+        Returns ``None`` outside a board-scoped call (legacy paths, unit
+        tests); plugins should treat ``None`` as "assume the default board".
+        """
+        return getattr(self._board_tls, "current", None)
+
+    @contextmanager
+    def _bound_board(self, board: BoardContext | None) -> Iterator[None]:
+        """Bind *board* to ``self.board`` for the duration of the block.
+
+        Restores any previously-bound board on exit so nested/reentrant
+        renders (a plugin that triggers another render) don't corrupt the
+        outer board.
+        """
+        previous = getattr(self._board_tls, "current", None)
+        self._board_tls.current = board
+        try:
+            yield
+        finally:
+            self._board_tls.current = previous
 
     @property
     @abstractmethod
@@ -268,7 +311,7 @@ class PluginBase(ABC):
             return floor
         return value
 
-    def get_data(self) -> PluginResult:
+    def get_data(self, board: BoardContext | None = None) -> PluginResult:
         """Get plugin data with automatic caching based on refresh_seconds.
 
         Behavior is controlled by the manifest:
@@ -282,9 +325,21 @@ class PluginBase(ABC):
           :data:`DEFAULT_REFRESH_SECONDS` (5 minutes).  This is the safer
           default for random/static-ish data sources.
 
+        Args:
+            board: The board being rendered on. Bound to ``self.board`` for
+                the duration of the fetch so the plugin can adapt content.
+                Caching is keyed by ``board.device_type`` so different board
+                sizes don't share results. ``None`` preserves the historical
+                board-agnostic behavior.
+
         Returns:
             PluginResult with data or error
         """
+        with self._bound_board(board):
+            return self._get_data_for_board(board)
+
+    def _get_data_for_board(self, board: BoardContext | None) -> PluginResult:
+        """Caching logic for :meth:`get_data`, run with *board* already bound."""
         if self.live_data:
             logger.debug(f"Live data plugin {self.plugin_id}: skipping cache")
             return self.fetch_data()
@@ -294,24 +349,44 @@ class PluginBase(ABC):
         if interval is None:
             return self.fetch_data()
 
-        if self._cached_result is not None and self._last_fetch_time is not None:
-            age = (datetime.now() - self._last_fetch_time).total_seconds()
+        key = self._cache_key(board)
+
+        with self._cache_lock:
+            cached = self._cached_results.get(key)
+            last_fetch = self._last_fetch_times.get(key)
+        if cached is not None and last_fetch is not None:
+            age = (datetime.now() - last_fetch).total_seconds()
             if age < interval:
-                logger.debug(f"Using cached data for {self.plugin_id} (age: {age:.0f}s < {interval}s)")
-                return self._cached_result
+                logger.debug(f"Using cached data for {self.plugin_id}[{key}] (age: {age:.0f}s < {interval}s)")
+                return cached
 
         result = self.fetch_data()
 
         if result.available:
-            self._cached_result = result
-            self._last_fetch_time = datetime.now()
+            with self._cache_lock:
+                self._cached_results[key] = result
+                self._last_fetch_times[key] = datetime.now()
 
         return result
 
+    @staticmethod
+    def _cache_key(board: BoardContext | None) -> str:
+        """Cache key for a board: its device_type, or the default sentinel.
+
+        Keyed on ``device_type`` only (not color/name) so the cache holds at
+        most one entry per board size, not per physical board.
+        """
+        return board.device_type if board else _DEFAULT_CACHE_KEY
+
     def clear_cache(self) -> None:
-        """Clear cached data, forcing a fresh fetch on the next get_data() call."""
-        self._cached_result = None
-        self._last_fetch_time = None
+        """Clear all cached data, forcing a fresh fetch on the next get_data() call.
+
+        Wipes every per-board variant so a config change or disable can't
+        leave stale data cached for any board size.
+        """
+        with self._cache_lock:
+            self._cached_results.clear()
+            self._last_fetch_times.clear()
 
     def _validate_refresh_seconds(self, config: dict[str, Any]) -> list[str]:
         """Validate refresh_seconds against the manifest schema bounds.

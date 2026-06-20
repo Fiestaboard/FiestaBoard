@@ -167,6 +167,20 @@ class DateTimePlugin(PluginBase):
                 "time_english": _time_to_english(now.hour, now.minute),
             }
 
+            # Board-adaptive variables: pick long vs abbreviated forms based on
+            # the board this is rendering on. On a wide board (Flagship, 22)
+            # these spell out fully; on a narrow board (Note, 15) they shorten
+            # so the same template fits both. self.board is None outside a
+            # board-scoped render — fall back to the wide/long form.
+            board = self.board
+            narrow = board is not None and board.width < 22
+            day_adaptive = data["day_of_week_abbr"] if narrow else data["day_of_week"]
+            month_adaptive = data["month_abbr"] if narrow else data["month"]
+            data["day_of_week_adaptive"] = day_adaptive
+            data["month_adaptive"] = month_adaptive
+            # e.g. "Friday, August 27" (Flagship) / "Fri, Aug 27" (Note)
+            data["date_pretty"] = f"{day_adaptive}, {month_adaptive} {now.day}"
+
             return PluginResult(available=True, data=data)
 
         except Exception as e:
@@ -174,20 +188,38 @@ class DateTimePlugin(PluginBase):
             return PluginResult(available=False, error=str(e))
 
     def get_formatted_display(self) -> list[str] | None:
-        """Return default formatted datetime display."""
+        """Return default formatted datetime display, adapted to the board.
+
+        On a Flagship (22x6) this centers the weekday, date and time across
+        6 lines; on a Note (15x3) it drops to a compact 3-line layout with the
+        abbreviated weekday so everything fits the narrower board.
+        """
         result = self.fetch_data()
         if not result.available or not result.data:
             return None
 
         data = result.data
-        return [
+        board = self.board
+        width = board.width if board else 22
+        height = board.height if board else 6
+
+        if height <= 3:
+            # Compact layout for short boards (e.g. Note): weekday, date, time.
+            return [
+                data["day_of_week_abbr"].upper().center(width),
+                data["date"].center(width),
+                data["time"].center(width),
+            ]
+
+        lines = [
             "",
-            data["day_of_week"].upper().center(22),
-            data["date"].center(22),
-            data["time"].center(22),
+            data["day_of_week"].upper().center(width),
+            data["date"].center(width),
+            data["time"].center(width),
             "",
             "",
         ]
+        return lines[:height]
 
 
 # Export the plugin class

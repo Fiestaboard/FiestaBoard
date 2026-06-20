@@ -76,7 +76,8 @@
     "primaryNavigation": "主导航",
     "secondaryNavigation": "次导航",
     "picks": "团队精选",
-    "skipToMainContent": "跳到主要内容"
+    "skipToMainContent": "跳到主要内容",
+    "prideCelebrationAriaLabel": "庆祝骄傲月"
   },
   "network": {
     "title": "Wi-Fi",
@@ -709,6 +710,7 @@
     "exportFailed": "获取分享字符串失败",
     "exportDialogTitle": "导出页面",
     "exportDialogDescription": "复制此分享字符串以与他人分享您的页面。",
+    "exportStringAriaLabel": "分享字符串",
     "exportCopyAriaLabel": "复制分享字符串"
   },
   "displaySettings": {
@@ -1021,7 +1023,147 @@
       "wifi": "WiFi",
       "quotes": "名言",
       "rotation": "轮换"
+    },
+    "on": "开",
+    "off": "关",
+    "toggleServiceAriaLabel": "切换{name}"
+  },
+  "accountSection": {
+    "signedIn": {
+      "title": "已登录",
+      "description": "您当前以 <name>{username}</name> 身份登录。"
+    },
+    "changeUsername": {
+      "title": "更改用户名",
+      "description": "选择一个新的登录名。需要您当前的密码。",
+      "formAriaLabel": "更改用户名",
+      "newUsernameLabel": "新用户名",
+      "currentPasswordLabel": "当前密码",
+      "submit": "保存用户名",
+      "submitting": "正在保存…",
+      "success": "用户名已更新",
+      "failure": "更改用户名失败"
+    },
+    "changePassword": {
+      "title": "更改密码",
+      "description": "更改您的密码。使用旧密码登录的所有其他会话都将被注销。",
+      "formAriaLabel": "更改密码",
+      "currentPasswordLabel": "当前密码",
+      "newPasswordLabel": "新密码",
+      "newPasswordHint": "至少 8 个字符。",
+      "confirmPasswordLabel": "确认新密码",
+      "submit": "保存密码",
+      "submitting": "正在保存…",
+      "success": "密码已更新",
+      "failure": "更改密码失败",
+      "tooShort": "新密码至少需要 8 个字符。",
+      "mismatch": "两次密码不一致。"
+    },
+    "signOut": {
+      "title": "退出登录",
+      "description": "结束您当前的会话。您将被送回登录页面。",
+      "button": "退出登录"
+    },
+    "disableLogin": {
+      "title": "禁用登录",
+      "description": "完全关闭身份验证。任何能在网络中访问此 FiestaBoard 的人都将能够更改设置并读取 API 密钥。除非此设备位于完全受信任的专用网络中，否则不建议这样做。",
+      "button": "禁用登录",
+      "dialogTitle": "禁用此 FiestaBoard 的登录？",
+      "dialogBody1": "禁用登录会删除 <name>{username}</name> 账户，并将此 FiestaBoard 开放给任何能在网络中访问它的人——他们将能够读取您的 API 密钥、更改您的看板配置以及修改任何设置。",
+      "dialogBody2": "仅当此设备位于完全受信任的专用网络中（没有室友、没有访客、没有您无法控制的智能家居设备）时才执行此操作。如果此 FiestaBoard 可从互联网访问，则<strong>强烈不建议</strong>这样做。",
+      "dialogBody3": "无论哪种方式，您的看板都会照常显示——这只控制谁可以登录以更改设置。",
+      "confirmPasswordLabel": "确认您当前的密码以继续",
+      "confirm": "是的，禁用登录",
+      "confirming": "正在禁用…",
+      "success": "身份验证已禁用",
+      "failure": "禁用身份验证失败"
+    },
+    "enableLogin": {
+      "title": "开启登录",
+      "description": "登录目前为<strong>关闭</strong>状态。任何能在网络中访问此 FiestaBoard 的人都可以读取您的 API 密钥、更改您的看板配置以及修改任何设置。",
+      "body": "如果您与并非完全信任的人（室友、访客、智能家居设备）共享 Wi-Fi，或者此 FiestaBoard 可从互联网访问，则强烈建议开启。无论哪种方式，您的看板都会照常显示——登录只控制谁可以登录以更改设置。",
+      "button": "设置用户名和密码",
+      "submitting": "正在开启…",
+      "failure": "无法开启登录"
     }
+  },
+  "aiActionConfirmation": {
+    "deny": "拒绝",
+    "allow": "允许",
+    "working": "处理中…",
+    "done": "完成",
+    "denied": "已拒绝",
+    "noChanges": "无更改",
+    "noValues": "无值",
+    "noChangesSpecified": "未指定更改。",
+    "openEnd": "未设定",
+    "label": {
+      "installPlugin": "安装插件：{id}",
+      "updatePluginConfig": "配置插件：{id}",
+      "updatePlugin": "更新插件：{id}",
+      "enablePlugin": "启用插件：{id}",
+      "disablePlugin": "禁用插件：{id}",
+      "uninstallPlugin": "卸载插件：{id}",
+      "updateSetting": "更改设置：{category}",
+      "createCollection": "创建合集：\"{name}\"",
+      "updateCollection": "更新合集",
+      "createSchedule": "创建日程",
+      "updateSchedule": "更新日程",
+      "deleteSchedule": "删除日程",
+      "triggerSystemUpdate": "系统更新"
+    },
+    "description": {
+      "installPlugin": "从官方注册表安装“{id}”。",
+      "installPluginEnable": "从官方注册表安装“{id}”并启用它。",
+      "updatePluginConfig": "更新“{id}”的配置：{keys}。",
+      "updatePlugin": "下载并安装“{id}”的最新注册表版本。",
+      "enablePlugin": "启用“{id}”，使其能够向你的看板提供数据。",
+      "disablePlugin": "禁用“{id}”但不移除它。稍后可重新启用。",
+      "uninstallPlugin": "永久移除“{id}”。此操作无法撤销。",
+      "updateSetting": "在 {category} 设置中设置 {values}。",
+      "createCollection": "创建一个包含 {count, plural, other {# 个页面}} 的合集，每 {interval} 秒轮换一次。",
+      "createSchedule": "在 {days} 的 {time} 显示页面“{page}”。",
+      "deleteSchedule": "永久移除日程“{id}”。此操作无法撤销。",
+      "triggerSystemUpdate": "下载并安装最新的 FiestaBoard 更新。系统将短暂重启。"
+    },
+    "change": {
+      "rename": "重命名为“{name}”",
+      "setPages": "设置 {count, plural, other {# 个页面}}",
+      "interval": "间隔 → {interval}秒",
+      "page": "页面 → {page}",
+      "start": "开始 → {start}",
+      "end": "结束 → {end}",
+      "days": "日期 → {days}",
+      "enable": "启用",
+      "disable": "禁用"
+    }
+  },
+  "chainingModePicker": {
+    "menuTitle": "AI 链式模式",
+    "triggerAriaLabel": "AI 链式模式：{mode}",
+    "modes": {
+      "manual": {
+        "label": "手动",
+        "description": "每次操作后我会再次询问"
+      },
+      "autoContinue": {
+        "label": "自动继续",
+        "description": "串联操作，逐步确认"
+      },
+      "autonomous": {
+        "label": "自主",
+        "description": "运行至完成，跳过确认"
+      }
+    }
+  },
+  "bootGate": {
+    "waiting": "正在等待启动…",
+    "errorHeading": "无法连接到 FiestaBoard",
+    "errorDescription": "请确认应用正在运行，然后尝试刷新页面。",
+    "refreshPage": "刷新页面"
+  },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot AI 聊天"
   },
   "plainTextEditor": {
     "placeholder": "输入您的模板文本...",
@@ -1231,7 +1373,8 @@
     "change": "更改",
     "selectAttribute": "选择属性",
     "valueLabel": "值",
-    "insert": "插入"
+    "insert": "插入",
+    "searchAriaLabel": "搜索实体"
   },
   "pluginSettings": {
     "title": "插件更新",
@@ -1530,6 +1673,13 @@
     "requires": "需要",
     "pluginNotEnabled": "在 Integrations 中启用 {name} 插件以使用此模板",
     "importWithMissingPlugins": "某些插件尚未启用:{plugins}。您仍然可以导入并稍后启用它们。"
+  },
+  "aiChatPanel": {
+    "messagesAriaLabel": "聊天消息",
+    "taskStatusAriaLabel": "任务进度",
+    "taskProgressAriaLabel": "AI 任务进度",
+    "clearConversationAriaLabel": "清除对话",
+    "closePanelAriaLabel": "关闭 FiestaBot (Beta)"
   },
   "boardSizeIndicator": {
     "custom": "Custom",

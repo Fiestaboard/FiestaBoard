@@ -141,7 +141,7 @@ With this format, the editor shows:
 | `description` | string | Tooltip text shown in the editor |
 | `type` | string | `"string"`, `"number"`, or `"boolean"` |
 | `max_length` | integer | Max characters this variable can produce |
-| `group` | string | Group ID to organise this variable under |
+| `group` | string | Group ID to organize this variable under |
 | `example` | string | Example value shown in documentation |
 
 All fields are optional. You can mix and match — add just `description` if that's all you need.
@@ -190,6 +190,41 @@ def fetch_data(self) -> PluginResult:
 If you read nested structures, call `resolved = self.resolve_config_variables()` and walk the dict/list you need.
 
 The **`POST /generic-data/test-fetch`** endpoint applies the same built-in interpolation to the URL, header values, and string POST body so the Integrations UI preview matches date-aware URLs.
+
+---
+
+## Board awareness (`self.board`)
+
+FiestaBoard runs on more than one board size — a Flagship is 22×6 tiles, a Note is 15×3. A single plugin instance can be shown on several boards at once, so plugins can **read the board they're currently rendering on** and adapt their content. There is no per-board configuration and no need for separate instances — the same setup adjusts itself per board.
+
+Inside `fetch_data()` (or `get_formatted_display()`), read `self.board`:
+
+```python
+def fetch_data(self) -> PluginResult:
+    board = self.board                      # BoardContext | None
+    width = board.width if board else 22    # cols: 22 flagship / 15 note
+    height = board.height if board else 6   # rows: 6 flagship / 3 note
+
+    # Pick content that fits the board.
+    title = "Friday, August 27" if width >= 22 else "Fri, Aug 27"
+    return PluginResult(available=True, data={"title": title})
+```
+
+`BoardContext` is a small read-only object with:
+
+| Attribute | Meaning |
+|---|---|
+| `device_type` | `"flagship"`, `"note"`, … |
+| `cols` / `width` | board width in tiles (aliases) |
+| `rows` / `height` | board height in tiles (aliases) |
+
+Notes:
+
+- **`self.board` is `None` outside a board-scoped render** (e.g. unit tests, or callers that don't pass a board). Always provide a sensible default — assume the Flagship 22×6 when it's `None`. Existing plugins that never touch `self.board` keep working unchanged.
+- **Results are cached per board size.** A Flagship render and a Note render are cached separately, so adapting your output per board is safe and won't serve one board's content to another.
+- Use `width`/`height` (or `cols`/`rows`, whichever reads better) to size `.center()`, truncation, and line counts instead of hard-coding `22` / `6`.
+
+The bundled **Date & Time** and **Countdown** plugins use this to spell things out on a Flagship but abbreviate on a Note — see `plugins/date_time/__init__.py` for a worked example.
 
 ---
 

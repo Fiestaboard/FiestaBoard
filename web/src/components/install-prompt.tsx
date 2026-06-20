@@ -95,7 +95,11 @@ export function InstallPrompt() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 lg:left-auto lg:right-4 lg:w-96 z-50 animate-in slide-in-from-bottom-5">
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-4 left-4 right-4 lg:left-auto lg:right-4 lg:w-96 z-50 animate-in slide-in-from-bottom-5"
+    >
       <div className="bg-card border border-border rounded-lg shadow-lg p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 rounded-full bg-primary/10 p-2">

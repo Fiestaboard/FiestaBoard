@@ -22,6 +22,14 @@ vi.mock("@/hooks/use-router", () => ({
   }),
 }));
 
+// Mock usePrideActive so tests can toggle the pride-month logo state
+// without colliding with the calendar. Defaults to false to match the
+// non-pride code path used by the existing suite.
+const mockPrideActive = vi.fn(() => false);
+vi.mock("@/hooks/use-pride-active", () => ({
+  usePrideActive: () => mockPrideActive(),
+}));
+
 // Must import after mocking
 import { NavigationSidebar } from "@/components/navigation-sidebar";
 
@@ -211,6 +219,33 @@ describe("NavigationSidebar collections link", () => {
     const collectionsLink = collectionsLinks[0].closest("a");
     expect(collectionsLink).toBeInTheDocument();
     expect(collectionsLink).toHaveAttribute("href", "/collections");
+  });
+});
+
+describe("NavigationSidebar pride logo accessibility (issue #1204)", () => {
+  beforeEach(() => {
+    mockPathname.mockReturnValue("/");
+    mockPrideActive.mockReturnValue(false);
+  });
+
+  it("renders the logo area as a non-interactive div when Pride Month is inactive", () => {
+    mockPrideActive.mockReturnValue(false);
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    expect(screen.queryByRole("button", { name: "Celebrate Pride Month" })).not.toBeInTheDocument();
+  });
+
+  it("renders the logo area as a keyboard-accessible button during Pride Month", () => {
+    mockPrideActive.mockReturnValue(true);
+    render(<NavigationSidebar />, { wrapper: TestWrapper });
+
+    // Both the mobile header and the desktop sidebar render a celebrate button.
+    const celebrateButtons = screen.getAllByRole("button", { name: "Celebrate Pride Month" });
+    expect(celebrateButtons.length).toBeGreaterThanOrEqual(2);
+    celebrateButtons.forEach((button) => {
+      expect(button.tagName).toBe("BUTTON");
+      expect(button).toHaveAttribute("type", "button");
+    });
   });
 });
 

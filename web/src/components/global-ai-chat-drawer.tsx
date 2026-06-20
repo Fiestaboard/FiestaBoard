@@ -10,6 +10,7 @@ import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
 import { usePageEditorBridge } from "@/components/page-editor-bridge-context";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { useRouter } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import type {
   ChainingMode,
   ChatTurnContext,
@@ -106,7 +107,13 @@ function buildToolResultText(call: ToolCall, success: boolean, errorMsg?: string
 
 export function GlobalAiChatDrawer() {
   const { isOpen, close } = useGlobalAiPanel();
+  const t = useTranslations("globalAiChatDrawer");
   const router = useRouter();
+
+  // Focus-management refs for the modal slide-in panel.
+  const panelRef = useRef<HTMLDivElement>(null);
+  // The element that had focus when the panel opened, so we can restore it on close.
+  const openerRef = useRef<HTMLElement | null>(null);
   const queryClient = useQueryClient();
   const { getEditorSnapshot, applyEditorOp, saveEditor, hasEditor, canEditorUndo, editorUndo, waitForEditor } =
     usePageEditorBridge();
@@ -169,14 +176,64 @@ export function GlobalAiChatDrawer() {
     enabled: isOpen,
   });
 
-  // Close on Escape
+  // Modal focus management: trap Tab focus inside the panel while open,
+  // close on Escape, and restore focus to the opener when it closes.
   useEffect(() => {
     if (!isOpen) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+
+    // Remember what had focus so we can restore it on close.
+    openerRef.current = document.activeElement as HTMLElement | null;
+
+    const getFocusable = (): HTMLElement[] => {
+      const panel = panelRef.current;
+      if (!panel) return [];
+      return Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
     };
+
+    // Move focus into the panel on open.
+    const focusTimer = window.setTimeout(() => {
+      const focusable = getFocusable();
+      (focusable[0] ?? panelRef.current)?.focus();
+    }, 0);
+
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        close();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) {
+        // Nothing focusable yet — keep focus on the panel itself.
+        e.preventDefault();
+        panelRef.current?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !panelRef.current?.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !panelRef.current?.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", handler);
+      // Restore focus to whatever opened the panel.
+      openerRef.current?.focus?.();
+    };
   }, [isOpen, close]);
 
   // Auto-close when AI is disabled so the drawer doesn't trap users who
@@ -759,6 +816,11 @@ export function GlobalAiChatDrawer() {
 
   return (
     <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("panelAriaLabel")}
+      tabIndex={-1}
       className={cn(
         "fixed right-0 top-0 bottom-0 z-40 w-96 flex flex-col bg-background overflow-hidden",
         "transition-transform duration-300 ease-in-out sidebar-transition",

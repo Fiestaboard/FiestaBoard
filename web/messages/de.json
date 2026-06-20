@@ -76,7 +76,8 @@
     "primaryNavigation": "Hauptnavigation",
     "secondaryNavigation": "Sekundärnavigation",
     "picks": "Empfehlungen",
-    "skipToMainContent": "Zum Hauptinhalt springen"
+    "skipToMainContent": "Zum Hauptinhalt springen",
+    "prideCelebrationAriaLabel": "Pride Month feiern"
   },
   "network": {
     "title": "WLAN",
@@ -709,6 +710,7 @@
     "exportFailed": "Freigabezeichenfolge konnte nicht abgerufen werden",
     "exportDialogTitle": "Seite exportieren",
     "exportDialogDescription": "Kopiere diese Freigabezeichenfolge, um deine Seite mit anderen zu teilen.",
+    "exportStringAriaLabel": "Freigabezeichenfolge",
     "exportCopyAriaLabel": "Freigabezeichenfolge kopieren"
   },
   "displaySettings": {
@@ -1021,7 +1023,147 @@
       "wifi": "WLAN",
       "quotes": "Zitate",
       "rotation": "Drehung"
+    },
+    "on": "An",
+    "off": "Aus",
+    "toggleServiceAriaLabel": "{name} umschalten"
+  },
+  "accountSection": {
+    "signedIn": {
+      "title": "Angemeldet",
+      "description": "Du bist derzeit als <name>{username}</name> angemeldet."
+    },
+    "changeUsername": {
+      "title": "Benutzernamen ändern",
+      "description": "Wähle einen neuen Anmeldenamen. Erfordert dein aktuelles Passwort.",
+      "formAriaLabel": "Benutzernamen ändern",
+      "newUsernameLabel": "Neuer Benutzername",
+      "currentPasswordLabel": "Aktuelles Passwort",
+      "submit": "Benutzernamen speichern",
+      "submitting": "Wird gespeichert…",
+      "success": "Benutzername aktualisiert",
+      "failure": "Ändern des Benutzernamens fehlgeschlagen"
+    },
+    "changePassword": {
+      "title": "Passwort ändern",
+      "description": "Ändere dein Passwort. Alle anderen mit dem alten Passwort angemeldeten Sitzungen werden abgemeldet.",
+      "formAriaLabel": "Passwort ändern",
+      "currentPasswordLabel": "Aktuelles Passwort",
+      "newPasswordLabel": "Neues Passwort",
+      "newPasswordHint": "Mindestens 8 Zeichen.",
+      "confirmPasswordLabel": "Neues Passwort bestätigen",
+      "submit": "Passwort speichern",
+      "submitting": "Wird gespeichert…",
+      "success": "Passwort aktualisiert",
+      "failure": "Ändern des Passworts fehlgeschlagen",
+      "tooShort": "Das neue Passwort muss mindestens 8 Zeichen lang sein.",
+      "mismatch": "Die Passwörter stimmen nicht überein."
+    },
+    "signOut": {
+      "title": "Abmelden",
+      "description": "Beende deine aktuelle Sitzung. Du wirst zur Anmeldeseite zurückgeleitet.",
+      "button": "Abmelden"
+    },
+    "disableLogin": {
+      "title": "Anmeldung deaktivieren",
+      "description": "Authentifizierung vollständig deaktivieren. Jeder, der dieses FiestaBoard im Netzwerk erreichen kann, kann dann Einstellungen ändern und API-Schlüssel lesen. Nicht empfohlen, es sei denn, dieses Gerät befindet sich in einem vollständig vertrauenswürdigen privaten Netzwerk.",
+      "button": "Anmeldung deaktivieren",
+      "dialogTitle": "Anmeldung für dieses FiestaBoard deaktivieren?",
+      "dialogBody1": "Durch das Deaktivieren der Anmeldung wird das Konto <name>{username}</name> entfernt und dieses FiestaBoard für jeden im Netzwerk geöffnet — diese können dann deine API-Schlüssel lesen, deine Board-Konfiguration ändern und alle Einstellungen anpassen.",
+      "dialogBody2": "Tue dies nur, wenn sich dieses Gerät in einem vollständig vertrauenswürdigen privaten Netzwerk befindet (keine Mitbewohner, keine Gäste, keine Smart-Home-Geräte, die du nicht kontrollierst). <strong>Dringend nicht empfohlen</strong>, wenn dieses FiestaBoard aus dem Internet erreichbar ist.",
+      "dialogBody3": "Dein Board zeigt in beiden Fällen weiter normal an — dies steuert nur, wer sich anmelden kann, um Einstellungen zu ändern.",
+      "confirmPasswordLabel": "Bestätige dein aktuelles Passwort, um fortzufahren",
+      "confirm": "Ja, Anmeldung deaktivieren",
+      "confirming": "Wird deaktiviert…",
+      "success": "Authentifizierung deaktiviert",
+      "failure": "Authentifizierung konnte nicht deaktiviert werden"
+    },
+    "enableLogin": {
+      "title": "Anmeldung aktivieren",
+      "description": "Die Anmeldung ist derzeit <strong>aus</strong>. Jeder, der dieses FiestaBoard im Netzwerk erreichen kann, kann deine API-Schlüssel lesen, deine Board-Konfiguration ändern und alle Einstellungen anpassen.",
+      "body": "Dringend empfohlen, wenn du WLAN mit Personen teilst, denen du nicht vollständig vertraust (Mitbewohner, Gäste, Smart-Home-Geräte), oder wenn dieses FiestaBoard aus dem Internet erreichbar ist. Dein Board zeigt in beiden Fällen weiter normal an — die Anmeldung steuert nur, wer sich anmelden kann, um Einstellungen zu ändern.",
+      "button": "Benutzernamen & Passwort einrichten",
+      "submitting": "Wird aktiviert…",
+      "failure": "Anmeldung konnte nicht aktiviert werden"
     }
+  },
+  "aiActionConfirmation": {
+    "deny": "Ablehnen",
+    "allow": "Zulassen",
+    "working": "Wird ausgeführt…",
+    "done": "Fertig",
+    "denied": "Abgelehnt",
+    "noChanges": "keine Änderungen",
+    "noValues": "keine Werte",
+    "noChangesSpecified": "Keine Änderungen angegeben.",
+    "openEnd": "offen",
+    "label": {
+      "installPlugin": "Plugin installieren: {id}",
+      "updatePluginConfig": "Plugin konfigurieren: {id}",
+      "updatePlugin": "Plugin aktualisieren: {id}",
+      "enablePlugin": "Plugin aktivieren: {id}",
+      "disablePlugin": "Plugin deaktivieren: {id}",
+      "uninstallPlugin": "Plugin deinstallieren: {id}",
+      "updateSetting": "Einstellung ändern: {category}",
+      "createCollection": "Sammlung erstellen: \"{name}\"",
+      "updateCollection": "Sammlung aktualisieren",
+      "createSchedule": "Zeitplan erstellen",
+      "updateSchedule": "Zeitplan aktualisieren",
+      "deleteSchedule": "Zeitplan löschen",
+      "triggerSystemUpdate": "Systemaktualisierung"
+    },
+    "description": {
+      "installPlugin": "Installiert \"{id}\" aus der offiziellen Registry.",
+      "installPluginEnable": "Installiert \"{id}\" aus der offiziellen Registry und aktiviert es.",
+      "updatePluginConfig": "Aktualisiert die Konfiguration von \"{id}\": {keys}.",
+      "updatePlugin": "Lädt die neueste Registry-Version von \"{id}\" herunter und installiert sie.",
+      "enablePlugin": "Aktiviert \"{id}\", damit es Daten für deine Boards bereitstellen kann.",
+      "disablePlugin": "Deaktiviert \"{id}\", ohne es zu entfernen. Es kann später wieder aktiviert werden.",
+      "uninstallPlugin": "Entfernt \"{id}\" dauerhaft. Dies kann nicht rückgängig gemacht werden.",
+      "updateSetting": "Setzt {values} in den {category}-Einstellungen.",
+      "createCollection": "Erstellt eine Sammlung mit {count, plural, one {# Seite} other {# Seiten}}, die alle {interval}s wechselt.",
+      "createSchedule": "Zeigt Seite \"{page}\" von {time} an {days}-Tagen.",
+      "deleteSchedule": "Entfernt den Zeitplan \"{id}\" dauerhaft. Dies kann nicht rückgängig gemacht werden.",
+      "triggerSystemUpdate": "Lädt die neueste FiestaBoard-Aktualisierung herunter und installiert sie. Das System startet kurz neu."
+    },
+    "change": {
+      "rename": "umbenennen in \"{name}\"",
+      "setPages": "{count, plural, one {# Seite} other {# Seiten}} festlegen",
+      "interval": "Intervall → {interval}s",
+      "page": "Seite → {page}",
+      "start": "Start → {start}",
+      "end": "Ende → {end}",
+      "days": "Tage → {days}",
+      "enable": "aktivieren",
+      "disable": "deaktivieren"
+    }
+  },
+  "chainingModePicker": {
+    "menuTitle": "KI-Verkettungsmodus",
+    "triggerAriaLabel": "KI-Verkettungsmodus: {mode}",
+    "modes": {
+      "manual": {
+        "label": "Manuell",
+        "description": "Ich frage nach jeder Aktion erneut nach"
+      },
+      "autoContinue": {
+        "label": "Auto-Fortsetzung",
+        "description": "Aktionen verketten, jeden Schritt bestätigen"
+      },
+      "autonomous": {
+        "label": "Autonom",
+        "description": "Bis zum Abschluss ausführen, Bestätigungen überspringen"
+      }
+    }
+  },
+  "bootGate": {
+    "waiting": "Warten auf den Start…",
+    "errorHeading": "Verbindung zu FiestaBoard fehlgeschlagen",
+    "errorDescription": "Prüfe, ob die App läuft, und versuche, die Seite neu zu laden.",
+    "refreshPage": "Seite neu laden"
+  },
+  "globalAiChatDrawer": {
+    "panelAriaLabel": "FiestaBot-KI-Chat"
   },
   "plainTextEditor": {
     "placeholder": "Vorlagentext eingeben...",
@@ -1231,7 +1373,8 @@
     "change": "Ändern",
     "selectAttribute": "Attribut auswählen",
     "valueLabel": "Wert",
-    "insert": "Einfügen"
+    "insert": "Einfügen",
+    "searchAriaLabel": "Entitäten suchen"
   },
   "pluginSettings": {
     "title": "Plugin-Updates",
@@ -1530,6 +1673,13 @@
     "requires": "Benötigt",
     "pluginNotEnabled": "Aktiviere das Plugin {name} in den Integrationen, um diese Vorlage zu verwenden",
     "importWithMissingPlugins": "Einige Plugins sind noch nicht aktiviert: {plugins}. Du kannst trotzdem importieren und sie später aktivieren."
+  },
+  "aiChatPanel": {
+    "messagesAriaLabel": "Chat-Nachrichten",
+    "taskStatusAriaLabel": "Aufgabenfortschritt",
+    "taskProgressAriaLabel": "Fortschritt der KI-Aufgaben",
+    "clearConversationAriaLabel": "Konversation löschen",
+    "closePanelAriaLabel": "FiestaBot (Beta) schließen"
   },
   "boardSizeIndicator": {
     "custom": "Custom",

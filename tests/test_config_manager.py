@@ -1,5 +1,6 @@
 """Tests for ConfigManager singleton and configuration file management."""
 
+import importlib
 import json
 import threading
 from unittest.mock import MagicMock, patch
@@ -1123,6 +1124,79 @@ def test_no_pre_boot_snapshot_on_brand_new_install(tmp_path):
 
     snapshot_dir = tmp_path / "update-backups"
     assert not snapshot_dir.exists() or not list(snapshot_dir.glob("pre-update-*.json"))
+
+
+# --- version_changed_on_load ---
+
+
+def test_version_changed_on_load_true_after_upgrade(tmp_path, monkeypatch):
+    """An existing config with an older app_version_seen flags a version change."""
+    src_module = importlib.import_module("src")
+
+    monkeypatch.setattr(src_module, "__version__", "9.9.9")
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({"app_version_seen": "1.0.0", "plugins": {"weather": {"enabled": True}}}))
+    cm = ConfigManager(config_path=str(cfg))
+    assert cm.version_changed_on_load is True
+
+
+def test_version_changed_on_load_false_same_version(tmp_path, monkeypatch):
+    """Restart on the same version is not a version change."""
+    src_module = importlib.import_module("src")
+
+    monkeypatch.setattr(src_module, "__version__", "9.9.9")
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({"app_version_seen": "9.9.9", "plugins": {}}))
+    cm = ConfigManager(config_path=str(cfg))
+    assert cm.version_changed_on_load is False
+
+
+def test_version_changed_on_load_false_fresh_install(tmp_path, monkeypatch):
+    """A brand-new config (no file) is not a version change."""
+    src_module = importlib.import_module("src")
+
+    monkeypatch.setattr(src_module, "__version__", "9.9.9")
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    assert cm.version_changed_on_load is False
+
+
+def test_version_changed_on_load_latches_across_second_load(tmp_path, monkeypatch):
+    """The flag must stay True after a second load that sees the stamped version.
+
+    Regression for #1102: the first load stamps ``app_version_seen`` to the
+    current version and resaves. A second ``_load_or_create`` in the same
+    process — triggered in production by the plugin registry reaching back
+    through ``get_config_manager()`` during the first ``__init__``, reproduced
+    here with an explicit ``reload()`` — then reads the already-stamped config.
+    Recomputing the flag from scratch would clear it to False and silently
+    disable the post-upgrade auto-restore. It must latch True for the process.
+    """
+    import src
+
+    monkeypatch.setattr(src, "__version__", "9.9.9")
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({"app_version_seen": "1.0.0", "plugins": {"weather": {"enabled": True}}}))
+    cm = ConfigManager(config_path=str(cfg))
+    assert cm.version_changed_on_load is True
+    # config.json now carries the current version; a second load must not clear it.
+    cm.reload()
+    assert cm.version_changed_on_load is True
+
+
+def test_version_changed_on_load_false_corrupt_config(tmp_path, monkeypatch):
+    """A corrupt config that resets to defaults is not a version change.
+
+    The JSONDecodeError branch of _load_or_create skips the version-change
+    check, so the flag stays at its __new__ default of False — a corrupt-config
+    reset must NOT trigger a restore from a (possibly stale) snapshot.
+    """
+    src_module = importlib.import_module("src")
+
+    monkeypatch.setattr(src_module, "__version__", "9.9.9")
+    cfg = tmp_path / "config.json"
+    cfg.write_text("not valid json {{{")
+    cm = ConfigManager(config_path=str(cfg))
+    assert cm.version_changed_on_load is False
 
 
 # ---------------------------------------------------------------------------
