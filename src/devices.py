@@ -315,3 +315,20 @@ def classify_dimensions(rows: int, cols: int) -> dict:
 
 # Default device type for backward compatibility
 DEFAULT_DEVICE_TYPE: DeviceType = "flagship"
+
+
+def board_context_for(device_type: str, notes_wide: int = 1, notes_tall: int = 1) -> BoardContext:
+    """Build a :class:`BoardContext` for any device type, including note arrays.
+
+    Unlike :meth:`BoardContext.from_device_type` (flagship/note only), this
+    resolves note-array geometry from ``notes_wide``/``notes_tall`` via
+    :func:`resolve_dimensions`, so plugins receive the board's true size. Falls
+    back to the default device for an unrecognized type so a bad value never
+    crashes a render.
+    """
+    try:
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+    except ValueError:
+        device_type = DEFAULT_DEVICE_TYPE
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+    return BoardContext(device_type=device_type, rows=dims.rows, cols=dims.cols)

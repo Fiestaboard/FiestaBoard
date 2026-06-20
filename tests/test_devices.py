@@ -13,6 +13,7 @@ from src.devices import (
     BoardContext,
     BoardInstance,
     DeviceDimensions,
+    board_context_for,
     classify_dimensions,
     get_dimensions,
     is_note_array,
@@ -749,3 +750,36 @@ class TestClassifyDimensions:
         """3×0 → ValueError."""
         with pytest.raises(ValueError):
             classify_dimensions(3, 0)
+
+
+class TestBoardContextFor:
+    """Tests for board_context_for() — note-array-aware BoardContext factory."""
+
+    def test_flagship(self):
+        b = board_context_for("flagship")
+        assert (b.device_type, b.rows, b.cols) == ("flagship", 6, 22)
+        assert (b.width, b.height) == (22, 6)
+
+    def test_note(self):
+        b = board_context_for("note")
+        assert (b.device_type, b.rows, b.cols) == ("note", 3, 15)
+
+    def test_note_array_4_wide(self):
+        """4 side-by-side → 3 rows × 60 cols (the case from_device_type cannot build)."""
+        b = board_context_for("note_array", notes_wide=4, notes_tall=1)
+        assert (b.device_type, b.rows, b.cols) == ("note_array", 3, 60)
+
+    def test_note_array_2x2(self):
+        b = board_context_for("note_array", notes_wide=2, notes_tall=2)
+        assert (b.device_type, b.rows, b.cols) == ("note_array", 6, 30)
+
+    def test_note_array_distinct_sizes_distinct_dims(self):
+        """Two note arrays of different sizes produce different contexts."""
+        wide = board_context_for("note_array", notes_wide=4, notes_tall=1)
+        tall = board_context_for("note_array", notes_wide=1, notes_tall=4)
+        assert (wide.rows, wide.cols) != (tall.rows, tall.cols)
+
+    def test_unknown_falls_back_to_default(self):
+        """An unrecognized device type falls back to the default (flagship)."""
+        b = board_context_for("nonsense")
+        assert (b.device_type, b.rows, b.cols) == ("flagship", 6, 22)

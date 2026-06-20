@@ -12,6 +12,8 @@ from src.devices import (
     DEFAULT_DEVICE_TYPE,
     DEVICE_DIMENSIONS,
     BoardContext,
+    board_context_for,
+    is_note_array,
     resolve_dimensions,
 )
 from src.displays.service import DisplayResult, get_display_service
@@ -328,9 +330,23 @@ class PageService:
 
     @staticmethod
     def _board_for_page(page: Page) -> BoardContext:
-        """Build a BoardContext for a page, falling back to the default device."""
-        device_type = page.device_type if page.device_type in DEVICE_DIMENSIONS else DEFAULT_DEVICE_TYPE
-        return BoardContext.from_device_type(device_type)
+        """Build a BoardContext for a page (note-array aware).
+
+        Resolves note-array geometry from the page's notes_wide/notes_tall so a
+        note-array page's plugins receive the board's true size, not flagship's.
+        """
+        return board_context_for(page.device_type, page.notes_wide, page.notes_tall)
+
+    @staticmethod
+    def _board_key(page: Page) -> str:
+        """Stable key identifying a page's board *size* for batch context sharing.
+
+        Flagship/Note have fixed sizes (keyed by device_type); note arrays vary,
+        so their dimensions are folded in — matching :meth:`PluginBase._cache_key`.
+        """
+        if is_note_array(page.device_type):
+            return f"note_array:{page.notes_wide}x{page.notes_tall}"
+        return page.device_type if page.device_type in DEVICE_DIMENSIONS else DEFAULT_DEVICE_TYPE
 
     def _render_single(self, page: Page) -> DisplayResult:
         """Render a single-source page."""
@@ -537,30 +553,31 @@ class PageService:
 
             pages_to_render.append((page_id, page))
 
-        # Build shared template context once per distinct device type. Plugins
+        # Build shared template context once per distinct board *size*. Plugins
         # may emit different data per board size, so a single shared context
-        # would be wrong when pages target different devices; fanning out once
-        # per device type (not per page) keeps the efficiency win.
-        contexts_by_device: dict[str, dict] = {}
-        template_device_types = {
-            (p.device_type if p.device_type in DEVICE_DIMENSIONS else DEFAULT_DEVICE_TYPE)
-            for _, p in pages_to_render
-            if p.type == "template"
-        }
-        if template_device_types:
+        # would be wrong when pages target different sizes; fanning out once per
+        # distinct board (not per page) keeps the efficiency win. Note arrays of
+        # different sizes are distinct boards (see _board_key).
+        contexts_by_board: dict[str, dict] = {}
+        boards: dict[str, BoardContext] = {}
+        for _, p in pages_to_render:
+            if p.type != "template":
+                continue
+            key = self._board_key(p)
+            if key not in boards:
+                boards[key] = board_context_for(p.device_type, p.notes_wide, p.notes_tall)
+        if boards:
             try:
                 from src.plugins.registry import get_plugin_registry
 
-                boards = {dt: BoardContext.from_device_type(dt) for dt in template_device_types}
-                contexts_by_device = get_plugin_registry().build_template_contexts_for(boards)
+                contexts_by_board = get_plugin_registry().build_template_contexts_for(boards)
             except Exception as e:
                 logger.error(f"Failed to build shared template context: {e}")
 
         # Second pass: render pages that missed cache
         for page_id, page in pages_to_render:
             try:
-                page_device = page.device_type if page.device_type in DEVICE_DIMENSIONS else DEFAULT_DEVICE_TYPE
-                result = self.render_page(page, context=contexts_by_device.get(page_device))
+                result = self.render_page(page, context=contexts_by_board.get(self._board_key(page)))
 
                 # Cache the result
                 self._preview_cache[page_id] = CachedPreview(
