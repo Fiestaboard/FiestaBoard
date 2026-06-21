@@ -43,8 +43,12 @@ test.describe("Multi-Board and Schedule", () => {
     await ensureTwoBoards();
     await page.goto("/schedule");
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible({ timeout: 15_000 });
-    // The board selector dropdown should appear in the toolbar
-    await expect(page.getByTestId("board-selector")).toBeVisible({
+    // Board switching now lives in the shared sidebar selector (#1248); the
+    // Schedule toolbar shows a read-only indicator of the active board.
+    await expect(page.getByTestId("active-board-indicator")).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByRole("combobox", { name: /board/i }).first()).toBeVisible({
       timeout: 10_000,
     });
     // The schedule enabled toggle should also be visible
@@ -141,8 +145,8 @@ test.describe("Multi-Board and Schedule", () => {
     // First board selected: should show 09:00–12:00
     await expect(page.getByText("09:00").first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("12:00").first()).toBeVisible({ timeout: 5_000 });
-    // Switch to second board using the compact board selector dropdown
-    const boardSelector = page.getByTestId("board-selector");
+    // Switch to the second board using the shared sidebar board selector (#1248).
+    const boardSelector = page.getByRole("combobox", { name: /board/i }).first();
     await boardSelector.click();
     // Pick the second option in the dropdown
     await page.getByRole("option").nth(1).click();
