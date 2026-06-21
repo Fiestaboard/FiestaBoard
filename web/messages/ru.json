@@ -77,7 +77,10 @@
     "secondaryNavigation": "Дополнительная навигация",
     "picks": "Подборка команды",
     "skipToMainContent": "Перейти к основному содержимому",
-    "prideCelebrationAriaLabel": "Отпраздновать месяц гордости"
+    "prideCelebrationAriaLabel": "Отпраздновать месяц гордости",
+    "boardSelector": "Выберите доску для управления",
+    "selectBoard": "Выберите доску",
+    "unnamedBoard": "Доска без названия"
   },
   "network": {
     "title": "Wi-Fi",

@@ -77,7 +77,10 @@
     "secondaryNavigation": "Navigazione secondaria",
     "picks": "Scelte del team",
     "skipToMainContent": "Vai al contenuto principale",
-    "prideCelebrationAriaLabel": "Celebra il Mese dell'Orgoglio"
+    "prideCelebrationAriaLabel": "Celebra il Mese dell'Orgoglio",
+    "boardSelector": "Seleziona la bacheca da gestire",
+    "selectBoard": "Seleziona bacheca",
+    "unnamedBoard": "Bacheca senza nome"
   },
   "network": {
     "title": "Wi-Fi",

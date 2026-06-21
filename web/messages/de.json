@@ -77,7 +77,10 @@
     "secondaryNavigation": "Sekundärnavigation",
     "picks": "Empfehlungen",
     "skipToMainContent": "Zum Hauptinhalt springen",
-    "prideCelebrationAriaLabel": "Pride Month feiern"
+    "prideCelebrationAriaLabel": "Pride Month feiern",
+    "boardSelector": "Zu verwaltendes Board auswählen",
+    "selectBoard": "Board auswählen",
+    "unnamedBoard": "Unbenanntes Board"
   },
   "network": {
     "title": "WLAN",

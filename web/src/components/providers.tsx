@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { CurrentBoardProvider } from "@/components/current-board-context";
 import { SidebarProvider } from "@/components/sidebar-context";
 import { UpdateProvider } from "@/components/update-context";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
@@ -35,11 +36,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <SidebarProvider>
-          <ConfigOverridesProvider>
-            <FormatPreferencesProvider>
-              <UpdateProvider>{children}</UpdateProvider>
-            </FormatPreferencesProvider>
-          </ConfigOverridesProvider>
+          <CurrentBoardProvider>
+            <ConfigOverridesProvider>
+              <FormatPreferencesProvider>
+                <UpdateProvider>{children}</UpdateProvider>
+              </FormatPreferencesProvider>
+            </ConfigOverridesProvider>
+          </CurrentBoardProvider>
         </SidebarProvider>
       </ThemeProvider>
     </QueryClientProvider>

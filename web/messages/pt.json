@@ -77,7 +77,10 @@
     "secondaryNavigation": "Navegação secundária",
     "picks": "Seleções da equipa",
     "skipToMainContent": "Pular para o conteúdo principal",
-    "prideCelebrationAriaLabel": "Celebrar o Mês do Orgulho"
+    "prideCelebrationAriaLabel": "Celebrar o Mês do Orgulho",
+    "boardSelector": "Selecionar quadro a gerir",
+    "selectBoard": "Selecionar quadro",
+    "unnamedBoard": "Quadro sem nome"
   },
   "network": {
     "title": "Wi-Fi",

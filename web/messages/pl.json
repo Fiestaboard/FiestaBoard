@@ -77,7 +77,10 @@
     "secondaryNavigation": "Nawigacja drugorzędna",
     "picks": "Polecane",
     "skipToMainContent": "Przejdź do treści głównej",
-    "prideCelebrationAriaLabel": "Świętuj Miesiąc Dumy"
+    "prideCelebrationAriaLabel": "Świętuj Miesiąc Dumy",
+    "boardSelector": "Wybierz tablicę do zarządzania",
+    "selectBoard": "Wybierz tablicę",
+    "unnamedBoard": "Tablica bez nazwy"
   },
   "network": {
     "title": "Wi-Fi",

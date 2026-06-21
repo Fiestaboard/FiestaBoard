@@ -77,7 +77,10 @@
     "secondaryNavigation": "サブナビゲーション",
     "picks": "スタッフのおすすめ",
     "skipToMainContent": "メインコンテンツへスキップ",
-    "prideCelebrationAriaLabel": "プライド月間を祝う"
+    "prideCelebrationAriaLabel": "プライド月間を祝う",
+    "boardSelector": "管理するボードを選択",
+    "selectBoard": "ボードを選択",
+    "unnamedBoard": "名前のないボード"
   },
   "network": {
     "title": "Wi-Fi",

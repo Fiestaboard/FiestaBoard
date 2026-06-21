@@ -77,7 +77,10 @@
     "secondaryNavigation": "보조 탐색",
     "picks": "스태프 추천",
     "skipToMainContent": "본문으로 건너뛰기",
-    "prideCelebrationAriaLabel": "프라이드의 달 축하하기"
+    "prideCelebrationAriaLabel": "프라이드의 달 축하하기",
+    "boardSelector": "관리할 보드 선택",
+    "selectBoard": "보드 선택",
+    "unnamedBoard": "이름 없는 보드"
   },
   "network": {
     "title": "Wi-Fi",
