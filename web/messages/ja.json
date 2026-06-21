@@ -549,8 +549,8 @@
       "connectedTestAgain": "接続完了！再テスト",
       "thingsToTry": "お試しください:",
       "boardType": "ボードタイプ",
-      "flagshipDimensions": "22×6 文字",
-      "noteDimensions": "15×3 文字",
+      "flagshipDimensions": "6×22 文字",
+      "noteDimensions": "3×15 文字",
       "boardColor": "ボードカラー",
       "connectionTestFailed": "接続テストに失敗しました",
       "failedToEnableLocalApi": "ローカルAPIの有効化に失敗しました"

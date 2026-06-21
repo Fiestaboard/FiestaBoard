@@ -549,8 +549,8 @@
       "connectedTestAgain": "연결됨! 다시 테스트",
       "thingsToTry": "시도해 볼 항목:",
       "boardType": "보드 유형",
-      "flagshipDimensions": "22 × 6 문자",
-      "noteDimensions": "15 × 3 문자",
+      "flagshipDimensions": "6 × 22 문자",
+      "noteDimensions": "3 × 15 문자",
       "boardColor": "보드 색상",
       "connectionTestFailed": "연결 테스트 실패",
       "failedToEnableLocalApi": "로컬 API 활성화 실패"

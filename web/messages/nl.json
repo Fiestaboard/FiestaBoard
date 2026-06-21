@@ -549,8 +549,8 @@
       "connectedTestAgain": "Verbonden! Opnieuw testen",
       "thingsToTry": "Dingen om te proberen:",
       "boardType": "Bordtype",
-      "flagshipDimensions": "22 × 6 tekens",
-      "noteDimensions": "15 × 3 tekens",
+      "flagshipDimensions": "6 × 22 tekens",
+      "noteDimensions": "3 × 15 tekens",
       "boardColor": "Bordkleur",
       "connectionTestFailed": "Verbindingstest mislukt",
       "failedToEnableLocalApi": "Lokale API activeren mislukt"

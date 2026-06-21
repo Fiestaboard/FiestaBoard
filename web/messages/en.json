@@ -506,8 +506,8 @@
       "connectedTestAgain": "Connected! Test Again",
       "thingsToTry": "Things to try:",
       "boardType": "Board Type",
-      "flagshipDimensions": "22 × 6 characters",
-      "noteDimensions": "15 × 3 characters",
+      "flagshipDimensions": "6 × 22 characters",
+      "noteDimensions": "3 × 15 characters",
       "boardColor": "Board Color",
       "connectionTestFailed": "Connection test failed",
       "failedToEnableLocalApi": "Failed to enable local API"

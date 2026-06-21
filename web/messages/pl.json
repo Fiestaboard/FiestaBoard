@@ -549,8 +549,8 @@
       "connectedTestAgain": "Połączono! Testuj ponownie",
       "thingsToTry": "Co możesz wypróbować:",
       "boardType": "Typ tablicy",
-      "flagshipDimensions": "22 × 6 znaków",
-      "noteDimensions": "15 × 3 znaki",
+      "flagshipDimensions": "6 × 22 znaków",
+      "noteDimensions": "3 × 15 znaki",
       "boardColor": "Kolor tablicy",
       "connectionTestFailed": "Test połączenia nie powiódł się",
       "failedToEnableLocalApi": "Nie udało się włączyć lokalnego API"
