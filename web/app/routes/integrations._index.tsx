@@ -989,11 +989,20 @@ function PluginCard({
     refetchInterval: 15_000,
   });
 
-  // Initialize config values when plugin details load
+  // Initialize config values when plugin details load. Seed schema defaults
+  // for any keys the saved config doesn't already set, so fields with a
+  // declared `default` (e.g. refresh_seconds) show their value instead of
+  // appearing blank. Saved config always wins over defaults.
   useEffect(() => {
-    if (pluginDetails?.config) {
-      setConfigValues(pluginDetails.config);
+    if (!pluginDetails) return;
+    const schema = pluginDetails.settings_schema as { properties?: Record<string, { default?: unknown }> } | undefined;
+    const defaults: Record<string, unknown> = {};
+    for (const [key, prop] of Object.entries(schema?.properties ?? {})) {
+      if (prop && prop.default !== undefined) {
+        defaults[key] = prop.default;
+      }
     }
+    setConfigValues({ ...defaults, ...(pluginDetails.config ?? {}) });
   }, [pluginDetails]);
 
   const handleSaveConfig = async () => {

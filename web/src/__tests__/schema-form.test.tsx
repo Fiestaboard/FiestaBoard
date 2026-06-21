@@ -261,6 +261,11 @@ vi.mock("@/lib/api", async () => {
         ],
         total: 2,
       }),
+      getQueueTimesParks: vi.fn().mockResolvedValue([{ id: 5, name: "Magic Kingdom" }]),
+      getQueueTimesRides: vi.fn().mockResolvedValue([
+        { id: 1, name: "Space Mountain" },
+        { id: 2, name: "Haunted Mansion" },
+      ]),
     },
   };
 });
@@ -374,5 +379,106 @@ describe("SchemaForm - numeric enum (integer Select)", () => {
 
     // The Select trigger displays the friendly label for the current value.
     expect(screen.getByText("Until next page")).toBeInTheDocument();
+  });
+});
+
+/**
+ * disney-parks-times-picker widget: a plugin declares
+ * `"ui:widget": "disney-parks-times-picker"` on an array field to manage parks
+ * and their rides. The custom-name input and the reorder arrows are gated
+ * behind capability flags in `ui:options`, defaulting to false so older plugin
+ * versions that don't support them never expose the controls.
+ */
+describe("SchemaForm - disney-parks-times-picker widget", () => {
+  const parkSchema = (uiOptions?: { customRideNames?: boolean; reorderRides?: boolean }): JSONSchema => ({
+    type: "object",
+    properties: {
+      parks: {
+        type: "array",
+        title: "Parks",
+        "ui:widget": "disney-parks-times-picker",
+        ...(uiOptions ? { "ui:options": uiOptions } : {}),
+      },
+    },
+  });
+
+  function Harness({
+    schema,
+    initial,
+    onChange,
+  }: {
+    schema: JSONSchema;
+    initial: Record<string, unknown>;
+    onChange?: (v: Record<string, unknown>) => void;
+  }) {
+    const [values, setValues] = useState<Record<string, unknown>>(initial);
+    return (
+      <QueryHarness>
+        <SchemaForm
+          schema={schema}
+          values={values}
+          onChange={(v) => {
+            setValues(v);
+            onChange?.(v);
+          }}
+        />
+      </QueryHarness>
+    );
+  }
+
+  const oneParkTwoRides = { parks: [{ park_id: 5, ride_ids: [1, 2] }] };
+
+  it("hides reorder arrows and the custom-name input when no capability flags are set", async () => {
+    render(<Harness schema={parkSchema()} initial={oneParkTwoRides} />);
+
+    // Ride names render once the rides have loaded.
+    expect(await screen.findByText("Space Mountain")).toBeInTheDocument();
+    // The remove button is always available.
+    expect(screen.getByRole("button", { name: "Remove Space Mountain" })).toBeInTheDocument();
+    // Gated controls must NOT be present.
+    expect(screen.queryByRole("button", { name: "Move Space Mountain up" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Move Space Mountain down" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /custom name for space mountain/i })).not.toBeInTheDocument();
+  });
+
+  it("shows reorder arrows only when reorderRides is enabled, and reorders on click", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Harness schema={parkSchema({ reorderRides: true })} initial={oneParkTwoRides} onChange={onChange} />);
+
+    expect(await screen.findByText("Space Mountain")).toBeInTheDocument();
+    // First ride can't move up (disabled) but can move down.
+    expect(screen.getByRole("button", { name: "Move Space Mountain up" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Move Space Mountain down" }));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { parks: { ride_ids: number[] }[] };
+    expect(last.parks[0].ride_ids).toEqual([2, 1]);
+  });
+
+  it("shows the custom-name input only when customRideNames is enabled", async () => {
+    render(<Harness schema={parkSchema({ customRideNames: true })} initial={oneParkTwoRides} />);
+
+    expect(await screen.findByText("Space Mountain")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Custom name for Space Mountain" })).toBeInTheDocument();
+    // Reorder remains gated independently.
+    expect(screen.queryByRole("button", { name: "Move Space Mountain up" })).not.toBeInTheDocument();
+  });
+
+  it("writes and clears custom_names as the user edits the label", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Harness schema={parkSchema({ customRideNames: true })} initial={oneParkTwoRides} onChange={onChange} />);
+
+    const input = (await screen.findByRole("textbox", {
+      name: "Custom name for Space Mountain",
+    })) as HTMLInputElement;
+
+    await user.type(input, "Rocket");
+    let last = onChange.mock.calls.at(-1)?.[0] as { parks: { custom_names?: Record<string, string> }[] };
+    expect(last.parks[0].custom_names).toEqual({ "1": "Rocket" });
+
+    await user.clear(input);
+    last = onChange.mock.calls.at(-1)?.[0] as { parks: { custom_names?: Record<string, string> }[] };
+    expect(last.parks[0].custom_names).toEqual({});
   });
 });
