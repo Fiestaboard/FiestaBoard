@@ -38,6 +38,9 @@ class TestCheckAndSendActivePageBoardId:
             board_settings = Mock()
             board_settings.boards = [{"id": "board-abc-123", "name": "My Board"}]
             settings_service.get_board_settings.return_value = board_settings
+            # get_primary_board_id() is the SSOT the polling loop uses to resolve
+            # the active board (replaces ad-hoc boards[0] lookups).
+            settings_service.get_primary_board_id.return_value = "board-abc-123"
             mock_get_settings.return_value = settings_service
 
             schedule_service = Mock()
@@ -112,6 +115,7 @@ class TestGetActiveRefIdBoardId:
             board_settings = Mock()
             board_settings.boards = [{"id": "board-xyz-789", "name": "Berlin Board"}]
             settings_service.get_board_settings.return_value = board_settings
+            settings_service.get_primary_board_id.return_value = "board-xyz-789"
             mock_get_settings.return_value = settings_service
 
             schedule_service = Mock()

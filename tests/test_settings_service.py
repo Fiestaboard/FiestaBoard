@@ -97,7 +97,9 @@ class TestActivePageSettings:
 
     def test_to_dict(self):
         aps = ActivePageSettings(page_id="abc")
-        assert aps.to_dict() == {"page_id": "abc"}
+        # by_board holds the per-board active page map (page_id is the
+        # back-compat mirror of the primary board's value).
+        assert aps.to_dict() == {"page_id": "abc", "by_board": {}}
 
 
 # ==================== PollingSettings ====================
