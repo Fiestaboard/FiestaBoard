@@ -1,6 +1,20 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, Loader2, MapPin, Plus, Trash2, Zap } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Eye,
+  EyeOff,
+  Loader2,
+  MapPin,
+  Plus,
+  Trash2,
+  Zap,
+} from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -806,78 +820,80 @@ function DisneyParksTimesPicker({ name, property, value, onChange, disabled }: D
               <div className="text-xs text-muted-foreground">{t("rides")}</div>
               <div className="rounded-md border p-2 space-y-2">
                 {(entry.ride_ids || []).map((rid, rideIndex) => (
-                <div key={rid} className="rounded-sm border overflow-hidden">
-                  <div className={cn("flex items-center gap-1 bg-muted/50 px-2 py-1.5", allowCustomNames && "border-b")}>
-                    <span className="flex-1 text-sm font-medium">{rideName(entry.park_id, rid)}</span>
-                    {allowReorder && (
-                      <>
-                        <div className="flex items-center shrink-0">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => moveRideAt(index, rideIndex, -1)}
-                            disabled={disabled || rideIndex === 0}
-                            className="h-7 w-7 hover:bg-background"
-                            aria-label={t("moveRideUp", { ride: rideName(entry.park_id, rid) })}
-                          >
-                            <ArrowUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => moveRideAt(index, rideIndex, 1)}
-                            disabled={disabled || rideIndex === entry.ride_ids.length - 1}
-                            className="h-7 w-7 hover:bg-background"
-                            aria-label={t("moveRideDown", { ride: rideName(entry.park_id, rid) })}
-                          >
-                            <ArrowDown className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="mx-1 h-5 w-px shrink-0 bg-border" />
-                      </>
-                    )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeRideAt(index, rideIndex)}
-                      disabled={disabled}
-                      className="h-7 w-7 shrink-0 text-destructive hover:bg-background hover:text-destructive"
-                      aria-label={t("removeRide", { ride: rideName(entry.park_id, rid) })}
+                  <div key={rid} className="rounded-sm border overflow-hidden">
+                    <div
+                      className={cn("flex items-center gap-1 bg-muted/50 px-2 py-1.5", allowCustomNames && "border-b")}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {allowCustomNames && (
-                    <div className="p-2">
-                      <Input
-                        value={entry.custom_names?.[rid] ?? ""}
-                        onChange={(e) => setCustomNameAt(index, rid, e.target.value)}
+                      <span className="flex-1 text-sm font-medium">{rideName(entry.park_id, rid)}</span>
+                      {allowReorder && (
+                        <>
+                          <div className="flex items-center shrink-0">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => moveRideAt(index, rideIndex, -1)}
+                              disabled={disabled || rideIndex === 0}
+                              className="h-7 w-7 hover:bg-background"
+                              aria-label={t("moveRideUp", { ride: rideName(entry.park_id, rid) })}
+                            >
+                              <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => moveRideAt(index, rideIndex, 1)}
+                              disabled={disabled || rideIndex === entry.ride_ids.length - 1}
+                              className="h-7 w-7 hover:bg-background"
+                              aria-label={t("moveRideDown", { ride: rideName(entry.park_id, rid) })}
+                            >
+                              <ArrowDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="mx-1 h-5 w-px shrink-0 bg-border" />
+                        </>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeRideAt(index, rideIndex)}
                         disabled={disabled}
-                        placeholder={t("customRideNamePlaceholder")}
-                        aria-label={t("customRideNameLabel", { ride: rideName(entry.park_id, rid) })}
-                        className="h-8 text-sm"
-                      />
+                        className="h-7 w-7 shrink-0 text-destructive hover:bg-background hover:text-destructive"
+                        aria-label={t("removeRide", { ride: rideName(entry.park_id, rid) })}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
-                </div>
-              ))}
-              <Select value="" onValueChange={(val) => addRideAt(index, parseInt(val, 10))} disabled={disabled}>
-                <SelectTrigger className="w-full border-dashed text-muted-foreground">
-                  <SelectValue placeholder={t("addRide")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(ridesByParkId[entry.park_id] ?? [])
-                    .filter((r) => !(entry.ride_ids || []).includes(r.id))
-                    .map((r) => (
-                      <SelectItem key={r.id} value={String(r.id)}>
-                        {r.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+                    {allowCustomNames && (
+                      <div className="p-2">
+                        <Input
+                          value={entry.custom_names?.[rid] ?? ""}
+                          onChange={(e) => setCustomNameAt(index, rid, e.target.value)}
+                          disabled={disabled}
+                          placeholder={t("customRideNamePlaceholder")}
+                          aria-label={t("customRideNameLabel", { ride: rideName(entry.park_id, rid) })}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <Select value="" onValueChange={(val) => addRideAt(index, parseInt(val, 10))} disabled={disabled}>
+                  <SelectTrigger className="w-full border-dashed text-muted-foreground">
+                    <SelectValue placeholder={t("addRide")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(ridesByParkId[entry.park_id] ?? [])
+                      .filter((r) => !(entry.ride_ids || []).includes(r.id))
+                      .map((r) => (
+                        <SelectItem key={r.id} value={String(r.id)}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}

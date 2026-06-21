@@ -444,9 +444,7 @@ describe("SchemaForm - disney-parks-times-picker widget", () => {
   it("shows reorder arrows only when reorderRides is enabled, and reorders on click", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(
-      <Harness schema={parkSchema({ reorderRides: true })} initial={oneParkTwoRides} onChange={onChange} />,
-    );
+    render(<Harness schema={parkSchema({ reorderRides: true })} initial={oneParkTwoRides} onChange={onChange} />);
 
     expect(await screen.findByText("Space Mountain")).toBeInTheDocument();
     // First ride can't move up (disabled) but can move down.
@@ -469,9 +467,7 @@ describe("SchemaForm - disney-parks-times-picker widget", () => {
   it("writes and clears custom_names as the user edits the label", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(
-      <Harness schema={parkSchema({ customRideNames: true })} initial={oneParkTwoRides} onChange={onChange} />,
-    );
+    render(<Harness schema={parkSchema({ customRideNames: true })} initial={oneParkTwoRides} onChange={onChange} />);
 
     const input = (await screen.findByRole("textbox", {
       name: "Custom name for Space Mountain",

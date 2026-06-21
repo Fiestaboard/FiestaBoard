@@ -995,9 +995,7 @@ function PluginCard({
   // appearing blank. Saved config always wins over defaults.
   useEffect(() => {
     if (!pluginDetails) return;
-    const schema = pluginDetails.settings_schema as
-      | { properties?: Record<string, { default?: unknown }> }
-      | undefined;
+    const schema = pluginDetails.settings_schema as { properties?: Record<string, { default?: unknown }> } | undefined;
     const defaults: Record<string, unknown> = {};
     for (const [key, prop] of Object.entries(schema?.properties ?? {})) {
       if (prop && prop.default !== undefined) {
