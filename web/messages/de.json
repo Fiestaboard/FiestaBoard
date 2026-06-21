@@ -546,8 +546,8 @@
       "connectedTestAgain": "Verbunden! Erneut testen",
       "thingsToTry": "Tipps:",
       "boardType": "Board-Typ",
-      "flagshipDimensions": "22 × 6 Zeichen",
-      "noteDimensions": "15 × 3 Zeichen",
+      "flagshipDimensions": "6 × 22 Zeichen",
+      "noteDimensions": "3 × 15 Zeichen",
       "boardColor": "Boardfarbe",
       "connectionTestFailed": "Verbindungstest fehlgeschlagen",
       "failedToEnableLocalApi": "Lokale API konnte nicht aktiviert werden"

@@ -45,7 +45,7 @@ test.describe("Settings – Board Card Display", () => {
     await expect(page.getByText("My Board").first()).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByText("22 × 6").first()).toBeVisible();
+    await expect(page.getByText("6 × 22").first()).toBeVisible();
   });
 
   test("board card shows Connected badge when credentials are set", async ({ page }) => {
@@ -89,10 +89,10 @@ test.describe("Settings – Board Card Display", () => {
 
     await openSettingsTab(page, "Hardware");
 
-    await expect(page.getByText("22 × 6").first()).toBeVisible({
+    await expect(page.getByText("6 × 22").first()).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByText("15 × 3").first()).toBeVisible();
+    await expect(page.getByText("3 × 15").first()).toBeVisible();
   });
 });
 
@@ -127,7 +127,7 @@ test.describe("Settings – Board Instance CRUD", () => {
     await page.getByRole("button", { name: "Note", exact: true }).click();
 
     // Verify Note dimensions appear
-    await expect(page.getByText("15 × 3").first()).toBeVisible({
+    await expect(page.getByText("3 × 15").first()).toBeVisible({
       timeout: 10_000,
     });
 
@@ -182,8 +182,8 @@ test.describe("Settings – Board Instance CRUD", () => {
     await page.getByRole("option", { name: "Note", exact: true }).click();
     await page.waitForTimeout(1_500);
 
-    // Header should now show 15 × 3 dimensions
-    await expect(page.getByText("15 × 3").first()).toBeVisible({
+    // Header should now show 3 × 15 dimensions
+    await expect(page.getByText("3 × 15").first()).toBeVisible({
       timeout: 5_000,
     });
 
@@ -208,8 +208,8 @@ test.describe("Settings – Board Instance CRUD", () => {
     await page.getByRole("option", { name: "4 side-by-side" }).click();
     await page.waitForTimeout(1_500);
 
-    // 4×1 notes → 60 × 3 characters
-    await expect(page.getByText("60 × 3").first()).toBeVisible({ timeout: 5_000 });
+    // 4×1 notes → 3 × 60 characters
+    await expect(page.getByText("3 × 60").first()).toBeVisible({ timeout: 5_000 });
 
     let res = await fetch(`${API_URL}/settings/board`);
     let data = await res.json();
@@ -227,7 +227,7 @@ test.describe("Settings – Board Instance CRUD", () => {
     await page.reload();
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await openSettingsTab(page, "Hardware");
-    await expect(page.getByText("60 × 3").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("3 × 60").first()).toBeVisible({ timeout: 10_000 });
 
     res = await fetch(`${API_URL}/settings/board`);
     data = await res.json();
@@ -263,8 +263,8 @@ test.describe("Settings – Board Instance CRUD", () => {
     await expect(detectBtn).toBeVisible({ timeout: 5_000 });
     await detectBtn.click();
 
-    // The selector lands on the 2×2 grid preset → 30 × 6 characters.
-    await expect(page.getByText("30 × 6").first()).toBeVisible({ timeout: 10_000 });
+    // The selector lands on the 2×2 grid preset → 6 × 30 characters.
+    await expect(page.getByText("6 × 30").first()).toBeVisible({ timeout: 10_000 });
 
     const res = await fetch(`${API_URL}/settings/board`);
     const data = await res.json();
@@ -319,11 +319,11 @@ test.describe("Settings – Board Instance CRUD", () => {
     const dataBefore = await resBefore.json();
     expect(dataBefore.boards.length).toBe(2);
 
-    // Expand the Note board (click on 15 × 3 dimensions to target the right card)
-    await expect(page.getByText("15 × 3").first()).toBeVisible({
+    // Expand the Note board (click on 3 × 15 dimensions to target the right card)
+    await expect(page.getByText("3 × 15").first()).toBeVisible({
       timeout: 10_000,
     });
-    await page.getByText("15 × 3").first().click();
+    await page.getByText("3 × 15").first().click();
 
     // Click Remove Board
     const removeBtn = page.getByRole("button", { name: /Remove Board/i });
@@ -412,9 +412,9 @@ test.describe("Setup Wizard – Board Configuration", () => {
 
     await expect(page.getByText("Board Type")).toBeVisible({ timeout: 5_000 });
     await expect(page.getByText("Flagship")).toBeVisible();
-    await expect(page.getByText("22 × 6 characters")).toBeVisible();
+    await expect(page.getByText("6 × 22 characters")).toBeVisible();
     await expect(page.getByText("Note")).toBeVisible();
-    await expect(page.getByText("15 × 3 characters")).toBeVisible();
+    await expect(page.getByText("3 × 15 characters")).toBeVisible();
   });
 
   test("wizard shows Board Color swatches with Black and White options", async ({ page }) => {
@@ -448,7 +448,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
     // Select Note type and White color LAST (right before Test Connection)
     // so these are the most recent React state changes in the closure
     const noteTypeBtn = page.locator("button", {
-      hasText: "15 × 3 characters",
+      hasText: "3 × 15 characters",
     });
     await noteTypeBtn.scrollIntoViewIfNeeded();
     await expect(noteTypeBtn).toBeVisible({ timeout: 5_000 });
@@ -522,7 +522,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
 
     // Select Note type first — scroll to Board Type section
     const noteTypeBtn = page.locator("button", {
-      hasText: "15 × 3 characters",
+      hasText: "3 × 15 characters",
     });
     await noteTypeBtn.scrollIntoViewIfNeeded();
     await expect(noteTypeBtn).toBeVisible({ timeout: 5_000 });
@@ -565,7 +565,7 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await expect(page.getByText("My Board").first()).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.getByText("15 × 3").first()).toBeVisible();
+    await expect(page.getByText("3 × 15").first()).toBeVisible();
     await expect(page.getByText("Connected").first()).toBeVisible();
   });
 });

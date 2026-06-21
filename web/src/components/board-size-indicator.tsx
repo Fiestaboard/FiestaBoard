@@ -36,9 +36,9 @@ export function BoardSizeIndicator({ deviceType, notesWide = 1, notesTall = 1, c
       aria-label={ariaLabel}
       className={`inline-flex items-center gap-1 text-xs text-muted-foreground font-mono tabular-nums${className ? ` ${className}` : ""}`}
     >
-      {/* Width × height (cols × rows) to match the rest of the app: the setup
-          wizard shows "22 × 6 characters" and board cards historically "22×6". */}
-      {cols} × {rows}
+      {/* Rows × cols (height × width) per the note-array epic convention; the
+          wizard "characters" strings and tests use the same rows × cols order. */}
+      {rows} × {cols}
       {noteArray && (
         <>
           <span className="text-muted-foreground/50 mx-0.5">·</span>

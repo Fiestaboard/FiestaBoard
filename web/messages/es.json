@@ -546,8 +546,8 @@
       "connectedTestAgain": "¡Conectado! Probar de nuevo",
       "thingsToTry": "Cosas para probar:",
       "boardType": "Tipo de tablero",
-      "flagshipDimensions": "22 × 6 caracteres",
-      "noteDimensions": "15 × 3 caracteres",
+      "flagshipDimensions": "6 × 22 caracteres",
+      "noteDimensions": "3 × 15 caracteres",
       "boardColor": "Color del tablero",
       "connectionTestFailed": "Prueba de conexión fallida",
       "failedToEnableLocalApi": "Error al habilitar la API local"
