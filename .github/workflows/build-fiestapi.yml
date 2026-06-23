@@ -4,7 +4,7 @@ name: 'Build: FiestaPi Image'
 # Builds the flashable FiestaPi .img.xz — a slow job (~45-60 min), so we
 # only run it when it matters:
 #
-#   1. After every app release (workflow_run on "Release and Publish") —
+#   1. After every app release (workflow_run on "Release: Publish Image") —
 #      the image is attached to that release's assets automatically.
 #
 #   2. On major-version tags (v5.0.0, v6.0.0, …) — fallback/manual path
@@ -18,7 +18,11 @@ name: 'Build: FiestaPi Image'
 
 on:
   workflow_run:
-    workflows: ["Release and Publish"]
+    # Must exactly match the `name:` of the release workflow (release.yml).
+    # Renamed from "Release and Publish" to "Release: Publish Image" in the
+    # 2026-06-14 Actions-sidebar cleanup; this reference must track that name
+    # or the per-release image build silently never fires.
+    workflows: ["Release: Publish Image"]
     types: [completed]
   push:
     tags:
