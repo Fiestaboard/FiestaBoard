@@ -54,13 +54,13 @@ jobs:
       # pull_request/push workflows at all.)
       - name: Generate GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.CLAUDE_BOT_APP_ID }}
           private-key: ${{ secrets.CLAUDE_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
           # Persisted so the subsequent git push uses the app identity.
