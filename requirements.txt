@@ -25,13 +25,13 @@ astral>=3.2
 docker>=7.1.0
 
 # mDNS/Bonjour local network discovery (fiestaboard.local)
-zeroconf>=0.149.16
+zeroconf>=0.150.0
 
 # MQTT client for Home Assistant auto-discovery and control
 paho-mqtt>=2.1.0
 
 # iCalendar parsing (used by the calendar_sub plugin)
-icalendar>=7.1.3
+icalendar>=7.2.0
 recurring-ical-events>=3.8.2
 
 # Timezone support (used by santa_tracker, visual_clock, stardate, calendar_sub plugins)
