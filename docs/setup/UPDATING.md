@@ -48,7 +48,12 @@ The Update Now button will appear once the sidecar is healthy.
 
 ## Opting in (FiestaPi)
 
-It's already on. `FIESTABOARD_PROFILE=pi` is baked into the image, which flips the in-app **Auto-update** toggle to default ON, and a unique `FIESTAUPDATER_TOKEN` is generated at first boot. You can disable auto-update in Settings if you'd rather click each time.
+It's already on. The FiestaPi image ships with both pieces pre-configured in `/opt/fiestaboard/.env`:
+
+- `COMPOSE_PROFILES=fiestaupdater` — starts the updater sidecar that performs the actual `docker compose pull && docker compose up -d` (the same step you would run manually from the shell).
+- `FIESTABOARD_PROFILE=pi` — tells the app it is running on a Pi, which flips the in-app **Auto-update** toggle to ON by default.
+
+A unique `FIESTAUPDATER_TOKEN` is also generated at first boot. You can turn auto-update off in **Settings → System** if you'd rather click each time.
 
 ## Update check interval
 
