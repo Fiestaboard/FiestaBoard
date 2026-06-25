@@ -25,7 +25,7 @@
       "target_datetime": {
         "type": "string",
         "title": "Target Date & Time",
-        "description": "Target date and time in ISO format (e.g., 2025-06-15T00:00:00)",
+        "description": "Target date and time in ISO format (e.g., 2030-01-01T00:00:00)",
         "ui:widget": "datetime"
       },
       "timezone": {
@@ -78,7 +78,7 @@
         "description": "Target date and time (ISO format)",
         "group": "event",
         "max_length": 19,
-        "example": "2025-06-15T00:00:00"
+        "example": "2030-01-01T00:00:00"
       },
       "is_expired": {
         "description": "Whether the countdown has reached zero",
