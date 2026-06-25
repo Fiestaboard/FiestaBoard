@@ -88,13 +88,15 @@ The setting is stored in `data/settings.json` under `plugins.auto_update`.
 
 The Update Now button is convenience; it's not the source of truth. You can always update from the shell:
 
+> **Warning:** Always run these commands from the folder that contains your `docker-compose.yml` (or `docker-compose.hub.yml`) **and** your `./data` directory. Running from a different directory creates a brand-new empty `./data` folder, and your settings, board credentials, and plugin configuration will appear to be gone. If that has already happened, see the [troubleshooting guide](https://fiestaboard.app/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update).
+
 ```bash
 cd /path/to/FiestaBoard          # or /opt/fiestaboard on FiestaPi
 docker compose pull
 docker compose up -d
 ```
 
-> **Note:** If you installed from Docker Hub using `docker-compose.hub.yml`, add `-f docker-compose.hub.yml` to each command:
+> **Note:** If you installed from Docker Hub using `docker-compose.hub.yml`, add `-f docker-compose.hub.yml` to each command. Make sure you `cd` into the folder that contains both `docker-compose.hub.yml` and your `./data` directory:
 >
 > ```bash
 > cd ~/fiestaboard
