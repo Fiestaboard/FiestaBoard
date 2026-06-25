@@ -29,7 +29,7 @@ git grep -E 'api_key|password|secret|token' -- '*.py' '*.ts' '*.tsx' '*.json' '*
 
 ```bash
 # Expect many hits — docs legitimately discuss tokens, API keys, and secrets throughout.
-# Look for *actual credential values*, not just the words.
+# Look for actual credential values, not just the words.
 git grep -E 'api_key|password|secret|token' -- '*.md' | grep -v -E 'your_|your-|<[^>]+>|example|placeholder|`[a-z_]+`|\$\{' || true
 ```
 
