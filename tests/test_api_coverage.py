@@ -653,6 +653,48 @@ class TestUpdateGeneralConfig:
         response = client.put("/config/general", json={"timezone": "X"})
         assert response.status_code == 500
 
+    def test_update_timezone_resets_cached_time_service(self, client, mock_config_manager):
+        """Changing the timezone must rebuild the cached TimeService (issue #1273).
+
+        The Date/Time plugin reads Config.GENERAL_TIMEZONE fresh on every render,
+        so it reflects a timezone change immediately. The scheduler, however, asks
+        the cached TimeService singleton for "now". If the PUT does not reset that
+        singleton, the scheduler keeps firing rotations in the *stale* timezone
+        (defaulting to America/Los_Angeles / Pacific) even though the UI and the
+        Date/Time plugin show the newly configured zone (e.g. America/Chicago).
+
+        This asserts the endpoint rewires the cached TimeService so the scheduler
+        and plugins share one timezone source of truth.
+        """
+        from src import time_service as ts_module
+
+        # Simulate a server that booted before the user configured a timezone:
+        # the cached singleton is anchored to Pacific time.
+        ts_module.reset_time_service()
+        with patch("src.time_service._get_configured_timezone", return_value="America/Los_Angeles"):
+            stale = ts_module.get_time_service()
+        assert stale.default_timezone == "America/Los_Angeles"
+
+        # Before the PUT, the stored config still reports the old timezone
+        # (this is what the endpoint compares against to detect a change).
+        mock_config_manager.get_general.return_value = {
+            "timezone": "America/Los_Angeles",
+            "refresh_interval_seconds": 60,
+        }
+        # User sets America/Chicago in the UI. After the save + reset, the
+        # rebuilt TimeService reads the new configured zone (mirrors how the
+        # Date/Time plugin reads Config.GENERAL_TIMEZONE fresh each render).
+        with patch("src.time_service._get_configured_timezone", return_value="America/Chicago"):
+            response = client.put("/config/general", json={"timezone": "America/Chicago"})
+            assert response.status_code == 200
+
+            # The scheduler resolves "now" via get_time_service(); it must now use
+            # the configured Central time, not the stale Pacific default.
+            current = ts_module.get_time_service()
+            assert current.default_timezone == "America/Chicago"
+
+        ts_module.reset_time_service()
+
 
 class TestBoardScan:
     """Tests for POST /config/board/scan."""
