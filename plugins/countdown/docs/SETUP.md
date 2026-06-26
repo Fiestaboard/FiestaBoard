@@ -85,8 +85,9 @@ Each environment variable mirrors a setting and is used only when the correspond
 ```bash
 COUNTDOWN_TARGET=2027-01-01T00:00:00
 COUNTDOWN_EVENT_NAME=Last Day of School
-TIMEZONE=America/Los_Angeles
 ```
+
+> **Note:** The timezone cannot be set via an environment variable. Use the **Timezone** field in the UI to configure it.
 
 ## Troubleshooting
 
