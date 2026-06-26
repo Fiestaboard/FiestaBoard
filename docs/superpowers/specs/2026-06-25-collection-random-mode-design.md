@@ -36,11 +36,10 @@ pos    = bucket % n                   # position within that pass
 
 perm = seeded_permutation(round, n)   # random.Random(round).sample(range(n), n)
 
-# Prevent a repeat across the round boundary: if the first page of this
-# round equals the last page of the previous round, swap the first two.
-if pos == 0 and round > 0 and n > 1:
-    prev_perm = seeded_permutation(round - 1, n)
-    if perm[0] == prev_perm[-1]:
+# Patch the whole round: the swap is applied before indexing so every position
+# in the round sees a consistent permutation (no pos == 0 guard in the code).
+if round > 0 and n > 1:
+    if perm[0] == seeded_permutation(round - 1, n)[-1]:
         perm[0], perm[1] = perm[1], perm[0]
 
 index = perm[pos]
