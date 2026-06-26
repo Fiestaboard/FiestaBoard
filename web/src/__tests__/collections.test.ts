@@ -53,6 +53,7 @@ describe("Collection type", () => {
       selection_mode: "time",
       time: { interval_seconds: 30 },
       variable: null,
+      random: null,
       created_at: "2025-01-01T00:00:00Z",
     };
     expect(collection.id.startsWith("collection:")).toBe(true);
@@ -72,12 +73,29 @@ describe("Collection type", () => {
         default_page_id: "p2",
         poll_seconds: 10,
       },
+      random: null,
       created_at: "2025-01-01T00:00:00Z",
       updated_at: "2025-06-01T00:00:00Z",
     };
     expect(collection.updated_at).toBe("2025-06-01T00:00:00Z");
     expect(collection.variable?.default_page_id).toBe("p2");
     expect(collection.variable?.rules).toHaveLength(1);
+  });
+
+  it("supports random mode", () => {
+    const collection: Collection = {
+      id: "collection:test-id",
+      name: "Random Collection",
+      page_ids: ["p1", "p2", "p3"],
+      selection_mode: "random",
+      time: { interval_seconds: 30 },
+      variable: null,
+      random: { interval_seconds: 45 },
+      created_at: "2025-01-01T00:00:00Z",
+    };
+    expect(collection.selection_mode).toBe("random");
+    expect(collection.random?.interval_seconds).toBe(45);
+    expect(collection.variable).toBeNull();
   });
 });
 
@@ -106,6 +124,7 @@ const MOCK_COLLECTIONS: Collection[] = [
     selection_mode: "time",
     time: { interval_seconds: 30 },
     variable: null,
+    random: null,
     created_at: "2025-01-01T00:00:00Z",
   },
 ];

@@ -18,6 +18,7 @@ from src.collections.models import (
     Collection,
     CollectionCreate,
     CollectionUpdate,
+    RandomModeConfig,
     TimeModeConfig,
     VariableModeConfig,
     VariableRule,
@@ -236,6 +237,99 @@ class TestCollectionModels:
 
 
 # =============================================================================
+# Model Tests — Random mode
+# =============================================================================
+
+
+class TestCollectionRandomMode:
+    """Random selection: stateless shuffle-bag with no back-to-back repeats."""
+
+    def _make(self, page_ids, interval=10):
+        return Collection(
+            name="Rand",
+            page_ids=list(page_ids),
+            selection_mode="random",
+            random=RandomModeConfig(interval_seconds=interval),
+        )
+
+    def test_random_mode_requires_random_block(self):
+        with pytest.raises(ValidationError):
+            Collection(
+                name="MissingRandom",
+                page_ids=["p1", "p2"],
+                selection_mode="random",
+            )
+
+    def test_random_mode_valid(self):
+        c = self._make(["a", "b", "c"])
+        assert c.is_valid()
+        assert c.validate_config() == []
+        assert c.selection_mode == "random"
+        assert c.random is not None
+        assert c.random.interval_seconds == 10
+
+    def test_random_interval_range(self):
+        with pytest.raises(ValidationError):
+            RandomModeConfig(interval_seconds=1)
+        with pytest.raises(ValidationError):
+            RandomModeConfig(interval_seconds=7200)
+
+    def test_random_default_interval(self):
+        assert RandomModeConfig().interval_seconds == 30
+
+    def test_random_single_page_always_first(self):
+        c = self._make(["only"])
+        for ts in [0.0, 5.0, 33.0, 999.0]:
+            assert c.current_page_index_random(ts) == 0
+            assert c.current_page_id_random(ts) == "only"
+
+    def test_random_stable_within_window(self):
+        c = self._make(["a", "b", "c"], interval=10)
+        # Any timestamp inside one 10s window resolves to the same page.
+        idx = c.current_page_index_random(0.0)
+        for ts in [0.0, 0.1, 5.0, 9.0, 9.999]:
+            assert c.current_page_index_random(ts) == idx
+
+    def test_random_deterministic_and_restart_safe(self):
+        # Two independent instances (e.g. before/after a restart) with the same
+        # config must produce the identical sequence — proves statelessness.
+        c1 = self._make(["a", "b", "c", "d"], interval=10)
+        c2 = self._make(["a", "b", "c", "d"], interval=10)
+        for bucket in range(50):
+            ts = bucket * 10.0 + 1.0
+            assert c1.current_page_id_random(ts) == c2.current_page_id_random(ts)
+
+    @pytest.mark.parametrize("n", [2, 3, 4, 5, 7])
+    def test_random_no_back_to_back_repeats(self, n):
+        pages = [f"p{i}" for i in range(n)]
+        c = self._make(pages, interval=10)
+        prev = None
+        for bucket in range(500):
+            ts = bucket * 10.0 + 0.5
+            cur = c.current_page_id_random(ts)
+            assert cur in pages
+            if prev is not None:
+                assert cur != prev, f"repeat at bucket {bucket} for n={n}"
+            prev = cur
+
+    @pytest.mark.parametrize("n", [2, 3, 4, 5])
+    def test_random_eventually_shows_every_page(self, n):
+        pages = [f"p{i}" for i in range(n)]
+        c = self._make(pages, interval=10)
+        seen = {c.current_page_id_random(bucket * 10.0 + 0.5) for bucket in range(200)}
+        assert seen == set(pages)
+
+    def test_random_shuffle_bag_no_repeat_within_round(self):
+        # A full "round" of n windows should show every page exactly once.
+        pages = ["a", "b", "c", "d"]
+        c = self._make(pages, interval=10)
+        n = len(pages)
+        # round 0 spans buckets 0..n-1
+        round0 = [c.current_page_id_random(bucket * 10.0 + 0.5) for bucket in range(n)]
+        assert sorted(round0) == sorted(pages)
+
+
+# =============================================================================
 # Storage Tests
 # =============================================================================
 
@@ -338,6 +432,25 @@ class TestCollectionStorage:
         assert fetched.variable.poll_seconds == 5
         assert len(fetched.variable.rules) == 1
         assert fetched.variable.rules[0].expression == "weather.temp > 70"
+
+    def test_random_mode_round_trip(self, tmp_path):
+        path = tmp_path / "collections.json"
+        s1 = CollectionStorage(str(path))
+        created = s1.create(
+            Collection(
+                name="Rand",
+                page_ids=["a", "b", "c"],
+                selection_mode="random",
+                random=RandomModeConfig(interval_seconds=45),
+            )
+        )
+
+        s2 = CollectionStorage(str(path))
+        fetched = s2.get(created.id)
+        assert fetched is not None
+        assert fetched.selection_mode == "random"
+        assert fetched.random is not None
+        assert fetched.random.interval_seconds == 45
 
     def test_schema_version_written(self, tmp_path):
         path = tmp_path / "collections.json"
@@ -639,3 +752,55 @@ class TestCollectionServiceVariableMode:
             poll_seconds=15,
         )
         assert service.seconds_until_next_check(c.id) == 15
+
+
+# =============================================================================
+# Service Tests — Random mode
+# =============================================================================
+
+
+class TestCollectionServiceRandomMode:
+    """Verify random-mode resolution and timing through the service layer."""
+
+    @pytest.fixture
+    def service(self, tmp_path):
+        storage = CollectionStorage(str(tmp_path / "collections.json"))
+        return CollectionService(storage)
+
+    def _make_random_collection(self, service, page_ids=("a", "b", "c"), interval=10):
+        return service.create_collection(
+            CollectionCreate(
+                name="Rand",
+                page_ids=list(page_ids),
+                selection_mode="random",
+                random=RandomModeConfig(interval_seconds=interval),
+            )
+        )
+
+    def test_resolve_page_id_random_returns_member(self, service):
+        c = self._make_random_collection(service)
+        page = service.resolve_page_id(c.id, now_unix=5.0)
+        assert page in c.page_ids
+
+    def test_resolve_page_id_random_stable_within_window(self, service):
+        c = self._make_random_collection(service, interval=10)
+        first = service.resolve_page_id(c.id, now_unix=0.0)
+        assert service.resolve_page_id(c.id, now_unix=9.999) == first
+
+    def test_resolve_page_id_random_no_back_to_back_repeats(self, service):
+        c = self._make_random_collection(service, page_ids=("a", "b", "c", "d"), interval=10)
+        prev = None
+        for bucket in range(100):
+            cur = service.resolve_page_id(c.id, now_unix=bucket * 10.0 + 0.5)
+            if prev is not None:
+                assert cur != prev
+            prev = cur
+
+    def test_seconds_until_next_check_random(self, service):
+        c = self._make_random_collection(service, page_ids=("a", "b"), interval=10)
+        assert service.seconds_until_next_check(c.id, now_unix=3.0) == 7
+        assert service.seconds_until_next_check(c.id, now_unix=0.0) == 10
+
+    def test_seconds_until_next_check_random_single_page(self, service):
+        c = self._make_random_collection(service, page_ids=("only",), interval=10)
+        assert service.seconds_until_next_check(c.id) is None
