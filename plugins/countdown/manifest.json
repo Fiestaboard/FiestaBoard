@@ -50,12 +50,6 @@
       "name": "COUNTDOWN_EVENT_NAME",
       "required": false,
       "description": "Name of the event (can also be set in UI)"
-    },
-    {
-      "name": "TIMEZONE",
-      "required": false,
-      "description": "IANA timezone (e.g., America/Los_Angeles)",
-      "default": "America/Los_Angeles"
     }
   ],
   "variables": {
