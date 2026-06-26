@@ -56,6 +56,11 @@ each page shown equally often.
 - **Deterministic & stateless:** seeded by integer `round` via `random.Random`,
   which is reproducible across processes/restarts/platforms. No stored cursor.
 - **No back-to-back repeats** for `n >= 2`; `n == 1` always returns index 0.
+- **n == 2 special case:** with exactly two pages, "no repeats" forces strict
+  alternation regardless of permutation, so the implementation uses
+  `(bucket + phase) % 2` directly (phase is a fixed offset from round 0) rather
+  than the shuffle-bag path above. The observable behavior is identical — strict
+  alternation — but the code path diverges from the pseudocode for `n >= 3`.
 - `seconds_until_next_check` mirrors `time` mode: countdown to the next window
   boundary using `random.interval_seconds`.
 

@@ -353,13 +353,13 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
           <SelectContent>
             <SelectItem value="time">
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
+                <Clock className="h-4 w-4" aria-hidden="true" />
                 <span>{t("modeTimeLabel")}</span>
               </div>
             </SelectItem>
             <SelectItem value="variable">
               <div className="flex items-center gap-2">
-                <Sigma className="h-4 w-4" />
+                <Sigma className="h-4 w-4" aria-hidden="true" />
                 <span>{t("modeVariableLabel")}</span>
                 <Badge variant="outline" className="text-[10px] uppercase tracking-wide ml-1 py-0">
                   {t("betaBadge")}
@@ -368,7 +368,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
             </SelectItem>
             <SelectItem value="random">
               <div className="flex items-center gap-2">
-                <Shuffle className="h-4 w-4" />
+                <Shuffle className="h-4 w-4" aria-hidden="true" />
                 <span>{t("modeRandomLabel")}</span>
               </div>
             </SelectItem>
@@ -765,11 +765,11 @@ export default function CollectionsPage() {
                         {collection.name}
                         <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
                           {collection.selection_mode === "time" ? (
-                            <Clock className="h-3 w-3 mr-1" />
+                            <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
                           ) : collection.selection_mode === "random" ? (
-                            <Shuffle className="h-3 w-3 mr-1" />
+                            <Shuffle className="h-3 w-3 mr-1" aria-hidden="true" />
                           ) : (
-                            <Sigma className="h-3 w-3 mr-1" />
+                            <Sigma className="h-3 w-3 mr-1" aria-hidden="true" />
                           )}
                           {collection.selection_mode}
                         </Badge>
