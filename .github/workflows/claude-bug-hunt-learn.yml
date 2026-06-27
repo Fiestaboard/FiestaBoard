@@ -1,0 +1,197 @@
+name: 'Claude: Bug Hunt Learner'
+
+# =============================================================================
+# Weekly positive-learning pass for the bug-hunt loop. Mines the bugs we have
+# actually FIXED (closed issues labelled `bug`/`bug-hunt` + their merged fix
+# PRs) and distills them into .github/bug-hunt/pattern-memory.md — recurring
+# root-cause patterns, a ranking of bug-prone modules, and per-lens checklists.
+# The daily hunter reads that file to hunt smarter and prioritize.
+#
+# This is the counterpart to the rejection log: pattern-memory.md raises RECALL
+# (where bugs really live); rejected-edits.jsonl raises PRECISION (what not to
+# file). Data-gathering is a deterministic script (gather_fixed_bugs.py) so the
+# model only does the distillation.
+#
+# Cadence: Monday noon PT. Paired UTC crons absorb DST; the local-hour gate
+# admits exactly the noon window. workflow_dispatch always proceeds.
+# =============================================================================
+
+on:
+  schedule:
+    - cron: '7 19 * * 1'   # 12:07 PDT (summer) Mon / 11:07 PST (gated off)
+    - cron: '7 20 * * 1'   # 12:07 PST (winter) Mon / 13:07 PDT (gated by cooldown)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bug-hunt-learn
+  cancel-in-progress: false
+
+jobs:
+  learn:
+    name: Distill fixed bugs into pattern memory
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+      id-token: write
+    steps:
+      - name: Gate on America/Los_Angeles local hour window
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hour=$(TZ=America/Los_Angeles date +%H)
+          minute=$(TZ=America/Los_Angeles date +%M)
+          echo "Local PT: $hour:$minute"
+          in_window=false
+          if [ "$hour" = "12" ] || { [ "$hour" = "13" ] && [ "$minute" -le 30 ]; }; then
+            in_window=true
+          fi
+          if [ "$in_window" = "true" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: outside 12:00–13:30 PT window."
+          fi
+
+      - name: Checkout repository
+        if: steps.gate.outputs.go == 'true'
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
+
+      - name: Cooldown (block the paired DST cron)
+        id: dedup
+        if: steps.gate.outputs.go == 'true'
+        # last_learned_at is advanced by the Claude step at the end of a
+        # successful run. A 100h cooldown blocks the second cron in the same
+        # Monday window; the next weekly run is ~168h later. dispatch bypasses.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          last=$(jq -r '.last_learned_at // empty' .github/bug-hunt-state.json)
+          if [ -n "$last" ]; then
+            last_epoch=$(date -u -d "$last" +%s 2>/dev/null || echo 0)
+            now_epoch=$(date -u +%s)
+            if [ "$last_epoch" -gt 0 ]; then
+              age_h=$(( (now_epoch - last_epoch) / 3600 ))
+              if [ "$age_h" -lt 100 ]; then
+                echo "Skipping: last learned ${age_h}h ago (<100h cooldown)."
+                echo "go=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+          fi
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git identity
+        if: steps.dedup.outputs.go == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Gather fixed bugs since last learn
+        id: gather
+        if: steps.dedup.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        # gather_fixed_bugs.py is pure stdlib + gh (no project deps). Bound the
+        # window by last_learned_at; on the first run it scans the full history.
+        run: |
+          since=$(jq -r '.last_learned_at // empty' .github/bug-hunt-state.json)
+          echo "Gathering fixed bugs since: ${since:-<all history>}"
+          python3 .github/bug-hunt/gather_fixed_bugs.py --since "$since" > /tmp/fixed-bugs.json
+          count=$(jq 'length' /tmp/fixed-bugs.json)
+          echo "Collected ${count} fixed-bug records."
+          echo "count=${count}" >> "$GITHUB_OUTPUT"
+
+      - name: Distill into pattern memory
+        # Skip the model entirely when there's nothing new to learn.
+        if: steps.dedup.outputs.go == 'true' && steps.gather.outputs.count != '0'
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: 'true'
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 60
+            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(cat:*),Bash(jq:*),Bash(date:*),Bash(git status:*),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
+          prompt: |
+            You maintain the FiestaBoard bug-hunt **pattern memory** — the
+            positive-learning file the daily bug hunter reads to hunt smarter.
+
+            ## Inputs
+
+            1. `/tmp/fixed-bugs.json` — a JSON array of bugs we recently FIXED.
+               Each record: `issue`, `issue_title`, `issue_body`, `labels`,
+               `closed_at`, `pr`, `pr_title`, `files` (`{path, patch}` — the
+               actual fix diff). Read it with `cat /tmp/fixed-bugs.json`.
+            2. `.github/bug-hunt/pattern-memory.md` — the current memory.
+
+            ## Your task
+
+            For each fixed bug, study the issue (the symptom) and the fix diff
+            (the root cause + correction). Then UPDATE
+            `.github/bug-hunt/pattern-memory.md`:
+
+            - **Recurring root-cause patterns:** add or refine GENERALIZED
+              patterns — the *class* of mistake, not the one-off. e.g. "naive
+              timezone handling: code reads `datetime.now()` without the
+              configured TZ." Cite the issue/PR numbers. Merge duplicates;
+              prune anything stale or already fully covered.
+            - **Bug-prone modules:** re-rank the list by how many fixes have
+              landed in each area (use the `files` paths). Most-fixed first.
+            - **Per-lens checklists:** under the matching lens
+              (backend-logic / error-handling / concurrency-state /
+              contract-drift / security-input), add concise, concrete checks a
+              future hunter should run, derived from these fixes.
+
+            Keep the file TIGHT and high-signal — it is injected into prompts.
+            Prefer editing existing entries over endless appending. Set the
+            frontmatter `last_learned_at` to the most recent `closed_at` in the
+            input (so the next run only sees newer fixes).
+
+            ## Then advance state and commit
+
+            1. Set `last_learned_at` in `.github/bug-hunt-state.json` to the
+               same value you wrote into the frontmatter (the most recent
+               `closed_at`). Do NOT touch any other field.
+            2. Commit and push to `main`:
+               ```bash
+               git add .github/bug-hunt/pattern-memory.md .github/bug-hunt-state.json
+               git commit -m "chore(bug-hunt): refresh pattern memory [skip ci]" || exit 0
+               git push origin HEAD:main
+               ```
+
+            ## Hard rules
+
+            - The ONLY files you may write are
+              `.github/bug-hunt/pattern-memory.md` and
+              `.github/bug-hunt-state.json`. Never edit source code.
+            - Never force-push, never `--no-verify`. The commit above is your
+              only push to main.
+
+      - name: Push memory changes (fallback)
+        if: steps.dedup.outputs.go == 'true' && steps.gather.outputs.count != '0'
+        # Defensive: if the Claude step exits early with staged-but-unpushed
+        # changes, commit + push them here. [skip ci] avoids retriggering.
+        run: |
+          if git diff --quiet -- .github/bug-hunt/pattern-memory.md .github/bug-hunt-state.json; then
+            echo "Pattern memory unchanged."
+            exit 0
+          fi
+          git add .github/bug-hunt/pattern-memory.md .github/bug-hunt-state.json
+          git commit -m "chore(bug-hunt): refresh pattern memory [skip ci]"
+          git push origin HEAD:main
