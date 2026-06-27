@@ -76,7 +76,7 @@
       },
       "is_expired": {
         "description": "Whether the countdown has reached zero",
-        "type": "boolean",
+        "type": "string",
         "group": "event",
         "max_length": 5,
         "example": "false"

@@ -18,7 +18,7 @@ The Countdown plugin shows the remaining days, hours, minutes, and seconds until
 |----------|-------------|---------|
 | `{{countdown.event_name}}` | Name of the event | `Last Day of School` |
 | `{{countdown.target_datetime}}` | Target datetime string | `2027-01-01T00:00:00` |
-| `{{countdown.is_expired}}` | `true` if the event has passed, `false` otherwise | `false` |
+| `{{countdown.is_expired}}` | `"true"` if the event has passed, `"false"` otherwise | `"false"` |
 
 ### Countdown Values
 
