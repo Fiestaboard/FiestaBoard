@@ -114,7 +114,7 @@ jobs:
 
       - name: Checkout repository
         if: steps.gate.outputs.go == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -238,7 +238,7 @@ jobs:
         shard: ${{ fromJson(needs.prep.outputs.shards) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # RELEASE_PAT so the state-file commit can push to main past
           # branch protection — same pattern as the plugin-stats job.

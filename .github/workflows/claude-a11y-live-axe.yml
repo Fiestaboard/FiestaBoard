@@ -75,7 +75,7 @@ jobs:
 
       - name: Checkout repository
         if: steps.gate.outputs.go == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up web E2E environment
         if: steps.gate.outputs.go == 'true'
