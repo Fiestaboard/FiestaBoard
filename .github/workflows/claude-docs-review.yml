@@ -93,8 +93,10 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           # Bot-authored PRs (docs-audit cron, issue-triage worker) need
           # to be reviewed too — that's the whole point. Without this the
-          # action's anti-bot guard short-circuits the run.
-          allowed_bots: 'claude,github-actions'
+          # action's anti-bot guard short-circuits the run. fiestaboard-ci-bot
+          # is the App identity that pushes branch updates, so the synchronize
+          # events it fires must also clear the guard.
+          allowed_bots: 'claude,github-actions,fiestaboard-ci-bot'
           # Surface the SDK transcript so silent permission denials don't
           # look like a clean success.
           show_full_output: 'true'
