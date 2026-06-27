@@ -94,101 +94,101 @@
         "description": "Full date (YYYY-MM-DD)",
         "group": "date",
         "max_length": 10,
-        "example": "2025-03-21"
+        "example": "2026-07-04"
       },
       "day": {
         "description": "Day of month (1-31)",
         "type": "number",
         "group": "date",
         "max_length": 2,
-        "example": "21"
+        "example": "4"
       },
       "day_of_week": {
         "description": "Day name (e.g. Tuesday)",
         "group": "date",
         "max_length": 9,
-        "example": "Friday"
+        "example": "Saturday"
       },
       "day_of_week_abbr": {
         "description": "Abbreviated day name (e.g. Tue)",
         "group": "date",
         "max_length": 3,
-        "example": "Fri"
+        "example": "Sat"
       },
       "day_of_week_num": {
         "description": "Day number (1-7)",
         "group": "date",
         "max_length": 1,
-        "example": "5"
+        "example": "6"
       },
       "day_of_year": {
         "description": "Day of year (1-366)",
         "group": "date",
         "max_length": 3,
-        "example": "1"
+        "example": "185"
       },
       "week_of_year": {
         "description": "Week of year (1-53)",
         "group": "date",
         "max_length": 2,
-        "example": "5"
+        "example": "27"
       },
       "month": {
         "description": "Full month name",
         "group": "date",
         "max_length": 9,
-        "example": "March"
+        "example": "July"
       },
       "month_number": {
         "description": "Month number (1-12)",
         "type": "number",
         "group": "date",
         "max_length": 2,
-        "example": "3"
+        "example": "7"
       },
       "month_number_padded": {
         "description": "Zero-padded month (01-12)",
         "group": "date",
         "max_length": 2,
-        "example": "03"
+        "example": "07"
       },
       "month_abbr": {
         "description": "Abbreviated month (e.g. Mar)",
         "group": "date",
         "max_length": 3,
-        "example": "Mar"
+        "example": "Jul"
       },
       "quarter": {
         "description": "Quarter number (1-4)",
         "type": "number",
         "group": "date",
         "max_length": 1,
-        "example": "1"
+        "example": "3"
       },
       "year": {
         "description": "Four-digit year",
         "type": "number",
         "group": "date",
         "max_length": 4,
-        "example": "2025"
+        "example": "2026"
       },
       "datetime": {
         "description": "Combined date and time",
         "group": "formatting",
         "max_length": 16,
-        "example": "2025-03-21 14:30"
+        "example": "2026-07-04 14:30"
       },
       "date_us": {
         "description": "US date format (MM/DD/YYYY)",
         "group": "formatting",
         "max_length": 10,
-        "example": "03/21/2025"
+        "example": "07/04/2026"
       },
       "date_us_short": {
         "description": "Short US date (MM/DD/YY)",
         "group": "formatting",
         "max_length": 8,
-        "example": "03/21/25"
+        "example": "07/04/26"
       },
       "time_english": {
         "description": "Current time as a spoken English expression",
