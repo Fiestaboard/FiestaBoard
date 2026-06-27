@@ -7,6 +7,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Shuffle,
   Sigma,
   Trash2,
 } from "lucide-react";
@@ -90,7 +91,11 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
   const [name, setName] = useState(collection?.name || "");
   const [selectedPageIds, setSelectedPageIds] = useState<string[]>(collection?.page_ids || []);
   const [selectionMode, setSelectionMode] = useState<CollectionSelectionMode>(collection?.selection_mode || "time");
-  const [intervalSeconds, setIntervalSeconds] = useState(collection?.time?.interval_seconds || 30);
+  const [intervalSeconds, setIntervalSeconds] = useState(
+    collection?.selection_mode === "random"
+      ? collection?.random?.interval_seconds || 30
+      : collection?.time?.interval_seconds || 30,
+  );
   const [rules, setRules] = useState<VariableRule[]>(collection?.variable?.rules || []);
   const [defaultPageId, setDefaultPageId] = useState<string>(collection?.variable?.default_page_id || "");
   const [pollSeconds, setPollSeconds] = useState(collection?.variable?.poll_seconds || 10);
@@ -310,6 +315,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                 poll_seconds: pollSeconds,
               }
             : null,
+        random: selectionMode === "random" ? { interval_seconds: intervalSeconds } : null,
       });
     } catch {
       setIsSubmitting(false);
@@ -319,7 +325,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
   const canSubmit =
     name.trim().length > 0 &&
     selectedPageIds.length >= 1 &&
-    (selectionMode === "time" ||
+    (selectionMode !== "variable" ||
       (defaultPageId.length > 0 && rules.every((r) => r.expression.trim().length > 0 && r.page_id.length > 0)));
 
   return (
@@ -347,28 +353,36 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
           <SelectContent>
             <SelectItem value="time">
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
+                <Clock className="h-4 w-4" aria-hidden="true" />
                 <span>{t("modeTimeLabel")}</span>
               </div>
             </SelectItem>
             <SelectItem value="variable">
               <div className="flex items-center gap-2">
-                <Sigma className="h-4 w-4" />
+                <Sigma className="h-4 w-4" aria-hidden="true" />
                 <span>{t("modeVariableLabel")}</span>
                 <Badge variant="outline" className="text-[10px] uppercase tracking-wide ml-1 py-0">
                   {t("betaBadge")}
                 </Badge>
               </div>
             </SelectItem>
+            <SelectItem value="random">
+              <div className="flex items-center gap-2">
+                <Shuffle className="h-4 w-4" aria-hidden="true" />
+                <span>{t("modeRandomLabel")}</span>
+              </div>
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Time-mode controls */}
-      {selectionMode === "time" && (
+      {/* Page-duration controls (time + random modes) */}
+      {(selectionMode === "time" || selectionMode === "random") && (
         <div className="space-y-2">
           <Label htmlFor="collection-interval">{t("pageDurationLabel")}</Label>
-          <p className="text-xs text-muted-foreground">{t("pageDurationDescription")}</p>
+          <p className="text-xs text-muted-foreground">
+            {selectionMode === "random" ? t("randomDurationDescription") : t("pageDurationDescription")}
+          </p>
           <Select value={String(intervalSeconds)} onValueChange={(v) => setIntervalSeconds(Number(v))}>
             <SelectTrigger id="collection-interval">
               <SelectValue />
@@ -388,7 +402,11 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
       <div className="space-y-2">
         <Label>{t("pagesInCollection")}</Label>
         <p className="text-xs text-muted-foreground">
-          {selectionMode === "time" ? t("dragToReorder") : t("variableMembershipHint")}
+          {selectionMode === "time"
+            ? t("dragToReorder")
+            : selectionMode === "random"
+              ? t("randomMembershipHint")
+              : t("variableMembershipHint")}
         </p>
 
         {selectedPageIds.length === 0 ? (
@@ -674,6 +692,9 @@ export default function CollectionsPage() {
     if (c.selection_mode === "time") {
       return `${formatInterval(c.time.interval_seconds)} ${t("perPageShort")}`;
     }
+    if (c.selection_mode === "random") {
+      return `${formatInterval(c.random?.interval_seconds ?? 30)} ${t("perPageShort")}`;
+    }
     const n = c.variable?.rules.length ?? 0;
     return t("variableModeBadge", { count: n });
   };
@@ -744,9 +765,11 @@ export default function CollectionsPage() {
                         {collection.name}
                         <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
                           {collection.selection_mode === "time" ? (
-                            <Clock className="h-3 w-3 mr-1" />
+                            <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
+                          ) : collection.selection_mode === "random" ? (
+                            <Shuffle className="h-3 w-3 mr-1" aria-hidden="true" />
                           ) : (
-                            <Sigma className="h-3 w-3 mr-1" />
+                            <Sigma className="h-3 w-3 mr-1" aria-hidden="true" />
                           )}
                           {collection.selection_mode}
                         </Badge>
