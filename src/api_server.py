@@ -36,7 +36,7 @@ from .collections.models import CollectionCreate, CollectionUpdate, is_collectio
 from .collections.service import get_collection_service  # noqa: E402
 from .config import Config  # noqa: E402
 from .config_manager import get_config_manager  # noqa: E402
-from .devices import classify_dimensions, get_dimensions, resolve_dimensions  # noqa: E402
+from .devices import classify_dimensions, resolve_dimensions  # noqa: E402
 from .displays.service import get_display_service, reset_display_service  # noqa: E402
 from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
@@ -3159,10 +3159,22 @@ async def send_message(request: MessageRequest):
         raise HTTPException(status_code=503, detail="Board client not initialized")
 
     try:
-        # Convert text to board array for proper character/color support
-        board_array = text_to_board_array(request.text)
         settings_service = get_settings_service()
         transition = settings_service.get_transition_settings()
+        # Size the grid to the active (first) board so a manual send to a note
+        # array uses its real geometry instead of a default flagship 22×6.
+        board_settings = settings_service.get_board_settings()
+        device_type = "flagship"
+        notes_wide = 1
+        notes_tall = 1
+        if board_settings.boards:
+            primary_board = board_settings.boards[0]
+            device_type = primary_board.get("device_type", "flagship")
+            notes_wide = primary_board.get("notes_wide", 1)
+            notes_tall = primary_board.get("notes_tall", 1)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+        # Convert text to board array for proper character/color support
+        board_array = text_to_board_array(request.text, rows=dims.rows, cols=dims.cols)
 
         success, was_sent = service.vb_client.send_characters(
             board_array,
@@ -4376,12 +4388,18 @@ async def send_display(display_type: str, target: str | None = None):
             paused = True
         else:
             transition = settings_service.get_transition_settings()
-            # Use first board's device type for dimensions (flagship vs note)
+            # Size to the first board's device type/dimensions (flagship, note,
+            # or a note array's notes_wide×notes_tall geometry).
             board_settings = settings_service.get_board_settings()
             device_type = "flagship"
+            notes_wide = 1
+            notes_tall = 1
             if board_settings.boards:
-                device_type = board_settings.boards[0].get("device_type", "flagship")
-            dims = get_dimensions(device_type)
+                primary_board = board_settings.boards[0]
+                device_type = primary_board.get("device_type", "flagship")
+                notes_wide = primary_board.get("notes_wide", 1)
+                notes_tall = primary_board.get("notes_tall", 1)
+            dims = resolve_dimensions(device_type, notes_wide, notes_tall)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
                 board_array,
@@ -5347,7 +5365,7 @@ async def set_active_page(request: dict):
                     page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
                 )
 
-                dims = get_dimensions(page.device_type)
+                dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
                 board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
                 success, was_sent = service.vb_client.send_characters(
                     board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
@@ -6784,7 +6802,7 @@ async def send_page(page_id: str, target: str | None = None):
             )
 
             # Convert to board array with dimensions for page's device type (flagship vs note)
-            dims = get_dimensions(page.device_type)
+            dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
                 board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
@@ -7416,7 +7434,11 @@ async def render_template_live(request: dict):
             client = board_client_from_board_dict(target_board)
             if client:
                 device_type = target_board.get("device_type", "flagship")
-                dims = get_dimensions(device_type)
+                dims = resolve_dimensions(
+                    device_type,
+                    target_board.get("notes_wide", 1),
+                    target_board.get("notes_tall", 1),
+                )
                 board_array = text_to_board_array(rendered, rows=dims.rows, cols=dims.cols)
 
                 transition_settings = settings_service.get_transition_settings()

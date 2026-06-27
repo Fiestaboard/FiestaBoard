@@ -921,6 +921,45 @@ class TestTemplateEndpoints:
         assert "rendered" in data
         assert "sent_to_board" in data
 
+    def test_render_template_live_note_array_sizes_to_real_dimensions(
+        self, client, mock_template_engine, mock_settings_service
+    ):
+        """Regression (note arrays): a live send to a note-array board must size to
+        the array's real geometry (4 side-by-side → 3×60), not crash with HTTP 500.
+
+        The send path previously called get_dimensions(), which only knows flagship
+        and note and raises ValueError on "note_array" → 500. resolve_dimensions is
+        deliberately NOT mocked here so the real note-array geometry runs; only the
+        network send is stubbed, and we assert the grid that reaches the board is the
+        true 3×60 size.
+        """
+        na_board = {
+            "id": "na1",
+            "device_type": "note_array",
+            "notes_wide": 4,
+            "notes_tall": 1,
+            "note_array_token": "tok",
+            "paused": False,
+        }
+        board_settings = Mock()
+        board_settings.boards = [na_board]
+        mock_settings_service.get_board_settings.return_value = board_settings
+
+        with patch("src.api_server.board_client_from_board_dict") as mock_bcfbd:
+            mock_client = Mock()
+            mock_client.send_characters.return_value = (True, True)
+            mock_bcfbd.return_value = mock_client
+            response = client.post(
+                "/templates/render/live",
+                json={"template": "HELLO", "board_id": "na1"},
+            )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["sent_to_board"] is True
+        sent_grid = mock_client.send_characters.call_args.args[0]
+        assert len(sent_grid) == 3, f"expected 3 rows for 4-wide note array, got {len(sent_grid)}"
+        assert all(len(row) == 60 for row in sent_grid), "expected 60 cols (4 notes × 15) per row"
+
     def test_render_template_live_empty(self, client, mock_template_engine, mock_settings_service):
         response = client.post("/templates/render/live", json={"template": ""})
         assert response.status_code == 200
