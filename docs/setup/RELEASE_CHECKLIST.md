@@ -33,7 +33,7 @@ git grep -E 'api_key|password|secret|token' -- '*.py' '*.ts' '*.tsx' '*.json' '*
 git grep -E 'api_key|password|secret|token' -- '*.md' | grep -v -E 'your_|your-|<[^>]+>|example|placeholder|`[a-z_]+`|\$\{' || true
 ```
 
-> **What to look for:** lines containing long hex or base64 strings, keys starting with `sk-`, `Bearer ` followed by a real-looking value, or any string that looks like a real credential rather than a placeholder. Hits on words like "your API key" or "token configuration" are expected and can be ignored.
+> **What to look for:** lines containing long hex or base64 strings, keys starting with `sk-`, `Bearer` followed by a real-looking value, or any string that looks like a real credential rather than a placeholder. Hits on words like "your API key" or "token configuration" are expected and can be ignored.
 
 - [ ] No real credential values appear in documentation files.
 - [ ] Docs and examples use placeholders like `your_api_key_here`, `your-weather-api-key`, etc.
