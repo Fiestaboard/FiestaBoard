@@ -1,0 +1,175 @@
+name: 'Claude: PR Drift Repair'
+
+# Keeps open automation PRs (bug-hunt/*, docs/*, a11y/*, claude/*) current
+# with main so they don't rot in a BEHIND/CONFLICTING state.
+#
+# On a schedule it finds bot PRs that are behind main or have merge
+# conflicts, then for each:
+#   - Cheap path: merge `origin/main` in. If it merges cleanly, push. NO
+#     Claude run is spent on this — it's pure git.
+#   - Conflict path: spin up a Sonnet Claude run that resolves ONLY trivial,
+#     unambiguous conflicts and pushes. If the conflict needs real judgment,
+#     it aborts, labels the PR `needs-human-rebase` (skipped on future
+#     sweeps), comments why, and stops.
+#
+# We MERGE main in rather than literally rebase — history is preserved and
+# no force-push is ever needed. ("rebase" is kept only in the filename.)
+#
+# Composition: a merge push re-runs CI. If the now-current branch then fails
+# CI, claude-ci-autofix.yml picks it up. The merge commit is NOT tagged
+# `[ci-autofix]`, so it correctly resets that workflow's attempt budget.
+#
+# Identity: pushes use the repo-installed GitHub App token so CI re-runs
+# without the "Approve workflows" gate (same pattern as claude.yml). Branch
+# protection on `main` doesn't apply — we only ever push to PR branches.
+
+on:
+  schedule:
+    - cron: '17 */3 * * *' # every 3 hours
+  workflow_dispatch:
+
+# One sweep at a time; a dispatch during a scheduled sweep waits its turn.
+concurrency:
+  group: claude-pr-rebase
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.find.outputs.matrix }}
+      count: ${{ steps.find.outputs.count }}
+    steps:
+      - name: Find behind / conflicting automation PRs
+        id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # mergeStateStatus can be UNKNOWN until GitHub computes mergeability;
+          # such PRs are simply skipped this sweep and caught on the next one.
+          gh pr list --state open --limit 100 \
+            --json number,headRefName,mergeStateStatus,labels > prs.json
+          MATRIX=$(jq -c '
+            [ .[]
+              | select(.headRefName | test("^(bug-hunt|docs|a11y|claude)/"))
+              | select([.labels[].name] | index("needs-human-rebase") | not)
+              | select(.mergeStateStatus == "BEHIND" or .mergeStateStatus == "DIRTY")
+              | {number, headRefName, mergeStateStatus}
+            ] | .[0:10]
+          ' prs.json)
+          COUNT=$(jq 'length' <<<"$MATRIX")
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "matrix={\"include\":$MATRIX}" >> "$GITHUB_OUTPUT"
+          echo "Found $COUNT candidate PR(s) to repair."
+
+  repair:
+    needs: discover
+    if: needs.discover.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    env:
+      PR_NUMBER: ${{ matrix.number }}
+      BRANCH: ${{ matrix.headRefName }}
+      STATE: ${{ matrix.mergeStateStatus }}
+      MAINTAINER: jeffredodd
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.CLAUDE_BOT_APP_ID }}
+          private-key: ${{ secrets.CLAUDE_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.headRefName }}
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      # Cheap path: try a plain merge. Only conflicts fall through to Claude.
+      - name: Attempt clean merge of main
+        id: merge
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "Already up to date with main — nothing to do."
+            echo "result=current" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          if git merge --no-edit origin/main; then
+            git push origin "HEAD:$BRANCH"
+            echo "result=merged" >> "$GITHUB_OUTPUT"
+            gh pr comment "$PR_NUMBER" \
+              --body "🔄 Updated this branch with the latest \`main\` (clean merge). CI will re-run." || true
+          else
+            git merge --abort
+            echo "Merge conflicts — handing off to Claude."
+            echo "result=conflict" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Claude Code (Sonnet) — resolve conflicts
+        if: steps.merge.outputs.result == 'conflict'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          allowed_bots: 'claude,github-actions'
+          show_full_output: 'true'
+          prompt: |
+            PR #${{ env.PR_NUMBER }} (branch `${{ env.BRANCH }}`, already
+            checked out) is behind `main` and a plain merge hit conflicts.
+            Bring it up to date — but only if the conflicts are trivial.
+
+            ## Steps
+
+            1. `git fetch origin main` then `git merge --no-edit origin/main`.
+            2. Inspect the conflicts. Resolve them ONLY if they are trivial and
+               unambiguous — e.g. version/changelog bumps, lockfiles, import
+               ordering, or edits to clearly separate regions of a file where
+               the correct resolution is obvious. Preserve BOTH sides' intent.
+            3. **If any conflict needs real judgment** (overlapping logic
+               changes, behaviour you'd have to reason about, anything you're
+               not confident resolving correctly): run `git merge --abort`,
+               then:
+                 - `gh label create needs-human-rebase --color D93F0B --description "Merge conflicts need manual resolution" 2>/dev/null || true`
+                 - `gh pr edit ${{ env.PR_NUMBER }} --add-label needs-human-rebase`
+                 - post a comment naming the conflicting files and why a human
+                   is needed, @-mentioning ${{ env.MAINTAINER }}
+               and STOP. Do not force a risky resolution.
+            4. If you resolved cleanly: confirm no conflict markers remain
+               (`git diff --check`), `git add -A`, `git commit --no-edit`,
+               then `git push` to the PR branch. Post a short comment
+               summarizing what conflicted and how you resolved it. CI will
+               re-run automatically.
+
+            ## Hard rules
+            - Never force-push, never `--no-verify`. Never push to `main`.
+            - Never merge or close the PR itself.
+            - When in doubt, abort and label `needs-human-rebase` — a wrong
+              auto-resolution is worse than asking a human.
+
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 40
+            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git merge:*),Bash(git push:*),Bash(git fetch:*),Bash(git checkout:*),Bash(git rev-parse:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh api:*),Bash(gh label list:*),Bash(gh label create:*)"
