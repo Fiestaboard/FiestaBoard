@@ -109,6 +109,11 @@ class ScheduleStorage:
         self._schedules: dict[str, ScheduleEntry] = {}
         self._default_page_id: str | None = None  # legacy single default
         self._default_page_by_board: dict[str, str] = {}  # board_id -> page_id
+        # Raw entries (post-migration) that failed Pydantic validation on load.
+        # Round-tripped through _save so a transient parsing failure (e.g. a
+        # bug in a migration, a renamed enum value) never silently deletes a
+        # user's schedule from disk.
+        self._failed_entries: list[dict] = []
 
         # Load existing schedules
         self._load()
@@ -150,6 +155,7 @@ class ScheduleStorage:
             self._schedules = {}
             self._default_page_id = None
             self._default_page_by_board = {}
+            self._failed_entries = []
             return
 
         try:
@@ -161,19 +167,41 @@ class ScheduleStorage:
             needs_save = self._run_migrations(data)
 
             self._schedules = {}
+            self._failed_entries = []
             for schedule_data in data.get("schedules", []):
+                # Snapshot before datetime coercion so we can round-trip the
+                # entry untouched if Pydantic validation fails below.
+                raw_snapshot = (
+                    dict(schedule_data) if isinstance(schedule_data, dict) else schedule_data
+                )
                 try:
-                    if "board_id" not in schedule_data:
-                        schedule_data["board_id"] = DEFAULT_BOARD_ID
-                    if "created_at" in schedule_data and isinstance(schedule_data["created_at"], str):
-                        schedule_data["created_at"] = datetime.fromisoformat(schedule_data["created_at"])
-                    if "updated_at" in schedule_data and isinstance(schedule_data["updated_at"], str):
-                        schedule_data["updated_at"] = datetime.fromisoformat(schedule_data["updated_at"])
+                    if isinstance(schedule_data, dict):
+                        if "board_id" not in schedule_data:
+                            schedule_data["board_id"] = DEFAULT_BOARD_ID
+                        if "created_at" in schedule_data and isinstance(schedule_data["created_at"], str):
+                            schedule_data["created_at"] = datetime.fromisoformat(schedule_data["created_at"])
+                        if "updated_at" in schedule_data and isinstance(schedule_data["updated_at"], str):
+                            schedule_data["updated_at"] = datetime.fromisoformat(schedule_data["updated_at"])
 
                     schedule = ScheduleEntry(**schedule_data)
                     self._schedules[schedule.id] = schedule
                 except Exception as e:
-                    logger.warning(f"Failed to load schedule: {e}")
+                    schedule_id = (
+                        raw_snapshot.get("id", "<unknown>") if isinstance(raw_snapshot, dict) else "<unknown>"
+                    )
+                    logger.error(
+                        "Failed to parse schedule %s; preserving raw entry to avoid data loss: %s",
+                        schedule_id,
+                        e,
+                    )
+                    self._failed_entries.append(raw_snapshot)
+
+            if self._failed_entries:
+                logger.error(
+                    "Schedules load preserved %d unparseable entr%s as-is in storage",
+                    len(self._failed_entries),
+                    "y" if len(self._failed_entries) == 1 else "ies",
+                )
 
             self._default_page_id = data.get("default_page_id")
             self._default_page_by_board = dict(data.get("default_page_by_board") or {})
@@ -189,23 +217,31 @@ class ScheduleStorage:
             self._schedules = {}
             self._default_page_id = None
             self._default_page_by_board = {}
+            self._failed_entries = []
 
     def _save(self) -> None:
         """Save schedules to storage file."""
         try:
+            schedules_out: list[dict] = []
+            for schedule in self._schedules.values():
+                schedule_data = schedule.model_dump()
+                # Convert datetime objects to ISO strings for JSON serialization
+                if isinstance(schedule_data.get("created_at"), datetime):
+                    schedule_data["created_at"] = schedule_data["created_at"].isoformat()
+                if isinstance(schedule_data.get("updated_at"), datetime):
+                    schedule_data["updated_at"] = schedule_data["updated_at"].isoformat()
+                schedules_out.append(schedule_data)
+
+            # Round-trip any entries that failed to parse on load so a
+            # follow-up save doesn't quietly delete them from disk.
+            schedules_out.extend(self._failed_entries)
+
             data = {
                 "schema_version": CURRENT_SCHEMA_VERSION,
-                "schedules": [schedule.model_dump() for schedule in self._schedules.values()],
+                "schedules": schedules_out,
                 "default_page_id": self._default_page_id,
                 "default_page_by_board": self._default_page_by_board,
             }
-
-            # Convert datetime objects to ISO strings for JSON serialization
-            for schedule_data in data["schedules"]:
-                if schedule_data.get("created_at"):
-                    schedule_data["created_at"] = schedule_data["created_at"].isoformat()
-                if schedule_data.get("updated_at"):
-                    schedule_data["updated_at"] = schedule_data["updated_at"].isoformat()
 
             # Use builtins.open (not Path.open) so existing tests can
             # patch builtins.open to inject I/O errors.

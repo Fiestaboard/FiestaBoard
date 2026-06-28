@@ -461,6 +461,90 @@ class TestSchemaVersioning:
         assert page.template == ["HELLO", "", "", "", "", ""]
         assert page.line_metadata[0].alignment == "center"
 
+    def test_migration_save_preserves_unparseable_entries(self, temp_storage_file):
+        """Regression for #1305: an entry that fails Pydantic validation during
+        the post-migration save must NOT be silently dropped from the file."""
+        raw = {
+            "schema_version": 0,
+            "pages": [
+                {
+                    "id": "aaa",
+                    "name": "Good",
+                    "type": "template",
+                    "template": ["hello", "", "", "", "", ""],
+                    "duration_seconds": 300,
+                    "created_at": "2024-01-01T00:00:00+00:00",
+                },
+                {
+                    "id": "bbb",
+                    "name": "Bad",
+                    "type": "INVALID_TYPE_THAT_FAILS_PYDANTIC",
+                    "created_at": "2024-01-01T00:00:00+00:00",
+                },
+            ],
+        }
+        with open(temp_storage_file, "w") as f:
+            json.dump(raw, f)
+
+        # Load triggers v0 -> current migration; "bbb" fails Pydantic validation.
+        storage = PageStorage(storage_file=temp_storage_file)
+        assert storage.get("aaa") is not None
+        # The bad entry must not appear in the in-memory cache (it didn't validate),
+        # but it MUST still be on disk so a follow-up fix doesn't lose data.
+        assert storage.get("bbb") is None
+
+        # Reload from disk and confirm "bbb" is still present in the raw file.
+        with open(temp_storage_file) as f:
+            on_disk = json.load(f)
+        on_disk_ids = {
+            entry["id"]
+            for entry in on_disk["pages"]
+            if isinstance(entry, dict) and "id" in entry
+        }
+        assert "bbb" in on_disk_ids, "migration save silently dropped the invalid entry"
+        assert "aaa" in on_disk_ids
+
+    def test_post_load_save_preserves_unparseable_entries(self, temp_storage_file):
+        """A normal save (e.g. from create/update/delete) after a load that
+        encountered unparseable entries must also preserve them on disk."""
+        raw = {
+            "schema_version": CURRENT_SCHEMA_VERSION,
+            "pages": [
+                {
+                    "id": "good",
+                    "name": "Good",
+                    "type": "single",
+                    "display_type": "weather",
+                    "duration_seconds": 300,
+                    "created_at": "2024-01-01T00:00:00+00:00",
+                },
+                {
+                    "id": "bad",
+                    "name": "Bad",
+                    "type": "INVALID_TYPE",
+                    "created_at": "2024-01-01T00:00:00+00:00",
+                },
+            ],
+        }
+        with open(temp_storage_file, "w") as f:
+            json.dump(raw, f)
+
+        storage = PageStorage(storage_file=temp_storage_file)
+        # Trigger an unrelated save (no migration needed at CURRENT_SCHEMA_VERSION).
+        new_page = Page(name="New", type="single", display_type="datetime")
+        storage.create(new_page)
+
+        with open(temp_storage_file) as f:
+            on_disk = json.load(f)
+        on_disk_ids = {
+            entry["id"]
+            for entry in on_disk["pages"]
+            if isinstance(entry, dict) and "id" in entry
+        }
+        assert "bad" in on_disk_ids, "subsequent save dropped the unparseable entry"
+        assert "good" in on_disk_ids
+        assert new_page.id in on_disk_ids
+
 
 class TestMigrateV2ToV3:
     """Tests for v2->v3 plugin id rename migration."""
