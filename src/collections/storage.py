@@ -6,6 +6,7 @@ legacy ``data/carousels.json`` file (carousel: prefixed IDs, flat
 ``interval_seconds``) into the new collection format on first run.
 """
 
+import contextlib
 import json
 import logging
 import shutil
@@ -72,6 +73,11 @@ class CollectionStorage:
             self.storage_file = Path(storage_file)
 
         self._collections: dict[str, Collection] = {}
+        # Raw entries (post-migration) that failed Pydantic validation on load.
+        # Round-tripped through _save so a transient parsing failure (e.g. a
+        # bug in a migration, a renamed enum value) never silently deletes a
+        # user's collection from disk. Mirrors src/pages/storage.py (#1305).
+        self._failed_entries: list[dict] = []
         self._load()
 
         logger.info(f"CollectionStorage initialized (file: {self.storage_file}, collections: {len(self._collections)})")
@@ -142,11 +148,21 @@ class CollectionStorage:
         # Hydrate in-memory cache directly from the converted records so the
         # caller does not have to re-read the file we are about to write.
         self._collections = {}
+        self._failed_entries = []
         for record in converted:
+            # Snapshot before datetime coercion so a record that fails Pydantic
+            # validation is round-tripped untouched rather than silently dropped.
+            raw_snapshot = dict(record) if isinstance(record, dict) else record
             try:
                 self._hydrate_record(record)
             except Exception as e:
-                logger.warning(f"Failed to load imported collection: {e}")
+                record_id = raw_snapshot.get("id", "<unknown>") if isinstance(raw_snapshot, dict) else "<unknown>"
+                logger.warning(
+                    "Failed to load imported collection %s; preserving raw entry to avoid data loss: %s",
+                    record_id,
+                    e,
+                )
+                self._failed_entries.append(raw_snapshot)
 
         # Move the legacy file aside so the import is a one-shot operation.
         try:
@@ -177,6 +193,7 @@ class CollectionStorage:
 
         if not self.storage_file.exists():
             self._collections = {}
+            self._failed_entries = []
             return
 
         try:
@@ -185,16 +202,34 @@ class CollectionStorage:
         except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load collections file: {e}")
             self._collections = {}
+            self._failed_entries = []
             return
 
         needs_save = self._run_migrations(data)
 
         self._collections = {}
+        self._failed_entries = []
         for record in data.get("collections", []):
+            # Snapshot before datetime coercion so we can round-trip the entry
+            # untouched if Pydantic validation fails below.
+            raw_snapshot = dict(record) if isinstance(record, dict) else record
             try:
                 self._hydrate_record(record)
             except Exception as e:
-                logger.warning(f"Failed to load collection: {e}")
+                record_id = raw_snapshot.get("id", "<unknown>") if isinstance(raw_snapshot, dict) else "<unknown>"
+                logger.error(
+                    "Failed to parse collection %s; preserving raw entry to avoid data loss: %s",
+                    record_id,
+                    e,
+                )
+                self._failed_entries.append(raw_snapshot)
+
+        if self._failed_entries:
+            logger.error(
+                "Collections load preserved %d unparseable entr%s as-is in storage",
+                len(self._failed_entries),
+                "y" if len(self._failed_entries) == 1 else "ies",
+            )
 
         logger.info(f"Loaded {len(self._collections)} collections from storage")
 
@@ -203,6 +238,12 @@ class CollectionStorage:
             logger.info("Saved migrated collections to storage")
 
     def _save(self) -> None:
+        """Save collections to storage file.
+
+        Writes to a sibling ``<file>.tmp`` and ``os.replace``s it into place so
+        a mid-write crash (OOM, SIGKILL, power loss) never leaves a truncated
+        file that would wipe in-memory state on reload (see #1304).
+        """
         try:
             records = []
             for c in self._collections.values():
@@ -213,12 +254,26 @@ class CollectionStorage:
                     record["updated_at"] = record["updated_at"].isoformat()
                 records.append(record)
 
+            # Round-trip any entries that failed to parse on load so a follow-up
+            # save doesn't quietly delete them from disk (see #1305).
+            records.extend(self._failed_entries)
+
             data = {
                 "schema_version": CURRENT_SCHEMA_VERSION,
                 "collections": records,
             }
-            with open(self.storage_file, "w") as f:  # noqa: PTH123
-                json.dump(data, f, indent=2)
+
+            tmp_path = self.storage_file.with_suffix(self.storage_file.suffix + ".tmp")
+            try:
+                with open(tmp_path, "w") as f:  # noqa: PTH123
+                    json.dump(data, f, indent=2)
+                tmp_path.replace(self.storage_file)
+            except BaseException:
+                # Clean up the partial tmp file on any failure so we don't leak
+                # it; the original storage file stays untouched.
+                with contextlib.suppress(OSError):
+                    tmp_path.unlink(missing_ok=True)
+                raise
 
             logger.debug(f"Saved {len(self._collections)} collections to storage")
         except OSError as e:
