@@ -4,6 +4,7 @@ Provides simple persistence for page configurations that survives restarts.
 Includes schema versioning and automatic migration on startup.
 """
 
+import contextlib
 import json
 import logging
 import re
@@ -303,10 +304,8 @@ class PageStorage:
             except BaseException:
                 # Clean up the partial tmp file on any failure so we don't
                 # leak it; the original storage file stays untouched.
-                try:
+                with contextlib.suppress(OSError):
                     tmp_path.unlink(missing_ok=True)
-                except OSError:
-                    pass
                 raise
 
             logger.debug(f"Saved {len(self._pages)} pages to storage")
