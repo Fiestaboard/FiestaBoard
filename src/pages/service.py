@@ -180,7 +180,8 @@ class PageService:
             DeleteResult with deletion status and info about any default page created
         """
         # Check if page exists
-        if not self.storage.exists(page_id):
+        existing_page = self.storage.get(page_id)
+        if existing_page is None:
             return DeleteResult(deleted=False)
 
         # Check if this page is the active display page
@@ -189,8 +190,10 @@ class PageService:
 
         # Check if this is the last page
         if self.storage.count() == 1:
-            # Create default page before deleting the last one
-            default_page = self._create_default_page()
+            # Create default page before deleting the last one. Match the
+            # deleted page's device_type so a note (3x15) board doesn't end up
+            # with a flagship (6x22) welcome page (issue #1307).
+            default_page = self._create_default_page(device_type=existing_page.device_type)
             logger.info(f"Created default page {default_page.id} before deleting last page {page_id}")
 
             # Now delete the original page
@@ -226,16 +229,23 @@ class PageService:
 
         return DeleteResult(deleted=True, active_page_updated=is_active_page, new_active_page_id=new_active_id)
 
-    def _create_default_page(self) -> Page:
+    def _create_default_page(self, device_type: str | None = None) -> Page:
         """Create and save a default welcome page.
+
+        Args:
+            device_type: Target device type ("flagship" or "note"). Selects the
+                matching welcome template. Falls back to ``DEFAULT_DEVICE_TYPE``
+                when unknown so a future device_type doesn't crash this path.
 
         Returns:
             The created default page
         """
+        resolved_device = device_type if device_type in DEFAULT_PAGE_TEMPLATES else DEFAULT_DEVICE_TYPE
         page = Page(
             name="Welcome",
             type="template",
-            template=DEFAULT_PAGE_TEMPLATE,
+            device_type=resolved_device,
+            template=DEFAULT_PAGE_TEMPLATES[resolved_device],
             duration_seconds=300,
             created_at=datetime.now(UTC),
         )

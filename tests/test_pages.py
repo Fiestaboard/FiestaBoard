@@ -726,6 +726,25 @@ class TestPageService:
         pages = service.list_pages()
         assert len(pages) == 1
 
+    def test_delete_last_note_page_creates_note_default(self, service):
+        """Deleting the last note-board page should create a note-sized default.
+
+        Regression test for issue #1307: ``_create_default_page`` used to
+        hardcode the 6-line flagship template, producing a structurally
+        invalid page on note (3x15) boards.
+        """
+        note_page = service.storage.create(
+            Page(name="only", type="template", device_type="note", template=["a", "b", "c"])
+        )
+
+        result = service.delete_page(note_page.id)
+        assert result.default_page_created is True
+
+        new_page = service.get_page(result.new_page_id)
+        assert new_page is not None
+        assert new_page.device_type == "note"
+        assert len(new_page.template) == 3
+
     def test_delete_nonexistent_page(self, service):
         """Test deleting a page that doesn't exist."""
         result = service.delete_page("nonexistent-id")
