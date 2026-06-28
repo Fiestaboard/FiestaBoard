@@ -191,7 +191,12 @@ class ScheduleStorage:
             self._default_page_by_board = {}
 
     def _save(self) -> None:
-        """Save schedules to storage file."""
+        """Save schedules to storage file.
+
+        Writes to a sibling ``<file>.tmp`` and ``os.replace``s it into place
+        so a mid-write crash (OOM, SIGKILL, power loss) never leaves a
+        truncated file that would wipe in-memory state on reload (see #1304).
+        """
         try:
             data = {
                 "schema_version": CURRENT_SCHEMA_VERSION,
@@ -207,10 +212,21 @@ class ScheduleStorage:
                 if schedule_data.get("updated_at"):
                     schedule_data["updated_at"] = schedule_data["updated_at"].isoformat()
 
-            # Use builtins.open (not Path.open) so existing tests can
-            # patch builtins.open to inject I/O errors.
-            with open(self.storage_file, "w") as f:  # noqa: PTH123
-                json.dump(data, f, indent=2)
+            tmp_path = self.storage_file.with_suffix(self.storage_file.suffix + ".tmp")
+            try:
+                # Use builtins.open (not Path.open) on the tmp path so existing
+                # tests can patch builtins.open to inject I/O errors.
+                with open(tmp_path, "w") as f:  # noqa: PTH123
+                    json.dump(data, f, indent=2)
+                tmp_path.replace(self.storage_file)
+            except BaseException:
+                # Clean up the partial tmp file on any failure so we don't
+                # leak it; the original storage file stays untouched.
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                raise
 
             logger.debug(f"Saved {len(self._schedules)} schedules to storage")
 

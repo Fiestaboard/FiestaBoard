@@ -276,7 +276,12 @@ class PageStorage:
             self._pages = {}
 
     def _save(self) -> None:
-        """Save pages to storage file."""
+        """Save pages to storage file.
+
+        Writes to a sibling ``<file>.tmp`` and ``os.replace``s it into place
+        so a mid-write crash (OOM, SIGKILL, power loss) never leaves a
+        truncated file that would wipe in-memory state on reload (see #1304).
+        """
         try:
             data = {
                 "schema_version": CURRENT_SCHEMA_VERSION,
@@ -290,8 +295,19 @@ class PageStorage:
                 if page_data.get("updated_at"):
                     page_data["updated_at"] = page_data["updated_at"].isoformat()
 
-            with self.storage_file.open("w") as f:
-                json.dump(data, f, indent=2)
+            tmp_path = self.storage_file.with_suffix(self.storage_file.suffix + ".tmp")
+            try:
+                with tmp_path.open("w") as f:
+                    json.dump(data, f, indent=2)
+                tmp_path.replace(self.storage_file)
+            except BaseException:
+                # Clean up the partial tmp file on any failure so we don't
+                # leak it; the original storage file stays untouched.
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                raise
 
             logger.debug(f"Saved {len(self._pages)} pages to storage")
 
