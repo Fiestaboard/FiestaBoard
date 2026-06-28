@@ -2,7 +2,7 @@ name: 'Claude: Issue Triage'
 
 # Take a first-pass fix attempt at new issues.
 #
-# Triggers in three ways:
+# Triggers in several ways:
 #   1. Auto: issue opened by the repo owner / a member / a collaborator
 #   2. Manual gate: any issue that gets the `claude-fix` label applied
 #   3. Docs cron: any issue that gets the `docs-audit` label applied
@@ -11,6 +11,10 @@ name: 'Claude: Issue Triage'
 #   4. A11y cron: any issue that gets the `a11y-audit` label applied
 #      (filed by claude-a11y-audit.yml / claude-a11y-live-axe.yml; same
 #      bot-author reasoning as #3 — these become `a11y/issue-*` fix PRs)
+#   5. Bug-hunt cron: any issue that gets the `bug-hunt` label applied
+#      (filed by claude-bug-hunt.yml; same bot-author reasoning — these
+#      become `bug-hunt/issue-*` DRAFT fix PRs, TDD'd off the issue's
+#      embedded repro test)
 #
 # These gates keep drive-by issues from public reporters out of the
 # auto-run path while still letting you (or any maintainer) opt one in by
@@ -47,7 +51,8 @@ jobs:
         (github.event.action == 'labeled' && (
           github.event.label.name == 'claude-fix' ||
           github.event.label.name == 'docs-audit' ||
-          github.event.label.name == 'a11y-audit'
+          github.event.label.name == 'a11y-audit' ||
+          github.event.label.name == 'bug-hunt'
         ))
       )
     runs-on: ubuntu-latest
@@ -149,6 +154,15 @@ jobs:
                  user-facing string (including `aria-label`) through
                  `next-intl` (`web/messages/en.json` + the 13 sibling
                  locales) — never a hardcoded English literal in JSX.
+               - For bug-hunt issues (labels include `bug-hunt`): branch
+                 `bug-hunt/issue-${{ github.event.issue.number }}-<short-slug>`,
+                 title prefix `fix:`. The issue body contains a fenced
+                 ```python repro``` block — add that repro as a REAL test
+                 FIRST (TDD) and confirm it FAILS on current code, then
+                 implement the smallest fix, confirm the repro PASSES and the
+                 suite stays green, and open as a **draft**
+                 (`gh pr create --draft`) so a human validates the fix before
+                 sign-off. (See "Bug-hunt issues — conventions" below.)
                - For everything else: branch
                  `claude/issue-${{ github.event.issue.number }}`, title
                  `[Claude first-pass] <short summary>`. Open as a draft
@@ -193,6 +207,22 @@ jobs:
                 before opening the PR
               - Scope tightly to the reported finding; cite the WCAG criterion
                 in the PR body
+
+            ## Bug-hunt issues — conventions
+
+            If the issue labels include `bug-hunt`, you are fixing a confirmed
+            functional bug. Work test-first:
+              - Start from the issue's repro block. Turn it into a real test
+                and confirm it FAILS on current code — that proves you've
+                reproduced the bug before you change anything.
+              - Implement the SMALLEST change that makes the repro pass. Do not
+                refactor or fix adjacent things; scope strictly to this bug.
+              - Run the relevant suite (`pytest` for backend, the web tests for
+                frontend) and keep it green. Check callers of any signature you
+                change so the fix doesn't regress them or drift the Python↔TS
+                contract.
+              - In the PR body, state the root cause, what the repro proves,
+                and what a reviewer should double-check. Open as a draft.
 
             If you finish without opening a PR, leave a comment on the issue
             summarizing what you found and why no PR was opened.
