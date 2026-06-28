@@ -45,7 +45,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: '--model claude-haiku-4-5 --allowed-tools "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"'
+          claude_args: '--model claude-sonnet-4-6 --allowed-tools "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"'
           prompt: |
             You are writing one line of a FiestaBoard changelog. FiestaBoard is
             an open-source platform for controlling split-flap displays.
