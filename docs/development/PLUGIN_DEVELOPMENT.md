@@ -947,7 +947,7 @@ def check_triggers(self) -> list[TriggerResult]:
     return [TriggerResult(
         triggered=True,
         trigger_id=f"sensor_alert_{current.event_id}",
-        priority=50,
+        priority=TriggerPriority.NOTABLE,
         duration_seconds=120,
         data={"reading": current.value},
     )]
