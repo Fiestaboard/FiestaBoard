@@ -171,9 +171,7 @@ class ScheduleStorage:
             for schedule_data in data.get("schedules", []):
                 # Snapshot before datetime coercion so we can round-trip the
                 # entry untouched if Pydantic validation fails below.
-                raw_snapshot = (
-                    dict(schedule_data) if isinstance(schedule_data, dict) else schedule_data
-                )
+                raw_snapshot = dict(schedule_data) if isinstance(schedule_data, dict) else schedule_data
                 try:
                     if isinstance(schedule_data, dict):
                         if "board_id" not in schedule_data:
@@ -186,9 +184,7 @@ class ScheduleStorage:
                     schedule = ScheduleEntry(**schedule_data)
                     self._schedules[schedule.id] = schedule
                 except Exception as e:
-                    schedule_id = (
-                        raw_snapshot.get("id", "<unknown>") if isinstance(raw_snapshot, dict) else "<unknown>"
-                    )
+                    schedule_id = raw_snapshot.get("id", "<unknown>") if isinstance(raw_snapshot, dict) else "<unknown>"
                     logger.error(
                         "Failed to parse schedule %s; preserving raw entry to avoid data loss: %s",
                         schedule_id,

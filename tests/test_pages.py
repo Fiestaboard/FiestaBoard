@@ -496,11 +496,7 @@ class TestSchemaVersioning:
         # Reload from disk and confirm "bbb" is still present in the raw file.
         with open(temp_storage_file) as f:
             on_disk = json.load(f)
-        on_disk_ids = {
-            entry["id"]
-            for entry in on_disk["pages"]
-            if isinstance(entry, dict) and "id" in entry
-        }
+        on_disk_ids = {entry["id"] for entry in on_disk["pages"] if isinstance(entry, dict) and "id" in entry}
         assert "bbb" in on_disk_ids, "migration save silently dropped the invalid entry"
         assert "aaa" in on_disk_ids
 
@@ -536,11 +532,7 @@ class TestSchemaVersioning:
 
         with open(temp_storage_file) as f:
             on_disk = json.load(f)
-        on_disk_ids = {
-            entry["id"]
-            for entry in on_disk["pages"]
-            if isinstance(entry, dict) and "id" in entry
-        }
+        on_disk_ids = {entry["id"] for entry in on_disk["pages"] if isinstance(entry, dict) and "id" in entry}
         assert "bad" in on_disk_ids, "subsequent save dropped the unparseable entry"
         assert "good" in on_disk_ids
         assert new_page.id in on_disk_ids

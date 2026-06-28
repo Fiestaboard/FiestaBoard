@@ -390,11 +390,7 @@ class TestScheduleStorage:
         # ...but it MUST still be present on disk so it isn't silently lost.
         with open(temp_storage_file) as f:
             on_disk = json.load(f)
-        on_disk_ids = {
-            entry["id"]
-            for entry in on_disk["schedules"]
-            if isinstance(entry, dict) and "id" in entry
-        }
+        on_disk_ids = {entry["id"] for entry in on_disk["schedules"] if isinstance(entry, dict) and "id" in entry}
         assert "bad-id" in on_disk_ids, "migration save silently dropped the invalid entry"
         assert "good-id" in on_disk_ids
 
@@ -434,11 +430,7 @@ class TestScheduleStorage:
 
         with open(temp_storage_file) as f:
             on_disk = json.load(f)
-        on_disk_ids = {
-            entry["id"]
-            for entry in on_disk["schedules"]
-            if isinstance(entry, dict) and "id" in entry
-        }
+        on_disk_ids = {entry["id"] for entry in on_disk["schedules"] if isinstance(entry, dict) and "id" in entry}
         assert "bad-id" in on_disk_ids, "subsequent save dropped the unparseable entry"
         assert "good-id" in on_disk_ids
         assert new_schedule.id in on_disk_ids
