@@ -358,6 +358,83 @@ class TestScheduleStorage:
         assert storage.get("good-id") is not None
         assert storage.get("bad-id") is None
 
+    def test_migration_save_preserves_unparseable_entries(self, temp_storage_file):
+        """Regression for #1305: an entry that fails Pydantic validation during
+        the post-migration save must NOT be silently dropped from the file."""
+        # No schema_version field => triggers v0 -> CURRENT_SCHEMA_VERSION migration,
+        # which calls _save() after load. The invalid entry must survive that save.
+        data = {
+            "schedules": [
+                {
+                    "id": "good-id",
+                    "page_id": "p1",
+                    "start_time": "09:00",
+                    "end_time": "17:00",
+                    "day_pattern": "all",
+                    "enabled": True,
+                    "created_at": "2024-01-01T00:00:00+00:00",
+                },
+                # Missing required page_id / start_time => fails Pydantic validation
+                {"id": "bad-id", "broken_field": True},
+            ],
+            "default_page_id": None,
+            "default_page_by_board": {},
+        }
+        with open(temp_storage_file, "w") as f:
+            json.dump(data, f)
+
+        storage = ScheduleStorage(storage_file=temp_storage_file)
+        assert storage.get("good-id") is not None
+        assert storage.get("bad-id") is None  # not in the in-memory cache
+
+        # ...but it MUST still be present on disk so it isn't silently lost.
+        with open(temp_storage_file) as f:
+            on_disk = json.load(f)
+        on_disk_ids = {entry["id"] for entry in on_disk["schedules"] if isinstance(entry, dict) and "id" in entry}
+        assert "bad-id" in on_disk_ids, "migration save silently dropped the invalid entry"
+        assert "good-id" in on_disk_ids
+
+    def test_post_load_save_preserves_unparseable_entries(self, temp_storage_file):
+        """An ordinary save (create/update/delete) after a load that encountered
+        an unparseable entry must also preserve that entry on disk."""
+        data = {
+            "schema_version": 2,  # already at CURRENT_SCHEMA_VERSION; no migration
+            "schedules": [
+                {
+                    "id": "good-id",
+                    "page_id": "p1",
+                    "start_time": "09:00",
+                    "end_time": "17:00",
+                    "day_pattern": "all",
+                    "enabled": True,
+                    "created_at": "2024-01-01T00:00:00+00:00",
+                },
+                {"id": "bad-id", "broken_field": True},  # fails validation
+            ],
+            "default_page_id": None,
+            "default_page_by_board": {},
+        }
+        with open(temp_storage_file, "w") as f:
+            json.dump(data, f)
+
+        storage = ScheduleStorage(storage_file=temp_storage_file)
+        # Trigger a normal save unrelated to migrations.
+        new_schedule = ScheduleEntry(
+            page_id="p2",
+            start_time="18:00",
+            end_time="22:00",
+            day_pattern="all",
+            enabled=True,
+        )
+        storage.create(new_schedule)
+
+        with open(temp_storage_file) as f:
+            on_disk = json.load(f)
+        on_disk_ids = {entry["id"] for entry in on_disk["schedules"] if isinstance(entry, dict) and "id" in entry}
+        assert "bad-id" in on_disk_ids, "subsequent save dropped the unparseable entry"
+        assert "good-id" in on_disk_ids
+        assert new_schedule.id in on_disk_ids
+
     def test_save_raises_on_io_error(self, storage, monkeypatch):
         """_save() propagates IOError when the file cannot be written."""
         original_open = builtins.open
@@ -378,3 +455,47 @@ class TestScheduleStorage:
         )
         with pytest.raises(IOError):
             storage.create(new_schedule)
+
+    def test_save_is_atomic_on_mid_write_crash(self, temp_storage_file, monkeypatch):
+        """Regression test for #1304: a crash inside _save() must not corrupt
+        the existing file. Atomic-write pattern (tmp + os.replace) keeps the
+        on-disk file intact until the rename succeeds, so reload still finds
+        the original data.
+        """
+        from src.schedules import storage as storage_module
+
+        storage = ScheduleStorage(storage_file=temp_storage_file)
+        schedule = ScheduleEntry(
+            id="keep-me",
+            page_id="p1",
+            start_time="09:00",
+            end_time="17:00",
+            day_pattern="weekdays",
+            enabled=True,
+        )
+        storage.create(schedule)
+        assert storage.count() == 1
+        original_bytes = Path(temp_storage_file).read_bytes()
+
+        # Simulate mid-write crash: json.dump writes a truncated prefix
+        # then raises before the file is fully serialized.
+        real_dump = json.dump
+
+        def crashing_dump(obj, fh, *args, **kwargs):
+            fh.write('{"schedules": [{"id": "abc"')
+            fh.flush()
+            raise OSError("Simulated crash mid-write")
+
+        monkeypatch.setattr(storage_module.json, "dump", crashing_dump)
+        with pytest.raises(OSError):
+            storage._save()
+        monkeypatch.setattr(storage_module.json, "dump", real_dump)
+
+        # The original file must be byte-identical — the crash should
+        # have hit a .tmp file that never got renamed over the real one.
+        assert Path(temp_storage_file).read_bytes() == original_bytes
+
+        # And a fresh storage instance must still see the original data.
+        reloaded = ScheduleStorage(storage_file=temp_storage_file)
+        assert reloaded.count() == 1
+        assert reloaded.get("keep-me") is not None

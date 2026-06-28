@@ -14,22 +14,22 @@ The Countdown plugin shows the remaining days, hours, minutes, and seconds until
 
 ### Event Info
 
-```jinja
-{{countdown.event_name}}       # Name of the event (e.g., "Last Day of School")
-{{countdown.target_datetime}}  # Target datetime string (e.g., "2027-01-01T00:00:00")
-{{countdown.is_expired}}       # "true" if the event has passed, "false" otherwise
-```
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{countdown.event_name}}` | Name of the event | `Last Day of School` |
+| `{{countdown.target_datetime}}` | Target datetime string | `2027-01-01T00:00:00` |
+| `{{countdown.is_expired}}` | `"true"` if the event has passed, `"false"` otherwise | `"false"` |
 
 ### Countdown Values
 
-```jinja
-{{countdown.days}}             # Remaining days (e.g., "22")
-{{countdown.hours}}            # Remaining hours (0-23) (e.g., "3")
-{{countdown.minutes}}          # Remaining minutes (0-59) (e.g., "10")
-{{countdown.seconds}}          # Remaining seconds (0-59) (e.g., "45")
-{{countdown.total_seconds}}    # Total remaining seconds (e.g., "1911045")
-{{countdown.formatted}}        # Pre-formatted string (e.g., "22D 3H 10M")
-```
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{countdown.days}}` | Remaining days | `22` |
+| `{{countdown.hours}}` | Remaining hours (0–23) | `3` |
+| `{{countdown.minutes}}` | Remaining minutes (0–59) | `10` |
+| `{{countdown.seconds}}` | Remaining seconds (0–59) | `45` |
+| `{{countdown.total_seconds}}` | Total remaining seconds | `1911045` |
+| `{{countdown.formatted}}` | Pre-formatted string | `22D 3H 10M` |
 
 ## Example Templates
 

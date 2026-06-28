@@ -62,6 +62,7 @@ In CI, tests run directly on the GitHub Actions host for speed (not in Docker).
 ## Code Style
 
 The project uses:
+
 - **ESLint** for JavaScript/TypeScript
 - **Pylint** for Python
 

@@ -130,6 +130,7 @@ This is backward-compatible with the original format. Variables show up in the e
 ```
 
 With this format, the editor shows:
+
 - **Descriptions** as tooltips when hovering over variable pills
 - **Live preview values** next to each variable
 - **Type hints** for validation
@@ -683,7 +684,7 @@ Your plugin must inherit from `PluginBase`:
 | `fetch_data()` | Yes | Return a `PluginResult` with the data dict for templates |
 | `validate_config(config)` | No | Return a list of error strings; empty list means valid |
 | `on_config_change(old, new)` | No | Hook called after settings are updated |
-| `get_formatted_display()` | No | Return six display lines for "single" page rendering |
+| `get_formatted_display()` | No | Legacy hook — not called by the platform; see note below |
 | `cleanup()` | No | Release resources when the plugin is disabled |
 | `check_triggers()` | No | Return a list of `TriggerResult` if `supports_triggers` is set |
 | `receive_payload(payload, headers, raw_body)` | No | Handle inbound webhooks (raise `PermissionError` → 403, `ValueError` → 400) |
@@ -718,8 +719,33 @@ class PluginResult:
     available: bool                              # True if data fetched successfully
     data: dict[str, Any] | None = None           # Template variables
     error: str | None = None                     # Error message
-    formatted_lines: list[str] | None = None     # Pre-formatted display (6 lines)
+    formatted_lines: list[str] | None = None     # Pre-formatted display (line count matches board height)
 ```
+
+### Pre-formatted content: `formatted_lines` vs `get_formatted_display()`
+
+Both `PluginResult.formatted_lines` and the `get_formatted_display()` method appear to serve the same purpose. Here is when each one applies.
+
+**`PluginResult.formatted_lines` is the correct approach for new plugins.** Set it inside `fetch_data()` when you want the platform to render pre-formatted lines instead of passing raw data through the template engine.
+
+The number of lines must match the target board's row count — 6 for the Flagship (22×6) and 3 for the Note (15×3). `src/displays/service.py` joins the list with `\n`; no truncation to the board height happens at the platform level. Read `self.board.height` to produce the right count (see [Board awareness](#board-awareness-selfboard)):
+
+```python
+def fetch_data(self) -> PluginResult:
+    height = self.board.height if self.board else 6
+    lines = self._build_display(height)   # returns a list of `height` strings
+    return PluginResult(
+        available=True,
+        data={"summary": lines[0]},   # template variables still work alongside formatted_lines
+        formatted_lines=lines,
+    )
+```
+
+When `formatted_lines` is present, the template engine is bypassed entirely for that render.
+
+**`get_formatted_display()` is not called by the platform.** The base class defines it as an optional override, and two bundled plugins (`date_time`, `countdown`) implement it, but no part of the platform render pipeline invokes it. It exists as a standalone utility that tests and external tools can call directly — not as an integration point for board rendering.
+
+> **Rule of thumb:** return your formatted lines in `PluginResult.formatted_lines` from `fetch_data()`. Do not implement `get_formatted_display()` in new plugins — the platform will never call it.
 
 ## Triggering Pages from a Plugin
 
@@ -811,7 +837,7 @@ The `TriggerResult` fields are defined in `src/plugins/base.py`:
 | `duration_seconds` | int | `30` | How long the trigger stays active before auto-expiring. |
 | `data` | dict \| None | `None` | Template context exposed as `{{<plugin_id>.*}}` when rendering `trigger_page_id`. |
 | `message` | str \| None | `None` | Plain-text fallback sent to the board if no `trigger_page_id` is configured. |
-| `formatted_lines` | list[str] \| None | `None` | Pre-formatted 6-line board content; takes precedence over `message`. |
+| `formatted_lines` | list[str] \| None | `None` | Pre-formatted board content; takes precedence over `message`. Line count must match the board height (6 for Flagship, 3 for Note) — use `self.board.height if self.board else 6`. |
 
 #### Priority scale: `TriggerPriority`
 
@@ -921,7 +947,7 @@ def check_triggers(self) -> list[TriggerResult]:
     return [TriggerResult(
         triggered=True,
         trigger_id=f"sensor_alert_{current.event_id}",
-        priority=50,
+        priority=TriggerPriority.NOTABLE,
         duration_seconds=120,
         data={"reading": current.value},
     )]
@@ -1044,7 +1070,7 @@ The FiestaBoard plugin registry (`plugin-registry.json` at the repository root) 
 
 Repository names must match:
 
-```
+```text
 fiestaboard-plugin--{name}
 ```
 
@@ -1069,7 +1095,7 @@ Open a pull request against the FiestaBoard repository that adds one entry to th
 }
 ```
 
-Set `fiestaboard_version` to the minimum FiestaBoard version your plugin requires. Use an existing `category` value (see [Plugin Categories](#plugin-categories) above).
+Set `fiestaboard_version` to the minimum FiestaBoard version your plugin requires. Use an existing `category` value (`art`, `data`, `entertainment`, `home`, `transit`, `utility`, `weather`).
 
 ### Registry checklist
 

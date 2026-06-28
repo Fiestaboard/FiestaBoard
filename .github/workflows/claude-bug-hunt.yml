@@ -1,0 +1,455 @@
+name: 'Claude: Bug Hunt'
+
+# =============================================================================
+# Daily America/Los_Angeles proactive bug hunt by Claude Sonnet. Sweeps the
+# codebase one or two SUBSYSTEMS ("areas") at a time and FILES ISSUES for real
+# functional bugs it finds — logic errors, bad edge-case handling, exception
+# mishandling, concurrency/state hazards, Python<->TS API contract drift, and
+# security/input-validation holes. The goal is to find bugs before users do.
+#
+# This loop is ISSUES-ONLY: the hunter NEVER edits source and NEVER opens a PR.
+# Every confirmed bug becomes a `bug` + `bug-hunt` + `claude-fix` labeled issue,
+# and the shared claude-issue-triage.yml worker opens a `bug-hunt/issue-*`
+# DRAFT fix PR for each (using the issue's repro test as the acceptance check).
+# Those PRs are auto-reviewed by claude-bug-hunt-review.yml; rejections feed
+# .github/bug-hunt/rejected-edits.jsonl, which this hunt reads next run.
+#
+# Unlike docs/a11y, the hunt runs a MULTI-LENS SUBAGENT FAN-OUT: it dispatches
+# one read-only lens subagent per bug class (via the Task tool), then runs
+# independent SKEPTIC subagents to adversarially REFUTE each candidate. Only
+# survivors are filed — a trustworthy issue queue is the whole point.
+#
+# A weekly companion (claude-bug-hunt-learn.yml) mines merged bug-fixes into
+# .github/bug-hunt/pattern-memory.md, which this hunt reads to hunt smarter.
+#
+# Cadence: daily, noon PT. Each cron pair fires in UTC to absorb DST drift; the
+# local-hour gate admits exactly the noon window. workflow_dispatch always
+# proceeds.
+#
+# Effort scales with the open `bug-hunt` issue queue (see "Compute dynamic
+# effort"). Drained → thorough (2 areas, cap 12). Hot → conservative (1 area,
+# cap 5). At/above the ceiling the run backs off entirely.
+#
+# Progress tracked in .github/bug-hunt-state.json; the sweep restarts from the
+# top once every area has been hunted.
+# =============================================================================
+
+on:
+  schedule:
+    # One pair of UTC crons for the daily noon PT window. During PDT both fire
+    # inside the gate window and the 3h cooldown drops the second; during PST
+    # the 19:07 cron is gated off and 20:07 is the noon run. dispatch bypasses.
+    - cron: '7 19 * * *'   # 12:07 PDT (summer) / 11:07 PST (gated off)
+    - cron: '7 20 * * *'   # 12:07 PST (winter) / 13:07 PDT (gated by cooldown)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print intended issues instead of filing them (no gh issue create, no state commit). Use to eyeball candidate quality.'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Serialize every bug-hunt run. Without this, two parallel runs read the same
+# state, pick the same area, and file duplicate issues. cancel-in-progress=false
+# so a workflow_dispatch fired during a scheduled run waits its turn rather than
+# aborting it (which would corrupt the state file).
+concurrency:
+  group: bug-hunt
+  cancel-in-progress: false
+
+jobs:
+  hunt:
+    name: Bug Hunt with Claude
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Issues-only loop: no `pull-requests: write` — the hunter opens no PRs.
+    # `contents: write` is for the single state-file commit; `issues: write`
+    # files findings; `id-token: write` for the Claude action's OIDC exchange.
+    permissions:
+      contents: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Gate on America/Los_Angeles local hour window
+        id: gate
+        # Noon window: 12:00–13:30 PT. The 30-minute upper slop absorbs typical
+        # GitHub Actions cron delay (often 10–30 min) without letting a
+        # wrong-DST cron through. workflow_dispatch bypasses the gate.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hour=$(TZ=America/Los_Angeles date +%H)
+          minute=$(TZ=America/Los_Angeles date +%M)
+          echo "Local PT: $hour:$minute"
+          in_window=false
+          if [ "$hour" = "12" ] || { [ "$hour" = "13" ] && [ "$minute" -le 30 ]; }; then
+            in_window=true
+          fi
+          if [ "$in_window" = "true" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: outside 12:00–13:30 PT window."
+          fi
+
+      - name: Checkout repository
+        if: steps.gate.outputs.go == 'true'
+        uses: actions/checkout@v7
+        with:
+          # RELEASE_PAT so the state-file commit can push to main past branch
+          # protection — same pattern as docs-audit / a11y-audit.
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
+
+      - name: Dedup against recent runs and queue ceiling
+        id: dedup
+        if: steps.gate.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        # Daily cadence. The window has a paired UTC cron; a 3h cooldown blocks
+        # the second cron in the same window (next day's run is ~24h later, well
+        # past the cooldown). The open-issue CEILING is the issues-only analog
+        # of the docs draft cap: if the bug queue is saturated, back off so
+        # reviewers aren't drowned. workflow_dispatch bypasses both.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          last=$(jq -r '.last_run_at // empty' .github/bug-hunt-state.json)
+          if [ -n "$last" ]; then
+            last_epoch=$(date -u -d "$last" +%s 2>/dev/null || echo 0)
+            now_epoch=$(date -u +%s)
+            if [ "$last_epoch" -gt 0 ]; then
+              age_h=$(( (now_epoch - last_epoch) / 3600 ))
+              if [ "$age_h" -lt 3 ]; then
+                echo "Skipping: last run was ${age_h}h ago (<3h cooldown)."
+                echo "go=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+          fi
+          open_count=$(gh issue list --label bug-hunt --state open --limit 200 --json number --jq 'length')
+          if [ "$open_count" -ge 40 ]; then
+            echo "Skipping: ${open_count} open bug-hunt issues (>=40 ceiling). Triage/close some, or use workflow_dispatch."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Open bug-hunt issues: ${open_count} (ceiling 40)."
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+      - name: Compute dynamic effort
+        id: effort
+        if: steps.dedup.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        # Effort scales inverse to the open bug-hunt queue. A drained queue
+        # means triage is keeping up and we can hunt more areas / file more; a
+        # warming queue means we narrow the sweep and raise the confidence bar.
+        run: |
+          open_count=$(gh issue list --label bug-hunt --state open --limit 200 --json number --jq 'length')
+          echo "Open bug-hunt issues: ${open_count}"
+          if [ "$open_count" -gt 30 ]; then
+            mode="conservative"; areas=1; cap=5
+          elif [ "$open_count" -gt 15 ]; then
+            mode="balanced";     areas=1; cap=8
+          else
+            mode="thorough";     areas=2; cap=12
+          fi
+          echo "mode=${mode} areas=${areas} cap=${cap}"
+          {
+            echo "mode=${mode}"
+            echo "areas=${areas}"
+            echo "cap=${cap}"
+            echo "open_count=${open_count}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Configure git identity
+        if: steps.dedup.outputs.go == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run Claude bug-hunt
+        if: steps.dedup.outputs.go == 'true'
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          # github.run_id is unique + stable per run. Issue bodies reference it
+          # so a finding traces back to its run. Do NOT compute timestamps in
+          # the prompt — past loops invented stale `date +%s` values from the
+          # model's training cutoff.
+          BRANCH_SUFFIX: ${{ github.run_id }}
+          HUNT_MODE: ${{ steps.effort.outputs.mode }}
+          HUNT_AREAS: ${{ steps.effort.outputs.areas }}
+          HUNT_ISSUE_CAP: ${{ steps.effort.outputs.cap }}
+          HUNT_QUEUE_OPEN: ${{ steps.effort.outputs.open_count }}
+          HUNT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Surface the SDK transcript in the Actions log. Without this the
+          # action prints "full output hidden for security" and silent
+          # permission denials look like a clean success.
+          show_full_output: 'true'
+          # Sonnet — the hunt is read-heavy "find" work; the per-issue FIX runs
+          # on Opus (in claude-issue-triage.yml).
+          # --allowed-tools: the agent-mode default is read-only, so every
+          # Edit/Write/git/gh call must be allowlisted. This loop is
+          # ISSUES-ONLY, so the allowlist OMITS `gh pr *` and branch-switching
+          # git verbs — the only writes are the state JSON and its commit/push.
+          # `Task` is included so the orchestrator can fan out lens + skeptic
+          # subagents; the subagents inherit the read tools below.
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 250
+            --allowed-tools "Task,Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git rev-parse:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
+          prompt: |
+            You are the FiestaBoard **bug hunter**. You run unattended once a
+            day and proactively hunt for REAL functional bugs in a batch of the
+            codebase, so we find them before users do. Your job is to **find
+            and confirm** bugs — fixing happens downstream via the issue-triage
+            workflow, which spawns one focused Claude worker per issue you file.
+
+            This loop is **issues-only**: you do **not** open PRs and you do
+            **not** edit any source code. The ONLY file you may write is the
+            sweep state file (see "Hard rules").
+
+            You are NOT a linter or a style/perf/i18n/a11y auditor — those are
+            covered by other tools. Hunt for **functional defects**: code that
+            produces wrong results, crashes, loses data, mishandles errors,
+            races on shared state, drifts between the Python API and the TS
+            client, or exposes a security/input-validation hole.
+
+            ## Effort for this run (computed by the workflow)
+
+            - **Mode:**        ${{ steps.effort.outputs.mode }}
+            - **Areas:**       ${{ steps.effort.outputs.areas }} subsystem(s) this run
+            - **Issue cap:**   ${{ steps.effort.outputs.cap }} per run
+            - **Queue depth:** ${{ steps.effort.outputs.open_count }} open `bug-hunt` issues
+            - **Dry run:**     `$HUNT_DRY_RUN` (if `true`, see Hard rules)
+
+            The mode/areas/cap were chosen by the workflow from the queue depth
+            — don't second-guess them.
+
+            ## Step 1 — Learn from past rejections (do this FIRST)
+
+            **Read `.github/bug-hunt/rejected-edits.jsonl` before anything
+            else.** Each non-empty line is a previous `bug-hunt/issue-*` fix PR
+            that a human closed without merging — i.e. the bug report was a
+            FALSE POSITIVE or the fix was wrong. This is your single most
+            important precision input.
+
+            Each line is JSON: `pr`, `title`, `head_ref`, `closed_at`, `body`,
+            `files` (`{path, patch}`), and `comments`/`reviews`/
+            `inline_comments` (the human's reasoning — authoritative).
+
+            For each rejection: (1) never re-file that same finding — anywhere,
+            not just that file; (2) generalize the *class* of false positive
+            (e.g. "looked like a race but is guarded by lock Y"); (3) cite the
+            PR number in your wrap-up when you skip something because of it.
+
+            If the file is missing or empty, proceed normally.
+
+            ## Step 2 — Read the pattern memory
+
+            **Read `.github/bug-hunt/pattern-memory.md`.** It records recurring
+            root-cause patterns, a ranking of bug-prone modules, and per-lens
+            checklists distilled from bugs we have actually fixed. Use the
+            module ranking to bias which area(s) you pick, and pass each lens
+            its relevant checklist (Step 4).
+
+            ## Step 3 — Sweep state & area selection
+
+            State file: `.github/bug-hunt-state.json`
+            Schema: `schema_version` (int, 1), `round` (int), `round_started_at`
+            (ISO8601|null), `last_run_at` (ISO8601|null), `last_learned_at`
+            (ISO8601|null — owned by the learner, do not touch), `areas_remaining`
+            (list), `areas_audited` (list).
+
+            The sweep unit is a **subsystem**, not a file (functional bugs span
+            files). The canonical area list (each entry is a path scope you
+            glob and read in full):
+
+            1. `src/schedules/`
+            2. `src/pages/`
+            3. `src/collections/` + `src/carousels/`
+            4. board rendering: `src/board_client.py`, `src/board_chars.py`, `src/board_html_renderer.py`, `src/text_to_board.py`, `src/text_utils.py`
+            5. `src/plugins/` (loader/base) + `src/displays/`
+            6. `src/api_server.py` (routes) + `src/auth/` + `src/security/`
+            7. `src/mqtt/` + `src/triggers/`
+            8. `src/settings/` + `src/config_manager.py` + `src/config.py` + `src/backup/`
+            9. `src/ai/` + `src/mcp_server.py`
+            10. `src/system/` + `src/network/` + `src/network_diagnostics.py` + `src/devices.py` + `src/time_service.py`
+            11. `plugins/` (bundled plugins)
+            12. `web/src/routes/`
+            13. `web/src/lib/` (API client + contract drift vs `src/*/models.py`)
+            14. `web/src/components/` (state-heavy components)
+
+            Sweep logic:
+            1. Read the state file.
+            2. If `areas_remaining` is empty: set it to the canonical list above
+               (in order), set `areas_audited` to `[]`, bump `round` by 1, set
+               `round_started_at` to now (ISO8601 UTC).
+            3. Take the first **${{ steps.effort.outputs.areas }}** entries of
+               `areas_remaining` as this run's batch.
+
+            ## Step 4 — Fan out the lens subagents (Task tool)
+
+            For the area batch, dispatch ONE read-only subagent per lens, in
+            parallel, via the Task tool. Each lens subagent: receives the
+            area path scope(s), the rejection lessons (Step 1), and its
+            pattern-memory checklist (Step 2); reads the relevant code deeply
+            (not skimming); and returns candidate bugs as a list of
+            `{area, lens, severity, title, what, trace, repro}`.
+
+            The five lenses:
+            - **backend-logic** — wrong results, off-by-one, bad branch/guard
+              conditions, mishandled None/empty, incorrect state transitions,
+              broken invariants, datetime/timezone mistakes.
+            - **error-handling** — swallowed exceptions, bare `except`, wrong
+              error propagation, missing rollback/cleanup, partial writes on
+              failure, resource leaks.
+            - **concurrency-state** — races on shared/module-global state,
+              non-idempotent operations, cache/singleton staleness, ordering
+              assumptions, unguarded mutation across requests/threads/tasks.
+            - **contract-drift** — mismatches between Python Pydantic models
+              (`src/*/models.py`) and the TS interfaces / fetch wrappers in
+              `web/src/lib/api.ts` (field names, types, optionality, enum
+              values, response shapes).
+            - **security-input** — missing/incorrect input validation,
+              injection, path traversal, unsafe deserialization, authz gaps,
+              secrets handling. (Only flag REAL exploitable issues.)
+
+            Skip a lens whose scope doesn't intersect the area batch (e.g.
+            contract-drift only matters when `web/src/lib` or a `models.py` is
+            in scope).
+
+            ## Step 5 — Dedup candidates
+
+            Pool all lens candidates. For each, dedup against open issues:
+              `gh issue list --label bug-hunt --state open --limit 200 --search "<key phrase>"`
+            Drop candidates that already have an open same-file, same-symptom
+            issue.
+
+            ## Step 6 — Adversarial verification
+
+            For each surviving candidate, dispatch 2–3 INDEPENDENT skeptic
+            subagents (Task tool) whose explicit job is to **REFUTE** it. Each
+            skeptic: re-reads the actual code paths, checks whether a guard /
+            caller / type / framework behavior already prevents the bug, and
+            **defaults to "refuted" under uncertainty**. Where feasible it
+            drafts a minimal failing repro — a `pytest` test for backend bugs
+            that fails against current code.
+
+            **File a candidate ONLY if a majority of its skeptics could not
+            refute it.** This is the precision gate; respect it strictly. In
+            `conservative` mode raise the bar further (only file if NO skeptic
+            refutes).
+
+            ## Step 7 — File issues for survivors
+
+            For each confirmed bug (up to the cap), file a GitHub issue.
+
+            Title: `bug: <area> — <one-line symptom>`
+              e.g. `bug: src/schedules — rotation uses server-local time, not configured TZ`
+
+            Body (this exact structure — a downstream job parses it):
+
+              ## Bug-hunt finding
+
+              - **area:** <area path scope>
+              - **lens:** <backend-logic | error-handling | concurrency-state | contract-drift | security-input>
+              - **severity:** <low | medium | high | critical>
+              - **run:** round <round>, run $BRANCH_SUFFIX
+
+              ### What's wrong
+              <2–5 sentences>
+
+              ### Why it's real (trace)
+              <the code-path trace the skeptics could not refute, with
+              `file:line` references>
+
+              ### Repro
+              ```python
+              # runnable pytest that FAILS against current code (backend bugs).
+              # For frontend/contract bugs with no pytest repro, give precise
+              # numbered reproduction steps instead.
+              def test_...():
+                  ...
+              ```
+
+              ### Suggested direction
+              <2–5 sentences; a direction, NOT a full patch>
+
+            Labels: `bug`, `bug-hunt`. Create them if missing:
+              `gh label create bug-hunt --color B60205 --description "Filed by the bug-hunt cron" || true`
+            (`bug` already exists.) Then apply `claude-fix` so the issue-triage
+            workflow opens a `bug-hunt/issue-*` draft fix PR (bot-filed issues
+            don't satisfy triage's author gate, so `claude-fix` opens that path):
+              `gh issue edit <N> --add-label claude-fix`
+              `gh label create claude-fix --color 0E8A16 --description "Run the Claude issue-triage workflow on this issue" || true`
+
+            ## Step 8 — State commit
+
+            (Skip this ENTIRE section if `$HUNT_DRY_RUN` is `true`.)
+
+            After processing the batch:
+            1. Move the batch entries from `areas_remaining` to `areas_audited`.
+            2. Update `last_run_at` to now (ISO8601 UTC). Do NOT touch
+               `last_learned_at`.
+            3. Write the JSON back to `.github/bug-hunt-state.json` (2-space
+               indent, trailing newline, same key order as the existing file).
+            4. Commit to `main` directly and push:
+               ```bash
+               git add .github/bug-hunt-state.json
+               git commit -m "chore(bug-hunt): advance sweep state [skip ci]" || exit 0
+               git push origin HEAD:main
+               ```
+               This is the ONLY commit you make.
+
+            ## Hard rules
+
+            - **If `$HUNT_DRY_RUN` is `true`:** do NOT run `gh issue create` or
+              `gh issue edit`, and do NOT commit/push state. Instead PRINT the
+              issues you WOULD have filed (title + full body) so a human can
+              eyeball candidate quality. Still do the full hunt + verify.
+            - **Edits are restricted to `.github/bug-hunt-state.json` only.**
+              Never edit, create, or delete any other file. You file issues;
+              the triage worker fixes.
+            - Never open a PR. Never create a branch. (Issues-only.)
+            - Never push to `main` except for the single state-file commit.
+            - Never force-push, never `--no-verify`, never `--no-gpg-sign`.
+            - Never file more than **${{ steps.effort.outputs.cap }}** issues
+              this run. If you'd exceed it, keep the highest-severity, most
+              certain ones and discard the rest.
+            - File a bug ONLY if it survived adversarial verification. When in
+              doubt, do not file — a false positive erodes trust in the queue.
+            - When dedup says skip, skip.
+
+            ## Wrap up
+
+            Print a one-screen summary:
+              ROUND: <n> (started <date>)
+              AREAS: <areas hunted this run>
+              Candidates: <found> / Confirmed: <after verify> / Filed: <#N #N ...>
+              Rejections applied: <PR #s honored, or "none">
+              Progress: <audited>/<total> areas this round
+              Next area(s): <first 2 of areas_remaining or "round complete">
+
+      - name: Push state-file changes (fallback)
+        if: steps.dedup.outputs.go == 'true' && github.event.inputs.dry_run != 'true'
+        # Defensive: if the Claude step exits early (rate limit, allowlist
+        # denial, hallucination) with a staged-but-unpushed state change,
+        # commit + push it here. [skip ci] keeps this from retriggering.
+        run: |
+          if git diff --quiet -- .github/bug-hunt-state.json; then
+            echo "State file unchanged."
+            exit 0
+          fi
+          git add .github/bug-hunt-state.json
+          git commit -m "chore(bug-hunt): advance sweep state [skip ci]"
+          git push origin HEAD:main

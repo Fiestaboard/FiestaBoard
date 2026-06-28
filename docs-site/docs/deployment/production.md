@@ -66,6 +66,7 @@ docker-compose up -d
 ```
 
 :::tip What each file contains
+
 - `data/config.json` — Board API key and connection settings
 - `data/settings.json` — Display preferences, active page, schedule
 - `data/pages.json` — All board pages

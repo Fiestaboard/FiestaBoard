@@ -678,7 +678,7 @@ export function isCollectionId(id: string | null | undefined): boolean {
   return !!id && id.startsWith(COLLECTION_ID_PREFIX);
 }
 
-export type CollectionSelectionMode = "time" | "variable";
+export type CollectionSelectionMode = "time" | "variable" | "random";
 
 export interface TimeModeConfig {
   interval_seconds: number;
@@ -695,6 +695,10 @@ export interface VariableModeConfig {
   poll_seconds: number;
 }
 
+export interface RandomModeConfig {
+  interval_seconds: number;
+}
+
 export interface Collection {
   id: string;
   name: string;
@@ -702,6 +706,7 @@ export interface Collection {
   selection_mode: CollectionSelectionMode;
   time: TimeModeConfig;
   variable: VariableModeConfig | null;
+  random: RandomModeConfig | null;
   created_at: string;
   updated_at?: string;
 }
@@ -712,6 +717,7 @@ export interface CollectionCreate {
   selection_mode?: CollectionSelectionMode;
   time?: TimeModeConfig;
   variable?: VariableModeConfig | null;
+  random?: RandomModeConfig | null;
 }
 
 export interface CollectionUpdate {
@@ -720,6 +726,7 @@ export interface CollectionUpdate {
   selection_mode?: CollectionSelectionMode;
   time?: TimeModeConfig;
   variable?: VariableModeConfig | null;
+  random?: RandomModeConfig | null;
 }
 
 export interface CollectionsResponse {

@@ -58,6 +58,7 @@ If `device_type` is omitted, it defaults to `"flagship"`.
 The `PUT /settings/board` endpoint previously accepted only a `board_type` field. In V2, it accepts `boards` (new format) or `devices` (backward-compatible list of device types).
 
 **V1 request body:**
+
 ```json
 { "board_type": "vestaboard" }
 ```
@@ -71,12 +72,14 @@ The `PUT /settings/board` endpoint previously accepted only a `board_type` field
 | `board_type` | Still accepted for backward compatibility |
 
 **Example — set devices using the compatibility format:**
+
 ```json
 { "devices": ["flagship", "note"] }
 ```
 
 <a id="example-full-board-instance"></a>
 **Example — configure a full board instance:**
+
 ```json
 {
   "boards": [{
@@ -250,12 +253,14 @@ FiestaBoard stores all configuration, pages, schedules, and settings in a `data/
 :::
 
 The `data/` directory contains:
+
 - `config.json` — board connection settings, plugin config, general settings
 - `pages.json` — all your saved pages
 - `schedules.json` — schedule entries
 - `settings.json` — board settings, transition settings, polling intervals
 
 V2 reads this data on first boot and auto-migrates it:
+
 - Existing pages get `device_type: "flagship"` added automatically
 - Board connection settings (from `.env` or `config.json`) are migrated to the new multi-board format
 - Silence schedule times are converted to UTC

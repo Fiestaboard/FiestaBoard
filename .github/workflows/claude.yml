@@ -33,25 +33,49 @@ jobs:
     permissions:
       # contents/pull-requests are write so the @claude bot can commit and
       # push fixes back to the PR branch when asked. Without write here, the
-      # action's git push fails 403 — see PR #980 comment 4699425518. Feature
-      # branches aren't protection-gated, so the default GITHUB_TOKEN is
-      # enough (no PAT needed); main is still protected separately.
+      # action's git push fails 403 — see PR #980 comment 4699425518.
+      # id-token: write is no longer needed for git auth (we pass an explicit
+      # github_token below) but is left in place as a harmless no-op.
       contents: write
       pull-requests: write
       issues: read
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
+      # Mint a short-lived token for our own repo-installed GitHub App so that
+      # commits Claude pushes to the PR branch are attributed to a TRUSTED
+      # installed app (e.g. fiestaboard-ci-bot[bot]) rather than the external
+      # claude[bot] identity. On this PUBLIC repo, pushes by claude[bot] are
+      # treated as first-time/external contributions and GitHub parks the
+      # resulting CI in "action_required" (the "Approve workflows" button) on
+      # every push. Pushing under the installed app skips that gate so CI runs
+      # automatically — while random PR contributors stay gated. (Note: the
+      # default GITHUB_TOKEN can't be used instead — its pushes don't trigger
+      # pull_request/push workflows at all.)
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.CLAUDE_BOT_APP_ID }}
+          private-key: ${{ secrets.CLAUDE_BOT_APP_PRIVATE_KEY }}
+
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          # Persisted so the subsequent git push uses the app identity.
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          # Use the app token for all git/API operations. This also bypasses
+          # the action's default OIDC→claude[bot] exchange, which is what
+          # otherwise triggers the per-push approval gate (see step above).
+          github_token: ${{ steps.app-token.outputs.token }}
 
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |

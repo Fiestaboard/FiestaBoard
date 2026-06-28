@@ -263,13 +263,14 @@ export interface CollectionRef {
   id: string;
   name: string;
   page_ids: string[];
-  selection_mode: "time" | "variable";
+  selection_mode: "time" | "variable" | "random";
   time: { interval_seconds: number };
   variable: {
     rules: Array<{ expression: string; page_id: string }>;
     default_page_id: string;
     poll_seconds: number;
   } | null;
+  random: { interval_seconds: number } | null;
 }
 
 /**

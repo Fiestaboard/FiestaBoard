@@ -67,7 +67,7 @@ Most Home Assistant users already have an MQTT broker. If you use Zigbee2MQTT, T
 | **Username** | MQTT username (if broker requires auth) | `mqtt_user` |
 | **Password** | MQTT password (if broker requires auth) | `mqtt_pass` |
 
-6. Click **Save** — FiestaBoard will connect to the broker and publish discovery messages
+1. Click **Save** — FiestaBoard will connect to the broker and publish discovery messages
 
 ### Step 2: Verify in Home Assistant
 
@@ -80,9 +80,11 @@ That's it. FiestaBoard is now controllable from Home Assistant.
 
 :::tip
 If FiestaBoard doesn't appear, check:
+
 - The MQTT broker is running and reachable from both FiestaBoard and HA
 - The MQTT integration is enabled in HA (Settings → Devices & Services → Add Integration → MQTT)
 - FiestaBoard shows "MQTT Connected" in its Settings page
+
 :::
 
 ## What You Get in Home Assistant
@@ -313,6 +315,7 @@ entities:
   - entity: sensor.fiestaboard_last_display_update
   - entity: sensor.fiestaboard_output_target
 ```
+
 :::
 
 ## Configuration Reference
@@ -385,6 +388,7 @@ FiestaBoard sets a **Last Will and Testament (LWT)** — if FiestaBoard disconne
 ### Entity Categories
 
 FiestaBoard properly categorizes entities using Home Assistant's `entity_category` system:
+
 - **No category** — Main controls and sensors (Schedule, Active Page, Send Message, etc.) — shown prominently in dashboards
 - **Diagnostic** — Device health info (Version, Uptime, API Mode, Active Plugins, Service Status) — grouped in the Diagnostic section on the device page
 - **Config** — Settings (Refresh Interval) — grouped in the Configuration section

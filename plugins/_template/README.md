@@ -15,16 +15,16 @@ Describe in 2–3 sentences what the plugin does and why it is useful. Mention t
 
 ### Main Data
 
-```jinja
-{{my_plugin.value}}       # The primary data value (e.g., "123")
-{{my_plugin.status}}      # Current status text (e.g., "OK")
-```
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{my_plugin.value}}` | The primary data value | `123` |
+| `{{my_plugin.status}}` | Current status text | `OK` |
 
 ### Display
 
-```jinja
-{{my_plugin.formatted}}   # Pre-formatted display string (e.g., "Value: 123")
-```
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{my_plugin.formatted}}` | Pre-formatted display string | `Value: 123` |
 
 ## Example Templates
 
@@ -141,6 +141,7 @@ The `screenshots` array makes plugin images discoverable by the docs site, API, 
 | `primary` | no | Mark exactly one screenshot as the hero image (`true`) |
 
 **Image naming convention:**
+
 - `docs/board-display.png` — Primary hero image (required for published plugins)
 - `docs/configuration.png` — Plugin config dialog (optional)
 - `docs/integrations.png` — Plugin card on the Integrations page (optional)
@@ -279,7 +280,7 @@ jobs:
 
 Your standalone repository should have the same layout as a built-in plugin:
 
-```
+```text
 fiestaboard-plugin--my-weather/
 ├── __init__.py
 ├── manifest.json

@@ -74,6 +74,7 @@ class CollectionService:
             selection_mode=data.selection_mode,
             time=data.time,
             variable=data.variable,
+            random=data.random,
             created_at=datetime.utcnow(),
         )
         return self.storage.create(collection)
@@ -103,6 +104,8 @@ class CollectionService:
         - For ``variable`` mode, walks ``variable.rules`` in order and returns
           the first ``page_id`` whose expression evaluates truthy. If
           ``context`` is None, it is built lazily from the plugin registry.
+        - For ``random`` mode, returns the shuffle-bag page for the current
+          duration window (deterministic, stateless, no back-to-back repeats).
 
         Returns None if the collection is not found or has no pages.
         """
@@ -120,6 +123,10 @@ class CollectionService:
         if collection.selection_mode == "variable":
             return self._resolve_variable(collection, context)
 
+        if collection.selection_mode == "random":
+            ts = now_unix if now_unix is not None else time.time()
+            return collection.current_page_id_random(ts)
+
         # Unknown selection mode (shouldn't happen given the Literal type).
         logger.warning(f"Unknown selection_mode {collection.selection_mode!r} for {ref_id}")
         return collection.page_ids[0]
@@ -131,6 +138,8 @@ class CollectionService:
         - ``time`` mode: seconds until the next cycle boundary (matches the
           legacy carousel behavior).
         - ``variable`` mode: ``variable.poll_seconds``.
+        - ``random`` mode: seconds until the next duration window boundary
+          (same math as ``time`` mode, using ``random.interval_seconds``).
 
         Returns None for non-collections or collections with <2 pages.
         """
@@ -147,6 +156,11 @@ class CollectionService:
 
         if collection.selection_mode == "variable" and collection.variable is not None:
             return collection.variable.poll_seconds
+
+        if collection.selection_mode == "random" and collection.random is not None:
+            ts = now_unix if now_unix is not None else time.time()
+            elapsed = ts % collection.random.interval_seconds
+            return max(1, math.ceil(collection.random.interval_seconds - elapsed))
 
         return None
 

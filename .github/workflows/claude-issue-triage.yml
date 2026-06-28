@@ -2,7 +2,7 @@ name: 'Claude: Issue Triage'
 
 # Take a first-pass fix attempt at new issues.
 #
-# Triggers in three ways:
+# Triggers in several ways:
 #   1. Auto: issue opened by the repo owner / a member / a collaborator
 #   2. Manual gate: any issue that gets the `claude-fix` label applied
 #   3. Docs cron: any issue that gets the `docs-audit` label applied
@@ -11,14 +11,19 @@ name: 'Claude: Issue Triage'
 #   4. A11y cron: any issue that gets the `a11y-audit` label applied
 #      (filed by claude-a11y-audit.yml / claude-a11y-live-axe.yml; same
 #      bot-author reasoning as #3 — these become `a11y/issue-*` fix PRs)
+#   5. Bug-hunt cron: any issue that gets the `bug-hunt` label applied
+#      (filed by claude-bug-hunt.yml; same bot-author reasoning — these
+#      become `bug-hunt/issue-*` DRAFT fix PRs, TDD'd off the issue's
+#      embedded repro test)
 #
 # These gates keep drive-by issues from public reporters out of the
 # auto-run path while still letting you (or any maintainer) opt one in by
 # adding the label, and letting the docs-audit cron close its own loop.
 #
-# Model tier: Sonnet for docs-flavored issues (`docs`/`docs-audit` label),
-# Opus for everything else — code bugs benefit from the harder model, while
-# markdown edits don't. See the "Choose model tier" step below.
+# Model: Opus 4.8 for every triaged issue — code bugs benefit from the
+# harder model at debugging and codebase navigation, and the volume of
+# docs-flavored issues is low enough that a cheaper tier isn't worth the
+# extra branching.
 
 on:
   issues:
@@ -47,7 +52,8 @@ jobs:
         (github.event.action == 'labeled' && (
           github.event.label.name == 'claude-fix' ||
           github.event.label.name == 'docs-audit' ||
-          github.event.label.name == 'a11y-audit'
+          github.event.label.name == 'a11y-audit' ||
+          github.event.label.name == 'bug-hunt'
         ))
       )
     runs-on: ubuntu-latest
@@ -60,27 +66,9 @@ jobs:
       actions: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
-
-      - name: Choose model tier
-        id: tier
-        # Docs-flavored issues are markdown edits — Sonnet handles them and
-        # the docs-audit cron files them in volume, so Opus economics are bad.
-        # Everything else (code bugs, infra, plugin internals) gets Opus,
-        # which is materially better at debugging and codebase navigation.
-        run: |
-          labels='${{ toJSON(github.event.issue.labels.*.name) }}'
-          echo "Labels: $labels"
-          if echo "$labels" | grep -qE '"(docs|docs-audit)"'; then
-            model="claude-sonnet-4-6"
-            echo "Selected Sonnet (docs-flavored issue)"
-          else
-            model="claude-opus-4-7"
-            echo "Selected Opus (default — code/infra issue)"
-          fi
-          echo "model=$model" >> "$GITHUB_OUTPUT"
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
@@ -149,6 +137,15 @@ jobs:
                  user-facing string (including `aria-label`) through
                  `next-intl` (`web/messages/en.json` + the 13 sibling
                  locales) — never a hardcoded English literal in JSX.
+               - For bug-hunt issues (labels include `bug-hunt`): branch
+                 `bug-hunt/issue-${{ github.event.issue.number }}-<short-slug>`,
+                 title prefix `fix:`. The issue body contains a fenced
+                 ```python repro``` block — add that repro as a REAL test
+                 FIRST (TDD) and confirm it FAILS on current code, then
+                 implement the smallest fix, confirm the repro PASSES and the
+                 suite stays green, and open as a **draft**
+                 (`gh pr create --draft`) so a human validates the fix before
+                 sign-off. (See "Bug-hunt issues — conventions" below.)
                - For everything else: branch
                  `claude/issue-${{ github.event.issue.number }}`, title
                  `[Claude first-pass] <short summary>`. Open as a draft
@@ -194,12 +191,28 @@ jobs:
               - Scope tightly to the reported finding; cite the WCAG criterion
                 in the PR body
 
+            ## Bug-hunt issues — conventions
+
+            If the issue labels include `bug-hunt`, you are fixing a confirmed
+            functional bug. Work test-first:
+              - Start from the issue's repro block. Turn it into a real test
+                and confirm it FAILS on current code — that proves you've
+                reproduced the bug before you change anything.
+              - Implement the SMALLEST change that makes the repro pass. Do not
+                refactor or fix adjacent things; scope strictly to this bug.
+              - Run the relevant suite (`pytest` for backend, the web tests for
+                frontend) and keep it green. Check callers of any signature you
+                change so the fix doesn't regress them or drift the Python↔TS
+                contract.
+              - In the PR body, state the root cause, what the repro proves,
+                and what a reviewer should double-check. Open as a draft.
+
             If you finish without opening a PR, leave a comment on the issue
             summarizing what you found and why no PR was opened.
 
           # Long ceiling so Claude has room to actually attempt the fix.
           # `timeout-minutes` above is the real backstop on cost.
-          # `--model` is picked dynamically by the tier step above.
+          # `--model` is Opus 4.8 for every triaged issue (see header note).
           # `--allowed-tools`: agent-mode default toolset is read-only, so
           # without this allowlist every Edit/Write/`git`/`gh` call is
           # denied. Same lesson as claude-docs-audit.yml — the first triage
@@ -210,5 +223,5 @@ jobs:
           # block legitimate work here).
           claude_args: >-
             --max-turns 80
-            --model ${{ steps.tier.outputs.model }}
+            --model claude-opus-4-8
             --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(date:*),Bash(jq:*),Bash(python3:*),Bash(node:*),Bash(npm:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git rev-parse:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr edit:*),Bash(gh pr comment:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*),Bash(gh api:*)"

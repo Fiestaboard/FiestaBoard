@@ -4014,6 +4014,7 @@ async def update_general_config(request: dict):
     general_config = config_manager.get_general()
 
     # Update with provided values
+    timezone_changed = "timezone" in request and request["timezone"] != general_config.get("timezone")
     if "timezone" in request:
         general_config["timezone"] = request["timezone"]
     if "refresh_interval_seconds" in request:
@@ -4034,6 +4035,14 @@ async def update_general_config(request: dict):
 
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update general configuration")
+
+    # The scheduler resolves "now" via the cached TimeService singleton, which
+    # reads Config.GENERAL_TIMEZONE only once at creation. Without rebuilding it
+    # here, a timezone change would update the Date/Time plugin (it re-reads
+    # config every render) but leave schedule rotations firing in the stale
+    # timezone (defaulting to Pacific), so they'd run hours off (issue #1273).
+    if timezone_changed:
+        reset_time_service()
 
     return {"status": "success", "general": general_config}
 

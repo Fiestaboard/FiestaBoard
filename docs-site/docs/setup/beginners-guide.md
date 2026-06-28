@@ -159,6 +159,7 @@ Then run the install wizard:
 ```
 
 The wizard will:
+
 - Check that Docker is installed and running
 - Ask for your board API key and device type
 - Start the server
@@ -171,11 +172,14 @@ The wizard will:
 3. Click **Download ZIP**
 4. Extract the ZIP file to a folder you'll remember (like Documents)
 5. Open Terminal/PowerShell and navigate to the extracted folder:
+
    ```bash
    cd ~/Documents/FiestaBoard    # Mac/Linux
    cd Documents\FiestaBoard      # Windows
    ```
+
 6. Run the install wizard:
+
    ```bash
    ./scripts/install.sh           # Mac/Linux
    .\scripts\install.ps1          # Windows
@@ -232,6 +236,7 @@ Now the fun part. Here's what to do next:
 3. Plugins that need API keys will show you where to get them
 
 **Start with these (no API key needed):**
+
 - Date & Time
 - Star Trek Quotes
 - Guest WiFi
@@ -278,9 +283,11 @@ Then go to **http://localhost:4420** — the service starts automatically.
 
 :::tip
 If you used Path A (Docker Hub pull), make sure you're in the folder where the `docker-compose.hub.yml` file is, and use:
+
 ```bash
 docker-compose -f docker-compose.hub.yml up -d
 ```
+
 :::
 
 ## Common Issues

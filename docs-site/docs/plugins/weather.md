@@ -26,11 +26,13 @@ The Weather plugin provides real-time weather data for your location, including:
 ### 1. Get an API Key
 
 **WeatherAPI.com (Recommended):**
+
 1. Sign up at [WeatherAPI](https://www.weatherapi.com/)
 2. Free tier: 1 million calls/month
 3. No credit card required
 
 **OpenWeatherMap (Alternative):**
+
 1. Sign up at [OpenWeatherMap](https://openweathermap.org/api)
 2. Free tier: 1,000 calls/day
 

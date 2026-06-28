@@ -225,6 +225,7 @@ describe("ActivePageDisplay", () => {
               time: { interval_seconds: 30 },
 
               variable: null,
+              random: null,
               created_at: "2025-01-01T00:00:00Z",
             },
           ],

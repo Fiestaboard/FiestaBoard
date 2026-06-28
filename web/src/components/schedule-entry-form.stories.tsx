@@ -156,6 +156,7 @@ const mockCollections: Collection[] = [
     selection_mode: "time",
     time: { interval_seconds: 30 },
     variable: null,
+    random: null,
     created_at: "2024-02-01T00:00:00Z",
   },
   {
@@ -165,6 +166,7 @@ const mockCollections: Collection[] = [
     selection_mode: "time",
     time: { interval_seconds: 60 },
     variable: null,
+    random: null,
     created_at: "2024-02-02T00:00:00Z",
   },
 ];

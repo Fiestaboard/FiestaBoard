@@ -48,7 +48,12 @@ The Update Now button will appear once the sidecar is healthy.
 
 ## Opting in (FiestaPi)
 
-It's already on. `FIESTABOARD_PROFILE=pi` is baked into the image, which flips the in-app **Auto-update** toggle to default ON, and a unique `FIESTAUPDATER_TOKEN` is generated at first boot. You can disable auto-update in Settings if you'd rather click each time.
+It's already on. The FiestaPi image ships with both pieces pre-configured in `/opt/fiestaboard/.env`:
+
+- `COMPOSE_PROFILES=fiestaupdater` — starts the updater sidecar that performs the actual `docker compose pull && docker compose up -d` (the same step you would run manually from the shell).
+- `FIESTABOARD_PROFILE=pi` — tells the app it is running on a Pi, which flips the in-app **Auto-update** toggle to ON by default.
+
+A unique `FIESTAUPDATER_TOKEN` is also generated at first boot. You can turn auto-update off in **Settings → System** if you'd rather click each time.
 
 ## Update check interval
 
@@ -83,13 +88,15 @@ The setting is stored in `data/settings.json` under `plugins.auto_update`.
 
 The Update Now button is convenience; it's not the source of truth. You can always update from the shell:
 
+> **Warning:** Always run these commands from the folder that contains your `docker-compose.yml` (or `docker-compose.hub.yml`) **and** your `./data` directory. Running from a different directory creates a brand-new empty `./data` folder, and your settings, board credentials, and plugin configuration will appear to be gone. If that has already happened, see the [troubleshooting guide](https://fiestaboard.app/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update).
+
 ```bash
 cd /path/to/FiestaBoard          # or /opt/fiestaboard on FiestaPi
 docker compose pull
 docker compose up -d
 ```
 
-> **Note:** If you installed from Docker Hub using `docker-compose.hub.yml`, add `-f docker-compose.hub.yml` to each command:
+> **Note:** If you installed from Docker Hub using `docker-compose.hub.yml`, add `-f docker-compose.hub.yml` to each command. Make sure you `cd` into the folder that contains both `docker-compose.hub.yml` and your `./data` directory:
 >
 > ```bash
 > cd ~/fiestaboard
@@ -106,10 +113,20 @@ docker compose up -d
 
 If you'd rather not run with the Docker socket exposed at all, leave the `fiestaupdater` profile off and update manually.
 
+## Config recovery after upgrades
+
+FiestaBoard automatically restores timezone, instance name, and enabled plugin configs from the pre-update snapshot when it detects an upgrade boot. This runs before any service reads the live config, so most users never notice a gap.
+
+The recovery is on by default. To turn it off — for example on a managed install where you prefer fully manual recovery — set `FIESTABOARD_AUTO_RESTORE=0` in your `.env` and restart. With it off, use `POST /system/update/rollback` to restore from a snapshot manually.
+
+> **Note:** Auto-restore only fills in values that are blank or at their default in the live config. It never overwrites a live value that already holds data, and it never re-enables a plugin you deliberately disabled before the upgrade.
+
 ## Troubleshooting
 
 **The Update Now button is missing** — The status panel on the same page tells you whether the updater is reachable and why not. Most common cause: the sidecar profile is disabled.
 
 **Update kicked off but the page never came back** — Open the URL again after a minute. If it's still down: `docker compose logs fiestaboard` (or `docker logs fiestaboard`). Worst case, manual `docker compose up -d` will bring you back up.
+
+**Config (timezone, plugins, or instance name) was lost after an update** — Auto-restore runs on every upgrade boot and usually catches this silently. To confirm it ran, check the logs for the line `Post-upgrade auto-restore applied from snapshot`. If that line is present but something is still missing, the snapshot may not have contained that value; use `POST /system/update/rollback` to apply the full pre-update snapshot manually.
 
 **I want to roll back** — Pin the previous tag in `docker-compose.yml` (replace `fiestaboard/fiestaboard:latest` with `fiestaboard/fiestaboard:<version>`, e.g. `6.10.9`) and run `docker compose up -d`. Available tags are listed on [Docker Hub](https://hub.docker.com/r/fiestaboard/fiestaboard/tags) and the [GitHub Releases](https://github.com/Fiestaboard/FiestaBoard/releases) page. Automated rollback from the UI is still a planned feature.

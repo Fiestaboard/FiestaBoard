@@ -83,7 +83,12 @@ cd /opt/fiestaboard
 docker compose pull && docker compose up -d
 ```
 
-The `fiestaupdater` sidecar is enabled by default on FiestaPi (`COMPOSE_PROFILES=fiestaupdater` in `/opt/fiestaboard/.env`) and a unique `FIESTAUPDATER_TOKEN` is generated on first boot — so **Update Now** works out of the box without you having to touch any tokens.
+FiestaPi ships with two variables in `/opt/fiestaboard/.env` that together wire up **Update Now** end-to-end:
+
+- `COMPOSE_PROFILES=fiestaupdater` — starts the updater sidecar, which is the process that actually runs `docker compose pull && docker compose up -d` against your compose file.
+- `FIESTABOARD_PROFILE=pi` — tells the app it is running on a Pi, which flips the in-app **Auto-update** toggle to ON by default.
+
+A unique `FIESTAUPDATER_TOKEN` is generated on first boot, so no extra configuration is needed.
 
 ## Troubleshooting
 

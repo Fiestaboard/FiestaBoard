@@ -60,7 +60,7 @@ jobs:
       # Use RELEASE_PAT when branch protection/rulesets block GITHUB_TOKEN from pushing to main.
       # Add repo secret RELEASE_PAT (PAT with repo scope) and allow that user to bypass rules on main.
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
@@ -186,7 +186,7 @@ jobs:
             arch: arm64
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.prep.outputs.release_sha }}
 
@@ -285,7 +285,7 @@ jobs:
     if: always() && needs.prep.result == 'success'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.prep.outputs.release_sha }}
           fetch-depth: 0
@@ -481,7 +481,7 @@ jobs:
         uses: anthropics/claude-code-base-action@beta
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: '--model claude-haiku-4-5 --allowed-tools "Read,Write"'
+          claude_args: '--model claude-sonnet-4-6 --allowed-tools "Read,Write"'
           prompt: |
             You are writing the "Summary" section of FiestaBoard release
             ${{ needs.prep.outputs.version }}. FiestaBoard is an open-source
@@ -635,7 +635,7 @@ jobs:
     if: needs.merge.result == 'success'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Update Docker Hub Description
         uses: peter-evans/dockerhub-description@v5

@@ -95,6 +95,7 @@ describe("PagePickerDialog", () => {
         selection_mode: "time" as const,
         time: { interval_seconds: 30 },
         variable: null,
+        random: null,
         created_at: "2025-01-01T00:00:00Z",
       },
     ];
@@ -113,6 +114,7 @@ describe("PagePickerDialog", () => {
         selection_mode: "time" as const,
         time: { interval_seconds: 30 },
         variable: null,
+        random: null,
         created_at: "2025-01-01T00:00:00Z",
       },
     ];
@@ -133,6 +135,7 @@ describe("PagePickerDialog", () => {
         selection_mode: "time" as const,
         time: { interval_seconds: 30 },
         variable: null,
+        random: null,
         created_at: "2025-01-01T00:00:00Z",
       },
     ];
@@ -157,6 +160,7 @@ describe("PagePickerDialog", () => {
         selection_mode: "time" as const,
         time: { interval_seconds: 30 },
         variable: null,
+        random: null,
         created_at: "2025-01-01T00:00:00Z",
       },
     ];

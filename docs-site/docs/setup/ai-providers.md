@@ -151,7 +151,7 @@ configured:
   schema, and available template functions).
 - **Your message.**
 - **The variable list of all enabled plugins** (names + descriptions
-  + max widths). This may include data such as transit station IDs
+  - max widths). This may include data such as transit station IDs
   or location names that you have configured.
 - Up to a handful of example pages drawn from plugin manifests.
 - **The current page being edited** (when a page is open in the

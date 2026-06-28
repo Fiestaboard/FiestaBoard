@@ -5,11 +5,13 @@ The My Plugin Name plugin fetches data from [service] and displays it on your bo
 ## Overview
 
 **What it does:**
+
 - Feature one
 - Feature two
 - Feature three
 
 **Prerequisites:**
+
 - API key from [service website](https://example.com) (free tier available)
 
 ## Quick Setup
@@ -17,6 +19,7 @@ The My Plugin Name plugin fetches data from [service] and displays it on your bo
 ### 1. Enable the Plugin
 
 In the FiestaBoard web UI:
+
 1. Go to **Integrations**
 2. Find **My Plugin Name** and toggle it **On**
 
@@ -81,11 +84,13 @@ MY_PLUGIN_API_KEY=your-api-key-here
 ## Troubleshooting
 
 **Issue: Plugin shows "Not Available"**
+
 - Ensure your API key is correct and active
 - Check that the service is reachable from your network
 - Verify your account has API access enabled
 
 **Issue: Data not updating**
+
 - Check the refresh interval setting
 - Verify the API is not rate-limited
 - Check the Docker logs for error messages: `docker compose logs -f`

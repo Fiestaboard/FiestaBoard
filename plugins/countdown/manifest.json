@@ -25,7 +25,7 @@
       "target_datetime": {
         "type": "string",
         "title": "Target Date & Time",
-        "description": "Target date and time in ISO format (e.g., 2025-06-15T00:00:00)",
+        "description": "Target date and time in ISO format (e.g., 2030-01-01T00:00:00)",
         "ui:widget": "datetime"
       },
       "timezone": {
@@ -50,12 +50,6 @@
       "name": "COUNTDOWN_EVENT_NAME",
       "required": false,
       "description": "Name of the event (can also be set in UI)"
-    },
-    {
-      "name": "TIMEZONE",
-      "required": false,
-      "description": "IANA timezone (e.g., America/Los_Angeles)",
-      "default": "America/Los_Angeles"
     }
   ],
   "variables": {
@@ -78,11 +72,11 @@
         "description": "Target date and time (ISO format)",
         "group": "event",
         "max_length": 19,
-        "example": "2025-06-15T00:00:00"
+        "example": "2030-01-01T00:00:00"
       },
       "is_expired": {
         "description": "Whether the countdown has reached zero",
-        "type": "boolean",
+        "type": "string",
         "group": "event",
         "max_length": 5,
         "example": "false"
@@ -174,6 +168,16 @@
       "alt": "Countdown displayed on a Vestaboard",
       "caption": "Classic countdown template showing days remaining until an event",
       "primary": true
+    },
+    {
+      "src": "docs/black/board-display.png",
+      "alt": "Countdown displayed on a black-model Vestaboard",
+      "caption": "Countdown on black-model Vestaboard"
+    },
+    {
+      "src": "docs/white/board-display.png",
+      "alt": "Countdown displayed on a white-model Vestaboard",
+      "caption": "Countdown on white-model Vestaboard"
     }
   ]
 }

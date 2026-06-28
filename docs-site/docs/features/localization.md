@@ -1,3 +1,9 @@
+---
+sidebar_position: 5
+description: "Display your FiestaBoard in multiple languages with community-maintained translations for the web UI and board content."
+keywords: [FiestaBoard localization, i18n, translations, languages, internationalization, split-flap languages, Vestaboard languages]
+---
+
 # Localization (i18n)
 
 FiestaBoard supports multiple languages through community-maintained translations.
@@ -38,7 +44,7 @@ We welcome and encourage contributions from native speakers to improve translati
 Translation files are located in `web/messages/` as JSON files (one per language). To improve an existing translation or add a new language:
 
 1. **Improve existing translations**: Edit the appropriate file in `web/messages/` (e.g., `es.json` for Spanish)
-2. **Add a new language**: 
+2. **Add a new language**:
    - Copy `web/messages/en.json` to `web/messages/{locale}.json`
    - Translate all values (keep the JSON keys unchanged)
    - Add the locale to `web/src/i18n/config.ts`

@@ -12,11 +12,14 @@ Guidelines for contributing to FiestaBoard.
 
 1. **Fork** the repository on GitHub
 2. **Clone** your fork:
+
    ```bash
    git clone https://github.com/your-username/FiestaBoard.git
    cd FiestaBoard
    ```
+
 3. **Create a branch** for your changes:
+
    ```bash
    git checkout -b feature/my-new-feature
    ```
@@ -33,6 +36,7 @@ docker-compose -f docker-compose.dev.yml up --build
 ```
 
 The development environment provides:
+
 - **Hot reload** for Python backend changes
 - **Hot reload** for Next.js frontend changes
 - Web UI at `http://localhost:4420`
@@ -64,6 +68,7 @@ npm run lint:web
 ### Plugin Development
 
 When creating a new plugin:
+
 - Minimum **80% test coverage** is required
 - Include `README.md` and `docs/SETUP.md`
 - Follow the plugin template structure

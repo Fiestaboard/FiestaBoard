@@ -71,9 +71,14 @@ Desktop's launch environment. On macOS with Homebrew Node that usually
 1. In FiestaBoard's web UI, open **Settings → Integrations → MCP / external
    clients** and click **Generate token** (or **Rotate token**). Keep the
    reveal dialog open — it shows the token and a Desktop config snippet.
-2. Open `~/Library/Application Support/Claude/claude_desktop_config.json`
-   (create it if it doesn't exist) and merge in the `fiestaboard` entry
+2. Open the Claude Desktop config file and merge in the `fiestaboard` entry
    from the reveal dialog. It looks like this:
+
+   > **Config file location:**
+   > - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+   > - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json` (typically `C:\Users\<you>\AppData\Roaming\Claude\`)
+   >
+   > Create the file if it doesn't exist.
 
    ```json
    {
@@ -93,9 +98,12 @@ Desktop's launch environment. On macOS with Homebrew Node that usually
    }
    ```
 
-3. **Fully quit** Claude Desktop (⌘Q — closing the window isn't enough)
-   and relaunch. The `fiestaboard` server should appear under the MCP
-   indicator with tools available.
+3. **Fully quit** Claude Desktop and relaunch. The `fiestaboard` server should
+   appear under the MCP indicator with tools available.
+
+   > **How to fully quit:**
+   > - **macOS:** Press ⌘Q (closing the window isn't enough).
+   > - **Windows:** Right-click the Claude icon in the system tray and choose **Exit** (closing the window isn't enough).
 
 ### What's going on under the hood
 
@@ -157,13 +165,21 @@ or Claude Code instead.**
 log — almost always the missing trailing slash on the URL. Use
 `/api/mcp/`, not `/api/mcp`.
 
-**`command not found: npx`** in the Desktop MCP log — Claude Desktop
-launches from `launchd` and may not inherit your shell's PATH. Replace
-`"npx"` in the config with the absolute path from `which npx` (e.g.
-`/opt/homebrew/bin/npx` on Apple Silicon Homebrew). `nvm`-managed Node
-installs put `npx` under `~/.nvm/versions/node/<version>/bin/npx`,
-which changes on every upgrade — installing Node via Homebrew (`brew
-install node`) is more stable for this use case.
+**`command not found: npx`** (or `'npx' is not recognized`) in the Desktop
+MCP log — Claude Desktop launches outside your normal shell and may not
+inherit your PATH.
+
+- **macOS:** Replace `"npx"` in the config with the absolute path from
+  `which npx` (e.g. `/opt/homebrew/bin/npx` on Apple Silicon Homebrew).
+  `nvm`-managed Node installs put `npx` under
+  `~/.nvm/versions/node/<version>/bin/npx`, which changes on every
+  upgrade — installing Node via Homebrew (`brew install node`) is more
+  stable for this use case.
+- **Windows:** Install Node.js from [nodejs.org](https://nodejs.org)
+  (the LTS installer adds `node` and `npx` to your system PATH
+  automatically), then restart Claude Desktop so the new PATH takes
+  effect. If `npx` is still not found, use the full path, for example
+  `C:\Program Files\nodejs\npx.cmd`.
 
 **`401 Unauthorized`** — the token is wrong or was rotated. Generate a
 new one in **Settings → Integrations** and update the `Authorization`

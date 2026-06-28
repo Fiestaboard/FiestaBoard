@@ -75,7 +75,7 @@ jobs:
           fi
 
       - name: Checkout main
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # RELEASE_PAT so the log commit can push to main past branch
           # protection — same pattern as the state-file commit.

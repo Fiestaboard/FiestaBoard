@@ -38,12 +38,14 @@ By default, FiestaBoard communicates with your board over the local network (Loc
 ### Step 2: Configure FiestaBoard
 
 **Via the Web UI (Recommended):**
+
 1. Open **http://localhost:4420**
 2. Go to **Settings**
 3. Change the API mode to **Cloud API**
 4. Paste your Read/Write API key (settings save automatically)
 
 **Via `.env` (alternative):**
+
 ```bash
 BOARD_API_MODE=cloud
 BOARD_READ_WRITE_KEY=your_cloud_api_key_here

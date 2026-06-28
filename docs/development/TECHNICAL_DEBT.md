@@ -27,7 +27,7 @@ The new endpoint also changes failure mode: it returns HTTP **503** when plugin 
 |----------|-----------------|-----------------|
 | `GET /displays/{type}/raw` | v1.x | TBD |
 
-> **Note:** The v2.0 removal target has passed. As of the current release the endpoint is still present at `src/api_server.py` because external integrations continue to depend on it. No new target version has been set. If you are a maintainer planning removal, update this table and the [API Migration Guide](./API_MIGRATION.md) before cutting the release.
+> **Note:** No removal version has been scheduled. The endpoint remains active for backward compatibility with external integrations. When a removal window is decided, set a new target version in the table above and update the [API Migration Guide](./API_MIGRATION.md) before cutting the release.
 
 ---
 

@@ -267,6 +267,7 @@ export function GlobalAiChatDrawer() {
       selection_mode: c.selection_mode,
       time: c.time,
       variable: c.variable,
+      random: c.random,
     }));
     const registryPlugins = registryData?.entries?.map((e) => ({
       id: e.id,

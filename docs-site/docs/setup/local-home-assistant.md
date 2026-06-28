@@ -51,6 +51,7 @@ If you already completed setup and forgot the password, you can reset and create
    - Or configure the same URL and token in the FiestaBoard UI: **Integrations** → **Home Assistant** → enable and enter URL and token.
 
 3. **Restart the FiestaBoard container** if you changed `.env`:
+
    ```bash
    docker-compose -f docker-compose.dev.yml -f docker-compose.ha.yml restart fiestaboard
    ```

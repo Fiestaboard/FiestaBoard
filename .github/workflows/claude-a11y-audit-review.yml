@@ -53,7 +53,7 @@ jobs:
       actions: read
     steps:
       - name: Checkout base ref (trusted)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # pull_request_target grants secrets — never check out PR head.
           # Base ref gives Claude the trusted CLAUDE.md / a11y conventions /
@@ -75,10 +75,12 @@ jobs:
           # feedback-capture allowlists both bots.
           github_token: ${{ secrets.GITHUB_TOKEN }}
           # Bot-authored PRs (triage worker) need reviewing too — the point.
-          allowed_bots: 'claude,github-actions'
+          # fiestaboard-ci-bot is the App identity that pushes branch updates,
+          # so synchronize events it fires must clear the anti-bot guard.
+          allowed_bots: 'claude,github-actions,fiestaboard-ci-bot'
           show_full_output: 'true'
           claude_args: >-
-            --model claude-sonnet-4-6
+            --model claude-opus-4-8
             --max-turns 40
             --allowed-tools "Read,Glob,Grep,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(jq:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api:*)"
           prompt: |

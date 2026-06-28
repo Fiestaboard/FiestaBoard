@@ -14,14 +14,28 @@ Use this before publishing the repo or cutting a release to avoid leaking secret
 
 ## 2. Search for accidental leaks
 
-From repo root:
+Run these two checks from the repo root. They target different file types because the signal to look for differs.
+
+### 2a. Code, config, and workflow files
 
 ```bash
-# Should return no matches (or only test/example placeholders like "test_key", "your_*_here")
-git grep -E 'api_key|password|secret|token' -- '*.py' '*.ts' '*.tsx' '*.json' '*.yml' '*.md' | grep -v -E 'example|test_key|your_|placeholder|_mask_sensitive|SENSITIVE' || true
+# Should return no matches (or only placeholder strings like "test_key", "your_*_here")
+git grep -E 'api_key|password|secret|token' -- '*.py' '*.ts' '*.tsx' '*.json' '*.yml' | grep -v -E 'example|test_key|your_|placeholder|_mask_sensitive|SENSITIVE' || true
 ```
 
-- [ ] No real API keys, tokens, or passwords in code, docs, or committed config.
+- [ ] No real API keys, tokens, or passwords appear in code, config, or CI/CD files.
+
+### 2b. Documentation files
+
+```bash
+# Expect many hits — docs legitimately discuss tokens, API keys, and secrets throughout.
+# Look for actual credential values, not just the words.
+git grep -E 'api_key|password|secret|token' -- '*.md' | grep -v -E 'your_|your-|<[^>]+>|example|placeholder|`[a-z_]+`|\$\{' || true
+```
+
+> **What to look for:** lines containing long hex or base64 strings, keys starting with `sk-`, `Bearer` followed by a real-looking value, or any string that looks like a real credential rather than a placeholder. Hits on words like "your API key" or "token configuration" are expected and can be ignored.
+
+- [ ] No real credential values appear in documentation files.
 - [ ] Docs and examples use placeholders like `your_api_key_here`, `your-weather-api-key`, etc.
 
 ## 3. Example and documentation content

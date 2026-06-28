@@ -96,7 +96,7 @@ jobs:
 
       - name: Checkout repository
         if: steps.gate.outputs.go == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # RELEASE_PAT so the state-file commit can push to main past branch
           # protection — same pattern as the docs-audit state-file commit.
@@ -191,7 +191,7 @@ jobs:
           # the branch-switching git verbs — the only writes are the state
           # JSON (Edit/Write) and the single state commit/push.
           claude_args: >-
-            --model claude-sonnet-4-6
+            --model claude-opus-4-8
             --max-turns 250
             --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git rev-parse:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
           prompt: |

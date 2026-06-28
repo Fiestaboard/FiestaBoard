@@ -4,6 +4,7 @@ Provides simple persistence for page configurations that survives restarts.
 Includes schema versioning and automatic migration on startup.
 """
 
+import contextlib
 import json
 import logging
 import re
@@ -227,6 +228,11 @@ class PageStorage:
 
         # In-memory cache
         self._pages: dict[str, Page] = {}
+        # Raw entries (post-migration) that failed Pydantic validation on load.
+        # Round-tripped through _save so a transient parsing failure (e.g. a
+        # bug in a migration, a renamed enum value) never silently deletes a
+        # user's page from disk.
+        self._failed_entries: list[dict] = []
 
         # Load existing pages (runs migrations if needed)
         self._load()
@@ -269,6 +275,7 @@ class PageStorage:
         """Load pages from storage file, running migrations if needed."""
         if not self.storage_file.exists():
             self._pages = {}
+            self._failed_entries = []
             return
 
         try:
@@ -278,17 +285,35 @@ class PageStorage:
             needs_save = self._run_migrations(data)
 
             self._pages = {}
+            self._failed_entries = []
             for page_data in data.get("pages", []):
+                # Snapshot before datetime coercion so we can round-trip the
+                # entry untouched if Pydantic validation fails below.
+                raw_snapshot = dict(page_data) if isinstance(page_data, dict) else page_data
                 try:
-                    if "created_at" in page_data and isinstance(page_data["created_at"], str):
-                        page_data["created_at"] = datetime.fromisoformat(page_data["created_at"])
-                    if "updated_at" in page_data and isinstance(page_data["updated_at"], str):
-                        page_data["updated_at"] = datetime.fromisoformat(page_data["updated_at"])
+                    if isinstance(page_data, dict):
+                        if "created_at" in page_data and isinstance(page_data["created_at"], str):
+                            page_data["created_at"] = datetime.fromisoformat(page_data["created_at"])
+                        if "updated_at" in page_data and isinstance(page_data["updated_at"], str):
+                            page_data["updated_at"] = datetime.fromisoformat(page_data["updated_at"])
 
                     page = Page(**page_data)
                     self._pages[page.id] = page
                 except Exception as e:
-                    logger.warning(f"Failed to load page: {e}")
+                    page_id = raw_snapshot.get("id", "<unknown>") if isinstance(raw_snapshot, dict) else "<unknown>"
+                    logger.error(
+                        "Failed to parse page %s; preserving raw entry to avoid data loss: %s",
+                        page_id,
+                        e,
+                    )
+                    self._failed_entries.append(raw_snapshot)
+
+            if self._failed_entries:
+                logger.error(
+                    "Pages load preserved %d unparseable entr%s as-is in storage",
+                    len(self._failed_entries),
+                    "y" if len(self._failed_entries) == 1 else "ies",
+                )
 
             logger.info(f"Loaded {len(self._pages)} pages from storage")
 
@@ -299,24 +324,49 @@ class PageStorage:
         except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load pages file: {e}")
             self._pages = {}
+            self._failed_entries = []
 
     def _save(self) -> None:
-        """Save pages to storage file."""
+        """Save pages to storage file.
+
+        Writes to a sibling ``<file>.tmp`` and ``os.replace``s it into place
+        so a mid-write crash (OOM, SIGKILL, power loss) never leaves a
+        truncated file that would wipe in-memory state on reload (see #1304).
+        """
         try:
+            pages_out: list[dict] = []
+            for page in self._pages.values():
+                page_data = page.model_dump()
+                # Convert datetime objects to ISO strings for JSON serialization
+                if isinstance(page_data.get("created_at"), datetime):
+                    page_data["created_at"] = page_data["created_at"].isoformat()
+                if isinstance(page_data.get("updated_at"), datetime):
+                    page_data["updated_at"] = page_data["updated_at"].isoformat()
+                pages_out.append(page_data)
+
+            # Round-trip any entries that failed to parse on load so a
+            # follow-up save doesn't quietly delete them from disk.
+            pages_out.extend(self._failed_entries)
+
             data = {
                 "schema_version": CURRENT_SCHEMA_VERSION,
-                "pages": [page.model_dump() for page in self._pages.values()],
+                "pages": pages_out,
             }
 
-            # Convert datetime objects to ISO strings for JSON serialization
-            for page_data in data["pages"]:
-                if page_data.get("created_at"):
-                    page_data["created_at"] = page_data["created_at"].isoformat()
-                if page_data.get("updated_at"):
-                    page_data["updated_at"] = page_data["updated_at"].isoformat()
-
-            with self.storage_file.open("w") as f:
-                json.dump(data, f, indent=2)
+            # Datetimes are already coerced to ISO strings while building
+            # pages_out above (covers both parsed pages and preserved
+            # _failed_entries), so write data straight out — atomically.
+            tmp_path = self.storage_file.with_suffix(self.storage_file.suffix + ".tmp")
+            try:
+                with tmp_path.open("w") as f:
+                    json.dump(data, f, indent=2)
+                tmp_path.replace(self.storage_file)
+            except BaseException:
+                # Clean up the partial tmp file on any failure so we don't
+                # leak it; the original storage file stays untouched.
+                with contextlib.suppress(OSError):
+                    tmp_path.unlink(missing_ok=True)
+                raise
 
             logger.debug(f"Saved {len(self._pages)} pages to storage")
 
@@ -388,8 +438,23 @@ class PageStorage:
 
         # Apply updates
         page_dict = page.model_dump()
+        # Fields that callers are allowed to clear back to None (e.g. removing a
+        # per-page transition override). Without this allowset every nullable
+        # field would be permanently sticky after first being set — see #1306.
+        # demo_plugin_id is intentionally excluded: it's nullable on Page but
+        # internally managed (set only at page creation, absent from PageUpdate),
+        # so it must never be cleared through update().
+        nullable_fields = {
+            "display_type",
+            "rows",
+            "template",
+            "line_metadata",
+            "transition_strategy",
+            "transition_interval_ms",
+            "transition_step_size",
+        }
         for key, value in updates.items():
-            if value is not None and key in page_dict:
+            if key in page_dict and (value is not None or key in nullable_fields):
                 page_dict[key] = value
 
         # Update timestamp

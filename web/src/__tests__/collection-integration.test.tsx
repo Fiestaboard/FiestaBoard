@@ -29,6 +29,7 @@ const mockCollections: Collection[] = [
     time: { interval_seconds: 30 },
 
     variable: null,
+    random: null,
     created_at: "2025-01-01T00:00:00Z",
   },
   {
@@ -40,6 +41,7 @@ const mockCollections: Collection[] = [
     time: { interval_seconds: 60 },
 
     variable: null,
+    random: null,
     created_at: "2025-01-01T00:00:00Z",
   },
 ];
