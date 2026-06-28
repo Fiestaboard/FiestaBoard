@@ -728,7 +728,7 @@ Both `PluginResult.formatted_lines` and the `get_formatted_display()` method app
 
 **`PluginResult.formatted_lines` is the correct approach for new plugins.** Set it inside `fetch_data()` when you want the platform to render pre-formatted lines instead of passing raw data through the template engine.
 
-The number of lines must match the target board's row count — 6 for the Flagship (22×6) and 3 for the Note (15×3). `src/displays/service.py` joins the list with `\n` and sends the result as-is; no truncation to the board height happens at the platform level. Read `self.board.height` to produce the right count (see [Board awareness](#board-awareness-selfboard)):
+The number of lines must match the target board's row count — 6 for the Flagship (22×6) and 3 for the Note (15×3). `src/displays/service.py` joins the list with `\n`; no truncation to the board height happens at the platform level. Read `self.board.height` to produce the right count (see [Board awareness](#board-awareness-selfboard)):
 
 ```python
 def fetch_data(self) -> PluginResult:
