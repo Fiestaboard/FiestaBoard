@@ -462,6 +462,89 @@ class TestCollectionStorage:
             data = json.load(f)
         assert data["schema_version"] == 1
 
+    def test_migration_save_preserves_unparseable_entries(self, tmp_path):
+        """Regression for #1313 (mirrors #1305): an entry that fails Pydantic
+        validation during the post-migration save must NOT be silently dropped
+        from the file."""
+        import json
+
+        path = tmp_path / "collections.json"
+        # No schema_version => triggers v0 -> CURRENT migration, which resaves.
+        data = {
+            "collections": [
+                {"id": "collection:good", "name": "Good", "page_ids": ["p1", "p2"]},
+                {"id": "collection:bad", "broken_field": True},  # no name => invalid
+            ],
+        }
+        path.write_text(json.dumps(data))
+
+        storage = CollectionStorage(str(path))
+        assert storage.get("collection:good") is not None
+        assert storage.get("collection:bad") is None  # not in the in-memory cache
+
+        on_disk = json.loads(path.read_text())
+        on_disk_ids = {e["id"] for e in on_disk["collections"] if isinstance(e, dict) and "id" in e}
+        assert "collection:bad" in on_disk_ids, "migration save silently dropped the invalid entry"
+        assert "collection:good" in on_disk_ids
+
+    def test_post_load_save_preserves_unparseable_entries(self, tmp_path):
+        """An ordinary save (create/update/delete) after a load that encountered
+        an unparseable entry must also preserve that entry on disk."""
+        import json
+
+        path = tmp_path / "collections.json"
+        data = {
+            "schema_version": 1,  # already current; no migration
+            "collections": [
+                {"id": "collection:good", "name": "Good", "page_ids": ["p1"]},
+                {"id": "collection:bad", "broken_field": True},  # fails validation
+            ],
+        }
+        path.write_text(json.dumps(data))
+
+        storage = CollectionStorage(str(path))
+        storage.create(Collection(name="New", page_ids=["p3"]))  # triggers a normal save
+
+        on_disk = json.loads(path.read_text())
+        on_disk_ids = {e["id"] for e in on_disk["collections"] if isinstance(e, dict) and "id" in e}
+        assert "collection:bad" in on_disk_ids, "subsequent save dropped the unparseable entry"
+        assert "collection:good" in on_disk_ids
+
+    def test_save_is_atomic_on_mid_write_crash(self, tmp_path, monkeypatch):
+        """Regression for #1313 (mirrors #1304): a crash inside _save() must not
+        corrupt the existing file. The atomic tmp + os.replace pattern keeps the
+        on-disk file intact until the rename succeeds, so reload still finds the
+        original data."""
+        import json
+
+        from src.collections import storage as storage_module
+
+        path = tmp_path / "collections.json"
+        storage = CollectionStorage(str(path))
+        storage.create(Collection(name="KeepMe", page_ids=["p1"]))
+        assert storage.count() == 1
+        original_bytes = path.read_bytes()
+
+        real_dump = json.dump
+
+        def crashing_dump(obj, fh, *args, **kwargs):
+            fh.write('{"collections": [{"id": "abc"')
+            fh.flush()
+            raise OSError("Simulated crash mid-write")
+
+        monkeypatch.setattr(storage_module.json, "dump", crashing_dump)
+        with pytest.raises(OSError):
+            storage._save()
+        monkeypatch.setattr(storage_module.json, "dump", real_dump)
+
+        # The original file must be byte-identical — the crash should have hit a
+        # .tmp file that never got renamed over the real one.
+        assert path.read_bytes() == original_bytes
+
+        reloaded = CollectionStorage(str(path))
+        assert reloaded.count() == 1
+        assert reloaded.list_all()[0].name == "KeepMe"
+
 
 # =============================================================================
 # Legacy carousels.json migration
@@ -520,6 +603,33 @@ class TestLegacyCarouselImport:
         assert not legacy_path.exists()
         assert (tmp_path / "carousels.json.pre-collections-backup").exists()
         assert collections_path.exists()
+
+    def test_legacy_import_preserves_unparseable_entries(self, tmp_path):
+        """Regression for #1313: a legacy carousel that fails to convert/validate
+        must still be round-tripped into collections.json, not silently dropped."""
+        import json
+
+        legacy_path = tmp_path / "carousels.json"
+        collections_path = tmp_path / "collections.json"
+        legacy_path.write_text(
+            json.dumps(
+                {
+                    "carousels": [
+                        {"id": "carousel:good", "name": "Good", "page_ids": ["p1"], "interval_seconds": 20},
+                        {"id": "carousel:bad", "interval_seconds": 30},  # no name => invalid
+                    ]
+                }
+            )
+        )
+
+        storage = CollectionStorage(str(collections_path))
+        assert storage.get("collection:good") is not None
+        assert storage.get("collection:bad") is None
+
+        on_disk = json.loads(collections_path.read_text())
+        on_disk_ids = {e["id"] for e in on_disk["collections"] if isinstance(e, dict) and "id" in e}
+        assert "collection:bad" in on_disk_ids, "legacy import silently dropped the invalid carousel"
+        assert "collection:good" in on_disk_ids
 
 
 # =============================================================================
