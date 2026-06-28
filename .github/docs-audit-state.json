@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "round": 18,
-  "round_started_at": "2026-06-27T20:00:00Z",
-  "last_run_at": "2026-06-27T20:00:00Z",
+  "round": 19,
+  "round_started_at": "2026-06-28T00:00:00Z",
+  "last_run_at": "2026-06-28T00:00:00Z",
   "files_remaining": [],
   "files_audited": [
     "README.md",
@@ -21,6 +21,7 @@
     "docs/superpowers/specs/2026-06-14-actions-sidebar-cleanup-design.md",
     "docs/superpowers/specs/2026-06-18-config-loss-on-upgrade-1102-design.md",
     "docs/superpowers/specs/2026-06-19-docs-lint-spellcheck-design.md",
+    "docs/superpowers/specs/2026-06-25-collection-random-mode-design.md",
     "plugins/_template/README.md",
     "plugins/_template/docs/SETUP.md",
     "plugins/countdown/README.md",
