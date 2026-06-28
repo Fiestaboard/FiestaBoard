@@ -1454,8 +1454,6 @@ class TestAtomicSave:
         assert storage.count() == 1
         original_bytes = Path(temp_storage_file).read_bytes()
 
-        real_dump = storage_module.json.dump
-
         def crashing_dump(obj, fh, *args, **kwargs):
             fh.write('{"pages": [{"id": "abc", "name": "Impor')
             fh.flush()
@@ -1470,7 +1468,6 @@ class TestAtomicSave:
         assert Path(temp_storage_file).read_bytes() == original_bytes
 
         # And a fresh storage instance must still see the original data.
-        storage_module.json.dump = real_dump
         reloaded = PageStorage(storage_file=temp_storage_file)
         assert reloaded.count() == 1
         assert reloaded.get(page.id) is not None
