@@ -1517,3 +1517,55 @@ class TestPageShareAPIEndpoints:
         response = client.post("/pages/import", json={"share_string": payload})
         assert response.status_code == 422
         assert "FiestaBoard" in response.json()["detail"]
+
+
+class TestAtomicSave:
+    """Regression tests for #1304: _save() must be atomic so a mid-write
+    crash does not truncate the on-disk file and destroy user data.
+    """
+
+    @pytest.fixture
+    def temp_storage_file(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            yield f.name
+        os.unlink(f.name)
+        # Clean up any leftover .tmp from a crashed write
+        tmp = f.name + ".tmp"
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+    def test_save_is_atomic_on_mid_write_crash(self, temp_storage_file):
+        """A crash inside json.dump() must not corrupt the existing file.
+
+        Atomic-write pattern (tmp + os.replace) keeps the on-disk file
+        intact until the rename succeeds, so reload still finds the
+        original data instead of resetting to empty state.
+        """
+        from pathlib import Path
+
+        from src.pages import storage as storage_module
+
+        storage = PageStorage(storage_file=temp_storage_file)
+        page = Page(name="Important", type="template", template=["hello", "", "", "", "", ""])
+        storage.create(page)
+        assert storage.count() == 1
+        original_bytes = Path(temp_storage_file).read_bytes()
+
+        def crashing_dump(obj, fh, *args, **kwargs):
+            fh.write('{"pages": [{"id": "abc", "name": "Impor')
+            fh.flush()
+            raise OSError("Simulated crash mid-write")
+
+        with patch.object(storage_module.json, "dump", crashing_dump):
+            with pytest.raises(OSError):
+                storage._save()
+
+        # Original file must be byte-identical — the partial write should
+        # have hit a .tmp file that never got renamed over the real one.
+        assert Path(temp_storage_file).read_bytes() == original_bytes
+
+        # And a fresh storage instance must still see the original data.
+        reloaded = PageStorage(storage_file=temp_storage_file)
+        assert reloaded.count() == 1
+        assert reloaded.get(page.id) is not None
+        assert reloaded.get(page.id).name == "Important"
