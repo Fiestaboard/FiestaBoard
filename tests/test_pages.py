@@ -243,8 +243,13 @@ class TestPageStorage:
         updated = storage.update(page.id, {"line_metadata": None})
         assert updated.line_metadata is None
 
-    def test_update_can_clear_demo_plugin_id(self, storage):
-        """Explicit None must clear demo_plugin_id (issue #1306)."""
+    def test_update_does_not_clear_demo_plugin_id(self, storage):
+        """demo_plugin_id is internally managed, not clearable via update().
+
+        It's nullable on Page but absent from PageUpdate (set only at page
+        creation), so it is intentionally excluded from ``nullable_fields`` —
+        an explicit None update must be ignored rather than clear the tag.
+        """
         page = storage.create(
             Page(
                 name="P",
@@ -256,7 +261,7 @@ class TestPageStorage:
         assert page.demo_plugin_id == "weather"
 
         updated = storage.update(page.id, {"demo_plugin_id": None})
-        assert updated.demo_plugin_id is None
+        assert updated.demo_plugin_id == "weather"
 
     def test_update_ignores_none_for_non_nullable_fields(self, storage):
         """None for required/non-nullable fields must not overwrite the value."""
