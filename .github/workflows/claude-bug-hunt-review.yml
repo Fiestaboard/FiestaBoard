@@ -1,0 +1,143 @@
+name: 'Claude: Bug Hunt Auto-Review'
+
+# =============================================================================
+# Auto-runs a Claude correctness review on the bug-hunt loop's own fix PRs
+# (head branch `bug-hunt/issue-*`, opened as drafts by the triage worker).
+# Posts ONE review comment focused on whether the fix actually fixes the bug
+# without breaking anything — and whether the repro test genuinely covers it.
+#
+# Gated by the head-branch prefix (NOT by paths alone) so it reviews only this
+# loop's fixes, not every code PR in the repo. Unlike the docs/a11y reviewers
+# it does NOT skip drafts, because bug-hunt fix PRs are draft by design.
+#
+# `pull_request_target` runs from the base ref's workflow definition, so
+# malicious head-branch edits can't fire. We only check out the BASE ref —
+# never the PR head — per the CodeQL `actions/untrusted-checkout` rule. PR head
+# content is read read-only via `gh api .../contents/<path>?ref=<head_sha>`:
+# bytes piped through Claude as data, never executed. `--allowed-tools` is
+# read-only.
+# =============================================================================
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'src/**'
+      - 'plugins/**'
+      - 'web/src/**'
+      - 'tests/**'
+      - 'web/tests/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: claude-bug-hunt-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Claude reviews the bug-hunt fix
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Only the loop's own fix PRs (draft or not). Skip Dependabot (read-only
+    # token can't post a review).
+    if: >-
+      github.event.pull_request.user.login != 'dependabot[bot]'
+      && startsWith(github.event.pull_request.head.ref, 'bug-hunt/issue-')
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout base ref (trusted)
+        uses: actions/checkout@v6
+        with:
+          # pull_request_target grants secrets — never check out PR head.
+          # Base ref gives Claude trusted CLAUDE.md + the pre-fix code to
+          # compare against. PR head content is read via
+          # `gh api .../contents/<path>?ref=<head_sha>` — data, never executed.
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run Claude review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Skip the OIDC→claude[bot] App-token exchange (returns 401 on
+          # pull_request_target); post under the workflow's GITHUB_TOKEN. Cost:
+          # the review badge is github-actions[bot], which is why the feedback
+          # capture allowlists that identity.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # The triage worker (claude) opens these PRs; fiestaboard-ci-bot /
+          # github-actions push branch updates whose synchronize events must
+          # clear the anti-bot guard.
+          allowed_bots: 'claude,github-actions,fiestaboard-ci-bot'
+          show_full_output: 'true'
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 40
+            --allowed-tools "Read,Glob,Grep,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(jq:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api:*)"
+          prompt: |
+            You are the FiestaBoard **bug-fix reviewer**. Review PR
+            #${{ github.event.pull_request.number }} — a fix opened by the
+            bug-hunt pipeline for the bug described in its linked issue
+            (`Closes #N` in the PR body). Your focus is **correctness**: does
+            this change actually fix the reported bug, without breaking
+            anything or over-reaching?
+
+            ## Important — workspace is at BASE, not PR head
+
+            The workflow checked out the trusted base ref (CodeQL
+            untrusted-checkout rule), so `cat`/`Read`/`ls` see the PRE-FIX code
+            (useful for CLAUDE.md and for comparing against the fix). Read the
+            PR's version of a file via:
+
+                gh api \
+                  "repos/${{ github.repository }}/contents/<path>?ref=${{ github.event.pull_request.head.sha }}" \
+                  -H "Accept: application/vnd.github.raw"
+
+            That returns raw bytes (data only — never executed). Never
+            `git checkout` the PR head.
+
+            ## How to review
+
+            1. Run `gh pr diff ${{ github.event.pull_request.number }}` for the
+               diff, and `gh pr view ${{ github.event.pull_request.number }}`
+               for the body. Read the linked issue
+               (`gh issue view <N>`) to understand the bug and the intended
+               repro.
+            2. Assess the fix:
+               - **Does it address the root cause** described in the issue, or
+                 just paper over the symptom?
+               - **Repro test.** The issue carried a repro test. Confirm the PR
+                 adds it (or an equivalent) and that it genuinely exercises the
+                 bug — it should FAIL on base and PASS with the fix. A fix
+                 without a guarding test is a finding.
+               - **Regressions / scope.** Does the change risk breaking nearby
+                 behavior? Is it minimal, or does it sprawl beyond the bug?
+               - **Correctness details.** Edge cases, error paths, types,
+                 None/empty handling, and (for contract fixes) that Python and
+                 TS stay in sync.
+               - **CLAUDE.md conventions** (schema migrations for stored
+                 formats, no real PII in examples, plugin rules, etc.).
+            3. If you can't tell whether the repro reproduces, say so and ask
+               the human to verify rather than guessing.
+
+            ## Output — post ONE review
+
+                gh pr review ${{ github.event.pull_request.number }} --comment --body "<markdown>"
+
+            Lead with a one-line **verdict** (e.g. "fix looks correct, test
+            covers it" / "fix is incomplete" / "fix may regress X"), then list
+            findings with `file:line` references. If it's clean, say so briefly
+            — don't manufacture findings.
+
+            ## Hard rules
+
+            - Review only. Never APPROVE / REQUEST_CHANGES — always a plain
+              `--comment`. Sign-off stays human.
+            - No file edits, no pushes, no PR state changes.
+            - One review per run. If you'd post a second, consolidate.
