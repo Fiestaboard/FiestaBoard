@@ -455,3 +455,47 @@ class TestScheduleStorage:
         )
         with pytest.raises(IOError):
             storage.create(new_schedule)
+
+    def test_save_is_atomic_on_mid_write_crash(self, temp_storage_file, monkeypatch):
+        """Regression test for #1304: a crash inside _save() must not corrupt
+        the existing file. Atomic-write pattern (tmp + os.replace) keeps the
+        on-disk file intact until the rename succeeds, so reload still finds
+        the original data.
+        """
+        from src.schedules import storage as storage_module
+
+        storage = ScheduleStorage(storage_file=temp_storage_file)
+        schedule = ScheduleEntry(
+            id="keep-me",
+            page_id="p1",
+            start_time="09:00",
+            end_time="17:00",
+            day_pattern="weekdays",
+            enabled=True,
+        )
+        storage.create(schedule)
+        assert storage.count() == 1
+        original_bytes = Path(temp_storage_file).read_bytes()
+
+        # Simulate mid-write crash: json.dump writes a truncated prefix
+        # then raises before the file is fully serialized.
+        real_dump = json.dump
+
+        def crashing_dump(obj, fh, *args, **kwargs):
+            fh.write('{"schedules": [{"id": "abc"')
+            fh.flush()
+            raise OSError("Simulated crash mid-write")
+
+        monkeypatch.setattr(storage_module.json, "dump", crashing_dump)
+        with pytest.raises(OSError):
+            storage._save()
+        monkeypatch.setattr(storage_module.json, "dump", real_dump)
+
+        # The original file must be byte-identical — the crash should
+        # have hit a .tmp file that never got renamed over the real one.
+        assert Path(temp_storage_file).read_bytes() == original_bytes
+
+        # And a fresh storage instance must still see the original data.
+        reloaded = ScheduleStorage(storage_file=temp_storage_file)
+        assert reloaded.count() == 1
+        assert reloaded.get("keep-me") is not None

@@ -4,6 +4,7 @@ Provides simple persistence for schedule configurations that survives restarts.
 Includes schema versioning and automatic migration on startup.
 """
 
+import contextlib
 import json
 import logging
 import shutil
@@ -216,7 +217,12 @@ class ScheduleStorage:
             self._failed_entries = []
 
     def _save(self) -> None:
-        """Save schedules to storage file."""
+        """Save schedules to storage file.
+
+        Writes to a sibling ``<file>.tmp`` and ``os.replace``s it into place
+        so a mid-write crash (OOM, SIGKILL, power loss) never leaves a
+        truncated file that would wipe in-memory state on reload (see #1304).
+        """
         try:
             schedules_out: list[dict] = []
             for schedule in self._schedules.values():
@@ -239,10 +245,22 @@ class ScheduleStorage:
                 "default_page_by_board": self._default_page_by_board,
             }
 
-            # Use builtins.open (not Path.open) so existing tests can
-            # patch builtins.open to inject I/O errors.
-            with open(self.storage_file, "w") as f:  # noqa: PTH123
-                json.dump(data, f, indent=2)
+            # Datetimes are already coerced to ISO strings while building
+            # schedules_out above (covers both parsed schedules and preserved
+            # _failed_entries), so write data straight out — atomically.
+            tmp_path = self.storage_file.with_suffix(self.storage_file.suffix + ".tmp")
+            try:
+                # Use builtins.open (not Path.open) on the tmp path so existing
+                # tests can patch builtins.open to inject I/O errors.
+                with open(tmp_path, "w") as f:  # noqa: PTH123
+                    json.dump(data, f, indent=2)
+                tmp_path.replace(self.storage_file)
+            except BaseException:
+                # Clean up the partial tmp file on any failure so we don't
+                # leak it; the original storage file stays untouched.
+                with contextlib.suppress(OSError):
+                    tmp_path.unlink(missing_ok=True)
+                raise
 
             logger.debug(f"Saved {len(self._schedules)} schedules to storage")
 

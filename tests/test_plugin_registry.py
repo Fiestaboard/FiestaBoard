@@ -1268,10 +1268,12 @@ def test_auto_migrate_is_one_shot_does_not_reinstall_uninstalled_plugin(
         )
     ]
 
-    # Flag is already set (a previous boot ran the migration).
+    # Flag is already set (a previous boot ran the migration) and this is a
+    # routine re-init, not an upgrade boot (no version change).
     with patch("src.config_manager.get_config_manager") as mock_cm:
         mock_cm.return_value.get_all_plugin_configs.return_value = {"muni": {"enabled": True}}
         mock_cm.return_value.is_v2_plugin_migration_done.return_value = True
+        mock_cm.return_value.version_changed_on_load = False
         registry.initialize()
 
     # No install attempt, no registry lookup, no plugin in memory.
@@ -1387,9 +1389,11 @@ def test_auto_migrate_retries_only_failed_plugins_on_next_boot(
     ]
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
-        # Subsequent boot: migration already ran. Only `muni` previously
-        # failed; `weather` was an intentional uninstall (no entry).
+        # Subsequent boot (routine re-init, no version change): migration
+        # already ran. Only `muni` previously failed; `weather` was an
+        # intentional uninstall (no entry).
         mock_cm.return_value.is_v2_plugin_migration_done.return_value = True
+        mock_cm.return_value.version_changed_on_load = False
         mock_cm.return_value.get_v2_plugin_failed_installs.return_value = ["muni"]
         # Both still appear in stored configs (the #937 fix would have
         # purged `weather` if the user had clicked Uninstall, but we
@@ -1428,6 +1432,7 @@ def test_auto_migrate_no_op_when_retry_queue_resolved(
 
     with patch("src.config_manager.get_config_manager") as mock_cm:
         mock_cm.return_value.is_v2_plugin_migration_done.return_value = True
+        mock_cm.return_value.version_changed_on_load = False
         mock_cm.return_value.get_v2_plugin_failed_installs.return_value = ["muni"]
         mock_cm.return_value.get_all_plugin_configs.return_value = {"muni": {"enabled": True, "stop_code": "15726"}}
         registry.initialize()
@@ -1437,6 +1442,58 @@ def test_auto_migrate_no_op_when_retry_queue_resolved(
     mock_install.assert_not_called()
     # Stale queue is cleared so future boots short-circuit immediately.
     mock_cm.return_value.clear_v2_plugin_failed_installs.assert_called_once()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_auto_migrate_reconciles_orphaned_config_when_code_lost_on_upgrade(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """Regression for #1301 ("Integrations Lost on Upgrade (Redux)").
+
+    A plugin that migrated successfully on a *previous* boot (so
+    ``v2_completed`` is set and ``v2_failed_installs`` is empty) can still
+    lose its on-disk code on a later container upgrade — e.g. the
+    ``external_plugins/`` directory comes up empty while its config survives
+    in ``config.json``. That surviving config can ONLY mean lost code: a
+    deliberate uninstall deletes the config (see the ``/plugins/{id}/uninstall``
+    endpoint, which calls ``delete_plugin_config``). So an orphaned config
+    must be reconciled (re-installed from the registry) on boot, not silently
+    abandoned. The one-shot guard used to ``return`` early whenever the retry
+    queue was empty, stranding the plugin forever — that is the bug.
+    """
+    mock_manifest.id = "weather"
+    # external_plugins/ came up empty after the upgrade — nothing loaded.
+    mock_loader.load_all_plugins.return_value = {}
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        )
+    ]
+
+    stored_cfg = {"enabled": True, "api_key": "secret_key", "location": "Seattle"}
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        # Upgrade boot: the first migration already completed successfully on a
+        # prior version (flag set, retry queue empty), and the app version
+        # changed on this load — i.e. a new image booted against the existing
+        # data dir.
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = True
+        mock_cm.return_value.get_v2_plugin_failed_installs.return_value = []
+        mock_cm.return_value.version_changed_on_load = True
+        # The config survived the upgrade but the plugin code did not.
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": stored_cfg}
+        registry.initialize()
+
+    # The orphaned plugin must be re-installed and its config + enabled state restored.
+    assert "weather" in registry._plugins
+    assert registry._enabled["weather"] is True
+    assert registry._configs["weather"] == stored_cfg
 
 
 @patch("src.plugins.registry.get_external_plugins_dir")

@@ -20,9 +20,10 @@ name: 'Claude: Issue Triage'
 # auto-run path while still letting you (or any maintainer) opt one in by
 # adding the label, and letting the docs-audit cron close its own loop.
 #
-# Model tier: Sonnet for docs-flavored issues (`docs`/`docs-audit` label),
-# Opus for everything else — code bugs benefit from the harder model, while
-# markdown edits don't. See the "Choose model tier" step below.
+# Model: Opus 4.8 for every triaged issue — code bugs benefit from the
+# harder model at debugging and codebase navigation, and the volume of
+# docs-flavored issues is low enough that a cheaper tier isn't worth the
+# extra branching.
 
 on:
   issues:
@@ -68,24 +69,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
-
-      - name: Choose model tier
-        id: tier
-        # Docs-flavored issues are markdown edits — Sonnet handles them and
-        # the docs-audit cron files them in volume, so Opus economics are bad.
-        # Everything else (code bugs, infra, plugin internals) gets Opus,
-        # which is materially better at debugging and codebase navigation.
-        run: |
-          labels='${{ toJSON(github.event.issue.labels.*.name) }}'
-          echo "Labels: $labels"
-          if echo "$labels" | grep -qE '"(docs|docs-audit)"'; then
-            model="claude-sonnet-4-6"
-            echo "Selected Sonnet (docs-flavored issue)"
-          else
-            model="claude-opus-4-7"
-            echo "Selected Opus (default — code/infra issue)"
-          fi
-          echo "model=$model" >> "$GITHUB_OUTPUT"
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
@@ -229,7 +212,7 @@ jobs:
 
           # Long ceiling so Claude has room to actually attempt the fix.
           # `timeout-minutes` above is the real backstop on cost.
-          # `--model` is picked dynamically by the tier step above.
+          # `--model` is Opus 4.8 for every triaged issue (see header note).
           # `--allowed-tools`: agent-mode default toolset is read-only, so
           # without this allowlist every Edit/Write/`git`/`gh` call is
           # denied. Same lesson as claude-docs-audit.yml — the first triage
@@ -240,5 +223,5 @@ jobs:
           # block legitimate work here).
           claude_args: >-
             --max-turns 80
-            --model ${{ steps.tier.outputs.model }}
+            --model claude-opus-4-8
             --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(date:*),Bash(jq:*),Bash(python3:*),Bash(node:*),Bash(npm:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git rev-parse:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr edit:*),Bash(gh pr comment:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*),Bash(gh api:*)"

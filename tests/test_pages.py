@@ -195,6 +195,84 @@ class TestPageStorage:
         result = storage.update("nonexistent", {"name": "Test"})
         assert result is None
 
+    def test_update_can_clear_transition_strategy(self, storage):
+        """Explicit None must clear a nullable transition override (issue #1306)."""
+        page = storage.create(
+            Page(
+                name="P",
+                type="template",
+                template=["hi", "", "", "", "", ""],
+                transition_strategy="column",
+                transition_interval_ms=120,
+                transition_step_size=2,
+            )
+        )
+        assert page.transition_strategy == "column"
+
+        updated = storage.update(
+            page.id,
+            {
+                "transition_strategy": None,
+                "transition_interval_ms": None,
+                "transition_step_size": None,
+            },
+        )
+        assert updated.transition_strategy is None
+        assert updated.transition_interval_ms is None
+        assert updated.transition_step_size is None
+
+    def test_update_can_clear_line_metadata(self, storage):
+        """Explicit None must clear nullable line_metadata (issue #1306)."""
+        page = storage.create(
+            Page(
+                name="P",
+                type="template",
+                template=["hi", "", "", "", "", ""],
+                line_metadata=[
+                    LineMetadata(alignment="center", wrap=False),
+                    LineMetadata(),
+                    LineMetadata(),
+                    LineMetadata(),
+                    LineMetadata(),
+                    LineMetadata(),
+                ],
+            )
+        )
+        assert page.line_metadata is not None
+
+        updated = storage.update(page.id, {"line_metadata": None})
+        assert updated.line_metadata is None
+
+    def test_update_does_not_clear_demo_plugin_id(self, storage):
+        """demo_plugin_id is internally managed, not clearable via update().
+
+        It's nullable on Page but absent from PageUpdate (set only at page
+        creation), so it is intentionally excluded from ``nullable_fields`` —
+        an explicit None update must be ignored rather than clear the tag.
+        """
+        page = storage.create(
+            Page(
+                name="P",
+                type="single",
+                display_type="weather",
+                demo_plugin_id="weather",
+            )
+        )
+        assert page.demo_plugin_id == "weather"
+
+        updated = storage.update(page.id, {"demo_plugin_id": None})
+        assert updated.demo_plugin_id == "weather"
+
+    def test_update_ignores_none_for_non_nullable_fields(self, storage):
+        """None for required/non-nullable fields must not overwrite the value."""
+        page = storage.create(Page(name="Original", type="single", display_type="weather"))
+
+        # `name` is required (min_length=1) — explicit None must be ignored,
+        # not blow up validation. This is the existing protective behaviour
+        # the `nullable_fields` allowset preserves.
+        updated = storage.update(page.id, {"name": None})
+        assert updated.name == "Original"
+
     def test_delete_page(self, storage):
         """Test deleting a page."""
         page = Page(name="Test", type="single", display_type="weather")
@@ -801,6 +879,25 @@ class TestPageService:
         # There should be exactly 1 page
         pages = service.list_pages()
         assert len(pages) == 1
+
+    def test_delete_last_note_page_creates_note_default(self, service):
+        """Deleting the last note-board page should create a note-sized default.
+
+        Regression test for issue #1307: ``_create_default_page`` used to
+        hardcode the 6-line flagship template, producing a structurally
+        invalid page on note (3x15) boards.
+        """
+        note_page = service.storage.create(
+            Page(name="only", type="template", device_type="note", template=["a", "b", "c"])
+        )
+
+        result = service.delete_page(note_page.id)
+        assert result.default_page_created is True
+
+        new_page = service.get_page(result.new_page_id)
+        assert new_page is not None
+        assert new_page.device_type == "note"
+        assert len(new_page.template) == 3
 
     def test_delete_nonexistent_page(self, service):
         """Test deleting a page that doesn't exist."""
@@ -1496,3 +1593,55 @@ class TestPageShareAPIEndpoints:
         response = client.post("/pages/import", json={"share_string": payload})
         assert response.status_code == 422
         assert "FiestaBoard" in response.json()["detail"]
+
+
+class TestAtomicSave:
+    """Regression tests for #1304: _save() must be atomic so a mid-write
+    crash does not truncate the on-disk file and destroy user data.
+    """
+
+    @pytest.fixture
+    def temp_storage_file(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            yield f.name
+        os.unlink(f.name)
+        # Clean up any leftover .tmp from a crashed write
+        tmp = f.name + ".tmp"
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+    def test_save_is_atomic_on_mid_write_crash(self, temp_storage_file):
+        """A crash inside json.dump() must not corrupt the existing file.
+
+        Atomic-write pattern (tmp + os.replace) keeps the on-disk file
+        intact until the rename succeeds, so reload still finds the
+        original data instead of resetting to empty state.
+        """
+        from pathlib import Path
+
+        from src.pages import storage as storage_module
+
+        storage = PageStorage(storage_file=temp_storage_file)
+        page = Page(name="Important", type="template", template=["hello", "", "", "", "", ""])
+        storage.create(page)
+        assert storage.count() == 1
+        original_bytes = Path(temp_storage_file).read_bytes()
+
+        def crashing_dump(obj, fh, *args, **kwargs):
+            fh.write('{"pages": [{"id": "abc", "name": "Impor')
+            fh.flush()
+            raise OSError("Simulated crash mid-write")
+
+        with patch.object(storage_module.json, "dump", crashing_dump):
+            with pytest.raises(OSError):
+                storage._save()
+
+        # Original file must be byte-identical — the partial write should
+        # have hit a .tmp file that never got renamed over the real one.
+        assert Path(temp_storage_file).read_bytes() == original_bytes
+
+        # And a fresh storage instance must still see the original data.
+        reloaded = PageStorage(storage_file=temp_storage_file)
+        assert reloaded.count() == 1
+        assert reloaded.get(page.id) is not None
+        assert reloaded.get(page.id).name == "Important"

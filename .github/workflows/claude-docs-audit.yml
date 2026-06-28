@@ -289,7 +289,7 @@ jobs:
           # and the run completes with 0 PRs + 0 issues + an unchanged state
           # file. Bash patterns must match what the prompt actually invokes.
           claude_args: >-
-            --model claude-sonnet-4-6
+            --model claude-opus-4-8
             --max-turns 250
             --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git branch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git pull:*),Bash(git rebase:*),Bash(git rev-parse:*),Bash(git reset:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
           prompt: |

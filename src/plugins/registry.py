@@ -401,17 +401,37 @@ class PluginRegistry:
             return
 
         first_run = not cm.is_v2_plugin_migration_done()
-        if first_run:
-            loaded_ids = set(self._plugins.keys())
+        loaded_ids = set(self._plugins.keys())
+
+        if first_run or cm.version_changed_on_load:
+            # Full reconcile: (re)install every orphaned config — one that is
+            # present in config.json but has no matching plugin code loaded
+            # from disk. We do this on the first migration AND on any boot
+            # where the app version changed (i.e. an upgrade just happened).
+            #
+            # On upgrade the persistent ``external_plugins/`` cache can come up
+            # empty — a hand-managed compose missing the bind mount, or running
+            # ``docker compose`` from a different directory than the original
+            # install — while ``config.json`` survives. That leaves every
+            # plugin config orphaned. A *deliberate* uninstall deletes the
+            # config via ``delete_plugin_config`` (see the
+            # ``/plugins/{id}/uninstall`` endpoint), so an orphan on an upgrade
+            # boot can only mean lost code to re-fetch from the registry.
+            # Skipping it stranded users' integrations permanently — issue
+            # #1301, the recurrence ("Redux") of #948. config.json is the
+            # source of truth; the cloned plugin code is a cache we refetch.
             orphan_subset: set[str] | None = None
         else:
-            # Subsequent boots: only retry plugins that failed on a previous
-            # run AND still have a stored config (i.e. the user hasn't
-            # uninstalled them in the meantime).
+            # Routine in-process re-init with no version change. ``initialize()``
+            # is wired up from several plugin-settings endpoints, so re-running
+            # the full scan here would (a) re-fire on every settings change and
+            # (b) risk resurrecting a plugin the user just uninstalled if its
+            # config delete momentarily lagged — the #937 "sticky plugins"
+            # invariant. Only retry plugins that failed to install on a previous
+            # attempt and still have a stored config (#948).
             failed = cm.get_v2_plugin_failed_installs()
             if not failed:
                 return
-            loaded_ids = set(self._plugins.keys())
             orphan_subset = {pid for pid in failed if pid in stored_configs and pid not in loaded_ids}
             if not orphan_subset:
                 # Everything that failed has since been resolved (installed

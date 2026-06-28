@@ -197,7 +197,7 @@ jobs:
           # Read-only on the repo (no Edit/Write/git). Only `gh issue` /
           # `gh label` are write actions, and they go through RELEASE_PAT.
           claude_args: >-
-            --model claude-sonnet-4-6
+            --model claude-opus-4-8
             --max-turns 120
             --allowed-tools "Read,Glob,Grep,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(date:*),Bash(jq:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
           prompt: |
