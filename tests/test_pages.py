@@ -195,6 +195,84 @@ class TestPageStorage:
         result = storage.update("nonexistent", {"name": "Test"})
         assert result is None
 
+    def test_update_can_clear_transition_strategy(self, storage):
+        """Explicit None must clear a nullable transition override (issue #1306)."""
+        page = storage.create(
+            Page(
+                name="P",
+                type="template",
+                template=["hi", "", "", "", "", ""],
+                transition_strategy="column",
+                transition_interval_ms=120,
+                transition_step_size=2,
+            )
+        )
+        assert page.transition_strategy == "column"
+
+        updated = storage.update(
+            page.id,
+            {
+                "transition_strategy": None,
+                "transition_interval_ms": None,
+                "transition_step_size": None,
+            },
+        )
+        assert updated.transition_strategy is None
+        assert updated.transition_interval_ms is None
+        assert updated.transition_step_size is None
+
+    def test_update_can_clear_line_metadata(self, storage):
+        """Explicit None must clear nullable line_metadata (issue #1306)."""
+        page = storage.create(
+            Page(
+                name="P",
+                type="template",
+                template=["hi", "", "", "", "", ""],
+                line_metadata=[
+                    LineMetadata(alignment="center", wrap=False),
+                    LineMetadata(),
+                    LineMetadata(),
+                    LineMetadata(),
+                    LineMetadata(),
+                    LineMetadata(),
+                ],
+            )
+        )
+        assert page.line_metadata is not None
+
+        updated = storage.update(page.id, {"line_metadata": None})
+        assert updated.line_metadata is None
+
+    def test_update_does_not_clear_demo_plugin_id(self, storage):
+        """demo_plugin_id is internally managed, not clearable via update().
+
+        It's nullable on Page but absent from PageUpdate (set only at page
+        creation), so it is intentionally excluded from ``nullable_fields`` —
+        an explicit None update must be ignored rather than clear the tag.
+        """
+        page = storage.create(
+            Page(
+                name="P",
+                type="single",
+                display_type="weather",
+                demo_plugin_id="weather",
+            )
+        )
+        assert page.demo_plugin_id == "weather"
+
+        updated = storage.update(page.id, {"demo_plugin_id": None})
+        assert updated.demo_plugin_id == "weather"
+
+    def test_update_ignores_none_for_non_nullable_fields(self, storage):
+        """None for required/non-nullable fields must not overwrite the value."""
+        page = storage.create(Page(name="Original", type="single", display_type="weather"))
+
+        # `name` is required (min_length=1) — explicit None must be ignored,
+        # not blow up validation. This is the existing protective behaviour
+        # the `nullable_fields` allowset preserves.
+        updated = storage.update(page.id, {"name": None})
+        assert updated.name == "Original"
+
     def test_delete_page(self, storage):
         """Test deleting a page."""
         page = Page(name="Test", type="single", display_type="weather")
