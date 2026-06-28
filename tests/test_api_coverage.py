@@ -877,7 +877,7 @@ class TestSetActivePage:
         """Setting an active page also sends to board when enabled."""
         mock_settings_service.should_send_to_board.return_value = True
         with (
-            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.resolve_dimensions") as mock_dims,
             patch("src.api_server.text_to_board_array") as mock_ttba,
         ):
             mock_dims.return_value = Mock(rows=6, cols=22)
@@ -913,7 +913,7 @@ class TestSetActivePage:
         mock_settings_service.should_send_to_board.return_value = True
         mock_service.vb_client.send_characters.return_value = (False, False)
         with (
-            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.resolve_dimensions") as mock_dims,
             patch("src.api_server.text_to_board_array") as mock_ttba,
         ):
             mock_dims.return_value = Mock(rows=6, cols=22)
@@ -1069,7 +1069,7 @@ class TestSendDisplay:
         with (
             patch("src.api_server.get_display_service") as mock_ds,
             patch("src.api_server.text_to_board_array") as mock_ttba,
-            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.resolve_dimensions") as mock_dims,
         ):
             display_service = Mock()
             result = Mock()
@@ -1093,7 +1093,7 @@ class TestSendDisplay:
         with (
             patch("src.api_server.get_display_service") as mock_ds,
             patch("src.api_server.text_to_board_array") as mock_ttba,
-            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.resolve_dimensions") as mock_dims,
         ):
             display_service = Mock()
             result = Mock()
@@ -1173,7 +1173,7 @@ class TestSendPage:
         mock_settings_service.should_send_to_board.return_value = True
         with (
             patch("src.api_server.Config") as mock_config,
-            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.resolve_dimensions") as mock_dims,
             patch("src.api_server.text_to_board_array") as mock_ttba,
         ):
             mock_config.is_silence_mode_active.return_value = False
@@ -1199,7 +1199,7 @@ class TestSendPage:
         mock_service.vb_client.send_characters.return_value = (False, False)
         with (
             patch("src.api_server.Config") as mock_config,
-            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.resolve_dimensions") as mock_dims,
             patch("src.api_server.text_to_board_array") as mock_ttba,
         ):
             mock_config.is_silence_mode_active.return_value = False
@@ -1217,7 +1217,7 @@ class TestSendPage:
         """Explicit target=board sends to board."""
         with (
             patch("src.api_server.Config") as mock_config,
-            patch("src.api_server.get_dimensions") as mock_dims,
+            patch("src.api_server.resolve_dimensions") as mock_dims,
             patch("src.api_server.text_to_board_array") as mock_ttba,
         ):
             mock_config.is_silence_mode_active.return_value = False

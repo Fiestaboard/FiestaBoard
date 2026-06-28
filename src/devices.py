@@ -131,7 +131,7 @@ class BoardInstance:
             port=port if port is not None else 7000,
             local_api_key=data.get("local_api_key", ""),
             cloud_key=data.get("cloud_key", ""),
-            note_array_token=data.get("note_array_token", "").strip(),
+            note_array_token=(data.get("note_array_token") or "").strip(),
             notes_wide=data.get("notes_wide", 1),
             notes_tall=data.get("notes_tall", 1),
         )

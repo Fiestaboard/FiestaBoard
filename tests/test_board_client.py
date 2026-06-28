@@ -793,7 +793,12 @@ class TestSendCharactersNoResponseOnError:
 # Issue #1168 — Note-array Cloud API send/read in BoardClient
 # ---------------------------------------------------------------------------
 
-CLOUD_NOTE_ARRAY_URL = "https://cloud.vestaboard.com/"
+# Hermetic: track the note-array Cloud URL the client is ACTUALLY configured to
+# use. BoardClient.CLOUD_NOTE_ARRAY_API_URL honors VESTABOARD_CLOUD_API_URL, so
+# these URL assertions pass both in CI (env unset → real cloud.vestaboard.com)
+# and inside the dev container (env set → the mock-cloud service), instead of
+# failing whenever the suite runs in the documented `docker exec … pytest` flow.
+CLOUD_NOTE_ARRAY_URL = BoardClient.CLOUD_NOTE_ARRAY_API_URL
 RW_CLOUD_URL = "https://rw.vestaboard.com/"
 
 
