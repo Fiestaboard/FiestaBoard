@@ -363,8 +363,21 @@ class PageStorage:
 
         # Apply updates
         page_dict = page.model_dump()
+        # Fields that callers are allowed to clear back to None (e.g. removing a
+        # per-page transition override). Without this allowset every nullable
+        # field would be permanently sticky after first being set — see #1306.
+        nullable_fields = {
+            "display_type",
+            "rows",
+            "template",
+            "line_metadata",
+            "transition_strategy",
+            "transition_interval_ms",
+            "transition_step_size",
+            "demo_plugin_id",
+        }
         for key, value in updates.items():
-            if value is not None and key in page_dict:
+            if key in page_dict and (value is not None or key in nullable_fields):
                 page_dict[key] = value
 
         # Update timestamp
