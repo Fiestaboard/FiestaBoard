@@ -504,8 +504,12 @@ export interface BoardInstance {
   // Per-board pause flag (issue #970). When true FiestaBoard does not
   // push anything to this board from any code path until it is resumed.
   paused?: boolean;
+  /** Per-board schedule mode (issue #1242). Emitted on every GET /settings/board. */
+  schedule_enabled?: boolean;
   api_mode: "local" | "cloud";
   host: string;
+  /** Local API port (default 7000). */
+  port?: number;
   local_api_key: string;
   cloud_key: string;
   /** X-Vestaboard-Token for a Note array (note_array only). Masked as "***" on read. */
