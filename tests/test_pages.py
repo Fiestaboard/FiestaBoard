@@ -905,6 +905,50 @@ class TestPageService:
         assert result.deleted is False
         assert result.default_page_created is False
 
+    def test_delete_page_orphan_welcome_on_save_failure(self, tmp_path):
+        """Deleting the last page must not orphan a Welcome page if the
+        original deletion's save fails (issue #1314).
+
+        Regression: ``delete_page`` used to create+persist the default
+        Welcome page *before* deleting the original. If the original
+        deletion's ``_save`` then failed (e.g. disk full), the Welcome page
+        was already committed to disk while the original was never removed —
+        leaving two pages on disk instead of one.
+        """
+        storage_file = str(tmp_path / "pages.json")
+        service = PageService(storage=PageStorage(storage_file))
+
+        # Create the single page (count==1 path)
+        page = service.storage.create(
+            Page(name="Mine", type="template", template=["hi"], created_at=datetime.now(UTC))
+        )
+        assert service.storage.count() == 1
+
+        save_calls = []
+        original_save = service.storage._save
+
+        def fail_on_second_save():
+            save_calls.append(1)
+            if len(save_calls) > 1:  # let the default-page create succeed …
+                raise OSError("Disk full")  # … then fail the original-page delete
+            original_save()
+
+        with patch.object(service.storage, "_save", side_effect=fail_on_second_save):
+            with pytest.raises(OSError):
+                service.delete_page(page.id)
+
+        # Reload from disk to see persisted state.
+        reloaded = PageStorage(storage_file)
+        names = [p.name for p in reloaded.list_all()]
+        # The bug left BOTH the original ("Mine") and a phantom "Welcome" on
+        # disk (count == 2). After the fix the original is deleted first, so a
+        # failed default-page creation leaves zero pages — never the orphaned
+        # two-page state with an undeleted original.
+        assert reloaded.count() <= 1, f"Orphaned pages left on disk: {names}"
+        assert not ("Mine" in names and "Welcome" in names), (
+            f"Original page was not deleted but a default Welcome was orphaned: {names}"
+        )
+
     @patch("src.pages.service.get_display_service")
     def test_render_single_page(self, mock_get_display, service):
         """Test rendering a single-source page."""
