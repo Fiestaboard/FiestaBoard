@@ -187,6 +187,77 @@ jobs:
           # 30 days — weekly builds rotate frequently; grab the latest.
           retention-days: 30
 
+      - name: Verify image — block known-bad packages before publishing
+        # Pre-publish gate. We build from an unpinned Trixie base, so an
+        # upstream regression can ride into the image silently (it has: the
+        # raspi-firmware #2034 Pi-3 brick, and the 6.18.x kernel that breaks
+        # Pi 3B+ ethernet, #7436). This loop-mounts the freshly built .img and
+        # FAILS the build — before any release attach — if it would ship a
+        # known-bad kernel/firmware or is missing Pi-3 boot files. The artifact
+        # upload above already ran, so a failed image is still downloadable for
+        # debugging; it just never reaches a published release.
+        # Keep the denylist in sync with pi-image/stage-fiestaboard/00-pin-kernel.
+        run: |
+          set -euo pipefail
+          # Reclaim scratch from pi-gen's work dir (build logs already uploaded).
+          sudo rm -rf pi-gen/work || true
+
+          IMG_XZ="${{ steps.out.outputs.img }}"
+          RAW="${IMG_XZ%.xz}"
+          # Keep the .xz — the release-attach steps below still need it.
+          xz -dkf "$IMG_XZ"
+
+          LOOP=$(sudo losetup --show -fP "$RAW")
+          MNT=$(mktemp -d)
+          cleanup() {
+            sudo umount "$MNT/boot/firmware" 2>/dev/null || true
+            sudo umount "$MNT" 2>/dev/null || true
+            sudo losetup -d "$LOOP" 2>/dev/null || true
+            sudo rm -f "$RAW" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          # RPi OS layout: p1 = FAT boot (/boot/firmware), p2 = ext4 root.
+          sudo mount "${LOOP}p2" "$MNT"
+          sudo mount "${LOOP}p1" "$MNT/boot/firmware"
+
+          dq() { sudo dpkg-query --admindir="$MNT/var/lib/dpkg" -W -f="$1" "$2" 2>/dev/null || true; }
+          fail=0
+
+          # (1) raspi-firmware 1:1.20260521-2 bricks Pi 3 boot (raspberrypi/firmware#2034).
+          RF=$(dq '${Version}' raspi-firmware)
+          echo "raspi-firmware: ${RF:-<none>}"
+          if [ "$RF" = "1:1.20260521-2" ]; then
+            echo "::error::Image ships raspi-firmware 1:1.20260521-2 — bricks Pi 3 boot (firmware#2034)."
+            fail=1
+          fi
+
+          # (2) Kernel must be 6.12 LTS, not the 6.18.x that breaks Pi 3B+ ethernet (linux#7436).
+          KERNELS=$(dq '${Package} ${Version}\n' 'linux-image-*' | grep -E 'rpi-(v8|2712)' || true)
+          echo "kernels in image:"; echo "${KERNELS:-<none>}"
+          if printf '%s\n' "$KERNELS" | grep -q 'linux-image-6\.18'; then
+            echo "::error::Image ships a 6.18.x kernel — breaks Pi 3B+ wired ethernet (linux#7436). Kernel pin did not take."
+            fail=1
+          fi
+          if ! printf '%s\n' "$KERNELS" | grep -q 'linux-image-6\.12'; then
+            echo "::error::No 6.12 LTS kernel found in image — kernel pin did not take."
+            fail=1
+          fi
+
+          # (3) Pi-3 boot files must be present (catches firmware#2034-class missing boot files).
+          for f in start.elf kernel8.img bcm2710-rpi-3-b.dtb; do
+            if [ ! -f "$MNT/boot/firmware/$f" ]; then
+              echo "::error::Missing /boot/firmware/$f — Pi 3 would not boot."
+              fail=1
+            fi
+          done
+
+          if [ "$fail" -ne 0 ]; then
+            echo "Image verification FAILED — not publishing this image."
+            exit 1
+          fi
+          echo "Image verification passed."
+
       - name: Resolve target app release tag
         # Skip on workflow_dispatch from non-default branches: a manual
         # build from a feature branch should produce a verifiable artifact
