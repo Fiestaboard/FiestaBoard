@@ -9,17 +9,8 @@ import { defineConfig, devices } from "@playwright/test";
  * Locally it defaults to http://localhost:4420 with 1 worker.
  *
  * Screenshot generation tests are always excluded in CI.
- *
- * Visual regression tests are excluded by default in CI and opt-in
- * via the RUN_VISUAL_REGRESSION env var, which is set by the dedicated
- * `visual-regression` job in `.github/workflows/ci.yml`. Baselines must
- * be committed to the repo for the comparison step to pass; the first
- * run uploads the generated snapshots as artifacts.
  */
 const ciIgnore = ["**/generate-screenshots.spec.ts"];
-if (!process.env.RUN_VISUAL_REGRESSION) {
-  ciIgnore.push("**/visual-regression.spec.ts");
-}
 // AI + MCP specs need the mock-llm container reachable and (for the AI
 // tests) write to the global /settings/ai config. They share a dedicated
 // CI job and are opted in via RUN_AI_TESTS to keep the main e2e matrix
@@ -29,7 +20,7 @@ if (!process.env.RUN_AI_TESTS) {
 }
 // Auth specs need a container booted with FIESTABOARD_AUTH_ENABLED=true.
 // The main e2e job runs with auth disabled, so opt these in via env var
-// (mirrors the visual-regression pattern above) and let a dedicated job
+// (mirrors the RUN_AI_TESTS pattern above) and let a dedicated job
 // flip the switch.
 if (!process.env.RUN_AUTH_TESTS) {
   ciIgnore.push("**/auth.spec.ts");

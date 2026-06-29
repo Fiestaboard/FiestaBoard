@@ -5,7 +5,7 @@ Use the `qa-auditor` agent. Optional argument: `<scope>` — limits the audit to
 Prerequisite: `.claude/ux-tree.json` must exist. If it doesn't, run `/map-ux <scope>` first.
 
 The agent (read-only) will:
-1. Inventory every `*.spec.ts` under `web/tests/` (excluding `visual-regression.spec.ts` and snapshots).
+1. Inventory every `*.spec.ts` under `web/tests/`.
 2. For each test, extract title, `goto()` routes, and distinguishing selectors.
 3. For each UX node in the manifest, assign a status:
    - **covered** — a test reaches the route and exercises the state.
