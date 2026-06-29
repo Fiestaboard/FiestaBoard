@@ -6,7 +6,12 @@ A flashable Raspberry Pi OS image with FiestaBoard pre-installed and self-updati
 
 ## What's in the image
 
-- Raspberry Pi OS Lite (64-bit, latest stable release)
+- Raspberry Pi OS Lite (64-bit, Trixie)
+- **Kernel pinned to the 6.12 LTS series.** Trixie's default 6.18.x kernel regressed the
+  lan78xx driver and breaks wired ethernet on the Pi 3B+ ([raspberrypi/linux#7436](https://github.com/raspberrypi/linux/issues/7436)).
+  FiestaPi holds the last-known-good `6.12.75` until that's fixed upstream — see
+  `stage-fiestaboard/00-pin-kernel/`. Remove that stage (and the apt pin it writes) once
+  #7436 is resolved.
 - Docker + Docker Compose (apt + convenience repo)
 - FiestaBoard, pre-pulled and configured to start on boot
 - `fiestaupdater` sidecar enabled by default — Settings → Update Now works immediately
@@ -46,6 +51,16 @@ Built by `.github/workflows/build-fiestapi.yml` on three triggers:
 
 Output is uploaded as a workflow artifact (`FiestaPi-<version>-arm64`) and, for tag builds, attached to the GitHub Release as `FiestaPi-<version>-arm64.img.xz`.
 
+**Pre-publish verification gate.** Because the image is built from a moving Trixie base
+(`apt` pulls live packages on every build), an upstream regression can ride into the image
+silently — it has before (the raspi-firmware [#2034](https://github.com/raspberrypi/firmware/issues/2034)
+Pi-3 boot brick, the 6.18.x [#7436](https://github.com/raspberrypi/linux/issues/7436) Pi 3B+
+ethernet break). The workflow now loop-mounts the freshly built `.img` and **fails before any
+release attach** if it ships a known-bad kernel/firmware version or is missing the Pi-3 boot
+files (`start.elf`, `kernel8.img`, `bcm2710-rpi-3-b.dtb`). The debug artifact is still uploaded
+on failure; only the *published* release is gated. Update the denylist alongside
+`stage-fiestaboard/00-pin-kernel/` as upstream issues open and close.
+
 ## Layout
 
 ```
@@ -56,6 +71,8 @@ pi-image/
 └── stage-fiestaboard/     ← custom pi-gen stage
     ├── prerun.sh
     ├── EXPORT_IMAGE       ← marks this stage as the one to export
+    ├── 00-pin-kernel/
+    │   └── 00-run.sh      ← pins kernel to 6.12 LTS (linux#7436 workaround)
     └── 01-install-fiestaboard/
         ├── 00-packages    ← apt packages installed in the chroot
         ├── 00-run.sh      ← installs docker-ce + FiestaBoard in chroot
