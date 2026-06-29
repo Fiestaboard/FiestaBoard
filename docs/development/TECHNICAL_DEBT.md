@@ -15,7 +15,7 @@ This document tracks known technical debt in FiestaBoard, including deprecated A
 
 After the plugin architecture migration, plugin data should be retrieved via `/plugins/{plugin_id}/data`. The old `/displays/{display_type}/raw` endpoint remains for backward compatibility and will be removed in a future major release.
 
-The new endpoint also changes failure mode: it returns HTTP **503** when plugin data is unavailable instead of `200 {"available": false}`. Callers that rely on the old success-with-flag behaviour need to handle the 503.
+The new endpoint also changes failure mode. It returns HTTP **503** whenever plugin data is unavailable. The old endpoint returns 503 only when an error message is present, and otherwise returns `200 {"available": false}` (for example, when a plugin is merely unconfigured). Callers that rely on the old success-with-flag behaviour need to handle the 503 in every unavailable case.
 
 **Migration:** Replace calls to `/displays/{type}/raw` with `/plugins/{plugin_id}/data`. See [API Migration Guide](./API_MIGRATION.md).
 
