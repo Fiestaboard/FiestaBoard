@@ -97,11 +97,9 @@ GAPS
 - **Route matching**: Treat `/pages/edit/[id]` and `/pages/edit/${id}` as equivalent. Strip query strings before comparing.
 - **State matching**: For each node, build a set of keywords from `id`, `description`, `preconditions`, `interactions`. A spec "touches" the state if the test title OR the first ~30 lines of the test body match any keyword (case-insensitive).
 - **Setup-wizard noise**: Specs that don't call `configureBoard()` likely exercise the unconfigured flow — relevant for `login.*` and `dashboard.unconfigured.*` nodes only.
-- **Visual-regression specs** are not coverage. Skip `visual-regression.spec.ts` from the audit; it asserts pixels, not behavior.
 
 ## Don'ts
 
 - ❌ Don't write specs or the manifest. Output is `.claude/ux-coverage.json` + stdout.
 - ❌ Don't mark a node `covered` just because the spec navigates to the route. State has to be exercised.
-- ❌ Don't include `visual-regression.spec.ts` or `.spec.ts-snapshots/` in `audited_specs`.
 - ❌ Don't skip the JSON output even if every node is covered — downstream agents read it.
