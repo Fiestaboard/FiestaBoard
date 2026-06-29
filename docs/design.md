@@ -44,7 +44,7 @@ Use these for UI chrome, not for board tile colors.
 - **Display title (hub):** `.page-title-display` – `text-3xl sm:text-4xl font-bold tracking-tight`  
   Use for the Dashboard (home) title only.
 
-Font families: `--font-sans` (Geist Sans), `--font-mono` (Geist Mono). Set in layout and mapped in `@theme`.
+Font families: `--font-sans` (Geist, via the `"Geist Variable"` family) and `--font-mono` (Geist Mono, via `"Geist Mono Variable"`). Defined on `:root` in `globals.css` (`--font-geist-sans` / `--font-geist-mono`) and mapped in `@theme`.
 
 ## Spacing and radius
 
@@ -84,7 +84,7 @@ Values are theme-aware: lighter in light mode, slightly stronger in dark mode.
 
 ## Micro-interactions
 
-- **CTA lift:** `.btn-lift` – subtle `scale(1.02)` on hover and `scale(0.98)` on active for primary CTAs (e.g. “Run Setup Wizard”, “New” on Pages).  
+- **CTA lift:** `.btn-lift` – subtle `scale(1.015)` on hover and `scale(0.985)` on active for primary CTAs (e.g. “Run Setup Wizard”, “New” on Pages).  
   Respects `prefers-reduced-motion` (no scale when reduced motion is preferred).
 - Keep default focus-visible rings (`ring`, `ring-ring`) for accessibility.
 
