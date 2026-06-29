@@ -919,9 +919,7 @@ class TestPageService:
         service = PageService(storage=PageStorage(storage_file))
 
         # Create the single page (count==1 path)
-        page = service.storage.create(
-            Page(name="Mine", type="template", template=["hi"], created_at=datetime.now(UTC))
-        )
+        page = service.storage.create(Page(name="Mine", type="template", template=["hi"], created_at=datetime.now(UTC)))
         assert service.storage.count() == 1
 
         save_calls = []
