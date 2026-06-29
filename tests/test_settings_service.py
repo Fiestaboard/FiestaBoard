@@ -312,6 +312,28 @@ class TestSettingsServiceInit:
         with patch("builtins.open", side_effect=OSError("write error")):
             settings_service._save_to_file()  # Should not raise
 
+    def test_save_to_file_is_atomic_on_mid_write_crash(self, settings_service, settings_file, monkeypatch):
+        """Regression for #1313 (mirrors #1304): a crash inside _save_to_file()
+        must not corrupt the existing settings file. The atomic tmp + os.replace
+        pattern keeps the on-disk file intact until the rename succeeds."""
+        from src.settings import service as service_module
+
+        settings_service._save_to_file()
+        original_bytes = Path(settings_file).read_bytes()
+
+        real_dump = json.dump
+
+        def crashing_dump(obj, fh, *args, **kwargs):
+            fh.write('{"transitions": {')
+            fh.flush()
+            raise OSError("Simulated crash mid-write")
+
+        monkeypatch.setattr(service_module.json, "dump", crashing_dump)
+        settings_service._save_to_file()  # swallows OSError; must not corrupt file
+        monkeypatch.setattr(service_module.json, "dump", real_dump)
+
+        assert Path(settings_file).read_bytes() == original_bytes
+
 
 class TestSettingsServiceTransitions:
     """Test SettingsService transition settings."""

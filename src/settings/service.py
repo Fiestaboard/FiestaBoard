@@ -4,6 +4,7 @@ This service allows runtime modification of settings like transition
 animations and output targets, which can be controlled from the UI.
 """
 
+import contextlib
 import json
 import logging
 import os
@@ -500,11 +501,28 @@ class SettingsService:
             return
 
         try:
-            with open(self.settings_file, "w") as f:  # noqa: PTH123
-                json.dump(data, f, indent=2)
+            self._atomic_write_json(data)
             logger.info(f"Migrated {changed} carousel: -> collection: reference(s) in settings.json")
         except OSError as e:
             logger.warning(f"Could not write migrated settings: {e}")
+
+    def _atomic_write_json(self, data: dict) -> None:
+        """Write *data* to ``settings_file`` atomically (tmp + os.replace).
+
+        A mid-write crash (OOM, SIGKILL, power loss) never truncates the real
+        file — it stays untouched until the temp file is fully written and
+        renamed over it (see #1304). Uses builtins.open on the tmp path so
+        existing tests can patch builtins.open to inject write errors.
+        """
+        tmp_path = self.settings_file.with_suffix(self.settings_file.suffix + ".tmp")
+        try:
+            with open(tmp_path, "w") as f:  # noqa: PTH123
+                json.dump(data, f, indent=2)
+            tmp_path.replace(self.settings_file)
+        except BaseException:
+            with contextlib.suppress(OSError):
+                tmp_path.unlink(missing_ok=True)
+            raise
 
     def _load_from_file(self) -> dict:
         """Load settings from JSON file."""
@@ -535,10 +553,7 @@ class SettingsService:
                 "plugins": self._plugins.to_dict(),
                 "temporary_override": self._temporary_override.to_dict() if self._temporary_override else None,
             }
-            # Use builtins.open (not Path.open) so existing tests can
-            # patch builtins.open to inject write errors.
-            with open(self.settings_file, "w") as f:  # noqa: PTH123
-                json.dump(data, f, indent=2)
+            self._atomic_write_json(data)
             logger.debug("Settings saved to file")
         except OSError as e:
             logger.error(f"Failed to save settings file: {e}")

@@ -8,6 +8,7 @@ Supports:
 - Plugin system (config.plugins.*) for data source integrations
 """
 
+import contextlib
 import json
 import logging
 import os
@@ -706,10 +707,24 @@ class ConfigManager:
         logger.info(f"Plugin rename migration complete: {len(renamed)} plugin(s) processed")
 
     def _save_internal(self) -> None:
-        """Internal save without acquiring lock (called from locked context)."""
+        """Internal save without acquiring lock (called from locked context).
+
+        Writes to a sibling ``<file>.tmp`` and ``os.replace``s it into place so
+        a mid-write crash (OOM, SIGKILL, power loss) never leaves a truncated
+        config file (see #1304).
+        """
         try:
-            with self._config_path.open("w") as f:
-                json.dump(self._config, f, indent=2)
+            tmp_path = self._config_path.with_suffix(self._config_path.suffix + ".tmp")
+            try:
+                with tmp_path.open("w") as f:
+                    json.dump(self._config, f, indent=2)
+                tmp_path.replace(self._config_path)
+            except BaseException:
+                # Clean up the partial tmp file on any failure so we don't leak
+                # it; the original config file stays untouched.
+                with contextlib.suppress(OSError):
+                    tmp_path.unlink(missing_ok=True)
+                raise
             logger.debug(f"Saved config to {self._config_path}")
         except OSError as e:
             logger.error(f"Failed to save config: {e}")

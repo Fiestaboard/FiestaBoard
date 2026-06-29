@@ -1,0 +1,287 @@
+name: 'Claude: CI Auto-Fix'
+
+# When CI fails on an automation-authored PR (bug-hunt/*, docs/*, a11y/*,
+# claude/* branches), spin up a Sonnet Claude run that reads the failing CI
+# logs, attempts a fix, and pushes it back to the PR branch — keeping bot
+# PRs out of a permanent red state.
+#
+# Trigger: workflow_run on the CI workflow completing. We act ONLY when the
+# run concluded `failure`, was triggered by a `pull_request` (not push /
+# merge_group), lives on an automation branch, and is NOT from a fork.
+# (workflow_run carries full secrets, so the fork guard is mandatory.)
+#
+# Loop safety — three guards, in order:
+#   1. Staleness: bail if a newer commit superseded the failing SHA (a newer
+#      CI run will fire for it).
+#   2. Attempt cap: the number of attempts so far is the count of consecutive
+#      `[ci-autofix]` commits at the branch tip. Each push adds exactly one
+#      such commit, so the counter is self-contained and survives across runs
+#      with no external state. It resets automatically when a NON-autofix
+#      commit lands (a human push or a drift-repair merge), giving the PR a
+#      fresh budget. After MAX_ATTEMPTS the run stops, flips the sticky
+#      comment to "gave up", labels the PR `autofix-exhausted`, and @-mentions
+#      the maintainer.
+#   3. A "bail without push" can never loop: no new commit means CI never
+#      re-runs, so this workflow can't re-fire on the same SHA.
+#
+# Identity: pushes use a repo-installed GitHub App token so the commit is
+# attributed to a trusted bot and CI re-runs WITHOUT the "Approve workflows"
+# gate (same pattern as claude.yml). The default GITHUB_TOKEN can't be used —
+# its pushes don't trigger the pull_request CI run at all.
+#
+# NOTE: workflow_run only triggers from the workflow file on the DEFAULT
+# branch. This workflow goes live only once merged to main; validate the
+# inner logic via a deliberately-broken test PR after merge.
+
+on:
+  workflow_run:
+    workflows: ['CI: Lint, Test & Build']
+    types: [completed]
+
+# Serialize per branch; don't cancel a fix mid-push. Staleness + the
+# commit-based counter handle superseded runs.
+concurrency:
+  group: claude-ci-autofix-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  id-token: write
+
+jobs:
+  autofix:
+    # Gate: failed PR-triggered CI run, same-repo (not a fork), on an
+    # automation branch. Author isn't checkable in `if:` for workflow_run
+    # without an API call, but a fork can't push to our automation branches,
+    # so branch prefix + same-repo is a sufficient scope.
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (
+        startsWith(github.event.workflow_run.head_branch, 'bug-hunt/') ||
+        startsWith(github.event.workflow_run.head_branch, 'docs/') ||
+        startsWith(github.event.workflow_run.head_branch, 'a11y/') ||
+        startsWith(github.event.workflow_run.head_branch, 'claude/')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
+      FAILED_RUN_URL: ${{ github.event.workflow_run.html_url }}
+      FAILED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      MAINTAINER: jeffredodd
+      MAX_ATTEMPTS: '3'
+    steps:
+      # Trusted-bot identity so the fix push skips the approval gate and
+      # re-triggers CI automatically (see header).
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.CLAUDE_BOT_APP_ID }}
+          private-key: ${{ secrets.CLAUDE_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      # Resolve the PR, enforce the staleness + attempt-cap guards, and post
+      # the "on it" sticky comment BEFORE Claude spins up. Plain gh/bash —
+      # this is a normal run step, so no --allowed-tools allowlist applies.
+      - name: Bootstrap — resolve PR, enforce guards, post sticky comment
+        id: bootstrap
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          OWNER_REPO="$GITHUB_REPOSITORY"
+          MARKER="claude-ci-autofix:state"
+
+          # 1. Resolve the open PR for this branch.
+          PR_JSON=$(gh pr list --head "$BRANCH" --state open \
+            --json number,headRefOid --jq '.[0] // empty')
+          if [ -z "$PR_JSON" ]; then
+            echo "No open PR for branch $BRANCH — nothing to do."
+            echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          PR_NUMBER=$(jq -r '.number' <<<"$PR_JSON")
+          CURRENT_SHA=$(jq -r '.headRefOid' <<<"$PR_JSON")
+
+          # 2. Staleness guard — only act on the latest commit.
+          if [ "$CURRENT_SHA" != "$FAILED_HEAD_SHA" ]; then
+            echo "Failing SHA $FAILED_HEAD_SHA is stale (head is $CURRENT_SHA) — skipping."
+            echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # 3. Attempts so far = consecutive [ci-autofix] commits at the tip.
+          PREV=0
+          while IFS= read -r msg; do
+            case "$msg" in
+              *"[ci-autofix]"*) PREV=$((PREV + 1)) ;;
+              *) break ;;
+            esac
+          done < <(git log --format=%s HEAD)
+          ATTEMPT=$((PREV + 1))
+          echo "Prior autofix attempts: $PREV — this would be attempt $ATTEMPT/$MAX_ATTEMPTS."
+
+          # Find the sticky comment (for in-place updates). Body parsing is
+          # NOT used for the counter — purely to locate the comment to edit.
+          COMMENT_ID=$(gh api "repos/$OWNER_REPO/issues/$PR_NUMBER/comments" --paginate \
+            --jq "[.[] | select(.body | contains(\"$MARKER\"))] | .[-1].id // empty")
+
+          # 4. Cap check — escalate instead of attempting.
+          if [ "$ATTEMPT" -gt "$MAX_ATTEMPTS" ]; then
+            echo "Attempt $ATTEMPT exceeds cap $MAX_ATTEMPTS — escalating."
+            gh label create autofix-exhausted --color B60205 \
+              --description "CI auto-fix exhausted its attempts; needs a human" 2>/dev/null || true
+            gh pr edit "$PR_NUMBER" --add-label autofix-exhausted || true
+            read -r -d '' BODY <<EOF || true
+          <!-- $MARKER -->
+          ### ❌ CI auto-fix gave up
+
+          I tried **$MAX_ATTEMPTS times** to get CI green and it's still failing — this one needs a human.
+
+          @$MAINTAINER, over to you. Latest failing run: $FAILED_RUN_URL
+
+          > Push any new (non-autofix) commit to this branch to reset my budget and I'll try again.
+          EOF
+            if [ -n "$COMMENT_ID" ]; then
+              gh api -X PATCH "repos/$OWNER_REPO/issues/comments/$COMMENT_ID" -f body="$BODY" >/dev/null
+            else
+              gh pr comment "$PR_NUMBER" --body "$BODY" >/dev/null
+            fi
+            echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # A fresh attempt #1 means new non-autofix work landed — clear any
+          # stale exhausted label so the PR isn't visually stuck.
+          if [ "$ATTEMPT" -eq 1 ]; then
+            gh pr edit "$PR_NUMBER" --remove-label autofix-exhausted 2>/dev/null || true
+          fi
+
+          # 5. Post / update the "on it" sticky comment with an unchecked list.
+          read -r -d '' BODY <<EOF || true
+          <!-- $MARKER -->
+          ### 🔧 Auto-fixing CI — attempt $ATTEMPT of $MAX_ATTEMPTS
+
+          CI failed on this automation PR. I'm on it.
+
+          - [ ] Diagnose the failure
+          - [ ] Implement a fix
+          - [ ] Sanity-check the change
+          - [ ] Push the fix
+
+          Failing run: $FAILED_RUN_URL
+          EOF
+          if [ -n "$COMMENT_ID" ]; then
+            gh api -X PATCH "repos/$OWNER_REPO/issues/comments/$COMMENT_ID" -f body="$BODY" >/dev/null
+          else
+            URL=$(gh pr comment "$PR_NUMBER" --body "$BODY")
+            COMMENT_ID="${URL##*issuecomment-}"
+          fi
+
+          {
+            echo "go=true"
+            echo "pr_number=$PR_NUMBER"
+            echo "attempt=$ATTEMPT"
+            echo "comment_id=$COMMENT_ID"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Claude Code (Sonnet) — attempt the fix
+        if: steps.bootstrap.outputs.go == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          # App token for all git/API ops: trusted-bot push (skips the gate,
+          # re-triggers CI) and bypasses the OIDC→claude[bot] exchange.
+          github_token: ${{ steps.app-token.outputs.token }}
+
+          # The failing CI run was triggered by the bot's push, so the
+          # workflow_run actor is a bot — without this the action's anti-bot
+          # guard rejects the run.
+          allowed_bots: 'claude,github-actions'
+
+          # Surface the transcript — without it, silent permission denials
+          # look like a clean (but no-op) success.
+          show_full_output: 'true'
+
+          additional_permissions: |
+            actions: read
+
+          prompt: |
+            CI just failed on an automation-authored pull request and your job
+            is to get it green. This is **attempt ${{ steps.bootstrap.outputs.attempt }}
+            of ${{ env.MAX_ATTEMPTS }}** — give it a real, full effort.
+
+            - PR: #${{ steps.bootstrap.outputs.pr_number }}
+            - Branch (already checked out): `${{ env.BRANCH }}`
+            - Failed CI run id: `${{ env.FAILED_RUN_ID }}`
+            - Failed CI run URL: ${{ env.FAILED_RUN_URL }}
+            - Status comment to keep updated: issue-comment id
+              `${{ steps.bootstrap.outputs.comment_id }}` on this repo
+
+            ## Steps
+
+            1. **Diagnose.** Read the failing logs:
+               `gh run view ${{ env.FAILED_RUN_ID }} --log-failed`
+               (and `gh run view ${{ env.FAILED_RUN_ID }}` for the job summary).
+               Identify the real root cause, not just the surface error.
+
+            2. **Fix it.** Implement the change that makes CI pass. Attempt a
+               full fix even if the cause is non-trivial — but stay within the
+               PURPOSE of this PR; do not rewrite what the PR is for:
+               - `bug-hunt/*` PRs are TDD'd around a repro test. NEVER delete,
+                 skip, weaken, or `xfail` that test to make CI green — fix the
+                 actual code so the repro passes. The repro staying meaningful
+                 is the whole point.
+               - `docs/*` and `a11y/*` PRs: keep the fix scoped to docs /
+                 accessibility; route any new user-facing string through
+                 next-intl (`web/messages/en.json`), never a hardcoded literal.
+               Follow every rule in CLAUDE.md.
+
+            3. **Sanity-check.** This runner is a bare checkout — full Docker
+               test suites aren't available. Verify what you reasonably can
+               (syntax, imports, a targeted unit test if its deps are present,
+               linters/formatters the failure was about). Do NOT claim a suite
+               passed if you didn't run it — the re-run of CI is the real
+               validation. Be honest about what you verified.
+
+            4. **Commit & push.** Make ONE commit whose subject MUST contain
+               the literal tag `[ci-autofix]` (this is how the attempt counter
+               works — without it the loop guard breaks). Example:
+                   `fix: <what you changed> [ci-autofix]`
+               Then `git push` to the PR branch. The push re-runs CI; if it
+               still fails, I'll fire again for the next attempt.
+
+            5. **Update the status comment.** Edit the sticky comment (do NOT
+               open a new one) to tick the checklist items you completed and
+               add a short, honest summary of what you changed and what you
+               verified. Keep the first line `<!-- claude-ci-autofix:state -->`
+               intact. Update it like:
+                   gh api -X PATCH \
+                     repos/${{ github.repository }}/issues/comments/${{ steps.bootstrap.outputs.comment_id }} \
+                     -f body="<new markdown>"
+
+            6. **If you genuinely cannot fix it:** do NOT push a junk change.
+               Update the sticky comment honestly — what's broken, what you
+               tried, and what a human should check — and stop. (No push means
+               CI won't re-run, so this won't loop.)
+
+            ## Hard rules
+            - Never force-push, never `--no-verify`, never `--no-gpg-sign`.
+            - Never push to `main`. Only push to the PR branch `${{ env.BRANCH }}`.
+            - Never merge or close the PR.
+            - Exactly one commit, and its subject must contain `[ci-autofix]`.
+
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 60
+            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(date:*),Bash(jq:*),Bash(python3:*),Bash(node:*),Bash(npm:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git rev-parse:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh api:*),Bash(gh label list:*),Bash(gh label create:*)"
