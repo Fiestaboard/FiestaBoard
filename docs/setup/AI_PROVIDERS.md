@@ -114,13 +114,35 @@ configured:
 API keys are stored locally and never sent to any FiestaBoard-hosted
 service — there is no FiestaBoard AI proxy.
 
-## Limitations (v1)
+## AI Chat
+
+Beyond the one-shot **Gen AI** button, FiestaBoard has an **AI Chat**
+assistant for back-and-forth page building. Open it from the
+assistant button in the sidebar to get a chat drawer, or use the
+inline chat panel inside the page editor.
+
+Type a request like "make a weather page for the morning" and the
+reply appears token-by-token as the model generates it — AI Chat
+**streams** responses in real time instead of waiting for the whole
+answer. It can draft and edit page templates, and (from the global
+drawer) take broader actions such as installing a plugin or
+navigating the app.
+
+AI Chat uses the **same configured provider and model** as the Gen AI
+button — whatever you set up in **Settings → AI Providers**. There's
+no separate configuration.
+
+> **Note:** Like the Gen AI button, AI Chat never saves anything on
+> its own. Proposed page edits are applied to your working draft
+> locally; you still review and click **Save**. Other actions surface
+> a confirmation step before they run.
+
+## Limitations
 
 - Two protocols supported: OpenAI-compatible chat completions, and
   the Anthropic Messages API. Other native APIs (Google Gemini,
   Cohere, …) can be reached today through OpenRouter, or added by
   registering a new entry in `src/ai/protocols.py`.
-- No streaming UI: a single request/response.
 - No automatic page creation or scheduling — you always review and
   click **Save**.
 - No image/vision input.
