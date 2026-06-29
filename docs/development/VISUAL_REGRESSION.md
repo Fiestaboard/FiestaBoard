@@ -16,19 +16,22 @@ with pages), and Navigation (sidebar default).
 ## When CI runs them
 
 The `Run visual regression tests` step lives inside the `E2E Tests`
-job in `.github/workflows/ci.yml`. It runs on every PR (and pushes to
-`main`) when web-relevant paths change. The step uses `--workers=1`
-because the 15 screenshot tests don't benefit from sharding.
+job in `.github/workflows/ci.yml`. That job is gated
+`if: github.event_name == 'pull_request'`, so the step runs on pull
+requests when web-relevant paths change — never on pushes to `main`.
+The step uses `--workers=1` because the 15 screenshot tests don't
+benefit from sharding.
 
 All 15 baseline snapshots are committed under
 `web/tests/visual-regression.spec.ts-snapshots/`.
 
 > **Note:** The step currently runs with `continue-on-error: true` in
 > `.github/workflows/ci.yml`, so a snapshot failure is advisory — it
-> does not block merge. To make the step a hard CI gate, remove that
-> flag from the workflow file. The bootstrap workflow
-> (`bootstrap-visual-baselines.yml`) does this automatically when it
-> opens its baseline-refresh PR.
+> does not block merge. Making the step a hard gate is a separate
+> manual one-line PR — the bootstrap workflow
+> (`bootstrap-visual-baselines.yml`) bot token lacks the `workflow`
+> scope to edit `ci.yml`, so it cannot remove `continue-on-error: true`
+> itself. The bootstrap workflow only opens a PR adding the new PNGs.
 
 ## Updating baselines
 
