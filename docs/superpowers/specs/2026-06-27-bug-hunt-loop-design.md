@@ -193,7 +193,7 @@ Data-gathering is a deterministic script so the model only does distillation.
 Every filed issue carries a machine-parseable header and exactly one fenced
 repro block, so Phase 2's executor can parse it with no rework:
 
-```
+````
 ## Bug-hunt finding
 
 - **area:** src/schedules
@@ -216,7 +216,7 @@ def test_...():
 
 ### Suggested direction
 <2–5 sentences; not a full patch>
-```
+````
 
 Labels: `bug`, `bug-hunt`, `claude-fix`. Reserved for Phase 2:
 `repro-confirmed`, `repro-failed`.
