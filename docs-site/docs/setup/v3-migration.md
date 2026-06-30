@@ -158,19 +158,19 @@ V3 upgrades are automatic. On first boot, FiestaBoard detects any plugins you ha
 1. **Pull the latest code or image:**
 
    ```bash
-   # If using docker-compose with local build:
+   # If using docker compose with local build:
    git pull
-   docker-compose up -d --build
+   docker compose up -d --build
 
    # If using pre-built images:
-   docker-compose pull
-   docker-compose up -d
+   docker compose pull
+   docker compose up -d
    ```
 
 2. **First-boot auto-migration**: FiestaBoard scans `data/config.json` for plugin configs that don't have corresponding plugin code on disk. For each one found in the registry, it clones the plugin into `external_plugins/` and restores your stored config — including API keys, settings, and enabled/disabled state. Check the container logs to confirm:
 
    ```bash
-   docker-compose logs fiestaboard | grep "V3 migration"
+   docker compose logs fiestaboard | grep "V3 migration"
    # V3 migration: auto-installing 'weather' from registry…
    # V3 migration: restored 'weather' (enabled=True)
    # V3 migration complete: auto-installed 2 plugin(s): ['weather', 'muni']

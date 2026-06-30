@@ -53,7 +53,7 @@ Use `Edit` to flip `test.todo(...)` to `test(...)` and add the body. Keep the JS
 After every 1–3 stubs implemented, run only the changed file:
 
 ```bash
-docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "cd /app && npx playwright test web/tests/regression/<file>.spec.ts --reporter=line"
+docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "cd /app && npx playwright test web/tests/regression/<file>.spec.ts --reporter=line"
 ```
 
 If a test fails:

@@ -20,7 +20,7 @@ Use this setup to test the [Home Assistant plugin](/docs/plugins/home-assistant)
 Run both the FiestaBoard dev stack and the optional Home Assistant service:
 
 ```bash
-docker-compose -f docker-compose.dev.yml -f docker-compose.ha.yml up -d
+docker compose -f docker-compose.dev.yml -f docker-compose.ha.yml up -d
 ```
 
 - **FiestaBoard**: http://localhost:4420  
@@ -53,7 +53,7 @@ If you already completed setup and forgot the password, you can reset and create
 3. **Restart the FiestaBoard container** if you changed `.env`:
 
    ```bash
-   docker-compose -f docker-compose.dev.yml -f docker-compose.ha.yml restart fiestaboard
+   docker compose -f docker-compose.dev.yml -f docker-compose.ha.yml restart fiestaboard
    ```
 
 You can now use the Home Assistant plugin and entity picker in the UI; the dev container will talk to the local Home Assistant container.
@@ -72,13 +72,13 @@ Then restart the FiestaBoard container. After configuring the MQTT integration i
 To stop only Home Assistant and keep the dev stack running:
 
 ```bash
-docker-compose -f docker-compose.dev.yml -f docker-compose.ha.yml stop homeassistant
+docker compose -f docker-compose.dev.yml -f docker-compose.ha.yml stop homeassistant
 ```
 
 To bring it back:
 
 ```bash
-docker-compose -f docker-compose.dev.yml -f docker-compose.ha.yml start homeassistant
+docker compose -f docker-compose.dev.yml -f docker-compose.ha.yml start homeassistant
 ```
 
 ## Data persistence
@@ -86,7 +86,7 @@ docker-compose -f docker-compose.dev.yml -f docker-compose.ha.yml start homeassi
 Home Assistant data (config, entities, token usage) is stored in a Docker volume `homeassistant-config`. It persists across container restarts. To reset:
 
 ```bash
-docker-compose -f docker-compose.dev.yml -f docker-compose.ha.yml down
+docker compose -f docker-compose.dev.yml -f docker-compose.ha.yml down
 docker volume rm fiestaboard_homeassistant-config  # exact name may vary by project name
 ```
 

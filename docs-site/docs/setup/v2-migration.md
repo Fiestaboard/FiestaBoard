@@ -160,7 +160,7 @@ This is the biggest infrastructure change in V2. FiestaBoard moved from two sepa
 | **Web UI URL** | `http://localhost:8080` | `http://localhost:4420` |
 | **API URL** | `http://localhost:8000` (direct) | `http://localhost:4420` (same port, proxied via nginx) |
 | **API Docs** | `http://localhost:8000/docs` | `http://localhost:4420/api/docs` |
-| **docker-compose services** | `fiestaboard-api` + `fiestaboard-ui` | `fiestaboard` |
+| **docker compose services** | `fiestaboard-api` + `fiestaboard-ui` | `fiestaboard` |
 | **Dockerfile** | `Dockerfile.api` + `Dockerfile.ui` | `Dockerfile` (unified) |
 | **Volumes** | Separate source mounts per service | `./data:/app/data` only |
 | **NEXT_PUBLIC_API_URL env var** | Required (pointed UI at API port) | Not needed (handled by nginx) |
@@ -188,7 +188,7 @@ Browser → http://localhost:4420 → nginx
 1. **Stop V1 containers and remove old volumes:**
 
    ```bash
-   docker-compose down
+   docker compose down
    ```
 
 2. **Pull V2 code:**
@@ -202,7 +202,7 @@ Browser → http://localhost:4420 → nginx
 4. **Start V2:**
 
    ```bash
-   docker-compose up -d --build
+   docker compose up -d --build
    ```
 
 5. **Update any bookmarks or firewall rules** — the web UI is now on port **4420** (not 8080).
@@ -237,7 +237,7 @@ If you were pulling the V1 images, switch to the new image name. The old image n
 V2 introduces a `docker-compose.hub.yml` for using pre-built images from Docker Hub — no local build required:
 
 ```bash
-docker-compose -f docker-compose.hub.yml up -d
+docker compose -f docker-compose.hub.yml up -d
 ```
 
 ---
@@ -268,7 +268,7 @@ V2 reads this data on first boot and auto-migrates it:
 
 No manual data conversion is needed.
 
-### From a running V1 instance (docker-compose)
+### From a running V1 instance (docker compose)
 
 1. **Pull the latest code:**
 
@@ -281,8 +281,8 @@ No manual data conversion is needed.
 3. **Rebuild and restart** (the old two containers are replaced by one):
 
    ```bash
-   docker-compose down
-   docker-compose up -d --build
+   docker compose down
+   docker compose up -d --build
    ```
 
 4. **Update your bookmarks** — the web UI is now at `http://localhost:4420` (was port 8080).
@@ -293,7 +293,7 @@ No manual data conversion is needed.
 
 ### From Portainer, Synology, Unraid, or standalone Docker
 
-If you deploy containers through a management UI (Portainer, Synology Container Manager, Unraid Docker) or raw `docker run` commands rather than `docker-compose`, follow these steps:
+If you deploy containers through a management UI (Portainer, Synology Container Manager, Unraid Docker) or raw `docker run` commands rather than `docker compose`, follow these steps:
 
 1. **Find your data directory on the host.** In your V1 setup, the `fiestaboard-api` container has a bind mount at `/app/data`. Find the corresponding host path:
 

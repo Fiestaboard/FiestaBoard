@@ -83,7 +83,7 @@ Likely root cause:
   failure that's not downstream of another. Start there.
 
 Suggested next steps:
-  1. Reproduce locally: docker-compose -f docker-compose.dev.yml exec fiestaboard pytest tests/test_schedules_date_overrides.py::test_override_priority -x
+  1. Reproduce locally: docker compose -f docker-compose.dev.yml exec fiestaboard pytest tests/test_schedules_date_overrides.py::test_override_priority -x
   2. ruff fix is 1 line — delete the import on src/pages/service.py:14
   3. Re-run CI after the pytest + ruff fixes; the Playwright + UI timeout failures may resolve if the assertion failure was the upstream cause
 ```

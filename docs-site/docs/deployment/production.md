@@ -13,13 +13,13 @@ Best practices for deploying FiestaBoard in a production environment.
 Use the production-optimized Docker Compose file:
 
 ```bash
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Or use pre-built images from Docker Hub:
 
 ```bash
-docker-compose -f docker-compose.hub.yml up -d
+docker compose -f docker-compose.hub.yml up -d
 ```
 
 ## Recommended Configuration
@@ -45,7 +45,7 @@ FiestaBoard stores all persistent state in two directories on the host:
 Both directories are automatically bind-mounted by Docker Compose. Back up both to fully preserve your setup:
 
 ```bash
-# One-shot backup (run from the directory containing your docker-compose file)
+# One-shot backup (run from the directory containing your docker compose file)
 tar -czf fiestaboard-backup-$(date +%Y%m%d).tar.gz data/ external_plugins/
 
 # Automated daily backup via cron (runs at 2 AM)
@@ -56,13 +56,13 @@ tar -czf fiestaboard-backup-$(date +%Y%m%d).tar.gz data/ external_plugins/
 
 ```bash
 # Stop the container before restoring
-docker-compose down
+docker compose down
 
 # Extract the backup (overwrites existing data/ and external_plugins/)
 tar -xzf fiestaboard-backup-20240101.tar.gz
 
 # Start again — all pages, settings, and plugins are restored
-docker-compose up -d
+docker compose up -d
 ```
 
 :::tip What each file contains
@@ -81,8 +81,8 @@ docker-compose up -d
 git pull
 
 # Rebuild and restart
-docker-compose -f docker-compose.prod.yml down
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 :::tip Zero-Downtime Updates
@@ -105,10 +105,10 @@ You can use this with monitoring tools like Uptime Kuma or Healthchecks.io.
 
 ```bash
 # View all logs
-docker-compose logs -f
+docker compose logs -f
 
 # View FiestaBoard container logs only
-docker-compose logs -f fiestaboard
+docker compose logs -f fiestaboard
 ```
 
 ## Security Considerations

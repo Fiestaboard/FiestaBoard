@@ -130,7 +130,7 @@ curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-co
 ```
 
 ```bash
-docker-compose -f docker-compose.hub.yml up -d
+docker compose -f docker-compose.hub.yml up -d
 ```
 
 Wait for it to finish downloading and starting (this takes 1-2 minutes the first time). When you see the terminal prompt again, FiestaBoard is running. **Skip to Step 4.**
@@ -268,7 +268,7 @@ For a more detailed walkthrough of these features, see **[Your First 10 Minutes]
 Go back to your Terminal/PowerShell and type:
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### To start again later
@@ -276,7 +276,7 @@ docker-compose down
 Open Terminal/PowerShell, navigate to the FiestaBoard folder (if applicable), and type:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 Then go to **http://localhost:4420** — the service starts automatically.
@@ -285,7 +285,7 @@ Then go to **http://localhost:4420** — the service starts automatically.
 If you used Path A (Docker Hub pull), make sure you're in the folder where the `docker-compose.hub.yml` file is, and use:
 
 ```bash
-docker-compose -f docker-compose.hub.yml up -d
+docker compose -f docker-compose.hub.yml up -d
 ```
 
 :::
@@ -307,7 +307,7 @@ Make sure Docker Desktop is open. Look for the whale icon in your menu bar (Mac)
 1. Check that the service shows **Running** on the dashboard
 2. Verify your board API key is correct (go to Settings)
 3. For Local API: make sure your board and computer are on the same WiFi network
-4. Check the logs: `docker-compose logs -f`
+4. Check the logs: `docker compose logs -f`
 
 ### Still stuck?
 

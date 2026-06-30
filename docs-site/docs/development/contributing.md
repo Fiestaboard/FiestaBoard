@@ -32,7 +32,7 @@ cp env.example .env
 # Edit .env with your API keys
 
 # Start the development environment with hot reload
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 The development environment provides:

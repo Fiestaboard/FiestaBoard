@@ -13,13 +13,13 @@ Best practices for deploying FiestaBoard in a production environment.
 Use the production-optimized Docker Compose file:
 
 ```bash
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Or use pre-built images from Docker Hub:
 
 ```bash
-docker-compose -f docker-compose.hub.yml up -d
+docker compose -f docker-compose.hub.yml up -d
 ```
 
 ## Recommended Configuration
@@ -52,8 +52,8 @@ cp -r data/ data-backup-$(date +%Y%m%d)/
 git pull
 
 # Rebuild and restart
-docker-compose -f docker-compose.prod.yml down
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 :::tip Zero-Downtime Updates
@@ -76,10 +76,10 @@ You can use this with monitoring tools like Uptime Kuma or Healthchecks.io.
 
 ```bash
 # View all logs
-docker-compose logs -f
+docker compose logs -f
 
 # View FiestaBoard container logs only
-docker-compose logs -f fiestaboard
+docker compose logs -f fiestaboard
 ```
 
 ## Security Considerations

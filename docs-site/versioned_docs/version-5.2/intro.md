@@ -66,7 +66,7 @@ Never used Docker or the command line? No problem.
 
 ### I'm comfortable with Docker
 
-Know your way around `docker-compose`?
+Know your way around `docker compose`?
 
 **[Quick Start](/docs/setup/quick-start)** gets you running in under 5 minutes.
 

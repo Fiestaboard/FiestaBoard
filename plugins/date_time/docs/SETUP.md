@@ -34,7 +34,7 @@ The default timezone is `America/Los_Angeles`. To change it:
 3. Use the arrow keys to navigate, Enter to select, Escape to close.
 4. Click **Save Changes**.
 
-Or set it via environment variable. Add the line to your `.env` file in the project root (docker-compose reads this file automatically):
+Or set it via environment variable. Add the line to your `.env` file in the project root (docker compose reads this file automatically):
 
 ```bash
 TIMEZONE=America/New_York

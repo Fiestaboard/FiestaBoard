@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
-description: "Understand FiestaBoard's Docker architecture, container configuration, and docker-compose setup for production and development."
-keywords: [FiestaBoard Docker, docker-compose, container setup, architecture, nginx, FastAPI, Next.js]
+description: "Understand FiestaBoard's Docker architecture, container configuration, and docker compose setup for production and development."
+keywords: [FiestaBoard Docker, docker compose, container setup, architecture, nginx, FastAPI, Next.js]
 ---
 
 # Docker Setup
@@ -60,13 +60,13 @@ FiestaBoard runs in a single unified container:
 
 ```bash
 # Standard deployment
-docker-compose up -d --build
+docker compose up -d --build
 
 # Development with hot reload
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 
 # Using pre-built images (no build needed)
-docker-compose -f docker-compose.hub.yml up -d
+docker compose -f docker-compose.hub.yml up -d
 ```
 
 ## Access Points
@@ -155,12 +155,12 @@ If you run `docker run` without `-v` flags, Docker creates an anonymous volume f
 ### Backup and restore
 
 ```bash
-# Backup (from the directory containing your docker-compose file)
+# Backup (from the directory containing your docker compose file)
 tar -czf fiestaboard-backup-$(date +%Y%m%d).tar.gz data/ external_plugins/
 
 # Restore
 tar -xzf fiestaboard-backup-20240101.tar.gz
-docker-compose up -d
+docker compose up -d
 ```
 
 All configuration, pages, schedules, and installed plugins are captured in a single archive.
@@ -172,8 +172,8 @@ All configuration, pages, schedules, and installed plugins are captured in a sin
 git pull
 
 # Rebuild and restart
-docker-compose down
-docker-compose up -d --build
+docker compose down
+docker compose up -d --build
 ```
 
 ## Environment Variables
