@@ -46,7 +46,7 @@ mkdir -p ~/fiestaboard && cd ~/fiestaboard
 curl -O https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/docker-compose.hub.yml
 
 # Start FiestaBoard (pulls the image automatically)
-docker-compose -f docker-compose.hub.yml up -d
+docker compose -f docker-compose.hub.yml up -d
 ```
 
 Open **http://localhost:4420** in your browser. You'll see the FiestaBoard dashboard.
@@ -132,10 +132,10 @@ Works from anywhere with internet. No transition animations. See [Cloud API Setu
 
 ```bash
 # Stop FiestaBoard
-docker-compose down
+docker compose down
 
 # Start again later (no rebuild needed)
-docker-compose up -d
+docker compose up -d
 ```
 
 After restarting, open **http://localhost:4420** — the service resumes automatically.

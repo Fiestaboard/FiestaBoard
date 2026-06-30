@@ -24,7 +24,7 @@ Steps (run the read-only commands in parallel where possible):
      - <key user-visible or behavior changes>
 
      ## Test plan
-     - [ ] <commands run, e.g. `docker-compose -f docker-compose.dev.yml exec fiestaboard pytest`>
+     - [ ] <commands run, e.g. `docker compose -f docker-compose.dev.yml exec fiestaboard pytest`>
      - [ ] <manual checks, screenshots, /qa-a11y, etc.>
 
      🤖 Generated with [Claude Code](https://claude.com/claude-code)

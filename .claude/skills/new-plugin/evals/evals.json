@@ -1,0 +1,26 @@
+{
+  "skill_name": "new-plugin",
+  "evals": [
+    {
+      "id": 0,
+      "name": "carbon-intensity-http",
+      "prompt": "I want a FiestaBoard plugin that shows the current UK national electricity carbon intensity on my board. There's a free API at https://api.carbonintensity.org.uk/intensity (no key needed) that returns the latest actual gCO2/kWh figure and an index like 'low'/'moderate'/'high'. Build me the plugin. Don't create the GitHub repo or open a registry PR yet — just get it scaffolded, implemented, and passing tests locally.",
+      "expected_output": "A complete standalone fiestaboard-plugin--carbon-intensity repo: PluginBase subclass fetching from the carbon intensity API, manifest with sensible variables (e.g. intensity value + index), tests that mock requests and pass at >=70% coverage, README + SETUP, ci.yml + release.yml. board-display.png is a placeholder.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "computing-facts-local",
+      "prompt": "make me a fiestaboard plugin that displays a random fun fact about computing history along with a little text emoticon (like :-) or \\\\m/ — remember the board only has a limited character set, no unicode emoji). No external API — just bake in a list of facts and pick one. Scaffold it, implement it, and make sure the tests pass. Don't publish it yet.",
+      "expected_output": "A complete standalone fiestaboard-plugin--<slug> repo of the 'simple' type (no network). Local list of facts + emoticons, fetch_data picks one, manifest variables match the data keys and demo template, tests pass without mocking any network, README + SETUP, ci.yml + release.yml.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "nasa-apod-apikey",
+      "prompt": "build me a FiestaBoard plugin for NASA's Astronomy Picture of the Day (APOD). It should show the picture's title and a short bit of the explanation text. The API is https://api.nasa.gov/planetary/apod and it needs a NASA API key (I have one). Get it fully set up and tested but hold off on creating the repo or registering it.",
+      "expected_output": "A complete standalone fiestaboard-plugin--<slug> repo (http type). API key handled via a password-widget setting AND an env_var, read in fetch_data without hardcoding any real key. Manifest variables for title + explanation, tests mock the API and pass, README + SETUP document the key. ci.yml + release.yml present.",
+      "files": []
+    }
+  ]
+}

@@ -46,7 +46,7 @@ git checkout -b docs-update-readme  # for documentation
 - Edit code and docs on your branch.
 - For API/web changes, use the dev stack so code is mounted and reloads:
   ```bash
-  docker-compose -f docker-compose.dev.yml up
+  docker compose -f docker-compose.dev.yml up
   ```
 - Run tests before opening a PR (see [Testing](#testing)).
 
@@ -56,19 +56,19 @@ All tests run inside Docker:
 
 ```bash
 # Start the dev environment
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # Platform/API tests
-docker-compose -f docker-compose.dev.yml exec fiestaboard pytest
+docker compose -f docker-compose.dev.yml exec fiestaboard pytest
 
 # Web UI tests (runs in a one-shot container with the test profile)
-docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
+docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
 
 # Plugin validation (if you changed plugins)
-docker-compose -f docker-compose.dev.yml exec fiestaboard python scripts/validate_plugins.py --verbose
+docker compose -f docker-compose.dev.yml exec fiestaboard python scripts/validate_plugins.py --verbose
 
 # Plugin tests (if you changed a specific plugin)
-docker-compose -f docker-compose.dev.yml exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
+docker compose -f docker-compose.dev.yml exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
 ```
 
 CI runs on push/PR; make sure the same commands (or their CI equivalents) pass locally.
@@ -116,7 +116,7 @@ If the repo is set to “Squash and merge” on GitHub, the maintainer can squas
 
 ## Code and documentation standards
 
-- **Docker-first**: Do not run `python -m src.api_server` or `npm run dev` on the host. Use `docker-compose` as in [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md).
+- **Docker-first**: Do not run `python -m src.api_server` or `npm run dev` on the host. Use `docker compose` as in [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md).
 - **No secrets**: Never commit `.env`, API keys, or real credentials. Use `env.example` and placeholders in docs.
 - **Privacy**: Do not use real personal data (addresses, coordinates, phone numbers, etc.) in code, tests, or docs. Use generic examples (e.g. `example@example.com`, well-known public coordinates).
 - **Python**: The project uses pylint (see `.pylintrc`) and expects platform tests to pass. New platform code should be covered by tests.

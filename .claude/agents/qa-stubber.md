@@ -98,7 +98,7 @@ After writing stubs, update `.claude/ux-coverage.json` for each stubbed node:
 Run a quick sanity check:
 
 ```bash
-docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "cd /app && npx playwright test web/tests/regression/ --list" | head -50
+docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "cd /app && npx playwright test web/tests/regression/ --list" | head -50
 ```
 
 The output should list every new `test.todo` you generated. If a stub fails to register, fix the syntax before reporting done.

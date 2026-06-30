@@ -132,7 +132,7 @@ Unit tests run in Node with jsdom + MSW mocks for API calls.
 
 ```bash
 # Start Docker services
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # Run all E2E tests
 cd web && MOCK_BOARD_HOST=fiestaboard-mock-board npm run test:integration
@@ -148,7 +148,7 @@ cd web && npx playwright test --headed
 
 ```bash
 # Run unit tests (inside Docker)
-docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
+docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
 
 # Run with coverage
 cd web && npm run test:coverage

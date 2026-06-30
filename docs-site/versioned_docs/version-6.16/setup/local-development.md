@@ -14,7 +14,7 @@ The recommended way to develop FiestaBoard:
 
 ```bash
 # Build and run development environment
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 
 # Access Web UI and API at http://localhost:4420 (single container, same as production)
 # API base path: http://localhost:4420/api/
@@ -51,10 +51,10 @@ Tests run inside the Docker container during local development:
 
 ```bash
 # Run Python API tests
-docker-compose -f docker-compose.dev.yml exec fiestaboard pytest
+docker compose -f docker-compose.dev.yml exec fiestaboard pytest
 
 # Run web UI tests (one-off container)
-docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
+docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"
 ```
 
 In CI, tests run directly on the GitHub Actions host for speed (not in Docker).
