@@ -11,7 +11,14 @@ This page walks through wiring each client up to a self-hosted FiestaBoard.
 > clients → Generate token** (or **Rotate token**). The plaintext value is
 > shown exactly once — copy it into your client config immediately.
 
-> **Hostname tip:** Docker installs advertise as `fiestaboard.local`; the FiestaPi image advertises as `fiestapi.local`. Use whichever matches your install (or substitute the LAN IP if mDNS doesn't resolve on your network). The examples below use `fiestaboard.local`.
+> **Hostname tip:** The default `docker-compose.yml` uses bridge networking
+> (`4420:3000`), which does **not** advertise `fiestaboard.local` — use
+> `localhost:4420` or the host's LAN IP instead. The `fiestaboard.local` name
+> only resolves if you enable **Option B: Host networking**
+> (`network_mode: host`, commented out in `docker-compose.yml`) *and* your host
+> has an mDNS/Bonjour resolver. The FiestaPi image ships avahi, so it advertises
+> as `fiestapi.local` out of the box. The examples below use `fiestaboard.local`;
+> substitute whatever address matches your install.
 
 ## Token via environment variable
 
