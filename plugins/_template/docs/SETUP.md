@@ -64,6 +64,14 @@ Once configured, the plugin output displays on your board when the page is activ
 | `{{my_plugin.value}}` | The primary data value | `123` |
 | `{{my_plugin.status}}` | Current status text | `OK` |
 | `{{my_plugin.formatted}}` | Pre-formatted display string | `Value: 123` |
+| `{{my_plugin.item_count}}` | Number of items returned | `2` |
+| `{{my_plugin.items.0.name}}` | Name of the first item | `Item 1` |
+| `{{my_plugin.items.0.value}}` | Value of the first item | `100` |
+| `{{my_plugin.items.0.status}}` | Status of the first item | `Active` |
+| `{{my_plugin.items.1.name}}` | Name of the second item | `Item 2` |
+
+> The plugin returns a list of items. Access each one by zero-based index
+> (`items.0`, `items.1`, …) and read the length from `item_count`.
 
 ## Configuration Reference
 
