@@ -55,7 +55,7 @@ docker compose -f docker-compose.dev.yml --profile storybook up
 
 Once running, Storybook is available at **http://localhost:6006**.
 
-> **Note:** Storybook runs `npm install --force` on every startup because it shares the `web/` volume with the main container. The first run may take a minute; subsequent starts are faster.
+> **Note:** The Storybook service's startup command runs `rm -f package-lock.json && npm install --force` on every start, so it reinstalls dependencies each boot. It uses its own dedicated `node_modules` volume (`fiestaboard-storybook-node-modules`) and shares only the `./web` source with the main container — the reinstall comes from the command, not from a shared `node_modules`. The first run may take a minute; subsequent starts are faster.
 
 ### Stopping Services
 
