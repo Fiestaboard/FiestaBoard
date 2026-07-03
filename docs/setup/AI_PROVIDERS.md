@@ -104,8 +104,8 @@ configured:
 - The system prompt (board dimensions, character set rules, JSON
   schema).
 - **Your prompt text.**
-- **The variable list of all enabled plugins** (names + descriptions
-  - max widths). This may include data such as transit station IDs
+- **The variable list of all enabled plugins** (names + descriptions +
+  max widths). This may include data such as transit station IDs
   or location names that you have configured.
 - Up to a handful of example pages drawn from plugin manifests.
 - Optionally, the **current draft page** (only when you tick "Use
