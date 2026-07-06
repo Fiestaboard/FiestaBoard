@@ -103,6 +103,8 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 > **Tip:** Many plugins need no API key at all - Date & Time, Star Trek Quotes, Guest WiFi, Visual Clock, Sun Art, and more work right out of the box. Start with those while you gather API keys for others.
 
+> **Use `http://`, not `https://`.** FiestaBoard runs on your local network and is served over plain HTTP — it has no SSL certificate. Type the address with `http://` (for example `http://localhost:4420`). If your browser shows a "connection is not secure" or `ERR_SSL_PROTOCOL_ERROR` page, it upgraded the address to `https://`; delete the `s` and reload. See [Can't reach the web UI](#cant-reach-the-web-ui) if it keeps happening.
+
 > **Accessing from other devices:** FiestaBoard advertises itself on your local network via mDNS/Bonjour, so you can open **http://fiestaboard.local:4420** from any device on the same network. If `.local` addresses don't work on your network, use your server's IP address instead (e.g. `http://192.168.1.50:4420`).
 
 ---
@@ -276,6 +278,15 @@ Then open **http://localhost:4420** — the service starts automatically once th
 ---
 
 ## Troubleshooting
+
+### Can't reach the web UI
+
+- **Use `http://`, not `https://`.** FiestaBoard is a local-network app served over plain HTTP with no SSL certificate. A `https://localhost:4420` address fails with "connection is not secure", `ERR_SSL_PROTOCOL_ERROR`, or a blank page. Retype the address starting with `http://`.
+- **Browser keeps forcing HTTPS?** Some browsers auto-upgrade addresses or remember a past HTTPS visit. Turn off the "Always use secure connections" / "HTTPS-Only Mode" setting for this site, or add `http://localhost:4420` (and `http://fiestaboard.local:4420`) as an exception:
+  - **Chrome/Edge:** Settings → Privacy and security → Security → turn off "Always use secure connections".
+  - **Firefox:** Settings → Privacy & Security → HTTPS-Only Mode → "Don't enable" (or add an exception for the site).
+  - **Safari:** typing `http://` explicitly is enough; it does not force HTTPS on local addresses.
+- **Still blank?** Confirm the container is running (`docker compose ps`) and that you're using port `4420` (or whatever host port you mapped).
 
 ### Board Not Updating
 
