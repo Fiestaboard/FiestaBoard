@@ -28,7 +28,7 @@ The Countdown plugin shows the remaining days, hours, minutes, and seconds until
 | `{{countdown.hours}}` | Remaining hours (0–23) | `3` |
 | `{{countdown.minutes}}` | Remaining minutes (0–59) | `10` |
 | `{{countdown.seconds}}` | Remaining seconds (0–59) | `45` |
-| `{{countdown.total_seconds}}` | Total remaining seconds | `1911045` |
+| `{{countdown.total_seconds}}` | Total remaining seconds | `1912245` |
 | `{{countdown.formatted}}` | Pre-formatted string | `22D 3H 10M` |
 
 ## Example Templates
