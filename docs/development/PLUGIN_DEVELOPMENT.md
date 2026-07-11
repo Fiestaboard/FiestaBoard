@@ -493,7 +493,7 @@ The `screenshots` field in `manifest.json` makes images programmatically discove
 | `caption` | No | Human-readable description |
 | `primary` | No | Exactly one screenshot should be `true` (used as hero image in galleries and the registry) |
 
-The docs-site build process copies the primary screenshot from `plugins/<id>/docs/board-display.png` to `docs-site/static/img/plugins/<id>-board-display.png` for use in the `<BoardScreenshot>` component.
+On the docs-site, the primary screenshot is served from `docs-site/static/img/<id-hyphenated>-display.png` (underscores in the plugin ID become hyphens) for use in the `<BoardScreenshot>` component — e.g. `air_fog` → `/img/air-fog-display.png`. That path is derived by `pluginImagePath()` in `docs-site/src/plugin-data.ts`, which is the source of truth. The `<BoardScreenshot>` component then looks up per-color variants in the `img/black/` and `img/white/` subdirectories.
 
 ---
 
