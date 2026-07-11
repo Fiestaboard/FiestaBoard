@@ -36,10 +36,12 @@ If you're working in Claude Code, the project ships matching slash commands: `/s
 
 ### Hot Reload
 
-The development Docker Compose mounts source code as volumes (`./src`, `./plugins`, `./web`, `./tests`, `./scripts`, plus `./data`):
+The development Docker Compose mounts source directories as volumes — `./src`, `./plugins`, `./external_plugins`, `./web`, `./tests`, `./scripts`, plus `./data`:
 
-- **Python API**: Changes to `src/` and `plugins/` trigger uvicorn `--reload` automatically — no restart needed.
+- **Python API**: Changes to `src/`, `plugins/`, and `external_plugins/` trigger uvicorn `--reload` automatically — no restart needed.
 - **React Router / Vite Web UI**: The container serves the production build that was baked into the image, so UI changes need a container rebuild (`docker compose -f docker-compose.dev.yml up --build` or `/restart`). For interactive component work, Storybook is available as an opt-in service — see [Storybook](#storybook) below.
+
+> The dev compose also mounts config and infra files read-only — `./plugin-registry.json`, `./staff-picks`, `./start-dev.sh`, `./supervisord-dev.conf`, and `./nginx-dev.conf`. Edits to those take effect on the next container start, not via hot reload.
 
 ### Storybook
 
