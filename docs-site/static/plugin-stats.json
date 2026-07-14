@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-13T07:24:49Z",
+  "generated_at": "2026-07-14T06:14:48Z",
   "window_days": 14,
   "plugins": [
     {
@@ -11,8 +11,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:40Z",
       "updated_at": "2026-06-06T18:21:46Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 9
+      "clones_14d_count": 10,
+      "clones_14d_uniques": 10
     },
     {
       "id": "air_fog",
@@ -47,8 +47,8 @@
       "version": "2.0.3",
       "created_at": "2026-03-22T01:21:56Z",
       "updated_at": "2026-06-06T18:23:02Z",
-      "clones_14d_count": 138,
-      "clones_14d_uniques": 76
+      "clones_14d_count": 82,
+      "clones_14d_uniques": 55
     },
     {
       "id": "calendar_sub",
@@ -59,8 +59,8 @@
       "version": "1.2.0",
       "created_at": "2026-04-04T02:12:05Z",
       "updated_at": "2026-06-18T01:48:30Z",
-      "clones_14d_count": 19,
-      "clones_14d_uniques": 17
+      "clones_14d_count": 18,
+      "clones_14d_uniques": 16
     },
     {
       "id": "currency",
@@ -83,8 +83,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:02Z",
       "updated_at": "2026-05-17T06:24:37Z",
-      "clones_14d_count": 140,
-      "clones_14d_uniques": 52
+      "clones_14d_count": 87,
+      "clones_14d_uniques": 48
     },
     {
       "id": "disney_parks_times",
@@ -95,8 +95,8 @@
       "version": "1.2.1",
       "created_at": "2026-03-22T01:22:10Z",
       "updated_at": "2026-06-25T23:18:30Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 9
+      "clones_14d_count": 7,
+      "clones_14d_uniques": 7
     },
     {
       "id": "earthquake",
@@ -119,8 +119,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:55Z",
       "updated_at": "2026-05-17T06:24:47Z",
-      "clones_14d_count": 7,
-      "clones_14d_uniques": 7
+      "clones_14d_count": 6,
+      "clones_14d_uniques": 6
     },
     {
       "id": "generic_data",
@@ -155,8 +155,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:22:24Z",
       "updated_at": "2026-06-07T01:59:31Z",
-      "clones_14d_count": 138,
-      "clones_14d_uniques": 77
+      "clones_14d_count": 84,
+      "clones_14d_uniques": 57
     },
     {
       "id": "hacker_news",
@@ -167,8 +167,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:58Z",
       "updated_at": "2026-06-06T18:24:37Z",
-      "clones_14d_count": 6,
-      "clones_14d_uniques": 6
+      "clones_14d_count": 5,
+      "clones_14d_uniques": 5
     },
     {
       "id": "health",
@@ -191,8 +191,8 @@
       "version": "1.2.2",
       "created_at": "2026-03-22T01:22:37Z",
       "updated_at": "2026-05-17T06:25:06Z",
-      "clones_14d_count": 140,
-      "clones_14d_uniques": 77
+      "clones_14d_count": 85,
+      "clones_14d_uniques": 55
     },
     {
       "id": "iss_tracker",
@@ -239,8 +239,8 @@
       "version": "0.1.5",
       "created_at": "2026-05-02T07:01:09Z",
       "updated_at": "2026-05-17T06:25:22Z",
-      "clones_14d_count": 10,
-      "clones_14d_uniques": 10
+      "clones_14d_count": 9,
+      "clones_14d_uniques": 9
     },
     {
       "id": "muni",
@@ -335,8 +335,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:32Z",
       "updated_at": "2026-06-06T18:24:48Z",
-      "clones_14d_count": 6,
-      "clones_14d_uniques": 6
+      "clones_14d_count": 7,
+      "clones_14d_uniques": 7
     },
     {
       "id": "reddit_hot",
@@ -383,8 +383,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:43Z",
       "updated_at": "2026-05-17T06:26:00Z",
-      "clones_14d_count": 3,
-      "clones_14d_uniques": 3
+      "clones_14d_count": 2,
+      "clones_14d_uniques": 2
     },
     {
       "id": "spacecraft_launches",
@@ -407,8 +407,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:17Z",
       "updated_at": "2026-05-17T06:26:07Z",
-      "clones_14d_count": 10,
-      "clones_14d_uniques": 10
+      "clones_14d_count": 12,
+      "clones_14d_uniques": 11
     },
     {
       "id": "star_trek_quotes",
@@ -455,8 +455,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:41Z",
       "updated_at": "2026-05-17T06:26:19Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 9
+      "clones_14d_count": 12,
+      "clones_14d_uniques": 12
     },
     {
       "id": "surf",
@@ -467,8 +467,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:48Z",
       "updated_at": "2026-05-17T06:26:22Z",
-      "clones_14d_count": 136,
-      "clones_14d_uniques": 75
+      "clones_14d_count": 82,
+      "clones_14d_uniques": 54
     },
     {
       "id": "tide_times",
@@ -491,8 +491,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:54Z",
       "updated_at": "2026-05-17T06:26:29Z",
-      "clones_14d_count": 136,
-      "clones_14d_uniques": 74
+      "clones_14d_count": 80,
+      "clones_14d_uniques": 53
     },
     {
       "id": "uv_index",
@@ -527,8 +527,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:53Z",
       "updated_at": "2026-06-06T18:25:06Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 7
+      "clones_14d_count": 10,
+      "clones_14d_uniques": 8
     },
     {
       "id": "weather",
@@ -539,8 +539,8 @@
       "version": "1.2.0",
       "created_at": "2026-03-22T01:24:09Z",
       "updated_at": "2026-06-06T18:25:02Z",
-      "clones_14d_count": 139,
-      "clones_14d_uniques": 79
+      "clones_14d_count": 83,
+      "clones_14d_uniques": 57
     },
     {
       "id": "webhook",
@@ -551,8 +551,8 @@
       "version": "0.1.4",
       "created_at": "2026-05-02T07:01:57Z",
       "updated_at": "2026-06-06T18:24:59Z",
-      "clones_14d_count": 7,
-      "clones_14d_uniques": 7
+      "clones_14d_count": 6,
+      "clones_14d_uniques": 6
     },
     {
       "id": "white_noise",
@@ -575,8 +575,8 @@
       "version": "0.1.2",
       "created_at": "2026-05-02T07:02:01Z",
       "updated_at": "2026-06-06T18:30:14Z",
-      "clones_14d_count": 2,
-      "clones_14d_uniques": 2
+      "clones_14d_count": 3,
+      "clones_14d_uniques": 3
     },
     {
       "id": "word_of_day",
@@ -599,8 +599,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:24:21Z",
       "updated_at": "2026-06-06T18:27:54Z",
-      "clones_14d_count": 6,
-      "clones_14d_uniques": 6
+      "clones_14d_count": 7,
+      "clones_14d_uniques": 7
     }
   ]
 }
