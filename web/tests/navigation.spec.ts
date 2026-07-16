@@ -95,8 +95,10 @@ test.describe("Navigation", () => {
       await page.waitForTimeout(500);
 
       const restoredClass = await htmlEl.getAttribute("class");
-      // Should be back to (roughly) the initial state
-      expect(restoredClass).toBe(initialClass);
+      // Should be back to (roughly) the initial state. Adding then removing
+      // the "dark" class leaves an empty class attribute, so treat a missing
+      // attribute and an empty one as equivalent.
+      expect(restoredClass ?? "").toBe(initialClass ?? "");
     }
   });
 
