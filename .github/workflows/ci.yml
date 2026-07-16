@@ -513,6 +513,9 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          # E2E runs the production stage — pin it so a Dockerfile stage
+          # reorder can't silently switch what gets tested (issue #1377).
+          target: runtime
           push: false
           # `load: false` — this job doesn't run the image, it only
           # populates the GHA cache so the E2E jobs can pull warm layers.
@@ -561,6 +564,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          target: runtime
           push: false
           load: true
           tags: fiestaboard:e2e
@@ -695,6 +699,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          target: runtime
           push: false
           load: true
           tags: fiestaboard:ai-mcp-e2e
@@ -844,6 +849,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          target: runtime
           push: false
           load: true
           tags: fiestaboard:auth-e2e

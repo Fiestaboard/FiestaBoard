@@ -189,6 +189,84 @@ class TestDockerfileDefaultStage:
 
 
 # ---------------------------------------------------------------------------
+# Workflow Docker builds — every build of the main Dockerfile must pin a
+# target explicitly, so a stage reorder can never change what gets built
+# and published (issue #1377).
+# ---------------------------------------------------------------------------
+
+
+def _workflow_dockerfile_build_steps():
+    """Collect docker/build-push-action steps that build the main Dockerfile.
+
+    Returns a list of ``(workflow_file, job_id, step_name, with_block)``
+    tuples. Builds of other Dockerfiles (e.g. ./fiestaupdater/Dockerfile)
+    are excluded.
+    """
+    workflows_dir = os.path.join(REPO_ROOT, ".github", "workflows")
+    if not os.path.isdir(workflows_dir):
+        pytest.skip(f"{workflows_dir} not found (not available in this environment)")
+
+    steps = []
+    for fname in sorted(os.listdir(workflows_dir)):
+        if not fname.endswith((".yml", ".yaml")):
+            continue
+        with open(os.path.join(workflows_dir, fname)) as fh:
+            data = yaml.safe_load(fh) or {}
+        for job_id, job in (data.get("jobs") or {}).items():
+            if not isinstance(job, dict):
+                continue
+            for step in job.get("steps") or []:
+                if not str(step.get("uses", "")).startswith("docker/build-push-action"):
+                    continue
+                with_block = step.get("with") or {}
+                context = str(with_block.get("context", "."))
+                dockerfile = str(with_block.get("file", f"{context.rstrip('/')}/Dockerfile"))
+                if dockerfile.lstrip("./") != "Dockerfile":
+                    continue
+                steps.append((fname, job_id, step.get("name", "<unnamed>"), with_block))
+    return steps
+
+
+class TestWorkflowDockerBuildTargets:
+    """Workflow builds of the main Dockerfile must pin `target` explicitly.
+
+    The Dockerfile keeps production as the last (default) stage, but relying
+    on stage order alone is fragile: reordering stages silently changed the
+    published image to the dev supervisor config once already (issue #1377).
+    Pinning `target` in every workflow build makes the intent explicit and
+    survives any future Dockerfile restructure.
+    """
+
+    def test_main_dockerfile_builds_exist(self):
+        steps = _workflow_dockerfile_build_steps()
+        assert steps, "Expected at least one workflow build of the main Dockerfile"
+
+    def test_release_build_pins_production_target(self):
+        """The published image build must explicitly target `runtime`."""
+        release_steps = [s for s in _workflow_dockerfile_build_steps() if s[0] == "release.yml"]
+        assert release_steps, "release.yml should build the main Dockerfile"
+        for fname, job_id, step_name, with_block in release_steps:
+            assert with_block.get("target") == "runtime", (
+                f"{fname} job '{job_id}' step '{step_name}' must pin "
+                "`target: runtime` — the published image booted the dev "
+                "supervisor config when this was left implicit (issue #1377)"
+            )
+
+    def test_every_build_pins_a_target(self):
+        """No workflow build of the main Dockerfile may rely on stage order."""
+        untargeted = [
+            f"{fname} -> jobs.{job_id} -> '{step_name}'"
+            for fname, job_id, step_name, with_block in _workflow_dockerfile_build_steps()
+            if "target" not in with_block
+        ]
+        assert not untargeted, (
+            "These workflow builds omit `target:` and would silently build "
+            "whatever stage happens to be last in the Dockerfile "
+            f"(issue #1377): {untargeted}"
+        )
+
+
+# ---------------------------------------------------------------------------
 # docker-compose.hub.yml
 # ---------------------------------------------------------------------------
 
