@@ -77,13 +77,7 @@ export interface UpdatePluginConfigArgs {
 }
 
 export type SettingCategory =
-  | "display"
-  | "transitions"
-  | "output"
-  | "polling"
-  | "location"
-  | "silence_schedule"
-  | "active_page";
+  "display" | "transitions" | "output" | "polling" | "location" | "silence_schedule" | "active_page";
 
 export interface UpdateSettingArgs {
   category: SettingCategory;
