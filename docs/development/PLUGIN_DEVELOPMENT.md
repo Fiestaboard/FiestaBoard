@@ -912,7 +912,7 @@ Pick `trigger_id` values that are **stable per event** (e.g. `"doorbell_ring_<ev
 
 #### User override
 
-If the user manually changes the page (e.g. via the "Change Page" button on the home screen), every active trigger is dismissed *and* suppressed for the remainder of its natural duration (`src/triggers/service.py:186-203`). A plugin can keep returning the same `TriggerResult` every tick — it won't re-activate until the suppression window lapses. This is what makes manual page changes "stick" against a chatty plugin.
+If the user manually changes the page (e.g. via the "Change Page" button on the home screen), every active trigger is dismissed *and* suppressed for the remainder of its natural duration (`dismiss_active_for_user_override()` in `src/triggers/service.py`). A plugin can keep returning the same `TriggerResult` every tick — it won't re-activate until the suppression window lapses. This is what makes manual page changes "stick" against a chatty plugin.
 
 #### Rate limiting
 
