@@ -129,4 +129,11 @@ The recovery is on by default. To turn it off — for example on a managed insta
 
 **Config (timezone, plugins, or instance name) was lost after an update** — Auto-restore runs on every upgrade boot and usually catches this silently. To confirm it ran, check the logs for the line `Post-upgrade auto-restore applied from snapshot`. If that line is present but something is still missing, the snapshot may not have contained that value; use `POST /system/update/rollback` to apply the full pre-update snapshot manually.
 
-**I want to roll back** — Pin the previous tag in `docker-compose.yml` (replace `fiestaboard/fiestaboard:latest` with `fiestaboard/fiestaboard:<version>`, e.g. `6.10.9`) and run `docker compose up -d`. Available tags are listed on [Docker Hub](https://hub.docker.com/r/fiestaboard/fiestaboard/tags) and the [GitHub Releases](https://github.com/Fiestaboard/FiestaBoard/releases) page. Automated rollback from the UI is still a planned feature.
+**I want to roll back** — Pin the previous tag in `docker-compose.hub.yml` (replace `fiestaboard/fiestaboard:latest` with `fiestaboard/fiestaboard:<version>`, e.g. `6.10.9`) and run `docker compose -f docker-compose.hub.yml up -d`. Available tags are listed on [Docker Hub](https://hub.docker.com/r/fiestaboard/fiestaboard/tags) and the [GitHub Releases](https://github.com/Fiestaboard/FiestaBoard/releases) page. Automated rollback from the UI is still a planned feature.
+
+> **Note:** This applies to image-pull installs. The pulled `fiestaboard/fiestaboard:latest` image lives in `docker-compose.hub.yml` — `docker-compose.yml` builds from source and has no image tag to pin. If you build from source, check out the matching git tag instead and rebuild:
+>
+> ```bash
+> git checkout v6.10.9
+> docker compose up -d --build
+> ```

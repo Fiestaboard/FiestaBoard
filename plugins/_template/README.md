@@ -26,6 +26,23 @@ Describe in 2–3 sentences what the plugin does and why it is useful. Mention t
 |----------|-------------|---------|
 | `{{my_plugin.formatted}}` | Pre-formatted display string | `Value: 123` |
 
+### Items (array)
+
+The plugin also exposes a list of items. Access elements by zero-based
+index, and read the length from `item_count`.
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{my_plugin.item_count}}` | Number of items returned | `2` |
+| `{{my_plugin.items.0.name}}` | Name of the first item | `Item 1` |
+| `{{my_plugin.items.0.value}}` | Value of the first item | `100` |
+| `{{my_plugin.items.0.status}}` | Status of the first item | `Active` |
+| `{{my_plugin.items.1.name}}` | Name of the second item | `Item 2` |
+
+> Arrays are declared under `variables.arrays` in `manifest.json` and
+> accessed by index (`items.0`, `items.1`, …). The count is a separate
+> simple variable your `fetch_data()` returns — here `item_count`.
+
 ## Example Templates
 
 ### Simple Display
@@ -40,6 +57,14 @@ Describe in 2–3 sentences what the plugin does and why it is useful. Mention t
 ```jinja
 {center}MY PLUGIN
 {{my_plugin.formatted}}
+```
+
+### Items List
+
+```jinja
+{center}ITEMS: {{my_plugin.item_count}}
+{{my_plugin.items.0.name}}: {{my_plugin.items.0.value}}
+{{my_plugin.items.1.name}}: {{my_plugin.items.1.value}}
 ```
 
 ## Configuration
