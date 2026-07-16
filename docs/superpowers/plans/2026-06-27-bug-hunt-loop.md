@@ -151,7 +151,7 @@ permissions:
 ```
 
 - [ ] **Step 4: Claude step env + args** — `GH_TOKEN: ${{ secrets.RELEASE_PAT }}`, `BRANCH_SUFFIX: ${{ github.run_id }}`, effort outputs. `claude_args`:
-```
+```text
 --model claude-sonnet-4-6
 --max-turns 250
 --allowed-tools "Task,Read,Glob,Grep,Edit,Write,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(date:*),Bash(jq:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git rev-parse:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue edit:*),Bash(gh label list:*),Bash(gh label create:*)"
