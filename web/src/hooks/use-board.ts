@@ -168,8 +168,7 @@ export function usePrefetchPagesData() {
  */
 export function getEffectiveBoardColor(
   boardSettings:
-    | { board_type?: "black" | "white" | null; boards?: Array<{ board_color?: "black" | "white" }> }
-    | undefined,
+    { board_type?: "black" | "white" | null; boards?: Array<{ board_color?: "black" | "white" }> } | undefined,
 ): "black" | "white" {
   const firstBoard = boardSettings?.boards?.[0];
   if (firstBoard?.board_color) return firstBoard.board_color;
