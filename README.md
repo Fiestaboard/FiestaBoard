@@ -147,6 +147,7 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Disney Park Queue Times](https://github.com/Fiestaboard/fiestaboard-plugin--disney-parks-times) | Wait times for Disney rides | No |
 | [Earthquake Monitor](https://github.com/Fiestaboard/fiestaboard-plugin--earthquake) | Recent USGS earthquake data | No |
 | [Element of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--element-of-day) | Periodic table element of the day | No |
+| [Generative AI Art](https://github.com/Fiestaboard/fiestaboard-plugin--generative-ai-art) | LLM-generated abstract art using the board's 8-color palette | Yes |
 | [Generic Data](https://github.com/Fiestaboard/fiestaboard-plugin--generic-data) | Custom data from any JSON/XML URL | No |
 | [Guest WiFi](https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi) | WiFi credentials for guests | No |
 | [Hacker News](https://github.com/Fiestaboard/fiestaboard-plugin--hacker-news) | Top Hacker News story title and score | No |
