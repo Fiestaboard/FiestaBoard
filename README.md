@@ -138,7 +138,6 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Airport Board](https://github.com/Fiestaboard/fiestaboard-plugin--airport-board) | Live flights near a configurable airport | No |
 | [Allergy & Health](https://github.com/Fiestaboard/fiestaboard-plugin--health) | Allergy levels and health risk indicators | No |
 | [Aurora Forecast](https://github.com/Fiestaboard/fiestaboard-plugin--aurora-forecast) | Geomagnetic Kp index and aurora visibility | No |
-| [Bay Wheels](https://github.com/Fiestaboard/fiestaboard-plugin--baywheels) | Bike availability at stations | No |
 | [Calendar Subscription](https://github.com/Fiestaboard/fiestaboard-plugin--calendar-sub) | Upcoming events from any .ics URL | No |
 | [Countdown](./plugins/countdown/README.md) | Time remaining until an event | No |
 | [Currency Exchange](https://github.com/Fiestaboard/fiestaboard-plugin--currency) | Live exchange rates (Frankfurter/ECB) | No |
@@ -147,6 +146,7 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Disney Park Queue Times](https://github.com/Fiestaboard/fiestaboard-plugin--disney-parks-times) | Wait times for Disney rides | No |
 | [Earthquake Monitor](https://github.com/Fiestaboard/fiestaboard-plugin--earthquake) | Recent USGS earthquake data | No |
 | [Element of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--element-of-day) | Periodic table element of the day | No |
+| [Generative AI Art](https://github.com/Fiestaboard/fiestaboard-plugin--generative-ai-art) | LLM-generated abstract art using the board's 8-color palette | Yes |
 | [Generic Data](https://github.com/Fiestaboard/fiestaboard-plugin--generic-data) | Custom data from any JSON/XML URL | No |
 | [Guest WiFi](https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi) | WiFi credentials for guests | No |
 | [Hacker News](https://github.com/Fiestaboard/fiestaboard-plugin--hacker-news) | Top Hacker News story title and score | No |
@@ -154,6 +154,7 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [ISS Tracker](https://github.com/Fiestaboard/fiestaboard-plugin--iss-tracker) | Real-time ISS position and altitude | No |
 | [Last.fm Now Playing](https://github.com/Fiestaboard/fiestaboard-plugin--last-fm) | Currently playing music | Yes (free) |
 | [Lightning Alerts](https://github.com/Fiestaboard/fiestaboard-plugin--lightning) | Active NWS weather alerts by US state | No |
+| [Lyft Bike Share](https://github.com/Fiestaboard/fiestaboard-plugin--lyft-bike-share) | Lyft bike share availability — Bay Wheels, CitiBike, Divvy, and more | No |
 | [Moon Phase](https://github.com/Fiestaboard/fiestaboard-plugin--moon-phase) | Current lunar phase and illumination | No |
 | [Muni Transit](https://github.com/Fiestaboard/fiestaboard-plugin--muni) | Real-time SF Muni arrivals | Yes (free) |
 | [National Day](https://github.com/Fiestaboard/fiestaboard-plugin--national-day) | Today's national days and observances | No |

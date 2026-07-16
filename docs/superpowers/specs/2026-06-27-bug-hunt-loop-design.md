@@ -90,7 +90,7 @@ Initial area list (tune during build):
 `text_to_board`, `text_utils`), `src/plugins` loader/base + `plugins/*`,
 `src/api_server.py` routes, `src/auth` + `src/security`, `src/mqtt`,
 `src/triggers`, `src/displays`, `src/settings` + `config_manager`, `src/ai`,
-`src/backup` + `src/system` + `src/network`, `web/src/routes`, `web/src/lib`
+`src/backup` + `src/system` + `src/network`, `web/app/routes`, `web/src/lib`
 (API client + contract), `web/src/components` (state-heavy).
 
 ---

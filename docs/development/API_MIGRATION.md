@@ -4,7 +4,7 @@ This guide helps developers migrate from deprecated FiestaBoard API endpoints to
 
 ---
 
-## Display Raw Data: `/displays/{type}/raw` → `/plugins/{plugin_id}/data`
+## Display Raw Data: `/displays/{display_type}/raw` → `/plugins/{plugin_id}/data`
 
 The `/displays/{display_type}/raw` endpoint is deprecated. Use `/plugins/{plugin_id}/data` instead.
 
