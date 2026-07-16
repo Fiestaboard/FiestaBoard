@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-15T06:18:40Z",
+  "generated_at": "2026-07-16T06:22:15Z",
   "window_days": 14,
   "plugins": [
     {
@@ -23,8 +23,8 @@
       "version": "1.2.2",
       "created_at": "2026-03-22T01:21:49Z",
       "updated_at": "2026-05-17T06:24:22Z",
-      "clones_14d_count": 82,
-      "clones_14d_uniques": 56
+      "clones_14d_count": 74,
+      "clones_14d_uniques": 48
     },
     {
       "id": "aurora_forecast",
@@ -71,7 +71,7 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:47Z",
       "updated_at": "2026-05-17T06:24:34Z",
-      "clones_14d_count": 8,
+      "clones_14d_count": 9,
       "clones_14d_uniques": 8
     },
     {
@@ -83,8 +83,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:02Z",
       "updated_at": "2026-05-17T06:24:37Z",
-      "clones_14d_count": 89,
-      "clones_14d_uniques": 50
+      "clones_14d_count": 145,
+      "clones_14d_uniques": 81
     },
     {
       "id": "disney_parks_times",
@@ -107,8 +107,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:51Z",
       "updated_at": "2026-06-06T18:22:17Z",
-      "clones_14d_count": 8,
-      "clones_14d_uniques": 8
+      "clones_14d_count": 9,
+      "clones_14d_uniques": 9
     },
     {
       "id": "element_of_day",
@@ -143,8 +143,8 @@
       "version": "1.4.2",
       "created_at": "2026-05-02T18:33:00Z",
       "updated_at": "2026-05-17T06:24:50Z",
-      "clones_14d_count": 14,
-      "clones_14d_uniques": 14
+      "clones_14d_count": 15,
+      "clones_14d_uniques": 15
     },
     {
       "id": "guest_wifi",
@@ -155,8 +155,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:22:24Z",
       "updated_at": "2026-06-07T01:59:31Z",
-      "clones_14d_count": 76,
-      "clones_14d_uniques": 49
+      "clones_14d_count": 73,
+      "clones_14d_uniques": 52
     },
     {
       "id": "hacker_news",
@@ -191,8 +191,8 @@
       "version": "1.2.2",
       "created_at": "2026-03-22T01:22:37Z",
       "updated_at": "2026-05-17T06:25:06Z",
-      "clones_14d_count": 78,
-      "clones_14d_uniques": 48
+      "clones_14d_count": 77,
+      "clones_14d_uniques": 51
     },
     {
       "id": "iss_tracker",
@@ -215,8 +215,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:43Z",
       "updated_at": "2026-05-17T06:25:13Z",
-      "clones_14d_count": 8,
-      "clones_14d_uniques": 8
+      "clones_14d_count": 10,
+      "clones_14d_uniques": 9
     },
     {
       "id": "lightning",
@@ -227,8 +227,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:05Z",
       "updated_at": "2026-06-06T18:23:05Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 9
+      "clones_14d_count": 8,
+      "clones_14d_uniques": 8
     },
     {
       "id": "moon_phase",
@@ -251,8 +251,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:49Z",
       "updated_at": "2026-06-06T18:22:49Z",
-      "clones_14d_count": 85,
-      "clones_14d_uniques": 59
+      "clones_14d_count": 75,
+      "clones_14d_uniques": 55
     },
     {
       "id": "national_day",
@@ -263,8 +263,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:13Z",
       "updated_at": "2026-06-06T18:22:09Z",
-      "clones_14d_count": 5,
-      "clones_14d_uniques": 5
+      "clones_14d_count": 7,
+      "clones_14d_uniques": 6
     },
     {
       "id": "nearby_aircraft",
@@ -299,8 +299,8 @@
       "version": "0.1.4",
       "created_at": "2026-05-02T07:01:20Z",
       "updated_at": "2026-05-17T06:25:38Z",
-      "clones_14d_count": 5,
-      "clones_14d_uniques": 5
+      "clones_14d_count": 6,
+      "clones_14d_uniques": 6
     },
     {
       "id": "pet_facts",
@@ -395,8 +395,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:09Z",
       "updated_at": "2026-06-06T18:24:19Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 9
+      "clones_14d_count": 10,
+      "clones_14d_uniques": 10
     },
     {
       "id": "sports_scores",
@@ -407,8 +407,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:17Z",
       "updated_at": "2026-05-17T06:26:07Z",
-      "clones_14d_count": 14,
-      "clones_14d_uniques": 13
+      "clones_14d_count": 15,
+      "clones_14d_uniques": 14
     },
     {
       "id": "star_trek_quotes",
@@ -467,8 +467,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:48Z",
       "updated_at": "2026-05-17T06:26:22Z",
-      "clones_14d_count": 73,
-      "clones_14d_uniques": 46
+      "clones_14d_count": 71,
+      "clones_14d_uniques": 49
     },
     {
       "id": "tide_times",
@@ -479,8 +479,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:46Z",
       "updated_at": "2026-06-06T18:24:39Z",
-      "clones_14d_count": 4,
-      "clones_14d_uniques": 4
+      "clones_14d_count": 3,
+      "clones_14d_uniques": 3
     },
     {
       "id": "traffic",
@@ -491,8 +491,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:54Z",
       "updated_at": "2026-05-17T06:26:29Z",
-      "clones_14d_count": 72,
-      "clones_14d_uniques": 46
+      "clones_14d_count": 70,
+      "clones_14d_uniques": 49
     },
     {
       "id": "uv_index",
@@ -539,8 +539,8 @@
       "version": "1.2.0",
       "created_at": "2026-03-22T01:24:09Z",
       "updated_at": "2026-06-06T18:25:02Z",
-      "clones_14d_count": 83,
-      "clones_14d_uniques": 57
+      "clones_14d_count": 77,
+      "clones_14d_uniques": 52
     },
     {
       "id": "webhook",
@@ -551,8 +551,8 @@
       "version": "0.1.4",
       "created_at": "2026-05-02T07:01:57Z",
       "updated_at": "2026-06-06T18:24:59Z",
-      "clones_14d_count": 6,
-      "clones_14d_uniques": 6
+      "clones_14d_count": 9,
+      "clones_14d_uniques": 9
     },
     {
       "id": "white_noise",
