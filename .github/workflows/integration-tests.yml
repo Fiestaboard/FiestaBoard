@@ -48,6 +48,9 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          # Pin the production stage — a target-less build takes whatever
+          # stage is last in the Dockerfile (issue #1377).
+          target: runtime
           push: false
           load: true
           tags: fiestaboard:integration
