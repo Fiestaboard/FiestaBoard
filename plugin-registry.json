@@ -494,6 +494,16 @@
       "category": "utility"
     },
     {
+      "id": "airport_departures",
+      "name": "Airport Departures",
+      "description": "Display upcoming scheduled airline departures with codeshare deduplication, delays, gates, and Note-ready formatting.",
+      "repository": "https://github.com/breedloj/fiestaboard-plugin--airport-departures",
+      "author": "Jonathan Breedlove",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "plane-takeoff",
+      "category": "transit"
+    },
+    {
       "id": "wsdot",
       "name": "WSDOT",
       "description": "Washington State Ferries: schedules, vessel names, car spots, and alerts",
