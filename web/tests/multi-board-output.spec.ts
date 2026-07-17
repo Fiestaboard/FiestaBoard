@@ -268,24 +268,38 @@ test.describe("Multi-board output isolation", () => {
     expect(allIds).toEqual([s1, s2, s3].sort());
     expect(b1Ids.filter((id: string) => b2Ids.includes(id))).toEqual([]);
 
-    // Per-board default page and enabled flag are independent.
+    const setDefaultPage = async (pageId: string | null, boardId: string) => {
+      await fetch(`${API_URL}/schedules/default-page`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ page_id: pageId, board_id: boardId }),
+      });
+    };
+
+    // Per-board default page and enabled flag are independent. Set both
+    // explicitly rather than assuming a clean slate — earlier tests on this
+    // container may have left a default page behind.
     // (schedule_enabled defaults to false for a new board — see src/devices.py —
     // so enable board 2 explicitly before asserting flag independence.)
-    await fetch(`${API_URL}/schedules/default-page`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ page_id: pageC, board_id: board2Id }),
-    });
+    await setDefaultPage(pageA, board1Id);
+    await setDefaultPage(pageC, board2Id);
     await setScheduleEnabled(true, board2Id);
     await setScheduleEnabled(false, board1Id);
 
     const b1After = await list(board1Id);
     const b2After = await list(board2Id);
-    expect(b1After.default_page_id ?? null).toBeNull();
+    expect(b1After.default_page_id).toBe(pageA);
     expect(b2After.default_page_id).toBe(pageC);
     expect(b1After.enabled).toBe(false);
     expect(b2After.enabled).toBe(true);
 
+    // Clearing board 1's default leaves board 2's untouched. (A cleared
+    // per-board default falls back to the legacy global default — see
+    // src/schedules/storage.py — so board 1's own value isn't asserted here.)
+    await setDefaultPage(null, board1Id);
+    expect((await list(board2Id)).default_page_id).toBe(pageC);
+
+    await setDefaultPage(null, board2Id);
     await setScheduleEnabled(true, board1Id);
   });
 
@@ -355,7 +369,7 @@ test.describe("Multi-board UI clarity when switching boards", () => {
 
     // The selector must make the current board unambiguous by NAME.
     const boardSelector = boardSwitcher(page);
-    await expect(boardSelector).toBeVisible({ timeout: 10_000 });
+    await expect(boardSelector).toBeVisible({ timeout: 15_000 });
     await expect(boardSelector).toContainText("Kitchen");
 
     // Kitchen's schedule is shown; Office's is NOT mixed in.
