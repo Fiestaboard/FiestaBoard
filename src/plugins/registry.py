@@ -50,9 +50,7 @@ def _config_in_use(plugin_id: str, stored_configs: dict[str, dict[str, Any]]) ->
     if stored_configs.get(plugin_id, {}).get("enabled", False):
         return True
     prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
-    return any(
-        key.startswith(prefix) and cfg.get("enabled", False) for key, cfg in stored_configs.items()
-    )
+    return any(key.startswith(prefix) and cfg.get("enabled", False) for key, cfg in stored_configs.items())
 
 
 class PluginRegistry:
