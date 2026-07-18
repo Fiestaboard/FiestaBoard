@@ -218,22 +218,36 @@ test.describe("Multi-board output isolation", () => {
     expect((await getMockBoardState2()).message_count ?? 0).toBe(before2);
   });
 
-  test("schedule mode per board: board 1 off means only board 2's hardware updates", async () => {
-    const token1 = uniq("QUIET");
+  test("mixed mode: board 1 shows its manual page while board 2 shows scheduled content", async () => {
+    const tokenManual = uniq("MANUAL");
+    const tokenSched1 = uniq("IGNORED");
     const token2 = uniq("ACTIVE");
-    const page1 = await createPage("B1 Quiet Page", [token1, "", "", "", "", ""]);
+    const pageManual = await createPage("B1 Manual Page", [tokenManual, "", "", "", "", ""]);
+    const pageSched1 = await createPage("B1 Sched Page", [tokenSched1, "", "", "", "", ""]);
     const page2 = await createPage("B2 Active Page", [token2, "", "", "", "", ""]);
-    await createSchedule(page1, "00:00", "23:59", "all", board1Id);
+    await createSchedule(pageSched1, "00:00", "23:59", "all", board1Id);
     await createSchedule(page2, "00:00", "23:59", "all", board2Id);
+
+    // Board 1 → manual mode with an explicit manual page; board 2 → schedule mode.
     await setScheduleEnabled(false, board1Id);
     await setScheduleEnabled(true, board2Id);
-    const before1 = (await getMockBoardState()).message_count ?? 0;
+    const res = await fetch(`${API_URL}/settings/active-page`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ page_id: pageManual }),
+    });
+    expect(res.ok).toBe(true);
 
     await forceRefresh();
 
+    // Board 2 delivers its scheduled content…
     await expect.poll(async () => boardText(await getMockBoardState2()), { timeout: 15_000 }).toContain(token2);
-    // Board 1's schedule mode is OFF and no manual page is active — hardware untouched.
-    expect((await getMockBoardState()).message_count ?? 0).toBe(before1);
+    // …while board 1 shows the MANUAL page — its own schedule is ignored while
+    // its schedule mode is off, and neither board bleeds onto the other.
+    await expect.poll(async () => boardText(await getMockBoardState()), { timeout: 15_000 }).toContain(tokenManual);
+    expect(allHistoryText(await getMockBoardState())).not.toContain(tokenSched1);
+    expect(allHistoryText(await getMockBoardState())).not.toContain(token2);
+    expect(allHistoryText(await getMockBoardState2())).not.toContain(tokenManual);
   });
 
   // /settings/board mutations rebuild the board clients, so removing the
