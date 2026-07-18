@@ -6,11 +6,18 @@ import versions from "./versions.json";
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 // PR-mode build: only compile the latest documented version. CI uses this on
-// PRs (DOCS_PR_MODE=1) so docs builds don't recompile 40 historical version
-// snapshots that haven't changed. The release-time deploy via docs.yml builds
-// the full set of versions normally.
+// PRs (DOCS_PR_MODE=1) so docs builds don't recompile historical version
+// snapshots that haven't changed.
+//
+// Deploy builds are capped to the most recent minors: one snapshot exists per
+// minor release, so the full set grows without bound (57 as of 7.3) and
+// building all of them exhausts the Node heap — deploys OOMed from
+// 2026-06-16 to 2026-07-18. Older snapshots stay in versioned_docs/ but are
+// not built or served.
 const isPRMode = process.env.DOCS_PR_MODE === "1";
-const onlyIncludeVersions = isPRMode && versions.length > 0 ? [versions[0]] : undefined;
+const DEPLOY_VERSION_CAP = 12;
+const onlyIncludeVersions =
+  versions.length > 0 ? (isPRMode ? [versions[0]] : versions.slice(0, DEPLOY_VERSION_CAP)) : undefined;
 
 const config: Config = {
   clientModules: ["./src/clientModules/versionSession.ts"],

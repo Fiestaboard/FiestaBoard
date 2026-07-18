@@ -64,9 +64,11 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes."
           else
-            # [skip ci] so the daily stats refresh doesn't trigger
-            # docs.yml (6-min Docusaurus build) on every cron run.
-            git commit -m "chore: refresh plugin stats [skip ci]"
+            # No [skip ci]: this push must trigger docs.yml so the refreshed
+            # stats actually deploy to fiestaboard.app. (With [skip ci] the
+            # live site served a stale plugin-stats.json for weeks — the
+            # daily commit landed but the site never rebuilt.)
+            git commit -m "chore: refresh plugin stats"
             git push
           fi
 
