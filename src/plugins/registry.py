@@ -879,7 +879,7 @@ class PluginRegistry:
         return plugins
 
     def reload_plugin(self, plugin_id: str) -> PluginBase | None:
-        """Reload a plugin.
+        """Reload a plugin and rebuild all of its named instances.
 
         Args:
             plugin_id: Plugin identifier
@@ -905,6 +905,7 @@ class PluginRegistry:
             if manifest:
                 self._plugins[plugin_id] = plugin
                 self._manifests[plugin_id] = manifest
+                self.clear_discovered_cache(plugin_id)
 
                 # Restore state
                 if was_enabled:
@@ -925,9 +926,60 @@ class PluginRegistry:
                         self._configs[plugin_id] = config
                         plugin.config = config
 
+                self._rebuild_instances(plugin_id, manifest)
+
                 return plugin
 
         return None
+
+    def _rebuild_instances(self, plugin_id: str, manifest: PluginManifest) -> None:
+        """Recreate all named instances of *plugin_id* after a base reload.
+
+        Named instances (compound ``plugin_id:label`` keys) hold their own
+        plugin object and manifest reference, so a base reload alone would
+        leave them running the old code with a stale manifest (issue #1390).
+        Each instance is rebuilt from the freshly loaded class and has its
+        enabled state and config restored.
+
+        If a rebuild fails, the old instance is kept running rather than
+        being torn down.
+        """
+        prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
+        for compound_key in [k for k in self._plugins if k.startswith(prefix)]:
+            new_instance = self._loader.create_instance(plugin_id)
+            if new_instance is None:
+                logger.warning(
+                    "Failed to rebuild instance '%s' after reload — keeping the old instance",
+                    compound_key,
+                )
+                continue
+
+            old_instance = self._plugins[compound_key]
+            try:
+                old_instance.cleanup()
+            except Exception:
+                logger.exception("Error cleaning up old instance '%s'", compound_key)
+
+            self._plugins[compound_key] = new_instance
+            self._manifests[compound_key] = manifest
+            self.clear_discovered_cache(compound_key)
+
+            # Restore state (mirrors the base-plugin restore above)
+            if self._enabled.get(compound_key, False):
+                self.enable_plugin(compound_key)
+            instance_config = self._configs.get(compound_key, {})
+            if instance_config:
+                errors = self.set_plugin_config(compound_key, instance_config)
+                if errors:
+                    logger.warning(
+                        "Config validation failed after reload for '%s': %s — applying raw config to avoid data loss",
+                        compound_key,
+                        errors,
+                    )
+                    self._configs[compound_key] = instance_config
+                    new_instance.config = instance_config
+
+            logger.info("Rebuilt plugin instance after reload: %s", compound_key)
 
     def get_load_errors(self) -> dict[str, list[str]]:
         """Get plugin load errors.
