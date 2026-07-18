@@ -105,6 +105,11 @@ jobs:
       - name: Build Docusaurus site
         working-directory: docs-site
         run: npm run build
+        env:
+          # Headroom above Node's ~4GB default; the version-capped build fits
+          # comfortably, but a single version's docs growing shouldn't brick
+          # deploys again (they OOMed 2026-06-16 → 2026-07-18).
+          NODE_OPTIONS: --max-old-space-size=8192
 
       # --- Push version snapshot to main (after successful build) ---
 
