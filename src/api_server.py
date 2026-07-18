@@ -19,7 +19,7 @@ import requests
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 # Load environment variables from .env file before importing modules that may
@@ -5581,12 +5581,14 @@ async def update_board_settings(request: dict):
             if not isinstance(devices, list):
                 raise HTTPException(status_code=400, detail="devices must be a list")
             board = settings_service.set_devices(devices)
+            _reinitialize_board_clients()
             return {"status": "success", "settings": board.to_dict()}
         if "boards" in request:
             boards = request["boards"]
             if not isinstance(boards, list):
                 raise HTTPException(status_code=400, detail="boards must be a list")
             board = settings_service.set_boards(boards)
+            _reinitialize_board_clients()
             return {"status": "success", "settings": board.to_dict()}
         if "board_type" in request:
             board_type = request["board_type"]
@@ -5600,6 +5602,19 @@ async def update_board_settings(request: dict):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
+def _reinitialize_board_clients() -> None:
+    """Rebuild board clients after a boards-list mutation.
+
+    Without this, the display service keeps the clients it built at startup
+    and sends keep targeting the OLD connections — e.g. after removing the
+    first board, the promoted board's content was still delivered to the
+    removed board's hardware until restart.
+    """
+    service = get_service()
+    if service:
+        service.reinitialize_board_client()
+
+
 @app.post("/settings/board/add")
 async def add_board_instance(request: dict):
     """Add a new board instance. Body: device_type, optional name and other board fields."""
@@ -5608,6 +5623,7 @@ async def add_board_instance(request: dict):
     settings_service = get_settings_service()
     try:
         board = settings_service.add_board(request)
+        _reinitialize_board_clients()
         return {"status": "success", "settings": board.to_dict()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -5619,6 +5635,7 @@ async def remove_board_instance(board_id: str):
     settings_service = get_settings_service()
     try:
         board = settings_service.remove_board(board_id)
+        _reinitialize_board_clients()
         return {"status": "success", "settings": board.to_dict()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -6747,14 +6764,17 @@ async def clear_page_cache(request: dict = None):
 
 
 @app.post("/pages/{page_id}/send")
-async def send_page(page_id: str, target: str | None = None):
+async def send_page(page_id: str, target: str | None = None, payload: dict | None = Body(None)):
     """
     Send a page to the configured target.
 
     Args:
         page_id: The page ID
-        target: Override output target (ui, board, both)
+        target: Override output target (ui, board, both) — query param,
+            or ``{"target": ...}`` in the JSON body
     """
+    if target is None and payload:
+        target = payload.get("target")
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
 
@@ -6818,7 +6838,23 @@ async def send_page(page_id: str, target: str | None = None):
             )
             sent_to_board = was_sent
             if not success:
-                raise HTTPException(status_code=500, detail="Failed to send to board")
+                # Board offline / unreachable — degrade gracefully with a
+                # structured error instead of a bare 500 detail string so
+                # callers can distinguish "board unreachable" from a server
+                # fault. Must not be 502/503/504: nginx intercepts those on
+                # /api/ and replaces the body with its startup placeholder.
+                logger.error(f"Failed to send page {page_id} to board (offline or unreachable)")
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "status": "error",
+                        "detail": "Failed to send to board",
+                        "page_id": page_id,
+                        "sent_to_board": False,
+                        "paused": False,
+                        "target": target or settings_service.get_output_settings().target,
+                    },
+                )
             if was_sent:
                 service.request_board_refresh()
 
@@ -7512,9 +7548,12 @@ async def force_refresh():
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    # Clear cache to force send even if content unchanged
+    # Clear caches to force send even if content unchanged — every board,
+    # not just the primary (secondary boards have their own clients).
     if service.vb_client:
         service.vb_client.clear_cache()
+    for client in service.board_clients.values():
+        client.clear_cache()
 
     try:
         service.check_and_send_active_page()

@@ -303,6 +303,7 @@ def mock_service():
         svc.vb_client.clear_cache.return_value = None
         svc.vb_client.use_cloud = False
         svc.vb_client._last_characters = None
+        svc.board_clients = {}
         svc.running = True
         svc.initialize.return_value = True
         # Board-state poll cache starts empty so tests hit the live-call fallback
