@@ -544,6 +544,10 @@ def remove_external_plugin(dest_dir: Path) -> bool:
 #: (the #937 invariant).
 _LEGACY_MIGRATION_MARKER = ".legacy-migration-done"
 
+#: Suffix for the hidden temp dirs used while copying a plugin out of the
+#: legacy location.  Dot-prefixed names are ignored by plugin discovery.
+_MIGRATION_TMP_SUFFIX = ".fbmigrate-tmp"
+
 
 def get_external_plugins_dir(project_root: Path | None = None) -> Path:
     """Return the directory used for cloned external plugins.
@@ -570,6 +574,11 @@ def get_external_plugins_dir(project_root: Path | None = None) -> Path:
     marker = ext_dir / _LEGACY_MIGRATION_MARKER
     legacy_dir = project_root / EXTERNAL_PLUGINS_DIR
     if not marker.exists() and legacy_dir.is_dir():
+        # Remove temp dirs left behind by a crashed earlier attempt.  They
+        # are dot-prefixed, so the plugin loader never discovers them.
+        for stale in ext_dir.glob(f".*{_MIGRATION_TMP_SUFFIX}"):
+            shutil.rmtree(stale, ignore_errors=True)
+
         migrated = 0
         for entry in legacy_dir.iterdir():
             if not entry.is_dir() or entry.name.startswith("."):
@@ -577,16 +586,26 @@ def get_external_plugins_dir(project_root: Path | None = None) -> Path:
             target = ext_dir / entry.name
             if target.exists():
                 continue
+            # Copy to a hidden temp dir, then rename into place.  The rename
+            # is atomic (same filesystem), so the destination either has the
+            # complete plugin or nothing — a crash mid-copy can never leave a
+            # partial dir that later boots would skip as "already migrated".
+            tmp = ext_dir / f".{entry.name}{_MIGRATION_TMP_SUFFIX}"
             try:
-                shutil.copytree(entry, target, symlinks=True)
+                shutil.copytree(entry, tmp, symlinks=True)
+                tmp.rename(target)
                 migrated += 1
             except OSError:
+                # Includes a concurrent copier winning the rename (ENOTEMPTY /
+                # EEXIST): their completed copy stays; only our temp is
+                # discarded.  The marker is still written below (one-shot
+                # semantics, #937) — an enabled plugin that failed to copy is
+                # re-cloned from its registry source by the boot reconcile.
                 logger.exception(
-                    "Failed to migrate legacy external plugin '%s' — it will "
-                    "be re-cloned from its registry source if still configured",
+                    "Failed to migrate legacy external plugin '%s'",
                     entry.name,
                 )
-                shutil.rmtree(target, ignore_errors=True)
+                shutil.rmtree(tmp, ignore_errors=True)
         if migrated:
             logger.info(
                 "Migrated %d external plugin(s) from legacy %s to %s",

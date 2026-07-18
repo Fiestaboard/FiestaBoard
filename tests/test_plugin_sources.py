@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+from pathlib import Path
 from unittest import mock
 
 from src.plugins.loader import _check_version_constraint, _parse_version
@@ -786,3 +787,40 @@ class TestExternalPluginsDirUnderData:
         result = get_external_plugins_dir(project_root=tmp_path)
 
         assert not (result / "stray.txt").exists()
+
+    def test_crashed_migration_attempt_is_cleaned_and_retried(self, tmp_path):
+        """A temp dir left by a crash mid-copy must be removed and the plugin
+        migrated fresh — never half-migrated, never treated as done."""
+        legacy_plugin = tmp_path / "external_plugins" / "weather"
+        legacy_plugin.mkdir(parents=True)
+        (legacy_plugin / "manifest.json").write_text("complete")
+
+        stale_tmp = tmp_path / "data" / "external_plugins" / ".weather.fbmigrate-tmp"
+        stale_tmp.mkdir(parents=True)
+        (stale_tmp / "manifest.json").write_text("partial")
+
+        result = get_external_plugins_dir(project_root=tmp_path)
+
+        assert not stale_tmp.exists()
+        assert (result / "weather" / "manifest.json").read_text() == "complete"
+
+    def test_failed_copy_leaves_no_partial_target(self, tmp_path, monkeypatch):
+        """If the copy dies partway (disk full, I/O error), the destination
+        must not contain a partial plugin dir that later boots would skip as
+        'already migrated'."""
+        import shutil as _shutil
+
+        legacy_plugin = tmp_path / "external_plugins" / "weather"
+        legacy_plugin.mkdir(parents=True)
+        (legacy_plugin / "manifest.json").write_text("x")
+
+        def exploding_copytree(src, dst, **kwargs):
+            Path(dst).mkdir(parents=True, exist_ok=True)  # partial work
+            raise OSError("disk full")
+
+        monkeypatch.setattr(_shutil, "copytree", exploding_copytree)
+        result = get_external_plugins_dir(project_root=tmp_path)
+
+        assert not (result / "weather").exists()
+        # legacy source untouched — retried after the transient error clears
+        assert (legacy_plugin / "manifest.json").exists()
