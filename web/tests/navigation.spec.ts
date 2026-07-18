@@ -95,8 +95,12 @@ test.describe("Navigation", () => {
       await page.waitForTimeout(500);
 
       const restoredClass = await htmlEl.getAttribute("class");
-      // Should be back to (roughly) the initial state
-      expect(restoredClass).toBe(initialClass);
+      // Should be back to (roughly) the initial state. "No classes" can be
+      // either a missing class attribute (null) or an empty one ("") — the
+      // theme lib removes its class but leaves the attribute behind — so
+      // compare normalized class sets, not raw attribute values.
+      const classSet = (value: string | null) => (value ?? "").split(/\s+/).filter(Boolean).sort().join(" ");
+      expect(classSet(restoredClass)).toBe(classSet(initialClass));
     }
   });
 
