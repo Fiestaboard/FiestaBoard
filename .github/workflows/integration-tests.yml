@@ -175,9 +175,12 @@ jobs:
           MOCK_CLOUD_URLS=""
 
           for i in $(seq 0 $((WORKER_COUNT - 1))); do
+            # PORTS=7000,7001 — two Local-API listeners so multi-board output
+            # tests (multi-board-output.spec.ts) can address a second board.
             docker run -d --name mock-board-$i \
               -v ${{ github.workspace }}/integration-tests/mock-board:/app:ro \
               -w /app \
+              -e PORTS=7000,7001 \
               python:3.11-slim python server.py
 
             # Note-array Cloud API mock (stdlib-only); one per worker for isolation.

@@ -34,7 +34,13 @@ export let BOARD_HOST = DEFAULT_BOARD_HOST;
 export const MOCK_BOARD_PORT = DEFAULT_MOCK_BOARD_PORT;
 /** Second mock board host port (docker-compose.dev.yml maps 17001:7001). */
 export const MOCK_BOARD_PORT_2 = parseInt(process.env.MOCK_BOARD_PORT_2 || "17001", 10);
-export const MOCK_BOARD_URL_2 = `http://localhost:${MOCK_BOARD_PORT_2}`;
+/**
+ * Internal Local-API port the second mock board listens on *inside* the
+ * container network — what the FiestaBoard backend connects to, as opposed
+ * to MOCK_BOARD_PORT_2 which is the host-mapped port the test runner uses.
+ */
+export const BOARD_2_LOCAL_API_PORT = 7001;
+export let MOCK_BOARD_URL_2 = process.env.MOCK_BOARD_URL_2 || `http://localhost:${MOCK_BOARD_PORT_2}`;
 
 function _configureWorker(workerIndex: number) {
   if (_workerUrls.length > 0) {
@@ -42,6 +48,11 @@ function _configureWorker(workerIndex: number) {
     API_URL = `${_workerUrls[idx]}/api`;
     MOCK_BOARD_URL = _workerMockUrls[idx] || DEFAULT_MOCK_BOARD_URL;
     BOARD_HOST = _workerMockHosts[idx] || DEFAULT_BOARD_HOST;
+    // In CI each worker's mock container serves both boards (PORTS=7000,7001)
+    // at the same address, so the second board is the same URL on port 7001.
+    if (_workerMockUrls[idx]) {
+      MOCK_BOARD_URL_2 = _workerMockUrls[idx].replace(/:\d+$/, `:${BOARD_2_LOCAL_API_PORT}`);
+    }
   }
 }
 
@@ -77,19 +88,50 @@ export const test = base.extend<{ resetBackend: void }, { workerBackend: void }>
 
 export { expect };
 
-/** Read the mock board's internal state (message history, etc.). Optional port for multi-board. */
-export async function getMockBoardState(port?: number): Promise<{
+export interface MockBoardState {
   current_message?: number[][];
   device_dimensions?: number[];
   message_count?: number;
   request_count?: number;
-  history?: unknown[];
+  history?: Array<{ characters?: number[][]; strategy?: string; dimensions?: number[]; timestamp?: string }>;
   port?: number;
-}> {
+}
+
+/**
+ * Read the mock board's internal state (message history, etc.).
+ *
+ * Each mock board port is its own HTTP listener, so the base URL alone
+ * identifies the board — no `?port=` query (the mock keys state by its
+ * *internal* listening port, so passing a host-mapped port would 404).
+ */
+export async function getMockBoardState(port?: number): Promise<MockBoardState> {
   const base = port != null ? `http://localhost:${port}` : MOCK_BOARD_URL;
-  const url = port != null ? `${base}/mock/state?port=${port}` : `${base}/mock/state`;
-  const res = await fetch(url);
+  const res = await fetch(`${base}/mock/state`);
   return res.json();
+}
+
+/** Read the second mock board's state (worker-aware in CI, host port 17001 locally). */
+export async function getMockBoardState2(): Promise<MockBoardState> {
+  const res = await fetch(`${MOCK_BOARD_URL_2}/mock/state`);
+  return res.json();
+}
+
+/**
+ * Decode a mock-board character grid into plain text (one string per row).
+ * Only decodes letters, digits and spaces — enough for content assertions.
+ */
+export function gridToText(characters: number[][] | undefined): string[] {
+  if (!characters) return [];
+  return characters.map((row) =>
+    row
+      .map((code) => {
+        if (code >= 1 && code <= 26) return String.fromCharCode(64 + code); // A-Z
+        if (code >= 27 && code <= 35) return String.fromCharCode(22 + code); // 1-9
+        if (code === 36) return "0";
+        return " ";
+      })
+      .join(""),
+  );
 }
 
 /** Reset the mock board. Optional port to reset one board; omit to reset all (multi-board). */
@@ -492,6 +534,53 @@ export async function ensureTwoBoards(): Promise<{ board1Id: string; board2Id: s
   const d2 = await r2.json();
   const bs = d2.boards ?? [];
   return { board1Id: bs[0].id, board2Id: bs[1].id };
+}
+
+/**
+ * Ensure exactly two boards exist and BOTH have working Local-API connections
+ * to the mock board server: board 1 → port 7000, board 2 → port 7001.
+ *
+ * Unlike `ensureTwoBoards` (which adds a credential-less board, fine for
+ * settings/schedule CRUD tests), this is for tests that assert actual board
+ * *output* — what each physical board received — so the backend can reach
+ * both mock listeners. Always resets to a known state first.
+ */
+export async function ensureTwoBoardsWithConnections(
+  opts: { board2DeviceType?: "flagship" | "note"; board1Name?: string; board2Name?: string } = {},
+): Promise<{ board1Id: string; board2Id: string }> {
+  await ensureAuthForFetch();
+  const board1 = {
+    name: opts.board1Name ?? "Board One",
+    device_type: "flagship",
+    board_color: "black",
+    enabled: true,
+    api_mode: "local",
+    host: BOARD_HOST,
+    port: 7000,
+    local_api_key: "test-key",
+  };
+  const board2 = {
+    name: opts.board2Name ?? "Board Two",
+    device_type: opts.board2DeviceType ?? "flagship",
+    board_color: "black",
+    enabled: true,
+    api_mode: "local",
+    host: BOARD_HOST,
+    port: BOARD_2_LOCAL_API_PORT,
+    local_api_key: "test-key",
+  };
+  const res = await fetch(`${API_URL}/settings/board`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ boards: [board1, board2] }),
+  });
+  if (!res.ok) {
+    throw new Error(`ensureTwoBoardsWithConnections failed: ${res.status} ${await res.text()}`);
+  }
+  const data = await res.json();
+  const boards = data.settings?.boards ?? [];
+  if (boards.length < 2) throw new Error("ensureTwoBoardsWithConnections: expected 2 boards");
+  return { board1Id: boards[0].id, board2Id: boards[1].id };
 }
 
 /**
