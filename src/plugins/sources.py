@@ -538,15 +538,66 @@ def remove_external_plugin(dest_dir: Path) -> bool:
 # ── high-level helpers ───────────────────────────────────────────────────────
 
 
+#: Marker file written after the one-time copy from the legacy
+#: ``<root>/external_plugins`` location.  Its presence prevents re-migration,
+#: which would otherwise resurrect plugins the user has since uninstalled
+#: (the #937 invariant).
+_LEGACY_MIGRATION_MARKER = ".legacy-migration-done"
+
+
 def get_external_plugins_dir(project_root: Path | None = None) -> Path:
     """Return the directory used for cloned external plugins.
+
+    Lives at ``<root>/data/external_plugins`` so the clone cache sits inside
+    the ``data/`` volume that every deployment already persists (it holds
+    ``config.json``).  The historical ``<root>/external_plugins`` location
+    needed its own bind mount; compose files predating that mount lost all
+    plugin code on every container recreate and re-cloned everything from
+    GitHub on the next boot.
+
+    On first call, plugins found in the legacy location are copied over
+    (existing targets are never overwritten).  The copy runs exactly once —
+    guarded by a marker file — so a plugin uninstalled later is not
+    resurrected from the stale legacy directory.
 
     The directory is created if it does not exist.
     """
     if project_root is None:
         project_root = Path(__file__).parent.parent.parent
-    ext_dir = project_root / EXTERNAL_PLUGINS_DIR
+    ext_dir = project_root / "data" / EXTERNAL_PLUGINS_DIR
     ext_dir.mkdir(parents=True, exist_ok=True)
+
+    marker = ext_dir / _LEGACY_MIGRATION_MARKER
+    legacy_dir = project_root / EXTERNAL_PLUGINS_DIR
+    if not marker.exists() and legacy_dir.is_dir():
+        migrated = 0
+        for entry in legacy_dir.iterdir():
+            if not entry.is_dir() or entry.name.startswith("."):
+                continue
+            target = ext_dir / entry.name
+            if target.exists():
+                continue
+            try:
+                shutil.copytree(entry, target, symlinks=True)
+                migrated += 1
+            except OSError:
+                logger.exception(
+                    "Failed to migrate legacy external plugin '%s' — it will "
+                    "be re-cloned from its registry source if still configured",
+                    entry.name,
+                )
+                shutil.rmtree(target, ignore_errors=True)
+        if migrated:
+            logger.info(
+                "Migrated %d external plugin(s) from legacy %s to %s",
+                migrated,
+                legacy_dir,
+                ext_dir,
+            )
+    # Always write the marker (even when the legacy dir was absent or empty)
+    # so the scan runs at most once per data volume.
+    marker.touch(exist_ok=True)
+
     return ext_dir
 
 

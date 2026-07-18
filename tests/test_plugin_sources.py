@@ -712,3 +712,77 @@ class TestRegistryPluginDependencies:
 
         assert icalendar is not None
         assert recurring_ical_events is not None
+
+
+# ── External plugins dir: data-volume location + legacy migration ────────────
+
+
+class TestExternalPluginsDirUnderData:
+    """The clone cache must live inside the persistent ``data/`` volume.
+
+    ``data/`` is the mount every deployment persists (it holds config.json).
+    The old ``<root>/external_plugins`` location only survived upgrades when
+    the user's compose file had a second bind mount for it — boards without
+    that mount lost all plugin code on every container recreate and re-cloned
+    everything from GitHub on the next boot.
+    """
+
+    def test_dir_lives_under_data(self, tmp_path):
+        result = get_external_plugins_dir(project_root=tmp_path)
+        assert result == tmp_path / "data" / "external_plugins"
+        assert result.is_dir()
+
+    def test_legacy_plugins_migrate_to_data_dir(self, tmp_path):
+        legacy_plugin = tmp_path / "external_plugins" / "weather"
+        (legacy_plugin / ".git").mkdir(parents=True)
+        (legacy_plugin / "manifest.json").write_text('{"id": "weather"}')
+
+        get_external_plugins_dir(project_root=tmp_path)
+
+        migrated = tmp_path / "data" / "external_plugins" / "weather"
+        assert migrated.joinpath("manifest.json").read_text() == '{"id": "weather"}'
+        # .git must come along or the update path (fetch/reset) breaks
+        assert migrated.joinpath(".git").is_dir()
+
+    def test_migration_does_not_overwrite_existing_plugin(self, tmp_path):
+        legacy_plugin = tmp_path / "external_plugins" / "weather"
+        legacy_plugin.mkdir(parents=True)
+        (legacy_plugin / "manifest.json").write_text("stale-legacy-copy")
+        new_plugin = tmp_path / "data" / "external_plugins" / "weather"
+        new_plugin.mkdir(parents=True)
+        (new_plugin / "manifest.json").write_text("current")
+
+        get_external_plugins_dir(project_root=tmp_path)
+
+        assert (new_plugin / "manifest.json").read_text() == "current"
+
+    def test_migration_runs_only_once(self, tmp_path):
+        """A plugin uninstalled after migration must not be resurrected from
+        the legacy directory on a later call (the #937 invariant)."""
+        import shutil
+
+        legacy_plugin = tmp_path / "external_plugins" / "weather"
+        legacy_plugin.mkdir(parents=True)
+        (legacy_plugin / "manifest.json").write_text("x")
+
+        migrated = tmp_path / "data" / "external_plugins" / "weather"
+        get_external_plugins_dir(project_root=tmp_path)
+        assert migrated.is_dir()
+
+        shutil.rmtree(migrated)  # deliberate uninstall
+
+        get_external_plugins_dir(project_root=tmp_path)
+        assert not migrated.exists()
+
+    def test_no_legacy_dir_is_fine(self, tmp_path):
+        result = get_external_plugins_dir(project_root=tmp_path)
+        assert result.is_dir()
+
+    def test_migration_ignores_stray_files(self, tmp_path):
+        legacy = tmp_path / "external_plugins"
+        legacy.mkdir()
+        (legacy / "stray.txt").write_text("junk")
+
+        result = get_external_plugins_dir(project_root=tmp_path)
+
+        assert not (result / "stray.txt").exists()
