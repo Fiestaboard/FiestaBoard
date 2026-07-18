@@ -44,6 +44,15 @@ INSTANCE_SEPARATOR = ":"
 _INSTANCE_LABEL_RE = re.compile(r"^[a-zA-Z0-9_-]{1,40}$")
 
 
+def _config_in_use(plugin_id: str, stored_configs: dict[str, dict[str, Any]]) -> bool:
+    """Return True when a stored config, or any of its instance configs
+    (``weather:sf``), has ``enabled: true``."""
+    if stored_configs.get(plugin_id, {}).get("enabled", False):
+        return True
+    prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
+    return any(key.startswith(prefix) and cfg.get("enabled", False) for key, cfg in stored_configs.items())
+
+
 class PluginRegistry:
     """Central registry for all loaded plugins.
 
@@ -470,6 +479,22 @@ class PluginRegistry:
         orphaned = [pid for pid in stored_configs if pid not in loaded_ids and not self.is_instance_key(pid)]
         if orphan_subset is not None:
             orphaned = [pid for pid in orphaned if pid in orphan_subset]
+
+        # Only reinstall plugins that are actually in use: enabled themselves
+        # or with at least one enabled instance. The v2 migration seeded
+        # configs for every ex-builtin plugin, so unconditionally re-cloning
+        # orphans made the whole fleet re-download plugins nobody uses on
+        # every upgrade that lost external_plugins/. A disabled orphan keeps
+        # its config and is installed on demand if the user re-enables it
+        # (see enable_plugin).
+        skipped = [pid for pid in orphaned if not _config_in_use(pid, stored_configs)]
+        if skipped:
+            logger.info(
+                "V3 migration: leaving %d disabled orphaned config(s) uninstalled: %s",
+                len(skipped),
+                skipped,
+            )
+            orphaned = [pid for pid in orphaned if pid not in skipped]
         if not orphaned:
             return []
 
@@ -569,8 +594,20 @@ class PluginRegistry:
         """
         return self._enabled.get(plugin_id, False)
 
+    def _plugin_in_use(self, plugin_id: str) -> bool:
+        """Return True when the plugin or any of its instances is enabled."""
+        if self._enabled.get(plugin_id, False):
+            return True
+        prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
+        return any(key.startswith(prefix) and enabled for key, enabled in self._enabled.items())
+
     def enable_plugin(self, plugin_id: str) -> bool:
         """Enable a plugin.
+
+        If the plugin's code is not installed but the id exists in the plugin
+        registry, it is installed on demand first.  This pairs with the
+        migration no longer pre-cloning disabled plugins: their config is
+        kept, and the code arrives when the user actually turns them on.
 
         Args:
             plugin_id: Plugin identifier
@@ -578,6 +615,20 @@ class PluginRegistry:
         Returns:
             True if enabled successfully, False if plugin not found
         """
+        if plugin_id not in self._plugins and not self.is_instance_key(plugin_id):
+            try:
+                known_ids = {e.plugin_id for e in load_registry()}
+            except Exception:
+                known_ids = set()
+            if plugin_id in known_ids:
+                logger.info(
+                    "Enable requested for '%s' but its code is not installed — installing from registry",
+                    plugin_id,
+                )
+                errors = self.install_from_registry(plugin_id)
+                if errors:
+                    logger.warning("On-demand install of '%s' failed: %s", plugin_id, errors)
+
         if plugin_id not in self._plugins:
             logger.warning(f"Cannot enable unknown plugin: {plugin_id}")
             return False
@@ -1003,6 +1054,11 @@ class PluginRegistry:
         results: dict[str, bool] = {}
         for plugin_id, source in self._loader.plugin_sources.items():
             if source.source_type != "external" or not source.local_path:
+                continue
+            # Disabled plugins (with no enabled instance) aren't running any
+            # code — don't generate git traffic keeping them fresh. They are
+            # brought up to date when re-enabled instead.
+            if not self._plugin_in_use(plugin_id):
                 continue
             local_path = Path(source.local_path)
             update_available = check_plugin_update_available(local_path)

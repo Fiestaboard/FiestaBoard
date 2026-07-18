@@ -14,8 +14,8 @@ from typing import Any
 from .base import PluginBase
 from .manifest import PluginManifest, load_manifest
 from .sources import (
-    EXTERNAL_PLUGINS_DIR,
     PluginSource,
+    get_external_plugins_dir,
 )
 
 logger = logging.getLogger(__name__)
@@ -114,9 +114,9 @@ class PluginLoader:
         self.plugins_dir = Path(plugins_dir)
 
         if external_dirs is None:
-            project_root = Path(__file__).parent.parent.parent
-            ext_dir = project_root / EXTERNAL_PLUGINS_DIR
-            self._external_dirs: list[Path] = [ext_dir] if ext_dir.is_dir() else []
+            # Resolved via sources so the data-volume location (and the
+            # one-time legacy migration) stays a single source of truth.
+            self._external_dirs: list[Path] = [get_external_plugins_dir()]
         else:
             self._external_dirs = list(external_dirs)
 

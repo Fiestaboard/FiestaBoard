@@ -538,15 +538,85 @@ def remove_external_plugin(dest_dir: Path) -> bool:
 # ── high-level helpers ───────────────────────────────────────────────────────
 
 
+#: Marker file written after the one-time copy from the legacy
+#: ``<root>/external_plugins`` location.  Its presence prevents re-migration,
+#: which would otherwise resurrect plugins the user has since uninstalled
+#: (the #937 invariant).
+_LEGACY_MIGRATION_MARKER = ".legacy-migration-done"
+
+#: Suffix for the hidden temp dirs used while copying a plugin out of the
+#: legacy location.  Dot-prefixed names are ignored by plugin discovery.
+_MIGRATION_TMP_SUFFIX = ".fbmigrate-tmp"
+
+
 def get_external_plugins_dir(project_root: Path | None = None) -> Path:
     """Return the directory used for cloned external plugins.
+
+    Lives at ``<root>/data/external_plugins`` so the clone cache sits inside
+    the ``data/`` volume that every deployment already persists (it holds
+    ``config.json``).  The historical ``<root>/external_plugins`` location
+    needed its own bind mount; compose files predating that mount lost all
+    plugin code on every container recreate and re-cloned everything from
+    GitHub on the next boot.
+
+    On first call, plugins found in the legacy location are copied over
+    (existing targets are never overwritten).  The copy runs exactly once —
+    guarded by a marker file — so a plugin uninstalled later is not
+    resurrected from the stale legacy directory.
 
     The directory is created if it does not exist.
     """
     if project_root is None:
         project_root = Path(__file__).parent.parent.parent
-    ext_dir = project_root / EXTERNAL_PLUGINS_DIR
+    ext_dir = project_root / "data" / EXTERNAL_PLUGINS_DIR
     ext_dir.mkdir(parents=True, exist_ok=True)
+
+    marker = ext_dir / _LEGACY_MIGRATION_MARKER
+    legacy_dir = project_root / EXTERNAL_PLUGINS_DIR
+    if not marker.exists() and legacy_dir.is_dir():
+        # Remove temp dirs left behind by a crashed earlier attempt.  They
+        # are dot-prefixed, so the plugin loader never discovers them.
+        for stale in ext_dir.glob(f".*{_MIGRATION_TMP_SUFFIX}"):
+            shutil.rmtree(stale, ignore_errors=True)
+
+        migrated = 0
+        for entry in legacy_dir.iterdir():
+            if not entry.is_dir() or entry.name.startswith("."):
+                continue
+            target = ext_dir / entry.name
+            if target.exists():
+                continue
+            # Copy to a hidden temp dir, then rename into place.  The rename
+            # is atomic (same filesystem), so the destination either has the
+            # complete plugin or nothing — a crash mid-copy can never leave a
+            # partial dir that later boots would skip as "already migrated".
+            tmp = ext_dir / f".{entry.name}{_MIGRATION_TMP_SUFFIX}"
+            try:
+                shutil.copytree(entry, tmp, symlinks=True)
+                tmp.rename(target)
+                migrated += 1
+            except OSError:
+                # Includes a concurrent copier winning the rename (ENOTEMPTY /
+                # EEXIST): their completed copy stays; only our temp is
+                # discarded.  The marker is still written below (one-shot
+                # semantics, #937) — an enabled plugin that failed to copy is
+                # re-cloned from its registry source by the boot reconcile.
+                logger.exception(
+                    "Failed to migrate legacy external plugin '%s'",
+                    entry.name,
+                )
+                shutil.rmtree(tmp, ignore_errors=True)
+        if migrated:
+            logger.info(
+                "Migrated %d external plugin(s) from legacy %s to %s",
+                migrated,
+                legacy_dir,
+                ext_dir,
+            )
+    # Always write the marker (even when the legacy dir was absent or empty)
+    # so the scan runs at most once per data volume.
+    marker.touch(exist_ok=True)
+
     return ext_dir
 
 
