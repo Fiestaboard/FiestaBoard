@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-17T06:20:39Z",
+  "generated_at": "2026-07-18T05:54:48Z",
   "window_days": 14,
   "plugins": [
     {
@@ -11,8 +11,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:40Z",
       "updated_at": "2026-06-06T18:21:46Z",
-      "clones_14d_count": 10,
-      "clones_14d_uniques": 10
+      "clones_14d_count": 8,
+      "clones_14d_uniques": 8
     },
     {
       "id": "air_fog",
@@ -23,8 +23,8 @@
       "version": "1.2.2",
       "created_at": "2026-03-22T01:21:49Z",
       "updated_at": "2026-05-17T06:24:22Z",
-      "clones_14d_count": 72,
-      "clones_14d_uniques": 51
+      "clones_14d_count": 148,
+      "clones_14d_uniques": 119
     },
     {
       "id": "aurora_forecast",
@@ -71,7 +71,7 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:47Z",
       "updated_at": "2026-05-17T06:24:34Z",
-      "clones_14d_count": 9,
+      "clones_14d_count": 10,
       "clones_14d_uniques": 8
     },
     {
@@ -95,8 +95,8 @@
       "version": "1.2.1",
       "created_at": "2026-03-22T01:22:10Z",
       "updated_at": "2026-06-25T23:18:30Z",
-      "clones_14d_count": 7,
-      "clones_14d_uniques": 7
+      "clones_14d_count": 6,
+      "clones_14d_uniques": 6
     },
     {
       "id": "earthquake",
@@ -107,8 +107,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:51Z",
       "updated_at": "2026-06-06T18:22:17Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 9
+      "clones_14d_count": 8,
+      "clones_14d_uniques": 8
     },
     {
       "id": "element_of_day",
@@ -155,8 +155,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:22:24Z",
       "updated_at": "2026-06-07T01:59:31Z",
-      "clones_14d_count": 151,
-      "clones_14d_uniques": 125
+      "clones_14d_count": 198,
+      "clones_14d_uniques": 165
     },
     {
       "id": "hacker_news",
@@ -215,8 +215,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:43Z",
       "updated_at": "2026-05-17T06:25:13Z",
-      "clones_14d_count": 11,
-      "clones_14d_uniques": 9
+      "clones_14d_count": 12,
+      "clones_14d_uniques": 10
     },
     {
       "id": "lightning",
@@ -227,8 +227,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:05Z",
       "updated_at": "2026-06-06T18:23:05Z",
-      "clones_14d_count": 8,
-      "clones_14d_uniques": 8
+      "clones_14d_count": 9,
+      "clones_14d_uniques": 9
     },
     {
       "id": "moon_phase",
@@ -251,8 +251,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:49Z",
       "updated_at": "2026-06-06T18:22:49Z",
-      "clones_14d_count": 75,
-      "clones_14d_uniques": 55
+      "clones_14d_count": 154,
+      "clones_14d_uniques": 125
     },
     {
       "id": "national_day",
@@ -275,7 +275,7 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:57Z",
       "updated_at": "2026-05-17T06:25:32Z",
-      "clones_14d_count": 15,
+      "clones_14d_count": 16,
       "clones_14d_uniques": 15
     },
     {
@@ -287,8 +287,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:17Z",
       "updated_at": "2026-05-17T06:25:34Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 9
+      "clones_14d_count": 11,
+      "clones_14d_uniques": 10
     },
     {
       "id": "on_this_day",
@@ -311,7 +311,7 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:24Z",
       "updated_at": "2026-06-06T18:22:38Z",
-      "clones_14d_count": 7,
+      "clones_14d_count": 8,
       "clones_14d_uniques": 7
     },
     {
@@ -335,8 +335,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:32Z",
       "updated_at": "2026-06-06T18:24:48Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 7
+      "clones_14d_count": 10,
+      "clones_14d_uniques": 8
     },
     {
       "id": "reddit_hot",
@@ -356,9 +356,9 @@
       "name": "River Flow",
       "category": "data",
       "description": "Display real-time streamflow data from a USGS monitoring station.",
-      "version": "0.1.3",
+      "version": "1.0.0",
       "created_at": "2026-05-02T07:01:39Z",
-      "updated_at": "2026-06-06T18:23:23Z",
+      "updated_at": "2026-07-18T03:40:11Z",
       "clones_14d_count": 4,
       "clones_14d_uniques": 4
     },
@@ -395,8 +395,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:09Z",
       "updated_at": "2026-06-06T18:24:19Z",
-      "clones_14d_count": 11,
-      "clones_14d_uniques": 11
+      "clones_14d_count": 10,
+      "clones_14d_uniques": 10
     },
     {
       "id": "sports_scores",
@@ -407,8 +407,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:17Z",
       "updated_at": "2026-05-17T06:26:07Z",
-      "clones_14d_count": 15,
-      "clones_14d_uniques": 14
+      "clones_14d_count": 18,
+      "clones_14d_uniques": 15
     },
     {
       "id": "star_trek_quotes",
@@ -419,8 +419,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:23:22Z",
       "updated_at": "2026-06-07T01:58:18Z",
-      "clones_14d_count": 121,
-      "clones_14d_uniques": 77
+      "clones_14d_count": 365,
+      "clones_14d_uniques": 209
     },
     {
       "id": "stardate",
@@ -431,8 +431,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:23:29Z",
       "updated_at": "2026-06-07T02:06:52Z",
-      "clones_14d_count": 6,
-      "clones_14d_uniques": 6
+      "clones_14d_count": 5,
+      "clones_14d_uniques": 5
     },
     {
       "id": "stocks",
@@ -443,8 +443,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:34Z",
       "updated_at": "2026-05-17T06:26:16Z",
-      "clones_14d_count": 76,
-      "clones_14d_uniques": 52
+      "clones_14d_count": 154,
+      "clones_14d_uniques": 122
     },
     {
       "id": "sun_art",
@@ -491,8 +491,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:54Z",
       "updated_at": "2026-05-17T06:26:29Z",
-      "clones_14d_count": 146,
-      "clones_14d_uniques": 116
+      "clones_14d_count": 195,
+      "clones_14d_uniques": 157
     },
     {
       "id": "uv_index",
@@ -515,8 +515,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:24:01Z",
       "updated_at": "2026-06-07T01:58:22Z",
-      "clones_14d_count": 15,
-      "clones_14d_uniques": 15
+      "clones_14d_count": 17,
+      "clones_14d_uniques": 17
     },
     {
       "id": "volcano",
@@ -536,9 +536,9 @@
       "name": "Weather",
       "category": "weather",
       "description": "Display current weather conditions with temperature, humidity, and wind speed",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "created_at": "2026-03-22T01:24:09Z",
-      "updated_at": "2026-07-17T04:29:41Z",
+      "updated_at": "2026-07-18T01:55:24Z",
       "clones_14d_count": 154,
       "clones_14d_uniques": 122
     },
@@ -575,8 +575,8 @@
       "version": "0.1.2",
       "created_at": "2026-05-02T07:02:01Z",
       "updated_at": "2026-06-06T18:30:14Z",
-      "clones_14d_count": 4,
-      "clones_14d_uniques": 4
+      "clones_14d_count": 6,
+      "clones_14d_uniques": 6
     },
     {
       "id": "word_of_day",
@@ -591,6 +591,18 @@
       "clones_14d_uniques": 9
     },
     {
+      "id": "airport_departures",
+      "repo": "fiestaboard-plugin--airport-departures",
+      "name": "Airport Departures",
+      "category": "transit",
+      "description": "Display upcoming scheduled airline departures with codeshare deduplication, delays, gates, and Note-ready formatting.",
+      "version": null,
+      "created_at": null,
+      "updated_at": null,
+      "clones_14d_count": 0,
+      "clones_14d_uniques": 0
+    },
+    {
       "id": "wsdot",
       "repo": "fiestaboard-plugin--wsdot",
       "name": "WSDOT",
@@ -598,7 +610,7 @@
       "description": "Washington State Ferries: schedules, vessel names, car spots, and alerts",
       "version": "1.1.2",
       "created_at": "2026-03-22T01:24:21Z",
-      "updated_at": "2026-06-06T18:27:54Z",
+      "updated_at": "2026-07-18T04:54:11Z",
       "clones_14d_count": 7,
       "clones_14d_uniques": 7
     }
