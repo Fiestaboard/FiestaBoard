@@ -698,6 +698,7 @@
     "liveOutput": "Output in tempo reale",
     "liveOutputAriaLabel": "Attiva/disattiva output in tempo reale sulla bacheca",
     "selectBoardAriaLabel": "Seleziona bacheca per output in tempo reale",
+    "deviceTypeSwitcherAriaLabel": "Cambia la dimensione della board",
     "selectBoardPlaceholder": "Seleziona bacheca",
     "toastPageCreated": "Pagina creata",
     "toastPageUpdated": "Pagina aggiornata",

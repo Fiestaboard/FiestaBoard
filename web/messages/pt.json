@@ -698,6 +698,7 @@
     "liveOutput": "Saída ao Vivo",
     "liveOutputAriaLabel": "Alternar saída ao vivo para o painel",
     "selectBoardAriaLabel": "Selecionar painel para saída ao vivo",
+    "deviceTypeSwitcherAriaLabel": "Alterar o tamanho do quadro",
     "selectBoardPlaceholder": "Selecionar painel",
     "toastPageCreated": "Página criada",
     "toastPageUpdated": "Página atualizada",

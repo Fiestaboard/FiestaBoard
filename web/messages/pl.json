@@ -698,6 +698,7 @@
     "liveOutput": "Podgląd na żywo",
     "liveOutputAriaLabel": "Przełącz podgląd na żywo na tablicy",
     "selectBoardAriaLabel": "Wybierz tablicę do podglądu na żywo",
+    "deviceTypeSwitcherAriaLabel": "Zmień rozmiar tablicy",
     "selectBoardPlaceholder": "Wybierz tablicę",
     "toastPageCreated": "Strona utworzona",
     "toastPageUpdated": "Strona zaktualizowana",

@@ -698,6 +698,7 @@
     "liveOutput": "Sortie en direct",
     "liveOutputAriaLabel": "Activer/désactiver la sortie en direct vers le tableau",
     "selectBoardAriaLabel": "Sélectionner le tableau pour la sortie en direct",
+    "deviceTypeSwitcherAriaLabel": "Changer la taille du tableau",
     "selectBoardPlaceholder": "Sélectionner un tableau",
     "toastPageCreated": "Page créée",
     "toastPageUpdated": "Page mise à jour",

@@ -115,6 +115,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 ) {
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
+  const tDisplaySettings = useTranslations("displaySettings");
   const queryClient = useQueryClient();
 
   // Fetch board settings for display type
@@ -1475,6 +1476,27 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         notesTall={notesTall}
                         className="ml-1"
                       />
+                      {/* New pages can still change device size — the type is only
+                          locked once the page is saved (converting saved content
+                          between 6×22 and 3×15 is lossy, so that stays out of scope). */}
+                      {!pageId && (
+                        <Select value={deviceType} onValueChange={(v) => setDeviceType(v as DeviceType)}>
+                          <SelectTrigger
+                            className="h-7 w-auto gap-1 px-2 text-xs"
+                            aria-label={t("deviceTypeSwitcherAriaLabel")}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="flagship" className="text-xs">
+                              {tDisplaySettings("flagshipLabel")}
+                            </SelectItem>
+                            <SelectItem value="note" className="text-xs">
+                              {tDisplaySettings("noteLabel")}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-[10px] text-muted-foreground mr-0.5">{t("boardColorLabel")}</span>

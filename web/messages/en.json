@@ -655,6 +655,7 @@
     "liveOutput": "Live Output",
     "liveOutputAriaLabel": "Toggle live output to board",
     "selectBoardAriaLabel": "Select board for live output",
+    "deviceTypeSwitcherAriaLabel": "Change board size",
     "selectBoardPlaceholder": "Select board",
     "toastPageCreated": "Page created",
     "toastPageUpdated": "Page updated",

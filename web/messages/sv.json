@@ -698,6 +698,7 @@
     "liveOutput": "Liveutmatning",
     "liveOutputAriaLabel": "Växla liveutmatning till tavlan",
     "selectBoardAriaLabel": "Välj tavla för liveutmatning",
+    "deviceTypeSwitcherAriaLabel": "Ändra tavlans storlek",
     "selectBoardPlaceholder": "Välj tavla",
     "toastPageCreated": "Sida skapad",
     "toastPageUpdated": "Sida uppdaterad",
