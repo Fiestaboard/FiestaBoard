@@ -397,6 +397,27 @@ export async function deleteAllCollections(): Promise<void> {
   }
 }
 
+/**
+ * Delete every page of one device type. Useful before `deleteAllPages()` or a
+ * device-tab assertion: deleting the LAST page auto-creates a "Welcome" page
+ * typed to the deleted page's device, so clearing note pages while flagship
+ * pages remain keeps the store from regenerating a note-typed Welcome that
+ * would keep the Note tab alive (issue #943 semantics).
+ */
+export async function deletePagesByDevice(deviceType: string): Promise<void> {
+  const res = await fetch(`${API_URL}/pages`, { headers: authHeaders() });
+  if (!res.ok) return;
+  const data = await res.json();
+  for (const p of data.pages) {
+    if (p.device_type === deviceType) {
+      await fetch(`${API_URL}/pages/${p.id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+    }
+  }
+}
+
 /** Delete every page via the API. */
 export async function deleteAllPages(): Promise<void> {
   const res = await fetch(`${API_URL}/pages`, { headers: authHeaders() });

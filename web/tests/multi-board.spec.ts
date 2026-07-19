@@ -12,7 +12,9 @@ import {
   BOARD_HOST,
   clearBoardConfig,
   configureBoard,
+  createPage,
   deleteAllPages,
+  deletePagesByDevice,
   expect,
   openSettingsTab,
   resetToSingleBoard,
@@ -629,6 +631,14 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
 
     // Remove Note by resetting to single Flagship board
     await resetToSingleBoard();
+
+    // Removing the BOARD isn't enough on its own: note-typed PAGES keep the
+    // Note tab alive by design (issue #943 — orphan pages stay reachable),
+    // and any earlier spec's cleanup can leave a note-typed auto-Welcome
+    // behind. Anchor a flagship page (so the store never empties), then
+    // clear lingering note pages — the tab's only remaining reason to exist.
+    await createPage(`Note Tab Anchor ${Date.now() % 1_000_000}`);
+    await deletePagesByDevice("note");
 
     await page.reload();
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
