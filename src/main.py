@@ -78,8 +78,11 @@ class DisplayService:
         boards = settings_service.get_board_settings().boards or []
         clients: dict[str, BoardClient] = {}
         for board in boards:
-            if not (board.get("local_api_key") or board.get("cloud_key")):
-                continue
+            # No credential pre-filter here: each device type has its own
+            # credential field (local_api_key / cloud_key / note_array_token)
+            # and board_client_from_board_dict already returns None for a
+            # board without a usable connection. A pre-filter on local/cloud
+            # keys silently dropped note-array boards (issue #1243 item 3).
             client = board_client_from_board_dict(board)
             if client and board.get("id"):
                 clients[board["id"]] = client

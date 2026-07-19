@@ -95,13 +95,39 @@ class TestBuildBoardClients:
         assert service.vb_client is clients["b1"]
         clients["b1"].read_current_message.assert_called_once_with(sync_cache=True)
 
-    def test_board_without_credentials_gets_no_client(self, service):
-        boards = [_board("b1", "One"), _board("b2", "Two", local_api_key="", cloud_key="")]
+    def test_note_array_board_with_only_a_token_gets_a_client(self, service):
+        """Note arrays authenticate with note_array_token, not local/cloud keys —
+        the client-map build must not filter them out (issue #1243 item 3)."""
+        boards = [
+            _board("b1", "One"),
+            _board(
+                "b2",
+                "Array",
+                device_type="note_array",
+                api_mode="cloud",
+                host="",
+                local_api_key="",
+                cloud_key="",
+                note_array_token="test-token",
+                notes_wide=2,
+                notes_tall=2,
+            ),
+        ]
+        clients = {"b1": MagicMock(), "b2": MagicMock()}
         with (
             patch("src.main.get_settings_service", return_value=_settings_service(boards)),
-            patch("src.main.board_client_from_board_dict", side_effect=lambda b: MagicMock()),
+            patch("src.main.board_client_from_board_dict", side_effect=lambda b: clients.get(b["id"])),
         ):
             service._build_board_clients()
+
+        assert set(service.board_clients) == {"b1", "b2"}
+
+    def test_board_without_credentials_gets_no_client(self, service):
+        """Uses the REAL client factory: a board with no usable credential
+        (no local key, cloud key, or note-array token) must yield no client."""
+        boards = [_board("b1", "One"), _board("b2", "Two", local_api_key="", cloud_key="")]
+        with patch("src.main.get_settings_service", return_value=_settings_service(boards)):
+            service._build_board_clients(sync_cache=False)
 
         assert set(service.board_clients) == {"b1"}
 

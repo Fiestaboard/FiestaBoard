@@ -190,9 +190,13 @@ jobs:
               -w /app \
               python:3.11-slim python server.py
 
+            # The backend must know the cloud mock's address at startup so
+            # note-array boards actually send to it.
+            CLOUD_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-cloud-$i)
             docker run -d --name fiestaboard-int-$i \
               -e PRODUCTION=false \
               -e FIESTABOARD_AUTH_ENABLED=false \
+              -e VESTABOARD_CLOUD_API_URL=http://$CLOUD_IP:9200/ \
               fiestaboard:integration
           done
 
