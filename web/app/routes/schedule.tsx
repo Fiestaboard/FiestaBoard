@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   AlertTriangle,
@@ -6,13 +6,13 @@ import {
   CalendarDays,
   List,
   MapPin,
-  Monitor,
   Plus,
   Power,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { BoardIcon } from "@/components/board-icon";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
@@ -177,10 +177,14 @@ export default function SchedulePage() {
     }
   }, [searchParams, router]);
 
-  // Fetch schedules (scoped by board when multi-board)
+  // Fetch schedules (scoped by board when multi-board). keepPreviousData holds
+  // the outgoing board's list on screen while the new board's loads, so
+  // switching boards plays the slide transition instead of collapsing the
+  // whole page to a skeleton and replaying its entrance animation.
   const { data: schedulesData, isLoading } = useQuery({
     queryKey: ["schedules", effectiveBoardId ?? "default"],
     queryFn: () => api.getSchedules(effectiveBoardId || undefined),
+    placeholderData: keepPreviousData,
   });
 
   // Fetch pages for form
@@ -203,6 +207,7 @@ export default function SchedulePage() {
     queryKey: ["schedules", "validation", effectiveBoardId ?? "default"],
     queryFn: () => api.validateSchedules(effectiveBoardId || undefined),
     enabled: (schedulesData?.schedules.length || 0) > 0,
+    placeholderData: keepPreviousData,
   });
 
   // Fetch silence schedule + user timezone so we can render the silence window
@@ -503,7 +508,7 @@ export default function SchedulePage() {
                   data-testid="active-board-indicator"
                   className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border bg-muted/40 text-xs text-muted-foreground max-w-[150px]"
                 >
-                  <Monitor className="h-3.5 w-3.5 shrink-0" />
+                  <BoardIcon className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">
                     {currentBoard?.name || t("boardFallback", { id: currentBoardId.slice(0, 8) })}
                   </span>
