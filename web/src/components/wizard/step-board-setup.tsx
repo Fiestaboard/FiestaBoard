@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { BoardDisplay } from "@/components/board-display";
+import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -637,7 +637,7 @@ export function StepBoardSetup({
         {/* Live board preview */}
         <div className="space-y-2 pt-3">
           <p className="text-sm font-medium text-muted-foreground">{tc("preview")}</p>
-          <BoardDisplay
+          <ScaledBoardDisplay
             message={previewMessage}
             size="sm"
             boardType={config.board_color}

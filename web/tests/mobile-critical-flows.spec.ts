@@ -164,3 +164,57 @@ test.describe("Mobile — Integrations", () => {
     }
   });
 });
+
+test.describe("Mobile — Board preview fits viewport", () => {
+  test("dashboard board preview stays inside its frame at phone width", async ({ page }) => {
+    await page.goto("/");
+    const firstTile = page.getByTestId("char-tile-0-0");
+    await expect(firstTile).toBeVisible({ timeout: 15_000 });
+    // Let ScaledBoardDisplay's measure + rAF scale pass settle
+    await page.waitForTimeout(500);
+
+    const geometry = await page.evaluate(() => {
+      const t0 = document.querySelector('[data-testid="char-tile-0-0"]');
+      const t21 = document.querySelector('[data-testid="char-tile-0-21"]');
+      if (!t0 || !t21) return null;
+      const frame = t0.closest('[class*="border-["]');
+      if (!frame) return null;
+      const fr = frame.getBoundingClientRect();
+      const r0 = t0.getBoundingClientRect();
+      const r21 = t21.getBoundingClientRect();
+      return {
+        frameInViewport: fr.left >= 0 && fr.right <= window.innerWidth,
+        tilesInsideFrame: r0.left >= fr.left - 0.5 && r21.right <= fr.right + 0.5,
+      };
+    });
+
+    expect(geometry).not.toBeNull();
+    expect(geometry?.frameInViewport).toBe(true);
+    expect(geometry?.tilesInsideFrame).toBe(true);
+  });
+});
+
+test.describe("Mobile — Editor toolbar dropdowns", () => {
+  test("colors picker stays inside the viewport at phone width", async ({ page }) => {
+    await page.goto("/pages/new?device=flagship");
+
+    // The editor persists rich/plain mode per browser — make sure we're in Rich
+    const richTab = page.getByRole("button", { name: /rich/i }).first();
+    await expect(richTab).toBeVisible({ timeout: 15_000 });
+    await richTab.click();
+
+    const colorsButton = page.getByRole("button", { name: "Colors" });
+    await expect(colorsButton).toBeVisible({ timeout: 10_000 });
+    await colorsButton.click();
+
+    const panel = page.locator(".absolute.top-full");
+    await expect(panel).toBeVisible({ timeout: 5_000 });
+
+    const box = await panel.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(MOBILE_VIEWPORT.width);
+    }
+  });
+});
