@@ -111,7 +111,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
             {value === "all" && <div className="h-2 w-2 rounded-full bg-primary" />}
           </div>
           <span className="text-sm font-medium">{t("allDays")}</span>
-          <div className="ml-auto flex gap-1">
+          <div className="ml-auto flex flex-wrap justify-end gap-1 min-w-0">
             {ALL_DAYS.map((day) => (
               <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}
@@ -143,7 +143,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
             {value === "weekdays" && <div className="h-2 w-2 rounded-full bg-primary" />}
           </div>
           <span className="text-sm font-medium">{t("weekdays")}</span>
-          <div className="ml-auto flex gap-1">
+          <div className="ml-auto flex flex-wrap justify-end gap-1 min-w-0">
             {WEEKDAYS.map((day) => (
               <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}
@@ -175,7 +175,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
             {value === "weekends" && <div className="h-2 w-2 rounded-full bg-primary" />}
           </div>
           <span className="text-sm font-medium">{t("weekends")}</span>
-          <div className="ml-auto flex gap-1">
+          <div className="ml-auto flex flex-wrap justify-end gap-1 min-w-0">
             {WEEKENDS.map((day) => (
               <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}

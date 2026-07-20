@@ -319,8 +319,11 @@ export function ScheduleCalendarView({
   return (
     <TooltipProvider>
       <div className="schedule-calendar-wrapper flex flex-col sm:h-full">
-        {/* Top bar: mobile day navigation (left) + zoom slider (right) */}
-        <div className="flex items-center justify-between mb-2 px-1">
+        {/* Top bar: mobile day navigation (left) + zoom slider (right).
+            flex-wrap: day nav + zoom together exceed narrow phone widths;
+            wrapping drops the zoom control to its own line instead of
+            pushing it off-screen. */}
+        <div className="flex flex-wrap items-center justify-between gap-y-1 mb-2 px-1">
           {/* Mobile day navigation */}
           {isMobile ? (
             <div className="flex items-center gap-1">
@@ -365,7 +368,7 @@ export function ScheduleCalendarView({
           {/* Zoom slider */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center gap-2">
+              <div className="ml-auto flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"

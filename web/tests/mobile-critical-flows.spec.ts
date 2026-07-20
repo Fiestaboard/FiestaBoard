@@ -6,7 +6,16 @@
  *
  * Issue: #500 — E2E: add Playwright tests for critical user flows
  */
-import { API_URL, configureBoard, createPage, deleteAllPages, expect, suppressWizard, test } from "./helpers";
+import {
+  API_URL,
+  authHeaders,
+  configureBoard,
+  createPage,
+  deleteAllPages,
+  expect,
+  suppressWizard,
+  test,
+} from "./helpers";
 
 const MOBILE_VIEWPORT = { width: 375, height: 812 };
 
@@ -191,6 +200,92 @@ test.describe("Mobile — Board preview fits viewport", () => {
     expect(geometry).not.toBeNull();
     expect(geometry?.frameInViewport).toBe(true);
     expect(geometry?.tilesInsideFrame).toBe(true);
+  });
+});
+
+test.describe("Mobile — Long names stay inside the viewport", () => {
+  const LONG_NAME = "An Extremely Long Page Name That Someone Might Actually Type On Their Phone 2026 Edition";
+
+  test("schedule form select and day chips fit with long page names", async ({ page }) => {
+    await createPage(LONG_NAME);
+
+    await page.goto("/schedule");
+    await page.getByRole("button", { name: /add schedule/i }).click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
+
+    // Radix Select sizes its content to the widest item; long page names
+    // used to blow the panel past the viewport (position is clamped by
+    // Radix, width is not — ui/select.tsx now caps it).
+    await dialog.getByRole("combobox").first().click();
+    const panel = page.locator("[data-radix-popper-content-wrapper]");
+    await expect(panel).toBeVisible({ timeout: 5_000 });
+    const panelBox = await panel.boundingBox();
+    expect(panelBox).not.toBeNull();
+    if (panelBox) {
+      expect(panelBox.x).toBeGreaterThanOrEqual(0);
+      expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(MOBILE_VIEWPORT.width);
+    }
+    await page.keyboard.press("Escape");
+
+    // Day-pattern chip rows (All Days / Weekdays / Weekends) must wrap
+    // rather than clip their trailing chips at phone width.
+    const chipOverflow = await page.evaluate((vw) => {
+      const rows = document.querySelectorAll('[role="dialog"] .ml-auto.flex');
+      return [...rows].filter((el) => el.getBoundingClientRect().right > vw + 2).length;
+    }, MOBILE_VIEWPORT.width);
+    expect(chipOverflow).toBe(0);
+  });
+
+  test("collections card truncates long collection and page names", async ({ page }) => {
+    const pageId = await createPage(LONG_NAME);
+    const res = await fetch(`${API_URL}/collections`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        name: "A Collection With An Unreasonably Long Name For Mobile Testing Purposes",
+        page_ids: [pageId],
+        interval_seconds: 60,
+      }),
+    });
+    const created = await res.json();
+    const collectionId: string | undefined = created?.collection?.id;
+
+    try {
+      await page.goto("/collections");
+      await expect(page.getByText(/unreasonably long name/i).first()).toBeVisible({ timeout: 10_000 });
+
+      const overflowing = await page.evaluate((vw) => {
+        return [...document.querySelectorAll("main *")].filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && r.right > vw + 2 && r.left < vw;
+        }).length;
+      }, MOBILE_VIEWPORT.width);
+      expect(overflowing).toBe(0);
+    } finally {
+      if (collectionId) {
+        await fetch(`${API_URL}/collections/${encodeURIComponent(collectionId)}`, {
+          method: "DELETE",
+          headers: authHeaders(),
+        }).catch(() => {});
+      }
+    }
+  });
+
+  test("schedule calendar zoom control stays on screen", async ({ page }) => {
+    await page.goto("/schedule");
+    await page.getByRole("button", { name: /calendar/i }).click();
+
+    const zoomControls = page.locator(".ml-auto.flex.items-center").first();
+    await expect(zoomControls).toBeVisible({ timeout: 10_000 });
+
+    const box = await zoomControls.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(MOBILE_VIEWPORT.width);
+    }
   });
 });
 
