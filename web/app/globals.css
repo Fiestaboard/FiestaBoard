@@ -535,40 +535,51 @@
   view-transition-name: board-page;
 }
 
-/* Travel is kept short (12%) and the fade front-loaded: view-transition
-   snapshots render in the top layer, so a long, slowly-fading slide would
-   ghost the outgoing page over the sidebar. */
+/* The sidebar and mobile header get their own (static) snapshot groups so
+   they can be stacked ABOVE the sliding page — the page slides under the
+   app chrome, never over it. */
+aside.sidebar-gradient {
+  view-transition-name: app-sidebar;
+}
+
+header.sidebar-gradient-horizontal {
+  view-transition-name: app-mobile-header;
+}
+
+html[data-board-switch]::view-transition-group(board-page) {
+  z-index: 0;
+}
+
+html[data-board-switch]::view-transition-group(app-sidebar),
+html[data-board-switch]::view-transition-group(app-mobile-header) {
+  z-index: 1;
+}
+
 @keyframes board-switch-out-left {
-  50% {
-    opacity: 0.25;
-  }
   to {
     opacity: 0;
-    transform: translateX(-12%);
+    transform: translateX(-20%);
   }
 }
 
 @keyframes board-switch-in-right {
   from {
     opacity: 0;
-    transform: translateX(12%);
+    transform: translateX(20%);
   }
 }
 
 @keyframes board-switch-out-right {
-  50% {
-    opacity: 0.25;
-  }
   to {
     opacity: 0;
-    transform: translateX(12%);
+    transform: translateX(20%);
   }
 }
 
 @keyframes board-switch-in-left {
   from {
     opacity: 0;
-    transform: translateX(-12%);
+    transform: translateX(-20%);
   }
 }
 

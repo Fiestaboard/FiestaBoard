@@ -40,6 +40,7 @@ test.describe("Add Note Array board", () => {
     await expect(card).toBeVisible({ timeout: 10_000 });
     await expect(card).toContainText("3 × 30");
     await expect(card).toContainText("2 side-by-side");
+    await page.waitForTimeout(600);
 
     // Expand the card: cloud mode is active, Local API is a coming-soon teaser.
     await card.getByText("My Board 2").click();
@@ -49,13 +50,22 @@ test.describe("Add Note Array board", () => {
     // A tokenless array is not usable yet — the form says which credential it needs.
     await expect(card.getByText("Cloud API token is required")).toBeVisible();
 
+    // Bring the connection section on screen and dwell so the video
+    // clearly shows the Coming soon teaser before and after the click.
+    await localTeaser.scrollIntoViewIfNeeded();
+    await localTeaser.hover();
+    await page.waitForTimeout(900);
+
     // Clicking the teaser hypes the roadmap instead of switching modes.
     await localTeaser.click();
-    await expect(card.getByText(/Stay tuned!/)).toBeVisible();
+    const hypeNote = card.getByText(/Stay tuned!/);
+    await expect(hypeNote).toBeVisible();
+    // Center the note in the viewport so the recording frames it fully.
+    await hypeNote.evaluate((el) => el.scrollIntoView({ block: "center" }));
     // Still cloud-only: no local host/key fields appeared.
     await expect(card.getByText("Board Host")).not.toBeVisible();
 
     // Pause so the video captures the teaser before teardown.
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(1_800);
   });
 });
