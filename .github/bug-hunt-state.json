@@ -1,9 +1,25 @@
 {
   "schema_version": 1,
-  "round": 0,
-  "round_started_at": null,
-  "last_run_at": null,
+  "round": 1,
+  "round_started_at": "2026-06-28T06:30:49Z",
+  "last_run_at": "2026-06-28T06:30:49Z",
   "last_learned_at": null,
-  "areas_remaining": [],
-  "areas_audited": []
+  "areas_remaining": [
+    "src/collections/ + src/carousels/",
+    "src/board_client.py, src/board_chars.py, src/board_html_renderer.py, src/text_to_board.py, src/text_utils.py",
+    "src/plugins/ + src/displays/",
+    "src/api_server.py + src/auth/ + src/security/",
+    "src/mqtt/ + src/triggers/",
+    "src/settings/ + src/config_manager.py + src/config.py + src/backup/",
+    "src/ai/ + src/mcp_server.py",
+    "src/system/ + src/network/ + src/network_diagnostics.py + src/devices.py + src/time_service.py",
+    "plugins/",
+    "web/src/routes/",
+    "web/src/lib/",
+    "web/src/components/"
+  ],
+  "areas_audited": [
+    "src/schedules/",
+    "src/pages/"
+  ]
 }

@@ -55,10 +55,9 @@ class TestPlugin(PluginBase):
 # --- __init__ ---
 
 
-def test_init_uses_default_plugins_dir_when_none():
+def test_init_uses_default_plugins_dir_when_none(tmp_path):
     """__init__ uses default plugins dir when None."""
-    with patch.object(Path, "parent") as mock_parent:
-        mock_parent.parent.parent = Path("/project")
+    with patch("src.plugins.loader.get_external_plugins_dir", return_value=tmp_path):
         loader = PluginLoader(plugins_dir=None)
         # When None, it resolves from __file__ - we can't easily test that
         # So just verify it doesn't crash and uses a Path
@@ -546,3 +545,17 @@ def test_get_fiestaboard_version_matches_package_version():
     import src.plugins.loader as loader_mod
 
     assert loader_mod._get_fiestaboard_version() == src.__version__
+
+
+# --- default external dir comes from sources.get_external_plugins_dir ---
+
+
+def test_default_external_dir_uses_data_location(tmp_path):
+    """With no explicit external_dirs the loader must resolve the directory via
+    get_external_plugins_dir() (the data-volume location), not a hardcoded
+    <root>/external_plugins path."""
+    with patch("src.plugins.loader.get_external_plugins_dir", return_value=tmp_path) as mock_dir:
+        loader = PluginLoader(plugins_dir=tmp_path / "plugins")
+
+    mock_dir.assert_called_once()
+    assert loader._external_dirs == [tmp_path]

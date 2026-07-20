@@ -44,6 +44,15 @@ INSTANCE_SEPARATOR = ":"
 _INSTANCE_LABEL_RE = re.compile(r"^[a-zA-Z0-9_-]{1,40}$")
 
 
+def _config_in_use(plugin_id: str, stored_configs: dict[str, dict[str, Any]]) -> bool:
+    """Return True when a stored config, or any of its instance configs
+    (``weather:sf``), has ``enabled: true``."""
+    if stored_configs.get(plugin_id, {}).get("enabled", False):
+        return True
+    prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
+    return any(key.startswith(prefix) and cfg.get("enabled", False) for key, cfg in stored_configs.items())
+
+
 class PluginRegistry:
     """Central registry for all loaded plugins.
 
@@ -470,6 +479,22 @@ class PluginRegistry:
         orphaned = [pid for pid in stored_configs if pid not in loaded_ids and not self.is_instance_key(pid)]
         if orphan_subset is not None:
             orphaned = [pid for pid in orphaned if pid in orphan_subset]
+
+        # Only reinstall plugins that are actually in use: enabled themselves
+        # or with at least one enabled instance. The v2 migration seeded
+        # configs for every ex-builtin plugin, so unconditionally re-cloning
+        # orphans made the whole fleet re-download plugins nobody uses on
+        # every upgrade that lost external_plugins/. A disabled orphan keeps
+        # its config and is installed on demand if the user re-enables it
+        # (see enable_plugin).
+        skipped = [pid for pid in orphaned if not _config_in_use(pid, stored_configs)]
+        if skipped:
+            logger.info(
+                "V3 migration: leaving %d disabled orphaned config(s) uninstalled: %s",
+                len(skipped),
+                skipped,
+            )
+            orphaned = [pid for pid in orphaned if pid not in skipped]
         if not orphaned:
             return []
 
@@ -569,8 +594,20 @@ class PluginRegistry:
         """
         return self._enabled.get(plugin_id, False)
 
+    def _plugin_in_use(self, plugin_id: str) -> bool:
+        """Return True when the plugin or any of its instances is enabled."""
+        if self._enabled.get(plugin_id, False):
+            return True
+        prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
+        return any(key.startswith(prefix) and enabled for key, enabled in self._enabled.items())
+
     def enable_plugin(self, plugin_id: str) -> bool:
         """Enable a plugin.
+
+        If the plugin's code is not installed but the id exists in the plugin
+        registry, it is installed on demand first.  This pairs with the
+        migration no longer pre-cloning disabled plugins: their config is
+        kept, and the code arrives when the user actually turns them on.
 
         Args:
             plugin_id: Plugin identifier
@@ -578,6 +615,20 @@ class PluginRegistry:
         Returns:
             True if enabled successfully, False if plugin not found
         """
+        if plugin_id not in self._plugins and not self.is_instance_key(plugin_id):
+            try:
+                known_ids = {e.plugin_id for e in load_registry()}
+            except Exception:
+                known_ids = set()
+            if plugin_id in known_ids:
+                logger.info(
+                    "Enable requested for '%s' but its code is not installed — installing from registry",
+                    plugin_id,
+                )
+                errors = self.install_from_registry(plugin_id)
+                if errors:
+                    logger.warning("On-demand install of '%s' failed: %s", plugin_id, errors)
+
         if plugin_id not in self._plugins:
             logger.warning(f"Cannot enable unknown plugin: {plugin_id}")
             return False
@@ -879,7 +930,7 @@ class PluginRegistry:
         return plugins
 
     def reload_plugin(self, plugin_id: str) -> PluginBase | None:
-        """Reload a plugin.
+        """Reload a plugin and rebuild all of its named instances.
 
         Args:
             plugin_id: Plugin identifier
@@ -905,6 +956,7 @@ class PluginRegistry:
             if manifest:
                 self._plugins[plugin_id] = plugin
                 self._manifests[plugin_id] = manifest
+                self.clear_discovered_cache(plugin_id)
 
                 # Restore state
                 if was_enabled:
@@ -925,9 +977,60 @@ class PluginRegistry:
                         self._configs[plugin_id] = config
                         plugin.config = config
 
+                self._rebuild_instances(plugin_id, manifest)
+
                 return plugin
 
         return None
+
+    def _rebuild_instances(self, plugin_id: str, manifest: PluginManifest) -> None:
+        """Recreate all named instances of *plugin_id* after a base reload.
+
+        Named instances (compound ``plugin_id:label`` keys) hold their own
+        plugin object and manifest reference, so a base reload alone would
+        leave them running the old code with a stale manifest (issue #1390).
+        Each instance is rebuilt from the freshly loaded class and has its
+        enabled state and config restored.
+
+        If a rebuild fails, the old instance is kept running rather than
+        being torn down.
+        """
+        prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
+        for compound_key in [k for k in self._plugins if k.startswith(prefix)]:
+            new_instance = self._loader.create_instance(plugin_id)
+            if new_instance is None:
+                logger.warning(
+                    "Failed to rebuild instance '%s' after reload — keeping the old instance",
+                    compound_key,
+                )
+                continue
+
+            old_instance = self._plugins[compound_key]
+            try:
+                old_instance.cleanup()
+            except Exception:
+                logger.exception("Error cleaning up old instance '%s'", compound_key)
+
+            self._plugins[compound_key] = new_instance
+            self._manifests[compound_key] = manifest
+            self.clear_discovered_cache(compound_key)
+
+            # Restore state (mirrors the base-plugin restore above)
+            if self._enabled.get(compound_key, False):
+                self.enable_plugin(compound_key)
+            instance_config = self._configs.get(compound_key, {})
+            if instance_config:
+                errors = self.set_plugin_config(compound_key, instance_config)
+                if errors:
+                    logger.warning(
+                        "Config validation failed after reload for '%s': %s — applying raw config to avoid data loss",
+                        compound_key,
+                        errors,
+                    )
+                    self._configs[compound_key] = instance_config
+                    new_instance.config = instance_config
+
+            logger.info("Rebuilt plugin instance after reload: %s", compound_key)
 
     def get_load_errors(self) -> dict[str, list[str]]:
         """Get plugin load errors.
@@ -951,6 +1054,11 @@ class PluginRegistry:
         results: dict[str, bool] = {}
         for plugin_id, source in self._loader.plugin_sources.items():
             if source.source_type != "external" or not source.local_path:
+                continue
+            # Disabled plugins (with no enabled instance) aren't running any
+            # code — don't generate git traffic keeping them fresh. They are
+            # brought up to date when re-enabled instead.
+            if not self._plugin_in_use(plugin_id):
                 continue
             local_path = Path(source.local_path)
             update_available = check_plugin_update_available(local_path)

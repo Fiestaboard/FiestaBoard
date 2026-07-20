@@ -1289,3 +1289,33 @@ def test_note_array_board_is_connection_configured_via_settings_service(tmp_path
     monkeypatch.setattr("src.settings.service.get_settings_service", lambda: svc)
 
     assert ConfigManager._has_configured_board_instance() is True
+
+
+def test_save_internal_is_atomic_on_mid_write_crash(tmp_path, monkeypatch):
+    """Regression for #1313 (mirrors #1304): a crash inside _save_internal()
+    must not corrupt the existing config file. The atomic tmp + os.replace
+    pattern keeps the on-disk file intact until the rename succeeds.
+    """
+    from src import config_manager as cm_module
+
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {}, "features": {}, "general": {}}))
+    cm = ConfigManager(config_path=str(config_path))
+    cm._save_internal()  # normalize on-disk content
+    original_bytes = config_path.read_bytes()
+
+    real_dump = json.dump
+
+    def crashing_dump(obj, fh, *args, **kwargs):
+        fh.write('{"board": {')
+        fh.flush()
+        raise OSError("Simulated crash mid-write")
+
+    monkeypatch.setattr(cm_module.json, "dump", crashing_dump)
+    with pytest.raises(OSError):
+        cm._save_internal()
+    monkeypatch.setattr(cm_module.json, "dump", real_dump)
+
+    # The original file must be byte-identical — the crash should have hit a
+    # .tmp file that never got renamed over the real one.
+    assert config_path.read_bytes() == original_bytes

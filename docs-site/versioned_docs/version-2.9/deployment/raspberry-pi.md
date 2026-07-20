@@ -50,7 +50,7 @@ cp env.example .env
 # Edit .env with your API keys
 
 # Start FiestaBoard
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 :::info Build Times
@@ -62,7 +62,7 @@ The first build on a Raspberry Pi will take longer than on a desktop computer. E
 For faster setup, use the pre-built images from Docker Hub:
 
 ```bash
-docker-compose -f docker-compose.hub.yml up -d
+docker compose -f docker-compose.hub.yml up -d
 ```
 
 This skips the build step entirely and pulls ready-to-run ARM images.

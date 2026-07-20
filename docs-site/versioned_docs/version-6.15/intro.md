@@ -73,7 +73,7 @@ Never used Docker or the command line? No problem.
 
 ### I'm comfortable with Docker
 
-Know your way around `docker-compose`? Run FiestaBoard on a laptop, NAS, or home server.
+Know your way around `docker compose`? Run FiestaBoard on a laptop, NAS, or home server.
 
 **[Docker Quick Start](/docs/setup/quick-start)** gets you running in under 5 minutes.
 

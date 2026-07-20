@@ -42,7 +42,7 @@ cp env.example .env
 # Edit .env with your board API key (see README for details)
 
 # Start the development stack (hot reload for Python and Next.js)
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 The dev environment gives you:
@@ -623,20 +623,20 @@ class TestMyPluginEdgeCases:
 
 ```bash
 # Test a single plugin (with coverage)
-docker-compose exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
+docker compose exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
 
 # Or using pytest directly
-docker-compose exec fiestaboard pytest plugins/my_plugin/tests/ -v
+docker compose exec fiestaboard pytest plugins/my_plugin/tests/ -v
 
 # Run with coverage report
-docker-compose exec fiestaboard pytest plugins/my_plugin/tests/ \
+docker compose exec fiestaboard pytest plugins/my_plugin/tests/ \
   --cov=plugins/my_plugin --cov-report=term-missing
 
 # Run all plugin tests
-docker-compose exec fiestaboard python scripts/run_plugin_tests.py --verbose
+docker compose exec fiestaboard python scripts/run_plugin_tests.py --verbose
 
 # Dry run (see what would be tested)
-docker-compose exec fiestaboard python scripts/run_plugin_tests.py --dry-run
+docker compose exec fiestaboard python scripts/run_plugin_tests.py --dry-run
 ```
 
 ### Coverage Requirements
@@ -678,10 +678,10 @@ Before submitting, run the validation scripts to catch common issues:
 
 ```bash
 # Validate all plugin manifests (structure, schema, naming)
-docker-compose exec fiestaboard python scripts/validate_plugins.py --verbose
+docker compose exec fiestaboard python scripts/validate_plugins.py --verbose
 
 # Run your plugin's tests with coverage
-docker-compose exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
+docker compose exec fiestaboard python scripts/run_plugin_tests.py --plugin=my_plugin
 
 # Verify the plugin loads and appears in the API
 curl http://localhost:4420/api/plugins

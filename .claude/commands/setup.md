@@ -62,7 +62,7 @@ If `.env` does not exist in the FiestaBoard repo root, `cp env.example .env`. If
 From the FiestaBoard repo root:
 
 ```
-docker-compose -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.dev.yml up -d --build
 ```
 
 This is `--build` (not `--no-cache`) — first-time builds need to fetch base images and install Python + Node deps, but cache reuse is fine. If the user wants a forced clean rebuild they can run `/restart`.
@@ -73,15 +73,15 @@ Stream the build output so the user can see progress; this can take 5–15 minut
 
 After `up -d` returns, poll the running container, not just the port:
 
-- `docker-compose -f docker-compose.dev.yml ps` — confirm the `fiestaboard` service is `Up` and healthy
+- `docker compose -f docker-compose.dev.yml ps` — confirm the `fiestaboard` service is `Up` and healthy
 - `curl -fsS -o /dev/null -w "%{http_code}\n" http://localhost:4420/` — poll every 3s for up to 90s; expect a 2xx or 3xx
-- Tail the last ~30 log lines if it never comes up: `docker-compose -f docker-compose.dev.yml logs --tail 30 fiestaboard`
+- Tail the last ~30 log lines if it never comes up: `docker compose -f docker-compose.dev.yml logs --tail 30 fiestaboard`
 
 When the UI responds, print:
 
 - The URL: `http://localhost:4420`
 - Where the plugin siblings live (the parent directory used in Phase 3)
-- How to view logs: `docker-compose -f docker-compose.dev.yml logs -f`
+- How to view logs: `docker compose -f docker-compose.dev.yml logs -f`
 - How to stop: `/stop`
 - How to do a clean rebuild: `/restart`
 

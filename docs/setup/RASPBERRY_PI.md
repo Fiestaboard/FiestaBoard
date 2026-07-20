@@ -94,6 +94,8 @@ A unique `FIESTAUPDATER_TOKEN` is generated on first boot, so no extra configura
 
 **Browser can't reach `fiestapi.local`** — Check that mDNS/Bonjour is enabled on your network. iOS, macOS, and most Linux distros ship with it. On Windows you may need [Bonjour Print Services](https://support.apple.com/kb/DL999). As a fallback, use the Pi's IP directly.
 
+**"Connection is not secure" or an SSL error** — Use `http://`, not `https://`. FiestaPi serves the UI over plain HTTP on your local network and has no SSL certificate, so `https://fiestapi.local:4420` fails with `ERR_SSL_PROTOCOL_ERROR` or a warning page. Retype the address as **http://fiestapi.local:4420**. If your browser keeps forcing HTTPS, turn off its "Always use secure connections" / "HTTPS-Only Mode" setting for this site.
+
 **SSH login** — Default user is `fiesta`, default password is `fiestaboard`. Change it on first login: `passwd`.
 
 **Logs** — `ssh fiesta@fiestapi.local` then `docker logs -f fiestaboard`.

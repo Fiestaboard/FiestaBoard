@@ -52,7 +52,7 @@ BOARD_READ_WRITE_KEY=your_cloud_api_key_here
 ### Step 3: Restart FiestaBoard
 
 ```bash
-docker-compose restart
+docker compose restart
 ```
 
 <ThemedScreenshot src="/img/guides/settings-board-config.png" alt="Settings page with board API key and IP address inputs" />
@@ -81,7 +81,7 @@ The Cloud API has a rate limit of **1 message per 15 seconds**. If you see rate 
 
 1. Verify **Cloud** is selected as the API mode in Settings
 2. Check that your API key is valid
-3. Check the logs: `docker-compose logs -f fiestaboard`
+3. Check the logs: `docker compose logs -f fiestaboard`
 
 ## Next Steps
 

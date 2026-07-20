@@ -510,6 +510,158 @@ class TestRestoreInstances:
         mock_config_manager.delete_plugin_config.assert_not_called()
 
 
+# ── reload rebuilds instances (issue #1390) ─────────────────────────────────
+
+
+class TestReloadRebuildsInstances:
+    """reload_plugin() must rebuild named instances, not just the base plugin.
+
+    Regression tests for issue #1390: after a plugin update, compound-key
+    instances kept running the old code with a stale manifest reference
+    until a full service restart.
+    """
+
+    def _configure_reload(self, mock_loader):
+        """Set up loader mocks simulating a successful base reload."""
+        reloaded_base = MagicMock(spec=PluginBase)
+        reloaded_base.plugin_id = "test_plugin"
+        reloaded_base.validate_config.return_value = []
+        reloaded_base._validate_refresh_seconds.return_value = []
+        reloaded_base.enabled = False
+        reloaded_base.config = {}
+
+        new_manifest = MagicMock(spec=PluginManifest)
+        new_manifest.id = "test_plugin"
+        new_manifest.raw = {"variables": {"simple": ["var1", "var2", "sunrise"]}}
+
+        rebuilt = MagicMock(spec=PluginBase)
+        rebuilt.plugin_id = "test_plugin"
+        rebuilt.validate_config.return_value = []
+        rebuilt._validate_refresh_seconds.return_value = []
+        rebuilt.enabled = False
+        rebuilt.config = {}
+
+        mock_loader.reload_plugin.return_value = reloaded_base
+        mock_loader.get_manifest.return_value = new_manifest
+        mock_loader.create_instance.return_value = rebuilt
+        return reloaded_base, new_manifest, rebuilt
+
+    def test_reload_rebuilds_named_instance(self, registry_with_plugin, mock_loader):
+        registry_with_plugin.create_instance("test_plugin", "sf")
+        old_instance = registry_with_plugin._plugins["test_plugin:sf"]
+        reloaded_base, _, rebuilt = self._configure_reload(mock_loader)
+
+        result = registry_with_plugin.reload_plugin("test_plugin")
+
+        assert result is reloaded_base
+        assert registry_with_plugin._plugins["test_plugin:sf"] is rebuilt
+        assert registry_with_plugin._plugins["test_plugin:sf"] is not old_instance
+
+    def test_reload_repoints_instance_manifest(self, registry_with_plugin, mock_loader):
+        registry_with_plugin.create_instance("test_plugin", "sf")
+        old_manifest = registry_with_plugin._manifests["test_plugin:sf"]
+        _, new_manifest, _ = self._configure_reload(mock_loader)
+
+        registry_with_plugin.reload_plugin("test_plugin")
+
+        assert registry_with_plugin._manifests["test_plugin:sf"] is new_manifest
+        assert registry_with_plugin._manifests["test_plugin:sf"] is not old_manifest
+
+    def test_reload_restores_instance_enabled_and_config(self, registry_with_plugin, mock_loader):
+        registry_with_plugin.create_instance("test_plugin", "sf")
+        registry_with_plugin.set_plugin_config("test_plugin:sf", {"api_key": "inst_key"})
+        registry_with_plugin.enable_plugin("test_plugin:sf")
+        _, _, rebuilt = self._configure_reload(mock_loader)
+
+        registry_with_plugin.reload_plugin("test_plugin")
+
+        assert registry_with_plugin._enabled["test_plugin:sf"] is True
+        assert rebuilt.enabled is True
+        assert registry_with_plugin._configs["test_plugin:sf"]["api_key"] == "inst_key"
+        assert rebuilt.config["api_key"] == "inst_key"
+
+    def test_reload_keeps_disabled_instance_disabled(self, registry_with_plugin, mock_loader):
+        registry_with_plugin.create_instance("test_plugin", "sf")
+        _, _, rebuilt = self._configure_reload(mock_loader)
+
+        registry_with_plugin.reload_plugin("test_plugin")
+
+        assert registry_with_plugin._enabled["test_plugin:sf"] is False
+        assert rebuilt.enabled is False
+
+    def test_reload_instance_config_fallback_when_validation_fails(self, registry_with_plugin, mock_loader):
+        """If the new version rejects the old config, apply it raw (no data loss)."""
+        registry_with_plugin.create_instance("test_plugin", "sf")
+        registry_with_plugin.set_plugin_config("test_plugin:sf", {"api_key": "inst_key"})
+        _, _, rebuilt = self._configure_reload(mock_loader)
+        rebuilt.validate_config.return_value = ["required field 'new_field' missing"]
+
+        registry_with_plugin.reload_plugin("test_plugin")
+
+        assert registry_with_plugin._configs["test_plugin:sf"]["api_key"] == "inst_key"
+        assert rebuilt.config["api_key"] == "inst_key"
+
+    def test_reload_cleans_up_old_instance(self, registry_with_plugin, mock_loader):
+        registry_with_plugin.create_instance("test_plugin", "sf")
+        old_instance = registry_with_plugin._plugins["test_plugin:sf"]
+        self._configure_reload(mock_loader)
+
+        registry_with_plugin.reload_plugin("test_plugin")
+
+        old_instance.cleanup.assert_called_once()
+
+    def test_reload_keeps_old_instance_when_rebuild_fails(self, registry_with_plugin, mock_loader):
+        """A failed instance rebuild must not kill the running old instance."""
+        registry_with_plugin.create_instance("test_plugin", "sf")
+        old_instance = registry_with_plugin._plugins["test_plugin:sf"]
+        old_manifest = registry_with_plugin._manifests["test_plugin:sf"]
+        self._configure_reload(mock_loader)
+        mock_loader.create_instance.return_value = None
+
+        registry_with_plugin.reload_plugin("test_plugin")
+
+        assert registry_with_plugin._plugins["test_plugin:sf"] is old_instance
+        assert registry_with_plugin._manifests["test_plugin:sf"] is old_manifest
+        old_instance.cleanup.assert_not_called()
+
+    def test_reload_rebuilds_multiple_instances(self, registry_with_plugin, mock_loader):
+        registry_with_plugin.create_instance("test_plugin", "sf")
+        registry_with_plugin.create_instance("test_plugin", "nyc")
+        _, new_manifest, rebuilt = self._configure_reload(mock_loader)
+
+        registry_with_plugin.reload_plugin("test_plugin")
+
+        assert registry_with_plugin._plugins["test_plugin:sf"] is rebuilt
+        assert registry_with_plugin._plugins["test_plugin:nyc"] is rebuilt
+        assert registry_with_plugin._manifests["test_plugin:sf"] is new_manifest
+        assert registry_with_plugin._manifests["test_plugin:nyc"] is new_manifest
+
+    def test_reload_clears_discovered_vars(self, registry_with_plugin, mock_loader):
+        """Auto-discovery cache must not survive a reload for base or instances."""
+        registry_with_plugin.create_instance("test_plugin", "sf")
+        registry_with_plugin._discovered_vars["test_plugin"] = ["old_var"]
+        registry_with_plugin._discovered_vars["test_plugin:sf"] = ["old_var"]
+        self._configure_reload(mock_loader)
+
+        registry_with_plugin.reload_plugin("test_plugin")
+
+        assert "test_plugin" not in registry_with_plugin._discovered_vars
+        assert "test_plugin:sf" not in registry_with_plugin._discovered_vars
+
+    def test_reload_base_failure_leaves_instances_running(self, registry_with_plugin, mock_loader):
+        """If the base reload fails, existing instances keep running old code."""
+        registry_with_plugin.create_instance("test_plugin", "sf")
+        old_instance = registry_with_plugin._plugins["test_plugin:sf"]
+        mock_loader.reload_plugin.return_value = None
+        mock_loader.get_manifest.return_value = None
+
+        result = registry_with_plugin.reload_plugin("test_plugin")
+
+        assert result is None
+        assert registry_with_plugin._plugins["test_plugin:sf"] is old_instance
+        old_instance.cleanup.assert_not_called()
+
+
 # ── edge cases ──────────────────────────────────────────────────────────────
 
 

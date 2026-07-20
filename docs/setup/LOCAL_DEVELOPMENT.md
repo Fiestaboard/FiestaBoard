@@ -2,7 +2,7 @@
 
 This guide is for **contributors and plugin developers** who want to work on FiestaBoard's code. If you just want to host a FiestaBoard server to control your board, see the [Get Started in 5 Minutes](../../README.md#get-started-in-5-minutes) in the README instead.
 
-**Dev and CI match production:** Development and CI both use the same single-container layout as production (API + UI on port 4420, API under `/api/*`). Dev adds mounted source and API `--reload`; CI builds the production image and runs E2E against it.
+**Dev and CI match production:** Development and CI both use the same single-container layout as production (API + UI on port 4420, API under `/api/*`). Dev adds mounted source, API `--reload`, and the React Router/Vite dev server (HMR); CI builds the production image and runs E2E against it.
 
 ## Prerequisites
 
@@ -36,10 +36,12 @@ If you're working in Claude Code, the project ships matching slash commands: `/s
 
 ### Hot Reload
 
-The development Docker Compose mounts source code as volumes (`./src`, `./plugins`, `./web`, `./tests`, `./scripts`, plus `./data`):
+The development Docker Compose mounts source directories as volumes — `./src`, `./plugins`, `./external_plugins`, `./web`, `./tests`, `./scripts`, plus `./data`:
 
-- **Python API**: Changes to `src/` and `plugins/` trigger uvicorn `--reload` automatically — no restart needed.
-- **React Router / Vite Web UI**: The container serves the production build that was baked into the image, so UI changes need a container rebuild (`docker compose -f docker-compose.dev.yml up --build` or `/restart`). For interactive component work, Storybook is available as an opt-in service — see [Storybook](#storybook) below.
+- **Python API**: Changes to `src/`, `plugins/`, and `external_plugins/` trigger uvicorn `--reload` automatically — no restart needed.
+- **React Router / Vite Web UI**: The dev container runs the React Router / Vite dev server with HMR against the bind-mounted `./web`, so edits to UI source hot-reload in the browser automatically — no rebuild needed. Only dependency changes (`web/package.json`) require a rebuild (`docker compose -f docker-compose.dev.yml up --build` or `/restart`). For isolated component work, Storybook is also available as an opt-in service — see [Storybook](#storybook) below.
+
+> The dev compose also mounts config and infra files read-only — `./plugin-registry.json`, `./staff-picks`, `./start-dev.sh`, `./supervisord-dev.conf`, and `./nginx-dev.conf`. Edits to those take effect on the next container start, not via hot reload.
 
 ### Storybook
 
@@ -55,7 +57,7 @@ docker compose -f docker-compose.dev.yml --profile storybook up
 
 Once running, Storybook is available at **http://localhost:6006**.
 
-> **Note:** Storybook runs `npm install --force` on every startup because it shares the `web/` volume with the main container. The first run may take a minute; subsequent starts are faster.
+> **Note:** The Storybook service's startup command runs `rm -f package-lock.json && npm install --force` on every start, so it reinstalls dependencies each boot. It uses its own dedicated `node_modules` volume (`fiestaboard-storybook-node-modules`) and shares only the `./web` source with the main container — the reinstall comes from the command, not from a shared `node_modules`. The first run may take a minute; subsequent starts are faster.
 
 ### Stopping Services
 

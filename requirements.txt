@@ -15,8 +15,8 @@ pydantic>=2.10.0
 httpx>=0.28.1
 
 # Stock market data
-yfinance>=1.4.1
-finnhub-python>=2.4.28
+yfinance>=1.5.1
+finnhub-python>=2.4.29
 
 # Sun position calculations
 astral>=3.2
@@ -38,7 +38,7 @@ recurring-ical-events>=3.8.2
 pytz>=2026.2
 
 # MCP (Model Context Protocol) server — exposes FiestaBoard as an MCP tool server
-mcp>=1.28.0
+mcp>=1.28.1
 
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0

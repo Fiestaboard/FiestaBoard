@@ -200,14 +200,21 @@ class PageService:
 
         # Check if this is the last page
         if self.storage.count() == 1:
-            # Create default page before deleting the last one. Match the
-            # deleted page's device_type so a note (3x15) board doesn't end up
-            # with a flagship (6x22) welcome page (issue #1307).
-            default_page = self._create_default_page(device_type=existing_page.device_type)
-            logger.info(f"Created default page {default_page.id} before deleting last page {page_id}")
-
-            # Now delete the original page
+            # Delete the original FIRST (persisting that deletion), then create
+            # the default. If creating the default fails after a successful
+            # delete, the user is briefly left with zero pages — a recoverable
+            # state — rather than an orphaned "Welcome" page committed to disk
+            # alongside an original that was never deleted (issue #1314). The
+            # previous create-then-delete order could leave two pages on disk
+            # if the delete's save raised after the default was already saved.
             self.storage.delete(page_id)
+            self._invalidate_cache(page_id)
+
+            # Create the replacement default. Match the deleted page's
+            # device_type so a note (3x15) board doesn't end up with a
+            # flagship (6x22) welcome page (issue #1307).
+            default_page = self._create_default_page(device_type=existing_page.device_type)
+            logger.info(f"Created default page {default_page.id} after deleting last page {page_id}")
 
             # If deleted page was active, set the new default as active
             if is_active_page:

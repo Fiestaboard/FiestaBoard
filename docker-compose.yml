@@ -35,7 +35,10 @@ services:
       # not deleted, it just lives in the original folder).
       # See: https://fiestaboard.app/docs/troubleshooting#settings-or-board-credentials-are-gone-after-an-update
       - ./data:/app/data
-      # Persist marketplace-installed (external) plugins across rebuilds
+      # Legacy location for marketplace-installed (external) plugins.
+      # Plugins now live inside ./data/external_plugins (covered by the
+      # ./data mount above); anything found here is copied there once on
+      # startup. Safe to remove after upgrading past that migration.
       - ./external_plugins:/app/external_plugins
       # Docker socket for container management (restart/upgrade from UI)
       # Note: Required for self-update and restart features. Grants container

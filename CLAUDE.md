@@ -14,10 +14,10 @@ This project uses a **unified single container** for all environments (productio
 ### Core Rules
 
 1. **NEVER run the API server (`src/api_server.py` or `python -m src.api_server`) directly on the host machine**
-   - Always use Docker containers via `docker-compose` commands
+   - Always use Docker containers via `docker compose` commands
 
 2. **NEVER run the web UI (`npm run dev` in `web/` directory) directly on the host machine**
-   - Always use Docker containers via `docker-compose` commands
+   - Always use Docker containers via `docker compose` commands
 
 3. **NEVER install Python dependencies locally or suggest running `pip install`**
    - All Python dependencies are managed within Docker containers
@@ -27,13 +27,13 @@ This project uses a **unified single container** for all environments (productio
 
 ### Development Workflow
 
-- **Starting the dev container**: Use `/start` command or `docker-compose -f docker-compose.dev.yml up`
-- **Stopping**: Use `/stop` command or `docker-compose -f docker-compose.dev.yml down`
+- **Starting the dev container**: Use `/start` command or `docker compose -f docker-compose.dev.yml up`
+- **Stopping**: Use `/stop` command or `docker compose -f docker-compose.dev.yml down`
 - **Restarting**: Use `/restart` command (stops, rebuilds with --no-cache, restarts)
-- **Building**: `docker-compose -f docker-compose.dev.yml build` to rebuild images without restarting
-- **Running tests**: `docker-compose -f docker-compose.dev.yml exec fiestaboard pytest` (API) or `docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"` (web)
-- **Debugging**: Use `docker-compose logs -f` or `docker-compose exec` for interactive debugging
-- **Checking status**: Use `docker-compose ps` to see container status
+- **Building**: `docker compose -f docker-compose.dev.yml build` to rebuild images without restarting
+- **Running tests**: `docker compose -f docker-compose.dev.yml exec fiestaboard pytest` (API) or `docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"` (web)
+- **Debugging**: Use `docker compose logs -f` or `docker compose exec` for interactive debugging
+- **Checking status**: Use `docker compose ps` to see container status
 - **Code changes**: Edit code on host machine; Python changes auto-reload via volume mounts. UI changes require a container rebuild.
 - **Installing dependencies**:
   - For Python: Update `requirements.txt` and rebuild the container
@@ -42,8 +42,8 @@ This project uses a **unified single container** for all environments (productio
 ### Testing Guidelines
 
 - **Local development**: Tests run inside the Docker container
-  - Use `docker-compose -f docker-compose.dev.yml exec fiestaboard pytest` for Python tests
-  - Use `docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"` for web tests
+  - Use `docker compose -f docker-compose.dev.yml exec fiestaboard pytest` for Python tests
+  - Use `docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"` for web tests
 - **CI**: Tests run directly on the GitHub Actions host for speed (Python and Node.js installed natively)
 - Re-testing after changes should also be done in the container
 
@@ -65,9 +65,9 @@ The only code that may run locally:
 
 Always suggest Docker-based commands:
 - ✅ Use `/start`, `/stop`, `/restart` to control the container
-- ✅ `docker-compose -f docker-compose.dev.yml up`
-- ✅ `docker-compose -f docker-compose.dev.yml exec fiestaboard pytest`
-- ✅ `docker-compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"`
+- ✅ `docker compose -f docker-compose.dev.yml up`
+- ✅ `docker compose -f docker-compose.dev.yml exec fiestaboard pytest`
+- ✅ `docker compose -f docker-compose.dev.yml run --rm --profile test web sh -c "npm ci && npm test"`
 - ❌ `python src/api_server.py`
 - ❌ `cd web && npm run dev`
 - ❌ `pip install -r requirements.txt`

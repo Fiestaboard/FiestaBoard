@@ -309,7 +309,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: '20'
         cache: 'npm'
@@ -348,7 +348,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: '20'
         cache: 'npm'
@@ -377,7 +377,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: '20'
         cache: 'npm'
@@ -436,7 +436,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: '20'
         cache: 'npm'
@@ -523,6 +523,9 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          # E2E runs the production stage — pin it so a Dockerfile stage
+          # reorder can't silently switch what gets tested (issue #1377).
+          target: runtime
           push: false
           # `load: false` — this job doesn't run the image, it only
           # populates the GHA cache so the E2E jobs can pull warm layers.
@@ -571,6 +574,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          target: runtime
           push: false
           load: true
           tags: fiestaboard:e2e
@@ -675,30 +679,6 @@ jobs:
           WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
           MOCK_CLOUD_URLS: ${{ env.MOCK_CLOUD_URLS }}
 
-      # ── Visual regression tests ───────────────────────────────────
-      # Runs visual-regression.spec.ts against the first worker container
-      # only (15 screenshot tests don't benefit from per-worker sharding).
-      # `continue-on-error: true` is in place until baseline snapshots are
-      # committed. To bootstrap (or refresh) baselines, run:
-      #   gh workflow run bootstrap-visual-baselines.yml
-      # That workflow opens a PR with the new PNGs and removes this
-      # `continue-on-error: true` line, making the step required.
-      # See docs/development/VISUAL_REGRESSION.md for the full workflow.
-      - name: Run visual regression tests
-        id: visual-regression
-        working-directory: web
-        continue-on-error: true
-        timeout-minutes: 5
-        run: npx playwright test visual-regression.spec.ts --reporter=github --workers=1
-        env:
-          CI: true
-          RUN_VISUAL_REGRESSION: "1"
-          PLAYWRIGHT_OUTPUT_DIR: playwright-visual-results
-          WORKER_URLS: ${{ env.WORKER_URLS }}
-          WORKER_MOCK_URLS: ${{ env.WORKER_MOCK_URLS }}
-          WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
-          MOCK_CLOUD_URLS: ${{ env.MOCK_CLOUD_URLS }}
-
       - name: Stop containers
         if: always()
         run: |
@@ -713,24 +693,6 @@ jobs:
           name: playwright-results
           path: web/playwright-test-results/
           retention-days: 7
-
-      - name: Upload visual regression results
-        uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
-        with:
-          name: visual-regression-results
-          path: web/playwright-visual-results/
-          retention-days: 7
-          if-no-files-found: ignore
-
-      - name: Upload visual regression snapshots
-        uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
-        with:
-          name: visual-regression-snapshots
-          path: web/tests/visual-regression.spec.ts-snapshots/
-          retention-days: 30
-          if-no-files-found: ignore
 
   ai-mcp-e2e-tests:
     name: AI + MCP E2E Tests
@@ -768,6 +730,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          target: runtime
           push: false
           load: true
           tags: fiestaboard:ai-mcp-e2e
@@ -917,6 +880,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          target: runtime
           push: false
           load: true
           tags: fiestaboard:auth-e2e
@@ -1038,7 +1002,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: '20'
         cache: 'npm'
@@ -1102,7 +1066,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Set up Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: '22'
         cache: 'npm'

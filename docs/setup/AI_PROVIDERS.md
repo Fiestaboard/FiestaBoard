@@ -56,16 +56,14 @@ The current preset list, sourced from `web/src/components/settings/ai-settings.t
      quick-pick buttons below also set this for you.
    - **Base URL** — the API root, e.g.
      `https://openrouter.ai/api/v1` or `https://api.anthropic.com/v1`.
-     A **Quick presets** panel below the field provides one-click
-     buttons for all supported providers — the same full list of cloud
-     and local options described in the **Quick setup with preset
-     pills** section above.
+     Use a **Quick preset** pill to auto-fill this — see
+     [Quick setup](#quick-setup-with-preset-pills).
    - **API Key** — paste the key. It is stored on this device's
      `data/config.json` and is masked (`***`) on read.
    - **Models** — type each model id and press Enter or click `+`.
      The format depends on your provider:
-     - OpenRouter: `openai/gpt-4o-mini`, `anthropic/claude-opus-4-8`, `anthropic/claude-sonnet-4-6`, `anthropic/claude-haiku-4-5-20251001`
-     - Anthropic direct: `claude-opus-4-8`, `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`
+     - OpenRouter: `openai/gpt-4o-mini`, `anthropic/claude-opus-4-8`, `anthropic/claude-sonnet-5`, `anthropic/claude-haiku-4-5`
+     - Anthropic direct: `claude-opus-4-8`, `claude-sonnet-5`, `claude-haiku-4-5`
      - OpenAI direct: `gpt-4o-mini`, `gpt-4o`
 
      See the **Recommended models** table below for a full list.
@@ -86,12 +84,12 @@ These all work well with the FiestaBoard prompt format. Any current chat-complet
 | ------------ | --------- | -------------------------------------- | --------------------------------------- |
 | OpenRouter   | OpenAI    | `openai/gpt-4o-mini`                   | Cheap, fast, reliable JSON output.      |
 | OpenRouter   | OpenAI    | `anthropic/claude-opus-4-8`            | Best quality, higher cost.              |
-| OpenRouter   | OpenAI    | `anthropic/claude-sonnet-4-6`          | High-quality, moderate cost.            |
-| OpenRouter   | OpenAI    | `anthropic/claude-haiku-4-5-20251001`  | Cheap, fast Claude via OpenRouter.      |
+| OpenRouter   | OpenAI    | `anthropic/claude-sonnet-5`            | High-quality, moderate cost.            |
+| OpenRouter   | OpenAI    | `anthropic/claude-haiku-4-5`           | Cheap, fast Claude via OpenRouter.      |
 | OpenAI       | OpenAI    | `gpt-4o-mini`                          | Same as via OpenRouter.                 |
 | Anthropic    | Anthropic | `claude-opus-4-8`                      | Best quality; direct, no markup.        |
-| Anthropic    | Anthropic | `claude-sonnet-4-6`                    | High-quality; direct, no markup.        |
-| Anthropic    | Anthropic | `claude-haiku-4-5-20251001`            | Cheaper, fast.                          |
+| Anthropic    | Anthropic | `claude-sonnet-5`                      | High-quality; direct, no markup.        |
+| Anthropic    | Anthropic | `claude-haiku-4-5`                     | Cheaper, fast.                          |
 | Local Ollama | OpenAI    | `qwen2.5:14b-instruct` or larger       | Needs a model that follows JSON.        |
 
 > **Note:** Model IDs are versioned and providers periodically rotate them. This table is updated periodically, but the authoritative list of current Claude model IDs lives at [docs.anthropic.com](https://docs.anthropic.com/). If a suggested ID returns an "unknown model" error, check there for the current name.
@@ -107,7 +105,7 @@ configured:
   schema).
 - **Your prompt text.**
 - **The variable list of all enabled plugins** (names + descriptions
-  - max widths). This may include data such as transit station IDs
+  and max widths). This may include data such as transit station IDs
   or location names that you have configured.
 - Up to a handful of example pages drawn from plugin manifests.
 - Optionally, the **current draft page** (only when you tick "Use
@@ -116,13 +114,35 @@ configured:
 API keys are stored locally and never sent to any FiestaBoard-hosted
 service — there is no FiestaBoard AI proxy.
 
-## Limitations (v1)
+## AI Chat
+
+Beyond the one-shot **Gen AI** button, FiestaBoard has an **AI Chat**
+assistant for back-and-forth page building. Open it from the
+assistant button in the sidebar to get a chat drawer, or use the
+inline chat panel inside the page editor.
+
+Type a request like "make a weather page for the morning" and the
+reply appears token-by-token as the model generates it — AI Chat
+**streams** responses in real time instead of waiting for the whole
+answer. It can draft and edit page templates, and (from the global
+drawer) take broader actions such as installing a plugin or
+navigating the app.
+
+AI Chat uses the **same configured provider and model** as the Gen AI
+button — whatever you set up in **Settings → AI Providers**. There's
+no separate configuration.
+
+> **Note:** Like the Gen AI button, AI Chat never saves anything on
+> its own. Proposed page edits are applied to your working draft
+> locally; you still review and click **Save**. Other actions surface
+> a confirmation step before they run.
+
+## Limitations
 
 - Two protocols supported: OpenAI-compatible chat completions, and
   the Anthropic Messages API. Other native APIs (Google Gemini,
   Cohere, …) can be reached today through OpenRouter, or added by
   registering a new entry in `src/ai/protocols.py`.
-- No streaming UI: a single request/response.
 - No automatic page creation or scheduling — you always review and
   click **Save**.
 - No image/vision input.

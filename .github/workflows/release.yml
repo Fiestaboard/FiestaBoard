@@ -66,7 +66,7 @@ jobs:
           token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -224,6 +224,10 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          # Pin the production stage explicitly — a target-less build takes
+          # whatever stage is last in the Dockerfile, which once shipped the
+          # dev supervisor config to users (issue #1377).
+          target: runtime
           platforms: ${{ matrix.platform }}
           build-args: |
             VERSION=${{ needs.prep.outputs.version }}

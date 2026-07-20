@@ -14,7 +14,7 @@ This plan is **recursive**. Each stage shrinks the uncovered set by one bucket. 
 ## Stage 0 — Diagnose (always run first)
 
 ```
-docker-compose -f docker-compose.dev.yml ps        # container up?
+docker compose -f docker-compose.dev.yml ps        # container up?
 cd web && npx playwright test tests/regression/ --reporter=line  # current state
 ```
 
@@ -151,7 +151,7 @@ These are nodes that may legitimately never test:
 
 ```bash
 # 1. Diagnose
-docker-compose -f docker-compose.dev.yml ps
+docker compose -f docker-compose.dev.yml ps
 cd web && npx playwright test tests/regression/ --reporter=line | tee /tmp/last-run.txt
 
 # 2. Find your stage

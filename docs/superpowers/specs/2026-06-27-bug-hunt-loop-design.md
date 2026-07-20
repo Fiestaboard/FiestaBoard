@@ -90,7 +90,7 @@ Initial area list (tune during build):
 `text_to_board`, `text_utils`), `src/plugins` loader/base + `plugins/*`,
 `src/api_server.py` routes, `src/auth` + `src/security`, `src/mqtt`,
 `src/triggers`, `src/displays`, `src/settings` + `config_manager`, `src/ai`,
-`src/backup` + `src/system` + `src/network`, `web/src/routes`, `web/src/lib`
+`src/backup` + `src/system` + `src/network`, `web/app/routes`, `web/src/lib`
 (API client + contract), `web/src/components` (state-heavy).
 
 ---
@@ -193,7 +193,7 @@ Data-gathering is a deterministic script so the model only does distillation.
 Every filed issue carries a machine-parseable header and exactly one fenced
 repro block, so Phase 2's executor can parse it with no rework:
 
-```
+````
 ## Bug-hunt finding
 
 - **area:** src/schedules
@@ -216,7 +216,7 @@ def test_...():
 
 ### Suggested direction
 <2–5 sentences; not a full patch>
-```
+````
 
 Labels: `bug`, `bug-hunt`, `claude-fix`. Reserved for Phase 2:
 `repro-confirmed`, `repro-failed`.

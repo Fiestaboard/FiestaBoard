@@ -810,10 +810,11 @@ def test_check_for_updates_skips_builtin(registry, mock_loader):
 
 @patch("src.plugins.registry.check_plugin_update_available", return_value=True)
 def test_check_for_updates_detects_external(mock_check, registry, mock_loader):
-    """check_for_updates checks external plugins and caches results."""
+    """check_for_updates checks enabled external plugins and caches results."""
     mock_loader.plugin_sources = {
         "ext_plugin": PluginSource(source_type="external", local_path="/ext/ext_plugin"),
     }
+    registry._enabled = {"ext_plugin": True}
     results = registry.check_for_updates()
     assert results == {"ext_plugin": True}
     assert registry.get_update_status() == {"ext_plugin": True}
@@ -826,6 +827,7 @@ def test_check_for_updates_no_update(mock_check, registry, mock_loader):
     mock_loader.plugin_sources = {
         "ext_plugin": PluginSource(source_type="external", local_path="/ext/ext_plugin"),
     }
+    registry._enabled = {"ext_plugin": True}
     results = registry.check_for_updates()
     assert results == {"ext_plugin": False}
 
@@ -1050,10 +1052,11 @@ def test_auto_migrate_installs_orphaned_enabled_plugin(
 @patch("src.plugins.registry.get_external_plugins_dir")
 @patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
 @patch("src.plugins.registry.load_registry")
-def test_auto_migrate_installs_orphaned_disabled_plugin(
+def test_auto_migrate_leaves_disabled_orphan_uninstalled(
     mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest
 ):
-    """_auto_migrate_v2_plugins installs an orphaned plugin and preserves its enabled=False state."""
+    """_auto_migrate_v2_plugins leaves a disabled orphan uninstalled but keeps
+    its stored config intact (code is installed on demand if re-enabled)."""
     mock_loader.load_all_plugins.return_value = {}
     mock_manifest.id = "muni"
     mock_load_reg.return_value = [
@@ -1073,9 +1076,10 @@ def test_auto_migrate_installs_orphaned_disabled_plugin(
         mock_cm.return_value.get_all_plugin_configs.return_value = {"muni": stored_cfg}
         registry.initialize()
 
-    assert "muni" in registry._plugins
-    assert registry._enabled["muni"] is False
-    assert mock_plugin.enabled is False
+    mock_install.assert_not_called()
+    assert "muni" not in registry._plugins
+    # Config must not be deleted — the user may re-enable later.
+    mock_cm.return_value.delete_plugin_config.assert_not_called()
 
 
 @patch("src.plugins.registry.load_registry")
@@ -1586,3 +1590,143 @@ def test_uninstall_external_plugin_rejects_builtin(registry, mock_loader):
     mock_loader.get_source.return_value = PluginSource(source_type="builtin", local_path="/plugins/test")
     errors = registry.uninstall_external_plugin("test")
     assert "Cannot uninstall" in errors[0]
+
+
+# --- v2 migration/reconcile: only reinstall plugins that are in use ---
+
+
+def _cm_first_run(mock_cm, stored_configs):
+    """Configure a mock config manager for a first-run migration."""
+    inst = mock_cm.return_value
+    inst.get_all_plugin_configs.return_value = stored_configs
+    inst.is_v2_plugin_migration_done.return_value = False
+    inst.version_changed_on_load = False
+    inst.get_v2_plugin_failed_installs.return_value = []
+    return inst
+
+
+def test_migration_skips_disabled_orphan(registry):
+    """An orphaned config with enabled=False must NOT be auto-installed.
+
+    The v2->v3 migration seeded configs for all ex-builtin plugins; boards
+    that never use e.g. dad_jokes should not keep re-downloading it."""
+    stored = {"dad_jokes": {"enabled": False}}
+    registry.install_from_registry = MagicMock(return_value=[])
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        _cm_first_run(mock_cm, stored)
+        registry._auto_migrate_v2_plugins(stored)
+
+    registry.install_from_registry.assert_not_called()
+
+
+def test_migration_installs_enabled_orphan(registry):
+    stored = {"weather": {"enabled": True}}
+    registry.install_from_registry = MagicMock(return_value=[])
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        _cm_first_run(mock_cm, stored)
+        registry._auto_migrate_v2_plugins(stored)
+
+    registry.install_from_registry.assert_called_once_with("weather")
+
+
+def test_migration_installs_base_when_instance_enabled(registry):
+    """A disabled base config with an enabled instance (weather:sf) is in use —
+    the base plugin code must be installed."""
+    stored = {
+        "weather": {"enabled": False},
+        "weather:sf": {"enabled": True},
+    }
+    registry.install_from_registry = MagicMock(return_value=[])
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        _cm_first_run(mock_cm, stored)
+        registry._auto_migrate_v2_plugins(stored)
+
+    registry.install_from_registry.assert_called_once_with("weather")
+
+
+def test_migration_skipped_disabled_not_marked_failed(registry):
+    """Skipping a disabled orphan is not a failure — it must not enter the
+    retry queue (which would re-attempt it every boot)."""
+    stored = {"dad_jokes": {"enabled": False}, "weather": {"enabled": True}}
+    registry.install_from_registry = MagicMock(return_value=[])
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        inst = _cm_first_run(mock_cm, stored)
+        registry._auto_migrate_v2_plugins(stored)
+
+    inst.set_v2_plugin_failed_installs.assert_called_once_with([])
+
+
+# --- check_for_updates: skip disabled plugins ---
+
+
+def _external_source(tmp_path):
+    return PluginSource(source_type="external", repository_url="https://example.com/r.git", local_path=str(tmp_path))
+
+
+def test_check_for_updates_skips_disabled_plugin(registry, mock_loader, tmp_path):
+    mock_loader.plugin_sources = {"foo": _external_source(tmp_path)}
+    registry._enabled = {"foo": False}
+
+    with patch("src.plugins.registry.check_plugin_update_available") as mock_check:
+        results = registry.check_for_updates()
+
+    mock_check.assert_not_called()
+    assert "foo" not in results
+
+
+def test_check_for_updates_checks_enabled_plugin(registry, mock_loader, tmp_path):
+    mock_loader.plugin_sources = {"foo": _external_source(tmp_path)}
+    registry._enabled = {"foo": True}
+
+    with patch("src.plugins.registry.check_plugin_update_available", return_value=True) as mock_check:
+        results = registry.check_for_updates()
+
+    mock_check.assert_called_once()
+    assert results == {"foo": True}
+
+
+def test_check_for_updates_checks_base_with_enabled_instance(registry, mock_loader, tmp_path):
+    """Base disabled but an instance (foo:home) enabled — the shared code is
+    running, so updates must still be checked."""
+    mock_loader.plugin_sources = {"foo": _external_source(tmp_path)}
+    registry._enabled = {"foo": False, "foo:home": True}
+
+    with patch("src.plugins.registry.check_plugin_update_available", return_value=False) as mock_check:
+        results = registry.check_for_updates()
+
+    mock_check.assert_called_once()
+    assert results == {"foo": False}
+
+
+# --- enable_plugin: clone-on-demand for known registry plugins ---
+
+
+def test_enable_plugin_installs_missing_registry_plugin(registry):
+    """Enabling a plugin whose code is absent but which exists in the plugin
+    registry installs it first (needed once disabled orphans are no longer
+    pre-installed by the migration)."""
+
+    def fake_install(plugin_id):
+        plugin = MagicMock(spec=PluginBase)
+        plugin.enabled = False
+        plugin.config = {}
+        registry._plugins[plugin_id] = plugin
+        return []
+
+    registry.install_from_registry = MagicMock(side_effect=fake_install)
+    entry = RegistryEntry(plugin_id="dad_jokes", name="Dad Jokes", repository="https://example.com/r.git")
+
+    with patch("src.plugins.registry.load_registry", return_value=[entry]):
+        assert registry.enable_plugin("dad_jokes") is True
+
+    registry.install_from_registry.assert_called_once_with("dad_jokes")
+    assert registry.is_enabled("dad_jokes")
+
+
+def test_enable_plugin_unknown_plugin_still_fails(registry):
+    with patch("src.plugins.registry.load_registry", return_value=[]):
+        assert registry.enable_plugin("nope") is False

@@ -34,7 +34,7 @@ The default timezone is `America/Los_Angeles`. To change it:
 3. Use the arrow keys to navigate, Enter to select, Escape to close.
 4. Click **Save Changes**.
 
-Or set it via environment variable. Add the line to your `.env` file in the project root (docker-compose reads this file automatically):
+Or set it via environment variable. Add the line to your `.env` file in the project root (docker compose reads this file automatically):
 
 ```bash
 TIMEZONE=America/New_York
@@ -158,4 +158,4 @@ The string is not a valid IANA name. Use the autocomplete picker rather than typ
 Verify the plugin is enabled in **Integrations** and that the page template references at least one `date_time.*` variable. The board polls for new data on a fixed interval — to shorten it, open **Settings** and lower the **Board Update Interval** (default 15 seconds).
 
 **`time_english` reads oddly between hours.**
-The expression rounds to the nearest standard phrasing (`HALF PAST`, `A QUARTER PAST`, `A QUARTER TO`) and uses morning/afternoon/evening/night periods based on the hour. Minute 30 is always `HALF PAST`; minute 15 is always `A QUARTER PAST`.
+The expression spells out the exact minutes past or to the hour (for example, `TWENTY-THREE PAST`), reserving the special phrases `A QUARTER PAST` (:15), `HALF PAST` (:30), and `A QUARTER TO` (:45). It uses "PAST" up to and including the half-hour and switches to "TO" the next hour after :30, then appends a morning/afternoon/evening/night period based on the hour. So 5:23 renders as `IT'S TWENTY-THREE PAST FIVE IN THE MORNING.`, not a rounded phrase. Minute 30 is always `HALF PAST`; minute 15 is always `A QUARTER PAST`.

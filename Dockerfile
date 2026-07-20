@@ -59,8 +59,10 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN --mount=type=cache,target=/app/node_modules/.vite \
     npm run build
 
-# --- Stage 3: Final unified runtime image ---
-FROM python:3.14-slim AS runtime
+# --- Stage 3: Shared runtime base (API + static UI + nginx) ---
+# This stage holds everything common to production and dev. The concrete
+# `runtime` (production) and `runtime-dev` stages below both build FROM it.
+FROM python:3.14-slim AS runtime-base
 
 ARG VERSION=dev
 ENV VERSION=${VERSION}
@@ -153,14 +155,19 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 # The entrypoint runs as root to fix Docker socket permissions,
 # then drops to appuser via gosu before executing the CMD.
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["supervisord", "-c", "/app/supervisord.conf"]
 
 # --- Stage 4 (optional): Dev runtime, only built when target=runtime-dev ---
 # The Vite/React-Router dev server needs Node at runtime; production
 # doesn't (nginx serves the static SPA). Split that into a separate
 # target so the prod image keeps the ~150MB Node savings while
 # docker-compose.dev.yml can opt in with `target: runtime-dev`.
-FROM runtime AS runtime-dev
+#
+# This stage is deliberately placed BEFORE the production `runtime` stage
+# so that `runtime` remains the Dockerfile's LAST stage. A `docker build`
+# without an explicit `--target` builds the last stage; keeping production
+# last means the published image (and any target-less build) boots
+# supervisord.conf, not supervisord-dev.conf. See issue #1377.
+FROM runtime-base AS runtime-dev
 
 USER root
 
@@ -174,3 +181,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_26.x | bash - \
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["supervisord", "-c", "/app/supervisord-dev.conf"]
+
+# --- Stage 5: Production runtime (DEFAULT target) ---
+# Kept as the LAST stage on purpose. Because a target-less `docker build`
+# resolves to the final stage, this guarantees the published image and CI
+# builds that omit `--target` land on production (api + nginx via
+# supervisord.conf) rather than the dev stage above. See issue #1377.
+FROM runtime-base AS runtime
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["supervisord", "-c", "/app/supervisord.conf"]
