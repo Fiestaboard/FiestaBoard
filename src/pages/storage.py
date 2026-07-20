@@ -19,7 +19,7 @@ from .models import Page
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 3
+CURRENT_SCHEMA_VERSION = 4
 
 
 # Mapping from obsolete plugin id (used in template variable references,
@@ -171,12 +171,37 @@ def _migrate_v2_to_v3(pages_data: list[dict]) -> int:
     return migrated
 
 
+def _migrate_v3_to_v4(pages_data: list[dict]) -> int:
+    """Migration 3 -> 4: add notes_wide/notes_tall fields to all pages.
+
+    Ensures every page has the ``notes_wide`` and ``notes_tall`` keys
+    (defaults to ``1`` for both, matching the Page model field defaults).
+    This migration is required because CLAUDE.md mandates schema versioning
+    whenever new fields are added to the stored page format.
+
+    Idempotent: pages that already have both fields are skipped.
+    """
+    migrated = 0
+    for page_data in pages_data:
+        changed = False
+        if "notes_wide" not in page_data:
+            page_data["notes_wide"] = 1
+            changed = True
+        if "notes_tall" not in page_data:
+            page_data["notes_tall"] = 1
+            changed = True
+        if changed:
+            migrated += 1
+    return migrated
+
+
 # Ordered list of (target_version, migration_function).
 # Each function receives the raw pages list and returns the number of pages affected.
 MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
     (1, _migrate_v0_to_v1),
     (2, _migrate_v1_to_v2),
     (3, _migrate_v2_to_v3),
+    (4, _migrate_v3_to_v4),
 ]
 
 

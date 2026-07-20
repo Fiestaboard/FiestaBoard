@@ -77,7 +77,10 @@
     "secondaryNavigation": "Sekundär navigering",
     "picks": "Personalens val",
     "skipToMainContent": "Hoppa till huvudinnehållet",
-    "prideCelebrationAriaLabel": "Fira Pride-månaden"
+    "prideCelebrationAriaLabel": "Fira Pride-månaden",
+    "boardSelector": "Välj tavla att hantera",
+    "selectBoard": "Välj tavla",
+    "unnamedBoard": "Namnlös tavla"
   },
   "network": {
     "title": "Wi-Fi",
@@ -549,8 +552,8 @@
       "connectedTestAgain": "Ansluten! Testa igen",
       "thingsToTry": "Saker att prova:",
       "boardType": "Tavlans typ",
-      "flagshipDimensions": "22 × 6 tecken",
-      "noteDimensions": "15 × 3 tecken",
+      "flagshipDimensions": "6 × 22 tecken",
+      "noteDimensions": "3 × 15 tecken",
       "boardColor": "Tavlans färg",
       "connectionTestFailed": "Anslutningstest misslyckades",
       "failedToEnableLocalApi": "Kunde inte aktivera lokalt API"
@@ -695,6 +698,7 @@
     "liveOutput": "Liveutmatning",
     "liveOutputAriaLabel": "Växla liveutmatning till tavlan",
     "selectBoardAriaLabel": "Välj tavla för liveutmatning",
+    "deviceTypeSwitcherAriaLabel": "Ändra tavlans storlek",
     "selectBoardPlaceholder": "Välj tavla",
     "toastPageCreated": "Sida skapad",
     "toastPageUpdated": "Sida uppdaterad",
@@ -771,7 +775,30 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "Tavlans typ och storlek",
+    "deviceGroupLabel": "Enheter",
+    "noteArrayGroupLabel": "Note-matriser",
+    "customLabel": "Anpassad…",
+    "presets": {
+      "2_wide": "2 sida vid sida",
+      "4_wide": "4 sida vid sida",
+      "2_tall": "2 staplade",
+      "4_tall": "4 staplade",
+      "2x2_grid": "2×2-rutnät"
+    },
+    "notesWideLabel": "Notes breda",
+    "notesTallLabel": "Notes höga",
+    "customRangeError": "Varje dimension måste vara mellan 1 och {max}.",
+    "noteArrayTokenLabel": "Moln-API-token",
+    "noteArrayTokenPlaceholder": "Ange X-Vestaboard-Token",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (angiven)",
+    "noteArrayTokenHelp": "X-Vestaboard-Token för denna Note-matris, från din Vestaboard Cloud API-prenumeration.",
+    "autoDetect": "Identifiera automatiskt från tavlan",
+    "detecting": "Identifierar…",
+    "detectFailed": "Det gick inte att identifiera tavlans konfiguration.",
+    "showSecretAriaLabel": "Visa värde",
+    "hideSecretAriaLabel": "Dölj värde"
   },
   "systemUpdate": {
     "updateAvailable": "Uppdatering tillgänglig",
@@ -1472,7 +1499,10 @@
     "loading": "Laddar board-display",
     "empty": "Tom board-display",
     "preview": "Board-förhandsgranskning",
-    "withMessage": "Board-display: {message}"
+    "withMessage": "Board-display: {message}",
+    "previewSizeLabel": "Förhandsvisningsstorlek",
+    "fitMode": "Anpassa",
+    "actualMode": "Verklig storlek"
   },
   "updateOverlay": {
     "takingLonger": "Uppdateringen tar längre tid än väntat",
@@ -1663,5 +1693,10 @@
     "taskProgressAriaLabel": "AI-uppgifters förlopp",
     "clearConversationAriaLabel": "Rensa konversation",
     "closePanelAriaLabel": "Stäng FiestaBot (Beta)"
+  },
+  "boardSizeIndicator": {
+    "custom": "Anpassad",
+    "ariaLabel": "{rows} rader gånger {cols} kolumner",
+    "ariaLabelWithLayout": "{rows} rader gånger {cols} kolumner, {layout}"
   }
 }

@@ -111,6 +111,18 @@ jobs:
           sleep 2
           echo "Mock board started on port 7000"
 
+      - name: Start mock Vestaboard Cloud API (smoke)
+        if: github.event_name == 'pull_request'
+        env:
+          PORT: 9200
+          ROWS: 6
+          COLS: 30
+        run: |
+          # mock-cloud/server.py is stdlib-only too — no pip install needed.
+          python3 integration-tests/mock-cloud/server.py &
+          sleep 2
+          echo "Mock Cloud API started on port 9200"
+
       - name: Start FiestaBoard container (smoke)
         if: github.event_name == 'pull_request'
         run: |
@@ -147,50 +159,72 @@ jobs:
           # mock server running on the GitHub Actions runner host. From inside Docker,
           # the host is reachable at host.docker.internal, not localhost.
           MOCK_BOARD_HOST: host.docker.internal
+          # MOCK_CLOUD_URL is reachable from the runner host (Playwright) at
+          # localhost; the mock Cloud API listens on the runner, not in Docker.
+          MOCK_CLOUD_URL: http://localhost:9200/
 
       # ── Merge queue: 4 isolated containers for full suite ─────────
       # The full suite uses workers=4 (playwright.config.ts). Without per-worker
       # backend isolation, all workers share a single backend and race conditions
       # cause spurious failures. We start 4 FiestaBoard + 4 mock-board containers
       # and pass WORKER_URLS so each Playwright worker gets its own isolated backend.
-      - name: Start 4 mock board + FiestaBoard containers (full suite)
+      - name: Start 4 mock board + mock cloud + FiestaBoard containers (full suite)
         if: github.event_name == 'merge_group'
         run: |
           WORKER_COUNT=4
           WORKER_URLS=""
           WORKER_MOCK_URLS=""
           WORKER_MOCK_HOSTS=""
+          MOCK_CLOUD_URLS=""
 
           for i in $(seq 0 $((WORKER_COUNT - 1))); do
+            # PORTS=7000,7001 — two Local-API listeners so multi-board output
+            # tests (multi-board-output.spec.ts) can address a second board.
             docker run -d --name mock-board-$i \
               -v ${{ github.workspace }}/integration-tests/mock-board:/app:ro \
               -w /app \
+              -e PORTS=7000,7001 \
               python:3.11-slim python server.py
 
+            # Note-array Cloud API mock (stdlib-only); one per worker for isolation.
+            docker run -d --name mock-cloud-$i \
+              -e PORT=9200 -e ROWS=6 -e COLS=30 \
+              -v ${{ github.workspace }}/integration-tests/mock-cloud:/app:ro \
+              -w /app \
+              python:3.11-slim python server.py
+
+            # The backend must know the cloud mock's address at startup so
+            # note-array boards actually send to it.
+            CLOUD_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-cloud-$i)
             docker run -d --name fiestaboard-int-$i \
               -e PRODUCTION=false \
               -e FIESTABOARD_AUTH_ENABLED=false \
+              -e VESTABOARD_CLOUD_API_URL=http://$CLOUD_IP:9200/ \
               fiestaboard:integration
           done
 
           for i in $(seq 0 $((WORKER_COUNT - 1))); do
             FB_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard-int-$i)
             MOCK_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-board-$i)
+            CLOUD_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-cloud-$i)
 
             [ -n "$WORKER_URLS" ] && WORKER_URLS="$WORKER_URLS,"
             [ -n "$WORKER_MOCK_URLS" ] && WORKER_MOCK_URLS="$WORKER_MOCK_URLS,"
             [ -n "$WORKER_MOCK_HOSTS" ] && WORKER_MOCK_HOSTS="$WORKER_MOCK_HOSTS,"
+            [ -n "$MOCK_CLOUD_URLS" ] && MOCK_CLOUD_URLS="$MOCK_CLOUD_URLS,"
 
             WORKER_URLS="${WORKER_URLS}http://$FB_IP:3000"
             WORKER_MOCK_URLS="${WORKER_MOCK_URLS}http://$MOCK_IP:7000"
             WORKER_MOCK_HOSTS="${WORKER_MOCK_HOSTS}$MOCK_IP"
+            MOCK_CLOUD_URLS="${MOCK_CLOUD_URLS}http://$CLOUD_IP:9200"
 
-            echo "Worker $i: FiestaBoard=$FB_IP, MockBoard=$MOCK_IP"
+            echo "Worker $i: FiestaBoard=$FB_IP, MockBoard=$MOCK_IP, MockCloud=$CLOUD_IP"
           done
 
           echo "WORKER_URLS=$WORKER_URLS" >> $GITHUB_ENV
           echo "WORKER_MOCK_URLS=$WORKER_MOCK_URLS" >> $GITHUB_ENV
           echo "WORKER_MOCK_HOSTS=$WORKER_MOCK_HOSTS" >> $GITHUB_ENV
+          echo "MOCK_CLOUD_URLS=$MOCK_CLOUD_URLS" >> $GITHUB_ENV
 
       - name: Wait for all containers to be ready (full suite)
         if: github.event_name == 'merge_group'
@@ -224,13 +258,14 @@ jobs:
           WORKER_URLS: ${{ env.WORKER_URLS }}
           WORKER_MOCK_URLS: ${{ env.WORKER_MOCK_URLS }}
           WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
+          MOCK_CLOUD_URLS: ${{ env.MOCK_CLOUD_URLS }}
 
       - name: Stop containers
         if: always()
         run: |
           docker rm -f fiestaboard-integration 2>/dev/null || true
           for i in 0 1 2 3; do
-            docker rm -f fiestaboard-int-$i mock-board-$i 2>/dev/null || true
+            docker rm -f fiestaboard-int-$i mock-board-$i mock-cloud-$i 2>/dev/null || true
           done
 
       - name: Upload test results

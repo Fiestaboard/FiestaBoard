@@ -1026,3 +1026,139 @@ class TestCompoundPluginKeys:
         context = {"weather:sf": {"change_percent": 5}}
         engine._get_color_only("weather:sf", "change_percent", context)
         mock_cm.get_color_rules.assert_called_with("weather", "change_percent")
+
+
+class TestRenderLinesNoteArray:
+    """Verify render_lines handles note_array device type correctly.
+
+    Covers issue #1173: render_lines must use resolve_dimensions so note_array
+    pages get the correct rows/cols (not silently fall back to flagship 6×22).
+    """
+
+    @pytest.fixture
+    def engine(self):
+        return TemplateEngine()
+
+    # --- 3×30 (notes_wide=2, notes_tall=1) ---
+
+    def test_3x30_rows_count(self, engine):
+        result = engine.render_lines(["Line1"], {}, device_type="note_array", notes_wide=2, notes_tall=1)
+        assert len(result.split("\n")) == 3
+
+    def test_3x30_col_width(self, engine):
+        result = engine.render_lines(["A"], {}, device_type="note_array", notes_wide=2, notes_tall=1)
+        lines = result.split("\n")
+        assert len(lines[0]) == 30
+
+    def test_3x30_center_alignment(self, engine):
+        lines = ["HELLO"]
+        metadata = [{"alignment": "center", "wrap": False}]
+        result = engine.render_lines(
+            lines, {}, line_metadata=metadata, device_type="note_array", notes_wide=2, notes_tall=1
+        )
+        first_line = result.split("\n")[0]
+        # "HELLO" is 5 chars, centered in 30: at least 12 spaces left-pad
+        assert len(first_line) == 30
+        assert first_line.strip() == "HELLO"
+        left_pad = len(first_line) - len(first_line.lstrip())
+        assert left_pad >= 12  # at least half of (30-5)//2
+
+    def test_3x30_wrap_respects_30_cols(self, engine):
+        # A 25-char word fits in 30 cols but not 22; must not be split
+        long_text = "ABCDEFGHIJKLMNOPQRSTUVWXY"  # 25 chars
+        result = engine.render_lines([long_text], {}, device_type="note_array", notes_wide=2, notes_tall=1)
+        first_line = result.split("\n")[0]
+        assert "ABCDEFGHIJKLMNOPQRSTUVWXY" in first_line.strip()
+
+    # --- 3×60 (notes_wide=4, notes_tall=1) ---
+
+    def test_3x60_rows_count(self, engine):
+        result = engine.render_lines(["Hi"], {}, device_type="note_array", notes_wide=4, notes_tall=1)
+        assert len(result.split("\n")) == 3
+
+    def test_3x60_col_width(self, engine):
+        result = engine.render_lines(["A"], {}, device_type="note_array", notes_wide=4, notes_tall=1)
+        lines = result.split("\n")
+        assert len(lines[0]) == 60
+
+    def test_3x60_center_alignment(self, engine):
+        lines = ["CENTERED HEADLINE"]
+        metadata = [{"alignment": "center", "wrap": False}]
+        result = engine.render_lines(
+            lines, {}, line_metadata=metadata, device_type="note_array", notes_wide=4, notes_tall=1
+        )
+        first_line = result.split("\n")[0]
+        assert len(first_line) == 60
+        assert first_line.strip() == "CENTERED HEADLINE"
+        left_pad = len(first_line) - len(first_line.lstrip())
+        assert left_pad >= (60 - len("CENTERED HEADLINE")) // 2 - 1
+
+    # --- 6×15 (notes_wide=1, notes_tall=2) ---
+
+    def test_6x15_rows_count(self, engine):
+        result = engine.render_lines(["Line"], {}, device_type="note_array", notes_wide=1, notes_tall=2)
+        assert len(result.split("\n")) == 6
+
+    def test_6x15_col_width(self, engine):
+        result = engine.render_lines(["A"], {}, device_type="note_array", notes_wide=1, notes_tall=2)
+        lines = result.split("\n")
+        assert len(lines[0]) == 15
+
+    def test_6x15_vertical_fill(self, engine):
+        # 6 input lines should produce exactly 6 output lines each with content
+        lines = [f"ROW{i}" for i in range(6)]
+        result = engine.render_lines(lines, {}, device_type="note_array", notes_wide=1, notes_tall=2)
+        output = result.split("\n")
+        assert len(output) == 6
+        for i in range(6):
+            assert f"ROW{i}" in output[i]
+
+    # --- 12×15 (notes_wide=1, notes_tall=4) ---
+
+    def test_12x15_rows_count(self, engine):
+        lines = [f"L{i}" for i in range(12)]
+        result = engine.render_lines(lines, {}, device_type="note_array", notes_wide=1, notes_tall=4)
+        assert len(result.split("\n")) == 12
+
+    def test_12x15_col_width(self, engine):
+        result = engine.render_lines(["A"], {}, device_type="note_array", notes_wide=1, notes_tall=4)
+        lines = result.split("\n")
+        assert len(lines[0]) == 15
+
+    def test_12x15_all_rows_populated(self, engine):
+        lines = [f"ROW{i}" for i in range(12)]
+        result = engine.render_lines(lines, {}, device_type="note_array", notes_wide=1, notes_tall=4)
+        output = result.split("\n")
+        assert len(output) == 12
+        assert "ROW11" in output[11]
+
+    def test_12x15_truncates_to_12_rows(self, engine):
+        # Providing 15 lines should produce exactly 12
+        lines = [f"X{i}" for i in range(15)]
+        result = engine.render_lines(lines, {}, device_type="note_array", notes_wide=1, notes_tall=4)
+        assert len(result.split("\n")) == 12
+
+    # --- 6×30 (notes_wide=2, notes_tall=2) ---
+
+    def test_6x30_rows_count(self, engine):
+        result = engine.render_lines(["Hi"], {}, device_type="note_array", notes_wide=2, notes_tall=2)
+        assert len(result.split("\n")) == 6
+
+    def test_6x30_col_width(self, engine):
+        result = engine.render_lines(["A"], {}, device_type="note_array", notes_wide=2, notes_tall=2)
+        lines = result.split("\n")
+        assert len(lines[0]) == 30
+
+    # --- Backward compatibility: flagship and note unchanged ---
+
+    def test_flagship_unchanged(self, engine):
+        result = engine.render_lines(["Hi"], {}, device_type="flagship")
+        lines = result.split("\n")
+        assert len(lines) == 6
+        assert len(lines[0]) == 22
+
+    def test_note_unchanged(self, engine):
+        result = engine.render_lines(["Hi"], {}, device_type="note")
+        lines = result.split("\n")
+        assert len(lines) == 3
+        assert len(lines[0]) == 15

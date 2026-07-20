@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.devices import BoardContext
-from src.formatters.message_formatter import get_message_formatter
 
 # Import plugin system
 try:
@@ -50,7 +49,6 @@ class DisplayService:
 
     def __init__(self):
         """Initialize display service with plugin registry."""
-        self.formatter = get_message_formatter()
         self._plugin_registry: PluginRegistry | None = None
 
         if PLUGIN_SYSTEM_AVAILABLE:

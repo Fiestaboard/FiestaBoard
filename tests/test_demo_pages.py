@@ -370,7 +370,7 @@ class TestSchemaMigrationV1ToV2:
         assert pages[0]["demo_plugin_id"] == "weather"
 
     def test_current_schema_version(self):
-        assert CURRENT_SCHEMA_VERSION == 3
+        assert CURRENT_SCHEMA_VERSION == 4
 
 
 # ---------------------------------------------------------------------------

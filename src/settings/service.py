@@ -8,6 +8,8 @@ import contextlib
 import json
 import logging
 import os
+import shutil
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -62,16 +64,30 @@ class OutputSettings:
 
 @dataclass
 class ActivePageSettings:
-    """Active page settings for display."""
+    """Active page settings for display.
+
+    The manual active page is stored **per-board** in ``by_board`` (board_id ->
+    page_id). ``page_id`` is kept as a back-compat mirror of the *primary*
+    board's value for one release so older readers (and external tooling) keep
+    working. New code should go through ``SettingsService.get_active_page_id``
+    / ``set_active_page_id`` rather than touching these fields directly.
+    """
 
     page_id: str | None = None
+    by_board: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "ActivePageSettings":
-        return cls(page_id=data.get("page_id"))
+        raw_by_board = data.get("by_board") or {}
+        # Defensively coerce to a plain str->str dict; ignore malformed entries.
+        if isinstance(raw_by_board, dict):
+            clean = {str(k): str(v) for k, v in raw_by_board.items() if isinstance(v, str)}
+        else:
+            clean = {}
+        return cls(page_id=data.get("page_id"), by_board=clean)
 
 
 BOARD_READ_INTERVAL_MIN = 20  # Hard floor: no faster than once every 20 seconds
@@ -106,7 +122,7 @@ class PollingSettings:
         )
 
 
-BOARD_SENSITIVE_FIELDS = {"local_api_key", "cloud_key"}
+BOARD_SENSITIVE_FIELDS = {"local_api_key", "cloud_key", "note_array_token"}
 
 
 @dataclass
@@ -253,9 +269,15 @@ class TemporaryOverride:
 
 @dataclass
 class ScheduleSettings:
-    """Schedule system settings."""
+    """Schedule system settings.
 
-    enabled: bool = False  # Schedule mode disabled by default
+    ``enabled`` is **deprecated** as the source of truth: schedule mode is now
+    authoritative per-board via ``boards[i].schedule_enabled``. This flag is
+    retained for one release only as a back-compat mirror of the *primary*
+    board's value. Use ``SettingsService.is_schedule_enabled(board_id)``.
+    """
+
+    enabled: bool = False  # Deprecated mirror of the primary board's schedule_enabled
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -407,6 +429,123 @@ class MQTTSettings:
         )
 
 
+# ==================== Settings schema versioning ====================
+#
+# settings.json carries an integer ``schema_version`` and is migrated through
+# an ordered ``MIGRATIONS`` list on startup (mirrors src/schedules/storage.py).
+# Migrations operate on the **raw dict** before any Pydantic/dataclass parsing,
+# are idempotent, log how many records changed, and a one-time backup of the
+# pre-migration file is written to ``settings.json.v{N}_backup`` before the
+# first migration runs.
+
+CURRENT_SETTINGS_SCHEMA_VERSION = 1
+
+_LEGACY_CAROUSEL_PREFIX = "carousel:"
+_COLLECTION_PREFIX = "collection:"
+
+
+def primary_board_id_from_raw(data: dict) -> str | None:
+    """Return the primary (first) board's id from a raw settings dict.
+
+    The primary board is the first entry in ``board.boards``. Returns None when
+    there are no boards or the first board has no id. This is the migration-safe
+    counterpart to ``SettingsService.get_primary_board_id`` and operates purely
+    on raw JSON so it can be used inside migrations (before parsing).
+    """
+    board = data.get("board")
+    if not isinstance(board, dict):
+        return None
+    boards = board.get("boards")
+    if isinstance(boards, list) and boards and isinstance(boards[0], dict):
+        bid = boards[0].get("id")
+        return bid if isinstance(bid, str) and bid else None
+    return None
+
+
+def _rewrite_carousel_ref(ref: object) -> tuple[object, bool]:
+    """Rewrite a single ``carousel:<uuid>`` reference to ``collection:<uuid>``.
+
+    Returns ``(new_ref, changed)``. Non-carousel and non-str refs pass through.
+    """
+    if isinstance(ref, str) and ref.startswith(_LEGACY_CAROUSEL_PREFIX):
+        return _COLLECTION_PREFIX + ref[len(_LEGACY_CAROUSEL_PREFIX) :], True
+    return ref, False
+
+
+def _migrate_v0_to_v1(data: dict) -> int:
+    """Migration 0 -> 1 (idempotent; operates on the raw settings dict).
+
+    Three independent fix-ups, each counted toward the returned change total:
+
+    1. Rewrite legacy ``carousel:<uuid>`` page references to
+       ``collection:<uuid>`` in ``active_page.page_id`` and
+       ``temporary_override.page_id`` / ``revert_page_id`` (prior behavior of
+       ``_migrate_legacy_carousel_refs``).
+    2. Move the global ``active_page.page_id`` into
+       ``active_page.by_board[primary_id]`` so the manual active page becomes
+       per-board. The ``page_id`` mirror is left in place as a back-compat
+       value for the primary board. Skipped when ``by_board[primary_id]`` is
+       already set. Deferred (mirror left untouched, read-path fallback covers
+       it) when there are no boards yet.
+    3. Reconcile per-board ``schedule_enabled``: when the primary board lacks a
+       ``schedule_enabled`` key and the legacy global ``schedule.enabled`` is
+       True, stamp ``schedule_enabled = True`` on the primary board.
+    """
+    changes = 0
+
+    active = data.get("active_page")
+    if not isinstance(active, dict):
+        active = {}
+
+    # (1) carousel -> collection rewrites
+    new_ref, did = _rewrite_carousel_ref(active.get("page_id"))
+    if did:
+        active["page_id"] = new_ref
+        data["active_page"] = active
+        changes += 1
+
+    override = data.get("temporary_override")
+    if isinstance(override, dict):
+        for key in ("page_id", "revert_page_id"):
+            new_ref, did = _rewrite_carousel_ref(override.get(key))
+            if did:
+                override[key] = new_ref
+                changes += 1
+
+    primary_id = primary_board_id_from_raw(data)
+
+    # (2) global active page -> primary board's by_board slot
+    if primary_id is not None:
+        by_board = active.get("by_board")
+        if not isinstance(by_board, dict):
+            by_board = {}
+        legacy_page_id = active.get("page_id")
+        if legacy_page_id and primary_id not in by_board:
+            by_board[primary_id] = legacy_page_id
+            active["by_board"] = by_board
+            data["active_page"] = active
+            changes += 1
+
+    # (3) reconcile schedule_enabled onto the primary board
+    schedule = data.get("schedule")
+    global_enabled = bool(schedule.get("enabled")) if isinstance(schedule, dict) else False
+    if primary_id is not None and global_enabled:
+        board = data.get("board")
+        boards = board.get("boards") if isinstance(board, dict) else None
+        if isinstance(boards, list) and boards and isinstance(boards[0], dict):
+            primary = boards[0]
+            if "schedule_enabled" not in primary:
+                primary["schedule_enabled"] = True
+                changes += 1
+
+    return changes
+
+
+MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
+    (1, _migrate_v0_to_v1),
+]
+
+
 class SettingsService:
     """Service for managing runtime settings.
 
@@ -429,10 +568,11 @@ class SettingsService:
         else:
             self.settings_file = Path(settings_file)
 
-        # One-shot rewrite of any legacy ``carousel:<uuid>`` references in the
-        # settings file to the new ``collection:<uuid>`` prefix. Runs before
-        # any subsystem reads, so every _load_* sees the migrated values.
-        self._migrate_legacy_carousel_refs()
+        # Run ordered schema migrations on the raw settings file BEFORE any
+        # subsystem reads, so every _load_* sees fully migrated values. This
+        # includes the legacy carousel:->collection: rewrite (folded into the
+        # v0->v1 migration) plus per-board active-page / schedule_enabled moves.
+        self._run_migrations()
 
         # Load initial settings from env/file
         self._transition = self._load_transition_settings()
@@ -454,24 +594,19 @@ class SettingsService:
 
         logger.info(f"SettingsService initialized (file: {self.settings_file})")
 
-    def _migrate_legacy_carousel_refs(self) -> None:
-        """Rewrite ``carousel:<uuid>`` references in settings.json once.
+    def _run_migrations(self) -> None:
+        """Run pending settings schema migrations on the raw settings file.
 
-        Touches ``active_page.page_id`` and ``temporary_override.page_id`` /
-        ``temporary_override.revert_page_id``. Writes the file back only if
-        at least one reference changed. No-op when the file does not exist
-        or contains no legacy references.
+        Reads ``settings.json``, runs any migrations whose target version is
+        newer than the file's ``schema_version`` (default 0), and resaves once
+        when anything changed. A one-time backup of the pre-migration file is
+        written to ``settings.json.v{N}_backup`` before the first migration
+        runs. Migrations operate on the raw dict (before dataclass parsing) so
+        every subsequent ``_load_*`` sees migrated values. No-op when the file
+        does not exist or is already at the current version.
         """
         if not self.settings_file.exists():
             return
-
-        legacy_prefix = "carousel:"
-        new_prefix = "collection:"
-
-        def _rewrite(value):
-            if isinstance(value, str) and value.startswith(legacy_prefix):
-                return new_prefix + value[len(legacy_prefix) :], True
-            return value, False
 
         try:
             with open(self.settings_file) as f:  # noqa: PTH123
@@ -480,29 +615,36 @@ class SettingsService:
             logger.warning(f"Could not pre-read settings for migration: {e}")
             return
 
-        changed = 0
-
-        active = data.get("active_page")
-        if isinstance(active, dict):
-            new_ref, did = _rewrite(active.get("page_id"))
-            if did:
-                active["page_id"] = new_ref
-                changed += 1
-
-        override = data.get("temporary_override")
-        if isinstance(override, dict):
-            for key in ("page_id", "revert_page_id"):
-                new_ref, did = _rewrite(override.get(key))
-                if did:
-                    override[key] = new_ref
-                    changed += 1
-
-        if not changed:
+        if not isinstance(data, dict):
             return
+
+        current_version = data.get("schema_version", 0)
+        if not isinstance(current_version, int):
+            current_version = 0
+
+        if current_version >= CURRENT_SETTINGS_SCHEMA_VERSION:
+            return
+
+        backup_path = self.settings_file.with_suffix(f".json.v{current_version}_backup")
+        if not backup_path.exists():
+            try:
+                shutil.copy2(self.settings_file, backup_path)
+                logger.info(f"Created pre-migration settings backup at {backup_path}")
+            except OSError as e:
+                logger.warning(f"Could not create settings backup: {e}")
+
+        for target_version, migrate_fn in MIGRATIONS:
+            if current_version >= target_version:
+                continue
+            count = migrate_fn(data)
+            logger.info(f"Settings schema migration v{current_version}->v{target_version}: {count} change(s) applied")
+            current_version = target_version
+
+        data["schema_version"] = CURRENT_SETTINGS_SCHEMA_VERSION
 
         try:
             self._atomic_write_json(data)
-            logger.info(f"Migrated {changed} carousel: -> collection: reference(s) in settings.json")
+            logger.info("Saved migrated settings to file")
         except OSError as e:
             logger.warning(f"Could not write migrated settings: {e}")
 
@@ -540,6 +682,7 @@ class SettingsService:
         """Save current settings to JSON file."""
         try:
             data = {
+                "schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
                 "transitions": self._transition.to_dict(),
                 "output": self._output.to_dict(),
                 "active_page": self._active_page.to_dict(),
@@ -776,27 +919,59 @@ class SettingsService:
         """Determine if message should be sent to UI."""
         return True
 
-    # Active page settings
-    def get_active_page_id(self) -> str | None:
-        """Get the currently active page ID.
-
-        Returns:
-            Active page ID or None if not set
-        """
-        return self._active_page.page_id
-
-    def set_active_page_id(self, page_id: str | None) -> ActivePageSettings:
-        """Set the active page ID.
+    # Active page settings (per-board)
+    def get_active_page_id(self, board_id: str | None = None) -> str | None:
+        """Get the currently active (manual) page ID for a board.
 
         Args:
-            page_id: Page ID to set as active, or None to clear
+            board_id: Board to read. ``None`` resolves to the primary board.
+
+        Returns:
+            The board's active page ID, or None if not set.
+
+        Resolution order:
+          1. ``active_page.by_board[board_id]`` when present.
+          2. For the primary board only, fall back to the legacy
+             ``active_page.page_id`` mirror (covers pre-migration installs and
+             the "no boards yet" deferred-migration case).
+        """
+        bid = board_id if board_id is not None else self.get_primary_board_id()
+        if bid is not None and bid in self._active_page.by_board:
+            return self._active_page.by_board[bid] or None
+        # Legacy mirror fallback for the primary board (or when no board is known).
+        if board_id is None or bid is None or bid == self.get_primary_board_id():
+            return self._active_page.page_id
+        return None
+
+    def set_active_page_id(self, page_id: str | None, board_id: str | None = None) -> ActivePageSettings:
+        """Set the active (manual) page ID for a board.
+
+        Args:
+            page_id: Page ID to set as active, or None to clear.
+            board_id: Board to update. ``None`` resolves to the primary board.
+
+        When the targeted board is the primary board the legacy
+        ``active_page.page_id`` mirror is kept in sync for one release.
 
         Returns:
             Updated ActivePageSettings
         """
-        self._active_page.page_id = page_id
+        primary_id = self.get_primary_board_id()
+        bid = board_id if board_id is not None else primary_id
+
+        if bid is not None:
+            if page_id:
+                self._active_page.by_board[bid] = page_id
+            else:
+                self._active_page.by_board.pop(bid, None)
+
+        # Keep the legacy primary mirror in sync (also covers the no-boards case
+        # where bid is None and we only have the mirror to write to).
+        if board_id is None or bid is None or bid == primary_id:
+            self._active_page.page_id = page_id
+
         self._save_to_file()
-        logger.info(f"Active page set to: {page_id}")
+        logger.info(f"Active page for board {bid!r} set to: {page_id}")
         return self._active_page
 
     def get_active_page_settings(self) -> ActivePageSettings:
@@ -874,6 +1049,20 @@ class SettingsService:
             BoardSettings instance
         """
         return self._board
+
+    def get_primary_board_id(self) -> str | None:
+        """Return the primary (first) configured board's id, or None.
+
+        This is the single source of truth for "which board is the default"
+        and replaces ad-hoc ``boards[0]`` lookups scattered across the codebase
+        (main.py, schedules/service.py). Returns None when no boards exist or
+        the first board has no id.
+        """
+        boards = self._board.boards or []
+        if boards and isinstance(boards[0], dict):
+            bid = boards[0].get("id")
+            return bid if bid else None
+        return None
 
     def set_board_type(self, board_type: Literal["black", "white"] | None) -> BoardSettings:
         """Set the board type for UI rendering.
@@ -1087,33 +1276,47 @@ class SettingsService:
     def is_schedule_enabled(self, board_id: str | None = None) -> bool:
         """Check if schedule mode is enabled for a board.
 
-        When board_id is None, returns the first board's schedule_enabled, or global setting if no boards.
+        Schedule mode is authoritative **per-board** via
+        ``boards[i].schedule_enabled``. ``board_id=None`` resolves to the
+        primary board. An unknown board_id returns False. The legacy global
+        ``schedule.enabled`` mirror is only consulted when there are no
+        configured boards at all (pre-board installs).
         """
-        if board_id:
+        bid = board_id if board_id is not None else self.get_primary_board_id()
+        if bid is not None:
             for b in self._board.boards:
-                if b.get("id") == board_id:
-                    return b.get("schedule_enabled", False)
+                if b.get("id") == bid:
+                    return bool(b.get("schedule_enabled", False))
             return False
-        if self._board.boards:
-            return self._board.boards[0].get("schedule_enabled", self._schedule.enabled)
+        # No boards configured: fall back to the deprecated global mirror.
         return self._schedule.enabled
 
     def set_schedule_enabled(self, enabled: bool, board_id: str | None = None) -> ScheduleSettings:
-        """Enable or disable schedule mode for a board (or globally when board_id is None)."""
-        if board_id:
+        """Enable or disable schedule mode for a board.
+
+        ``board_id=None`` resolves to the primary board. Writing the primary
+        board also updates the deprecated ``schedule.enabled`` mirror for one
+        release.
+        """
+        primary_id = self.get_primary_board_id()
+        bid = board_id if board_id is not None else primary_id
+
+        if bid is not None:
             for b in self._board.boards:
-                if b.get("id") == board_id:
+                if b.get("id") == bid:
                     b["schedule_enabled"] = enabled
+                    if bid == primary_id:
+                        self._schedule.enabled = enabled
                     self._save_to_file()
-                    logger.info(f"Schedule mode for board {board_id}: {'enabled' if enabled else 'disabled'}")
+                    logger.info(f"Schedule mode for board {bid}: {'enabled' if enabled else 'disabled'}")
                     return self._schedule
-            logger.warning(f"Board {board_id} not found for set_schedule_enabled")
+            logger.warning(f"Board {bid} not found for set_schedule_enabled")
             return self._schedule
+
+        # No boards configured: write the deprecated global mirror only.
         self._schedule.enabled = enabled
-        if self._board.boards:
-            self._board.boards[0]["schedule_enabled"] = enabled
         self._save_to_file()
-        logger.info(f"Schedule mode (default): {'enabled' if enabled else 'disabled'}")
+        logger.info(f"Schedule mode (global, no boards): {'enabled' if enabled else 'disabled'}")
         return self._schedule
 
     def get_mqtt_settings(self) -> "MQTTSettings":

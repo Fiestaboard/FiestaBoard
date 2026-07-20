@@ -5,12 +5,12 @@ import { ArrowLeft, Check, Copy, Radio, Save, Trash2, Upload } from "lucide-reac
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 // Direct import – bypasses next/dynamic chunk caching issues in dev mode.
 // TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
 import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
-import { DEVICE_DIMENSIONS } from "@/components/tiptap-template-editor/utils/constants";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -45,6 +45,7 @@ import type {
   PageUpdate,
 } from "@/lib/api";
 import { api } from "@/lib/api";
+import { resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
@@ -114,6 +115,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 ) {
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
+  const tDisplaySettings = useTranslations("displaySettings");
   const queryClient = useQueryClient();
 
   // Fetch board settings for display type
@@ -121,7 +123,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Device type: from prop (new pages) or from existing page (editing)
   const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp);
-  const dims = DEVICE_DIMENSIONS[deviceType] || DEVICE_DIMENSIONS.flagship;
+  // Note-array grid dimensions. Only meaningful when deviceType === "note_array";
+  // flagship/note always stay 1×1 so they resolve to their fixed device sizes.
+  // Sourced from the existing page (editing), the configured note_array board
+  // (new page), or an AI sync — see the effects below.
+  const [notesWide, setNotesWide] = useState(1);
+  const [notesTall, setNotesTall] = useState(1);
+  const dims = resolveDimensions(deviceType, notesWide, notesTall);
   const numLines = dims.rows;
 
   // Preview board color - defaults to the user's configured board color
@@ -178,6 +186,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const lineAlignmentsRef = useRef(lineAlignments);
   const lineWrapEnabledRef = useRef(lineWrapEnabled);
   const deviceTypeRef = useRef(deviceType);
+  const notesWideRef = useRef(notesWide);
+  const notesTallRef = useRef(notesTall);
   useEffect(() => {
     nameRef.current = name;
   }, [name]);
@@ -193,6 +203,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   useEffect(() => {
     deviceTypeRef.current = deviceType;
   }, [deviceType]);
+  useEffect(() => {
+    notesWideRef.current = notesWide;
+  }, [notesWide]);
+  useEffect(() => {
+    notesTallRef.current = notesTall;
+  }, [notesTall]);
 
   const hasUnsavedChanges = useMemo(() => {
     if (!savedSnapshot) return true;
@@ -312,12 +328,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             lineAlignmentsRef.current,
             lineWrapEnabledRef.current,
           );
+          const noteArrayDims =
+            deviceTypeRef.current === "note_array"
+              ? { notes_wide: notesWideRef.current, notes_tall: notesTallRef.current }
+              : {};
           let result: { page: { id: string } };
           if (pageId) {
             result = await api.updatePage(pageId, {
               name: nameRef.current,
               template: cleanedLines,
               line_metadata: metadata,
+              ...noteArrayDims,
             });
           } else {
             result = await api.createPage({
@@ -326,6 +347,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               device_type: deviceTypeRef.current,
               template: cleanedLines,
               line_metadata: metadata,
+              ...noteArrayDims,
             });
           }
           // Invalidate the pages list and this page's preview, but don't close.
@@ -497,6 +519,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (existingPage.device_type) {
         setDeviceType(existingPage.device_type);
       }
+      // Seed note-array grid dimensions so the preview renders at the page's
+      // real size. Non-note_array pages persist no grid fields → fall back to 1×1.
+      setNotesWide(existingPage.notes_wide ?? 1);
+      setNotesTall(existingPage.notes_tall ?? 1);
 
       const pageName = existingPage.name;
       setName(pageName);
@@ -569,6 +595,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       }
     }
   }, [existingPage, pageId, loadingPage, skipDraft]);
+
+  // Seed note-array grid dimensions for a NEW note_array page from the
+  // configured note_array board, so the editor previews at the board's real
+  // size before the page has ever been saved. Existing pages source their dims
+  // from the load effect above; flagship/note pages never run this branch and
+  // stay 1×1 (which resolves to their fixed device size).
+  useEffect(() => {
+    if (pageId || deviceType !== "note_array" || !boardSettings?.boards) return;
+    const board = boardSettings.boards.find((b) => b.device_type === "note_array");
+    if (!board) return;
+    setNotesWide(board.notes_wide ?? 1);
+    setNotesTall(board.notes_tall ?? 1);
+  }, [pageId, deviceType, boardSettings?.boards]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -725,6 +764,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           name,
           template: cleanedLines,
           line_metadata: metadata,
+          ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
         };
         return api.updatePage(pageId, payload);
       } else {
@@ -734,6 +774,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           device_type: deviceType,
           template: cleanedLines,
           line_metadata: metadata,
+          ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
         };
         return api.createPage(payload);
       }
@@ -847,6 +888,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (data.device_type) {
         setDeviceType(data.device_type);
       }
+      // Mirror any note-array grid dimensions the synced page carries so the
+      // preview matches the source board. Read defensively — the current
+      // CurrentDisplayResponse type doesn't yet declare these fields.
+      const synced = data as { notes_wide?: number; notes_tall?: number };
+      if (synced.notes_wide != null) setNotesWide(synced.notes_wide);
+      if (synced.notes_tall != null) setNotesTall(synced.notes_tall);
 
       toast.success(t("toastSyncedFrom", { name: data.page_name }));
     },
@@ -1421,7 +1468,36 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 {/* Live preview */}
                 <div className="mt-4">
                   <div className="flex flex-wrap items-center justify-between gap-y-1 mb-2">
-                    <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
+                      <BoardSizeIndicator
+                        deviceType={deviceType}
+                        notesWide={notesWide}
+                        notesTall={notesTall}
+                        className="ml-1"
+                      />
+                      {/* New pages can still change device size — the type is only
+                          locked once the page is saved (converting saved content
+                          between 6×22 and 3×15 is lossy, so that stays out of scope). */}
+                      {!pageId && (
+                        <Select value={deviceType} onValueChange={(v) => setDeviceType(v as DeviceType)}>
+                          <SelectTrigger
+                            className="h-7 w-auto gap-1 px-2 text-xs"
+                            aria-label={t("deviceTypeSwitcherAriaLabel")}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="flagship" className="text-xs">
+                              {tDisplaySettings("flagshipLabel")}
+                            </SelectItem>
+                            <SelectItem value="note" className="text-xs">
+                              {tDisplaySettings("noteLabel")}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-[10px] text-muted-foreground mr-0.5">{t("boardColorLabel")}</span>
                       <button
@@ -1478,6 +1554,8 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       size="md"
                       boardType={effectiveBoardColor}
                       deviceType={deviceType}
+                      notesWide={notesWide}
+                      notesTall={notesTall}
                     />
                   </div>
 

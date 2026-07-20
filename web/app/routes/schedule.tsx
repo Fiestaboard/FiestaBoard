@@ -6,12 +6,14 @@ import {
   CalendarDays,
   List,
   MapPin,
+  Monitor,
   Plus,
   Power,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useCurrentBoard } from "@/components/current-board-context";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
 import { PageToolbar } from "@/components/page-toolbar";
@@ -43,7 +45,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { queryKeys, useBoardSettings } from "@/hooks/use-board";
+import { queryKeys } from "@/hooks/use-board";
 import { useCollections } from "@/hooks/use-board";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -106,16 +108,13 @@ export default function SchedulePage() {
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEntry | null>(null);
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null);
-  const { data: boardSettings } = useBoardSettings();
-  const boards = boardSettings?.boards ?? [];
-  const [selectedBoardId, setSelectedBoardId] = useState<string | "">("");
-  const effectiveBoardId = boards.length > 1 ? selectedBoardId || boards[0]?.id || "" : undefined;
 
-  useEffect(() => {
-    if (boards.length > 1 && !selectedBoardId && boards[0]?.id) {
-      setSelectedBoardId(boards[0].id);
-    }
-  }, [boards, selectedBoardId]);
+  // Board selection is shared app-wide via the sidebar selector so Schedule and
+  // Dashboard stay in sync and the choice persists across reloads (#1248).
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
+  // Single-board installs hit the unscoped (default-board) endpoints exactly as
+  // before; only multi-board installs scope requests by the selected board id.
+  const effectiveBoardId = boards.length > 1 ? currentBoardId || undefined : undefined;
 
   // Pre-fill data when creating from calendar slot selection or AI navigation
   const [prefillData, setPrefillData] = useState<{
@@ -497,24 +496,18 @@ export default function SchedulePage() {
           }
           right={
             <div className="flex items-center gap-2 flex-wrap justify-end">
-              {/* Board selector (multi-board only) */}
+              {/* Active board indicator (multi-board only). Read-only: switching
+                  boards happens via the shared sidebar selector (#1248). */}
               {boards.length > 1 && (
-                <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
-                  <SelectTrigger
-                    data-testid="board-selector"
-                    className="h-8 w-[130px] text-xs"
-                    aria-label={t("boardSelectorLabel")}
-                  >
-                    <SelectValue placeholder={t("boardSelectorLabel")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {boards.map((b: { id: string; name?: string }) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name || t("boardFallback", { id: b.id.slice(0, 8) })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <span
+                  data-testid="active-board-indicator"
+                  className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border bg-muted/40 text-xs text-muted-foreground max-w-[150px]"
+                >
+                  <Monitor className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    {currentBoard?.name || t("boardFallback", { id: currentBoardId.slice(0, 8) })}
+                  </span>
+                </span>
               )}
 
               {/* Schedule on/off toggle */}

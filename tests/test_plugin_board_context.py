@@ -88,6 +88,23 @@ class TestPerBoardCaching:
         assert plugin.get_data(BoardContext.from_device_type("flagship")).data["device"] == "flagship"
         assert plugin.fetch_count == 2
 
+    def test_note_arrays_of_different_sizes_cache_independently(self):
+        """Note arrays share device_type 'note_array' but differ in size — they
+        must not collide in the per-board cache (would serve wrong-sized data)."""
+        plugin = BoardProbePlugin()
+        plugin.get_data(BoardContext("note_array", rows=3, cols=60))  # 4 side-by-side
+        plugin.get_data(BoardContext("note_array", rows=6, cols=30))  # 2×2 grid
+        assert plugin.fetch_count == 2
+        # Re-fetching the first size within TTL is served from cache (no new fetch).
+        plugin.get_data(BoardContext("note_array", rows=3, cols=60))
+        assert plugin.fetch_count == 2
+
+    def test_same_note_array_size_served_from_cache(self):
+        plugin = BoardProbePlugin()
+        plugin.get_data(BoardContext("note_array", rows=3, cols=60))
+        plugin.get_data(BoardContext("note_array", rows=3, cols=60))
+        assert plugin.fetch_count == 1
+
     def test_clear_cache_wipes_all_boards(self):
         plugin = BoardProbePlugin()
         plugin.get_data(BoardContext.from_device_type("flagship"))

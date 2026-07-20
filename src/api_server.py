@@ -19,7 +19,7 @@ import requests
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 # Load environment variables from .env file before importing modules that may
@@ -36,7 +36,7 @@ from .collections.models import CollectionCreate, CollectionUpdate, is_collectio
 from .collections.service import get_collection_service  # noqa: E402
 from .config import Config  # noqa: E402
 from .config_manager import get_config_manager  # noqa: E402
-from .devices import get_dimensions  # noqa: E402
+from .devices import classify_dimensions, resolve_dimensions  # noqa: E402
 from .displays.service import get_display_service, reset_display_service  # noqa: E402
 from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
@@ -3159,10 +3159,22 @@ async def send_message(request: MessageRequest):
         raise HTTPException(status_code=503, detail="Board client not initialized")
 
     try:
-        # Convert text to board array for proper character/color support
-        board_array = text_to_board_array(request.text)
         settings_service = get_settings_service()
         transition = settings_service.get_transition_settings()
+        # Size the grid to the active (first) board so a manual send to a note
+        # array uses its real geometry instead of a default flagship 22×6.
+        board_settings = settings_service.get_board_settings()
+        device_type = "flagship"
+        notes_wide = 1
+        notes_tall = 1
+        if board_settings.boards:
+            primary_board = board_settings.boards[0]
+            device_type = primary_board.get("device_type", "flagship")
+            notes_wide = primary_board.get("notes_wide", 1)
+            notes_tall = primary_board.get("notes_tall", 1)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+        # Convert text to board array for proper character/color support
+        board_array = text_to_board_array(request.text, rows=dims.rows, cols=dims.cols)
 
         success, was_sent = service.vb_client.send_characters(
             board_array,
@@ -3214,7 +3226,12 @@ _WELCOME_TEMPLATE_NOTE = [
 ]
 
 
-def _build_welcome_template(device_type: str, custom_msg: str) -> list:
+def _build_welcome_template(
+    device_type: str,
+    custom_msg: str,
+    notes_wide: int = 1,
+    notes_tall: int = 1,
+) -> list:
     """Build the welcome message template for a given device type.
 
     Returns a list of template strings (one per row) sized appropriately
@@ -3222,16 +3239,29 @@ def _build_welcome_template(device_type: str, custom_msg: str) -> list:
     fit the device's column count.
 
     Args:
-        device_type: "flagship" or "note"
+        device_type: "flagship", "note", or "note_array"
         custom_msg: Optional user-configured welcome message; when empty,
             a device-appropriate default is used.
+        notes_wide: For note_array: number of notes side-by-side (default 1).
+        notes_tall: For note_array: number of notes stacked (default 1).
     """
+    try:
+        dims = resolve_dimensions(device_type, notes_wide=notes_wide, notes_tall=notes_tall)
+    except ValueError:
+        dims = resolve_dimensions("flagship")
+
+    cols = dims.cols
+
     if device_type == "note":
-        cols = 15
         default_msg = _DEFAULT_WELCOME_NOTE
         rows = list(_WELCOME_TEMPLATE_NOTE)
+    elif device_type == "note_array":
+        default_msg = _DEFAULT_WELCOME_NOTE
+        # Generate a plain template: blank rows with center row carrying text
+        center_idx = dims.rows // 2
+        rows = [""] * dims.rows
+        rows[center_idx] = "{center}"
     else:
-        cols = 22
         default_msg = _DEFAULT_WELCOME_FLAGSHIP
         rows = list(_WELCOME_TEMPLATE_FLAGSHIP)
 
@@ -3292,10 +3322,11 @@ async def send_welcome_message():
         settings_service = get_settings_service()
         transition = settings_service.get_transition_settings()
 
-        # Determine device type from configured boards (defaults to flagship).
-        # The Note has different dimensions (3x15 vs flagship's 6x22), so we
-        # render a smaller welcome message that fits its display.
+        # Determine device type and array dimensions from configured boards
+        # (defaults to flagship 6×22). Note arrays use notes_wide/notes_tall
+        # to compute the actual grid size.
         device_type = "flagship"
+        nw, nt = 1, 1
         try:
             board_settings = settings_service.get_board_settings()
             boards = getattr(board_settings, "boards", None) or []
@@ -3303,18 +3334,22 @@ async def send_welcome_message():
                 first = boards[0]
                 if isinstance(first, dict):
                     dt = first.get("device_type", "flagship")
+                    nw = first.get("notes_wide", 1)
+                    nt = first.get("notes_tall", 1)
                 else:
                     dt = getattr(first, "device_type", "flagship")
-                if dt in ("flagship", "note"):
+                    nw = getattr(first, "notes_wide", 1)
+                    nt = getattr(first, "notes_tall", 1)
+                if dt in ("flagship", "note", "note_array"):
                     device_type = dt
         except Exception as exc:  # pragma: no cover - defensive
-            logger.debug(f"Could not determine device type for welcome message: {exc}")
+            logger.debug("Could not determine device type for welcome message: %s", exc)
 
-        welcome_template = _build_welcome_template(device_type, custom_msg)
+        welcome_template = _build_welcome_template(device_type, custom_msg, notes_wide=nw, notes_tall=nt)
 
         # Convert template to board array sized for the target device
         welcome_text = "\n".join(welcome_template)
-        dims = get_dimensions(device_type)
+        dims = resolve_dimensions(device_type, notes_wide=nw, notes_tall=nt)
         board_array = text_to_board_array(welcome_text, rows=dims.rows, cols=dims.cols)
 
         success, was_sent = board_client.send_characters(
@@ -4362,12 +4397,18 @@ async def send_display(display_type: str, target: str | None = None):
             paused = True
         else:
             transition = settings_service.get_transition_settings()
-            # Use first board's device type for dimensions (flagship vs note)
+            # Size to the first board's device type/dimensions (flagship, note,
+            # or a note array's notes_wide×notes_tall geometry).
             board_settings = settings_service.get_board_settings()
             device_type = "flagship"
+            notes_wide = 1
+            notes_tall = 1
             if board_settings.boards:
-                device_type = board_settings.boards[0].get("device_type", "flagship")
-            dims = get_dimensions(device_type)
+                primary_board = board_settings.boards[0]
+                device_type = primary_board.get("device_type", "flagship")
+                notes_wide = primary_board.get("notes_wide", 1)
+                notes_tall = primary_board.get("notes_tall", 1)
+            dims = resolve_dimensions(device_type, notes_wide, notes_tall)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
                 board_array,
@@ -5333,7 +5374,7 @@ async def set_active_page(request: dict):
                     page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
                 )
 
-                dims = get_dimensions(page.device_type)
+                dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
                 board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
                 success, was_sent = service.vb_client.send_characters(
                     board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
@@ -5540,12 +5581,14 @@ async def update_board_settings(request: dict):
             if not isinstance(devices, list):
                 raise HTTPException(status_code=400, detail="devices must be a list")
             board = settings_service.set_devices(devices)
+            _reinitialize_board_clients()
             return {"status": "success", "settings": board.to_dict()}
         if "boards" in request:
             boards = request["boards"]
             if not isinstance(boards, list):
                 raise HTTPException(status_code=400, detail="boards must be a list")
             board = settings_service.set_boards(boards)
+            _reinitialize_board_clients()
             return {"status": "success", "settings": board.to_dict()}
         if "board_type" in request:
             board_type = request["board_type"]
@@ -5559,6 +5602,19 @@ async def update_board_settings(request: dict):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
+def _reinitialize_board_clients() -> None:
+    """Rebuild board clients after a boards-list mutation.
+
+    Without this, the display service keeps the clients it built at startup
+    and sends keep targeting the OLD connections — e.g. after removing the
+    first board, the promoted board's content was still delivered to the
+    removed board's hardware until restart.
+    """
+    service = get_service()
+    if service:
+        service.reinitialize_board_client()
+
+
 @app.post("/settings/board/add")
 async def add_board_instance(request: dict):
     """Add a new board instance. Body: device_type, optional name and other board fields."""
@@ -5567,6 +5623,7 @@ async def add_board_instance(request: dict):
     settings_service = get_settings_service()
     try:
         board = settings_service.add_board(request)
+        _reinitialize_board_clients()
         return {"status": "success", "settings": board.to_dict()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -5578,6 +5635,7 @@ async def remove_board_instance(board_id: str):
     settings_service = get_settings_service()
     try:
         board = settings_service.remove_board(board_id)
+        _reinitialize_board_clients()
         return {"status": "success", "settings": board.to_dict()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -5607,6 +5665,52 @@ async def set_board_paused(board_id: str, request: dict):
         "paused": paused,
         "settings": settings_service.get_board_settings().to_dict(),
     }
+
+
+@app.post("/settings/board/{board_id}/detect-size")
+async def detect_board_size(board_id: str):
+    """Auto-detect a board's device type and dimensions from its live layout.
+
+    Reads the board's current message over its own transport (local / cloud /
+    note-array, via ``board_client_from_board_dict``) and classifies the grid
+    shape with :func:`classify_dimensions`.
+
+    Returns ``device_type``, ``rows``, ``cols`` and — for note arrays —
+    ``notes_wide``, ``notes_tall`` and ``matched_preset``.
+
+    Errors: 404 (unknown board), 400 (board not configured), 422 (board
+    returned no layout, or an unclassifiable grid).
+    """
+    settings_service = get_settings_service()
+    boards = settings_service.get_board_settings().boards or []
+
+    board_dict = next((b for b in boards if b.get("id") == board_id), None)
+    if board_dict is None:
+        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
+
+    client = board_client_from_board_dict(board_dict)
+    if client is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Board {board_id} is not configured (missing credentials)",
+        )
+
+    grid = client.read_current_message()
+    if grid is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Board {board_id} returned no layout — board may be blank or unreachable",
+        )
+
+    rows = len(grid)
+    cols = len(grid[0]) if rows > 0 else 0
+    try:
+        return classify_dimensions(rows, cols)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Board {board_id} returned an unclassifiable grid ({rows}×{cols}): {exc}",
+        ) from exc
 
 
 @app.get("/settings/display")
@@ -5961,6 +6065,32 @@ def _get_board_client():
     return None
 
 
+def _get_first_board_dims():
+    """Return resolved dimensions for the first configured board.
+
+    Falls back to flagship 6×22 when the boards list is empty or settings
+    cannot be read. Safe to call from any endpoint — never raises.
+    """
+    try:
+        settings_service = get_settings_service()
+        board_settings = settings_service.get_board_settings()
+        boards = getattr(board_settings, "boards", None) or []
+        if boards:
+            first = boards[0]
+            if isinstance(first, dict):
+                dt = first.get("device_type", "flagship")
+                nw = first.get("notes_wide", 1)
+                nt = first.get("notes_tall", 1)
+            else:
+                dt = getattr(first, "device_type", "flagship")
+                nw = getattr(first, "notes_wide", 1)
+                nt = getattr(first, "notes_tall", 1)
+            return resolve_dimensions(dt, notes_wide=nw, notes_tall=nt)
+    except Exception as exc:
+        logger.debug("Could not resolve board dims (using flagship default): %s", exc)
+    return resolve_dimensions("flagship")
+
+
 def _board_is_paused(board_id: str | None = None) -> bool:
     """Return True when the target board (or default board) is paused.
 
@@ -6008,9 +6138,10 @@ async def debug_blank_board():
         logger.info("Board is paused - blocking debug blank send")
         return _paused_response()
 
+    dims = _get_first_board_dims()
     try:
-        # Create a 6x22 array filled with spaces (code 0)
-        blank_array = [[0] * 22 for _ in range(6)]
+        # Create an array of spaces (code 0) sized for the active board
+        blank_array = [[0] * dims.cols for _ in range(dims.rows)]
         success, was_sent = client.send_characters(blank_array, force=True)
 
         if success:
@@ -6051,9 +6182,10 @@ async def debug_fill_board(request: dict):
         logger.info("Board is paused - blocking debug fill send")
         return _paused_response()
 
+    dims = _get_first_board_dims()
     try:
-        # Create a 6x22 array filled with the specified character
-        fill_array = [[character_code] * 22 for _ in range(6)]
+        # Create an array filled with the specified character, sized for the active board
+        fill_array = [[character_code] * dims.cols for _ in range(dims.rows)]
         success, was_sent = client.send_characters(fill_array, force=True)
 
         if success:
@@ -6090,7 +6222,11 @@ async def debug_show_info():
     now = time_service.get_current_time()
     timestamp = now.strftime("%H:%M")
 
-    # Build debug info text (6 lines max, 22 chars each)
+    # Build debug info text. The per-line slice caps below are flagship-oriented
+    # (~22 col); the final grid is sized to the active board's dimensions when
+    # converted to a board array (see text_to_board_array call). On narrow boards
+    # the converter wraps/truncates to the real width. Per-line polish for exotic
+    # widths is deferred (see #1173).
     debug_text = f"""DEBUG INFO
 BOARD: {board_ip[:15]}
 SERVER: {server_ip[:14]}
@@ -6111,10 +6247,11 @@ V{version[:7]} {timestamp}"""
         return {**_paused_response(), "debug_info": debug_text}
 
     try:
-        # Convert text to board array
+        # Convert text to board array, sized to the active board's dimensions
         from .text_to_board import text_to_board_array
 
-        board_array = text_to_board_array(debug_text, use_color_tiles=False)
+        dims = _get_first_board_dims()
+        board_array = text_to_board_array(debug_text, use_color_tiles=False, rows=dims.rows, cols=dims.cols)
 
         success, was_sent = client.send_characters(board_array, force=True)
 
@@ -6627,14 +6764,17 @@ async def clear_page_cache(request: dict = None):
 
 
 @app.post("/pages/{page_id}/send")
-async def send_page(page_id: str, target: str | None = None):
+async def send_page(page_id: str, target: str | None = None, payload: dict | None = Body(None)):
     """
     Send a page to the configured target.
 
     Args:
         page_id: The page ID
-        target: Override output target (ui, board, both)
+        target: Override output target (ui, board, both) — query param,
+            or ``{"target": ...}`` in the JSON body
     """
+    if target is None and payload:
+        target = payload.get("target")
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
 
@@ -6691,14 +6831,30 @@ async def send_page(page_id: str, target: str | None = None):
             )
 
             # Convert to board array with dimensions for page's device type (flagship vs note)
-            dims = get_dimensions(page.device_type)
+            dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
             success, was_sent = service.vb_client.send_characters(
                 board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
             )
             sent_to_board = was_sent
             if not success:
-                raise HTTPException(status_code=500, detail="Failed to send to board")
+                # Board offline / unreachable — degrade gracefully with a
+                # structured error instead of a bare 500 detail string so
+                # callers can distinguish "board unreachable" from a server
+                # fault. Must not be 502/503/504: nginx intercepts those on
+                # /api/ and replaces the body with its startup placeholder.
+                logger.error(f"Failed to send page {page_id} to board (offline or unreachable)")
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "status": "error",
+                        "detail": "Failed to send to board",
+                        "page_id": page_id,
+                        "sent_to_board": False,
+                        "paused": False,
+                        "target": target or settings_service.get_output_settings().target,
+                    },
+                )
             if was_sent:
                 service.request_board_refresh()
 
@@ -7323,7 +7479,11 @@ async def render_template_live(request: dict):
             client = board_client_from_board_dict(target_board)
             if client:
                 device_type = target_board.get("device_type", "flagship")
-                dims = get_dimensions(device_type)
+                dims = resolve_dimensions(
+                    device_type,
+                    target_board.get("notes_wide", 1),
+                    target_board.get("notes_tall", 1),
+                )
                 board_array = text_to_board_array(rendered, rows=dims.rows, cols=dims.cols)
 
                 transition_settings = settings_service.get_transition_settings()
@@ -7388,9 +7548,12 @@ async def force_refresh():
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    # Clear cache to force send even if content unchanged
+    # Clear caches to force send even if content unchanged — every board,
+    # not just the primary (secondary boards have their own clients).
     if service.vb_client:
         service.vb_client.clear_cache()
+    for client in service.board_clients.values():
+        client.clear_cache()
 
     try:
         service.check_and_send_active_page()

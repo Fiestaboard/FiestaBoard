@@ -77,7 +77,10 @@
     "secondaryNavigation": "Secondary navigation",
     "picks": "Staff Picks",
     "skipToMainContent": "Skip to main content",
-    "prideCelebrationAriaLabel": "Celebrate Pride Month"
+    "prideCelebrationAriaLabel": "Celebrate Pride Month",
+    "boardSelector": "Select board to manage",
+    "selectBoard": "Select board",
+    "unnamedBoard": "Unnamed board"
   },
   "home": {
     "title": "Dashboard",
@@ -506,8 +509,8 @@
       "connectedTestAgain": "Connected! Test Again",
       "thingsToTry": "Things to try:",
       "boardType": "Board Type",
-      "flagshipDimensions": "22 × 6 characters",
-      "noteDimensions": "15 × 3 characters",
+      "flagshipDimensions": "6 × 22 characters",
+      "noteDimensions": "3 × 15 characters",
       "boardColor": "Board Color",
       "connectionTestFailed": "Connection test failed",
       "failedToEnableLocalApi": "Failed to enable local API"
@@ -652,6 +655,7 @@
     "liveOutput": "Live Output",
     "liveOutputAriaLabel": "Toggle live output to board",
     "selectBoardAriaLabel": "Select board for live output",
+    "deviceTypeSwitcherAriaLabel": "Change board size",
     "selectBoardPlaceholder": "Select board",
     "toastPageCreated": "Page created",
     "toastPageUpdated": "Page updated",
@@ -728,7 +732,30 @@
     "boardNamePlaceholder": "e.g. Kitchen Board, Office Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
-    "failedToEnable": "Failed to enable local API"
+    "failedToEnable": "Failed to enable local API",
+    "deviceTypeAriaLabel": "Board type and size",
+    "deviceGroupLabel": "Devices",
+    "noteArrayGroupLabel": "Note arrays",
+    "customLabel": "Custom…",
+    "presets": {
+      "2_wide": "2 side-by-side",
+      "4_wide": "4 side-by-side",
+      "2_tall": "2 stacked",
+      "4_tall": "4 stacked",
+      "2x2_grid": "2×2 grid"
+    },
+    "notesWideLabel": "Notes wide",
+    "notesTallLabel": "Notes tall",
+    "customRangeError": "Each dimension must be between 1 and {max}.",
+    "noteArrayTokenLabel": "Cloud API Token",
+    "noteArrayTokenPlaceholder": "Enter X-Vestaboard-Token",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (set)",
+    "noteArrayTokenHelp": "The X-Vestaboard-Token for this Note array, from your Vestaboard Cloud API subscription.",
+    "autoDetect": "Auto-detect from board",
+    "detecting": "Detecting…",
+    "detectFailed": "Could not detect the board configuration.",
+    "showSecretAriaLabel": "Show value",
+    "hideSecretAriaLabel": "Hide value"
   },
   "systemUpdate": {
     "updateAvailable": "Update Available",
@@ -1429,7 +1456,10 @@
     "loading": "Loading board display",
     "empty": "Empty board display",
     "preview": "Board preview",
-    "withMessage": "Board display: {message}"
+    "withMessage": "Board display: {message}",
+    "previewSizeLabel": "Preview size",
+    "fitMode": "Fit",
+    "actualMode": "Actual size"
   },
   "updateOverlay": {
     "takingLonger": "Update taking longer than expected",
@@ -1663,5 +1693,10 @@
     "taskProgressAriaLabel": "AI task progress",
     "clearConversationAriaLabel": "Clear conversation",
     "closePanelAriaLabel": "Close FiestaBot (Beta)"
+  },
+  "boardSizeIndicator": {
+    "custom": "Custom",
+    "ariaLabel": "{rows} rows by {cols} columns",
+    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
   }
 }

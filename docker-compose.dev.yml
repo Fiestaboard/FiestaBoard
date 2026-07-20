@@ -25,6 +25,10 @@ services:
       - BOARD_API_MODE=local
       - BOARD_HOST=fiestaboard-mock-board
       - BOARD_LOCAL_API_KEY=mock-dev-key
+      # Point note-array (Cloud API) boards at the bundled mock so they can be
+      # registered & exercised by hand in dev — its live board UI is at
+      # http://localhost:19200/ui. Unset this to talk to the real Vestaboard Cloud.
+      - VESTABOARD_CLOUD_API_URL=http://fiestaboard-mock-cloud:9200/
     volumes:
       - ./data:/app/data
       - ./src:/app/src
@@ -76,6 +80,29 @@ services:
       - "17001:7001"
     environment:
       - PORTS=7000,7001
+    command: python /server.py
+    networks:
+      - fiestaboard-dev
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Mock Vestaboard Cloud API (cloud.vestaboard.com) - for note-array integration tests
+  fiestaboard-mock-cloud:
+    image: python:3.11-alpine
+    container_name: fiestaboard-mock-cloud
+    volumes:
+      - ./integration-tests/mock-cloud/server.py:/server.py:ro
+    # Host port avoids collisions with the Local API mock (17000/17001).
+    # Inside the container the mock listens on 9200 (Vestaboard Cloud API).
+    ports:
+      - "19200:9200"
+    environment:
+      - PORT=9200
+      - ROWS=6
+      - COLS=30
     command: python /server.py
     networks:
       - fiestaboard-dev

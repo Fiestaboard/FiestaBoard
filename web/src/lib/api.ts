@@ -196,7 +196,7 @@ export interface SetActivePageResponse {
 export type PageType = "single" | "composite" | "template";
 
 // Device types
-export type DeviceType = "flagship" | "note";
+export type DeviceType = "flagship" | "note" | "note_array";
 
 export interface RowConfig {
   source: string;
@@ -227,6 +227,10 @@ export interface Page {
   transition_step_size?: number | null;
   created_at: string;
   updated_at?: string;
+  /** Number of Notes wide (note_array device_type only). */
+  notes_wide?: number;
+  /** Number of Notes tall (note_array device_type only). */
+  notes_tall?: number;
 }
 
 export interface PageCreate {
@@ -242,6 +246,10 @@ export interface PageCreate {
   transition_strategy?: string | null;
   transition_interval_ms?: number | null;
   transition_step_size?: number | null;
+  /** Number of Notes wide (note_array device_type only). */
+  notes_wide?: number;
+  /** Number of Notes tall (note_array device_type only). */
+  notes_tall?: number;
 }
 
 export interface PageUpdate {
@@ -255,6 +263,10 @@ export interface PageUpdate {
   transition_strategy?: string | null;
   transition_interval_ms?: number | null;
   transition_step_size?: number | null;
+  /** Number of Notes wide (note_array device_type only). */
+  notes_wide?: number;
+  /** Number of Notes tall (note_array device_type only). */
+  notes_tall?: number;
 }
 
 export interface PagesResponse {
@@ -492,16 +504,42 @@ export interface BoardInstance {
   // Per-board pause flag (issue #970). When true FiestaBoard does not
   // push anything to this board from any code path until it is resumed.
   paused?: boolean;
+  /** Per-board schedule mode (issue #1242). Emitted on every GET /settings/board. */
+  schedule_enabled?: boolean;
   api_mode: "local" | "cloud";
   host: string;
+  /** Local API port (default 7000). */
+  port?: number;
   local_api_key: string;
   cloud_key: string;
+  /** X-Vestaboard-Token for a Note array (note_array only). Masked as "***" on read. */
+  note_array_token?: string;
+  /** Number of Notes arranged horizontally (note_array only; default 1). */
+  notes_wide?: number;
+  /** Number of Notes arranged vertically (note_array only; default 1). */
+  notes_tall?: number;
 }
 
 export interface BoardSettings {
   board_type: "black" | "white" | null;
   boards: BoardInstance[];
   devices: DeviceType[]; // Computed from boards for backward compat
+}
+
+/**
+ * Response from POST /settings/board/{id}/detect-size. Mirrors the Python
+ * `classify_dimensions()` return shape. For flagship/note only `device_type`,
+ * `rows`, `cols` are present; for note arrays the note-grid fields are filled.
+ * `matched_preset` is a human-readable preset LABEL (not an id) or null — do
+ * not key UI off it; match presets by (notes_wide, notes_tall) instead.
+ */
+export interface DetectBoardSizeResponse {
+  device_type: DeviceType;
+  rows: number;
+  cols: number;
+  notes_wide?: number;
+  notes_tall?: number;
+  matched_preset?: string | null;
 }
 
 // Schedule types
@@ -1719,6 +1757,10 @@ export const api = {
         body: JSON.stringify({ paused }),
       },
     ),
+  detectBoardSize: (boardId: string) =>
+    fetchApi<DetectBoardSizeResponse>(`/settings/board/${boardId}/detect-size`, {
+      method: "POST",
+    }),
   getAllSettings: () => fetchApi<AllSettingsResponse>("/settings/all"),
 
   // Display settings

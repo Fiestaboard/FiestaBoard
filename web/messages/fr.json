@@ -77,7 +77,10 @@
     "secondaryNavigation": "Navigation secondaire",
     "picks": "Sélections de l'équipe",
     "skipToMainContent": "Aller au contenu principal",
-    "prideCelebrationAriaLabel": "Célébrer le Mois des Fiertés"
+    "prideCelebrationAriaLabel": "Célébrer le Mois des Fiertés",
+    "boardSelector": "Sélectionner le tableau à gérer",
+    "selectBoard": "Sélectionner un tableau",
+    "unnamedBoard": "Tableau sans nom"
   },
   "network": {
     "title": "Wi-Fi",
@@ -549,8 +552,8 @@
       "connectedTestAgain": "Connecté ! Retester",
       "thingsToTry": "Choses à essayer :",
       "boardType": "Type de tableau",
-      "flagshipDimensions": "22 × 6 caractères",
-      "noteDimensions": "15 × 3 caractères",
+      "flagshipDimensions": "6 × 22 caractères",
+      "noteDimensions": "3 × 15 caractères",
       "boardColor": "Couleur du tableau",
       "connectionTestFailed": "Échec du test de connexion",
       "failedToEnableLocalApi": "Échec de l'activation de l'API locale"
@@ -695,6 +698,7 @@
     "liveOutput": "Sortie en direct",
     "liveOutputAriaLabel": "Activer/désactiver la sortie en direct vers le tableau",
     "selectBoardAriaLabel": "Sélectionner le tableau pour la sortie en direct",
+    "deviceTypeSwitcherAriaLabel": "Changer la taille du tableau",
     "selectBoardPlaceholder": "Sélectionner un tableau",
     "toastPageCreated": "Page créée",
     "toastPageUpdated": "Page mise à jour",
@@ -771,7 +775,30 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "Type et taille du tableau",
+    "deviceGroupLabel": "Appareils",
+    "noteArrayGroupLabel": "Matrices de Note",
+    "customLabel": "Personnalisé…",
+    "presets": {
+      "2_wide": "2 côte à côte",
+      "4_wide": "4 côte à côte",
+      "2_tall": "2 empilés",
+      "4_tall": "4 empilés",
+      "2x2_grid": "Grille 2×2"
+    },
+    "notesWideLabel": "Notes en largeur",
+    "notesTallLabel": "Notes en hauteur",
+    "customRangeError": "Chaque dimension doit être comprise entre 1 et {max}.",
+    "noteArrayTokenLabel": "Jeton API cloud",
+    "noteArrayTokenPlaceholder": "Saisir le X-Vestaboard-Token",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (défini)",
+    "noteArrayTokenHelp": "Le X-Vestaboard-Token de cette matrice de Note, issu de votre abonnement à l’API cloud Vestaboard.",
+    "autoDetect": "Détecter automatiquement depuis le tableau",
+    "detecting": "Détection…",
+    "detectFailed": "Impossible de détecter la configuration du tableau.",
+    "showSecretAriaLabel": "Afficher la valeur",
+    "hideSecretAriaLabel": "Masquer la valeur"
   },
   "systemUpdate": {
     "updateAvailable": "Mise à jour disponible",
@@ -1472,7 +1499,10 @@
     "loading": "Chargement de l'affichage du tableau",
     "empty": "Affichage du tableau vide",
     "preview": "Aperçu du tableau",
-    "withMessage": "Affichage du tableau : {message}"
+    "withMessage": "Affichage du tableau : {message}",
+    "previewSizeLabel": "Taille de l'aperçu",
+    "fitMode": "Ajuster",
+    "actualMode": "Taille réelle"
   },
   "updateOverlay": {
     "takingLonger": "La mise à jour prend plus de temps que prévu",
@@ -1663,5 +1693,10 @@
     "taskProgressAriaLabel": "Progression des tâches IA",
     "clearConversationAriaLabel": "Effacer la conversation",
     "closePanelAriaLabel": "Fermer FiestaBot (Beta)"
+  },
+  "boardSizeIndicator": {
+    "custom": "Personnalisé",
+    "ariaLabel": "{rows} lignes par {cols} colonnes",
+    "ariaLabelWithLayout": "{rows} lignes par {cols} colonnes, {layout}"
   }
 }

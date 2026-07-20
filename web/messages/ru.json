@@ -77,7 +77,10 @@
     "secondaryNavigation": "Дополнительная навигация",
     "picks": "Подборка команды",
     "skipToMainContent": "Перейти к основному содержимому",
-    "prideCelebrationAriaLabel": "Отпраздновать месяц гордости"
+    "prideCelebrationAriaLabel": "Отпраздновать месяц гордости",
+    "boardSelector": "Выберите доску для управления",
+    "selectBoard": "Выберите доску",
+    "unnamedBoard": "Доска без названия"
   },
   "network": {
     "title": "Wi-Fi",
@@ -549,8 +552,8 @@
       "connectedTestAgain": "Подключено! Проверить снова",
       "thingsToTry": "Что можно попробовать:",
       "boardType": "Тип доски",
-      "flagshipDimensions": "22 × 6 символов",
-      "noteDimensions": "15 × 3 символов",
+      "flagshipDimensions": "6 × 22 символов",
+      "noteDimensions": "3 × 15 символов",
       "boardColor": "Цвет доски",
       "connectionTestFailed": "Ошибка проверки подключения",
       "failedToEnableLocalApi": "Не удалось включить локальный API"
@@ -695,6 +698,7 @@
     "liveOutput": "Живой вывод",
     "liveOutputAriaLabel": "Переключить живой вывод на доску",
     "selectBoardAriaLabel": "Выбрать доску для живого вывода",
+    "deviceTypeSwitcherAriaLabel": "Изменить размер доски",
     "selectBoardPlaceholder": "Выбрать доску",
     "toastPageCreated": "Страница создана",
     "toastPageUpdated": "Страница обновлена",
@@ -771,7 +775,30 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "Тип и размер табло",
+    "deviceGroupLabel": "Устройства",
+    "noteArrayGroupLabel": "Массивы Note",
+    "customLabel": "Пользовательский…",
+    "presets": {
+      "2_wide": "2 в ряд",
+      "4_wide": "4 в ряд",
+      "2_tall": "2 в столбик",
+      "4_tall": "4 в столбик",
+      "2x2_grid": "Сетка 2×2"
+    },
+    "notesWideLabel": "Note в ширину",
+    "notesTallLabel": "Note в высоту",
+    "customRangeError": "Каждый размер должен быть от 1 до {max}.",
+    "noteArrayTokenLabel": "Токен облачного API",
+    "noteArrayTokenPlaceholder": "Введите X-Vestaboard-Token",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (задан)",
+    "noteArrayTokenHelp": "Токен X-Vestaboard-Token для этого массива Note из вашей подписки на облачный API Vestaboard.",
+    "autoDetect": "Автоопределение с табло",
+    "detecting": "Определение…",
+    "detectFailed": "Не удалось определить конфигурацию табло.",
+    "showSecretAriaLabel": "Показать значение",
+    "hideSecretAriaLabel": "Скрыть значение"
   },
   "systemUpdate": {
     "updateAvailable": "Доступно обновление",
@@ -1472,7 +1499,10 @@
     "loading": "Загрузка дисплея board",
     "empty": "Пустой дисплей board",
     "preview": "Предпросмотр board",
-    "withMessage": "Дисплей board: {message}"
+    "withMessage": "Дисплей board: {message}",
+    "previewSizeLabel": "Размер предпросмотра",
+    "fitMode": "По ширине",
+    "actualMode": "Реальный размер"
   },
   "updateOverlay": {
     "takingLonger": "Обновление занимает больше времени, чем ожидалось",
@@ -1663,5 +1693,10 @@
     "taskProgressAriaLabel": "Прогресс задач ИИ",
     "clearConversationAriaLabel": "Очистить разговор",
     "closePanelAriaLabel": "Закрыть FiestaBot (Beta)"
+  },
+  "boardSizeIndicator": {
+    "custom": "Пользовательский",
+    "ariaLabel": "{rows} строк на {cols} столбцов",
+    "ariaLabelWithLayout": "{rows} строк на {cols} столбцов, {layout}"
   }
 }

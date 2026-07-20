@@ -77,7 +77,10 @@
     "secondaryNavigation": "İkincil gezinme",
     "picks": "Ekip Seçimleri",
     "skipToMainContent": "Ana içeriğe geç",
-    "prideCelebrationAriaLabel": "Onur Ayı'nı kutla"
+    "prideCelebrationAriaLabel": "Onur Ayı'nı kutla",
+    "boardSelector": "Yönetilecek panoyu seçin",
+    "selectBoard": "Pano seçin",
+    "unnamedBoard": "Adsız pano"
   },
   "network": {
     "title": "Wi-Fi",
@@ -549,8 +552,8 @@
       "connectedTestAgain": "Bağlandı! Tekrar Test Et",
       "thingsToTry": "Deneyebilecekleriniz:",
       "boardType": "Pano Türü",
-      "flagshipDimensions": "22 × 6 karakter",
-      "noteDimensions": "15 × 3 karakter",
+      "flagshipDimensions": "6 × 22 karakter",
+      "noteDimensions": "3 × 15 karakter",
       "boardColor": "Pano Rengi",
       "connectionTestFailed": "Bağlantı testi başarısız",
       "failedToEnableLocalApi": "Yerel API etkinleştirilemedi"
@@ -695,6 +698,7 @@
     "liveOutput": "Canlı Çıktı",
     "liveOutputAriaLabel": "Panoya canlı çıktıyı aç/kapat",
     "selectBoardAriaLabel": "Canlı çıktı için pano seçin",
+    "deviceTypeSwitcherAriaLabel": "Pano boyutunu değiştir",
     "selectBoardPlaceholder": "Pano seçin",
     "toastPageCreated": "Sayfa oluşturuldu",
     "toastPageUpdated": "Sayfa güncellendi",
@@ -771,7 +775,30 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "Pano türü ve boyutu",
+    "deviceGroupLabel": "Cihazlar",
+    "noteArrayGroupLabel": "Note dizileri",
+    "customLabel": "Özel…",
+    "presets": {
+      "2_wide": "2 yan yana",
+      "4_wide": "4 yan yana",
+      "2_tall": "2 üst üste",
+      "4_tall": "4 üst üste",
+      "2x2_grid": "2×2 ızgara"
+    },
+    "notesWideLabel": "Note genişliği",
+    "notesTallLabel": "Note yüksekliği",
+    "customRangeError": "Her boyut 1 ile {max} arasında olmalıdır.",
+    "noteArrayTokenLabel": "Bulut API Belirteci",
+    "noteArrayTokenPlaceholder": "X-Vestaboard-Token girin",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (ayarlandı)",
+    "noteArrayTokenHelp": "Bu Note dizisi için X-Vestaboard-Token; Vestaboard Bulut API aboneliğinizden alınır.",
+    "autoDetect": "Panodan otomatik algıla",
+    "detecting": "Algılanıyor…",
+    "detectFailed": "Pano yapılandırması algılanamadı.",
+    "showSecretAriaLabel": "Değeri göster",
+    "hideSecretAriaLabel": "Değeri gizle"
   },
   "systemUpdate": {
     "updateAvailable": "Güncelleme Mevcut",
@@ -1472,7 +1499,10 @@
     "loading": "Board ekranı yükleniyor",
     "empty": "Boş board ekranı",
     "preview": "Board önizlemesi",
-    "withMessage": "Board ekranı: {message}"
+    "withMessage": "Board ekranı: {message}",
+    "previewSizeLabel": "Önizleme boyutu",
+    "fitMode": "Sığdır",
+    "actualMode": "Gerçek boyut"
   },
   "updateOverlay": {
     "takingLonger": "Güncelleme beklenenden uzun sürüyor",
@@ -1663,5 +1693,10 @@
     "taskProgressAriaLabel": "AI görev ilerlemesi",
     "clearConversationAriaLabel": "Konuşmayı temizle",
     "closePanelAriaLabel": "FiestaBot (Beta)'yı kapat"
+  },
+  "boardSizeIndicator": {
+    "custom": "Özel",
+    "ariaLabel": "{rows} satır {cols} sütun",
+    "ariaLabelWithLayout": "{rows} satır {cols} sütun, {layout}"
   }
 }

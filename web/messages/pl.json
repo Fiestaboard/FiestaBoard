@@ -77,7 +77,10 @@
     "secondaryNavigation": "Nawigacja drugorzędna",
     "picks": "Polecane",
     "skipToMainContent": "Przejdź do treści głównej",
-    "prideCelebrationAriaLabel": "Świętuj Miesiąc Dumy"
+    "prideCelebrationAriaLabel": "Świętuj Miesiąc Dumy",
+    "boardSelector": "Wybierz tablicę do zarządzania",
+    "selectBoard": "Wybierz tablicę",
+    "unnamedBoard": "Tablica bez nazwy"
   },
   "network": {
     "title": "Wi-Fi",
@@ -549,8 +552,8 @@
       "connectedTestAgain": "Połączono! Testuj ponownie",
       "thingsToTry": "Co możesz wypróbować:",
       "boardType": "Typ tablicy",
-      "flagshipDimensions": "22 × 6 znaków",
-      "noteDimensions": "15 × 3 znaki",
+      "flagshipDimensions": "6 × 22 znaków",
+      "noteDimensions": "3 × 15 znaki",
       "boardColor": "Kolor tablicy",
       "connectionTestFailed": "Test połączenia nie powiódł się",
       "failedToEnableLocalApi": "Nie udało się włączyć lokalnego API"
@@ -695,6 +698,7 @@
     "liveOutput": "Podgląd na żywo",
     "liveOutputAriaLabel": "Przełącz podgląd na żywo na tablicy",
     "selectBoardAriaLabel": "Wybierz tablicę do podglądu na żywo",
+    "deviceTypeSwitcherAriaLabel": "Zmień rozmiar tablicy",
     "selectBoardPlaceholder": "Wybierz tablicę",
     "toastPageCreated": "Strona utworzona",
     "toastPageUpdated": "Strona zaktualizowana",
@@ -771,7 +775,30 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "Typ i rozmiar tablicy",
+    "deviceGroupLabel": "Urządzenia",
+    "noteArrayGroupLabel": "Macierze Note",
+    "customLabel": "Niestandardowy…",
+    "presets": {
+      "2_wide": "2 obok siebie",
+      "4_wide": "4 obok siebie",
+      "2_tall": "2 jedna nad drugą",
+      "4_tall": "4 jedna nad drugą",
+      "2x2_grid": "Siatka 2×2"
+    },
+    "notesWideLabel": "Notes w poziomie",
+    "notesTallLabel": "Notes w pionie",
+    "customRangeError": "Każdy wymiar musi mieścić się w zakresie od 1 do {max}.",
+    "noteArrayTokenLabel": "Token API w chmurze",
+    "noteArrayTokenPlaceholder": "Wprowadź X-Vestaboard-Token",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (ustawiony)",
+    "noteArrayTokenHelp": "Token X-Vestaboard-Token dla tej macierzy Note, z subskrypcji API w chmurze Vestaboard.",
+    "autoDetect": "Wykryj automatycznie z tablicy",
+    "detecting": "Wykrywanie…",
+    "detectFailed": "Nie udało się wykryć konfiguracji tablicy.",
+    "showSecretAriaLabel": "Pokaż wartość",
+    "hideSecretAriaLabel": "Ukryj wartość"
   },
   "systemUpdate": {
     "updateAvailable": "Dostępna aktualizacja",
@@ -1472,7 +1499,10 @@
     "loading": "Ładowanie wyświetlacza boarda",
     "empty": "Pusty wyświetlacz boarda",
     "preview": "Podgląd boarda",
-    "withMessage": "Wyświetlacz boarda: {message}"
+    "withMessage": "Wyświetlacz boarda: {message}",
+    "previewSizeLabel": "Rozmiar podglądu",
+    "fitMode": "Dopasuj",
+    "actualMode": "Rzeczywisty rozmiar"
   },
   "updateOverlay": {
     "takingLonger": "Aktualizacja trwa dłużej niż oczekiwano",
@@ -1663,5 +1693,10 @@
     "taskProgressAriaLabel": "Postęp zadań AI",
     "clearConversationAriaLabel": "Wyczyść rozmowę",
     "closePanelAriaLabel": "Zamknij FiestaBot (Beta)"
+  },
+  "boardSizeIndicator": {
+    "custom": "Niestandardowy",
+    "ariaLabel": "{rows} wierszy na {cols} kolumn",
+    "ariaLabelWithLayout": "{rows} wierszy na {cols} kolumn, {layout}"
   }
 }

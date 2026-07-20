@@ -77,7 +77,10 @@
     "secondaryNavigation": "Subnavigatie",
     "picks": "Aanbevolen",
     "skipToMainContent": "Naar hoofdinhoud",
-    "prideCelebrationAriaLabel": "Vier Pride Month"
+    "prideCelebrationAriaLabel": "Vier Pride Month",
+    "boardSelector": "Te beheren board selecteren",
+    "selectBoard": "Board selecteren",
+    "unnamedBoard": "Naamloos board"
   },
   "network": {
     "title": "Wi-Fi",
@@ -549,8 +552,8 @@
       "connectedTestAgain": "Verbonden! Opnieuw testen",
       "thingsToTry": "Dingen om te proberen:",
       "boardType": "Bordtype",
-      "flagshipDimensions": "22 × 6 tekens",
-      "noteDimensions": "15 × 3 tekens",
+      "flagshipDimensions": "6 × 22 tekens",
+      "noteDimensions": "3 × 15 tekens",
       "boardColor": "Bordkleur",
       "connectionTestFailed": "Verbindingstest mislukt",
       "failedToEnableLocalApi": "Lokale API activeren mislukt"
@@ -695,6 +698,7 @@
     "liveOutput": "Live-uitvoer",
     "liveOutputAriaLabel": "Live-uitvoer naar bord in-/uitschakelen",
     "selectBoardAriaLabel": "Selecteer bord voor live-uitvoer",
+    "deviceTypeSwitcherAriaLabel": "Bordformaat wijzigen",
     "selectBoardPlaceholder": "Selecteer bord",
     "toastPageCreated": "Pagina aangemaakt",
     "toastPageUpdated": "Pagina bijgewerkt",
@@ -771,7 +775,30 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "Bordtype en -grootte",
+    "deviceGroupLabel": "Apparaten",
+    "noteArrayGroupLabel": "Note-arrays",
+    "customLabel": "Aangepast…",
+    "presets": {
+      "2_wide": "2 naast elkaar",
+      "4_wide": "4 naast elkaar",
+      "2_tall": "2 gestapeld",
+      "4_tall": "4 gestapeld",
+      "2x2_grid": "2×2-raster"
+    },
+    "notesWideLabel": "Notes breed",
+    "notesTallLabel": "Notes hoog",
+    "customRangeError": "Elke dimensie moet tussen 1 en {max} liggen.",
+    "noteArrayTokenLabel": "Cloud-API-token",
+    "noteArrayTokenPlaceholder": "Voer X-Vestaboard-Token in",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (ingesteld)",
+    "noteArrayTokenHelp": "De X-Vestaboard-Token voor deze Note-array, uit je Vestaboard Cloud API-abonnement.",
+    "autoDetect": "Automatisch detecteren vanaf bord",
+    "detecting": "Detecteren…",
+    "detectFailed": "Kan de bordconfiguratie niet detecteren.",
+    "showSecretAriaLabel": "Waarde tonen",
+    "hideSecretAriaLabel": "Waarde verbergen"
   },
   "systemUpdate": {
     "updateAvailable": "Update beschikbaar",
@@ -1472,7 +1499,10 @@
     "loading": "Board-weergave laden",
     "empty": "Lege board-weergave",
     "preview": "Board-preview",
-    "withMessage": "Board-weergave: {message}"
+    "withMessage": "Board-weergave: {message}",
+    "previewSizeLabel": "Voorbeeldgrootte",
+    "fitMode": "Passend",
+    "actualMode": "Werkelijke grootte"
   },
   "updateOverlay": {
     "takingLonger": "Update duurt langer dan verwacht",
@@ -1663,5 +1693,10 @@
     "taskProgressAriaLabel": "Voortgang AI-taken",
     "clearConversationAriaLabel": "Gesprek wissen",
     "closePanelAriaLabel": "FiestaBot (Beta) sluiten"
+  },
+  "boardSizeIndicator": {
+    "custom": "Aangepast",
+    "ariaLabel": "{rows} rijen bij {cols} kolommen",
+    "ariaLabelWithLayout": "{rows} rijen bij {cols} kolommen, {layout}"
   }
 }

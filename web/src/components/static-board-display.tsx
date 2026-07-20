@@ -5,11 +5,7 @@ import { memo, useMemo } from "react";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { ALL_COLOR_CODES, BOARD_COLORS } from "@/lib/board-colors";
-
-const DEVICE_DIMS: Record<string, { rows: number; cols: number }> = {
-  flagship: { rows: 6, cols: 22 },
-  note: { rows: 3, cols: 15 },
-};
+import { isNoteArray, NOTE_COLS, NOTE_ROWS, resolveDimensions } from "@/lib/board-dimensions";
 
 const _BOARD_CHARS = [
   " ",
@@ -163,15 +159,22 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
   boardType = "black",
   deviceType = "flagship",
   className = "",
+  notesWide = 1,
+  notesTall = 1,
 }: {
   message: string | null;
   size?: "sm" | "md" | "lg";
   boardType?: "black" | "white";
   deviceType?: DeviceType;
   className?: string;
+  /** Notes wide (for note_array device; ignored otherwise). */
+  notesWide?: number;
+  /** Notes tall (for note_array device; ignored otherwise). */
+  notesTall?: number;
 }) {
   const t = useTranslations("boardDisplay");
-  const dims = DEVICE_DIMS[deviceType] || DEVICE_DIMS.flagship;
+  const dims = resolveDimensions(deviceType, notesWide, notesTall);
+  const showSeams = isNoteArray(deviceType);
   const isWhiteBoard = boardType === "white";
   const tileBg = isWhiteBoard ? "var(--color-board-surface-light)" : "var(--color-board-surface-dark)";
   const textColor = isWhiteBoard ? "var(--color-board-text-on-light)" : "var(--color-board-text-on-dark)";
@@ -201,6 +204,9 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
     md: "gap-[2px] sm:gap-[4px] md:gap-[5px]",
     lg: "gap-[3px] sm:gap-[5px] md:gap-[6px] lg:gap-[7px]",
   };
+
+  // Seam gap: additional left/top margin applied at Note physical boundaries
+  const seamGap = size === "sm" ? "6px" : size === "md" ? "8px" : "10px";
 
   const bezelBg = isWhiteBoard ? "var(--color-board-bezel-light)" : "var(--color-board-bezel-dark)";
   const borderColor = isWhiteBoard ? "var(--color-board-bezel-border-light)" : "var(--color-board-bezel-border-dark)";
@@ -244,106 +250,147 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
           }}
         >
           <div className={`flex flex-col ${gapClasses[size]}`}>
-            {grid.map((row, rowIdx) => (
-              <div key={rowIdx} className={`flex ${gapClasses[size]} justify-center`}>
-                {row.map((token, colIdx) => {
-                  if (token.type === "color") {
-                    const bgColor = resolveColorCode(token.code, isWhiteBoard);
-                    // sm previews: single div with color — decorative layers
-                    // (inner shadow, separator line) are invisible at 14×18px.
+            {grid.map((row, rowIdx) => {
+              const isRowSeam = showSeams && rowIdx > 0 && rowIdx % NOTE_ROWS === 0;
+              return (
+                <div
+                  key={rowIdx}
+                  data-note-row=""
+                  {...(isRowSeam ? { "data-note-row-seam": "true" } : {})}
+                  className={`flex ${gapClasses[size]} justify-center`}
+                  style={isRowSeam ? { marginTop: seamGap } : undefined}
+                >
+                  {row.map((token, colIdx) => {
+                    const isColSeam = showSeams && colIdx > 0 && colIdx % NOTE_COLS === 0;
+                    const tileSeamStyle = isColSeam ? { marginLeft: seamGap } : undefined;
+                    const seamProps = isColSeam ? { "data-note-col-seam": "true" } : {};
+
+                    if (token.type === "color") {
+                      const bgColor = resolveColorCode(token.code, isWhiteBoard);
+                      // sm previews: single div with color — decorative layers
+                      // (inner shadow, separator line) are invisible at 14×18px.
+                      if (size === "sm") {
+                        return (
+                          <div
+                            key={colIdx}
+                            data-note-tile=""
+                            {...seamProps}
+                            className={`${sizeClasses[size]} rounded-[3px]`}
+                            style={{
+                              backgroundColor: bgColor,
+                              boxShadow: tileBoxShadow,
+                              contain: "layout style paint",
+                              ...tileSeamStyle,
+                            }}
+                          />
+                        );
+                      }
+                      return (
+                        <div
+                          key={colIdx}
+                          data-note-tile=""
+                          {...seamProps}
+                          className={`relative ${sizeClasses[size]} rounded-[3px] overflow-hidden`}
+                          style={{
+                            backgroundColor: tileBg,
+                            boxShadow: tileBoxShadow,
+                            contain: "layout style paint",
+                            ...tileSeamStyle,
+                          }}
+                        >
+                          <div
+                            className="absolute rounded-[3px] overflow-hidden"
+                            style={{
+                              top: "3px",
+                              bottom: "4px",
+                              left: "1px",
+                              right: "1px",
+                              backgroundColor: bgColor,
+                              boxShadow:
+                                "0 2px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.15), inset 0 -1px 1px rgba(0,0,0,0.25)",
+                            }}
+                          >
+                            <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const char = token.value;
+                    const isHeart = char === "♥";
+
+                    // sm previews: simplified tile — skip gradient overlay and
+                    // separator line that are invisible at 14×18px. This cuts
+                    // DOM nodes from ~4 to ~2 per tile (264→~132 fewer nodes
+                    // per flagship board).
                     if (size === "sm") {
                       return (
                         <div
                           key={colIdx}
-                          className={`${sizeClasses[size]} rounded-[3px]`}
-                          style={{ backgroundColor: bgColor, boxShadow: tileBoxShadow, contain: "layout style paint" }}
-                        />
-                      );
-                    }
-                    return (
-                      <div
-                        key={colIdx}
-                        className={`relative ${sizeClasses[size]} rounded-[3px] overflow-hidden`}
-                        style={{ backgroundColor: tileBg, boxShadow: tileBoxShadow, contain: "layout style paint" }}
-                      >
-                        <div
-                          className="absolute rounded-[3px] overflow-hidden"
+                          data-note-tile=""
+                          {...seamProps}
+                          className={`${sizeClasses[size]} rounded-[3px] flex items-center justify-center`}
                           style={{
-                            top: "3px",
-                            bottom: "4px",
-                            left: "1px",
-                            right: "1px",
-                            backgroundColor: bgColor,
-                            boxShadow:
-                              "0 2px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.15), inset 0 -1px 1px rgba(0,0,0,0.25)",
+                            backgroundColor: tileBg,
+                            boxShadow: tileBoxShadow,
+                            contain: "layout style paint",
+                            ...tileSeamStyle,
                           }}
                         >
-                          <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
+                          {char !== " " && (
+                            <span
+                              className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none`}
+                              style={{ color: isHeart ? "#eb4034" : textColor }}
+                            >
+                              {char}
+                            </span>
+                          )}
                         </div>
-                      </div>
-                    );
-                  }
+                      );
+                    }
 
-                  const char = token.value;
-                  const isHeart = char === "♥";
-
-                  // sm previews: simplified tile — skip gradient overlay and
-                  // separator line that are invisible at 14×18px. This cuts
-                  // DOM nodes from ~4 to ~2 per tile (264→~132 fewer nodes
-                  // per flagship board).
-                  if (size === "sm") {
                     return (
                       <div
                         key={colIdx}
-                        className={`${sizeClasses[size]} rounded-[3px] flex items-center justify-center`}
-                        style={{ backgroundColor: tileBg, boxShadow: tileBoxShadow, contain: "layout style paint" }}
+                        data-note-tile=""
+                        {...seamProps}
+                        className={`relative ${sizeClasses[size]} rounded-[3px] overflow-hidden`}
+                        style={{
+                          backgroundColor: tileBg,
+                          boxShadow: tileBoxShadow,
+                          contain: "layout style paint",
+                          ...tileSeamStyle,
+                        }}
                       >
-                        {char !== " " && (
-                          <span
-                            className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none`}
-                            style={{ color: isHeart ? "#eb4034" : textColor }}
-                          >
-                            {char}
-                          </span>
-                        )}
+                        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 2 }}>
+                          {char !== " " && (
+                            <span
+                              className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none`}
+                              style={{ color: isHeart ? "#eb4034" : textColor }}
+                            >
+                              {char}
+                            </span>
+                          )}
+                        </div>
+                        <div
+                          className={`absolute top-1/2 left-0 right-0 h-[1px] ${isWhiteBoard ? "bg-black/10" : "bg-black/30"}`}
+                          style={{ zIndex: 3 }}
+                        />
+                        <div
+                          className="absolute inset-0 pointer-events-none"
+                          style={{
+                            zIndex: 1,
+                            background: isWhiteBoard
+                              ? "linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%, rgba(0,0,0,0.05) 100%)"
+                              : "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)",
+                          }}
+                        />
                       </div>
                     );
-                  }
-
-                  return (
-                    <div
-                      key={colIdx}
-                      className={`relative ${sizeClasses[size]} rounded-[3px] overflow-hidden`}
-                      style={{ backgroundColor: tileBg, boxShadow: tileBoxShadow, contain: "layout style paint" }}
-                    >
-                      <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 2 }}>
-                        {char !== " " && (
-                          <span
-                            className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none`}
-                            style={{ color: isHeart ? "#eb4034" : textColor }}
-                          >
-                            {char}
-                          </span>
-                        )}
-                      </div>
-                      <div
-                        className={`absolute top-1/2 left-0 right-0 h-[1px] ${isWhiteBoard ? "bg-black/10" : "bg-black/30"}`}
-                        style={{ zIndex: 3 }}
-                      />
-                      <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                          zIndex: 1,
-                          background: isWhiteBoard
-                            ? "linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%, rgba(0,0,0,0.05) 100%)"
-                            : "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)",
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
+                  })}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

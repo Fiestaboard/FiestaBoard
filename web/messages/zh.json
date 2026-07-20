@@ -77,7 +77,10 @@
     "secondaryNavigation": "次导航",
     "picks": "团队精选",
     "skipToMainContent": "跳到主要内容",
-    "prideCelebrationAriaLabel": "庆祝骄傲月"
+    "prideCelebrationAriaLabel": "庆祝骄傲月",
+    "boardSelector": "选择要管理的板",
+    "selectBoard": "选择板",
+    "unnamedBoard": "未命名的板"
   },
   "network": {
     "title": "Wi-Fi",
@@ -549,8 +552,8 @@
       "connectedTestAgain": "已连接！再次测试",
       "thingsToTry": "可以尝试：",
       "boardType": "看板类型",
-      "flagshipDimensions": "22 × 6 个字符",
-      "noteDimensions": "15 × 3 个字符",
+      "flagshipDimensions": "6 × 22 个字符",
+      "noteDimensions": "3 × 15 个字符",
       "boardColor": "看板颜色",
       "connectionTestFailed": "连接测试失败",
       "failedToEnableLocalApi": "启用本地API失败"
@@ -695,6 +698,7 @@
     "liveOutput": "实时输出",
     "liveOutputAriaLabel": "切换实时输出到看板",
     "selectBoardAriaLabel": "选择实时输出的看板",
+    "deviceTypeSwitcherAriaLabel": "更改板的尺寸",
     "selectBoardPlaceholder": "选择看板",
     "toastPageCreated": "页面已创建",
     "toastPageUpdated": "页面已更新",
@@ -771,7 +775,30 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "板子类型和尺寸",
+    "deviceGroupLabel": "设备",
+    "noteArrayGroupLabel": "Note 阵列",
+    "customLabel": "自定义…",
+    "presets": {
+      "2_wide": "2 个并排",
+      "4_wide": "4 个并排",
+      "2_tall": "2 个堆叠",
+      "4_tall": "4 个堆叠",
+      "2x2_grid": "2×2 网格"
+    },
+    "notesWideLabel": "Note 宽度",
+    "notesTallLabel": "Note 高度",
+    "customRangeError": "每个尺寸必须介于 1 和 {max} 之间。",
+    "noteArrayTokenLabel": "云 API 令牌",
+    "noteArrayTokenPlaceholder": "输入 X-Vestaboard-Token",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (已设置)",
+    "noteArrayTokenHelp": "此 Note 阵列的 X-Vestaboard-Token，来自您的 Vestaboard 云 API 订阅。",
+    "autoDetect": "从板子自动检测",
+    "detecting": "检测中…",
+    "detectFailed": "无法检测板子的配置。",
+    "showSecretAriaLabel": "显示值",
+    "hideSecretAriaLabel": "隐藏值"
   },
   "systemUpdate": {
     "updateAvailable": "有可用更新",
@@ -1472,7 +1499,10 @@
     "loading": "加载 board 显示中",
     "empty": "Board 显示为空",
     "preview": "Board 预览",
-    "withMessage": "Board 显示:{message}"
+    "withMessage": "Board 显示:{message}",
+    "previewSizeLabel": "预览尺寸",
+    "fitMode": "适应",
+    "actualMode": "实际大小"
   },
   "updateOverlay": {
     "takingLonger": "更新比预期时间更长",
@@ -1663,5 +1693,10 @@
     "taskProgressAriaLabel": "AI 任务进度",
     "clearConversationAriaLabel": "清除对话",
     "closePanelAriaLabel": "关闭 FiestaBot (Beta)"
+  },
+  "boardSizeIndicator": {
+    "custom": "自定义",
+    "ariaLabel": "{rows}行×{cols}列",
+    "ariaLabelWithLayout": "{rows}行×{cols}列，{layout}"
   }
 }

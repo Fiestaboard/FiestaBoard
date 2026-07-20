@@ -7,6 +7,28 @@ from fastapi.testclient import TestClient
 
 from src.api_server import app
 
+# ---------------------------------------------------------------------------
+# Helper: build a mock SettingsService pre-configured for a given board type
+# ---------------------------------------------------------------------------
+
+
+def _mock_ss(device_type="flagship", notes_wide=1, notes_tall=1, send_to_board=True):
+    """Return a Mock SettingsService wired for a specific board geometry.
+
+    Args:
+        device_type: "flagship", "note", or "note_array"
+        notes_wide: number of notes side-by-side (for note_array)
+        notes_tall: number of notes stacked (for note_array)
+        send_to_board: return value for should_send_to_board()
+    """
+    ss = Mock()
+    ss.should_send_to_board.return_value = send_to_board
+    ss.is_paused.return_value = False
+    board_settings = Mock()
+    board_settings.boards = [{"device_type": device_type, "notes_wide": notes_wide, "notes_tall": notes_tall}]
+    ss.get_board_settings.return_value = board_settings
+    return ss
+
 
 @pytest.fixture
 def client():
@@ -36,8 +58,9 @@ class TestDebugBlank:
     """Tests for /debug/blank endpoint."""
 
     def test_blank_board_success(self, client, mock_board_client):
-        """Test blanking the board successfully."""
-        response = client.post("/debug/blank")
+        """Test blanking the board successfully (flagship → 6×22, env-independent)."""
+        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+            response = client.post("/debug/blank")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
@@ -56,13 +79,43 @@ class TestDebugBlank:
             assert response.status_code == 400
             assert "not configured" in response.json()["detail"].lower()
 
+    # --- geometry tests: blank array must be sized per board type ---
+
+    def test_blank_flagship_grid_size(self, client, mock_board_client):
+        """Flagship board: blank produces a 6×22 array of zeros."""
+        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+            response = client.post("/debug/blank")
+        assert response.status_code == 200
+        args = mock_board_client.send_characters.call_args
+        assert args[0][0] == [[0] * 22 for _ in range(6)]
+
+    def test_blank_note_grid_size(self, client, mock_board_client):
+        """Note board: blank produces a 3×15 array of zeros."""
+        with patch("src.api_server.get_settings_service", return_value=_mock_ss("note")):
+            response = client.post("/debug/blank")
+        assert response.status_code == 200
+        args = mock_board_client.send_characters.call_args
+        assert args[0][0] == [[0] * 15 for _ in range(3)]
+
+    def test_blank_note_array_2x2_grid_size(self, client, mock_board_client):
+        """Note-array 2×2: blank produces a 6×30 array of zeros."""
+        with patch(
+            "src.api_server.get_settings_service",
+            return_value=_mock_ss("note_array", notes_wide=2, notes_tall=2),
+        ):
+            response = client.post("/debug/blank")
+        assert response.status_code == 200
+        args = mock_board_client.send_characters.call_args
+        assert args[0][0] == [[0] * 30 for _ in range(6)]
+
 
 class TestDebugFill:
     """Tests for /debug/fill endpoint."""
 
     def test_fill_board_success(self, client, mock_board_client):
-        """Test filling the board with a character."""
-        response = client.post("/debug/fill", json={"character_code": 63})
+        """Test filling the board with a character (flagship → 6×22, env-independent)."""
+        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+            response = client.post("/debug/fill", json={"character_code": 63})
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
@@ -94,6 +147,46 @@ class TestDebugFill:
             response = client.post("/debug/fill", json={"character_code": 63})
             assert response.status_code == 400
 
+    # --- geometry tests: grid must be sized per board type ---
+
+    def test_fill_flagship_grid_size(self, client, mock_board_client):
+        """Flagship board: fill produces a 6×22 grid."""
+        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+            response = client.post("/debug/fill", json={"character_code": 63})
+        assert response.status_code == 200
+        args = mock_board_client.send_characters.call_args
+        assert args[0][0] == [[63] * 22 for _ in range(6)]
+
+    def test_fill_note_grid_size(self, client, mock_board_client):
+        """Note board: fill produces a 3×15 grid."""
+        with patch("src.api_server.get_settings_service", return_value=_mock_ss("note")):
+            response = client.post("/debug/fill", json={"character_code": 5})
+        assert response.status_code == 200
+        args = mock_board_client.send_characters.call_args
+        assert args[0][0] == [[5] * 15 for _ in range(3)]
+
+    def test_fill_note_array_2wide_grid_size(self, client, mock_board_client):
+        """Note-array 2-wide: fill produces a 3×30 grid."""
+        with patch(
+            "src.api_server.get_settings_service",
+            return_value=_mock_ss("note_array", notes_wide=2, notes_tall=1),
+        ):
+            response = client.post("/debug/fill", json={"character_code": 1})
+        assert response.status_code == 200
+        args = mock_board_client.send_characters.call_args
+        assert args[0][0] == [[1] * 30 for _ in range(3)]
+
+    def test_fill_note_array_2tall_grid_size(self, client, mock_board_client):
+        """Note-array 2-tall: fill produces a 6×15 grid."""
+        with patch(
+            "src.api_server.get_settings_service",
+            return_value=_mock_ss("note_array", notes_wide=1, notes_tall=2),
+        ):
+            response = client.post("/debug/fill", json={"character_code": 0})
+        assert response.status_code == 200
+        args = mock_board_client.send_characters.call_args
+        assert args[0][0] == [[0] * 15 for _ in range(6)]
+
 
 class TestDebugInfo:
     """Tests for /debug/info endpoint."""
@@ -120,6 +213,37 @@ class TestDebugInfo:
         with patch("src.api_server._get_board_client", return_value=None):
             response = client.post("/debug/info")
             assert response.status_code == 400
+
+    # --- geometry tests: info should not crash for any board type ---
+
+    def test_info_sends_to_board_flagship(self, client, mock_board_client):
+        """Flagship board: /debug/info succeeds without crashing."""
+        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+            response = client.post("/debug/info")
+        assert response.status_code == 200
+        assert response.json()["status"] == "success"
+
+    def test_info_note_array_sized_to_board(self, client, mock_board_client):
+        """Note-array board: /debug/info sends a grid sized to the array (3×30 for 2-wide)."""
+        with patch(
+            "src.api_server.get_settings_service",
+            return_value=_mock_ss("note_array", notes_wide=2, notes_tall=1),
+        ):
+            response = client.post("/debug/info")
+        assert response.status_code == 200
+        assert response.json()["status"] == "success"
+        sent_grid = mock_board_client.send_characters.call_args[0][0]
+        assert len(sent_grid) == 3, "note array (2x1) has 3 rows"
+        assert all(len(row) == 30 for row in sent_grid), "note array (2x1) has 30 cols"
+
+    def test_info_flagship_sized_6x22(self, client, mock_board_client):
+        """Flagship board: /debug/info still sends a byte-identical 6×22 grid."""
+        with patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")):
+            response = client.post("/debug/info")
+        assert response.status_code == 200
+        sent_grid = mock_board_client.send_characters.call_args[0][0]
+        assert len(sent_grid) == 6
+        assert all(len(row) == 22 for row in sent_grid)
 
 
 class TestDebugTestConnection:
@@ -283,3 +407,72 @@ class TestDebugUtilityFunctions:
             uptime = _get_service_uptime()
             assert uptime is not None
             assert 99 <= uptime <= 101  # Allow small variation
+
+
+class TestGetFirstBoardDims:
+    """Tests for _get_first_board_dims — the note-array geometry helper used by
+    /debug/fill, /debug/blank, /debug/info and the welcome message.
+
+    The debug-endpoint tests above exercise the dict-shaped board path; these
+    cover the object-attribute path, the empty-boards fallback, and the
+    exception fallback (the helper must never raise).
+    """
+
+    def _ss_with_boards(self, boards):
+        ss = Mock()
+        board_settings = Mock()
+        board_settings.boards = boards
+        ss.get_board_settings.return_value = board_settings
+        return ss
+
+    def test_note_array_dict_board_resolves_to_array_dims(self):
+        """A dict note_array board (2 wide × 2 tall) → 6 rows × 30 cols."""
+        from src.api_server import _get_first_board_dims
+
+        ss = self._ss_with_boards([{"device_type": "note_array", "notes_wide": 2, "notes_tall": 2}])
+        with patch("src.api_server.get_settings_service", return_value=ss):
+            dims = _get_first_board_dims()
+        assert (dims.rows, dims.cols) == (6, 30)
+
+    def test_note_array_object_board_resolves_via_getattr(self):
+        """An object-shaped note_array board uses the getattr branch (4 wide × 1 tall → 3×60)."""
+        from types import SimpleNamespace
+
+        from src.api_server import _get_first_board_dims
+
+        board = SimpleNamespace(device_type="note_array", notes_wide=4, notes_tall=1)
+        ss = self._ss_with_boards([board])
+        with patch("src.api_server.get_settings_service", return_value=ss):
+            dims = _get_first_board_dims()
+        assert (dims.rows, dims.cols) == (3, 60)
+
+    def test_flagship_object_board_resolves_via_getattr(self):
+        """A flagship object board (no notes attrs) falls back to 6×22 via getattr defaults."""
+        from types import SimpleNamespace
+
+        from src.api_server import _get_first_board_dims
+
+        board = SimpleNamespace(device_type="flagship")
+        ss = self._ss_with_boards([board])
+        with patch("src.api_server.get_settings_service", return_value=ss):
+            dims = _get_first_board_dims()
+        assert (dims.rows, dims.cols) == (6, 22)
+
+    def test_empty_boards_falls_back_to_flagship(self):
+        """No configured boards → flagship 6×22 default."""
+        from src.api_server import _get_first_board_dims
+
+        ss = self._ss_with_boards([])
+        with patch("src.api_server.get_settings_service", return_value=ss):
+            dims = _get_first_board_dims()
+        assert (dims.rows, dims.cols) == (6, 22)
+
+    def test_settings_error_falls_back_to_flagship(self):
+        """If settings can't be read the helper swallows the error and returns flagship dims."""
+        from src.api_server import _get_first_board_dims
+
+        ss = Mock()
+        ss.get_board_settings.side_effect = RuntimeError("settings unavailable")
+        with patch("src.api_server.get_settings_service", return_value=ss):
+            dims = _get_first_board_dims()
+        assert (dims.rows, dims.cols) == (6, 22)

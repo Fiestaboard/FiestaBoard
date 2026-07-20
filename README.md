@@ -14,7 +14,7 @@
   <a href="https://discord.gg/JvN8y6ahaf"><img src="https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-**FiestaBoard is free, open-source software for Vestaboard and split-flap displays.** It gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you - weather, stocks, transit, sports, surf conditions, and more - and display it on your board. Compatible with Vestaboard Flagship (22x6) and Note (15x3).
+**FiestaBoard is free, open-source software for Vestaboard and split-flap displays.** It gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you - weather, stocks, transit, sports, surf conditions, and more - and display it on your board. Compatible with Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas).
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 
@@ -246,6 +246,24 @@ Works from anywhere with internet. No transition animations.
 4. Copy the key
 
 See [Cloud API Setup](https://fiestaboard.app/docs/setup/cloud-api) for details on choosing between the two modes.
+
+### Note Array
+
+A **Note array** is several Vestaboard Notes tiled into one larger display. FiestaBoard treats the array as a single canvas and renders pages across it. Each Note is 15 × 3 characters, so an array's size is `(notes wide × 15) × (notes tall × 3)` characters.
+
+Five preset sizes are available, plus a custom size up to **8 × 8 Notes**:
+
+| Preset | Notes (W × H) | Characters (W × H) |
+|--------|---------------|--------------------|
+| 2 side-by-side | 2 × 1 | 30 × 3 |
+| 4 side-by-side | 4 × 1 | 60 × 3 |
+| 2 stacked | 1 × 2 | 15 × 6 |
+| 4 stacked | 1 × 4 | 15 × 12 |
+| 2×2 grid | 2 × 2 | 30 × 6 |
+
+Note arrays connect through the **Vestaboard Cloud API** using an `X-Vestaboard-Token` (from your Vestaboard Cloud API subscription) — not the Read/Write key. Configure the board type, size, and token in **Settings → Hardware**, or let FiestaBoard read the array and pick the size for you with **Auto-detect from board**.
+
+**→ [Note Array setup guide](docs/setup/NOTE_ARRAYS.md)** for the full walkthrough, and the [Note Arrays reference](docs/reference/NOTE_ARRAYS.md) for the dimensions model and API details.
 
 ---
 

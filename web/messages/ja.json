@@ -77,7 +77,10 @@
     "secondaryNavigation": "サブナビゲーション",
     "picks": "スタッフのおすすめ",
     "skipToMainContent": "メインコンテンツへスキップ",
-    "prideCelebrationAriaLabel": "プライド月間を祝う"
+    "prideCelebrationAriaLabel": "プライド月間を祝う",
+    "boardSelector": "管理するボードを選択",
+    "selectBoard": "ボードを選択",
+    "unnamedBoard": "名前のないボード"
   },
   "network": {
     "title": "Wi-Fi",
@@ -549,8 +552,8 @@
       "connectedTestAgain": "接続完了！再テスト",
       "thingsToTry": "お試しください:",
       "boardType": "ボードタイプ",
-      "flagshipDimensions": "22×6 文字",
-      "noteDimensions": "15×3 文字",
+      "flagshipDimensions": "6×22 文字",
+      "noteDimensions": "3×15 文字",
       "boardColor": "ボードカラー",
       "connectionTestFailed": "接続テストに失敗しました",
       "failedToEnableLocalApi": "ローカルAPIの有効化に失敗しました"
@@ -695,6 +698,7 @@
     "liveOutput": "ライブ出力",
     "liveOutputAriaLabel": "ボードへのライブ出力を切り替え",
     "selectBoardAriaLabel": "ライブ出力用のボードを選択",
+    "deviceTypeSwitcherAriaLabel": "ボードサイズを変更",
     "selectBoardPlaceholder": "ボードを選択",
     "toastPageCreated": "ページを作成しました",
     "toastPageUpdated": "ページを更新しました",
@@ -771,7 +775,30 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "ボードの種類とサイズ",
+    "deviceGroupLabel": "デバイス",
+    "noteArrayGroupLabel": "Note アレイ",
+    "customLabel": "カスタム…",
+    "presets": {
+      "2_wide": "横2枚",
+      "4_wide": "横4枚",
+      "2_tall": "縦2枚",
+      "4_tall": "縦4枚",
+      "2x2_grid": "2×2 グリッド"
+    },
+    "notesWideLabel": "Note 横数",
+    "notesTallLabel": "Note 縦数",
+    "customRangeError": "各寸法は 1 ～ {max} の範囲でなければなりません。",
+    "noteArrayTokenLabel": "クラウド API トークン",
+    "noteArrayTokenPlaceholder": "X-Vestaboard-Token を入力",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (設定済み)",
+    "noteArrayTokenHelp": "この Note アレイの X-Vestaboard-Token。Vestaboard クラウド API サブスクリプションから取得します。",
+    "autoDetect": "ボードから自動検出",
+    "detecting": "検出中…",
+    "detectFailed": "ボードの構成を検出できませんでした。",
+    "showSecretAriaLabel": "値を表示",
+    "hideSecretAriaLabel": "値を非表示"
   },
   "systemUpdate": {
     "updateAvailable": "アップデートがあります",
@@ -1472,7 +1499,10 @@
     "loading": "ボード表示を読み込み中",
     "empty": "ボード表示は空です",
     "preview": "ボードプレビュー",
-    "withMessage": "ボード表示: {message}"
+    "withMessage": "ボード表示: {message}",
+    "previewSizeLabel": "プレビューサイズ",
+    "fitMode": "全体表示",
+    "actualMode": "実寸表示"
   },
   "updateOverlay": {
     "takingLonger": "更新に予想より時間がかかっています",
@@ -1663,5 +1693,10 @@
     "taskProgressAriaLabel": "AI タスクの進行状況",
     "clearConversationAriaLabel": "会話をクリア",
     "closePanelAriaLabel": "FiestaBot (Beta) を閉じる"
+  },
+  "boardSizeIndicator": {
+    "custom": "カスタム",
+    "ariaLabel": "{rows}行×{cols}列",
+    "ariaLabelWithLayout": "{rows}行×{cols}列、{layout}"
   }
 }

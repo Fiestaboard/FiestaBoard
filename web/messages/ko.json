@@ -77,7 +77,10 @@
     "secondaryNavigation": "보조 탐색",
     "picks": "스태프 추천",
     "skipToMainContent": "본문으로 건너뛰기",
-    "prideCelebrationAriaLabel": "프라이드의 달 축하하기"
+    "prideCelebrationAriaLabel": "프라이드의 달 축하하기",
+    "boardSelector": "관리할 보드 선택",
+    "selectBoard": "보드 선택",
+    "unnamedBoard": "이름 없는 보드"
   },
   "network": {
     "title": "Wi-Fi",
@@ -549,8 +552,8 @@
       "connectedTestAgain": "연결됨! 다시 테스트",
       "thingsToTry": "시도해 볼 항목:",
       "boardType": "보드 유형",
-      "flagshipDimensions": "22 × 6 문자",
-      "noteDimensions": "15 × 3 문자",
+      "flagshipDimensions": "6 × 22 문자",
+      "noteDimensions": "3 × 15 문자",
       "boardColor": "보드 색상",
       "connectionTestFailed": "연결 테스트 실패",
       "failedToEnableLocalApi": "로컬 API 활성화 실패"
@@ -695,6 +698,7 @@
     "liveOutput": "실시간 출력",
     "liveOutputAriaLabel": "보드 실시간 출력 전환",
     "selectBoardAriaLabel": "실시간 출력용 보드 선택",
+    "deviceTypeSwitcherAriaLabel": "보드 크기 변경",
     "selectBoardPlaceholder": "보드 선택",
     "toastPageCreated": "페이지가 생성되었습니다",
     "toastPageUpdated": "페이지가 업데이트되었습니다",
@@ -771,7 +775,30 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
-    }
+    },
+    "deviceTypeAriaLabel": "보드 유형 및 크기",
+    "deviceGroupLabel": "기기",
+    "noteArrayGroupLabel": "Note 어레이",
+    "customLabel": "사용자 지정…",
+    "presets": {
+      "2_wide": "가로 2개",
+      "4_wide": "가로 4개",
+      "2_tall": "세로 2개",
+      "4_tall": "세로 4개",
+      "2x2_grid": "2×2 그리드"
+    },
+    "notesWideLabel": "Note 가로 수",
+    "notesTallLabel": "Note 세로 수",
+    "customRangeError": "각 치수는 1에서 {max} 사이여야 합니다.",
+    "noteArrayTokenLabel": "클라우드 API 토큰",
+    "noteArrayTokenPlaceholder": "X-Vestaboard-Token 입력",
+    "noteArrayTokenSetPlaceholder": "••••••••••• (설정됨)",
+    "noteArrayTokenHelp": "이 Note 어레이의 X-Vestaboard-Token으로, Vestaboard 클라우드 API 구독에서 가져옵니다.",
+    "autoDetect": "보드에서 자동 감지",
+    "detecting": "감지 중…",
+    "detectFailed": "보드 구성을 감지할 수 없습니다.",
+    "showSecretAriaLabel": "값 표시",
+    "hideSecretAriaLabel": "값 숨기기"
   },
   "systemUpdate": {
     "updateAvailable": "업데이트 가능",
@@ -1472,7 +1499,10 @@
     "loading": "보드 디스플레이 로드 중",
     "empty": "보드 디스플레이가 비어 있음",
     "preview": "보드 미리보기",
-    "withMessage": "보드 디스플레이: {message}"
+    "withMessage": "보드 디스플레이: {message}",
+    "previewSizeLabel": "미리보기 크기",
+    "fitMode": "맞춤",
+    "actualMode": "실제 크기"
   },
   "updateOverlay": {
     "takingLonger": "업데이트가 예상보다 오래 걸립니다",
@@ -1663,5 +1693,10 @@
     "taskProgressAriaLabel": "AI 작업 진행률",
     "clearConversationAriaLabel": "대화 지우기",
     "closePanelAriaLabel": "FiestaBot (Beta) 닫기"
+  },
+  "boardSizeIndicator": {
+    "custom": "사용자 지정",
+    "ariaLabel": "{rows}행 {cols}열",
+    "ariaLabelWithLayout": "{rows}행 {cols}열, {layout}"
   }
 }

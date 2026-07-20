@@ -371,12 +371,20 @@ class PluginBase(ABC):
 
     @staticmethod
     def _cache_key(board: BoardContext | None) -> str:
-        """Cache key for a board: its device_type, or the default sentinel.
+        """Cache key for a board: keyed on its size, or the default sentinel.
 
-        Keyed on ``device_type`` only (not color/name) so the cache holds at
-        most one entry per board size, not per physical board.
+        Keyed on board *size* (not color/name) so the cache holds at most one
+        entry per distinct board geometry, not per physical board. Flagship and
+        Note have fixed sizes, so their ``device_type`` is a sufficient key; note
+        arrays all share ``device_type`` ``"note_array"`` but vary in size, so
+        their dimensions are folded in to avoid collisions between, e.g., a
+        60×3 and a 6×30 array.
         """
-        return board.device_type if board else _DEFAULT_CACHE_KEY
+        if board is None:
+            return _DEFAULT_CACHE_KEY
+        if board.device_type == "note_array":
+            return f"note_array:{board.cols}x{board.rows}"
+        return board.device_type
 
     def clear_cache(self) -> None:
         """Clear all cached data, forcing a fresh fetch on the next get_data() call.

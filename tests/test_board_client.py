@@ -9,10 +9,26 @@ import requests
 from src.board_client import (
     VALID_STRATEGIES,
     BoardClient,
+    _is_valid_character_grid,
+    _note_array_last_send,
+    board_client_from_board_dict,
     is_successful_board_read_response,
     parse_read_message_payload,
     strip_color_markers,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_note_array_throttle():
+    """Clear the module-level note-array throttle state before each test.
+
+    ``_note_array_last_send`` persists for the process lifetime by design, so
+    without this reset a timestamp left by one test would throttle the first
+    send of an unrelated test that reuses the same token.
+    """
+    _note_array_last_send.clear()
+    yield
+    _note_array_last_send.clear()
 
 
 class TestStripColorMarkers:
@@ -771,3 +787,443 @@ class TestSendCharactersNoResponseOnError:
         success, was_sent = client.send_characters(grid)
         assert success is False
         assert was_sent is False
+
+
+# ---------------------------------------------------------------------------
+# Issue #1168 — Note-array Cloud API send/read in BoardClient
+# ---------------------------------------------------------------------------
+
+# Hermetic: track the note-array Cloud URL the client is ACTUALLY configured to
+# use. BoardClient.CLOUD_NOTE_ARRAY_API_URL honors VESTABOARD_CLOUD_API_URL, so
+# these URL assertions pass both in CI (env unset → real cloud.vestaboard.com)
+# and inside the dev container (env set → the mock-cloud service), instead of
+# failing whenever the suite runs in the documented `docker exec … pytest` flow.
+CLOUD_NOTE_ARRAY_URL = BoardClient.CLOUD_NOTE_ARRAY_API_URL
+RW_CLOUD_URL = "https://rw.vestaboard.com/"
+
+
+class TestNoteArrayClientInit:
+    """BoardClient stores note-array state correctly."""
+
+    def test_note_array_client_has_is_note_array_flag(self):
+        client = BoardClient(
+            api_key="tok",
+            use_cloud=True,
+            note_array_token="tok",
+            notes_wide=4,
+            notes_tall=1,
+        )
+        assert client._is_note_array is True
+        assert client._note_array_token == "tok"
+        assert client._notes_wide == 4
+        assert client._notes_tall == 1
+
+    def test_non_note_array_client_is_note_array_false(self):
+        client = BoardClient(api_key="key", host="10.0.0.1")
+        assert client._is_note_array is False
+
+    def test_cloud_rw_client_is_note_array_false(self):
+        client = BoardClient(api_key="rw-key", use_cloud=True)
+        assert client._is_note_array is False
+
+
+class TestIsValidCharacterGridNoteArray:
+    """_is_valid_character_grid accepts valid note-array grids and rejects malformed ones."""
+
+    def test_valid_note_array_3x60(self):
+        # 4 notes wide × 1 note tall
+        grid = [[0] * 60 for _ in range(3)]
+        assert _is_valid_character_grid(grid) is True
+
+    def test_valid_note_array_6x30(self):
+        # 2 notes wide × 2 notes tall
+        grid = [[0] * 30 for _ in range(6)]
+        assert _is_valid_character_grid(grid) is True
+
+    def test_valid_note_array_3x15(self):
+        # 1×1 note: same as the Note device (already in _valid_grid_dimensions)
+        grid = [[0] * 15 for _ in range(3)]
+        assert _is_valid_character_grid(grid) is True
+
+    def test_valid_flagship_still_accepted(self):
+        grid = [[0] * 22 for _ in range(6)]
+        assert _is_valid_character_grid(grid) is True
+
+    def test_valid_note_still_accepted(self):
+        grid = [[0] * 15 for _ in range(3)]
+        assert _is_valid_character_grid(grid) is True
+
+    def test_invalid_note_array_non_multiple_rows(self):
+        # 4 rows is not a multiple of 3
+        grid = [[0] * 30 for _ in range(4)]
+        assert _is_valid_character_grid(grid) is False
+
+    def test_invalid_note_array_non_multiple_cols(self):
+        # 20 cols is not a multiple of 15
+        grid = [[0] * 20 for _ in range(3)]
+        assert _is_valid_character_grid(grid) is False
+
+    def test_invalid_arbitrary_size_rejected(self):
+        grid = [[0] * 10 for _ in range(4)]
+        assert _is_valid_character_grid(grid) is False
+
+
+class TestNoteArraySendCharacters:
+    """send_characters routes note-array boards to the new Cloud API."""
+
+    @pytest.fixture
+    def note_array_client(self):
+        return BoardClient(
+            api_key="na-tok",
+            use_cloud=True,
+            note_array_token="na-tok",
+            notes_wide=4,
+            notes_tall=1,
+        )
+
+    @pytest.fixture
+    def valid_3x60_grid(self):
+        return [[0] * 60 for _ in range(3)]
+
+    @pytest.fixture
+    def valid_6x30_grid(self):
+        return [[0] * 30 for _ in range(6)]
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_posts_to_cloud_note_array_url(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        note_array_client.send_characters(valid_3x60_grid)
+        assert mock_post.call_args.args[0] == CLOUD_NOTE_ARRAY_URL
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_uses_x_vestaboard_token_header(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        note_array_client.send_characters(valid_3x60_grid)
+        headers = mock_post.call_args.kwargs["headers"]
+        assert headers["X-Vestaboard-Token"] == "na-tok"
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_body_is_characters_dict(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        note_array_client.send_characters(valid_3x60_grid)
+        body = mock_post.call_args.kwargs["json"]
+        assert body == {"characters": valid_3x60_grid}
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_success_returns_true_true(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        result = note_array_client.send_characters(valid_3x60_grid)
+        assert result == (True, True)
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_network_error(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.side_effect = requests.exceptions.ConnectionError("connection refused")
+        result = note_array_client.send_characters(valid_3x60_grid)
+        assert result == (False, False)
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_6x30_grid_accepted(self, mock_post, note_array_client, valid_6x30_grid):
+        # The client is configured 4x1 (expects 3x60) but a 6x30 grid is still
+        # accepted: _is_valid_character_grid validates note-array shape, not the
+        # client's specific size (grid-size enforcement is a future follow-up).
+        mock_post.return_value.raise_for_status = Mock()
+        result = note_array_client.send_characters(valid_6x30_grid)
+        assert result == (True, True)
+
+    @patch("src.board_client.requests.post")
+    def test_send_text_not_supported_for_note_array(self, mock_post, note_array_client):
+        """send_text on a note-array board fails gracefully and never POSTs (Cloud API is characters-only)."""
+        result = note_array_client.send_text("HELLO")
+        assert result == (False, False)
+        mock_post.assert_not_called()
+
+    @patch("src.board_client.requests.post")
+    def test_send_note_array_does_not_use_rw_cloud_url(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        note_array_client.send_characters(valid_3x60_grid)
+        assert mock_post.call_args.args[0] != RW_CLOUD_URL
+
+    @patch("src.board_client.requests.post")
+    def test_rw_cloud_still_sends_bare_array(self, mock_post):
+        """Existing RW Cloud API behavior must be unchanged (bare array, not wrapped)."""
+        rw_client = BoardClient(api_key="rw", use_cloud=True)
+        valid_6x22 = [[0] * 22 for _ in range(6)]
+        mock_post.return_value.raise_for_status = Mock()
+        rw_client.send_characters(valid_6x22)
+        body = mock_post.call_args.kwargs["json"]
+        assert body == valid_6x22
+
+
+class TestNoteArrayReadCurrentMessage:
+    """read_current_message routes note-array boards to the new Cloud API."""
+
+    @pytest.fixture
+    def note_array_client(self):
+        return BoardClient(
+            api_key="na-tok",
+            use_cloud=True,
+            note_array_token="na-tok",
+            notes_wide=4,
+            notes_tall=1,
+        )
+
+    def _make_layout_response(self, grid):
+        mock_resp = Mock()
+        mock_resp.raise_for_status = Mock()
+        mock_resp.json.return_value = {"currentMessage": {"layout": json.dumps(grid)}}
+        return mock_resp
+
+    @patch("src.board_client.requests.get")
+    def test_read_note_array_gets_cloud_note_array_url(self, mock_get, note_array_client):
+        grid = [[0] * 60 for _ in range(3)]
+        mock_get.return_value = self._make_layout_response(grid)
+        note_array_client.read_current_message()
+        assert mock_get.call_args.args[0] == CLOUD_NOTE_ARRAY_URL
+
+    @patch("src.board_client.requests.get")
+    def test_read_note_array_uses_x_vestaboard_token_header(self, mock_get, note_array_client):
+        grid = [[0] * 60 for _ in range(3)]
+        mock_get.return_value = self._make_layout_response(grid)
+        note_array_client.read_current_message()
+        headers = mock_get.call_args.kwargs["headers"]
+        assert headers["X-Vestaboard-Token"] == "na-tok"
+
+    @patch("src.board_client.requests.get")
+    def test_read_note_array_parses_layout_to_grid(self, mock_get, note_array_client):
+        grid = [[0] * 60 for _ in range(3)]
+        mock_get.return_value = self._make_layout_response(grid)
+        result = note_array_client.read_current_message()
+        assert result == grid
+
+    @patch("src.board_client.requests.get")
+    def test_read_note_array_6x30_parses_correctly(self, mock_get, note_array_client):
+        grid = [[0] * 30 for _ in range(6)]
+        mock_get.return_value = self._make_layout_response(grid)
+        result = note_array_client.read_current_message()
+        assert result == grid
+
+    @patch("src.board_client.requests.get")
+    def test_read_note_array_network_error_returns_none(self, mock_get, note_array_client):
+        mock_get.side_effect = requests.exceptions.ConnectionError("refused")
+        result = note_array_client.read_current_message()
+        assert result is None
+
+
+class TestBoardClientFactoryNoteArray:
+    """board_client_from_board_dict wires note-array boards correctly."""
+
+    def test_note_array_board_creates_client(self):
+        board = {
+            "device_type": "note_array",
+            "note_array_token": "tok",
+            "notes_wide": 4,
+            "notes_tall": 1,
+        }
+        client = board_client_from_board_dict(board)
+        assert client is not None
+        assert client._is_note_array is True
+        assert client._note_array_token == "tok"
+
+    def test_note_array_board_no_token_returns_none(self):
+        board = {
+            "device_type": "note_array",
+            "note_array_token": "",
+            "notes_wide": 4,
+            "notes_tall": 1,
+        }
+        assert board_client_from_board_dict(board) is None
+
+    def test_note_array_board_missing_token_returns_none(self):
+        board = {"device_type": "note_array"}
+        assert board_client_from_board_dict(board) is None
+
+    def test_note_array_notes_wide_tall_stored(self):
+        board = {
+            "device_type": "note_array",
+            "note_array_token": "tok",
+            "notes_wide": 2,
+            "notes_tall": 3,
+        }
+        client = board_client_from_board_dict(board)
+        assert client is not None
+        assert client._notes_wide == 2
+        assert client._notes_tall == 3
+
+    def test_flagship_board_cloud_unaffected(self):
+        board = {"api_mode": "cloud", "cloud_key": "rw-key"}
+        client = board_client_from_board_dict(board)
+        assert client is not None
+        assert client._is_note_array is False
+
+    def test_flagship_board_local_unaffected(self):
+        board = {"api_mode": "local", "local_api_key": "k", "host": "10.0.0.1"}
+        client = board_client_from_board_dict(board)
+        assert client is not None
+        assert client._is_note_array is False
+
+
+# ---------------------------------------------------------------------------
+# Issue #1169 — Note-array send constraints (no transitions, 15s rate limit)
+# ---------------------------------------------------------------------------
+
+
+def _clock(*values):
+    """Return a callable that yields the given values in order, then repeats the last."""
+    seq = list(values)
+
+    def _next():
+        return seq.pop(0) if len(seq) > 1 else seq[0]
+
+    return _next
+
+
+class TestNoteArrayConstraints:
+    """Note-array sends strip transitions and enforce a 15s rate limit."""
+
+    @pytest.fixture
+    def note_array_client_with_clock(self):
+        """Factory: call with (time_func, token) to get a throttle-testable client."""
+
+        def _make(time_func, token):
+            return BoardClient(
+                api_key=token,
+                use_cloud=True,
+                note_array_token=token,
+                notes_wide=4,
+                notes_tall=1,
+                _time_func=time_func,
+            )
+
+        return _make
+
+    @pytest.fixture
+    def note_array_client(self):
+        return BoardClient(
+            api_key="na-tok",
+            use_cloud=True,
+            note_array_token="na-strip-tok",
+            notes_wide=4,
+            notes_tall=1,
+        )
+
+    @pytest.fixture
+    def valid_3x60_grid(self):
+        return [[0] * 60 for _ in range(3)]
+
+    @pytest.fixture
+    def other_3x60_grid(self):
+        # A distinct grid to bypass the content-unchanged cache on a second send.
+        return [[1] * 60 for _ in range(3)]
+
+    # --- transition stripping -------------------------------------------------
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_send_omits_strategy_even_when_passed(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+
+        result = note_array_client.send_characters(
+            valid_3x60_grid, strategy="column", step_interval_ms=500, step_size=2
+        )
+
+        body = mock_post.call_args.kwargs["json"]
+        assert "strategy" not in body
+        assert "step_interval_ms" not in body
+        assert "step_size" not in body
+        assert result == (True, True)
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_send_omits_strategy_none_also_fine(self, mock_post, note_array_client, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+
+        note_array_client.send_characters(valid_3x60_grid, strategy=None)
+
+        body = mock_post.call_args.kwargs["json"]
+        assert body == {"characters": valid_3x60_grid}
+
+    # --- throttle -------------------------------------------------------------
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_second_send_within_15s_is_throttled(
+        self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid, caplog
+    ):
+        mock_post.return_value.raise_for_status = Mock()
+        # First send at t=0, throttle-check on second send at t=10 (<15s).
+        client = note_array_client_with_clock(_clock(0.0, 10.0), "na-throttle-within")
+
+        first = client.send_characters(valid_3x60_grid)
+        assert first == (True, True)
+        assert mock_post.call_count == 1
+
+        with caplog.at_level("WARNING"):
+            second = client.send_characters(other_3x60_grid)
+
+        assert second == (True, False)
+        assert mock_post.call_count == 1  # not sent again
+        assert any(record.levelname == "WARNING" and "throttled" in record.message for record in caplog.records)
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_second_send_at_exactly_15s_goes_through(
+        self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid
+    ):
+        mock_post.return_value.raise_for_status = Mock()
+        client = note_array_client_with_clock(_clock(0.0, 15.0), "na-throttle-exact")
+
+        assert client.send_characters(valid_3x60_grid) == (True, True)
+        assert client.send_characters(other_3x60_grid) == (True, True)
+        assert mock_post.call_count == 2
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_second_send_after_15s_goes_through(
+        self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid
+    ):
+        mock_post.return_value.raise_for_status = Mock()
+        client = note_array_client_with_clock(_clock(0.0, 16.0), "na-throttle-after")
+
+        assert client.send_characters(valid_3x60_grid) == (True, True)
+        assert client.send_characters(other_3x60_grid) == (True, True)
+        assert mock_post.call_count == 2
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_first_send_always_goes_through(self, mock_post, note_array_client_with_clock, valid_3x60_grid):
+        mock_post.return_value.raise_for_status = Mock()
+        # Token never previously seen in _note_array_last_send.
+        client = note_array_client_with_clock(_clock(100.0), "na-throttle-first")
+
+        assert client.send_characters(valid_3x60_grid) == (True, True)
+        assert mock_post.call_count == 1
+
+    @patch("src.board_client.requests.post")
+    def test_note_array_throttle_state_persists_across_client_recreation(
+        self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid
+    ):
+        """A new BoardClient with the same token still sees the prior send's timestamp."""
+        mock_post.return_value.raise_for_status = Mock()
+        token = "na-throttle-persist"
+
+        first_client = note_array_client_with_clock(_clock(0.0), token)
+        assert first_client.send_characters(valid_3x60_grid) == (True, True)
+        assert mock_post.call_count == 1
+
+        # New instance (simulating reinitialize_board_client), clock at t=5 (<15s).
+        second_client = note_array_client_with_clock(_clock(5.0), token)
+        result = second_client.send_characters(other_3x60_grid)
+
+        assert result == (True, False)
+        assert mock_post.call_count == 1  # second instance's send was throttled
+
+    # --- regression -----------------------------------------------------------
+
+    @patch("src.board_client.requests.post")
+    def test_flagship_transitions_unchanged(self, mock_post):
+        """Flagship local sends still carry transition params."""
+        client = BoardClient(api_key="local-key", host="192.168.0.11")
+        grid = [[0] * 22 for _ in range(6)]
+        mock_post.return_value.raise_for_status = Mock()
+
+        result = client.send_characters(grid, strategy="column", step_interval_ms=500, step_size=2)
+
+        body = mock_post.call_args.kwargs["json"]
+        assert body["strategy"] == "column"
+        assert body["step_interval_ms"] == 500
+        assert body["step_size"] == 2
+        assert result == (True, True)

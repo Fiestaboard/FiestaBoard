@@ -200,6 +200,125 @@ class TestValidateBoardArray:
 # ---------------------------------------------------------------------------
 
 
+class TestNoteArrayPresets:
+    """Verify text_to_board_array and validate_board_array at note-array preset sizes.
+
+    Covers issue #1173: rendering at any valid note-array dimensions.
+    """
+
+    # --- 3×30 (2 notes wide, 1 tall) ---
+
+    def test_3x30_shape(self):
+        board = text_to_board_array("HELLO", rows=3, cols=30)
+        assert len(board) == 3
+        assert all(len(row) == 30 for row in board)
+
+    def test_3x30_text_starts_at_col0(self):
+        board = text_to_board_array("A", rows=3, cols=30)
+        assert board[0][0] == BoardChars.get_char_code("A")
+        # rest of row 0 should be spaces
+        assert all(code == BoardChars.SPACE for code in board[0][1:])
+
+    def test_3x30_long_line_truncated_at_30(self):
+        board = text_to_board_array("X" * 40, rows=3, cols=30)
+        assert len(board[0]) == 30
+        assert board[0][29] == BoardChars.get_char_code("X")
+
+    def test_3x30_validate_passes(self):
+        board = text_to_board_array("HELLO WORLD", rows=3, cols=30)
+        assert validate_board_array(board, rows=3, cols=30)
+
+    # --- 3×60 (4 notes wide, 1 tall) ---
+
+    def test_3x60_shape(self):
+        board = text_to_board_array("HELLO", rows=3, cols=60)
+        assert len(board) == 3
+        assert all(len(row) == 60 for row in board)
+
+    def test_3x60_text_starts_at_col0(self):
+        board = text_to_board_array("A", rows=3, cols=60)
+        assert board[0][0] == BoardChars.get_char_code("A")
+
+    def test_3x60_long_line_truncated_at_60(self):
+        board = text_to_board_array("Y" * 80, rows=3, cols=60)
+        assert len(board[0]) == 60
+        assert board[0][59] == BoardChars.get_char_code("Y")
+
+    def test_3x60_validate_passes(self):
+        board = text_to_board_array("WIDE BOARD TEST", rows=3, cols=60)
+        assert validate_board_array(board, rows=3, cols=60)
+
+    # --- 6×15 (1 note wide, 2 tall) ---
+
+    def test_6x15_shape(self):
+        board = text_to_board_array("LINE1\nLINE2", rows=6, cols=15)
+        assert len(board) == 6
+        assert all(len(row) == 15 for row in board)
+
+    def test_6x15_long_line_truncated_at_15(self):
+        board = text_to_board_array("A" * 20, rows=6, cols=15)
+        assert len(board[0]) == 15
+
+    def test_6x15_validate_passes(self):
+        board = text_to_board_array("LINE1\nLINE2", rows=6, cols=15)
+        assert validate_board_array(board, rows=6, cols=15)
+
+    # --- 12×15 (1 note wide, 4 tall) ---
+
+    def test_12x15_shape(self):
+        text = "\n".join(f"ROW{i}" for i in range(12))
+        board = text_to_board_array(text, rows=12, cols=15)
+        assert len(board) == 12
+        assert all(len(row) == 15 for row in board)
+
+    def test_12x15_all_12_rows_populated(self):
+        text = "\n".join(f"R{i}" for i in range(12))
+        board = text_to_board_array(text, rows=12, cols=15)
+        # Row 11 (index 11) should have 'R' in it
+        assert board[11][0] == BoardChars.get_char_code("R")
+
+    def test_12x15_validate_passes(self):
+        text = "\n".join(f"ROW{i}" for i in range(12))
+        board = text_to_board_array(text, rows=12, cols=15)
+        assert validate_board_array(board, rows=12, cols=15)
+
+    # --- 6×30 (2 notes wide, 2 tall) ---
+
+    def test_6x30_shape(self):
+        board = text_to_board_array("HELLO WORLD", rows=6, cols=30)
+        assert len(board) == 6
+        assert all(len(row) == 30 for row in board)
+
+    def test_6x30_validate_passes(self):
+        board = text_to_board_array("HELLO WORLD", rows=6, cols=30)
+        assert validate_board_array(board, rows=6, cols=30)
+
+    # --- validate_board_array rejects wrong shapes ---
+
+    def test_validate_rejects_wrong_rows(self):
+        board = text_to_board_array("A", rows=6, cols=15)
+        assert not validate_board_array(board, rows=12, cols=15)
+
+    def test_validate_rejects_wrong_cols(self):
+        board = text_to_board_array("A", rows=3, cols=30)
+        assert not validate_board_array(board, rows=3, cols=60)
+
+    # --- format_board_array_preview sanity checks ---
+
+    def test_format_preview_3x60_no_crash(self):
+        board = text_to_board_array("CENTERED HEADLINE ON WIDE BOARD", rows=3, cols=60)
+        preview = format_board_array_preview(board)
+        lines = preview.split("\n")
+        assert len(lines) == 3
+        assert all(len(line) >= 1 for line in lines)
+
+    def test_format_preview_12x15_no_crash(self):
+        board = text_to_board_array("TALL\nBOARD", rows=12, cols=15)
+        preview = format_board_array_preview(board)
+        lines = preview.split("\n")
+        assert len(lines) == 12
+
+
 class TestFormatBoardArrayPreview:
     def test_returns_string(self):
         board = text_to_board_array("TEST")

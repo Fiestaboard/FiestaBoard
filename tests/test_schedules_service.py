@@ -52,6 +52,8 @@ class TestScheduleServiceCRUD:
             {"id": "first-board-uuid", "name": "A"},
             {"id": "second-board-uuid", "name": "B"},
         ]
+        # list_schedules() resolves the primary board via get_primary_board_id().
+        mock_gs.get_primary_board_id.return_value = "first-board-uuid"
         monkeypatch.setattr(
             "src.schedules.service.get_settings_service",
             lambda: mock_gs,
