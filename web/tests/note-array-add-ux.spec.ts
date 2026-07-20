@@ -29,11 +29,28 @@ test.describe("Add Note Array board", () => {
     await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
     await openSettingsTab(page, "Hardware");
 
-    await page.getByRole("button", { name: "Add Board" }).click();
-    // All three Vestaboard product shapes are offered.
-    await expect(page.getByRole("button", { name: "Flagship", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Note", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Note Array", exact: true }).click();
+    const addButton = page.getByRole("button", { name: "Add Board" });
+    await addButton.scrollIntoViewIfNeeded();
+    await addButton.hover();
+    await page.waitForTimeout(600);
+    await addButton.click();
+
+    // All three Vestaboard product shapes are offered — Note Array is its own
+    // one-click choice, not "add a Note, then convert its type". Hover each so
+    // the recording clearly shows the picker.
+    const flagshipChoice = page.getByRole("button", { name: "Flagship", exact: true });
+    const noteChoice = page.getByRole("button", { name: "Note", exact: true });
+    const arrayChoice = page.getByRole("button", { name: "Note Array", exact: true });
+    await expect(flagshipChoice).toBeVisible();
+    await expect(noteChoice).toBeVisible();
+    await expect(arrayChoice).toBeVisible();
+    await flagshipChoice.hover();
+    await page.waitForTimeout(450);
+    await noteChoice.hover();
+    await page.waitForTimeout(450);
+    await arrayChoice.hover();
+    await page.waitForTimeout(700);
+    await arrayChoice.click();
 
     // The new board card appears as a 2×1 note array (3 rows × 30 cols).
     const card = page.getByTestId("board-card").filter({ hasText: "My Board 2" });
