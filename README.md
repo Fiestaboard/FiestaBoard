@@ -259,9 +259,9 @@ Five preset sizes are available, plus a custom size up to **8 × 8 Notes**:
 | 4 side-by-side | 4 × 1 | 60 × 3 |
 | 2 stacked | 1 × 2 | 15 × 6 |
 | 4 stacked | 1 × 4 | 15 × 12 |
-| 2 × 2 grid | 2 × 2 | 30 × 6 |
+| 2×2 grid | 2 × 2 | 30 × 6 |
 
-Note arrays connect through the **Vestaboard Cloud API** using an `X-Vestaboard-Token` (from your Vestaboard Cloud API subscription) — not the Read/Write key. Configure the board type, size, and token in **Settings → Display**, or let FiestaBoard read the array and pick the size for you with **Auto-detect from board**.
+Note arrays connect through the **Vestaboard Cloud API** using an `X-Vestaboard-Token` (from your Vestaboard Cloud API subscription) — not the Read/Write key. Configure the board type, size, and token in **Settings → Hardware**, or let FiestaBoard read the array and pick the size for you with **Auto-detect from board**.
 
 **→ [Note Array setup guide](docs/setup/NOTE_ARRAYS.md)** for the full walkthrough, and the [Note Arrays reference](docs/reference/NOTE_ARRAYS.md) for the dimensions model and API details.
 

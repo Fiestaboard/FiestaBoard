@@ -27,8 +27,8 @@ rows = notes_tall × NOTE_ROWS   (= notes_tall × 3)
 ```
 
 `resolve_dimensions(device_type, notes_wide, notes_tall)` returns the
-`(rows, cols)` for any device type — fixed values for `flagship` (6 × 22) and
-`note` (3 × 15), and the computed grid for `note_array`.
+`(rows, cols)` for any device type — fixed values for `flagship` (rows=6, cols=22) and
+`note` (rows=3, cols=15), and the computed grid for `note_array`.
 
 Both axes are capped at `MAX_NOTES_PER_AXIS` (8), so the largest supported
 array is 8 × 8 Notes = `120 × 24` characters. The UI clamps **Notes wide** and
@@ -49,7 +49,7 @@ Five presets are defined in `NOTE_ARRAY_PRESETS`:
 | `4_wide`   | 4 side-by-side | 4 × 1         | 60 × 3             |
 | `2_tall`   | 2 stacked      | 1 × 2         | 15 × 6             |
 | `4_tall`   | 4 stacked      | 1 × 4         | 15 × 12            |
-| `2x2_grid` | 2 × 2 grid     | 2 × 2         | 30 × 6             |
+| `2x2_grid` | 2×2 grid       | 2 × 2         | 30 × 6             |
 
 ## Custom sizing
 
@@ -107,7 +107,7 @@ also includes `notes_wide`, `notes_tall`, and `matched_preset`:
   "cols": 30,
   "notes_wide": 2,
   "notes_tall": 2,
-  "matched_preset": "2 × 2 grid"
+  "matched_preset": "2×2 grid"
 }
 ```
 

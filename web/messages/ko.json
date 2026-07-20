@@ -796,7 +796,9 @@
     "noteArrayTokenHelp": "이 Note 어레이의 X-Vestaboard-Token으로, Vestaboard 클라우드 API 구독에서 가져옵니다.",
     "autoDetect": "보드에서 자동 감지",
     "detecting": "감지 중…",
-    "detectFailed": "보드 구성을 감지할 수 없습니다."
+    "detectFailed": "보드 구성을 감지할 수 없습니다.",
+    "showSecretAriaLabel": "값 표시",
+    "hideSecretAriaLabel": "값 숨기기"
   },
   "systemUpdate": {
     "updateAvailable": "업데이트 가능",
@@ -1693,8 +1695,8 @@
     "closePanelAriaLabel": "FiestaBot (Beta) 닫기"
   },
   "boardSizeIndicator": {
-    "custom": "Custom",
-    "ariaLabel": "{rows} rows by {cols} columns",
-    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+    "custom": "사용자 지정",
+    "ariaLabel": "{rows}행 {cols}열",
+    "ariaLabelWithLayout": "{rows}행 {cols}열, {layout}"
   }
 }

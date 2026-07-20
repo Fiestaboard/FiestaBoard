@@ -796,7 +796,9 @@
     "noteArrayTokenHelp": "Token X-Vestaboard-Token dla tej macierzy Note, z subskrypcji API w chmurze Vestaboard.",
     "autoDetect": "Wykryj automatycznie z tablicy",
     "detecting": "Wykrywanie…",
-    "detectFailed": "Nie udało się wykryć konfiguracji tablicy."
+    "detectFailed": "Nie udało się wykryć konfiguracji tablicy.",
+    "showSecretAriaLabel": "Pokaż wartość",
+    "hideSecretAriaLabel": "Ukryj wartość"
   },
   "systemUpdate": {
     "updateAvailable": "Dostępna aktualizacja",
@@ -1693,8 +1695,8 @@
     "closePanelAriaLabel": "Zamknij FiestaBot (Beta)"
   },
   "boardSizeIndicator": {
-    "custom": "Custom",
-    "ariaLabel": "{rows} rows by {cols} columns",
-    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+    "custom": "Niestandardowy",
+    "ariaLabel": "{rows} wierszy na {cols} kolumn",
+    "ariaLabelWithLayout": "{rows} wierszy na {cols} kolumn, {layout}"
   }
 }

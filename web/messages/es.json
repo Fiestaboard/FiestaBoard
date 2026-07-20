@@ -796,7 +796,9 @@
     "noteArrayTokenHelp": "El X-Vestaboard-Token de esta matriz de Note, de tu suscripción a la API en la nube de Vestaboard.",
     "autoDetect": "Detectar automáticamente del tablero",
     "detecting": "Detectando…",
-    "detectFailed": "No se pudo detectar la configuración del tablero."
+    "detectFailed": "No se pudo detectar la configuración del tablero.",
+    "showSecretAriaLabel": "Mostrar valor",
+    "hideSecretAriaLabel": "Ocultar valor"
   },
   "systemUpdate": {
     "updateAvailable": "Actualización disponible",
@@ -1693,8 +1695,8 @@
     "closePanelAriaLabel": "Cerrar FiestaBot (Beta)"
   },
   "boardSizeIndicator": {
-    "custom": "Custom",
-    "ariaLabel": "{rows} rows by {cols} columns",
-    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+    "custom": "Personalizado",
+    "ariaLabel": "{rows} filas por {cols} columnas",
+    "ariaLabelWithLayout": "{rows} filas por {cols} columnas, {layout}"
   }
 }

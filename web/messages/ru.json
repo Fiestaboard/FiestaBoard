@@ -796,7 +796,9 @@
     "noteArrayTokenHelp": "Токен X-Vestaboard-Token для этого массива Note из вашей подписки на облачный API Vestaboard.",
     "autoDetect": "Автоопределение с табло",
     "detecting": "Определение…",
-    "detectFailed": "Не удалось определить конфигурацию табло."
+    "detectFailed": "Не удалось определить конфигурацию табло.",
+    "showSecretAriaLabel": "Показать значение",
+    "hideSecretAriaLabel": "Скрыть значение"
   },
   "systemUpdate": {
     "updateAvailable": "Доступно обновление",
@@ -1693,8 +1695,8 @@
     "closePanelAriaLabel": "Закрыть FiestaBot (Beta)"
   },
   "boardSizeIndicator": {
-    "custom": "Custom",
-    "ariaLabel": "{rows} rows by {cols} columns",
-    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+    "custom": "Пользовательский",
+    "ariaLabel": "{rows} строк на {cols} столбцов",
+    "ariaLabelWithLayout": "{rows} строк на {cols} столбцов, {layout}"
   }
 }

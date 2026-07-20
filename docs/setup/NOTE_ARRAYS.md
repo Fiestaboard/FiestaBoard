@@ -36,7 +36,7 @@ You'll need:
 
 ### 1. Add the board
 
-In the FiestaBoard web UI, open **Settings → Display** and add a board (or edit
+In the FiestaBoard web UI, open **Settings → Hardware** and add a board (or edit
 an existing one).
 
 ### 2. Choose the board type and size
@@ -54,7 +54,7 @@ Pick a preset that matches your hardware:
 | 4 side-by-side    | 4 × 1         | 60 × 3             |
 | 2 stacked         | 1 × 2         | 15 × 6             |
 | 4 stacked         | 1 × 4         | 15 × 12            |
-| 2 × 2 grid        | 2 × 2         | 30 × 6             |
+| 2×2 grid          | 2 × 2         | 30 × 6             |
 
 If your array isn't one of the presets, choose **Custom…** and set **Notes
 wide** and **Notes tall** (each from 1 to 8). For example, `3 × 2` Notes gives a

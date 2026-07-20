@@ -200,6 +200,7 @@ function BoardConnectionForm({
                   variant="outline"
                   size="sm"
                   onClick={() => setShowSecrets((prev) => ({ ...prev, local_api_key: !prev.local_api_key }))}
+                  aria-label={showSecrets.local_api_key ? t("hideSecretAriaLabel") : t("showSecretAriaLabel")}
                   className="h-8 w-8 p-0"
                   disabled={board.local_api_key === "***"}
                 >
@@ -237,6 +238,7 @@ function BoardConnectionForm({
                   variant="outline"
                   size="sm"
                   onClick={() => setShowSecrets((prev) => ({ ...prev, enablement_token: !prev.enablement_token }))}
+                  aria-label={showSecrets.enablement_token ? t("hideSecretAriaLabel") : t("showSecretAriaLabel")}
                   className="h-8 w-8 p-0"
                 >
                   {showSecrets.enablement_token ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -288,6 +290,7 @@ function BoardConnectionForm({
               variant="outline"
               size="sm"
               onClick={() => setShowSecrets((prev) => ({ ...prev, cloud_key: !prev.cloud_key }))}
+              aria-label={showSecrets.cloud_key ? t("hideSecretAriaLabel") : t("showSecretAriaLabel")}
               className="h-8 w-8 p-0"
               disabled={board.cloud_key === "***"}
             >
@@ -301,9 +304,12 @@ function BoardConnectionForm({
       {/* Note-array Cloud API token (X-Vestaboard-Token) */}
       {isNoteArray(board.device_type) && (
         <div className="space-y-1">
-          <label className="text-xs font-medium">{t("noteArrayTokenLabel")}</label>
+          <label className="text-xs font-medium" htmlFor={`note-array-token-${board.id}`}>
+            {t("noteArrayTokenLabel")}
+          </label>
           <div className="flex gap-1.5">
             <input
+              id={`note-array-token-${board.id}`}
               type={showSecrets.note_array_token ? "text" : "password"}
               defaultValue={board.note_array_token === "***" ? "" : (board.note_array_token ?? "")}
               onBlur={(e) => {
@@ -320,6 +326,7 @@ function BoardConnectionForm({
               variant="outline"
               size="sm"
               onClick={() => setShowSecrets((prev) => ({ ...prev, note_array_token: !prev.note_array_token }))}
+              aria-label={showSecrets.note_array_token ? t("hideSecretAriaLabel") : t("showSecretAriaLabel")}
               className="h-8 w-8 p-0"
               disabled={board.note_array_token === "***"}
             >
@@ -702,7 +709,11 @@ export function DisplaySettings() {
                               />
                             </label>
                           </div>
-                          {dimError[board.id] && <p className="text-[10px] text-destructive">{dimError[board.id]}</p>}
+                          {dimError[board.id] && (
+                            <p role="alert" className="text-[10px] text-destructive">
+                              {dimError[board.id]}
+                            </p>
+                          )}
                         </div>
                       )}
 
@@ -726,7 +737,7 @@ export function DisplaySettings() {
                           )}
                         </Button>
                         {detectError[board.id] && (
-                          <div className="flex items-center gap-1.5 text-destructive text-[10px]">
+                          <div role="alert" className="flex items-center gap-1.5 text-destructive text-[10px]">
                             <AlertCircle className="h-3 w-3 flex-shrink-0" />
                             <span>{detectError[board.id]}</span>
                           </div>

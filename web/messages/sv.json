@@ -796,7 +796,9 @@
     "noteArrayTokenHelp": "X-Vestaboard-Token för denna Note-matris, från din Vestaboard Cloud API-prenumeration.",
     "autoDetect": "Identifiera automatiskt från tavlan",
     "detecting": "Identifierar…",
-    "detectFailed": "Det gick inte att identifiera tavlans konfiguration."
+    "detectFailed": "Det gick inte att identifiera tavlans konfiguration.",
+    "showSecretAriaLabel": "Visa värde",
+    "hideSecretAriaLabel": "Dölj värde"
   },
   "systemUpdate": {
     "updateAvailable": "Uppdatering tillgänglig",
@@ -1693,8 +1695,8 @@
     "closePanelAriaLabel": "Stäng FiestaBot (Beta)"
   },
   "boardSizeIndicator": {
-    "custom": "Custom",
-    "ariaLabel": "{rows} rows by {cols} columns",
-    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+    "custom": "Anpassad",
+    "ariaLabel": "{rows} rader gånger {cols} kolumner",
+    "ariaLabelWithLayout": "{rows} rader gånger {cols} kolumner, {layout}"
   }
 }

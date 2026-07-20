@@ -796,7 +796,9 @@
     "noteArrayTokenHelp": "Bu Note dizisi için X-Vestaboard-Token; Vestaboard Bulut API aboneliğinizden alınır.",
     "autoDetect": "Panodan otomatik algıla",
     "detecting": "Algılanıyor…",
-    "detectFailed": "Pano yapılandırması algılanamadı."
+    "detectFailed": "Pano yapılandırması algılanamadı.",
+    "showSecretAriaLabel": "Değeri göster",
+    "hideSecretAriaLabel": "Değeri gizle"
   },
   "systemUpdate": {
     "updateAvailable": "Güncelleme Mevcut",
@@ -1693,8 +1695,8 @@
     "closePanelAriaLabel": "FiestaBot (Beta)'yı kapat"
   },
   "boardSizeIndicator": {
-    "custom": "Custom",
-    "ariaLabel": "{rows} rows by {cols} columns",
-    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+    "custom": "Özel",
+    "ariaLabel": "{rows} satır {cols} sütun",
+    "ariaLabelWithLayout": "{rows} satır {cols} sütun, {layout}"
   }
 }

@@ -796,7 +796,9 @@
     "noteArrayTokenHelp": "Der X-Vestaboard-Token für dieses Note-Array aus Ihrem Vestaboard-Cloud-API-Abonnement.",
     "autoDetect": "Automatisch vom Board erkennen",
     "detecting": "Erkennen…",
-    "detectFailed": "Die Board-Konfiguration konnte nicht erkannt werden."
+    "detectFailed": "Die Board-Konfiguration konnte nicht erkannt werden.",
+    "showSecretAriaLabel": "Wert anzeigen",
+    "hideSecretAriaLabel": "Wert verbergen"
   },
   "systemUpdate": {
     "updateAvailable": "Update verfügbar",
@@ -1693,8 +1695,8 @@
     "closePanelAriaLabel": "FiestaBot (Beta) schließen"
   },
   "boardSizeIndicator": {
-    "custom": "Custom",
-    "ariaLabel": "{rows} rows by {cols} columns",
-    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+    "custom": "Benutzerdefiniert",
+    "ariaLabel": "{rows} Zeilen mal {cols} Spalten",
+    "ariaLabelWithLayout": "{rows} Zeilen mal {cols} Spalten, {layout}"
   }
 }

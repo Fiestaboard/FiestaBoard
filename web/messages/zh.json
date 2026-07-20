@@ -796,7 +796,9 @@
     "noteArrayTokenHelp": "此 Note 阵列的 X-Vestaboard-Token，来自您的 Vestaboard 云 API 订阅。",
     "autoDetect": "从板子自动检测",
     "detecting": "检测中…",
-    "detectFailed": "无法检测板子的配置。"
+    "detectFailed": "无法检测板子的配置。",
+    "showSecretAriaLabel": "显示值",
+    "hideSecretAriaLabel": "隐藏值"
   },
   "systemUpdate": {
     "updateAvailable": "有可用更新",
@@ -1693,8 +1695,8 @@
     "closePanelAriaLabel": "关闭 FiestaBot (Beta)"
   },
   "boardSizeIndicator": {
-    "custom": "Custom",
-    "ariaLabel": "{rows} rows by {cols} columns",
-    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+    "custom": "自定义",
+    "ariaLabel": "{rows}行×{cols}列",
+    "ariaLabelWithLayout": "{rows}行×{cols}列，{layout}"
   }
 }

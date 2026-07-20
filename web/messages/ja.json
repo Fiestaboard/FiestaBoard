@@ -796,7 +796,9 @@
     "noteArrayTokenHelp": "この Note アレイの X-Vestaboard-Token。Vestaboard クラウド API サブスクリプションから取得します。",
     "autoDetect": "ボードから自動検出",
     "detecting": "検出中…",
-    "detectFailed": "ボードの構成を検出できませんでした。"
+    "detectFailed": "ボードの構成を検出できませんでした。",
+    "showSecretAriaLabel": "値を表示",
+    "hideSecretAriaLabel": "値を非表示"
   },
   "systemUpdate": {
     "updateAvailable": "アップデートがあります",
@@ -1693,8 +1695,8 @@
     "closePanelAriaLabel": "FiestaBot (Beta) を閉じる"
   },
   "boardSizeIndicator": {
-    "custom": "Custom",
-    "ariaLabel": "{rows} rows by {cols} columns",
-    "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+    "custom": "カスタム",
+    "ariaLabel": "{rows}行×{cols}列",
+    "ariaLabelWithLayout": "{rows}行×{cols}列、{layout}"
   }
 }

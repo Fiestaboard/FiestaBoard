@@ -502,7 +502,6 @@ export default function SchedulePage() {
                 <span
                   data-testid="active-board-indicator"
                   className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border bg-muted/40 text-xs text-muted-foreground max-w-[150px]"
-                  aria-label={t("boardSelectorLabel")}
                 >
                   <Monitor className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">

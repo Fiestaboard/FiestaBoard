@@ -753,7 +753,9 @@
     "noteArrayTokenHelp": "The X-Vestaboard-Token for this Note array, from your Vestaboard Cloud API subscription.",
     "autoDetect": "Auto-detect from board",
     "detecting": "Detecting…",
-    "detectFailed": "Could not detect the board configuration."
+    "detectFailed": "Could not detect the board configuration.",
+    "showSecretAriaLabel": "Show value",
+    "hideSecretAriaLabel": "Hide value"
   },
   "systemUpdate": {
     "updateAvailable": "Update Available",
