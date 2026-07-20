@@ -757,13 +757,15 @@ export default function CollectionsPage() {
               style={{ animationDelay: `${idx * 50}ms` }}
             >
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
+                {/* min-w-0: CardHeader is a grid; without it this grid item
+                    sizes to min-content and long names inflate the row. */}
+                <div className="flex items-start justify-between gap-2 min-w-0">
                   <div className="flex items-center gap-2 min-w-0">
                     <GalleryHorizontalEnd className="h-5 w-5 text-primary flex-shrink-0" />
                     <div className="min-w-0">
-                      <CardTitle className="text-base truncate flex items-center gap-2">
-                        {collection.name}
-                        <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                      <CardTitle className="text-base flex items-center gap-2 min-w-0">
+                        <span className="truncate">{collection.name}</span>
+                        <Badge variant="outline" className="text-[10px] uppercase tracking-wide flex-shrink-0">
                           {collection.selection_mode === "time" ? (
                             <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
                           ) : collection.selection_mode === "random" ? (
@@ -774,7 +776,7 @@ export default function CollectionsPage() {
                           {collection.selection_mode}
                         </Badge>
                         {collection.selection_mode === "variable" && (
-                          <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                          <Badge variant="outline" className="text-[10px] uppercase tracking-wide flex-shrink-0">
                             {t("betaBadge")}
                           </Badge>
                         )}
@@ -793,11 +795,11 @@ export default function CollectionsPage() {
               <CardContent className="pt-0">
                 <div className="flex flex-wrap gap-1.5">
                   {collection.page_ids.map((pid, i) => (
-                    <Badge key={pid} variant="secondary" className="text-xs">
+                    <Badge key={pid} variant="secondary" className="text-xs max-w-full">
                       {collection.selection_mode === "time" && (
-                        <span className="text-muted-foreground mr-1">{i + 1}.</span>
+                        <span className="text-muted-foreground mr-1 flex-shrink-0">{i + 1}.</span>
                       )}
-                      {getPageName(pid)}
+                      <span className="truncate">{getPageName(pid)}</span>
                     </Badge>
                   ))}
                 </div>

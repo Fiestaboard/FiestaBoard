@@ -6,7 +6,16 @@
  *
  * Issue: #500 — E2E: add Playwright tests for critical user flows
  */
-import { API_URL, configureBoard, createPage, deleteAllPages, expect, suppressWizard, test } from "./helpers";
+import {
+  configureBoard,
+  createCollection,
+  createPage,
+  deleteAllCollections,
+  deleteAllPages,
+  expect,
+  suppressWizard,
+  test,
+} from "./helpers";
 
 const MOBILE_VIEWPORT = { width: 375, height: 812 };
 
@@ -161,6 +170,137 @@ test.describe("Mobile — Integrations", () => {
       await marketplaceTab.click();
       // Should switch without error
       await expect(page.getByRole("heading", { name: /integrations/i })).toBeVisible();
+    }
+  });
+});
+
+test.describe("Mobile — Board preview fits viewport", () => {
+  test("dashboard board preview stays inside its frame at phone width", async ({ page }) => {
+    await page.goto("/");
+    const firstTile = page.getByTestId("char-tile-0-0");
+    await expect(firstTile).toBeVisible({ timeout: 15_000 });
+    // Let ScaledBoardDisplay's measure + rAF scale pass settle
+    await page.waitForTimeout(500);
+
+    const geometry = await page.evaluate(() => {
+      const t0 = document.querySelector('[data-testid="char-tile-0-0"]');
+      const t21 = document.querySelector('[data-testid="char-tile-0-21"]');
+      if (!t0 || !t21) return null;
+      const frame = t0.closest('[class*="border-["]');
+      if (!frame) return null;
+      const fr = frame.getBoundingClientRect();
+      const r0 = t0.getBoundingClientRect();
+      const r21 = t21.getBoundingClientRect();
+      return {
+        frameInViewport: fr.left >= 0 && fr.right <= window.innerWidth,
+        tilesInsideFrame: r0.left >= fr.left - 0.5 && r21.right <= fr.right + 0.5,
+      };
+    });
+
+    expect(geometry).not.toBeNull();
+    expect(geometry?.frameInViewport).toBe(true);
+    expect(geometry?.tilesInsideFrame).toBe(true);
+  });
+});
+
+test.describe("Mobile — Long names stay inside the viewport", () => {
+  const LONG_NAME = "An Extremely Long Page Name That Someone Might Actually Type On Their Phone 2026 Edition";
+
+  test("schedule form select and day chips fit with long page names", async ({ page }) => {
+    await createPage(LONG_NAME);
+
+    await page.goto("/schedule");
+    await page.getByRole("button", { name: /add schedule/i }).click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
+
+    // Radix Select sizes its content to the widest item; long page names
+    // used to blow the panel past the viewport (position is clamped by
+    // Radix, width is not — ui/select.tsx now caps it).
+    await dialog.getByRole("combobox").first().click();
+    const panel = page.locator("[data-radix-popper-content-wrapper]");
+    await expect(panel).toBeVisible({ timeout: 5_000 });
+    const panelBox = await panel.boundingBox();
+    expect(panelBox).not.toBeNull();
+    if (panelBox) {
+      expect(panelBox.x).toBeGreaterThanOrEqual(0);
+      expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(MOBILE_VIEWPORT.width);
+    }
+    await page.keyboard.press("Escape");
+
+    // Day-pattern chip rows (All Days / Weekdays / Weekends) must wrap
+    // rather than clip their trailing chips at phone width.
+    const chipRows = await page.evaluate((vw) => {
+      const rows = document.querySelectorAll('[role="dialog"] [data-testid="day-pattern-chips"]');
+      return {
+        count: rows.length,
+        overflowing: [...rows].filter((el) => el.getBoundingClientRect().right > vw + 2).length,
+      };
+    }, MOBILE_VIEWPORT.width);
+    expect(chipRows.count).toBeGreaterThan(0); // guard against a vacuous pass
+    expect(chipRows.overflowing).toBe(0);
+  });
+
+  test("collections card truncates long collection and page names", async ({ page }) => {
+    const pageId = await createPage(LONG_NAME);
+    await createCollection("A Collection With An Unreasonably Long Name For Mobile Testing Purposes", [pageId], 60);
+
+    try {
+      await page.goto("/collections");
+      await expect(page.getByText(/unreasonably long name/i).first()).toBeVisible({ timeout: 10_000 });
+
+      // No left-bound condition: an element pushed ENTIRELY past the right
+      // edge (r.left >= viewport) is just as broken as a partly-clipped one.
+      const overflowing = await page.evaluate((vw) => {
+        return [...document.querySelectorAll("main *")].filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && r.right > vw + 2;
+        }).length;
+      }, MOBILE_VIEWPORT.width);
+      expect(overflowing).toBe(0);
+    } finally {
+      await deleteAllCollections().catch(() => {});
+    }
+  });
+
+  test("schedule calendar zoom control stays on screen", async ({ page }) => {
+    await page.goto("/schedule");
+    await page.getByRole("button", { name: /calendar/i }).click();
+
+    const zoomControls = page.locator(".ml-auto.flex.items-center").first();
+    await expect(zoomControls).toBeVisible({ timeout: 10_000 });
+
+    const box = await zoomControls.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(MOBILE_VIEWPORT.width);
+    }
+  });
+});
+
+test.describe("Mobile — Editor toolbar dropdowns", () => {
+  test("colors picker stays inside the viewport at phone width", async ({ page }) => {
+    await page.goto("/pages/new?device=flagship");
+
+    // The editor persists rich/plain mode per browser — make sure we're in Rich
+    const richTab = page.getByRole("button", { name: /rich/i }).first();
+    await expect(richTab).toBeVisible({ timeout: 15_000 });
+    await richTab.click();
+
+    const colorsButton = page.getByRole("button", { name: "Colors" });
+    await expect(colorsButton).toBeVisible({ timeout: 10_000 });
+    await colorsButton.click();
+
+    const panel = page.getByTestId("toolbar-dropdown-panel");
+    await expect(panel).toBeVisible({ timeout: 5_000 });
+
+    const box = await panel.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(MOBILE_VIEWPORT.width);
     }
   });
 });

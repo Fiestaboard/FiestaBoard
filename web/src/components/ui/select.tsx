@@ -71,7 +71,10 @@ const SelectContent = React.forwardRef<
       <SelectPrimitive.Content
         ref={ref}
         className={cn(
-          "relative z-[120] max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md",
+          // max-w: Radix clamps popper *position* but not width, so content
+          // sized by a long item (e.g. page names) would run off narrow
+          // viewports. Clamping here makes long item text wrap instead.
+          "relative z-[120] max-h-96 min-w-[8rem] max-w-[calc(100vw-16px)] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className,
