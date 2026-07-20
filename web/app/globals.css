@@ -525,6 +525,76 @@
   animation: slide-out-to-bottom 250ms cubic-bezier(0.4, 0, 1, 1);
 }
 
+/* Board switch transition — the app-wide board selector wraps its state
+   update in document.startViewTransition() (see current-board-context.tsx),
+   stamping html[data-board-switch="forward"|"backward"]. Only the page
+   content participates (view-transition-name on <main>): the old page slides
+   out one way while the new page slides in from the other, so changing boards
+   reads as a SWITCH instead of the page re-entering from the bottom. */
+#main-content {
+  view-transition-name: board-page;
+}
+
+/* Travel is kept short (12%) and the fade front-loaded: view-transition
+   snapshots render in the top layer, so a long, slowly-fading slide would
+   ghost the outgoing page over the sidebar. */
+@keyframes board-switch-out-left {
+  50% {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-12%);
+  }
+}
+
+@keyframes board-switch-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(12%);
+  }
+}
+
+@keyframes board-switch-out-right {
+  50% {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(12%);
+  }
+}
+
+@keyframes board-switch-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-12%);
+  }
+}
+
+html[data-board-switch="forward"]::view-transition-old(board-page) {
+  animation: board-switch-out-left 220ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+html[data-board-switch="forward"]::view-transition-new(board-page) {
+  animation: board-switch-in-right 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+html[data-board-switch="backward"]::view-transition-old(board-page) {
+  animation: board-switch-out-right 220ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+html[data-board-switch="backward"]::view-transition-new(board-page) {
+  animation: board-switch-in-left 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-board-switch]::view-transition-old(board-page),
+  html[data-board-switch]::view-transition-new(board-page) {
+    animation: none !important;
+  }
+}
+
 /* Page Transitions - CSS-based (works in all browsers) */
 @layer base {
   /* Animate page content on route changes */

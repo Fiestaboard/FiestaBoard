@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   AlertTriangle,
@@ -177,10 +177,14 @@ export default function SchedulePage() {
     }
   }, [searchParams, router]);
 
-  // Fetch schedules (scoped by board when multi-board)
+  // Fetch schedules (scoped by board when multi-board). keepPreviousData holds
+  // the outgoing board's list on screen while the new board's loads, so
+  // switching boards plays the slide transition instead of collapsing the
+  // whole page to a skeleton and replaying its entrance animation.
   const { data: schedulesData, isLoading } = useQuery({
     queryKey: ["schedules", effectiveBoardId ?? "default"],
     queryFn: () => api.getSchedules(effectiveBoardId || undefined),
+    placeholderData: keepPreviousData,
   });
 
   // Fetch pages for form
@@ -203,6 +207,7 @@ export default function SchedulePage() {
     queryKey: ["schedules", "validation", effectiveBoardId ?? "default"],
     queryFn: () => api.validateSchedules(effectiveBoardId || undefined),
     enabled: (schedulesData?.schedules.length || 0) > 0,
+    placeholderData: keepPreviousData,
   });
 
   // Fetch silence schedule + user timezone so we can render the silence window

@@ -1,11 +1,49 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { useBoardSettings } from "@/hooks/use-board";
 import type { BoardInstance } from "@/lib/api";
 
 const STORAGE_KEY = "fiestaboard_current_board";
+
+type BoardSwitchDirection = "forward" | "backward";
+
+/** Minimal typing for the View Transitions API (not yet in lib.dom). */
+interface DocumentWithViewTransition extends Document {
+  startViewTransition?: (update: () => void) => { finished: Promise<void> };
+}
+
+function motionDisabled(): boolean {
+  const html = document.documentElement;
+  if (html.classList.contains("reduce-motion") || html.classList.contains("site-animations-off")) return true;
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
+
+/**
+ * Run `update` inside a directional view transition so switching boards reads
+ * as a SWITCH: the old page slides out one way, the new page slides in from
+ * the other (CSS in globals.css keys off `html[data-board-switch]`). Falls
+ * back to an instant switch when the View Transitions API is unavailable or
+ * the user prefers reduced motion.
+ */
+function runBoardSwitchTransition(direction: BoardSwitchDirection, update: () => void) {
+  const doc = document as DocumentWithViewTransition;
+  if (typeof doc.startViewTransition !== "function" || motionDisabled()) {
+    update();
+    return;
+  }
+  doc.documentElement.dataset.boardSwitch = direction;
+  const transition = doc.startViewTransition(() => {
+    // The browser snapshots "old" before and "new" after this callback, so the
+    // React commit must land synchronously inside it.
+    flushSync(update);
+  });
+  transition.finished.finally(() => {
+    delete doc.documentElement.dataset.boardSwitch;
+  });
+}
 
 interface CurrentBoardContextValue {
   /** ID of the board the user is currently managing. Empty string until boards load. */
@@ -60,8 +98,30 @@ export function CurrentBoardProvider({ children }: { children: React.ReactNode }
     });
   }, [boards]);
 
+  // Refs so setCurrentBoardId can compute the switch direction without
+  // changing identity every time the selection or board list updates.
+  const currentBoardIdRef = useRef(currentBoardId);
+  const boardsRef = useRef(boards);
+  useEffect(() => {
+    currentBoardIdRef.current = currentBoardId;
+  }, [currentBoardId]);
+  useEffect(() => {
+    boardsRef.current = boards;
+  }, [boards]);
+
   const setCurrentBoardId = useCallback((boardId: string) => {
-    setCurrentBoardIdState(boardId);
+    if (boardId === currentBoardIdRef.current) return;
+
+    // Moving down the board list slides forward; moving up slides backward —
+    // mirrors the order the user sees in the sidebar selector.
+    const list = boardsRef.current;
+    const fromIndex = list.findIndex((b) => b.id === currentBoardIdRef.current);
+    const toIndex = list.findIndex((b) => b.id === boardId);
+    const direction: BoardSwitchDirection = toIndex >= fromIndex ? "forward" : "backward";
+
+    runBoardSwitchTransition(direction, () => {
+      setCurrentBoardIdState(boardId);
+    });
     try {
       localStorage.setItem(STORAGE_KEY, boardId);
     } catch {}
