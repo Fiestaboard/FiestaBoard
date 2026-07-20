@@ -20,6 +20,9 @@ const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"];
 const WEEKENDS = ["saturday", "sunday"];
 const ALL_DAYS = [...WEEKDAYS, ...WEEKENDS];
 
+// Chip rows wrap so trailing chips aren't clipped at phone widths.
+const CHIP_ROW_CLASS = "ml-auto flex flex-wrap justify-end gap-1 min-w-0";
+
 export function DaySelector({ value, customDays = [], onChange, className }: DaySelectorProps) {
   const t = useTranslations("daySelector");
   const dayLabels = t.raw("dayLabels") as Record<string, string>;
@@ -111,7 +114,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
             {value === "all" && <div className="h-2 w-2 rounded-full bg-primary" />}
           </div>
           <span className="text-sm font-medium">{t("allDays")}</span>
-          <div className="ml-auto flex flex-wrap justify-end gap-1 min-w-0">
+          <div data-testid="day-pattern-chips" className={CHIP_ROW_CLASS}>
             {ALL_DAYS.map((day) => (
               <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}
@@ -143,7 +146,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
             {value === "weekdays" && <div className="h-2 w-2 rounded-full bg-primary" />}
           </div>
           <span className="text-sm font-medium">{t("weekdays")}</span>
-          <div className="ml-auto flex flex-wrap justify-end gap-1 min-w-0">
+          <div data-testid="day-pattern-chips" className={CHIP_ROW_CLASS}>
             {WEEKDAYS.map((day) => (
               <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}
@@ -175,7 +178,7 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
             {value === "weekends" && <div className="h-2 w-2 rounded-full bg-primary" />}
           </div>
           <span className="text-sm font-medium">{t("weekends")}</span>
-          <div className="ml-auto flex flex-wrap justify-end gap-1 min-w-0">
+          <div data-testid="day-pattern-chips" className={CHIP_ROW_CLASS}>
             {WEEKENDS.map((day) => (
               <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}

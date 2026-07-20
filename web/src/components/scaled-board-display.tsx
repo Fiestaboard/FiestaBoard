@@ -111,9 +111,20 @@ export function ScaledBoardDisplay(props: BoardProps) {
     const compute = () => {
       rafId = null;
       const constraint = findConstraint();
-      // The constraint's clientWidth excludes its own padding, which
-      // is the visible content area we have to fit.
-      const cw = constraint.clientWidth;
+      // clientWidth INCLUDES padding, but overflow clips at the padding
+      // edge while the visible slot for content is the content box —
+      // subtract the constraint's own padding or the board renders
+      // padding-width too wide and gets clipped at the edges.
+      const constraintStyle = getComputedStyle(constraint);
+      const constraintContentWidth =
+        constraint.clientWidth - parseFloat(constraintStyle.paddingLeft) - parseFloat(constraintStyle.paddingRight);
+      // The overflow-x ancestor can be far wider than our actual slot
+      // (e.g. the setup wizard's fullscreen overflow-y-auto scroller,
+      // whose computed overflow-x is "auto"). Our own container is
+      // w-full, so its clientWidth is the real slot — never scale to
+      // more room than the narrower of the two.
+      const cw =
+        container.clientWidth > 0 ? Math.min(constraintContentWidth, container.clientWidth) : constraintContentWidth;
       // Board's natural (un-transformed) width — read offsetWidth on
       // the actual rendered board so the current transform doesn't
       // skew the measurement.
@@ -138,6 +149,7 @@ export function ScaledBoardDisplay(props: BoardProps) {
     compute();
     const ro = new ResizeObserver(recompute);
     ro.observe(findConstraint());
+    ro.observe(container);
     ro.observe(board);
     return () => {
       ro.disconnect();

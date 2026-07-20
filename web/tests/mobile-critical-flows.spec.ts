@@ -7,10 +7,10 @@
  * Issue: #500 — E2E: add Playwright tests for critical user flows
  */
 import {
-  API_URL,
-  authHeaders,
   configureBoard,
+  createCollection,
   createPage,
+  deleteAllCollections,
   deleteAllPages,
   expect,
   suppressWizard,
@@ -231,45 +231,36 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
 
     // Day-pattern chip rows (All Days / Weekdays / Weekends) must wrap
     // rather than clip their trailing chips at phone width.
-    const chipOverflow = await page.evaluate((vw) => {
-      const rows = document.querySelectorAll('[role="dialog"] .ml-auto.flex');
-      return [...rows].filter((el) => el.getBoundingClientRect().right > vw + 2).length;
+    const chipRows = await page.evaluate((vw) => {
+      const rows = document.querySelectorAll('[role="dialog"] [data-testid="day-pattern-chips"]');
+      return {
+        count: rows.length,
+        overflowing: [...rows].filter((el) => el.getBoundingClientRect().right > vw + 2).length,
+      };
     }, MOBILE_VIEWPORT.width);
-    expect(chipOverflow).toBe(0);
+    expect(chipRows.count).toBeGreaterThan(0); // guard against a vacuous pass
+    expect(chipRows.overflowing).toBe(0);
   });
 
   test("collections card truncates long collection and page names", async ({ page }) => {
     const pageId = await createPage(LONG_NAME);
-    const res = await fetch(`${API_URL}/collections`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({
-        name: "A Collection With An Unreasonably Long Name For Mobile Testing Purposes",
-        page_ids: [pageId],
-        interval_seconds: 60,
-      }),
-    });
-    const created = await res.json();
-    const collectionId: string | undefined = created?.collection?.id;
+    await createCollection("A Collection With An Unreasonably Long Name For Mobile Testing Purposes", [pageId], 60);
 
     try {
       await page.goto("/collections");
       await expect(page.getByText(/unreasonably long name/i).first()).toBeVisible({ timeout: 10_000 });
 
+      // No left-bound condition: an element pushed ENTIRELY past the right
+      // edge (r.left >= viewport) is just as broken as a partly-clipped one.
       const overflowing = await page.evaluate((vw) => {
         return [...document.querySelectorAll("main *")].filter((el) => {
           const r = el.getBoundingClientRect();
-          return r.width > 0 && r.height > 0 && r.right > vw + 2 && r.left < vw;
+          return r.width > 0 && r.height > 0 && r.right > vw + 2;
         }).length;
       }, MOBILE_VIEWPORT.width);
       expect(overflowing).toBe(0);
     } finally {
-      if (collectionId) {
-        await fetch(`${API_URL}/collections/${encodeURIComponent(collectionId)}`, {
-          method: "DELETE",
-          headers: authHeaders(),
-        }).catch(() => {});
-      }
+      await deleteAllCollections().catch(() => {});
     }
   });
 
@@ -302,7 +293,7 @@ test.describe("Mobile — Editor toolbar dropdowns", () => {
     await expect(colorsButton).toBeVisible({ timeout: 10_000 });
     await colorsButton.click();
 
-    const panel = page.locator(".absolute.top-full");
+    const panel = page.getByTestId("toolbar-dropdown-panel");
     await expect(panel).toBeVisible({ timeout: 5_000 });
 
     const box = await panel.boundingBox();

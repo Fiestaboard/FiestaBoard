@@ -136,7 +136,8 @@ export function ToolbarDropdown({
         {isOpen && (
           <div
             ref={panelRef}
-            className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg max-w-[calc(100vw-16px)]"
+            data-testid="toolbar-dropdown-panel"
+            className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg max-w-[calc(100vw-16px)] overflow-x-auto"
             style={{ transform: panelShift ? `translateX(${panelShift}px)` : undefined }}
           >
             {typeof children === "function" ? children(handleClose) : children}
