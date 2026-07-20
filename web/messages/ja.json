@@ -698,6 +698,7 @@
     "liveOutput": "ライブ出力",
     "liveOutputAriaLabel": "ボードへのライブ出力を切り替え",
     "selectBoardAriaLabel": "ライブ出力用のボードを選択",
+    "deviceTypeSwitcherAriaLabel": "ボードサイズを変更",
     "selectBoardPlaceholder": "ボードを選択",
     "toastPageCreated": "ページを作成しました",
     "toastPageUpdated": "ページを更新しました",

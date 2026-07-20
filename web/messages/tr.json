@@ -698,6 +698,7 @@
     "liveOutput": "Canlı Çıktı",
     "liveOutputAriaLabel": "Panoya canlı çıktıyı aç/kapat",
     "selectBoardAriaLabel": "Canlı çıktı için pano seçin",
+    "deviceTypeSwitcherAriaLabel": "Pano boyutunu değiştir",
     "selectBoardPlaceholder": "Pano seçin",
     "toastPageCreated": "Sayfa oluşturuldu",
     "toastPageUpdated": "Sayfa güncellendi",

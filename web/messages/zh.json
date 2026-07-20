@@ -698,6 +698,7 @@
     "liveOutput": "实时输出",
     "liveOutputAriaLabel": "切换实时输出到看板",
     "selectBoardAriaLabel": "选择实时输出的看板",
+    "deviceTypeSwitcherAriaLabel": "更改板的尺寸",
     "selectBoardPlaceholder": "选择看板",
     "toastPageCreated": "页面已创建",
     "toastPageUpdated": "页面已更新",

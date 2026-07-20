@@ -698,6 +698,7 @@
     "liveOutput": "실시간 출력",
     "liveOutputAriaLabel": "보드 실시간 출력 전환",
     "selectBoardAriaLabel": "실시간 출력용 보드 선택",
+    "deviceTypeSwitcherAriaLabel": "보드 크기 변경",
     "selectBoardPlaceholder": "보드 선택",
     "toastPageCreated": "페이지가 생성되었습니다",
     "toastPageUpdated": "페이지가 업데이트되었습니다",

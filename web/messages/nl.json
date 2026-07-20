@@ -698,6 +698,7 @@
     "liveOutput": "Live-uitvoer",
     "liveOutputAriaLabel": "Live-uitvoer naar bord in-/uitschakelen",
     "selectBoardAriaLabel": "Selecteer bord voor live-uitvoer",
+    "deviceTypeSwitcherAriaLabel": "Bordformaat wijzigen",
     "selectBoardPlaceholder": "Selecteer bord",
     "toastPageCreated": "Pagina aangemaakt",
     "toastPageUpdated": "Pagina bijgewerkt",

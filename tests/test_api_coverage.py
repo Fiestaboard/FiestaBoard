@@ -34,6 +34,7 @@ def mock_service():
     service.vb_client.clear_cache.return_value = None
     service.vb_client.test_connection.return_value = True
     service.vb_client.get_cache_status.return_value = {"has_cached_text": False}
+    service.board_clients = {}
     service.running = True
     service.initialize.return_value = True
     service.reinitialize_board_client.return_value = None
@@ -1290,6 +1291,7 @@ class TestForceRefresh:
         """Force refresh when vb_client is None still works."""
         service = Mock()
         service.vb_client = None
+        service.board_clients = {}
         service.check_and_send_active_page.return_value = None
         with patch("src.api_server.get_service", return_value=service):
             response = client.post("/force-refresh")

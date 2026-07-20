@@ -698,6 +698,7 @@
     "liveOutput": "Live-Ausgabe",
     "liveOutputAriaLabel": "Live-Ausgabe an Board umschalten",
     "selectBoardAriaLabel": "Board für Live-Ausgabe auswählen",
+    "deviceTypeSwitcherAriaLabel": "Boardgröße ändern",
     "selectBoardPlaceholder": "Board auswählen",
     "toastPageCreated": "Seite erstellt",
     "toastPageUpdated": "Seite aktualisiert",

@@ -53,6 +53,9 @@ function _configureWorker(workerIndex: number) {
     if (_workerMockUrls[idx]) {
       MOCK_BOARD_URL_2 = _workerMockUrls[idx].replace(/:\d+$/, `:${BOARD_2_LOCAL_API_PORT}`);
     }
+    if (_workerCloudUrls[idx]) {
+      MOCK_CLOUD_URL = _workerCloudUrls[idx];
+    }
   }
 }
 
@@ -394,6 +397,72 @@ export async function deleteAllCollections(): Promise<void> {
       method: "DELETE",
       headers: authHeaders(),
     });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Note-array Cloud API mock (integration-tests/mock-cloud/server.py)
+// ---------------------------------------------------------------------------
+
+/**
+ * Base URL of the note-array Cloud API mock as seen from the TEST RUNNER.
+ * Locally: docker-compose.dev.yml maps host 19200 → container 9200. In CI each
+ * worker gets its own mock-cloud container via MOCK_CLOUD_URLS (comma-
+ * separated, same worker indexing as WORKER_URLS).
+ */
+export let MOCK_CLOUD_URL = process.env.MOCK_CLOUD_URL || "http://localhost:19200";
+const _workerCloudUrls = (process.env.MOCK_CLOUD_URLS || "").split(",").filter(Boolean);
+
+export interface MockCloudState {
+  current_grid?: number[][];
+  configured_rows?: number;
+  configured_cols?: number;
+  request_count?: number;
+  history?: Array<Record<string, unknown>>;
+}
+
+/** Read the note-array cloud mock's state (current grid, dims, history). */
+export async function getMockCloudState(): Promise<MockCloudState> {
+  const res = await fetch(`${MOCK_CLOUD_URL}/mock/state`);
+  return res.json();
+}
+
+/** Reset the cloud mock's grid + history. */
+export async function resetMockCloud(): Promise<void> {
+  await fetch(`${MOCK_CLOUD_URL}/mock/reset`, { method: "POST" });
+}
+
+/**
+ * Reconfigure the cloud mock's board size at runtime so one mock can stand in
+ * for any note-array geometry (rows = notes_tall × 3, cols = notes_wide × 15).
+ */
+export async function configureMockCloud(notesWide: number, notesTall: number): Promise<void> {
+  const res = await fetch(`${MOCK_CLOUD_URL}/mock/configure`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes_wide: notesWide, notes_tall: notesTall }),
+  });
+  if (!res.ok) throw new Error(`configureMockCloud failed: ${res.status} ${await res.text()}`);
+}
+
+/**
+ * Delete every page of one device type. Useful before `deleteAllPages()` or a
+ * device-tab assertion: deleting the LAST page auto-creates a "Welcome" page
+ * typed to the deleted page's device, so clearing note pages while flagship
+ * pages remain keeps the store from regenerating a note-typed Welcome that
+ * would keep the Note tab alive (issue #943 semantics).
+ */
+export async function deletePagesByDevice(deviceType: string): Promise<void> {
+  const res = await fetch(`${API_URL}/pages`, { headers: authHeaders() });
+  if (!res.ok) return;
+  const data = await res.json();
+  for (const p of data.pages) {
+    if (p.device_type === deviceType) {
+      await fetch(`${API_URL}/pages/${p.id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+    }
   }
 }
 

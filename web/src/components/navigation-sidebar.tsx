@@ -64,13 +64,24 @@ const secondaryItems: NavItem[] = [
 const PRIDE_COLORS = ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"];
 
 /**
- * Board picker for the sidebar. Selects the board the rest of the app manages
- * (Dashboard/Schedule consume `useCurrentBoard()`). Renders only for multi-board
- * installs; single-board users never see it. In the collapsed desktop sidebar it
- * shrinks to an icon-only trigger with a tooltip showing the current board name,
- * mirroring the collapsed nav-item pattern (`opacity-0 max-w-0` on the label).
+ * Board picker — the app-wide context switcher. Selects the board the rest of
+ * the app manages (Dashboard/Schedule consume `useCurrentBoard()`). Renders
+ * only for multi-board installs; single-board users never see it.
+ *
+ * Placement is deliberate: it sits at the TOP of the menu (directly under the
+ * logo on desktop, in the always-visible header bar on mobile) because it
+ * scopes everything below it — the same slot workspace switchers occupy in
+ * multi-tenant apps. In the collapsed desktop sidebar it shrinks to an
+ * icon-only trigger with a tooltip showing the current board name, mirroring
+ * the collapsed nav-item pattern (`opacity-0 max-w-0` on the label).
  */
-function BoardSelector({ collapsed = false }: { collapsed?: boolean }) {
+function BoardSelector({
+  collapsed = false,
+  variant = "sidebar",
+}: {
+  collapsed?: boolean;
+  variant?: "sidebar" | "mobileHeader";
+}) {
   const { boards, currentBoardId, setCurrentBoardId, currentBoard } = useCurrentBoard();
   const t = useTranslations("navigation");
 
@@ -82,15 +93,16 @@ function BoardSelector({ collapsed = false }: { collapsed?: boolean }) {
     <SelectTrigger
       aria-label={t("boardSelector")}
       className={cn(
-        "h-9 gap-2 transition-[width,padding] duration-100",
-        collapsed ? "w-9 justify-center px-0 [&>svg:last-child]:hidden" : "w-full",
+        "gap-2 border-sidebar-border/70 bg-sidebar-accent/40 font-medium text-sidebar-foreground shadow-none transition-[width,padding] duration-100 hover:bg-sidebar-accent/70",
+        variant === "mobileHeader" && "h-9 w-auto min-w-0 max-w-[170px] px-2.5",
+        variant === "sidebar" && (collapsed ? "h-9 w-9 justify-center px-0 [&>svg:last-child]:hidden" : "h-10 w-full"),
       )}
     >
-      <Monitor className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+      <Monitor className="h-5 w-5 flex-shrink-0 text-sidebar-foreground/70" />
       <span
         className={cn(
           "min-w-0 flex-1 overflow-hidden whitespace-nowrap text-left transition-opacity duration-100",
-          collapsed ? "max-w-0 opacity-0" : "max-w-48 opacity-100 delay-150",
+          variant === "sidebar" && collapsed ? "max-w-0 opacity-0" : "max-w-48 opacity-100 delay-150",
         )}
       >
         <SelectValue placeholder={t("selectBoard")} />
@@ -352,6 +364,13 @@ export function NavigationSidebar() {
               <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
             </div>
           )}
+          {/* Board context switcher — always visible so mobile users can see
+              and change the managed board without opening the menu. */}
+          {boards.length > 1 && (
+            <div className="ml-2 flex-shrink-0">
+              <BoardSelector variant="mobileHeader" />
+            </div>
+          )}
         </div>
       </header>
 
@@ -401,11 +420,6 @@ export function NavigationSidebar() {
             </button>
           )}
         </nav>
-        {boards.length > 1 && (
-          <div className="shrink-0 border-t border-sidebar-border mx-3 px-3 py-3">
-            <BoardSelector />
-          </div>
-        )}
         <div className="shrink-0 border-t border-sidebar-border mx-3" />
         <div className="shrink-0 px-3 py-3 text-sidebar-foreground">
           <nav aria-label={t("secondaryNavigation")} className="space-y-1">
@@ -481,19 +495,21 @@ export function NavigationSidebar() {
 
             <div className="mx-2 border-t border-sidebar-border" />
 
+            {/* Board context switcher — first thing under the logo: it scopes
+                every destination below it, so it leads the menu. */}
+            {boards.length > 1 && (
+              <>
+                <div className="shrink-0 px-2 pb-3 pt-3">
+                  <BoardSelector collapsed={collapsed} />
+                </div>
+                <div className="mx-2 border-t border-sidebar-border" />
+              </>
+            )}
+
             {/* Primary Navigation — flex-1 pins secondary + version row to the bottom */}
             <nav aria-label={t("primaryNavigation")} className="min-h-0 flex-1 space-y-1 overflow-y-auto py-4 px-2">
               {primaryItems.map(renderDesktopNavItem)}
             </nav>
-
-            {boards.length > 1 && (
-              <>
-                <div className="mx-2 border-t border-sidebar-border" />
-                <div className="shrink-0 px-2 py-2">
-                  <BoardSelector collapsed={collapsed} />
-                </div>
-              </>
-            )}
 
             {hasAiProviders && (
               <>

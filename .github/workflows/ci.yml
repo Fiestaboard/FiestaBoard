@@ -582,12 +582,13 @@ jobs:
             type=gha,scope=build-test
 
       # ── Start containers ──────────────────────────────────────────
-      - name: Start 4 mock board + FiestaBoard containers
+      - name: Start 4 mock board + mock cloud + FiestaBoard containers
         run: |
           WORKER_COUNT=4
           WORKER_URLS=""
           WORKER_MOCK_URLS=""
           WORKER_MOCK_HOSTS=""
+          MOCK_CLOUD_URLS=""
 
           for i in $(seq 0 $((WORKER_COUNT - 1))); do
             # PORTS=7000,7001 — two Local-API listeners so multi-board output
@@ -598,30 +599,46 @@ jobs:
               -e PORTS=7000,7001 \
               python:3.11-slim python server.py
 
+            # Note-array Cloud API mock (stdlib-only), one per worker; tests
+            # reconfigure its size at runtime via /mock/configure. The
+            # backend must know its address at startup, so inspect the IP
+            # here and pass VESTABOARD_CLOUD_API_URL to the app container.
+            docker run -d --name mock-cloud-$i \
+              -e PORT=9200 \
+              -v ${{ github.workspace }}/integration-tests/mock-cloud:/app:ro \
+              -w /app \
+              python:3.11-slim python server.py
+            CLOUD_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-cloud-$i)
+
             docker run -d --name fiestaboard-$i \
               -e PRODUCTION=false \
               -e FIESTABOARD_AUTH_ENABLED=false \
+              -e VESTABOARD_CLOUD_API_URL=http://$CLOUD_IP:9200/ \
               fiestaboard:e2e
           done
 
           for i in $(seq 0 $((WORKER_COUNT - 1))); do
             FB_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fiestaboard-$i)
             MOCK_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-board-$i)
+            CLOUD_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mock-cloud-$i)
 
             [ -n "$WORKER_URLS" ] && WORKER_URLS="$WORKER_URLS,"
             [ -n "$WORKER_MOCK_URLS" ] && WORKER_MOCK_URLS="$WORKER_MOCK_URLS,"
             [ -n "$WORKER_MOCK_HOSTS" ] && WORKER_MOCK_HOSTS="$WORKER_MOCK_HOSTS,"
+            [ -n "$MOCK_CLOUD_URLS" ] && MOCK_CLOUD_URLS="$MOCK_CLOUD_URLS,"
 
             WORKER_URLS="${WORKER_URLS}http://$FB_IP:3000"
             WORKER_MOCK_URLS="${WORKER_MOCK_URLS}http://$MOCK_IP:7000"
             WORKER_MOCK_HOSTS="${WORKER_MOCK_HOSTS}$MOCK_IP"
+            MOCK_CLOUD_URLS="${MOCK_CLOUD_URLS}http://$CLOUD_IP:9200"
 
-            echo "Worker $i: FiestaBoard=$FB_IP, MockBoard=$MOCK_IP"
+            echo "Worker $i: FiestaBoard=$FB_IP, MockBoard=$MOCK_IP, MockCloud=$CLOUD_IP"
           done
 
           echo "WORKER_URLS=$WORKER_URLS" >> $GITHUB_ENV
           echo "WORKER_MOCK_URLS=$WORKER_MOCK_URLS" >> $GITHUB_ENV
           echo "WORKER_MOCK_HOSTS=$WORKER_MOCK_HOSTS" >> $GITHUB_ENV
+          echo "MOCK_CLOUD_URLS=$MOCK_CLOUD_URLS" >> $GITHUB_ENV
 
       - name: Wait for all containers to be ready
         # Worst case is 4 workers × 60s = 4min; cap at 3 so we fail
@@ -656,6 +673,7 @@ jobs:
           WORKER_URLS: ${{ env.WORKER_URLS }}
           WORKER_MOCK_URLS: ${{ env.WORKER_MOCK_URLS }}
           WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
+          MOCK_CLOUD_URLS: ${{ env.MOCK_CLOUD_URLS }}
 
       # ── Visual regression tests ───────────────────────────────────
       # Runs visual-regression.spec.ts against the first worker container
@@ -679,12 +697,13 @@ jobs:
           WORKER_URLS: ${{ env.WORKER_URLS }}
           WORKER_MOCK_URLS: ${{ env.WORKER_MOCK_URLS }}
           WORKER_MOCK_HOSTS: ${{ env.WORKER_MOCK_HOSTS }}
+          MOCK_CLOUD_URLS: ${{ env.MOCK_CLOUD_URLS }}
 
       - name: Stop containers
         if: always()
         run: |
           for i in 0 1 2 3; do
-            docker rm -f fiestaboard-$i mock-board-$i 2>/dev/null || true
+            docker rm -f fiestaboard-$i mock-board-$i mock-cloud-$i 2>/dev/null || true
           done
 
       - name: Upload test results

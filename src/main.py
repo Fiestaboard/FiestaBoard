@@ -12,7 +12,7 @@ from .board_client import BoardClient, board_client_from_board_dict
 from .collections.models import is_collection_id
 from .collections.service import get_collection_service
 from .config import Config
-from .devices import get_dimensions
+from .devices import get_dimensions, resolve_dimensions
 from .pages.service import get_page_service
 from .schedules.service import get_schedule_service
 from .settings.service import get_settings_service
@@ -34,12 +34,20 @@ class DisplayService:
         """Initialize the display service."""
         self.running = True
         self.vb_client: BoardClient | None = None
+        # One client per configured board (keyed by board id). ``vb_client``
+        # stays the first board's client for the many single-board code
+        # paths (manual send, debug, plugins); the update loop uses this map
+        # to drive secondary boards. See issue #1243.
+        self.board_clients: dict[str, BoardClient] = {}
 
         # Active page polling state
         self._last_active_page_content: str | None = None
         self._last_active_page_id: str | None = None
         self._last_silence_mode_active: bool = False
         self._snoozing_message_sent: bool = False
+        # Per-secondary-board content cache: board_id -> (page_id, content).
+        # Mirrors _last_active_page_* for the primary board.
+        self._secondary_last_sent: dict[str, tuple[str, str]] = {}
 
         # Board state polling (background thread reads actual board state)
         self._polled_characters: list[list[int]] | None = None
@@ -52,47 +60,75 @@ class DisplayService:
         self._refresh_thread: threading.Thread | None = None
         self._refresh_cancel: threading.Event | None = None
 
-    def _build_board_clients(self):
-        """Build board clients from settings.boards (first with connection) or Config. Sets self.vb_client."""
+    def _build_board_clients(self, sync_cache: bool = True):
+        """Build one client per configured board (settings.boards) or fall back to Config.
+
+        Sets ``self.board_clients`` (board_id -> client for every board with
+        connection credentials) and ``self.vb_client`` (the first board's
+        client, kept for single-board code paths).
+
+        Args:
+            sync_cache: read the primary board's current message to seed the
+                skip-unchanged cache. Startup wants this; reinitialization
+                from an API request must NOT block on board I/O (an
+                unreachable board would stall the request), so it skips it —
+                a cold cache just means the next send isn't deduplicated.
+        """
         settings_service = get_settings_service()
         boards = settings_service.get_board_settings().boards or []
-        if boards:
-            first = boards[0]
-            if first.get("local_api_key") or first.get("cloud_key"):
-                client = board_client_from_board_dict(first)
-                if client:
-                    self.vb_client = client
-                    try:
-                        self.vb_client.read_current_message(sync_cache=True)
-                    except Exception as e:
-                        logger.warning(f"Could not sync cache with board: {e}")
-                    return
-        use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
-        self.vb_client = BoardClient(
-            api_key=Config.get_board_api_key(),
-            host=Config.BOARD_HOST if not use_cloud else None,
-            use_cloud=use_cloud,
-            skip_unchanged=True,
-        )
-        try:
-            self.vb_client.read_current_message(sync_cache=True)
-        except Exception as e:
-            logger.warning(f"Could not sync cache with board: {e}")
+        clients: dict[str, BoardClient] = {}
+        for board in boards:
+            # No credential pre-filter here: each device type has its own
+            # credential field (local_api_key / cloud_key / note_array_token)
+            # and board_client_from_board_dict already returns None for a
+            # board without a usable connection. A pre-filter on local/cloud
+            # keys silently dropped note-array boards (issue #1243 item 3).
+            client = board_client_from_board_dict(board)
+            if client and board.get("id"):
+                clients[board["id"]] = client
+        self.board_clients = clients
+        if boards and boards[0].get("id") in clients:
+            self.vb_client = clients[boards[0]["id"]]
+        else:
+            use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
+            self.vb_client = BoardClient(
+                api_key=Config.get_board_api_key(),
+                host=Config.BOARD_HOST if not use_cloud else None,
+                use_cloud=use_cloud,
+                skip_unchanged=True,
+            )
+        if sync_cache:
+            try:
+                self.vb_client.read_current_message(sync_cache=True)
+            except Exception as e:
+                logger.warning(f"Could not sync cache with board: {e}")
 
     def reinitialize_board_client(self) -> bool:
-        """Reinitialize the board client with current config.
+        """Reinitialize all board clients with current config.
 
-        Prefers first board from settings.boards when it has connection; else uses Config.
+        Prefers settings.boards (one client per board with connection);
+        falls back to Config for the primary. Must be called after any
+        boards-list mutation, otherwise sends keep targeting the old
+        connections (issue: content delivered to a removed board).
         """
-        logger.info("Reinitializing board client with updated config...")
+        logger.info("Reinitializing board clients with updated config...")
         try:
-            self._build_board_clients()
+            # sync_cache=False: reinit runs inside API request handlers, and a
+            # blocking read against an unreachable board would stall them.
+            self._build_board_clients(sync_cache=False)
             if self.vb_client:
                 # Clear stale polled state from the old config; poll thread will
                 # populate it again on its next iteration using the new client.
                 self._polled_characters = None
                 self._polled_at = None
-                logger.info("Board client reinitialized successfully")
+                # Drop per-board content caches for boards that no longer exist
+                # (or whose connection may have changed).
+                self._secondary_last_sent = {
+                    board_id: sent
+                    for board_id, sent in self._secondary_last_sent.items()
+                    if board_id in self.board_clients
+                }
+                logger.info(f"Board clients reinitialized successfully ({len(self.board_clients)} board(s))")
                 return True
             return False
         except Exception as e:
@@ -226,7 +262,114 @@ class DisplayService:
         return get_settings_service().get_primary_board_id()
 
     def check_and_send_active_page(self) -> bool:
-        """Check the active page and send to board if content changed.
+        """Update every configured board from its schedule/active page.
+
+        The primary board (boards[0]) keeps the full feature set — triggers,
+        temporary overrides, silence indicator, manual active page. Secondary
+        boards are schedule-driven (issue #1243): each enabled, unpaused,
+        schedule-enabled board resolves its own active page and receives it
+        via its own client.
+
+        Returns:
+            True if content was sent to the primary board, False otherwise
+        """
+        sent = self._update_primary_board()
+        try:
+            self._update_secondary_boards()
+        except Exception as e:  # secondaries must never break the primary loop
+            logger.error(f"Error updating secondary boards: {e}")
+        return sent
+
+    def _update_secondary_boards(self) -> None:
+        """Drive every board after the first from its own schedule.
+
+        Scope (first slice of #1243): schedule + per-board default page,
+        per-board pause and schedule_enabled, collections, per-page
+        transitions. Global silence mode silences secondaries entirely
+        (freeze semantics — the SNOOZING indicator stays a primary-board
+        feature). Triggers, temporary overrides and the manual active page
+        remain primary-only.
+        """
+        settings_service = get_settings_service()
+        boards = settings_service.get_board_settings().boards or []
+        if len(boards) <= 1:
+            return
+        if Config.is_silence_mode_active():
+            return
+
+        page_service = get_page_service()
+        schedule_service = get_schedule_service()
+        collection_service = get_collection_service()
+        from .time_service import get_time_service
+
+        now = get_time_service().get_current_time()
+        current_time = now.time()
+        current_day = now.strftime("%A").lower()
+
+        for board in boards[1:]:
+            board_id = board.get("id")
+            if not board_id:
+                continue
+            client = self.board_clients.get(board_id)
+            if client is None:
+                continue
+            if not board.get("enabled", True):
+                continue
+            if settings_service.is_paused(board_id=board_id) is True:
+                continue
+            if not settings_service.is_schedule_enabled(board_id=board_id):
+                continue
+
+            active_page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
+            if not active_page_id:
+                continue
+            if is_collection_id(active_page_id):
+                active_page_id = collection_service.resolve_page_id(active_page_id)
+                if not active_page_id:
+                    continue
+
+            page = page_service.get_page(active_page_id)
+            if not page:
+                logger.warning(f"Board {board_id}: active page not found: {active_page_id}")
+                continue
+            result = page_service.preview_page(active_page_id, force_refresh=True)
+            if not result or not result.available:
+                logger.warning(f"Board {board_id}: failed to render active page: {active_page_id}")
+                continue
+
+            content = result.formatted
+            if self._secondary_last_sent.get(board_id) == (active_page_id, content):
+                continue
+
+            system_transition = settings_service.get_transition_settings()
+            strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
+            interval_ms = (
+                page.transition_interval_ms
+                if page.transition_interval_ms is not None
+                else system_transition.step_interval_ms
+            )
+            step_size = (
+                page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
+            )
+
+            dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
+            board_array = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
+            try:
+                success, was_sent = client.send_characters(
+                    board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
+                )
+            except Exception as e:
+                logger.error(f"Board {board_id}: send failed: {e}")
+                continue
+            if success:
+                self._secondary_last_sent[board_id] = (active_page_id, content)
+                if was_sent:
+                    logger.info(f"Board {board_id}: active page sent: {active_page_id}")
+            else:
+                logger.error(f"Board {board_id}: failed to send active page: {active_page_id}")
+
+    def _update_primary_board(self) -> bool:
+        """Check the primary board's active page and send if content changed.
 
         Respects schedule mode - uses schedule-based page selection when enabled,
         otherwise falls back to manual active page setting.
@@ -436,7 +579,7 @@ class DisplayService:
             )
 
             # Send to board
-            dims = get_dimensions(page.device_type)
+            dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
             board_array = text_to_board_array(content_to_send, rows=dims.rows, cols=dims.cols)
 
             success, was_sent = self.vb_client.send_characters(
@@ -616,7 +759,7 @@ class DisplayService:
         )
         step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
 
-        dims = get_dimensions(page.device_type)
+        dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
         board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
 
         success, was_sent = self.vb_client.send_characters(

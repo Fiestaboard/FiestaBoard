@@ -698,6 +698,7 @@
     "liveOutput": "Живой вывод",
     "liveOutputAriaLabel": "Переключить живой вывод на доску",
     "selectBoardAriaLabel": "Выбрать доску для живого вывода",
+    "deviceTypeSwitcherAriaLabel": "Изменить размер доски",
     "selectBoardPlaceholder": "Выбрать доску",
     "toastPageCreated": "Страница создана",
     "toastPageUpdated": "Страница обновлена",

@@ -11,13 +11,6 @@
  * Requires the mock board server to listen on both ports (PORTS=7000,7001 —
  * docker-compose.dev.yml already does; CI mock containers are configured in
  * ci.yml / integration-tests.yml).
- *
- * Known product gaps are encoded as test.fixme so they flip to failures the
- * moment the behavior lands and the assertions can be activated:
- *  - The display engine only drives boards[0] (src/main.py) — per-board
- *    driving is epic #1241.
- *  - /settings/board mutations (add/remove/update) never reinitialize the
- *    board client, so output keeps targeting a removed board until restart.
  */
 import type { Locator, Page } from "@playwright/test";
 
@@ -176,10 +169,9 @@ test.describe("Multi-board output isolation", () => {
     expect(allHistoryText(state1)).not.toContain(token2);
   });
 
-  // KNOWN GAP (epic #1241): the display engine builds a client for boards[0]
-  // only (src/main.py _build_board_clients), so board 2 never receives its
-  // scheduled content. Activate this test when per-board driving lands.
-  test.fixme("board 2 receives its scheduled content on its own hardware", async () => {
+  // Per-board driving (#1243): every enabled, unpaused, schedule-enabled
+  // board resolves its own active page and receives it via its own client.
+  test("board 2 receives its scheduled content on its own hardware", async () => {
     const token2 = uniq("SECOND");
     const page2 = await createPage("B2 Own Page", [token2, "", "", "", "", ""]);
     await createSchedule(page2, "00:00", "23:59", "all", board2Id);
@@ -190,11 +182,78 @@ test.describe("Multi-board output isolation", () => {
     await expect.poll(async () => boardText(await getMockBoardState2()), { timeout: 15_000 }).toContain(token2);
   });
 
-  // KNOWN GAP: /settings/board mutations never call reinitialize_board_client
-  // (only legacy /config/board does — see src/api_server.py), so after the
-  // primary board is removed, output still targets the REMOVED board's
-  // connection until the backend restarts. Activate when fixed.
-  test.fixme("removing the primary board redirects output to the promoted board", async () => {
+  test("both boards in schedule mode show their own content simultaneously", async () => {
+    const token1 = uniq("KITCHEN");
+    const token2 = uniq("OFFICE");
+    const page1 = await createPage("B1 Simul Page", [token1, "", "", "", "", ""]);
+    const page2 = await createPage("B2 Simul Page", [token2, "", "", "", "", ""]);
+    await createSchedule(page1, "00:00", "23:59", "all", board1Id);
+    await createSchedule(page2, "00:00", "23:59", "all", board2Id);
+    await setScheduleEnabled(true, board2Id);
+
+    await forceRefresh();
+
+    // One refresh delivers each board its OWN content…
+    await expect.poll(async () => boardText(await getMockBoardState()), { timeout: 15_000 }).toContain(token1);
+    await expect.poll(async () => boardText(await getMockBoardState2()), { timeout: 15_000 }).toContain(token2);
+    // …and neither board ever saw the other's.
+    expect(allHistoryText(await getMockBoardState())).not.toContain(token2);
+    expect(allHistoryText(await getMockBoardState2())).not.toContain(token1);
+  });
+
+  test("schedule mode per board: board 2 off means only board 1's hardware updates", async () => {
+    const token1 = uniq("ONLYONE");
+    const token2 = uniq("MUTED");
+    const page1 = await createPage("B1 Only Page", [token1, "", "", "", "", ""]);
+    const page2 = await createPage("B2 Muted Page", [token2, "", "", "", "", ""]);
+    await createSchedule(page1, "00:00", "23:59", "all", board1Id);
+    await createSchedule(page2, "00:00", "23:59", "all", board2Id);
+    await setScheduleEnabled(false, board2Id);
+    const before2 = (await getMockBoardState2()).message_count ?? 0;
+
+    await forceRefresh();
+
+    await expect.poll(async () => boardText(await getMockBoardState()), { timeout: 15_000 }).toContain(token1);
+    // Board 2 has a matching schedule but its schedule mode is OFF — nothing sent.
+    expect((await getMockBoardState2()).message_count ?? 0).toBe(before2);
+  });
+
+  test("mixed mode: board 1 shows its manual page while board 2 shows scheduled content", async () => {
+    const tokenManual = uniq("MANUAL");
+    const tokenSched1 = uniq("IGNORED");
+    const token2 = uniq("ACTIVE");
+    const pageManual = await createPage("B1 Manual Page", [tokenManual, "", "", "", "", ""]);
+    const pageSched1 = await createPage("B1 Sched Page", [tokenSched1, "", "", "", "", ""]);
+    const page2 = await createPage("B2 Active Page", [token2, "", "", "", "", ""]);
+    await createSchedule(pageSched1, "00:00", "23:59", "all", board1Id);
+    await createSchedule(page2, "00:00", "23:59", "all", board2Id);
+
+    // Board 1 → manual mode with an explicit manual page; board 2 → schedule mode.
+    await setScheduleEnabled(false, board1Id);
+    await setScheduleEnabled(true, board2Id);
+    const res = await fetch(`${API_URL}/settings/active-page`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ page_id: pageManual }),
+    });
+    expect(res.ok).toBe(true);
+
+    await forceRefresh();
+
+    // Board 2 delivers its scheduled content…
+    await expect.poll(async () => boardText(await getMockBoardState2()), { timeout: 15_000 }).toContain(token2);
+    // …while board 1 shows the MANUAL page — its own schedule is ignored while
+    // its schedule mode is off, and neither board bleeds onto the other.
+    await expect.poll(async () => boardText(await getMockBoardState()), { timeout: 15_000 }).toContain(tokenManual);
+    expect(allHistoryText(await getMockBoardState())).not.toContain(tokenSched1);
+    expect(allHistoryText(await getMockBoardState())).not.toContain(token2);
+    expect(allHistoryText(await getMockBoardState2())).not.toContain(tokenManual);
+  });
+
+  // /settings/board mutations rebuild the board clients, so removing the
+  // primary board promotes board 2 — its content must go to ITS hardware,
+  // never to the removed board's old connection.
+  test("removing the primary board redirects output to the promoted board", async () => {
     const token2 = uniq("PROMOTED");
     const page2 = await createPage("B2 Promoted Page", [token2, "", "", "", "", ""]);
     await createSchedule(page2, "00:00", "23:59", "all", board2Id);
