@@ -25,7 +25,9 @@ def _tile(row=0, col=0, host=None, key="tile-key", enabled=True):
     }
 
 
-def _array_board(board_id="board-1", api_mode="local", tiles=None, notes_wide=2, notes_tall=1):
+def _array_board(
+    board_id="board-1", api_mode="local", tiles=None, notes_wide=2, notes_tall=1
+):
     return {
         "id": board_id,
         "device_type": "note_array",
@@ -73,13 +75,18 @@ class TestIdentifySuccess:
     @patch("src.api_server.get_service")
     @patch("src.api_server.get_settings_service")
     @patch("src.board_client.BoardClient.send_characters", return_value=(True, True))
-    def test_identify_all_flashes_every_configured_tile(self, mock_send, mock_ss, mock_service, client):
+    def test_identify_all_flashes_every_configured_tile(
+        self, mock_send, mock_ss, mock_service, client
+    ):
         _patch_settings(mock_ss, [_array_board()])
 
         resp = client.post("/settings/board/board-1/identify", json={"target": "all"})
 
         assert resp.status_code == 200
-        assert {(r["row"], r["col"]) for r in resp.json()["results"]} == {(0, 0), (0, 1)}
+        assert {(r["row"], r["col"]) for r in resp.json()["results"]} == {
+            (0, 0),
+            (0, 1),
+        }
         assert mock_send.call_count == 2
 
     @patch("src.api_server.get_service")
@@ -106,7 +113,9 @@ class TestIdentifySuccess:
     @patch("src.api_server.get_service")
     @patch("src.api_server.get_settings_service")
     @patch("src.board_client.BoardClient.send_characters", return_value=(True, True))
-    def test_identify_invalidates_board_content(self, mock_send, mock_ss, mock_service, client):
+    def test_identify_invalidates_board_content(
+        self, mock_send, mock_ss, mock_service, client
+    ):
         _patch_settings(mock_ss, [_array_board()])
         service = MagicMock()
         mock_service.return_value = service
@@ -118,7 +127,9 @@ class TestIdentifySuccess:
     @patch("src.api_server.get_service")
     @patch("src.api_server.get_settings_service")
     @patch("src.board_client.BoardClient.send_characters", return_value=(False, False))
-    def test_tile_failure_reported_per_tile(self, mock_send, mock_ss, mock_service, client):
+    def test_tile_failure_reported_per_tile(
+        self, mock_send, mock_ss, mock_service, client
+    ):
         _patch_settings(mock_ss, [_array_board(tiles=[_tile(0, 0)])])
 
         resp = client.post("/settings/board/board-1/identify", json={"target": "all"})
@@ -151,7 +162,9 @@ class TestIdentifyErrors:
     @patch("src.api_server.get_settings_service")
     def test_bad_target_400(self, mock_ss, client):
         _patch_settings(mock_ss, [_array_board()])
-        resp = client.post("/settings/board/board-1/identify", json={"target": "everything"})
+        resp = client.post(
+            "/settings/board/board-1/identify", json={"target": "everything"}
+        )
         assert resp.status_code == 400
 
     @patch("src.api_server.get_settings_service")
@@ -164,7 +177,8 @@ class TestIdentifyErrors:
     def test_unknown_tile_400(self, mock_ss, client):
         _patch_settings(mock_ss, [_array_board()])
         resp = client.post(
-            "/settings/board/board-1/identify", json={"target": "tile", "row": 0, "col": 7}
+            "/settings/board/board-1/identify",
+            json={"target": "tile", "row": 0, "col": 7},
         )
         assert resp.status_code == 400
 

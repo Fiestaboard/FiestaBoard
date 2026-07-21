@@ -5,13 +5,20 @@ display. FiestaBoard treats the whole array as a single canvas, so your pages,
 plugins, and schedules render across it just like they would on a Flagship or a
 single Note.
 
-This page walks through connecting a Note array, picking its size, and getting
-your Cloud API token.
+This page walks through connecting a Note array and picking its size. Arrays
+can be driven two ways:
 
-> **Where to get your token:** Note arrays talk to the **Vestaboard Cloud API**
-> using an `X-Vestaboard-Token`. You get this token from your Vestaboard Cloud
-> API subscription — it is **not** the Read/Write key used by single Flagship
-> and Note boards.
+- **Cloud mode** — one `X-Vestaboard-Token`; Vestaboard's cloud fans the frame
+  out to your Notes.
+- **Local mode** — FiestaBoard talks to each Note directly over your own
+  network. Every Note gets its own IP address and Local API key, and you place
+  each one into its slot in the array grid. No cloud subscription required.
+
+> **Where to get your Cloud token:** in cloud mode, Note arrays talk to the
+> **Vestaboard Cloud API** using an `X-Vestaboard-Token`. You get this token
+> from your Vestaboard Cloud API subscription — it is **not** the Read/Write
+> key used by single Flagship and Note boards. In local mode you instead need
+> each Note's **Local API key** (via its enablement token).
 
 ## Overview
 
@@ -29,7 +36,9 @@ Sizes are described as **width × height** throughout the app (for example a
 You'll need:
 
 - A Vestaboard Note array (two or more Notes configured as a single board).
-- A **Vestaboard Cloud API subscription** and its `X-Vestaboard-Token`.
+- **Cloud mode:** a Vestaboard Cloud API subscription and its
+  `X-Vestaboard-Token` — or **local mode:** each Note's IP address and Local
+  API key on your network.
 - A running FiestaBoard instance you can reach in a browser.
 
 ## Quick setup
@@ -41,9 +50,9 @@ and choose **Note Array**. The new board starts as a *2 side-by-side* array in
 Cloud mode — adjust the size in the next step if yours differs. (You can also
 convert an existing board with the **Board type** dropdown.)
 
-> Note arrays are driven through the Vestaboard Cloud API. The Local API option
-> shows as **Coming soon** for arrays — local driving is planned for a future
-> release.
+> New arrays start in **Cloud API** mode. To drive the array over your own
+> network instead, switch the connection to **Local API** and follow
+> [Local mode](#local-mode-drive-each-note-directly) below.
 
 ### 2. Choose the board type and size
 
@@ -85,14 +94,67 @@ Save your changes. FiestaBoard renders your active page across the full array.
 Open the page editor or preview to confirm the layout looks right at the new
 size.
 
+## Local mode: drive each Note directly
+
+In local mode FiestaBoard slices the rendered frame into 15 × 3 pieces and
+sends each piece straight to its Note over your network — no cloud round-trip,
+no 15-second rate limit, and transition animations work.
+
+### 1. Switch the connection to Local API
+
+In the board's **Connection** section, select **Local API**. The Cloud token
+field is replaced by the **Board tiles** grid: one slot per Note, laid out
+exactly like your wall.
+
+### 2. Assign each slot
+
+Click a slot to open its assignment dialog:
+
+- **Scan network for boards** lists Vestaboards found on your network — click
+  one to fill in its IP. Boards already assigned to another slot are labeled.
+- Or type the Note's **IP address** (and port, default `7000`) by hand.
+- Enter the Note's **Local API key** — or switch to **Enablement Token** and
+  click **Get API Key from Board** to exchange the token for a key. Each Note
+  has its own key.
+- **Test** checks that FiestaBoard can reach that Note.
+- **Save tile** stores the assignment.
+
+Repeat for every slot. The badge above the grid tracks progress (for example
+`1/4 tiles assigned`). A partially assigned array still works — assigned Notes
+show their slice, unassigned slots stay dark.
+
+### 3. Verify the layout with Identify
+
+With several identical Notes on a wall, it's easy to wire the right IP to the
+wrong position. **Identify** works like your computer's monitor-arrangement
+screen:
+
+- **Identify** (in a slot's dialog) flashes that slot's position number on the
+  physical board it points at — before or after saving.
+- **Identify all** sends every configured Note its position number at once, so
+  you can read the numbering off the wall left-to-right, top-to-bottom.
+
+The identify pattern clears automatically on the next update cycle (within the
+polling interval). If the board is paused, the pattern stays until you resume.
+
+If two boards are swapped, open either slot, point it at the other IP (rescan
+or edit the host), and save.
+
 ## Good to know
 
-- **No transition animations.** The Cloud API used by Note arrays sends a full
-  frame at once; FiestaBoard skips transition strategies for these boards.
-- **One send every 15 seconds.** Note-array sends are rate-limited to at least
-  15 seconds apart. FiestaBoard throttles automatically — rapid changes are
-  coalesced rather than rejected — but very fast page rotations may not all
-  reach the board.
+- **Cloud mode: no transition animations.** The Cloud API sends a full frame at
+  once; FiestaBoard skips transition strategies for cloud-driven arrays. In
+  **local mode** transitions work — each Note animates its own slice.
+- **Cloud mode: one send every 15 seconds.** Cloud note-array sends are
+  rate-limited to at least 15 seconds apart. FiestaBoard throttles
+  automatically — rapid changes are coalesced rather than rejected — but very
+  fast page rotations may not all reach the board. Local mode has no such
+  limit.
+- **Local mode: Notes flip independently.** Each Note is its own device, so
+  tiles may start flipping a moment apart. FiestaBoard sends them the same
+  transition to keep the skew small.
+- **Resizing keeps your keys.** If you shrink the array (say 2×2 → 2×1) the
+  hidden tiles' IPs and keys are kept, and reappear when you grow it back.
 
 ## Troubleshooting
 
@@ -101,11 +163,21 @@ The array returned no layout, or a size FiestaBoard can't classify. Confirm the
 token is correct and the board is reachable, then set the size manually with the
 **Board type** dropdown instead of Auto-detect.
 
-**The board doesn't update.**
-Note arrays only send through the Cloud API. Make sure the **Cloud API Token**
-field is set (it shows a masked placeholder when saved) and that your Vestaboard
-Cloud API subscription is active. Sends are also rate-limited to one every 15
-seconds — see [Good to know](#good-to-know).
+**The board doesn't update (cloud mode).**
+Make sure the **Cloud API Token** field is set (it shows a masked placeholder
+when saved) and that your Vestaboard Cloud API subscription is active. Sends
+are also rate-limited to one every 15 seconds — see
+[Good to know](#good-to-know).
+
+**Some Notes update and others don't (local mode).**
+Open the stale slots' dialogs and hit **Test** — an unreachable Note usually
+means a changed IP (give your Notes DHCP reservations) or a wrong key. A tile
+that fails mid-send is retried automatically on the next update cycle; the
+Notes that succeeded aren't re-sent.
+
+**Two Notes show swapped content (local mode).**
+Their slots point at each other's IPs. Use **Identify all** to see which board
+answers for which position, then reassign the two slots.
 
 **The layout looks cut off or wrong.**
 Check that **Notes wide** and **Notes tall** match your physical hardware. The
