@@ -500,23 +500,34 @@ class BoardClient:
 
 
 def board_client_from_board_dict(board: dict) -> Optional["BoardClient"]:
-    """Build a BoardClient from a board instance dict (e.g. from settings.boards).
+    """Build a board client from a board instance dict (e.g. from settings.boards).
 
     Args:
         board: Dict with api_mode, host, port (optional), local_api_key, cloud_key.
 
     Returns:
-        BoardClient if the board has connection configured, None otherwise.
+        BoardClient (or a duck-type compatible NoteArrayLocalClient for
+        local-mode note arrays) if the board has connection configured,
+        None otherwise.
     """
     api_mode = (board.get("api_mode") or "local").lower()
     use_cloud = api_mode == "cloud"
 
     # Note-array boards: detected by device_type (not api_mode).
-    # They use the new Cloud API with X-Vestaboard-Token.
-    from .devices import is_note_array
+    # Local mode (api_mode == "local" with saved tiles) fans out per-tile
+    # local POSTs; otherwise they use the Cloud API with X-Vestaboard-Token.
+    from .devices import BoardInstance, is_note_array
 
     device_type = board.get("device_type") or "flagship"
     if is_note_array(device_type):
+        instance = BoardInstance.from_dict(board)
+        if instance.uses_local_tiles:
+            from .note_array_local_client import NoteArrayLocalClient
+
+            tiles = instance.configured_tiles()
+            if not tiles:
+                return None
+            return NoteArrayLocalClient(tiles, instance.notes_wide, instance.notes_tall)
         token = board.get("note_array_token") or ""
         if not token:
             return None
