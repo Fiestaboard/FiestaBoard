@@ -165,11 +165,29 @@ class BoardSettings:
 
     @staticmethod
     def _mask_board(board: dict) -> dict:
-        """Return a copy of a board dict with sensitive fields masked."""
+        """Return a copy of a board dict with sensitive fields masked.
+
+        Also masks nested per-tile credentials for local note arrays. Tiles
+        are rebuilt (not mutated) so the stored dicts are never corrupted by
+        masking a shallow copy.
+        """
+        from src.devices import TILE_SENSITIVE_FIELDS
+
         masked = dict(board)
         for key in BOARD_SENSITIVE_FIELDS:
             if masked.get(key):
                 masked[key] = "***"
+        tiles = masked.get("tiles")
+        if isinstance(tiles, list):
+            masked["tiles"] = [
+                {
+                    **tile,
+                    **{k: "***" for k in TILE_SENSITIVE_FIELDS if tile.get(k)},
+                }
+                if isinstance(tile, dict)
+                else tile
+                for tile in tiles
+            ]
         return masked
 
     def to_dict(self, mask_secrets: bool = True) -> dict:
@@ -1150,6 +1168,8 @@ class SettingsService:
 
         existing_by_id = {b.get("id"): b for b in self._board.boards}
 
+        from src.devices import TILE_SENSITIVE_FIELDS
+
         validated = []
         for b in boards:
             # Preserve sensitive fields if the incoming value is masked
@@ -1157,6 +1177,21 @@ class SettingsService:
             for key in BOARD_SENSITIVE_FIELDS:
                 if b.get(key) == "***":
                     b[key] = existing.get(key, "")
+            # Preserve masked per-tile credentials, matched by (row, col)
+            incoming_tiles = b.get("tiles")
+            if isinstance(incoming_tiles, list):
+                existing_tiles_by_pos = {
+                    (t.get("row"), t.get("col")): t
+                    for t in existing.get("tiles") or []
+                    if isinstance(t, dict)
+                }
+                for tile in incoming_tiles:
+                    if not isinstance(tile, dict):
+                        continue
+                    existing_tile = existing_tiles_by_pos.get((tile.get("row"), tile.get("col")), {})
+                    for key in TILE_SENSITIVE_FIELDS:
+                        if tile.get(key) == "***":
+                            tile[key] = existing_tile.get(key, "")
             instance = BoardInstance.from_dict(b)
             validated.append(instance.to_dict())
 

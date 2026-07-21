@@ -783,3 +783,213 @@ class TestBoardContextFor:
         """An unrecognized device type falls back to the default (flagship)."""
         b = board_context_for("nonsense")
         assert (b.device_type, b.rows, b.cols) == ("flagship", 6, 22)
+
+
+class TestNormalizeNoteArrayTiles:
+    """Tile-list normalization for local note arrays."""
+
+    def test_non_list_returns_empty(self):
+        from src.devices import normalize_note_array_tiles
+
+        assert normalize_note_array_tiles(None) == []
+        assert normalize_note_array_tiles("nope") == []
+        assert normalize_note_array_tiles({"row": 0}) == []
+
+    def test_drops_malformed_entries(self):
+        from src.devices import normalize_note_array_tiles
+
+        tiles = [
+            "not-a-dict",
+            {"host": "10.0.0.1"},  # missing row/col
+            {"row": "x", "col": 0},  # non-numeric row
+            {"row": -1, "col": 0, "host": "10.0.0.1"},  # negative
+            {"row": True, "col": 0, "host": "10.0.0.1"},  # bool row
+        ]
+        assert normalize_note_array_tiles(tiles) == []
+
+    def test_coerces_types_and_defaults(self):
+        from src.devices import normalize_note_array_tiles
+
+        [tile] = normalize_note_array_tiles(
+            [{"row": "1", "col": "0", "host": " 10.0.0.5 ", "port": "7001", "local_api_key": " k "}]
+        )
+        assert tile == {
+            "row": 1,
+            "col": 0,
+            "host": "10.0.0.5",
+            "port": 7001,
+            "local_api_key": "k",
+            "enabled": True,
+        }
+
+    def test_bad_port_defaults_to_7000(self):
+        from src.devices import normalize_note_array_tiles
+
+        [tile] = normalize_note_array_tiles([{"row": 0, "col": 0, "port": "abc"}])
+        assert tile["port"] == 7000
+
+    def test_dedupes_by_position_last_wins(self):
+        from src.devices import normalize_note_array_tiles
+
+        tiles = normalize_note_array_tiles(
+            [
+                {"row": 0, "col": 0, "host": "old"},
+                {"row": 0, "col": 0, "host": "new"},
+            ]
+        )
+        assert len(tiles) == 1
+        assert tiles[0]["host"] == "new"
+
+    def test_out_of_range_positions_preserved(self):
+        """Tiles beyond the current W×H are kept — resize must not destroy keys."""
+        from src.devices import normalize_note_array_tiles
+
+        tiles = normalize_note_array_tiles([{"row": 5, "col": 7, "host": "10.0.0.9", "local_api_key": "k"}])
+        assert len(tiles) == 1
+
+
+class TestBoardInstanceTiles:
+    """BoardInstance tile handling."""
+
+    def _tile(self, row=0, col=0, **kw):
+        return {"row": row, "col": col, "host": "10.0.0.1", "port": 7000, "local_api_key": "key", "enabled": True, **kw}
+
+    def test_tiles_cleared_on_non_array_boards(self):
+        b = BoardInstance(device_type="flagship", tiles=[self._tile()])
+        assert b.tiles == []
+
+    def test_tiles_normalized_on_array_boards(self):
+        b = BoardInstance(device_type="note_array", tiles=[self._tile(), "junk"])
+        assert len(b.tiles) == 1
+
+    def test_tiles_round_trip_from_dict_to_dict(self):
+        b = BoardInstance(device_type="note_array", api_mode="local", notes_wide=2, tiles=[self._tile(col=1)])
+        b2 = BoardInstance.from_dict(b.to_dict())
+        assert b2.tiles == b.tiles
+
+    def test_configured_tiles_filters_out_of_range(self):
+        b = BoardInstance(
+            device_type="note_array",
+            api_mode="local",
+            notes_wide=2,
+            notes_tall=1,
+            tiles=[self._tile(col=0), self._tile(col=1), self._tile(col=5), self._tile(row=3)],
+        )
+        assert {(t["row"], t["col"]) for t in b.configured_tiles()} == {(0, 0), (0, 1)}
+
+    def test_configured_tiles_requires_host_key_enabled(self):
+        b = BoardInstance(
+            device_type="note_array",
+            api_mode="local",
+            notes_wide=4,
+            tiles=[
+                self._tile(col=0),
+                self._tile(col=1, host=""),
+                self._tile(col=2, local_api_key=""),
+                self._tile(col=3, enabled=False),
+            ],
+        )
+        assert [(t["row"], t["col"]) for t in b.configured_tiles()] == [(0, 0)]
+
+    def test_local_array_configured_with_one_tile(self):
+        b = BoardInstance(device_type="note_array", api_mode="local", notes_wide=2, tiles=[self._tile()])
+        assert b.uses_local_tiles
+        assert b.is_connection_configured
+
+    def test_local_array_not_configured_when_no_usable_tile(self):
+        b = BoardInstance(
+            device_type="note_array", api_mode="local", notes_wide=2, tiles=[self._tile(host="")]
+        )
+        assert b.uses_local_tiles
+        assert not b.is_connection_configured
+
+    def test_legacy_array_without_tiles_keeps_token_semantics(self):
+        """api_mode defaults to 'local' on old dicts — token must still work."""
+        b = BoardInstance(device_type="note_array", note_array_token="tok")
+        assert b.api_mode == "local"
+        assert not b.uses_local_tiles
+        assert b.is_connection_configured
+
+    def test_cloud_array_ignores_tiles(self):
+        b = BoardInstance(
+            device_type="note_array", api_mode="cloud", note_array_token="tok", tiles=[self._tile()]
+        )
+        assert not b.uses_local_tiles
+        assert b.is_connection_configured
+
+
+class TestSliceStitchNoteArrayGrid:
+    """Slicing the virtual frame into per-tile subgrids and back."""
+
+    def _grid(self, notes_wide, notes_tall):
+        rows, cols = notes_tall * NOTE_ROWS, notes_wide * NOTE_COLS
+        return [[r * 1000 + c for c in range(cols)] for r in range(rows)]
+
+    @pytest.mark.parametrize("w,h", [(1, 1), (2, 1), (1, 2), (2, 2), (4, 1), (8, 8)])
+    def test_slice_stitch_round_trip(self, w, h):
+        from src.devices import slice_note_array_grid, stitch_note_array_grid
+
+        grid = self._grid(w, h)
+        subgrids = slice_note_array_grid(grid, w, h)
+        assert len(subgrids) == w * h
+        assert stitch_note_array_grid(subgrids, w, h) == grid
+
+    def test_tile_0_1_gets_cols_15_to_29(self):
+        from src.devices import slice_note_array_grid
+
+        grid = self._grid(2, 1)
+        sub = slice_note_array_grid(grid, 2, 1)[(0, 1)]
+        assert len(sub) == NOTE_ROWS
+        assert all(len(r) == NOTE_COLS for r in sub)
+        assert sub[0] == grid[0][15:30]
+        assert sub[2] == grid[2][15:30]
+
+    def test_tile_1_0_gets_rows_3_to_5(self):
+        from src.devices import slice_note_array_grid
+
+        grid = self._grid(1, 2)
+        sub = slice_note_array_grid(grid, 1, 2)[(1, 0)]
+        assert sub == [grid[3], grid[4], grid[5]]
+
+    def test_slice_rejects_wrong_dimensions(self):
+        from src.devices import slice_note_array_grid
+
+        with pytest.raises(ValueError):
+            slice_note_array_grid(self._grid(2, 1), 2, 2)
+        with pytest.raises(ValueError):
+            slice_note_array_grid([[0] * 14] * 3, 1, 1)
+
+    def test_stitch_fills_missing_slots(self):
+        from src.devices import slice_note_array_grid, stitch_note_array_grid
+
+        grid = self._grid(2, 1)
+        subgrids = slice_note_array_grid(grid, 2, 1)
+        del subgrids[(0, 1)]
+        stitched = stitch_note_array_grid(subgrids, 2, 1, fill=0)
+        assert stitched[0][:15] == grid[0][:15]
+        assert stitched[0][15:] == [0] * 15
+
+    def test_stitch_ignores_out_of_range_and_malformed(self):
+        from src.devices import stitch_note_array_grid
+
+        stitched = stitch_note_array_grid(
+            {(5, 5): [[1] * NOTE_COLS] * NOTE_ROWS, (0, 0): [[1] * 3]}, 1, 1
+        )
+        assert stitched == [[0] * NOTE_COLS for _ in range(NOTE_ROWS)]
+
+
+class TestIdentifyPattern:
+    """Identify-flash pattern rendering."""
+
+    def test_shape_is_note_sized(self):
+        from src.devices import identify_pattern
+
+        pattern = identify_pattern(0, 0, notes_wide=2)
+        assert len(pattern) == NOTE_ROWS
+        assert all(len(r) == NOTE_COLS for r in pattern)
+
+    def test_distinct_slots_produce_distinct_patterns(self):
+        from src.devices import identify_pattern
+
+        assert identify_pattern(0, 0, 2) != identify_pattern(0, 1, 2)
+        assert identify_pattern(0, 1, 2) != identify_pattern(1, 0, 2)
