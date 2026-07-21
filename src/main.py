@@ -135,6 +135,23 @@ class DisplayService:
             logger.error(f"Failed to reinitialize board client: {e}")
             return False
 
+    def invalidate_board_content(self, board_id: str) -> None:
+        """Force the next update cycle to re-send this board's content.
+
+        Clears the display loop's content dedupe for the board (primary or
+        secondary) and the board client's character cache. Used after an
+        out-of-band write to the physical board — e.g. the local-array
+        identify flash — so the real frame is restored on the next poll
+        cycle even though the rendered page content hasn't changed.
+        """
+        primary_id = get_settings_service().get_primary_board_id()
+        if board_id == primary_id:
+            self._last_active_page_content = None
+        self._secondary_last_sent.pop(board_id, None)
+        client = self.board_clients.get(board_id)
+        if client is not None:
+            client.clear_cache()
+
     def _get_board_read_interval(self) -> int:
         """Return the board-state read poll interval in seconds based on API mode."""
         polling = get_settings_service().get_polling_settings()

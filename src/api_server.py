@@ -5713,6 +5713,126 @@ async def detect_board_size(board_id: str):
         ) from exc
 
 
+class BoardIdentifyRequest(BaseModel):
+    """Request body for the local note-array identify flash.
+
+    ``target: "tile"`` identifies one slot (``row``/``col`` required unless
+    the credential override is supplied); ``target: "all"`` flashes every
+    configured tile at once. The optional ``host``/``port``/``local_api_key``
+    override lets the assign dialog identify a board BEFORE its tile is
+    saved — in that case ``row``/``col`` name the slot being assigned.
+    """
+
+    target: str = "tile"
+    row: int | None = None
+    col: int | None = None
+    host: str | None = None
+    port: int | None = None
+    local_api_key: str | None = None
+
+
+@app.post("/settings/board/{board_id}/identify")
+async def identify_board_tiles(board_id: str, request: BoardIdentifyRequest):
+    """Flash slot positions onto local note-array tiles (monitor-arrangement style).
+
+    Sends each targeted tile a 3×15 pattern labeling its slot so the user
+    can see which physical board answers for which grid position. The real
+    frame is restored automatically on the next display-loop cycle (the
+    board's content dedupe and client caches are invalidated here); on a
+    paused board the pattern persists until the board is resumed.
+
+    Errors: 404 (unknown board), 400 (not a note array in local mode, bad
+    target, or missing/unknown tile).
+    """
+    from .devices import BoardInstance, identify_pattern, is_note_array
+
+    settings_service = get_settings_service()
+    boards = settings_service.get_board_settings().boards or []
+    board_dict = next((b for b in boards if b.get("id") == board_id), None)
+    if board_dict is None:
+        raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
+
+    instance = BoardInstance.from_dict(board_dict)
+    if not is_note_array(instance.device_type) or instance.api_mode != "local":
+        raise HTTPException(
+            status_code=400,
+            detail="Identify is only available for note arrays in local API mode",
+        )
+
+    if request.target not in ("tile", "all"):
+        raise HTTPException(status_code=400, detail='target must be "tile" or "all"')
+
+    # Resolve the set of (row, col, host, port, key) endpoints to flash
+    targets: list[dict] = []
+    if request.host is not None or request.local_api_key is not None:
+        # Unsaved-tile override from the assign dialog
+        if request.target != "tile" or request.row is None or request.col is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Credential override requires target='tile' with row and col",
+            )
+        if not request.host or not request.local_api_key:
+            raise HTTPException(status_code=400, detail="host and local_api_key are both required")
+        _validate_board_host(request.host)
+        _validate_board_host_is_local_network(request.host)
+        targets.append(
+            {
+                "row": request.row,
+                "col": request.col,
+                "host": request.host,
+                "port": request.port or 7000,
+                "local_api_key": request.local_api_key,
+            }
+        )
+    else:
+        configured = instance.configured_tiles()
+        if request.target == "all":
+            targets = configured
+        else:
+            if request.row is None or request.col is None:
+                raise HTTPException(status_code=400, detail="row and col are required for target='tile'")
+            tile = next(
+                (t for t in configured if t["row"] == request.row and t["col"] == request.col),
+                None,
+            )
+            if tile is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"No configured tile at row={request.row}, col={request.col}",
+                )
+            targets = [tile]
+        if not targets:
+            raise HTTPException(status_code=400, detail="Board has no configured tiles to identify")
+
+    def flash_tile(tile: dict) -> dict:
+        from .board_client import BoardClient
+
+        pattern = identify_pattern(tile["row"], tile["col"], instance.notes_wide)
+        try:
+            client = BoardClient(
+                api_key=tile["local_api_key"],
+                host=tile["host"],
+                use_cloud=False,
+                skip_unchanged=False,
+                port=tile.get("port") or None,
+            )
+            success, _ = client.send_characters(pattern, force=True)
+        except Exception as exc:  # noqa: BLE001 — per-tile failure must not abort the rest
+            logger.error(f"Identify failed for tile ({tile['row']},{tile['col']}): {exc}")
+            success = False
+        return {"row": tile["row"], "col": tile["col"], "success": success}
+
+    results = await asyncio.gather(*(asyncio.to_thread(flash_tile, t) for t in targets))
+
+    # Restore: invalidate the display loop's dedupe + client caches so the
+    # next cycle re-sends the real frame over the identify pattern.
+    service = get_service()
+    if service is not None:
+        service.invalidate_board_content(board_id)
+
+    return {"status": "success", "board_id": board_id, "results": list(results)}
+
+
 @app.get("/settings/display")
 async def get_display_settings():
     """Get current web UI display settings."""
