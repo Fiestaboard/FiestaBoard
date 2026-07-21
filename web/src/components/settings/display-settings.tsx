@@ -16,7 +16,6 @@ import {
   Pause,
   Plus,
   Smartphone,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
@@ -45,6 +44,17 @@ import type { BoardInstance, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 import { isNoteArray, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
 
+import { TileGridAssignment } from "./tile-grid-assignment";
+
+/** Tiles usable for the board's CURRENT W×H (out-of-range entries are kept server-side but don't count). */
+function countAssignedTiles(board: BoardInstance): number {
+  const notesWide = board.notes_wide ?? 1;
+  const notesTall = board.notes_tall ?? 1;
+  return (board.tiles ?? []).filter(
+    (tile) => tile.row < notesTall && tile.col < notesWide && Boolean(tile.host) && Boolean(tile.local_api_key),
+  ).length;
+}
+
 function BoardConnectionForm({
   board,
   onUpdate,
@@ -57,22 +67,22 @@ function BoardConnectionForm({
   const [localKeyMode, setLocalKeyMode] = useState<"api_key" | "enablement_token">("api_key");
   const [enablementToken, setEnablementToken] = useState("");
   const [isEnabling, setIsEnabling] = useState(false);
-  const [localComingSoonOpen, setLocalComingSoonOpen] = useState(false);
 
-  // Note arrays are driven through the Vestaboard Cloud API today, so they are
-  // pinned to cloud mode; the Local API option renders as a "coming soon"
-  // teaser instead of a selectable mode.
+  // Note arrays default to cloud mode (the token path); switching to local
+  // swaps the token field for the per-tile assignment grid.
   const isArray = isNoteArray(board.device_type);
-  const apiMode = isArray ? "cloud" : (board.api_mode ?? "local");
+  const apiMode = board.api_mode ?? (isArray ? "cloud" : "local");
   const hasLocalKey = board.local_api_key === "***" || (board.local_api_key && board.local_api_key.length > 0);
   const hasCloudKey = board.cloud_key === "***" || (board.cloud_key && board.cloud_key.length > 0);
   const hasNoteArrayToken = board.note_array_token === "***" || Boolean(board.note_array_token);
   const hasHost = board.host && board.host.length > 0;
 
-  // Arrays are usable exactly when their Cloud API token is set (mirrors the
-  // backend's BoardInstance.is_configured), independent of the R/W cloud key.
+  // Mirrors the backend's BoardInstance.is_connection_configured: a cloud
+  // array needs its token; a local array needs at least one assigned tile.
   const isConfigured = isArray
-    ? hasNoteArrayToken
+    ? apiMode === "local"
+      ? countAssignedTiles(board) > 0
+      : hasNoteArrayToken
     : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
 
   const handleEnableLocalApi = async () => {
@@ -120,36 +130,19 @@ function BoardConnectionForm({
 
       {/* API Mode */}
       <div className="grid grid-cols-2 gap-2">
-        {isArray ? (
-          /* Teaser, not a mode switch: local driving for arrays is on the
-             roadmap — clicking hypes it instead of silently doing nothing. */
-          <button
-            type="button"
-            aria-pressed={false}
-            onClick={() => setLocalComingSoonOpen(true)}
-            className="p-2 rounded-md border border-dashed border-muted text-left transition-colors hover:border-primary/50"
-          >
-            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              {t("localApiLabel")}
-              <BadgeUI variant="outline" className="h-4 px-1 text-[9px] uppercase tracking-wide text-primary">
-                {t("localApiComingSoonBadge")}
-              </BadgeUI>
-            </div>
-            <div className="text-[10px] text-muted-foreground">{t("localApiDescription")}</div>
-          </button>
-        ) : (
-          <button
-            onClick={() => onUpdate(board.id, { api_mode: "local" })}
-            className={`p-2 rounded-md border text-left transition-colors ${
-              apiMode === "local" ? "border-primary bg-primary/10" : "border-muted hover:border-primary/50"
-            }`}
-          >
-            <div className="text-xs font-medium">{t("localApiLabel")}</div>
-            <div className="text-[10px] text-muted-foreground">{t("localApiDescription")}</div>
-          </button>
-        )}
         <button
-          onClick={() => !isArray && onUpdate(board.id, { api_mode: "cloud" })}
+          onClick={() => onUpdate(board.id, { api_mode: "local" })}
+          aria-pressed={apiMode === "local"}
+          className={`p-2 rounded-md border text-left transition-colors ${
+            apiMode === "local" ? "border-primary bg-primary/10" : "border-muted hover:border-primary/50"
+          }`}
+        >
+          <div className="text-xs font-medium">{t("localApiLabel")}</div>
+          <div className="text-[10px] text-muted-foreground">{t("localApiDescription")}</div>
+        </button>
+        <button
+          onClick={() => onUpdate(board.id, { api_mode: "cloud" })}
+          aria-pressed={apiMode === "cloud"}
           className={`p-2 rounded-md border text-left transition-colors ${
             apiMode === "cloud" ? "border-primary bg-primary/10" : "border-muted hover:border-primary/50"
           }`}
@@ -159,16 +152,11 @@ function BoardConnectionForm({
         </button>
       </div>
 
-      {/* Local-API-for-arrays hype note */}
-      {isArray && localComingSoonOpen && (
-        <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] text-muted-foreground">
-          <Sparkles className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-primary" />
-          <span>{t("localApiComingSoonNote")}</span>
-        </div>
-      )}
+      {/* Local array mode: per-tile assignment grid instead of host/key fields */}
+      {isArray && apiMode === "local" && <TileGridAssignment board={board} onUpdate={onUpdate} />}
 
-      {/* Local API Fields */}
-      {apiMode === "local" && (
+      {/* Local API Fields (single boards) */}
+      {apiMode === "local" && !isArray && (
         <>
           <div className="space-y-1">
             <label className="text-xs font-medium">
@@ -304,8 +292,8 @@ function BoardConnectionForm({
         </>
       )}
 
-      {/* Cloud API Fields */}
-      {apiMode === "cloud" && (
+      {/* Cloud API Fields (single boards — arrays use the token below) */}
+      {apiMode === "cloud" && !isArray && (
         <div className="space-y-1">
           <label className="text-xs font-medium">
             {t("cloudKeyLabel")} <span className="text-destructive">*</span>
@@ -340,7 +328,7 @@ function BoardConnectionForm({
       )}
 
       {/* Note-array Cloud API token (X-Vestaboard-Token) */}
-      {isNoteArray(board.device_type) && (
+      {isArray && apiMode === "cloud" && (
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor={`note-array-token-${board.id}`}>
             {t("noteArrayTokenLabel")}
@@ -381,7 +369,9 @@ function BoardConnectionForm({
           <AlertCircle className="h-3 w-3 flex-shrink-0" />
           <span>
             {isArray
-              ? t("noteArrayTokenRequired")
+              ? apiMode === "local"
+                ? t("tileGrid.assignRequired")
+                : t("noteArrayTokenRequired")
               : apiMode === "local"
                 ? t("localApiRequired")
                 : t("cloudApiRequired")}
@@ -586,10 +576,13 @@ export function DisplaySettings() {
             const hasLocalKey = board.local_api_key === "***" || Boolean(board.local_api_key);
             const hasCloudKey = board.cloud_key === "***" || Boolean(board.cloud_key);
             const hasHost = Boolean(board.host);
-            // Same rule as BoardConnectionForm: arrays connect via their Cloud
-            // API token; flagship/note via the selected API mode's credentials.
+            // Same rule as BoardConnectionForm: cloud arrays connect via their
+            // token, local arrays via assigned tiles, flagship/note via the
+            // selected API mode's credentials.
             const isConnected = isNoteArray(board.device_type)
-              ? board.note_array_token === "***" || Boolean(board.note_array_token)
+              ? (board.api_mode ?? "cloud") === "local"
+                ? countAssignedTiles(board) > 0
+                : board.note_array_token === "***" || Boolean(board.note_array_token)
               : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
 
             return (
