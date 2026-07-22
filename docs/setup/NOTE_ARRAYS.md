@@ -88,6 +88,10 @@ board**. FiestaBoard reads the array's current layout over the Cloud API and
 fills in the board type and size for you. (You still need the token saved first,
 since the read uses it.)
 
+> Auto-detect applies to **cloud** arrays and single boards. A local-mode
+> array's size is defined by the tiles you assign, so there is nothing to
+> detect — the button is not shown in local mode.
+
 ### 5. View it
 
 Save your changes. FiestaBoard renders your active page across the full array.

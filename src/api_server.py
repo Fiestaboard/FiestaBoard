@@ -5687,6 +5687,19 @@ async def detect_board_size(board_id: str):
     if board_dict is None:
         raise HTTPException(status_code=404, detail=f"Board {board_id} not found")
 
+    from .devices import BoardInstance
+
+    # A local-mode array's shape is DEFINED by its tile assignments — a local
+    # read can only re-stitch the configured W×H (or fail on a partial array),
+    # so "detection" would be a tautology. Only the Cloud API knows an array's
+    # real shape; reject clearly instead of echoing the configuration back.
+    if BoardInstance.from_dict(board_dict).uses_local_tiles:
+        raise HTTPException(
+            status_code=400,
+            detail="Auto-detect is not available for local-mode note arrays — "
+            "the array's size is defined by its tile assignments",
+        )
+
     client = board_client_from_board_dict(board_dict)
     if client is None:
         raise HTTPException(

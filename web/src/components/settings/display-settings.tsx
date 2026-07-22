@@ -798,32 +798,38 @@ export function DisplaySettings() {
                         </div>
                       )}
 
-                      {/* Auto-detect from board */}
-                      <div className="space-y-1">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          className="h-7 text-[11px]"
-                          disabled={detectingBoardId === board.id}
-                          onClick={() => handleAutoDetect(board)}
-                        >
-                          {detectingBoardId === board.id ? (
-                            <>
-                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                              {t("detecting")}
-                            </>
-                          ) : (
-                            t("autoDetect")
+                      {/* Auto-detect from board — not offered for local-mode
+                          arrays: their shape is defined by assigning tiles, so
+                          a local read could only echo the configured W×H back.
+                          Detection is meaningful via the Cloud API (which
+                          knows the array's real shape) and for single boards. */}
+                      {!(isNoteArray(board.device_type) && (board.api_mode ?? "cloud") === "local") && (
+                        <div className="space-y-1">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="h-7 text-[11px]"
+                            disabled={detectingBoardId === board.id}
+                            onClick={() => handleAutoDetect(board)}
+                          >
+                            {detectingBoardId === board.id ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                {t("detecting")}
+                              </>
+                            ) : (
+                              t("autoDetect")
+                            )}
+                          </Button>
+                          {detectError[board.id] && (
+                            <div role="alert" className="flex items-center gap-1.5 text-destructive text-[10px]">
+                              <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                              <span>{detectError[board.id]}</span>
+                            </div>
                           )}
-                        </Button>
-                        {detectError[board.id] && (
-                          <div role="alert" className="flex items-center gap-1.5 text-destructive text-[10px]">
-                            <AlertCircle className="h-3 w-3 flex-shrink-0" />
-                            <span>{detectError[board.id]}</span>
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Connection section */}

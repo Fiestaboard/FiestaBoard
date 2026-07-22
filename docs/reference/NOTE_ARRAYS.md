@@ -131,6 +131,11 @@ Reads the board's current layout over its own transport
 (`board_client_from_board_dict`) and classifies the grid with
 `classify_dimensions(rows, cols)`.
 
+Local-mode note arrays (saved tiles) are rejected with **400**: their shape is
+defined by the tile assignments, so a local read could only re-stitch the
+configured W×H back — detection is meaningful only where the transport knows
+the array's real shape (the Cloud API) or for single boards.
+
 **Response** — always includes `device_type`, `rows`, `cols`. For note arrays it
 also includes `notes_wide`, `notes_tall`, and `matched_preset`:
 

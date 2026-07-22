@@ -436,6 +436,35 @@ describe("DisplaySettings — note array connection (cloud token vs local tiles)
     expect(within(card).getByText("1/2 tiles assigned")).toBeInTheDocument();
   });
 
+  it("hides Auto-detect for local-mode arrays (shape is defined by tiles, not detected)", async () => {
+    const user = userEvent.setup();
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [{ row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true }],
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).getByTestId("tile-grid-assignment")).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Auto-detect from board" })).not.toBeInTheDocument();
+  });
+
+  it("keeps Auto-detect for cloud arrays and single boards", async () => {
+    const user = userEvent.setup();
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "cloud",
+      note_array_token: "***",
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).getByRole("button", { name: "Auto-detect from board" })).toBeInTheDocument();
+  });
+
   it("moving a tile onto an occupied slot swaps the two tiles", async () => {
     const user = userEvent.setup();
     const put = setupBoard({
