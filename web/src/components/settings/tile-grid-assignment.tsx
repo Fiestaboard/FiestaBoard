@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, DiscoveredBoard, NoteArrayTile } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -120,6 +121,25 @@ export function TileGridAssignment({
     setDiscovered(null);
   };
 
+  /** Arrow-key navigation between slots (buttons stay in the normal tab order). */
+  const handleSlotKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, row: number, col: number) => {
+    const deltas: Record<string, [number, number]> = {
+      ArrowRight: [0, 1],
+      ArrowLeft: [0, -1],
+      ArrowDown: [1, 0],
+      ArrowUp: [-1, 0],
+    };
+    const delta = deltas[event.key];
+    if (!delta) return;
+    event.preventDefault();
+    const nextRow = Math.min(Math.max(row + delta[0], 0), notesTall - 1);
+    const nextCol = Math.min(Math.max(col + delta[1], 0), notesWide - 1);
+    event.currentTarget
+      .closest('[data-testid="tile-grid"]')
+      ?.querySelector<HTMLButtonElement>(`[data-testid="tile-slot-${nextRow}-${nextCol}"]`)
+      ?.focus();
+  };
+
   /** Replace this slot's tile in the full tiles list (out-of-range tiles preserved). */
   const writeTiles = (nextForSlot: NoteArrayTile | null) => {
     if (!editingSlot) return;
@@ -148,6 +168,24 @@ export function TileGridAssignment({
   const handleClear = () => {
     writeTiles(null);
     toast.success(t("tileGrid.tileCleared"));
+  };
+
+  /** Move the edited tile to another slot; if that slot is occupied, swap. */
+  const handleMove = (targetKey: string) => {
+    if (!editingSlot || !editingSaved) return;
+    const [targetRow, targetCol] = targetKey.split(":").map(Number);
+    const next = tiles.map((tile) => {
+      if (tile.row === editingSlot.row && tile.col === editingSlot.col) {
+        return { ...tile, row: targetRow, col: targetCol };
+      }
+      if (tile.row === targetRow && tile.col === targetCol) {
+        return { ...tile, row: editingSlot.row, col: editingSlot.col };
+      }
+      return tile;
+    });
+    onUpdate(board.id, { tiles: next });
+    closeDialog();
+    toast.success(t("tileGrid.tileMoved", { position: slotNumber(targetRow, targetCol, notesWide) }));
   };
 
   const handleTest = async () => {
@@ -341,6 +379,7 @@ export function TileGridAssignment({
                 data-testid={`tile-slot-${row}-${col}`}
                 data-assigned={isAssigned ? "true" : undefined}
                 onClick={() => openSlot(row, col)}
+                onKeyDown={(e) => handleSlotKeyDown(e, row, col)}
                 aria-label={
                   isAssigned
                     ? t("tileGrid.slotAriaLabelAssigned", { position, row: row + 1, col: col + 1, host: tile?.host })
@@ -581,6 +620,39 @@ export function TileGridAssignment({
                 {t("tileGrid.identify")}
               </Button>
             </div>
+
+            {/* Move / swap — rearrange without retyping credentials. A plain
+                Select, so it is fully keyboard- and screen-reader-accessible. */}
+            {editingSaved && totalSlots > 1 && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium" htmlFor={`tile-move-${board.id}`}>
+                  {t("tileGrid.moveTile")}
+                </label>
+                <Select value="" onValueChange={handleMove}>
+                  <SelectTrigger id={`tile-move-${board.id}`} className="h-8 w-full text-xs">
+                    <SelectValue placeholder={t("tileGrid.movePlaceholder")} />
+                  </SelectTrigger>
+                  {/* Above the dialog overlay (z-[130]) — the shared SelectContent
+                      default (z-[120]) would render the options underneath it. */}
+                  <SelectContent className="z-[140]">
+                    {Array.from({ length: notesTall }, (_, r) =>
+                      Array.from({ length: notesWide }, (_, c) => {
+                        if (editingSlot && r === editingSlot.row && c === editingSlot.col) return null;
+                        const occupant = tilesByPos.get(tileKey(r, c));
+                        const position = slotNumber(r, c, notesWide);
+                        return (
+                          <SelectItem key={tileKey(r, c)} value={tileKey(r, c)} className="text-xs">
+                            {occupant?.host
+                              ? t("tileGrid.moveTargetOccupied", { position, host: occupant.host })
+                              : t("tileGrid.moveTargetEmpty", { position })}
+                          </SelectItem>
+                        );
+                      }),
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="flex-row justify-between sm:justify-between gap-2">

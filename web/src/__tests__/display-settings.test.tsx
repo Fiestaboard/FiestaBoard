@@ -436,6 +436,56 @@ describe("DisplaySettings — note array connection (cloud token vs local tiles)
     expect(within(card).getByText("1/2 tiles assigned")).toBeInTheDocument();
   });
 
+  it("moving a tile onto an occupied slot swaps the two tiles", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [
+        { row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true },
+        { row: 0, col: 1, host: "192.168.0.21", port: 7000, local_api_key: "***", enabled: true },
+      ],
+    });
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByTestId("tile-slot-0-0"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox", { name: "Move to position" }));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: /swap with 192\.168\.0\.21/ }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const tiles = put.body!.boards![0].tiles as Array<{ row: number; col: number; host: string }>;
+    const byHost = Object.fromEntries(tiles.map((tile) => [tile.host, [tile.row, tile.col]]));
+    expect(byHost["192.168.0.20"]).toEqual([0, 1]);
+    expect(byHost["192.168.0.21"]).toEqual([0, 0]);
+  });
+
+  it("moving a tile to an empty slot just relocates it", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [{ row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true }],
+    });
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByTestId("tile-slot-0-0"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox", { name: "Move to position" }));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: /Slot 2 — empty/ }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const tiles = put.body!.boards![0].tiles as Array<{ row: number; col: number; host: string }>;
+    expect(tiles).toHaveLength(1);
+    expect([tiles[0].row, tiles[0].col]).toEqual([0, 1]);
+  });
+
   it("saving a tile from the slot dialog persists the tiles array", async () => {
     const user = userEvent.setup();
     const put = setupBoard({
