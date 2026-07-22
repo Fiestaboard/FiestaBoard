@@ -1177,16 +1177,25 @@ class SettingsService:
             for key in BOARD_SENSITIVE_FIELDS:
                 if b.get(key) == "***":
                     b[key] = existing.get(key, "")
-            # Preserve masked per-tile credentials, matched by (row, col)
+            # Preserve masked per-tile credentials. Match by host:port FIRST so
+            # the key follows the physical board when tiles are moved/swapped
+            # to new grid positions (the UI's "Move to position" sends masked
+            # keys at the NEW coordinates — a position-only match would pair
+            # each host with the OTHER board's key). Fall back to (row, col)
+            # for the change-the-IP-keep-the-key flow.
             incoming_tiles = b.get("tiles")
             if isinstance(incoming_tiles, list):
-                existing_tiles_by_pos = {
-                    (t.get("row"), t.get("col")): t for t in existing.get("tiles") or [] if isinstance(t, dict)
-                }
+                existing_tiles = [t for t in existing.get("tiles") or [] if isinstance(t, dict)]
+                existing_tiles_by_pos = {(t.get("row"), t.get("col")): t for t in existing_tiles}
+                existing_tiles_by_endpoint: dict = {}
+                for t in existing_tiles:
+                    existing_tiles_by_endpoint.setdefault((t.get("host"), t.get("port")), t)
                 for tile in incoming_tiles:
                     if not isinstance(tile, dict):
                         continue
-                    existing_tile = existing_tiles_by_pos.get((tile.get("row"), tile.get("col")), {})
+                    existing_tile = existing_tiles_by_endpoint.get(
+                        (tile.get("host"), tile.get("port"))
+                    ) or existing_tiles_by_pos.get((tile.get("row"), tile.get("col")), {})
                     for key in TILE_SENSITIVE_FIELDS:
                         if tile.get(key) == "***":
                             tile[key] = existing_tile.get(key, "")
