@@ -256,7 +256,9 @@ test.describe("regression: note-arrays — size indicator", () => {
 
 test.describe("regression: note-arrays — auto-detect", () => {
   test("detect → flagship switches the Select to Flagship and hides the token field", async ({ page }) => {
-    // Start from a note_array so the Cloud API Token field is initially shown.
+    // Start from a cloud-mode note_array so the Cloud API Token field is
+    // initially shown. (A local-mode array shows the tile-assignment grid
+    // instead of the token field, so the fixture must be cloud.)
     await fetch(`${API_URL}/settings/board`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -269,9 +271,8 @@ test.describe("regression: note-arrays — auto-detect", () => {
             notes_tall: 1,
             board_color: "black",
             enabled: true,
-            api_mode: "local",
-            host: "localhost",
-            local_api_key: "test-key",
+            api_mode: "cloud",
+            note_array_token: "seed-token",
           },
         ],
       }),
