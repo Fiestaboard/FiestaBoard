@@ -861,3 +861,39 @@ class TestLocalArrayTileMasking:
         settings_service.set_boards([update])
         tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
         assert tiles[(0, 0)]["local_api_key"] == "rotated"
+
+    def test_set_boards_swap_keeps_key_with_its_board(self, settings_service):
+        """Moving/swapping tiles sends masked keys at NEW positions — each key
+        must follow its physical board (host), not the grid position."""
+        board = self._array_board()
+        board["tiles"][0]["local_api_key"] = "key-for-host-1"
+        board["tiles"][1]["local_api_key"] = "key-for-host-2"
+        settings_service.set_boards([board])
+        board_id = settings_service._board.boards[0]["id"]
+
+        # The UI's swap: hosts trade places, keys are masked, positions are new.
+        update = self._array_board(id=board_id)
+        update["tiles"] = [
+            {"row": 0, "col": 0, "host": "10.0.0.2", "port": 7000, "local_api_key": "***", "enabled": True},
+            {"row": 0, "col": 1, "host": "10.0.0.1", "port": 7000, "local_api_key": "***", "enabled": True},
+        ]
+        settings_service.set_boards([update])
+
+        by_host = {t["host"]: t["local_api_key"] for t in settings_service._board.boards[0]["tiles"]}
+        assert by_host["10.0.0.1"] == "key-for-host-1"
+        assert by_host["10.0.0.2"] == "key-for-host-2"
+
+    def test_set_boards_host_edit_at_same_position_keeps_key(self, settings_service):
+        """Changing a tile's IP (same slot, masked key) keeps the stored key —
+        the (row, col) fallback when no host matches."""
+        settings_service.set_boards([self._array_board()])
+        board_id = settings_service._board.boards[0]["id"]
+
+        update = self._array_board(id=board_id)
+        update["tiles"][0]["host"] = "10.0.0.77"  # new IP, no existing tile has it
+        update["tiles"][0]["local_api_key"] = "***"
+        settings_service.set_boards([update])
+
+        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        assert tiles[(0, 0)]["host"] == "10.0.0.77"
+        assert tiles[(0, 0)]["local_api_key"] == "secret-a"
