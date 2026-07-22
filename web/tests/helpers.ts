@@ -42,9 +42,14 @@ export const MOCK_BOARD_PORT_2 = parseInt(process.env.MOCK_BOARD_PORT_2 || "1700
 export const BOARD_2_LOCAL_API_PORT = 7001;
 export let MOCK_BOARD_URL_2 = process.env.MOCK_BOARD_URL_2 || `http://localhost:${MOCK_BOARD_PORT_2}`;
 
-function _configureWorker(workerIndex: number) {
+// Backend-pool slot MUST come from parallelIndex, not workerIndex: when a
+// worker restarts after a failure the replacement gets a new unique
+// workerIndex, so `workerIndex % N` wraps onto a backend still owned by a
+// live worker and the two stomp each other's board config. parallelIndex is
+// stable per slot (always 0..workers-1, reused across restarts).
+function _configureWorker(parallelIndex: number) {
   if (_workerUrls.length > 0) {
-    const idx = workerIndex % _workerUrls.length;
+    const idx = parallelIndex % _workerUrls.length;
     API_URL = `${_workerUrls[idx]}/api`;
     MOCK_BOARD_URL = _workerMockUrls[idx] || DEFAULT_MOCK_BOARD_URL;
     BOARD_HOST = _workerMockHosts[idx] || DEFAULT_BOARD_HOST;
@@ -63,7 +68,7 @@ function _configureWorker(workerIndex: number) {
 export const test = base.extend<{ resetBackend: void }, { workerBackend: void }>({
   workerBackend: [
     async ({}, use, workerInfo) => {
-      _configureWorker(workerInfo.workerIndex);
+      _configureWorker(workerInfo.parallelIndex);
       await use();
     },
     { scope: "worker", auto: true },
@@ -71,7 +76,7 @@ export const test = base.extend<{ resetBackend: void }, { workerBackend: void }>
 
   baseURL: async ({}, use, workerInfo) => {
     if (_workerUrls.length > 0) {
-      const idx = workerInfo.workerIndex % _workerUrls.length;
+      const idx = workerInfo.parallelIndex % _workerUrls.length;
       // eslint-disable-next-line react-hooks/rules-of-hooks -- Playwright fixture `use` callback, not a React hook
       await use(_workerUrls[idx]);
     } else {
