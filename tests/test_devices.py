@@ -897,9 +897,7 @@ class TestBoardInstanceTiles:
         assert b.is_connection_configured
 
     def test_local_array_not_configured_when_no_usable_tile(self):
-        b = BoardInstance(
-            device_type="note_array", api_mode="local", notes_wide=2, tiles=[self._tile(host="")]
-        )
+        b = BoardInstance(device_type="note_array", api_mode="local", notes_wide=2, tiles=[self._tile(host="")])
         assert b.uses_local_tiles
         assert not b.is_connection_configured
 
@@ -911,9 +909,7 @@ class TestBoardInstanceTiles:
         assert b.is_connection_configured
 
     def test_cloud_array_ignores_tiles(self):
-        b = BoardInstance(
-            device_type="note_array", api_mode="cloud", note_array_token="tok", tiles=[self._tile()]
-        )
+        b = BoardInstance(device_type="note_array", api_mode="cloud", note_array_token="tok", tiles=[self._tile()])
         assert not b.uses_local_tiles
         assert b.is_connection_configured
 
@@ -972,9 +968,7 @@ class TestSliceStitchNoteArrayGrid:
     def test_stitch_ignores_out_of_range_and_malformed(self):
         from src.devices import stitch_note_array_grid
 
-        stitched = stitch_note_array_grid(
-            {(5, 5): [[1] * NOTE_COLS] * NOTE_ROWS, (0, 0): [[1] * 3]}, 1, 1
-        )
+        stitched = stitch_note_array_grid({(5, 5): [[1] * NOTE_COLS] * NOTE_ROWS, (0, 0): [[1] * 3]}, 1, 1)
         assert stitched == [[0] * NOTE_COLS for _ in range(NOTE_ROWS)]
 
 

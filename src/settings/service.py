@@ -1181,9 +1181,7 @@ class SettingsService:
             incoming_tiles = b.get("tiles")
             if isinstance(incoming_tiles, list):
                 existing_tiles_by_pos = {
-                    (t.get("row"), t.get("col")): t
-                    for t in existing.get("tiles") or []
-                    if isinstance(t, dict)
+                    (t.get("row"), t.get("col")): t for t in existing.get("tiles") or [] if isinstance(t, dict)
                 }
                 for tile in incoming_tiles:
                     if not isinstance(tile, dict):

@@ -478,11 +478,15 @@ export function DisplaySettings() {
       handleUpdateBoard(board.id, { device_type: value });
       return;
     }
+    // Converting a single board (whose api_mode defaults to "local") into an
+    // array must land in cloud mode — the array default. An existing array
+    // keeps whatever mode the user picked; only its size changes.
+    const modeOnConvert = board.device_type !== "note_array" ? { api_mode: "cloud" as const } : {};
     if (value === "custom") {
       setCustomOpen((prev) => ({ ...prev, [board.id]: true }));
       const w = board.device_type === "note_array" ? (board.notes_wide ?? 1) : 1;
       const h = board.device_type === "note_array" ? (board.notes_tall ?? 1) : 1;
-      handleUpdateBoard(board.id, { device_type: "note_array", notes_wide: w, notes_tall: h });
+      handleUpdateBoard(board.id, { device_type: "note_array", notes_wide: w, notes_tall: h, ...modeOnConvert });
       return;
     }
     // value === "preset:<id>"
@@ -493,6 +497,7 @@ export function DisplaySettings() {
       device_type: "note_array",
       notes_wide: preset.notes_wide,
       notes_tall: preset.notes_tall,
+      ...modeOnConvert,
     });
   };
 
@@ -516,7 +521,13 @@ export function DisplaySettings() {
         const h = res.notes_tall ?? 1;
         const isPreset = NOTE_ARRAY_PRESETS.some((p) => p.notes_wide === w && p.notes_tall === h);
         setCustomOpen((prev) => ({ ...prev, [board.id]: !isPreset }));
-        handleUpdateBoard(board.id, { device_type: "note_array", notes_wide: w, notes_tall: h });
+        handleUpdateBoard(board.id, {
+          device_type: "note_array",
+          notes_wide: w,
+          notes_tall: h,
+          // Converting a non-array board lands in cloud mode (array default).
+          ...(board.device_type !== "note_array" ? { api_mode: "cloud" as const } : {}),
+        });
       } else {
         setCustomOpen((prev) => ({ ...prev, [board.id]: false }));
         handleUpdateBoard(board.id, { device_type: res.device_type });

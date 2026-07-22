@@ -81,9 +81,7 @@ class NoteArrayLocalClient:
 
     def send_text(self, text: str, force: bool = False) -> tuple[bool, bool]:
         """Note arrays are characters-only; mirror the cloud client's refusal."""
-        logger.error(
-            "send_text is not supported for note-array boards; use send_characters()"
-        )
+        logger.error("send_text is not supported for note-array boards; use send_characters()")
         return (False, False)
 
     def send_characters(
@@ -111,9 +109,7 @@ class NoteArrayLocalClient:
             or any(not isinstance(r, list) or len(r) != dims.cols for r in characters)
         ):
             nrows = len(characters) if isinstance(characters, list) else 0
-            ncols = (
-                len(characters[0]) if nrows and isinstance(characters[0], list) else 0
-            )
+            ncols = len(characters[0]) if nrows and isinstance(characters[0], list) else 0
             logger.error(
                 "Invalid grid for local note array: got %dx%d, need %dx%d",
                 nrows,
@@ -124,9 +120,7 @@ class NoteArrayLocalClient:
             return (False, False)
 
         if strategy is not None and strategy not in VALID_STRATEGIES:
-            logger.error(
-                f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES}"
-            )
+            logger.error(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES}")
             return (False, False)
 
         if not self.tile_clients:
@@ -152,9 +146,7 @@ class NoteArrayLocalClient:
             )
             return pos, result
 
-        with ThreadPoolExecutor(
-            max_workers=min(MAX_TILE_WORKERS, len(self.tile_clients))
-        ) as pool:
+        with ThreadPoolExecutor(max_workers=min(MAX_TILE_WORKERS, len(self.tile_clients))) as pool:
             results = dict(pool.map(send_tile, sorted(self.tile_clients)))
 
         self.last_tile_results = results
@@ -200,13 +192,9 @@ class NoteArrayLocalClient:
             return None
 
         def read_tile(pos: tuple[int, int]):
-            return pos, self.tile_clients[pos].read_current_message(
-                sync_cache=sync_cache
-            )
+            return pos, self.tile_clients[pos].read_current_message(sync_cache=sync_cache)
 
-        with ThreadPoolExecutor(
-            max_workers=min(MAX_TILE_WORKERS, len(self.tile_clients))
-        ) as pool:
+        with ThreadPoolExecutor(max_workers=min(MAX_TILE_WORKERS, len(self.tile_clients))) as pool:
             reads = dict(pool.map(read_tile, sorted(self.tile_clients)))
 
         if any(sub is None for sub in reads.values()):
@@ -239,9 +227,7 @@ class NoteArrayLocalClient:
             "cached_text_preview": None,
         }
 
-    def would_send(
-        self, text: str | None = None, characters: list[list[int]] | None = None
-    ) -> bool:
+    def would_send(self, text: str | None = None, characters: list[list[int]] | None = None) -> bool:
         if not self.skip_unchanged:
             return True
         if characters is not None:
@@ -260,7 +246,5 @@ class NoteArrayLocalClient:
 
         if not self.tile_clients:
             return {}
-        with ThreadPoolExecutor(
-            max_workers=min(MAX_TILE_WORKERS, len(self.tile_clients))
-        ) as pool:
+        with ThreadPoolExecutor(max_workers=min(MAX_TILE_WORKERS, len(self.tile_clients))) as pool:
             return dict(pool.map(test_tile, sorted(self.tile_clients)))

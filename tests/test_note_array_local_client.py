@@ -40,10 +40,7 @@ class TestSendFanout:
 
         assert (success, was_sent) == (True, True)
         assert mock_post.call_count == 2
-        by_url = {
-            call.args[0] if call.args else call.kwargs["url"]: call
-            for call in mock_post.call_args_list
-        }
+        by_url = {call.args[0] if call.args else call.kwargs["url"]: call for call in mock_post.call_args_list}
         left = by_url["http://10.0.0.10:7000/local-api/message"]
         right = by_url["http://10.0.0.11:7000/local-api/message"]
         assert left.kwargs["json"]["characters"] == [row[:15] for row in grid]
@@ -76,17 +73,11 @@ class TestSendFanout:
     @patch("src.board_client.requests.post")
     def test_custom_port_used(self, mock_post):
         mock_post.return_value.raise_for_status = Mock()
-        client = NoteArrayLocalClient(
-            [_tile(0, 0, host="10.0.0.5", port=7001)], notes_wide=1, notes_tall=1
-        )
+        client = NoteArrayLocalClient([_tile(0, 0, host="10.0.0.5", port=7001)], notes_wide=1, notes_tall=1)
 
         client.send_characters(_grid(1, 1))
 
-        url = (
-            mock_post.call_args.args[0]
-            if mock_post.call_args.args
-            else mock_post.call_args.kwargs["url"]
-        )
+        url = mock_post.call_args.args[0] if mock_post.call_args.args else mock_post.call_args.kwargs["url"]
         assert url == "http://10.0.0.5:7001/local-api/message"
 
     def test_wrong_dimensions_rejected(self):
@@ -102,9 +93,7 @@ class TestSendFanout:
         assert client.send_characters(_grid(2, 1)) == (False, False)
 
     def test_out_of_range_tiles_excluded(self):
-        client = NoteArrayLocalClient(
-            [_tile(0, 0), _tile(0, 5)], notes_wide=2, notes_tall=1
-        )
+        client = NoteArrayLocalClient([_tile(0, 0), _tile(0, 5)], notes_wide=2, notes_tall=1)
         assert set(client.tile_clients) == {(0, 0)}
 
     def test_send_text_refused(self):
@@ -117,9 +106,7 @@ class TestPartialFailure:
         def side_effect(url, **kwargs):
             response = Mock()
             if "10.0.0.11" in url:
-                response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-                    "boom"
-                )
+                response.raise_for_status.side_effect = requests.exceptions.HTTPError("boom")
             else:
                 response.raise_for_status = Mock()
             return response
@@ -144,9 +131,7 @@ class TestPartialFailure:
             calls["count"] += 1
             response = Mock()
             if "10.0.0.11" in url and calls["count"] <= 2:
-                response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-                    "boom"
-                )
+                response.raise_for_status.side_effect = requests.exceptions.HTTPError("boom")
             else:
                 response.raise_for_status = Mock()
             return response
@@ -163,11 +148,7 @@ class TestPartialFailure:
         assert (success, was_sent) == (True, True)
         # Healthy tile was skipped by its own cache; only the failed tile re-POSTs
         assert mock_post.call_count == 1
-        url = (
-            mock_post.call_args.args[0]
-            if mock_post.call_args.args
-            else mock_post.call_args.kwargs["url"]
-        )
+        url = mock_post.call_args.args[0] if mock_post.call_args.args else mock_post.call_args.kwargs["url"]
         assert "10.0.0.11" in url
 
 
@@ -179,11 +160,7 @@ class TestRead:
         def side_effect(url, **kwargs):
             response = Mock()
             response.raise_for_status = Mock()
-            half = (
-                [row[:15] for row in grid]
-                if "10.0.0.10" in url
-                else [row[15:] for row in grid]
-            )
+            half = [row[:15] for row in grid] if "10.0.0.10" in url else [row[15:] for row in grid]
             response.json.return_value = half
             return response
 
@@ -199,9 +176,7 @@ class TestRead:
         def side_effect(url, **kwargs):
             response = Mock()
             if "10.0.0.11" in url:
-                response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-                    "boom"
-                )
+                response.raise_for_status.side_effect = requests.exceptions.HTTPError("boom")
             else:
                 response.raise_for_status = Mock()
                 response.json.return_value = [row[:15] for row in grid]
@@ -274,9 +249,7 @@ class TestFactory:
         assert set(client.tile_clients) == {(0, 0), (0, 1)}
 
     def test_local_array_without_usable_tiles_returns_none(self):
-        board = self._board(
-            tiles=[{"row": 0, "col": 0, "host": "", "local_api_key": ""}]
-        )
+        board = self._board(tiles=[{"row": 0, "col": 0, "host": "", "local_api_key": ""}])
         assert board_client_from_board_dict(board) is None
 
     def test_cloud_array_still_builds_cloud_client(self):

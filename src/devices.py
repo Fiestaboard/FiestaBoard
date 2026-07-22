@@ -314,15 +314,9 @@ def slice_note_array_grid(
     """
     dims = note_array_dimensions(notes_wide, notes_tall)
     if len(grid) != dims.rows or any(len(row) != dims.cols for row in grid):
-        raise ValueError(
-            f"Grid must be exactly {dims.rows}×{dims.cols} for a "
-            f"{notes_wide}×{notes_tall} note array"
-        )
+        raise ValueError(f"Grid must be exactly {dims.rows}×{dims.cols} for a {notes_wide}×{notes_tall} note array")
     return {
-        (tr, tc): [
-            grid[tr * NOTE_ROWS + i][tc * NOTE_COLS : (tc + 1) * NOTE_COLS]
-            for i in range(NOTE_ROWS)
-        ]
+        (tr, tc): [grid[tr * NOTE_ROWS + i][tc * NOTE_COLS : (tc + 1) * NOTE_COLS] for i in range(NOTE_ROWS)]
         for tr in range(notes_tall)
         for tc in range(notes_wide)
     }

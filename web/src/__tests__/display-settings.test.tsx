@@ -139,6 +139,46 @@ describe("DisplaySettings — note-array selector", () => {
     expect(b.notes_tall).toBe(2);
   });
 
+  it("converting a local-mode single board to an array lands in cloud mode", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship", api_mode: "local", host: "192.168.0.9", local_api_key: "***" });
+    await renderAndExpand(user);
+
+    const combo = screen.getByLabelText("Board type and size");
+    await user.click(combo);
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: "4 side-by-side" }));
+
+    // Cloud is the array default — the stored "local" must not leak through
+    // and swap the token field for an empty tile grid mid-conversion.
+    await waitFor(() => expect(put.body).not.toBeNull());
+    expect(put.body!.boards![0].api_mode).toBe("cloud");
+    expect(await screen.findByText("Cloud API Token")).toBeInTheDocument();
+  });
+
+  it("resizing an existing local-mode array keeps local mode", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      api_mode: "local",
+      notes_wide: 2,
+      notes_tall: 1,
+      tiles: [{ row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true }],
+    });
+    await renderAndExpand(user);
+
+    const combo = screen.getByLabelText("Board type and size");
+    await user.click(combo);
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: "2×2 grid" }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const saved = put.body!.boards![0];
+    expect(saved.api_mode).toBe("local");
+    expect(saved.notes_wide).toBe(2);
+    expect(saved.notes_tall).toBe(2);
+  });
+
   it("selecting Flagship from a note array saves device_type", async () => {
     const user = userEvent.setup();
     const put = setupBoard({ device_type: "note_array", notes_wide: 2, notes_tall: 2 });

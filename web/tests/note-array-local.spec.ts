@@ -23,7 +23,6 @@ import {
   getMockBoardState,
   getMockBoardState2,
   gridToText,
-  MOCK_BOARD_PORT,
   resetToSingleBoard,
   test,
 } from "./helpers";
@@ -104,11 +103,11 @@ test.describe("Local note array — per-tile fan-out", () => {
     await sendPageToBoard(pageId);
 
     await expect
-      .poll(async () => gridToText((await getMockBoardState(MOCK_BOARD_PORT)).current_message)[0] ?? "", {
+      .poll(async () => gridToText((await getMockBoardState()).current_message)[0] ?? "", {
         timeout: 15_000,
       })
       .toContain(left);
-    const tile1 = await getMockBoardState(MOCK_BOARD_PORT);
+    const tile1 = await getMockBoardState();
     const tile2 = await getMockBoardState2();
 
     // Every tile got a Note-sized grid — the mock validates 3×15 on POST.
@@ -146,7 +145,7 @@ test.describe("Local note array — per-tile fan-out", () => {
     expect(tile2Text).toContain("R1 C2");
 
     // The untargeted tile did not receive the identify pattern.
-    const tile1Text = gridToText((await getMockBoardState(MOCK_BOARD_PORT)).current_message).join("\n");
+    const tile1Text = gridToText((await getMockBoardState()).current_message).join("\n");
     expect(tile1Text).not.toContain("POSITION 2");
   });
 });
