@@ -399,6 +399,43 @@ describe("DisplaySettings — note array connection (cloud token vs local tiles)
     expect(within(card).getByTestId("tile-slot-0-1")).toHaveTextContent("Assign");
   });
 
+  it("a token-only array switched to local mode stays Connected via the cloud fallback", async () => {
+    const user = userEvent.setup();
+    // api_mode "local" but no tiles saved yet — the backend still drives this
+    // board through its Cloud token (uses_local_tiles requires saved tiles),
+    // so the UI must not flip it to "Not configured".
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [],
+      note_array_token: "***",
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).getByTestId("tile-grid-assignment")).toBeInTheDocument();
+    expect(within(card).getAllByText("Connected").length).toBeGreaterThan(0);
+    expect(within(card).queryByText("Assign at least one tile", { exact: false })).not.toBeInTheDocument();
+  });
+
+  it("disabled tiles do not count as assigned", async () => {
+    const user = userEvent.setup();
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [
+        { row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true },
+        { row: 0, col: 1, host: "192.168.0.21", port: 7000, local_api_key: "***", enabled: false },
+      ],
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).getByText("1/2 tiles assigned")).toBeInTheDocument();
+  });
+
   it("saving a tile from the slot dialog persists the tiles array", async () => {
     const user = userEvent.setup();
     const put = setupBoard({

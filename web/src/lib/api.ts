@@ -951,6 +951,8 @@ export interface BoardTestRequest {
   local_api_key?: string;
   cloud_key?: string;
   host?: string;
+  /** Local API port (default 7000). Local-array tiles can sit on other ports. */
+  port?: number;
 }
 
 export interface BoardTestResponse {

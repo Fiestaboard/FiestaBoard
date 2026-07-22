@@ -625,3 +625,51 @@ class TestBoardTestTroubleshootingStructure:
             )
             for step in data["troubleshooting"]:
                 assert isinstance(step, str), f"Each troubleshooting step should be a string for {type(exc).__name__}"
+
+
+class TestBoardTestPort:
+    """The test endpoint honors a custom Local API port (local-array tiles)."""
+
+    @patch("src.api_server.requests.get")
+    @patch("src.board_client.BoardClient")
+    def test_custom_port_forwarded_to_client(self, mock_client_cls, mock_get, client):
+        mock_client = Mock()
+        mock_client.base_url = "http://192.168.1.10:7001/local-api/message"
+        mock_client.headers = {"X-Vestaboard-Local-Api-Key": "key"}
+        mock_client_cls.return_value = mock_client
+
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"message": [[0] * 15] * 3}
+        mock_get.return_value = mock_resp
+
+        response = client.post(
+            "/config/board/test",
+            json={"api_mode": "local", "local_api_key": "key", "host": "192.168.1.10", "port": 7001},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+        assert mock_client_cls.call_args.kwargs["port"] == 7001
+
+    @patch("src.api_server.requests.get")
+    @patch("src.board_client.BoardClient")
+    def test_port_omitted_defaults_to_none(self, mock_client_cls, mock_get, client):
+        """No port in the request → BoardClient gets None and applies its 7000 default."""
+        mock_client = Mock()
+        mock_client.base_url = "http://192.168.1.10:7000/local-api/message"
+        mock_client.headers = {"X-Vestaboard-Local-Api-Key": "key"}
+        mock_client_cls.return_value = mock_client
+
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"message": [[0] * 22] * 6}
+        mock_get.return_value = mock_resp
+
+        response = client.post(
+            "/config/board/test",
+            json={"api_mode": "local", "local_api_key": "key", "host": "192.168.1.10"},
+        )
+
+        assert response.status_code == 200
+        assert mock_client_cls.call_args.kwargs["port"] is None

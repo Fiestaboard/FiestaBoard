@@ -2113,9 +2113,7 @@ def _list_settings_snapshots() -> list[dict[str, Any]]:
 _RESTORABLE_GENERAL_FIELDS = ("timezone", "instance_name")
 
 
-def _build_post_upgrade_restore_set(
-    snap_config: dict[str, Any], live_config: dict[str, Any]
-) -> dict[str, Any]:
+def _build_post_upgrade_restore_set(snap_config: dict[str, Any], live_config: dict[str, Any]) -> dict[str, Any]:
     """Compute which config.json keys regressed vs a pre-update snapshot.
 
     Returns ``{"general": {...}, "plugins": {...}}`` with only the keys worth
@@ -2150,8 +2148,7 @@ def _build_post_upgrade_restore_set(
         live_cfg = live_plugins.get(pid)
         lost_enable = not (isinstance(live_cfg, dict) and live_cfg.get("enabled") is True)
         lost_secret = isinstance(live_cfg, dict) and any(
-            key in SENSITIVE_FIELDS and snap_cfg.get(key) and not live_cfg.get(key)
-            for key in snap_cfg
+            key in SENSITIVE_FIELDS and snap_cfg.get(key) and not live_cfg.get(key) for key in snap_cfg
         )
         if lost_enable or lost_secret:
             plugins[pid] = snap_cfg
@@ -3574,6 +3571,8 @@ class BoardTestRequest(BaseModel):
     local_api_key: str | None = None
     cloud_key: str | None = None
     host: str | None = None
+    # Local API port (default 7000). Local-array tiles can sit on other ports.
+    port: int | None = None
 
 
 @app.post("/config/board/test")
@@ -3639,7 +3638,7 @@ async def test_board_connection(request: BoardTestRequest):
 
     try:
         # Create temporary client with provided credentials
-        client = BoardClient(api_key=api_key, host=host, use_cloud=use_cloud, skip_unchanged=False)
+        client = BoardClient(api_key=api_key, host=host, use_cloud=use_cloud, skip_unchanged=False, port=request.port)
 
         # Test the connection directly so we can inspect HTTP status codes
         # (read_current_message() swallows errors and returns None, losing details)

@@ -69,7 +69,8 @@ export function TileGridAssignment({
   }, [tiles, notesWide, notesTall]);
 
   const assignedCount = useMemo(
-    () => [...tilesByPos.values()].filter((tile) => tile.host && tile.local_api_key).length,
+    // Mirrors the backend's configured_tiles(): a disabled tile is not driven.
+    () => [...tilesByPos.values()].filter((tile) => (tile.enabled ?? true) && tile.host && tile.local_api_key).length,
     [tilesByPos],
   );
 
@@ -156,6 +157,7 @@ export function TileGridAssignment({
       const result = await api.testBoardConnection({
         api_mode: "local",
         host: form.host,
+        port: form.port || DEFAULT_PORT,
         local_api_key: form.localApiKey,
       });
       setTestResult(result.success ? "ok" : "fail");
@@ -172,12 +174,9 @@ export function TileGridAssignment({
     if (!editingSlot) return;
     setIsIdentifying(true);
     try {
-      const savedTile = tilesByPos.get(tileKey(editingSlot.row, editingSlot.col));
-      const keyIsMasked = form.localApiKey === MASKED;
-      const canUseSaved = savedTile && keyIsMasked && form.host === savedTile.host;
       const result = await api.identifyBoardTile(
         board.id,
-        canUseSaved
+        canIdentifySaved
           ? { target: "tile", row: editingSlot.row, col: editingSlot.col }
           : {
               target: "tile",
@@ -268,6 +267,17 @@ export function TileGridAssignment({
   const editingSaved = editingSlot ? tilesByPos.get(tileKey(editingSlot.row, editingSlot.col)) : undefined;
   const keyReady = form.host.length > 0 && form.localApiKey.length > 0;
   const keyIsPlaintext = keyReady && form.localApiKey !== MASKED;
+  // Identify can use the server-side saved credentials only while the form
+  // still matches the saved tile exactly (host AND port — a masked key with an
+  // edited endpoint must not silently flash the old device); otherwise it
+  // needs a plaintext key for the unsaved-credential override.
+  const canIdentifySaved = Boolean(
+    editingSaved &&
+    form.localApiKey === MASKED &&
+    form.host === editingSaved.host &&
+    (form.port || DEFAULT_PORT) === (editingSaved.port ?? DEFAULT_PORT),
+  );
+  const canIdentify = canIdentifySaved || keyIsPlaintext;
 
   return (
     <div className="space-y-2" data-testid="tile-grid-assignment">
@@ -331,7 +341,11 @@ export function TileGridAssignment({
                 data-testid={`tile-slot-${row}-${col}`}
                 data-assigned={isAssigned ? "true" : undefined}
                 onClick={() => openSlot(row, col)}
-                aria-label={t("tileGrid.slotAriaLabel", { position, row: row + 1, col: col + 1 })}
+                aria-label={
+                  isAssigned
+                    ? t("tileGrid.slotAriaLabelAssigned", { position, row: row + 1, col: col + 1, host: tile?.host })
+                    : t("tileGrid.slotAriaLabelEmpty", { position, row: row + 1, col: col + 1 })
+                }
                 className={`relative flex flex-col items-center justify-center gap-0.5 rounded-md border px-1 py-2 min-h-[52px] text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   isAssigned
                     ? "border-board-green/60 bg-board-green/5 hover:border-board-green"
@@ -384,6 +398,11 @@ export function TileGridAssignment({
                 {isScanning ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Radar className="h-3 w-3 mr-1" />}
                 {isScanning ? t("tileGrid.scanning") : t("tileGrid.scanNetwork")}
               </Button>
+              {discovered && discovered.length > 0 && (
+                <p role="status" className="text-[10px] text-muted-foreground">
+                  {t("tileGrid.scanFound", { count: discovered.length })}
+                </p>
+              )}
               {discovered && discovered.length > 0 && (
                 <div className="max-h-28 overflow-y-auto rounded-md border divide-y">
                   {discovered.map((found) => {
@@ -447,6 +466,7 @@ export function TileGridAssignment({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
+                aria-pressed={form.keyMode === "api_key"}
                 onClick={() => setForm((prev) => ({ ...prev, keyMode: "api_key" }))}
                 className={`flex items-center justify-center gap-1 p-1.5 rounded-md border text-[10px] transition-colors ${
                   form.keyMode === "api_key"
@@ -459,6 +479,7 @@ export function TileGridAssignment({
               </button>
               <button
                 type="button"
+                aria-pressed={form.keyMode === "enablement_token"}
                 onClick={() => setForm((prev) => ({ ...prev, keyMode: "enablement_token" }))}
                 className={`flex items-center justify-center gap-1 p-1.5 rounded-md border text-[10px] transition-colors ${
                   form.keyMode === "enablement_token"
@@ -536,13 +557,20 @@ export function TileGridAssignment({
                 {t("tileGrid.testTile")}
                 {testResult === "ok" && <Check className="h-3 w-3 ml-1 text-board-green" />}
                 {testResult === "fail" && <AlertCircle className="h-3 w-3 ml-1 text-destructive" />}
+                <span role="status" className="sr-only">
+                  {testResult === "ok"
+                    ? t("tileGrid.testSuccess")
+                    : testResult === "fail"
+                      ? t("tileGrid.testFailed")
+                      : ""}
+                </span>
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="flex-1 text-xs"
-                disabled={!keyReady || isIdentifying}
+                disabled={!canIdentify || isIdentifying}
                 onClick={handleIdentify}
               >
                 {isIdentifying ? (

@@ -65,7 +65,9 @@ sizes outside the presets (for example `3 × 2` Notes → `45 × 6`).
 
 ## Cloud API transport
 
-In cloud mode (`api_mode: "cloud"`, the default), note arrays use the
+In cloud mode (`api_mode: "cloud"` — the effective default for note arrays:
+the UI creates arrays in cloud mode, and an array without saved tiles always
+drives via the cloud token regardless of the stored field), note arrays use the
 **Vestaboard Cloud API**, which is distinct from the older Read/Write cloud
 (`rw.vestaboard.com`) used by single Flagship and Note boards.
 

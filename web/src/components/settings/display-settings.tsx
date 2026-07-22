@@ -46,13 +46,38 @@ import { isNoteArray, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board
 
 import { TileGridAssignment } from "./tile-grid-assignment";
 
-/** Tiles usable for the board's CURRENT W×H (out-of-range entries are kept server-side but don't count). */
+/**
+ * Tiles usable for the board's CURRENT W×H — mirrors the backend's
+ * BoardInstance.configured_tiles(): in-range, enabled, host + key present.
+ * (Out-of-range entries are kept server-side but don't count.)
+ */
 function countAssignedTiles(board: BoardInstance): number {
   const notesWide = board.notes_wide ?? 1;
   const notesTall = board.notes_tall ?? 1;
   return (board.tiles ?? []).filter(
-    (tile) => tile.row < notesTall && tile.col < notesWide && Boolean(tile.host) && Boolean(tile.local_api_key),
+    (tile) =>
+      tile.row < notesTall &&
+      tile.col < notesWide &&
+      (tile.enabled ?? true) &&
+      Boolean(tile.host) &&
+      Boolean(tile.local_api_key),
   ).length;
+}
+
+/**
+ * Whether a note array is actually driven tile-by-tile — mirrors the
+ * backend's BoardInstance.uses_local_tiles: local mode AND at least one saved
+ * tile. A token-only array whose api_mode says "local" (e.g. just switched in
+ * the UI, or a legacy dict) still drives via its Cloud token.
+ */
+function usesLocalTiles(board: BoardInstance): boolean {
+  return (board.api_mode ?? "cloud") === "local" && (board.tiles?.length ?? 0) > 0;
+}
+
+/** Connection-configured rule for note arrays — mirrors BoardInstance.is_connection_configured. */
+function isArrayConfigured(board: BoardInstance): boolean {
+  if (usesLocalTiles(board)) return countAssignedTiles(board) > 0;
+  return board.note_array_token === "***" || Boolean(board.note_array_token);
 }
 
 function BoardConnectionForm({
@@ -77,12 +102,11 @@ function BoardConnectionForm({
   const hasNoteArrayToken = board.note_array_token === "***" || Boolean(board.note_array_token);
   const hasHost = board.host && board.host.length > 0;
 
-  // Mirrors the backend's BoardInstance.is_connection_configured: a cloud
-  // array needs its token; a local array needs at least one assigned tile.
+  // Mirrors the backend's BoardInstance.is_connection_configured: an array
+  // with saved local tiles needs at least one usable tile; otherwise (cloud,
+  // or local mode without tiles yet) it falls back to the Cloud token.
   const isConfigured = isArray
-    ? apiMode === "local"
-      ? countAssignedTiles(board) > 0
-      : hasNoteArrayToken
+    ? isArrayConfigured(board)
     : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
 
   const handleEnableLocalApi = async () => {
@@ -587,13 +611,12 @@ export function DisplaySettings() {
             const hasLocalKey = board.local_api_key === "***" || Boolean(board.local_api_key);
             const hasCloudKey = board.cloud_key === "***" || Boolean(board.cloud_key);
             const hasHost = Boolean(board.host);
-            // Same rule as BoardConnectionForm: cloud arrays connect via their
-            // token, local arrays via assigned tiles, flagship/note via the
-            // selected API mode's credentials.
+            // Same rule as BoardConnectionForm: arrays with saved local tiles
+            // connect via assigned tiles, token-only arrays via the Cloud
+            // token (even in local mode — the backend's cloud fallback),
+            // flagship/note via the selected API mode's credentials.
             const isConnected = isNoteArray(board.device_type)
-              ? (board.api_mode ?? "cloud") === "local"
-                ? countAssignedTiles(board) > 0
-                : board.note_array_token === "***" || Boolean(board.note_array_token)
+              ? isArrayConfigured(board)
               : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
 
             return (
