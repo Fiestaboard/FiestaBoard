@@ -66,7 +66,8 @@
         "deployment/raspberry-pi",
         "deployment/fiestaupdater",
         "setup/docker-setup",
-        "setup/cloud-api"
+        "setup/cloud-api",
+        "setup/note-arrays"
       ]
     },
     {
