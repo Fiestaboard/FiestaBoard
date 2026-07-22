@@ -141,8 +141,18 @@ screen:
 The identify pattern clears automatically on the next update cycle (within the
 polling interval). If the board is paused, the pattern stays until you resume.
 
-If two boards are swapped, open either slot, point it at the other IP (rescan
-or edit the host), and save.
+### 4. Rearrange with Move — no retyping
+
+If Identify reveals boards in the wrong order, you don't have to re-enter
+anything. Open either slot's dialog and use **Move to position**:
+
+- Choosing an **empty** slot relocates the tile there.
+- Choosing an **occupied** slot swaps the two tiles — each board keeps its own
+  IP and Local API key.
+
+The whole flow works without a mouse: the slot grid supports **arrow-key
+navigation**, Enter opens a slot's dialog, and Move to position is a standard
+select. Run Identify all again afterwards to confirm the new arrangement.
 
 ## Good to know
 
@@ -181,7 +191,8 @@ Notes that succeeded aren't re-sent.
 
 **Two Notes show swapped content (local mode).**
 Their slots point at each other's IPs. Use **Identify all** to see which board
-answers for which position, then reassign the two slots.
+answers for which position, then open either slot and use **Move to position**
+to swap them — see [Rearrange with Move](#4-rearrange-with-move--no-retyping).
 
 **The layout looks cut off or wrong.**
 Check that **Notes wide** and **Notes tall** match your physical hardware. The

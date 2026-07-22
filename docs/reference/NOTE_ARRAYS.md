@@ -105,7 +105,13 @@ one endpoint per Note.
   `normalize_note_array_tiles` / `BoardInstance.configured_tiles`).
   Out-of-range tiles are preserved across W×H resizes and filtered at point of
   use, so shrinking an array never destroys keys. Per-tile `local_api_key` is
-  masked (`"***"`) in API responses and resolved by `(row, col)` on write.
+  masked (`"***"`) in API responses; on write, a masked key is resolved against
+  the stored tiles **host:port-first** (so credentials follow the physical
+  board when the UI's Move/swap re-keys tiles to new grid positions), falling
+  back to `(row, col)` for the change-the-IP-keep-the-key flow.
+- **Rearranging.** The UI's "Move to position" is a plain tiles update over
+  `PUT /settings/board` — it rewrites `row`/`col` on the moved (or swapped)
+  tile dicts; there is no dedicated endpoint.
 - **Send path.** `NoteArrayLocalClient` (`src/note_array_local_client.py`)
   slices the full frame with `slice_note_array_grid()` into 15 × 3 subgrids
   and fans them out concurrently, one plain local `BoardClient` per tile.
