@@ -65,8 +65,11 @@ sizes outside the presets (for example `3 × 2` Notes → `45 × 6`).
 
 ## Cloud API transport
 
-Note arrays use the **Vestaboard Cloud API**, which is distinct from the older
-Read/Write cloud (`rw.vestaboard.com`) used by single Flagship and Note boards.
+In cloud mode (`api_mode: "cloud"` — the effective default for note arrays:
+the UI creates arrays in cloud mode, and an array without saved tiles always
+drives via the cloud token regardless of the stored field), note arrays use the
+**Vestaboard Cloud API**, which is distinct from the older Read/Write cloud
+(`rw.vestaboard.com`) used by single Flagship and Note boards.
 
 | Property    | Value                                                   |
 |-------------|---------------------------------------------------------|
@@ -89,6 +92,37 @@ array. On read, `layout` may be a JSON-encoded string; FiestaBoard parses it
   skips a send that arrives too soon (returning "no change" rather than
   erroring), so the platform's refresh loop stays well-behaved.
 
+## Local transport (per-tile fan-out)
+
+In local mode (`api_mode: "local"` with a non-empty `tiles` list on the board),
+FiestaBoard drives each Note over the standard **Local API**
+(`http://<host>:<port>/local-api/message`, `X-Vestaboard-Local-Api-Key`) —
+one endpoint per Note.
+
+- **Tile model.** Each tile is
+  `{"row", "col", "host", "port", "local_api_key", "enabled"}` with 0-indexed
+  note coordinates, stored on the board dict (`src/devices.py`,
+  `normalize_note_array_tiles` / `BoardInstance.configured_tiles`).
+  Out-of-range tiles are preserved across W×H resizes and filtered at point of
+  use, so shrinking an array never destroys keys. Per-tile `local_api_key` is
+  masked (`"***"`) in API responses and resolved by `(row, col)` on write.
+- **Send path.** `NoteArrayLocalClient` (`src/note_array_local_client.py`)
+  slices the full frame with `slice_note_array_grid()` into 15 × 3 subgrids
+  and fans them out concurrently, one plain local `BoardClient` per tile.
+  Success requires every tile to accept its slice; after a partial failure the
+  retry re-POSTs only the failed tiles (per-tile skip-unchanged caches).
+  Reads stitch per-tile GETs (`stitch_note_array_grid()`) and return a grid
+  only when the array is fully assigned and every read succeeds.
+- **No cloud constraints.** Transitions are forwarded to every tile (each Note
+  animates its slice) and the 15-second cloud throttle does not apply.
+- **Identify.** `POST /settings/board/{board_id}/identify` flashes a slot's
+  reading-order position (`POSITION n` / `R<row> C<col>`) on one tile
+  (`{"target": "tile", "row", "col"}`) or all
+  (`{"target": "all"}`), with an optional unsaved credential override
+  (SSRF-guarded like `enable-local-api`). Restore is timer-free: the endpoint
+  clears the board's client caches and display-loop content dedupe, so the
+  next poll cycle rewrites the real frame.
+
 ## Auto-detect endpoint
 
 `POST /settings/board/{board_id}/detect-size`
@@ -96,6 +130,11 @@ array. On read, `layout` may be a JSON-encoded string; FiestaBoard parses it
 Reads the board's current layout over its own transport
 (`board_client_from_board_dict`) and classifies the grid with
 `classify_dimensions(rows, cols)`.
+
+Local-mode note arrays (saved tiles) are rejected with **400**: their shape is
+defined by the tile assignments, so a local read could only re-stitch the
+configured W×H back — detection is meaningful only where the transport knows
+the array's real shape (the Cloud API) or for single boards.
 
 **Response** — always includes `device_type`, `rows`, `cols`. For note arrays it
 also includes `notes_wide`, `notes_tall`, and `matched_preset`:
@@ -168,4 +207,7 @@ are handy for scripted/manual testing.
 - `src/devices.py` — geometry constants, presets, `resolve_dimensions`,
   `classify_dimensions`.
 - `src/board_client.py` — Cloud API send/read and rate limiting.
+- `src/note_array_local_client.py` — local-mode per-tile fan-out client.
 - `integration-tests/mock-cloud/server.py` — the mock Cloud board + its `/ui`.
+- `integration-tests/mock-board/server.py` — the multi-port Local API mock
+  used by the local-array e2e (`web/tests/note-array-local.spec.ts`).

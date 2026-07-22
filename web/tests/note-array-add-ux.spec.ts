@@ -3,8 +3,8 @@
  *
  * Note Array is a first-class device choice when adding a board (matching how
  * Vestaboard owners set up an "array" in the Vestaboard app), starting as a
- * cloud-mode 2×1 array. Local API mode renders as a "Coming soon" teaser for
- * arrays instead of a selectable mode.
+ * cloud-mode 2×1 array. Switching to Local API mode swaps the cloud token
+ * field for the per-tile assignment grid (one slot per Note).
  *
  * Videos are recorded (`test.use({ video: "on" })`) so the flow can be
  * validated visually.
@@ -59,30 +59,46 @@ test.describe("Add Note Array board", () => {
     await expect(card).toContainText("2 side-by-side");
     await page.waitForTimeout(600);
 
-    // Expand the card: cloud mode is active, Local API is a coming-soon teaser.
+    // Expand the card: cloud mode is active with the token field visible.
     await card.getByText("My Board 2").click();
-    const localTeaser = card.getByRole("button", { name: /Local API/ });
-    await expect(localTeaser).toContainText("Coming soon");
+    const localMode = card.getByRole("button", { name: /Local API/ });
+    await expect(localMode).toBeVisible();
     await expect(card.getByText("Cloud API Token", { exact: true })).toBeVisible();
     // A tokenless array is not usable yet — the form says which credential it needs.
     await expect(card.getByText("Cloud API token is required")).toBeVisible();
 
     // Bring the connection section on screen and dwell so the video
-    // clearly shows the Coming soon teaser before and after the click.
-    await localTeaser.scrollIntoViewIfNeeded();
-    await localTeaser.hover();
+    // clearly shows the mode switch.
+    await localMode.scrollIntoViewIfNeeded();
+    await localMode.hover();
     await page.waitForTimeout(900);
 
-    // Clicking the teaser hypes the roadmap instead of switching modes.
-    await localTeaser.click();
-    const hypeNote = card.getByText(/Stay tuned!/);
-    await expect(hypeNote).toBeVisible();
-    // Center the note in the viewport so the recording frames it fully.
-    await hypeNote.evaluate((el) => el.scrollIntoView({ block: "center" }));
-    // Still cloud-only: no local host/key fields appeared.
-    await expect(card.getByText("Board Host")).not.toBeVisible();
+    // Switching to Local API replaces the token field with the tile grid:
+    // one slot per Note (2×1 array → slots 1 and 2), none assigned yet.
+    await localMode.click();
+    const tileGrid = card.getByTestId("tile-grid-assignment");
+    await expect(tileGrid).toBeVisible({ timeout: 10_000 });
+    await expect(card.getByTestId("tile-slot-0-0")).toBeVisible();
+    await expect(card.getByTestId("tile-slot-0-1")).toBeVisible();
+    await expect(tileGrid).toContainText("0/2 tiles assigned");
+    await expect(card.getByText("Cloud API Token", { exact: true })).not.toBeVisible();
+    await tileGrid.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(900);
 
-    // Pause so the video captures the teaser before teardown.
-    await page.waitForTimeout(1_800);
+    // Clicking a slot opens the assignment dialog with host + key fields.
+    await card.getByTestId("tile-slot-0-1").click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText("Board Host")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /Identify/ })).toBeVisible();
+    await page.waitForTimeout(1_200);
+    await page.keyboard.press("Escape");
+
+    // Switching back to cloud restores the token field.
+    await card.getByRole("button", { name: /Cloud API/ }).click();
+    await expect(card.getByText("Cloud API Token", { exact: true })).toBeVisible({ timeout: 10_000 });
+
+    // Pause so the video captures the final state before teardown.
+    await page.waitForTimeout(1_200);
   });
 });

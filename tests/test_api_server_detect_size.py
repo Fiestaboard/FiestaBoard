@@ -197,3 +197,49 @@ class TestDetectSizeErrors:
         resp = client.post("/settings/board/board-1/detect-size")
         assert resp.status_code == 422
         assert "unclassifiable" in resp.json()["detail"].lower()
+
+
+class TestDetectSizeLocalArrays:
+    """Local-mode arrays define their own shape — detection is cloud-only."""
+
+    @staticmethod
+    def _local_array_board(tiles):
+        board = _make_board_dict(
+            device_type="note_array",
+            api_mode="local",
+            local_api_key="",
+            host="",
+            notes_wide=2,
+            notes_tall=1,
+        )
+        board["tiles"] = tiles
+        return board
+
+    @patch("src.api_server.get_settings_service")
+    def test_local_tiles_array_rejected_400(self, mock_ss, client):
+        """An array driven by saved tiles cannot be auto-detected."""
+        tiles = [
+            {"row": 0, "col": 0, "host": "192.168.0.10", "port": 7000, "local_api_key": "k", "enabled": True},
+            {"row": 0, "col": 1, "host": "192.168.0.11", "port": 7000, "local_api_key": "k", "enabled": True},
+        ]
+        mock_ss.return_value.get_board_settings.return_value = _board_settings_mock([self._local_array_board(tiles)])
+
+        resp = client.post("/settings/board/board-1/detect-size")
+
+        assert resp.status_code == 400
+        assert "local-mode note arrays" in resp.json()["detail"]
+
+    @patch("src.api_server.get_settings_service")
+    @patch("src.board_client.BoardClient.read_current_message")
+    def test_token_fallback_array_still_detects_via_cloud(self, mock_read, mock_ss, client):
+        """api_mode 'local' with NO tiles drives via the cloud token — detect keeps working."""
+        board = self._local_array_board(tiles=[])
+        board["note_array_token"] = "tok"
+        mock_ss.return_value.get_board_settings.return_value = _board_settings_mock([board])
+        mock_read.return_value = [[0] * 30 for _ in range(3)]
+
+        resp = client.post("/settings/board/board-1/detect-size")
+
+        assert resp.status_code == 200
+        assert resp.json()["device_type"] == "note_array"
+        assert resp.json()["notes_wide"] == 2

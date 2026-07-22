@@ -139,6 +139,46 @@ describe("DisplaySettings — note-array selector", () => {
     expect(b.notes_tall).toBe(2);
   });
 
+  it("converting a local-mode single board to an array lands in cloud mode", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship", api_mode: "local", host: "192.168.0.9", local_api_key: "***" });
+    await renderAndExpand(user);
+
+    const combo = screen.getByLabelText("Board type and size");
+    await user.click(combo);
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: "4 side-by-side" }));
+
+    // Cloud is the array default — the stored "local" must not leak through
+    // and swap the token field for an empty tile grid mid-conversion.
+    await waitFor(() => expect(put.body).not.toBeNull());
+    expect(put.body!.boards![0].api_mode).toBe("cloud");
+    expect(await screen.findByText("Cloud API Token")).toBeInTheDocument();
+  });
+
+  it("resizing an existing local-mode array keeps local mode", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      api_mode: "local",
+      notes_wide: 2,
+      notes_tall: 1,
+      tiles: [{ row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true }],
+    });
+    await renderAndExpand(user);
+
+    const combo = screen.getByLabelText("Board type and size");
+    await user.click(combo);
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: "2×2 grid" }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const saved = put.body!.boards![0];
+    expect(saved.api_mode).toBe("local");
+    expect(saved.notes_wide).toBe(2);
+    expect(saved.notes_tall).toBe(2);
+  });
+
   it("selecting Flagship from a note array saves device_type", async () => {
     const user = userEvent.setup();
     const put = setupBoard({ device_type: "note_array", notes_wide: 2, notes_tall: 2 });
@@ -315,8 +355,8 @@ describe("DisplaySettings — add board picker", () => {
   });
 });
 
-describe("DisplaySettings — note array connection (cloud-only, local coming soon)", () => {
-  it("marks Local API as coming soon and keeps cloud mode selected", async () => {
+describe("DisplaySettings — note array connection (cloud token vs local tiles)", () => {
+  it("switching a note array to Local API saves the mode and shows the tile grid", async () => {
     const user = userEvent.setup();
     const put = setupBoard({
       device_type: "note_array",
@@ -327,33 +367,182 @@ describe("DisplaySettings — note array connection (cloud-only, local coming so
     });
     const card = await renderAndExpand(user);
 
-    // The teaser replaces the selectable Local API mode.
-    const localButton = within(card).getByRole("button", { name: /Local API/ });
-    expect(within(localButton).getByText("Coming soon")).toBeInTheDocument();
-
-    // Clicking it must NOT switch the board into local mode…
-    await user.click(localButton);
-    expect(put.body).toBeNull();
-    // …but it does tease the upcoming feature.
-    expect(await within(card).findByText(/stay tuned/i)).toBeInTheDocument();
-    // Cloud credentials stay visible (still the active mode).
+    // Cloud mode active: token field visible, no tile grid yet.
     expect(within(card).getByText("Cloud API Token")).toBeInTheDocument();
+    expect(within(card).queryByTestId("tile-grid-assignment")).not.toBeInTheDocument();
+
+    await user.click(within(card).getByRole("button", { name: /Local API/ }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    expect(put.body!.boards![0].api_mode).toBe("local");
+    // After the refetch, the tile grid replaces the cloud token field.
+    expect(await within(card).findByTestId("tile-grid-assignment")).toBeInTheDocument();
+    expect(within(card).queryByText("Cloud API Token")).not.toBeInTheDocument();
   });
 
-  it("forces cloud mode even if the stored board says local", async () => {
+  it("a stored local-mode array renders one slot per Note with assignment status", async () => {
     const user = userEvent.setup();
     setupBoard({
       device_type: "note_array",
       notes_wide: 2,
       notes_tall: 1,
       api_mode: "local",
+      tiles: [{ row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true }],
+    });
+    const card = await renderAndExpand(user);
+
+    const grid = within(card).getByTestId("tile-grid-assignment");
+    expect(grid).toBeInTheDocument();
+    expect(within(card).getByText("1/2 tiles assigned")).toBeInTheDocument();
+    // Assigned slot shows its host; the empty slot invites assignment.
+    expect(within(card).getByTestId("tile-slot-0-0")).toHaveTextContent("192.168.0.20");
+    expect(within(card).getByTestId("tile-slot-0-1")).toHaveTextContent("Assign");
+  });
+
+  it("a token-only array switched to local mode stays Connected via the cloud fallback", async () => {
+    const user = userEvent.setup();
+    // api_mode "local" but no tiles saved yet — the backend still drives this
+    // board through its Cloud token (uses_local_tiles requires saved tiles),
+    // so the UI must not flip it to "Not configured".
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [],
       note_array_token: "***",
     });
     const card = await renderAndExpand(user);
 
-    // Cloud-mode credential fields render; local host/key fields do not.
-    expect(within(card).getByText("Cloud API Token")).toBeInTheDocument();
-    expect(within(card).queryByText("Board Host")).not.toBeInTheDocument();
+    expect(within(card).getByTestId("tile-grid-assignment")).toBeInTheDocument();
+    expect(within(card).getAllByText("Connected").length).toBeGreaterThan(0);
+    expect(within(card).queryByText("Assign at least one tile", { exact: false })).not.toBeInTheDocument();
+  });
+
+  it("disabled tiles do not count as assigned", async () => {
+    const user = userEvent.setup();
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [
+        { row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true },
+        { row: 0, col: 1, host: "192.168.0.21", port: 7000, local_api_key: "***", enabled: false },
+      ],
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).getByText("1/2 tiles assigned")).toBeInTheDocument();
+  });
+
+  it("hides Auto-detect for local-mode arrays (shape is defined by tiles, not detected)", async () => {
+    const user = userEvent.setup();
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [{ row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true }],
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).getByTestId("tile-grid-assignment")).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Auto-detect from board" })).not.toBeInTheDocument();
+  });
+
+  it("keeps Auto-detect for cloud arrays and single boards", async () => {
+    const user = userEvent.setup();
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "cloud",
+      note_array_token: "***",
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).getByRole("button", { name: "Auto-detect from board" })).toBeInTheDocument();
+  });
+
+  it("moving a tile onto an occupied slot swaps the two tiles", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [
+        { row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true },
+        { row: 0, col: 1, host: "192.168.0.21", port: 7000, local_api_key: "***", enabled: true },
+      ],
+    });
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByTestId("tile-slot-0-0"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox", { name: "Move to position" }));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: /swap with 192\.168\.0\.21/ }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const tiles = put.body!.boards![0].tiles as Array<{ row: number; col: number; host: string }>;
+    const byHost = Object.fromEntries(tiles.map((tile) => [tile.host, [tile.row, tile.col]]));
+    expect(byHost["192.168.0.20"]).toEqual([0, 1]);
+    expect(byHost["192.168.0.21"]).toEqual([0, 0]);
+  });
+
+  it("moving a tile to an empty slot just relocates it", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [{ row: 0, col: 0, host: "192.168.0.20", port: 7000, local_api_key: "***", enabled: true }],
+    });
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByTestId("tile-slot-0-0"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox", { name: "Move to position" }));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: /Slot 2 — empty/ }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const tiles = put.body!.boards![0].tiles as Array<{ row: number; col: number; host: string }>;
+    expect(tiles).toHaveLength(1);
+    expect([tiles[0].row, tiles[0].col]).toEqual([0, 1]);
+  });
+
+  it("saving a tile from the slot dialog persists the tiles array", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      tiles: [],
+    });
+    const card = await renderAndExpand(user);
+
+    await user.click(within(card).getByTestId("tile-slot-0-1"));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText(/Board Host/), "192.168.0.31");
+    await user.type(within(dialog).getByLabelText(/Local API Key/), "tile-key-b");
+    await user.click(within(dialog).getByRole("button", { name: "Save tile" }));
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const tiles = put.body!.boards![0].tiles as Array<Record<string, unknown>>;
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0]).toMatchObject({
+      row: 0,
+      col: 1,
+      host: "192.168.0.31",
+      port: 7000,
+      local_api_key: "tile-key-b",
+      enabled: true,
+    });
   });
 
   it("Connected badge follows the note array token, not the cloud key", async () => {

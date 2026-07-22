@@ -495,6 +495,22 @@ export interface PollingSettings {
   board_read_interval_cloud: number;
 }
 
+/**
+ * One physical Note tile of a local-mode note array. Addresses the board's
+ * slot at (row, col) — 0-indexed note coordinates — via its own Local API
+ * endpoint. `local_api_key` is masked as "***" on read; sending "***" back
+ * preserves the stored key for the tile at the same (row, col).
+ */
+export interface NoteArrayTile {
+  row: number;
+  col: number;
+  host: string;
+  /** Local API port (default 7000). */
+  port?: number;
+  local_api_key: string;
+  enabled?: boolean;
+}
+
 export interface BoardInstance {
   id: string;
   name: string;
@@ -518,6 +534,12 @@ export interface BoardInstance {
   notes_wide?: number;
   /** Number of Notes arranged vertically (note_array only; default 1). */
   notes_tall?: number;
+  /**
+   * Local array mode (note_array + api_mode "local"): per-tile Local API
+   * endpoints. Out-of-range tiles are preserved server-side across W×H
+   * resizes; filter by the current dimensions when rendering.
+   */
+  tiles?: NoteArrayTile[];
 }
 
 export interface BoardSettings {
@@ -540,6 +562,28 @@ export interface DetectBoardSizeResponse {
   notes_wide?: number;
   notes_tall?: number;
   matched_preset?: string | null;
+}
+
+/**
+ * Request for POST /settings/board/{id}/identify — flashes slot positions
+ * onto local note-array tiles (monitor-arrangement style). `target: "tile"`
+ * needs row/col; the optional host/port/local_api_key override identifies a
+ * board whose tile has not been saved yet (row/col name the slot being
+ * assigned).
+ */
+export interface BoardIdentifyRequest {
+  target: "tile" | "all";
+  row?: number;
+  col?: number;
+  host?: string;
+  port?: number;
+  local_api_key?: string;
+}
+
+export interface BoardIdentifyResponse {
+  status: string;
+  board_id: string;
+  results: { row: number; col: number; success: boolean }[];
 }
 
 // Schedule types
@@ -907,6 +951,8 @@ export interface BoardTestRequest {
   local_api_key?: string;
   cloud_key?: string;
   host?: string;
+  /** Local API port (default 7000). Local-array tiles can sit on other ports. */
+  port?: number;
 }
 
 export interface BoardTestResponse {
@@ -1760,6 +1806,11 @@ export const api = {
   detectBoardSize: (boardId: string) =>
     fetchApi<DetectBoardSizeResponse>(`/settings/board/${boardId}/detect-size`, {
       method: "POST",
+    }),
+  identifyBoardTile: (boardId: string, request: BoardIdentifyRequest) =>
+    fetchApi<BoardIdentifyResponse>(`/settings/board/${boardId}/identify`, {
+      method: "POST",
+      body: JSON.stringify(request),
     }),
   getAllSettings: () => fetchApi<AllSettingsResponse>("/settings/all"),
 

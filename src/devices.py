@@ -41,6 +41,55 @@ NOTE_ARRAY_PRESETS: list[dict] = [
 
 VALID_API_MODES = ("local", "cloud")
 
+# Sensitive per-tile fields for local note arrays (masked in API responses)
+TILE_SENSITIVE_FIELDS = {"local_api_key"}
+
+
+def normalize_note_array_tiles(tiles) -> list[dict]:
+    """Normalize a local note-array tile list.
+
+    Each tile addresses one physical Note over the local API:
+    ``{"row", "col", "host", "port", "local_api_key", "enabled"}`` with
+    ``row``/``col`` 0-indexed in note coordinates.
+
+    Drops non-dict entries and entries without a usable row/col, coerces field
+    types, and dedupes by (row, col) keeping the last occurrence. Does NOT
+    filter to the board's current notes_wide/notes_tall — out-of-range tiles
+    are preserved in storage so shrinking and re-growing an array never
+    destroys hard-to-reobtain local API keys. Filter at point of use via
+    BoardInstance.configured_tiles().
+    """
+    if not isinstance(tiles, list):
+        return []
+    by_pos: dict[tuple[int, int], dict] = {}
+    for tile in tiles:
+        if not isinstance(tile, dict):
+            continue
+        try:
+            row = int(tile.get("row"))
+            col = int(tile.get("col"))
+        except (TypeError, ValueError):
+            continue
+        if isinstance(tile.get("row"), bool) or isinstance(tile.get("col"), bool):
+            continue
+        if row < 0 or col < 0:
+            continue
+        port = tile.get("port")
+        if not isinstance(port, int) or isinstance(port, bool):
+            try:
+                port = int(port)
+            except (TypeError, ValueError):
+                port = 7000
+        by_pos[(row, col)] = {
+            "row": row,
+            "col": col,
+            "host": str(tile.get("host") or "").strip(),
+            "port": port,
+            "local_api_key": str(tile.get("local_api_key") or "").strip(),
+            "enabled": bool(tile.get("enabled", True)),
+        }
+    return [by_pos[key] for key in sorted(by_pos)]
+
 
 @dataclass
 class BoardInstance:
@@ -72,6 +121,9 @@ class BoardInstance:
     note_array_token: str = ""  # X-Vestaboard-Token for note-array boards
     notes_wide: int = 1
     notes_tall: int = 1
+    # Local array mode: per-tile local API endpoints, one per physical Note.
+    # Only meaningful when device_type == "note_array" and api_mode == "local".
+    tiles: list = field(default_factory=list)
 
     def __post_init__(self):
         if self.device_type not in DEVICE_TYPES:
@@ -96,16 +148,50 @@ class BoardInstance:
             self.notes_tall = 1
         if self.notes_tall > MAX_NOTES_PER_AXIS:
             self.notes_tall = MAX_NOTES_PER_AXIS
+        # Tiles only make sense on note-array boards
+        self.tiles = normalize_note_array_tiles(self.tiles) if self.device_type == "note_array" else []
+
+    @property
+    def uses_local_tiles(self) -> bool:
+        """True when this note array is driven tile-by-tile over the local API.
+
+        Requires BOTH api_mode == "local" and at least one saved tile: legacy
+        array dicts created without an explicit api_mode default to "local"
+        but carry only a cloud token — those must keep driving via the cloud.
+        """
+        return is_note_array(self.device_type) and self.api_mode == "local" and bool(self.tiles)
 
     @property
     def is_connection_configured(self) -> bool:
         if is_note_array(self.device_type):
+            if self.uses_local_tiles:
+                # A partial array is usable: assigned tiles receive their
+                # slice, unassigned slots simply stay dark. Requiring every
+                # slot would flip a half-assembled array back to
+                # "unconfigured" and could re-trigger first-run detection.
+                return bool(self.configured_tiles())
             # notes_wide/notes_tall are always >= 1 (clamped in __post_init__),
             # so configuration hinges solely on having a token.
             return bool(self.note_array_token)
         if self.api_mode == "cloud":
             return bool(self.cloud_key)
         return bool(self.local_api_key and self.host)
+
+    def configured_tiles(self) -> list[dict]:
+        """Return tiles that are in-range for the current W×H, enabled, and credentialed.
+
+        Single source of truth for "which tiles can actually be driven" —
+        used by the client factory, the configured check, and identify.
+        """
+        return [
+            t
+            for t in self.tiles
+            if t["row"] < self.notes_tall
+            and t["col"] < self.notes_wide
+            and t["enabled"]
+            and t["host"]
+            and t["local_api_key"]
+        ]
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -134,6 +220,7 @@ class BoardInstance:
             note_array_token=(data.get("note_array_token") or "").strip(),
             notes_wide=data.get("notes_wide", 1),
             notes_tall=data.get("notes_tall", 1),
+            tiles=data.get("tiles") or [],
         )
 
 
@@ -213,6 +300,64 @@ def note_array_dimensions(notes_wide: int, notes_tall: int) -> DeviceDimensions:
 def is_note_array(device_type: str) -> bool:
     """Return True if device_type is 'note_array'."""
     return device_type == "note_array"
+
+
+def slice_note_array_grid(
+    grid: list[list[int]], notes_wide: int, notes_tall: int
+) -> dict[tuple[int, int], list[list[int]]]:
+    """Slice a full note-array grid into per-tile 3×15 subgrids.
+
+    The grid must be exactly (notes_tall * NOTE_ROWS) × (notes_wide * NOTE_COLS).
+    Returns subgrids keyed by (row, col) in note coordinates, 0-indexed.
+
+    Raises ValueError if the grid does not match the expected dimensions.
+    """
+    dims = note_array_dimensions(notes_wide, notes_tall)
+    if len(grid) != dims.rows or any(len(row) != dims.cols for row in grid):
+        raise ValueError(f"Grid must be exactly {dims.rows}×{dims.cols} for a {notes_wide}×{notes_tall} note array")
+    return {
+        (tr, tc): [grid[tr * NOTE_ROWS + i][tc * NOTE_COLS : (tc + 1) * NOTE_COLS] for i in range(NOTE_ROWS)]
+        for tr in range(notes_tall)
+        for tc in range(notes_wide)
+    }
+
+
+def stitch_note_array_grid(
+    subgrids: dict[tuple[int, int], list[list[int]]],
+    notes_wide: int,
+    notes_tall: int,
+    fill: int = 0,
+) -> list[list[int]]:
+    """Stitch per-tile 3×15 subgrids back into a full note-array grid.
+
+    Inverse of slice_note_array_grid. Missing or malformed subgrids leave
+    their slot filled with ``fill``.
+    """
+    dims = note_array_dimensions(notes_wide, notes_tall)
+    grid = [[fill] * dims.cols for _ in range(dims.rows)]
+    for (tr, tc), sub in subgrids.items():
+        if tr < 0 or tr >= notes_tall or tc < 0 or tc >= notes_wide:
+            continue
+        if not isinstance(sub, list) or len(sub) != NOTE_ROWS:
+            continue
+        if any(not isinstance(r, list) or len(r) != NOTE_COLS for r in sub):
+            continue
+        for i in range(NOTE_ROWS):
+            grid[tr * NOTE_ROWS + i][tc * NOTE_COLS : (tc + 1) * NOTE_COLS] = sub[i]
+    return grid
+
+
+def identify_pattern(row: int, col: int, notes_wide: int) -> list[list[int]]:
+    """Render the identify flash for one tile: a 3×15 grid labeling its slot.
+
+    Shows the reading-order position number plus the (row, col) coordinate,
+    1-indexed for humans — mirroring OS monitor-arrangement identify.
+    """
+    from .text_to_board import text_to_board_array
+
+    position = row * notes_wide + col + 1
+    text = f"\nPOSITION {position}\nR{row + 1} C{col + 1}"
+    return text_to_board_array(text, rows=NOTE_ROWS, cols=NOTE_COLS)
 
 
 def is_valid_note_array_grid(rows: int, cols: int) -> bool:

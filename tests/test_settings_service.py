@@ -793,3 +793,71 @@ class TestSettingsServiceDisplay:
         ds = svc2.get_display_settings()
         assert ds.board_animations == "desktop"
         assert ds.site_animations == "off"
+
+
+class TestLocalArrayTileMasking:
+    """Nested per-tile credential masking for local note arrays."""
+
+    def _array_board(self, **kw):
+        return {
+            "device_type": "note_array",
+            "api_mode": "local",
+            "notes_wide": 2,
+            "notes_tall": 1,
+            "tiles": [
+                {"row": 0, "col": 0, "host": "10.0.0.1", "port": 7000, "local_api_key": "secret-a", "enabled": True},
+                {"row": 0, "col": 1, "host": "10.0.0.2", "port": 7000, "local_api_key": "secret-b", "enabled": True},
+            ],
+            **kw,
+        }
+
+    def test_mask_board_masks_tile_keys(self):
+        masked = BoardSettings._mask_board(self._array_board())
+        assert [t["local_api_key"] for t in masked["tiles"]] == ["***", "***"]
+        assert [t["host"] for t in masked["tiles"]] == ["10.0.0.1", "10.0.0.2"]
+
+    def test_mask_board_does_not_mutate_stored_tiles(self):
+        board = self._array_board()
+        BoardSettings._mask_board(board)
+        assert board["tiles"][0]["local_api_key"] == "secret-a"
+
+    def test_mask_board_skips_empty_tile_keys(self):
+        board = self._array_board()
+        board["tiles"][0]["local_api_key"] = ""
+        masked = BoardSettings._mask_board(board)
+        assert masked["tiles"][0]["local_api_key"] == ""
+        assert masked["tiles"][1]["local_api_key"] == "***"
+
+    def test_set_boards_preserves_masked_tile_keys_by_position(self, settings_service):
+        settings_service.set_boards([self._array_board()])
+        board_id = settings_service._board.boards[0]["id"]
+        # Round-trip the masked form (as the UI does), swapping tile hosts
+        update = self._array_board(id=board_id)
+        update["tiles"][0]["local_api_key"] = "***"
+        update["tiles"][1]["local_api_key"] = "***"
+        update["tiles"][0]["host"] = "10.0.0.99"
+        settings_service.set_boards([update])
+        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        assert tiles[(0, 0)]["local_api_key"] == "secret-a"
+        assert tiles[(0, 0)]["host"] == "10.0.0.99"
+        assert tiles[(0, 1)]["local_api_key"] == "secret-b"
+
+    def test_set_boards_masked_key_at_new_position_resolves_empty(self, settings_service):
+        settings_service.set_boards([self._array_board()])
+        board_id = settings_service._board.boards[0]["id"]
+        update = self._array_board(id=board_id)
+        update["tiles"] = [
+            {"row": 0, "col": 5, "host": "10.0.0.3", "port": 7000, "local_api_key": "***", "enabled": True}
+        ]
+        settings_service.set_boards([update])
+        [tile] = settings_service._board.boards[0]["tiles"]
+        assert tile["local_api_key"] == ""
+
+    def test_set_boards_accepts_new_plaintext_tile_keys(self, settings_service):
+        settings_service.set_boards([self._array_board()])
+        board_id = settings_service._board.boards[0]["id"]
+        update = self._array_board(id=board_id)
+        update["tiles"][0]["local_api_key"] = "rotated"
+        settings_service.set_boards([update])
+        tiles = {(t["row"], t["col"]): t for t in settings_service._board.boards[0]["tiles"]}
+        assert tiles[(0, 0)]["local_api_key"] == "rotated"
