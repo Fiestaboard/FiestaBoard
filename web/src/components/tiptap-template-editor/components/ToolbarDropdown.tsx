@@ -3,7 +3,7 @@
  */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,48 @@ export function ToolbarDropdown({
 }: ToolbarDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelShift, setPanelShift] = useState(0);
+
+  // The panel is plain `absolute top-full left-0` with no collision handling,
+  // so a wide picker anchored to a right-side toolbar button runs off narrow
+  // (mobile) viewports. Measure after open/content changes and shift it back
+  // into view.
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setPanelShift(0);
+      return;
+    }
+    const clamp = () => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      // Measure the untransformed position so repeated clamps don't compound.
+      const prevTransform = panel.style.transform;
+      panel.style.transform = "none";
+      const rect = panel.getBoundingClientRect();
+      panel.style.transform = prevTransform;
+      const viewportWidth = document.documentElement.clientWidth;
+      const margin = 8;
+      let shift = 0;
+      if (rect.right > viewportWidth - margin) {
+        shift = viewportWidth - margin - rect.right;
+      }
+      if (rect.left + shift < margin) {
+        shift = margin - rect.left;
+      }
+      setPanelShift(shift);
+    };
+    clamp();
+    // Pickers change width as the user switches tabs or filters, and rotation
+    // changes the viewport — re-clamp on both.
+    const observer = new ResizeObserver(clamp);
+    if (panelRef.current) observer.observe(panelRef.current);
+    window.addEventListener("resize", clamp);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", clamp);
+    };
+  }, [isOpen]);
 
   const handleClose = () => {
     setIsOpen(false);
@@ -92,7 +134,12 @@ export function ToolbarDropdown({
         </Tooltip>
 
         {isOpen && (
-          <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg">
+          <div
+            ref={panelRef}
+            data-testid="toolbar-dropdown-panel"
+            className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg max-w-[calc(100vw-16px)] overflow-x-auto"
+            style={{ transform: panelShift ? `translateX(${panelShift}px)` : undefined }}
+          >
             {typeof children === "function" ? children(handleClose) : children}
           </div>
         )}

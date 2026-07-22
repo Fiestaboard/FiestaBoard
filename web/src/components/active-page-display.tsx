@@ -18,9 +18,9 @@ import {
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { BoardDisplay } from "@/components/board-display";
 import { ForceSetDialog } from "@/components/force-set-dialog";
 import { PageGridSelector } from "@/components/page-grid-selector";
+import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -505,9 +505,11 @@ export function ActivePageDisplay() {
           )}
 
           {/* Board Frame — contain: layout style paint isolates the tile grid from
-              any layout changes in ancestor elements (e.g. sidebar padding snap). */}
+              any layout changes in ancestor elements (e.g. sidebar padding snap).
+              ScaledBoardDisplay shrinks the board to fit narrow (mobile) cards —
+              BoardDisplay's breakpoint tile sizes alone overflow phone widths. */}
           <div className="flex justify-center overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
-            <BoardDisplay
+            <ScaledBoardDisplay
               message={displayMessage}
               isLoading={!boardState && !liveOutputMessage}
               size="md"

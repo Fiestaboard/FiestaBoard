@@ -289,7 +289,8 @@ test.describe("regression: note-arrays — auto-detect", () => {
     await openHardwareAndExpand(page);
 
     // Token field (displaySettings.noteArrayTokenLabel) is present for note arrays.
-    await expect(page.getByText("Cloud API Token")).toBeVisible({ timeout: 5_000 });
+    // exact: true — "Cloud API token is required" also renders for tokenless arrays.
+    await expect(page.getByText("Cloud API Token", { exact: true })).toBeVisible({ timeout: 5_000 });
 
     // Click Auto-detect (displaySettings.autoDetect → display-settings.tsx:725).
     await page.getByRole("button", { name: "Auto-detect from board" }).first().click();
@@ -297,7 +298,7 @@ test.describe("regression: note-arrays — auto-detect", () => {
     // Header now shows flagship dimensions (6 × 22) and persists flagship.
     await expect(page.getByText("6 × 22").first()).toBeVisible({ timeout: 10_000 });
     // The Cloud API Token field is hidden once the board is no longer a note array.
-    await expect(page.getByText("Cloud API Token")).toHaveCount(0, { timeout: 5_000 });
+    await expect(page.getByText("Cloud API Token", { exact: true })).toHaveCount(0, { timeout: 5_000 });
 
     const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
     const data = await res.json();

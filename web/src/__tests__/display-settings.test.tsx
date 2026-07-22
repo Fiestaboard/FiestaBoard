@@ -252,6 +252,143 @@ describe("DisplaySettings — note_array_token field", () => {
   });
 });
 
+describe("DisplaySettings — add board picker", () => {
+  /** Register a POST /settings/board/add recorder alongside the board fixture. */
+  function setupAdd(board: BoardOverride) {
+    setupBoard(board);
+    const post: { body: BoardRecord | null } = { body: null };
+    server.use(
+      http.post(`${API_BASE}/settings/board/add`, async ({ request }) => {
+        post.body = (await request.json()) as BoardRecord;
+        return HttpResponse.json({
+          status: "success",
+          settings: { board_type: "black", boards: [], devices: [] },
+        });
+      }),
+    );
+    return post;
+  }
+
+  it("offers Note Array alongside Flagship and Note", async () => {
+    const user = userEvent.setup();
+    setupAdd({ device_type: "flagship" });
+    render(<DisplaySettings />, { wrapper: TestWrapper });
+    await screen.findByText("My Board");
+
+    await user.click(screen.getByRole("button", { name: "Add Board" }));
+
+    expect(screen.getByRole("button", { name: "Flagship" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Note" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Note Array" })).toBeInTheDocument();
+  });
+
+  it("adding a Note Array posts a 2×1 cloud-mode array", async () => {
+    const user = userEvent.setup();
+    const post = setupAdd({ device_type: "flagship" });
+    render(<DisplaySettings />, { wrapper: TestWrapper });
+    await screen.findByText("My Board");
+
+    await user.click(screen.getByRole("button", { name: "Add Board" }));
+    await user.click(screen.getByRole("button", { name: "Note Array" }));
+
+    await waitFor(() => expect(post.body).not.toBeNull());
+    expect(post.body!.device_type).toBe("note_array");
+    // Smallest real array (the "2 side-by-side" preset) is the starting point.
+    expect(post.body!.notes_wide).toBe(2);
+    expect(post.body!.notes_tall).toBe(1);
+    // Note arrays are cloud-driven today, so don't start them in local mode.
+    expect(post.body!.api_mode).toBe("cloud");
+  });
+
+  it("adding a Flagship posts only the device type", async () => {
+    const user = userEvent.setup();
+    const post = setupAdd({ device_type: "flagship" });
+    render(<DisplaySettings />, { wrapper: TestWrapper });
+    await screen.findByText("My Board");
+
+    await user.click(screen.getByRole("button", { name: "Add Board" }));
+    await user.click(screen.getByRole("button", { name: "Flagship" }));
+
+    await waitFor(() => expect(post.body).not.toBeNull());
+    expect(post.body!.device_type).toBe("flagship");
+    expect(post.body!.notes_wide).toBeUndefined();
+  });
+});
+
+describe("DisplaySettings — note array connection (cloud-only, local coming soon)", () => {
+  it("marks Local API as coming soon and keeps cloud mode selected", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "cloud",
+      note_array_token: "***",
+    });
+    const card = await renderAndExpand(user);
+
+    // The teaser replaces the selectable Local API mode.
+    const localButton = within(card).getByRole("button", { name: /Local API/ });
+    expect(within(localButton).getByText("Coming soon")).toBeInTheDocument();
+
+    // Clicking it must NOT switch the board into local mode…
+    await user.click(localButton);
+    expect(put.body).toBeNull();
+    // …but it does tease the upcoming feature.
+    expect(await within(card).findByText(/stay tuned/i)).toBeInTheDocument();
+    // Cloud credentials stay visible (still the active mode).
+    expect(within(card).getByText("Cloud API Token")).toBeInTheDocument();
+  });
+
+  it("forces cloud mode even if the stored board says local", async () => {
+    const user = userEvent.setup();
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "local",
+      note_array_token: "***",
+    });
+    const card = await renderAndExpand(user);
+
+    // Cloud-mode credential fields render; local host/key fields do not.
+    expect(within(card).getByText("Cloud API Token")).toBeInTheDocument();
+    expect(within(card).queryByText("Board Host")).not.toBeInTheDocument();
+  });
+
+  it("Connected badge follows the note array token, not the cloud key", async () => {
+    const user = userEvent.setup();
+    // Cloud key set but no array token → the array cannot actually be driven.
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "cloud",
+      cloud_key: "***",
+      note_array_token: "",
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).queryByText("Connected")).not.toBeInTheDocument();
+    expect(within(card).getAllByText("Not configured").length).toBeGreaterThan(0);
+  });
+
+  it("Connected badge shows when the note array token is set", async () => {
+    const user = userEvent.setup();
+    setupBoard({
+      device_type: "note_array",
+      notes_wide: 2,
+      notes_tall: 1,
+      api_mode: "cloud",
+      cloud_key: "",
+      note_array_token: "***",
+    });
+    const card = await renderAndExpand(user);
+
+    expect(within(card).getAllByText("Connected").length).toBeGreaterThan(0);
+  });
+});
+
 describe("DisplaySettings — auto-detect", () => {
   it("success → note array resolves the matching preset and persists", async () => {
     const user = userEvent.setup();

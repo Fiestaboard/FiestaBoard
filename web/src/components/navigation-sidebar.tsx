@@ -11,7 +11,6 @@ import {
   HelpCircle,
   Home,
   Menu,
-  Monitor,
   Puzzle,
   Settings,
   Sparkles,
@@ -19,6 +18,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { BoardIcon } from "@/components/board-icon";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { FiestaLogo } from "@/components/fiesta-logo";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
@@ -98,7 +98,7 @@ function BoardSelector({
         variant === "sidebar" && (collapsed ? "h-9 w-9 justify-center px-0 [&>svg:last-child]:hidden" : "h-10 w-full"),
       )}
     >
-      <Monitor className="h-5 w-5 flex-shrink-0 text-sidebar-foreground/70" />
+      <BoardIcon className="h-5 w-5 flex-shrink-0 text-sidebar-foreground/70" />
       <span
         className={cn(
           "min-w-0 flex-1 overflow-hidden whitespace-nowrap text-left transition-opacity duration-100",

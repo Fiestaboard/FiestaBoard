@@ -36,8 +36,14 @@ You'll need:
 
 ### 1. Add the board
 
-In the FiestaBoard web UI, open **Settings → Hardware** and add a board (or edit
-an existing one).
+In the FiestaBoard web UI, open **Settings → Hardware**, click **Add Board**,
+and choose **Note Array**. The new board starts as a *2 side-by-side* array in
+Cloud mode — adjust the size in the next step if yours differs. (You can also
+convert an existing board with the **Board type** dropdown.)
+
+> Note arrays are driven through the Vestaboard Cloud API. The Local API option
+> shows as **Coming soon** for arrays — local driving is planned for a future
+> release.
 
 ### 2. Choose the board type and size
 
