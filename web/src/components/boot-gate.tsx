@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { FiestaLogo } from "@/components/fiesta-logo";
 import { useTranslations } from "@/i18n/translations";
+import { apiUrl } from "@/lib/base-path";
 
 /** How long to wait before showing the splash (avoids a flash for fast startups). */
 const SHOW_SPLASH_DELAY_MS = 600;
@@ -34,7 +35,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
     // clears even on a fresh install where /status would 409 with
     // "setup required" until the admin creates the first account.
     queryFn: async () => {
-      const res = await fetch("/api/health", { credentials: "include" });
+      const res = await fetch(apiUrl("/health"), { credentials: "include" });
       if (!res.ok) throw new Error(`health: ${res.status}`);
       return res.json();
     },

@@ -1,6 +1,8 @@
 // API client for FiestaBoard service
 // All API calls go through nginx at /api/* (same origin, unified container).
-const API_BASE = "/api";
+// URLs are built via apiUrl() so they pick up the runtime base path when
+// the app is served from a subpath (HA Ingress) — see lib/base-path.ts.
+import { apiUrl, appUrl, stripBasePath } from "./base-path";
 
 // Types for API responses
 export interface StatusResponse {
@@ -1274,7 +1276,9 @@ const DEFAULT_TIMEOUT_MS = 30000;
  */
 function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
   if (typeof window === "undefined") return false;
-  if (window.location.pathname.startsWith("/login")) return false;
+  // Compare app-relative routes: under HA Ingress the raw pathname is
+  // "<prefix>/login", which a bare "/login" check would miss and loop.
+  if (stripBasePath(window.location.pathname).startsWith("/login")) return false;
   if (res.status === 401 || res.status === 409) {
     // For 409 only redirect when the body actually says setup_required —
     // other 409s (e.g. "already set up") should bubble up as errors.
@@ -1287,8 +1291,7 @@ function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
         .json()
         .then((body) => {
           if (body?.setup_required) {
-            const target = encodeURIComponent(window.location.pathname + window.location.search);
-            window.location.assign(`/login?redirect=${target}`);
+            window.location.assign(appUrl(`/login?redirect=${loginRedirectTarget()}`));
           }
         })
         .catch(() => {
@@ -1296,11 +1299,19 @@ function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
         });
       return false;
     }
-    const target = encodeURIComponent(window.location.pathname + window.location.search);
-    window.location.assign(`/login?redirect=${target}`);
+    window.location.assign(appUrl(`/login?redirect=${loginRedirectTarget()}`));
     return true;
   }
   return false;
+}
+
+/**
+ * App-relative route to bounce back to after login. Kept prefix-free:
+ * the login page navigates with the basename-aware router, which
+ * re-applies the ingress prefix on its own.
+ */
+function loginRedirectTarget(): string {
+  return encodeURIComponent(stripBasePath(window.location.pathname) + window.location.search);
 }
 
 async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: number }): Promise<T> {
@@ -1310,7 +1321,7 @@ async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: n
 
   let res: globalThis.Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    res = await fetch(apiUrl(path), {
       ...fetchOptions,
       signal,
       // Send the session cookie on every API call so auth-protected
@@ -2048,7 +2059,7 @@ export const api = {
 
   // Backup & Restore — return URL/raw content directly so the browser can
   // trigger a file download or upload arbitrary JSON.
-  exportBackupUrl: () => `${API_BASE}/backup/export`,
+  exportBackupUrl: () => apiUrl("/backup/export"),
 
   importBackup: (payload: unknown, reinstallPlugins: boolean = true) =>
     fetchApi<{
@@ -2099,7 +2110,7 @@ export const api = {
   }): Promise<AIGenerateResult> => {
     // Bespoke fetch so we can surface the FastAPI `detail` message
     // (the LLM's own error text) directly to the user.
-    const res = await fetch(`${API_BASE}/pages/ai/generate`, {
+    const res = await fetch(apiUrl("/pages/ai/generate"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
@@ -2135,7 +2146,7 @@ export const api = {
    * "Current password is incorrect".
    */
   changePassword: async (currentPassword: string, newPassword: string) => {
-    const res = await fetch("/api/auth/change-password", {
+    const res = await fetch(apiUrl("/auth/change-password"), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -2161,7 +2172,7 @@ export const api = {
 
   /** Rename the signed-in user. Same bespoke-fetch reasoning as changePassword. */
   changeUsername: async (currentPassword: string, newUsername: string) => {
-    const res = await fetch("/api/auth/change-username", {
+    const res = await fetch(apiUrl("/auth/change-username"), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -2193,7 +2204,7 @@ export const api = {
    * Account tab after a user has previously disabled auth.
    */
   setAuthPreference: async (enabled: boolean) => {
-    const res = await fetch("/api/auth/preference", {
+    const res = await fetch(apiUrl("/auth/preference"), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -2222,7 +2233,7 @@ export const api = {
    * page) since /login no longer applies.
    */
   disableAuth: async (currentPassword: string) => {
-    const res = await fetch("/api/auth/disable", {
+    const res = await fetch(apiUrl("/auth/disable"), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },

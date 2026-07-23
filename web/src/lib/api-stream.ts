@@ -15,8 +15,7 @@ import type {
   SSEWarningData,
   ToolCall,
 } from "./ai-chat-types";
-
-const API_BASE = "/api";
+import { apiUrl } from "./base-path";
 
 export interface StreamChatHandlers {
   onText?: (delta: string) => void;
@@ -52,7 +51,7 @@ export async function streamChat(
   }
 
   try {
-    await fetchEventSource(`${API_BASE}/pages/ai/chat`, {
+    await fetchEventSource(apiUrl("/pages/ai/chat"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

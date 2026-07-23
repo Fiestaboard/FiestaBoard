@@ -113,6 +113,31 @@ const eslintConfig = [
     },
   },
   {
+    // Guard against HA-Ingress regressions: hard-coded "/api" URLs bypass
+    // the runtime base-path prefix (lib/base-path.ts) and 404 behind
+    // Home Assistant Ingress — the exact bug in
+    // Fiestaboard/FiestaBoard-Home-Assistant-App#48. base-path.ts itself
+    // and mcp-settings.tsx (a display-only URL for external MCP clients
+    // that connect via the LAN port, never through Ingress) are exempt.
+    files: ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
+    ignores: ["src/__tests__/**", "src/lib/base-path.ts", "src/components/settings/mcp-settings.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/^\\u002Fapi(\\u002F|$)/]",
+          message:
+            'Hard-coded "/api" URLs break HA Ingress (issue #48). Build the URL with apiUrl() from "@/lib/base-path".',
+        },
+        {
+          selector: "TemplateElement[value.raw=/^\\u002Fapi(\\u002F|$)/]",
+          message:
+            'Hard-coded "/api" URLs break HA Ingress (issue #48). Build the URL with apiUrl() from "@/lib/base-path".',
+        },
+      ],
+    },
+  },
+  {
     // Tests legitimately use `any` for mocks and may define fixtures (Playwright)
     // they don't always consume. Don't let strict src rules bleed in here.
     files: [

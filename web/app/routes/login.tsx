@@ -35,11 +35,12 @@ import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { AuthStatusResponse } from "@/lib/api";
+import { apiUrl } from "@/lib/base-path";
 
 type AuthStatus = AuthStatusResponse;
 
 async function fetchAuthStatus(): Promise<AuthStatus> {
-  const res = await fetch("/api/auth/status", {
+  const res = await fetch(apiUrl("/auth/status"), {
     credentials: "include",
     headers: { "Content-Type": "application/json" },
   });
@@ -53,7 +54,7 @@ async function postJson(
   path: string,
   body: Record<string, unknown>,
 ): Promise<{ ok: boolean; status: number; detail?: string }> {
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(apiUrl(path), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

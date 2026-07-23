@@ -23,7 +23,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * rewriting `/assets/`, `/sw.js`, `/icons/`, `/manifest.json` in both
  * HTML and JS response bodies (see entrypoint.sh::configure_ingress_path_rewrite).
  * Every asset URL Vite emits lives as a string literal in the build
- * output — nginx can rewrite them all at request time.
+ * output — nginx can rewrite them all at request time. API request URLs
+ * are runtime-concatenated (not literals), so the SPA prefixes them
+ * itself via src/lib/base-path.ts instead of relying on sub_filter.
  *
  * Direct deployments (`X-Ingress-Path` absent) get the snippet expanded
  * to no-op substitutions and incur only the gzip-pass-through overhead.
