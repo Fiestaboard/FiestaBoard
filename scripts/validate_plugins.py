@@ -37,7 +37,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 PLUGINS_DIR = PROJECT_ROOT / "plugins"
 
 # Directories to skip
-SKIP_DIRECTORIES = {"_template", "__pycache__"}
+SKIP_DIRECTORIES = {"_template", "_template_transition", "__pycache__"}
 
 
 class ValidationResult:
@@ -185,7 +185,16 @@ def validate_manifest_schema(manifest: dict, plugin_dir_name: str) -> list[str]:
         errors.append("icon must be a string")
 
     # Validate category if present
-    valid_categories = ["art", "data", "transit", "weather", "entertainment", "utility", "home"]
+    valid_categories = [
+        "art",
+        "data",
+        "transit",
+        "weather",
+        "entertainment",
+        "utility",
+        "home",
+        "transition",
+    ]
     category = manifest.get("category", "")
     if category and category not in valid_categories:
         errors.append(f"category must be one of: {', '.join(valid_categories)}")

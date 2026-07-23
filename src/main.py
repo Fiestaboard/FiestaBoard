@@ -85,6 +85,7 @@ class DisplayService:
             # keys silently dropped note-array boards (issue #1243 item 3).
             client = board_client_from_board_dict(board)
             if client and board.get("id"):
+                self._attach_transition_runner(client)
                 clients[board["id"]] = client
         self.board_clients = clients
         if boards and boards[0].get("id") in clients:
@@ -97,11 +98,29 @@ class DisplayService:
                 use_cloud=use_cloud,
                 skip_unchanged=True,
             )
+            self._attach_transition_runner(self.vb_client)
         if sync_cache:
             try:
                 self.vb_client.read_current_message(sync_cache=True)
             except Exception as e:
                 logger.warning(f"Could not sync cache with board: {e}")
+
+    @staticmethod
+    def _attach_transition_runner(client: BoardClient) -> None:
+        """Attach the global transition runner so render("plugin:...") works.
+
+        Imports are local so test scaffolding can build clients without
+        pulling in the plugin registry.
+        """
+        try:
+            from .plugins.registry import get_plugin_registry
+            from .transitions import TransitionRunner
+
+            registry = get_plugin_registry()
+            runner = TransitionRunner(resolver=registry.get_transition_plugin)
+            client.set_transition_runner(runner)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(f"Could not attach transition runner: {exc}")
 
     def reinitialize_board_client(self) -> bool:
         """Reinitialize all board clients with current config.
@@ -372,8 +391,12 @@ class DisplayService:
             dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
             board_array = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
             try:
-                success, was_sent = client.send_characters(
-                    board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
+                success, was_sent = client.render(
+                    board_array,
+                    strategy=strategy,
+                    step_interval_ms=interval_ms,
+                    step_size=step_size,
+                    device_type=page.device_type,
                 )
             except Exception as e:
                 logger.error(f"Board {board_id}: send failed: {e}")
@@ -599,8 +622,12 @@ class DisplayService:
             dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
             board_array = text_to_board_array(content_to_send, rows=dims.rows, cols=dims.cols)
 
-            success, was_sent = self.vb_client.send_characters(
-                board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
+            success, was_sent = self.vb_client.render(
+                board_array,
+                strategy=strategy,
+                step_interval_ms=interval_ms,
+                step_size=step_size,
+                device_type=page.device_type,
             )
 
             if success:
@@ -638,11 +665,12 @@ class DisplayService:
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
 
-        success, was_sent = self.vb_client.send_characters(
+        success, was_sent = self.vb_client.render(
             board_array,
             strategy=system_transition.strategy,
             step_interval_ms=system_transition.step_interval_ms,
             step_size=system_transition.step_size,
+            device_type=device_type,
         )
 
         if success:
@@ -720,11 +748,12 @@ class DisplayService:
         system_transition = settings_service.get_transition_settings()
         board_array = self._build_silence_indicator_array(device_type)
 
-        success, was_sent = self.vb_client.send_characters(
+        success, was_sent = self.vb_client.render(
             board_array,
             strategy=system_transition.strategy,
             step_interval_ms=system_transition.step_interval_ms,
             step_size=system_transition.step_size,
+            device_type=device_type,
         )
 
         if success:
@@ -779,11 +808,12 @@ class DisplayService:
         dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
         board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
 
-        success, was_sent = self.vb_client.send_characters(
+        success, was_sent = self.vb_client.render(
             board_array,
             strategy=strategy,
             step_interval_ms=interval_ms,
             step_size=step_size,
+            device_type=page.device_type,
         )
 
         if success:
@@ -861,14 +891,16 @@ class DisplayService:
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
 
-        dims = get_dimensions(self._silence_device_type())
+        device_type = self._silence_device_type()
+        dims = get_dimensions(device_type)
         board_array = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
 
-        success, was_sent = self.vb_client.send_characters(
+        success, was_sent = self.vb_client.render(
             board_array,
             strategy=system_transition.strategy,
             step_interval_ms=system_transition.step_interval_ms,
             step_size=system_transition.step_size,
+            device_type=device_type,
         )
 
         if success:

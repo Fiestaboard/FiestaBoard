@@ -1,6 +1,8 @@
 """Base classes for FiestaBoard plugins.
 
-All plugins must inherit from PluginBase and implement the required methods.
+All data plugins must inherit from :class:`PluginBase`.  Transition
+plugins (frame-by-frame board animations) inherit from
+:class:`TransitionPluginBase` instead.
 """
 
 import logging
@@ -651,3 +653,167 @@ class PluginBase(ABC):
             List of env var definitions with name, required, description.
         """
         return self._manifest.get("env_vars", [])
+
+
+# Defaults for transition plugin manifest's transition_settings block.
+DEFAULT_TRANSITION_INTERRUPTIBLE = True
+DEFAULT_TRANSITION_MIN_INTERVAL_MS = 50
+DEFAULT_TRANSITION_MAX_FRAMES = 500
+DEFAULT_TRANSITION_MAX_RUNTIME_SECONDS = 120
+
+
+# Type alias documenting the (frame_grid, delay_ms_before_next) tuple a
+# transition plugin yields.  A grid is a list of rows of character codes;
+# delay_ms is how long the runner should wait after sending this frame
+# before pulling the next one from the iterator (clamped to the manifest's
+# min_interval_ms floor).
+TransitionFrame = tuple[list[list[int]], int]
+
+
+class TransitionPluginBase(ABC):
+    """Abstract base class for transition plugins.
+
+    Transition plugins produce a *sequence* of board frames that move the
+    display from one grid (``from_grid``) to another (``to_grid``).  They
+    are driven by the host's :class:`~src.transitions.runner.TransitionRunner`,
+    which calls :meth:`generate_frames` and sends each yielded frame to the
+    board with an interruptible sleep between them.
+
+    Unlike :class:`PluginBase`, transition plugins do not return template
+    variables, do not have a refresh cadence, and have no triggers.  They
+    are configured solely via their own ``settings_schema``; other plugins
+    cannot influence transition behavior.
+
+    Subclasses must implement:
+      * :attr:`plugin_id`
+      * :meth:`generate_frames`
+
+    Optional hooks:
+      * :meth:`validate_config`
+      * :meth:`on_config_change`
+      * :meth:`cleanup`
+    """
+
+    def __init__(self, manifest: dict[str, Any]):
+        """Initialize the transition plugin with its manifest dict."""
+        self._manifest = manifest
+        self._config: dict[str, Any] = {}
+        self._enabled = False
+        logger.debug(f"TransitionPlugin initialized: {self.plugin_id}")
+
+    @property
+    @abstractmethod
+    def plugin_id(self) -> str:
+        """Return unique plugin identifier (must match manifest ``id``)."""
+
+    @property
+    def manifest(self) -> dict[str, Any]:
+        """Return the plugin's raw manifest dictionary."""
+        return self._manifest
+
+    @property
+    def info(self) -> PluginInfo:
+        """Return plugin metadata extracted from the manifest."""
+        return PluginInfo(
+            id=self._manifest.get("id", self.plugin_id),
+            name=self._manifest.get("name", self.plugin_id),
+            version=self._manifest.get("version", "0.0.0"),
+            description=self._manifest.get("description", ""),
+            author=self._manifest.get("author", "Unknown"),
+            repository=self._manifest.get("repository", ""),
+            documentation=self._manifest.get("documentation", "README.md"),
+        )
+
+    @property
+    def config(self) -> dict[str, Any]:
+        """Return current plugin configuration."""
+        return self._config
+
+    @config.setter
+    def config(self, value: dict[str, Any]) -> None:
+        old_config = self._config
+        self._config = value
+        if old_config != value:
+            self.on_config_change(old_config, value)
+
+    @property
+    def enabled(self) -> bool:
+        """Return whether the plugin is enabled."""
+        return self._enabled
+
+    @enabled.setter
+    def enabled(self, value: bool) -> None:
+        if self._enabled != value:
+            self._enabled = value
+            if value:
+                logger.info(f"TransitionPlugin enabled: {self.plugin_id}")
+            else:
+                logger.info(f"TransitionPlugin disabled: {self.plugin_id}")
+                self.cleanup()
+
+    def get_settings_schema(self) -> dict[str, Any]:
+        """Return the JSON schema for the plugin's settings form."""
+        return self._manifest.get("settings_schema", {})
+
+    @property
+    def transition_settings(self) -> dict[str, Any]:
+        """Return the merged ``transition_settings`` block from manifest.
+
+        Falls back to module-level defaults for any missing keys so callers
+        always get a fully populated dict.
+        """
+        raw = self._manifest.get("transition_settings", {}) or {}
+        return {
+            "interruptible": bool(raw.get("interruptible", DEFAULT_TRANSITION_INTERRUPTIBLE)),
+            "min_interval_ms": int(raw.get("min_interval_ms", DEFAULT_TRANSITION_MIN_INTERVAL_MS)),
+            "max_frames": int(raw.get("max_frames", DEFAULT_TRANSITION_MAX_FRAMES)),
+            "max_runtime_seconds": int(raw.get("max_runtime_seconds", DEFAULT_TRANSITION_MAX_RUNTIME_SECONDS)),
+        }
+
+    @abstractmethod
+    def generate_frames(
+        self,
+        from_grid: list[list[int]],
+        to_grid: list[list[int]],
+        device: Any,
+        config: dict[str, Any],
+    ) -> Iterator[TransitionFrame]:
+        """Yield (frame_grid, delay_ms) tuples driving the transition.
+
+        The runner sends each ``frame_grid`` to the board, then waits
+        ``delay_ms`` (clamped to ``min_interval_ms``) before pulling the
+        next frame.  The runner also enforces ``max_frames`` and
+        ``max_runtime_seconds`` caps from the manifest -- if the generator
+        exceeds either, the runner aborts and snaps the board to
+        ``to_grid``.
+
+        Args:
+            from_grid: The grid currently displayed on the board.  May be
+                a blank grid if the previous state is unknown.
+            to_grid: The target grid the transition is moving toward.
+            device: The :class:`~src.devices.BoardContext` for the
+                target board (carries rows/cols).
+            config: The resolved plugin config dict (already merged with
+                schema defaults by the caller).
+
+        Yields:
+            ``(grid, delay_ms_before_next)`` tuples.  The final frame need
+            not equal ``to_grid`` -- the runner always sends ``to_grid``
+            once the generator is exhausted to guarantee the board lands
+            on the exact target.
+        """
+
+    def validate_config(self, config: dict[str, Any]) -> list[str]:
+        """Validate a config dict.  Override to add custom checks.
+
+        Returns:
+            List of error messages (empty if valid).
+        """
+        return []
+
+    def on_config_change(self, old_config: dict[str, Any], new_config: dict[str, Any]) -> None:
+        """Hook called when config changes.  Override to react."""
+        logger.debug(f"Config changed for transition plugin {self.plugin_id}")
+
+    def cleanup(self) -> None:  # noqa: B027 - intentional optional override
+        """Hook called when the plugin is disabled or unloaded."""

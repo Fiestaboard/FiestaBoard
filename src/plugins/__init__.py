@@ -12,7 +12,13 @@ Plugins can be loaded from three sources:
 3. **Git URL** – arbitrary public git repositories specified by the user.
 """
 
-from .base import PluginBase, PluginResult, TriggerResult
+from .base import (
+    PluginBase,
+    PluginResult,
+    TransitionFrame,
+    TransitionPluginBase,
+    TriggerResult,
+)
 from .loader import PluginLoader
 from .manifest import DemoPageSchema, PluginManifest, validate_manifest
 from .registry import INSTANCE_SEPARATOR, PluginRegistry, get_plugin_registry
@@ -34,6 +40,8 @@ __all__ = [
     "PluginResult",
     "PluginSource",
     "RegistryEntry",
+    "TransitionFrame",
+    "TransitionPluginBase",
     "TriggerResult",
     "get_plugin_registry",
     "load_registry",

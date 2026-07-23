@@ -572,6 +572,25 @@ class PluginRegistry:
         """
         return self._plugins.get(plugin_id)
 
+    def get_transition_plugin(self, plugin_id: str):
+        """Return a loaded *transition* plugin instance, or None.
+
+        Transition plugins inherit from
+        :class:`~src.plugins.base.TransitionPluginBase` and produce
+        frame-by-frame board animations; data plugins are filtered out so
+        ``board_client.render("plugin:typewriter")`` can never accidentally
+        invoke a data source.  Only plugins that are currently enabled are
+        returned to prevent disabled plugins from running on the board.
+        """
+        from .base import TransitionPluginBase  # local import to avoid cycles
+
+        plugin = self._plugins.get(plugin_id)
+        if plugin is None or not isinstance(plugin, TransitionPluginBase):
+            return None
+        if not self._enabled.get(plugin_id, False):
+            return None
+        return plugin
+
     def get_manifest(self, plugin_id: str) -> PluginManifest | None:
         """Get a plugin's manifest.
 

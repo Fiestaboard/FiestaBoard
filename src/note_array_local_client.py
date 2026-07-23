@@ -13,7 +13,12 @@ cache management, ``use_cloud`` for read-poll interval selection).
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
-from .board_client import VALID_STRATEGIES, BoardClient, TransitionStrategy
+from .board_client import (
+    VALID_STRATEGIES,
+    BoardClient,
+    TransitionRenderMixin,
+    TransitionStrategy,
+)
 from .devices import (
     note_array_dimensions,
     slice_note_array_grid,
@@ -26,7 +31,7 @@ logger = logging.getLogger(__name__)
 MAX_TILE_WORKERS = 8
 
 
-class NoteArrayLocalClient:
+class NoteArrayLocalClient(TransitionRenderMixin):
     """Drives a note array by fanning out to per-tile local BoardClients.
 
     Args:
@@ -54,6 +59,8 @@ class NoteArrayLocalClient:
         self._last_text: str | None = None
         # Per-tile send results from the most recent send_characters call
         self.last_tile_results: dict[tuple[int, int], tuple[bool, bool]] = {}
+        # Transition-plugin render state (lock, cancel event, runner slot).
+        self._init_transition_state()
 
         self.tile_clients: dict[tuple[int, int], BoardClient] = {}
         for tile in tiles:

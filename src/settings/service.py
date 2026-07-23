@@ -17,12 +17,38 @@ from typing import Literal, Optional
 
 logger = logging.getLogger(__name__)
 
-# Valid values
+# Valid values for the built-in (hardware) transition strategies.  Plugin
+# transitions use the ``plugin:<id>`` form and are validated dynamically
+# against the transition-plugin registry rather than this list.
 VALID_STRATEGIES = ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
 VALID_OUTPUT_TARGETS = ["ui", "board", "both"]
 
 OutputTarget = Literal["ui", "board", "both"]
 TransitionStrategy = Literal["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"]
+
+# Prefix that marks a strategy string as referring to a transition plugin
+# (e.g. ``"plugin:typewriter"``).  Kept in sync with
+# :data:`src.board_client.TRANSITION_PLUGIN_PREFIX`.
+TRANSITION_PLUGIN_PREFIX = "plugin:"
+
+
+def is_valid_strategy(strategy: str | None) -> bool:
+    """Return True if *strategy* is None, a built-in, or a plugin reference.
+
+    Plugin references must carry a non-empty id after stripping whitespace;
+    ``"plugin: "`` and similar typos are rejected here rather than being
+    silently accepted and then falling through to a non-animated send at
+    render time.  The runtime separately checks whether the named plugin
+    is actually loaded and enabled before driving a transition.
+    """
+    if strategy is None:
+        return True
+    if strategy in VALID_STRATEGIES:
+        return True
+    if isinstance(strategy, str) and strategy.startswith(TRANSITION_PLUGIN_PREFIX):
+        plugin_id = strategy[len(TRANSITION_PLUGIN_PREFIX) :].strip()
+        return bool(plugin_id)
+    return False
 
 
 @dataclass
@@ -389,16 +415,25 @@ class BetaSettings:
       external port using a per-instance self-signed certificate
       generated at container startup. Toggling this requires a restart
       to take effect.
+    - transition_plugins_enabled: When true, transition plugins (frame-by-
+      frame board animations driven by the TransitionPluginBase SDK)
+      become selectable from page editors and Settings → Transitions, and
+      the /transitions test harness page is reachable.  Off by default --
+      the SDK is experimental and its contract may change.
     """
 
     https_enabled: bool = False
+    transition_plugins_enabled: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "BetaSettings":
-        return cls(https_enabled=bool(data.get("https_enabled", False)))
+        return cls(
+            https_enabled=bool(data.get("https_enabled", False)),
+            transition_plugins_enabled=bool(data.get("transition_plugins_enabled", False)),
+        )
 
 
 @dataclass
@@ -893,8 +928,18 @@ class SettingsService:
             Updated TransitionSettings
         """
         if strategy is not ...:
-            if strategy is not None and strategy not in VALID_STRATEGIES:
-                raise ValueError(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES}")
+            if not is_valid_strategy(strategy):
+                raise ValueError(f"Invalid strategy: {strategy}. Must be one of {VALID_STRATEGIES} or 'plugin:<id>'")
+            if (
+                isinstance(strategy, str)
+                and strategy.startswith(TRANSITION_PLUGIN_PREFIX)
+                and not self._beta.transition_plugins_enabled
+            ):
+                raise ValueError(
+                    "Transition plugins are an experimental beta. "
+                    "Enable them in Settings → Beta before selecting a "
+                    "plugin: strategy."
+                )
             self._transition.strategy = strategy
 
         if step_interval_ms is not ...:
@@ -1439,6 +1484,8 @@ class SettingsService:
         """
         if "https_enabled" in updates:
             self._beta.https_enabled = bool(updates["https_enabled"])
+        if "transition_plugins_enabled" in updates:
+            self._beta.transition_plugins_enabled = bool(updates["transition_plugins_enabled"])
         self._save_to_file()
         logger.info(f"Beta settings updated: {self._beta}")
         return self._beta

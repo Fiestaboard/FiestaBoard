@@ -139,8 +139,43 @@ MANIFEST_SCHEMA = {
         "icon": {"type": "string", "description": "Icon name from Lucide icons"},
         "category": {
             "type": "string",
-            "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home"],
+            "enum": ["art", "data", "transit", "weather", "entertainment", "utility", "home", "transition"],
             "description": "Plugin category for organization",
+        },
+        "plugin_type": {
+            "type": "string",
+            "enum": ["data", "transition"],
+            "default": "data",
+            "description": "Plugin kind. 'data' (default) returns template variables; 'transition' produces frame-by-frame board animations.",
+        },
+        "transition_settings": {
+            "type": "object",
+            "description": "Per-plugin caps and behavior flags for transition plugins (only used when plugin_type='transition').",
+            "properties": {
+                "interruptible": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "When true, a new page or trigger arriving mid-transition cancels the current transition. When false, the transition runs to completion before the new state is applied.",
+                },
+                "min_interval_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 50,
+                    "description": "Floor on the delay between frame sends. Protects against runaway loops and respects board API rate limits regardless of what the plugin yields.",
+                },
+                "max_frames": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 500,
+                    "description": "Hard cap on the number of frames the runner will send before aborting and snapping to the target grid.",
+                },
+                "max_runtime_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 120,
+                    "description": "Hard cap on wall-clock seconds the transition may run before the runner aborts and snaps to the target grid.",
+                },
+            },
         },
         "fiestaboard_version": {
             "type": "string",
@@ -339,6 +374,8 @@ class PluginManifest:
     supports_triggers: bool = False
     screenshots: list[Screenshot] = field(default_factory=list)
     demo: dict[str, DemoPageSchema] | None = None  # keyed by device_type
+    plugin_type: str = "data"  # "data" or "transition"
+    transition_settings: dict[str, Any] = field(default_factory=dict)
     raw: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -498,6 +535,8 @@ class PluginManifest:
             supports_triggers=supports_triggers,
             screenshots=screenshots,
             demo=demo,
+            plugin_type=data.get("plugin_type", "data"),
+            transition_settings=dict(data.get("transition_settings", {})),
             raw=raw,
         )
 
@@ -520,6 +559,8 @@ class PluginManifest:
             "category": self.category,
             "fiestaboard_version": self.fiestaboard_version,
             "supports_triggers": self.supports_triggers,
+            "plugin_type": self.plugin_type,
+            "transition_settings": self.transition_settings,
             "screenshots": [
                 {
                     "src": s.src,
@@ -639,6 +680,31 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
         for key, value in max_lengths.items():
             if not isinstance(value, int) or value < 1:
                 errors.append(f"max_lengths.{key} must be a positive integer")
+
+    # Validate plugin_type if present
+    plugin_type = data.get("plugin_type", "data")
+    if plugin_type not in ("data", "transition"):
+        errors.append(f"plugin_type must be 'data' or 'transition', got '{plugin_type}'")
+
+    # Validate transition_settings if present
+    transition_settings = data.get("transition_settings")
+    if transition_settings is not None:
+        if not isinstance(transition_settings, dict):
+            errors.append("transition_settings must be an object")
+        else:
+            for key, expected_type, min_value in (
+                ("min_interval_ms", int, 0),
+                ("max_frames", int, 1),
+                ("max_runtime_seconds", int, 1),
+            ):
+                if key in transition_settings:
+                    value = transition_settings[key]
+                    if not isinstance(value, expected_type) or isinstance(value, bool):
+                        errors.append(f"transition_settings.{key} must be an integer")
+                    elif value < min_value:
+                        errors.append(f"transition_settings.{key} must be >= {min_value}")
+            if "interruptible" in transition_settings and not isinstance(transition_settings["interruptible"], bool):
+                errors.append("transition_settings.interruptible must be a boolean")
 
     # Validate demo section if present
     demo = data.get("demo")

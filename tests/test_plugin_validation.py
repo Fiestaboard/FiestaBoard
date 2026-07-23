@@ -17,7 +17,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 PLUGINS_DIR = PROJECT_ROOT / "plugins"
 
 # Directories to skip
-SKIP_DIRECTORIES = {"_template", "__pycache__"}
+SKIP_DIRECTORIES = {"_template", "_template_transition", "__pycache__"}
 
 
 def get_plugin_directories() -> list[Path]:
@@ -701,7 +701,12 @@ class TestManifestCompleteness:
         assert not missing, "Plugins missing 'settings_schema':\n" + "\n".join(f"  - {m}" for m in missing)
 
     def test_all_manifests_have_variables(self):
-        """CI Test: All plugin manifests should define a variables section."""
+        """CI Test: All data plugin manifests should define a variables section.
+
+        Transition plugins (``plugin_type == 'transition'``) don't expose
+        template variables -- they shape board updates frame-by-frame --
+        so they're exempt from this requirement.
+        """
         plugins = get_plugin_directories()
 
         if not plugins:
@@ -715,6 +720,8 @@ class TestManifestCompleteness:
                 continue
 
             manifest = load_manifest(plugin_dir)
+            if manifest.get("plugin_type") == "transition":
+                continue
             if "variables" not in manifest:
                 missing.append(plugin_dir.name)
 
@@ -782,7 +789,7 @@ class TestPluginIconsAndCategories:
         if not plugins:
             pytest.skip("No plugins found")
 
-        valid_categories = {"art", "data", "transit", "weather", "entertainment", "utility", "home"}
+        valid_categories = {"art", "data", "transit", "weather", "entertainment", "utility", "home", "transition"}
         invalid: list[str] = []
 
         for plugin_dir in plugins:

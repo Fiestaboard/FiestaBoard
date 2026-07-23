@@ -85,6 +85,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, True)
+        mock_board_client.render.return_value = (True, True)
         mock_client_factory.return_value = mock_board_client
 
         board_settings = Mock()
@@ -117,6 +118,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, True)
+        mock_board_client.render.return_value = (True, True)
 
         board_settings = Mock()
         board_settings.boards = [
@@ -234,6 +236,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, False)
+        mock_board_client.render.return_value = (True, False)
 
         board_settings = Mock()
         board_settings.boards = [{"id": "board-1", "name": "Flagship", "device_type": "flagship"}]
@@ -295,6 +298,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, True)
+        mock_board_client.render.return_value = (True, True)
 
         board_settings = Mock()
         board_settings.boards = [{"id": "board-1", "name": "Flagship", "device_type": "flagship"}]
@@ -324,6 +328,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, True)
+        mock_board_client.render.return_value = (True, True)
 
         board_settings = Mock()
         board_settings.boards = [{"id": "note-1", "name": "Note", "device_type": "note"}]
@@ -343,6 +348,7 @@ class TestRenderTemplateLiveEndpoint:
         ):
             mock_t2b.return_value = [[0] * 15] * 3
             mock_board_client.send_characters.return_value = (True, True)
+            mock_board_client.render.return_value = (True, True)
 
             response = client.post(
                 "/templates/render/live",
@@ -411,6 +417,7 @@ class TestRenderTemplateLiveEndpoint:
 
         mock_board_client = Mock()
         mock_board_client.send_characters.return_value = (True, True)
+        mock_board_client.render.return_value = (True, True)
 
         board_settings = Mock()
         board_settings.boards = [{"id": "board-1", "name": "Flagship", "device_type": "flagship"}]

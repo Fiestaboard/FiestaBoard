@@ -42,6 +42,7 @@ def mock_board_client():
     with patch("src.api_server._get_board_client") as mock:
         client = Mock()
         client.send_characters.return_value = (True, True)
+        client.render.return_value = (True, True)
         client.test_connection.return_value = True
         client.clear_cache.return_value = None
         client.get_cache_status.return_value = {

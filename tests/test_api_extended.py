@@ -299,6 +299,7 @@ def mock_service():
         svc = Mock()
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
+        svc.vb_client.render.return_value = (True, True)
         svc.vb_client.get_cache_status.return_value = {"has_cached_text": False}
         svc.vb_client.clear_cache.return_value = None
         svc.vb_client.use_cloud = False
@@ -910,6 +911,7 @@ class TestTemplateEndpoints:
         with patch("src.api_server.board_client_from_board_dict") as mock_bcfbd:
             mock_board_client = Mock()
             mock_board_client.send_characters.return_value = (True, True)
+            mock_board_client.render.return_value = (True, True)
             mock_bcfbd.return_value = mock_board_client
             response = client.post(
                 "/templates/render/live",
@@ -1384,6 +1386,7 @@ class TestServiceLifecycle:
 
     def test_send_message_skipped(self, client, mock_service, mock_settings_service):
         mock_service.vb_client.send_characters.return_value = (True, False)
+        mock_service.vb_client.render.return_value = (True, False)
         with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 200
@@ -1391,6 +1394,7 @@ class TestServiceLifecycle:
 
     def test_send_message_failure(self, client, mock_service, mock_settings_service):
         mock_service.vb_client.send_characters.return_value = (False, False)
+        mock_service.vb_client.render.return_value = (False, False)
         with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 500

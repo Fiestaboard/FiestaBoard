@@ -76,6 +76,7 @@ def service_factory():
         svc = DisplayService()
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
+        svc.vb_client.render.return_value = (True, True)
 
         return svc, mocks, page_service, patches
 
@@ -113,7 +114,7 @@ class TestSilenceModeShortCircuit:
         # CRITICAL: plugin rendering must NOT happen during steady silence.
         page_service.preview_page.assert_not_called()
         # Board must not be touched.
-        svc.vb_client.send_characters.assert_not_called()
+        svc.vb_client.render.assert_not_called()
 
     def test_steady_silence_does_not_evaluate_triggers(self, service_factory):
         """Trigger plugins must not be polled during silence."""
@@ -141,12 +142,12 @@ class TestEnteringSilence:
             result = svc.check_and_send_active_page()
 
         assert result is True
-        svc.vb_client.send_characters.assert_called_once()
+        svc.vb_client.render.assert_called_once()
         assert svc._snoozing_message_sent is True
         assert svc._last_silence_mode_active is True
 
         # Verify SNOOZING was stamped on the board array (center row by default).
-        sent_array = svc.vb_client.send_characters.call_args.args[0]
+        sent_array = svc.vb_client.render.call_args.args[0]
         center_row = sent_array[len(sent_array) // 2]
         center_row_text = "".join(chr(c + 64) if 1 <= c <= 26 else "?" for c in center_row)
         assert "SNOOZING" in center_row_text
@@ -160,13 +161,13 @@ class TestEnteringSilence:
         with patch.object(svc, "_check_trigger_override", return_value=None):
             svc.check_and_send_active_page()
         page_service.preview_page.reset_mock()
-        svc.vb_client.send_characters.reset_mock()
+        svc.vb_client.render.reset_mock()
 
         # Next tick — still silenced.
         svc.check_and_send_active_page()
 
         page_service.preview_page.assert_not_called()
-        svc.vb_client.send_characters.assert_not_called()
+        svc.vb_client.render.assert_not_called()
 
 
 class TestExitingSilence:
@@ -188,11 +189,11 @@ class TestExitingSilence:
 
         # MUST re-send to clear the SNOOZING indicator.
         assert result is True
-        svc.vb_client.send_characters.assert_called_once()
+        svc.vb_client.render.assert_called_once()
         assert svc._snoozing_message_sent is False
         assert svc._last_silence_mode_active is False
 
         # Indicator should NOT be present on the freshly-sent board.
-        sent_array = svc.vb_client.send_characters.call_args.args[0]
+        sent_array = svc.vb_client.render.call_args.args[0]
         last_row_text = "".join(chr(c + 64) if 1 <= c <= 26 else "?" for c in sent_array[-1])
         assert "SNOOZING" not in last_row_text

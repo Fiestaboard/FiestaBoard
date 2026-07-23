@@ -3173,7 +3173,7 @@ async def send_message(request: MessageRequest):
         # Convert text to board array for proper character/color support
         board_array = text_to_board_array(request.text, rows=dims.rows, cols=dims.cols)
 
-        success, was_sent = service.vb_client.send_characters(
+        success, was_sent = service.vb_client.render(
             board_array,
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
@@ -3349,12 +3349,13 @@ async def send_welcome_message():
         dims = resolve_dimensions(device_type, notes_wide=nw, notes_tall=nt)
         board_array = text_to_board_array(welcome_text, rows=dims.rows, cols=dims.cols)
 
-        success, was_sent = board_client.send_characters(
+        success, was_sent = board_client.render(
             board_array,
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
             force=True,  # Force send even if cached
+            device_type=device_type,
         )
 
         if success:
@@ -4409,11 +4410,12 @@ async def send_display(display_type: str, target: str | None = None):
                 notes_tall = primary_board.get("notes_tall", 1)
             dims = resolve_dimensions(device_type, notes_wide, notes_tall)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-            success, was_sent = service.vb_client.send_characters(
+            success, was_sent = service.vb_client.render(
                 board_array,
                 strategy=transition.strategy,
                 step_interval_ms=transition.step_interval_ms,
                 step_size=transition.step_size,
+                device_type=device_type,
             )
             sent_to_board = was_sent
             if not success:
@@ -5241,13 +5243,266 @@ async def get_transition_settings():
     }
 
 
+def _ensure_transition_plugins_beta() -> None:
+    """Gate transition-plugin endpoints behind the beta flag.
+
+    The SDK is experimental and its contract may change.  Until the
+    operator opts in via Settings → Beta the endpoints respond 404 so
+    the feature is fully hidden -- no plugin picker, no preview page,
+    no surface area for users to start depending on something we may
+    reshape.
+    """
+    settings_service = get_settings_service()
+    beta = settings_service.get_beta_settings()
+    if not beta.transition_plugins_enabled:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Transition plugins are an experimental beta. Enable them "
+                "in Settings → Beta to use this endpoint."
+            ),
+        )
+
+
+def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
+    """Reject ``plugin:<id>`` strategies when the transition-plugin beta
+    flag is off.
+
+    Applied to page create / update so a page can't persist a plugin
+    strategy that the runtime won't actually honor.  Symmetric with the
+    settings-service guard on ``update_transition_settings``.
+    """
+    if not isinstance(strategy, str):
+        return
+    from .settings.service import TRANSITION_PLUGIN_PREFIX  # local: avoid cycle
+
+    if not strategy.startswith(TRANSITION_PLUGIN_PREFIX):
+        return
+    settings_service = get_settings_service()
+    if not settings_service.get_beta_settings().transition_plugins_enabled:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Transition plugins are an experimental beta. Enable them "
+                "in Settings → Beta before assigning a 'plugin:<id>' "
+                "strategy to a page."
+            ),
+        )
+
+
+@app.get("/transitions/plugins")
+async def list_transition_plugins():
+    """List enabled transition plugins available for selection.
+
+    Each entry includes the plugin id, display name, manifest metadata,
+    its ``settings_schema`` (so the UI can render a config form), and the
+    plugin's ``transition_settings`` caps.  Only enabled transition
+    plugins are returned -- disabled ones can't be invoked.
+
+    Gated behind ``beta.transition_plugins_enabled``.
+    """
+    _ensure_transition_plugins_beta()
+
+    from .plugins.base import TransitionPluginBase
+    from .plugins.registry import get_plugin_registry
+
+    registry = get_plugin_registry()
+    out = []
+    for plugin_id, plugin in registry._plugins.items():  # noqa: SLF001 - registry is in-process
+        if not isinstance(plugin, TransitionPluginBase):
+            continue
+        if not registry.is_enabled(plugin_id):
+            continue
+        manifest = registry.get_manifest(plugin_id)
+        if manifest is None:
+            continue
+        out.append({
+            "id": plugin_id,
+            "name": manifest.name,
+            "description": manifest.description,
+            "icon": manifest.icon,
+            "version": manifest.version,
+            "author": manifest.author,
+            "settings_schema": manifest.settings_schema,
+            "transition_settings": plugin.transition_settings,
+            "config": dict(plugin.config or {}),
+            "strategy": f"plugin:{plugin_id}",
+        })
+    out.sort(key=lambda e: e["name"].lower())
+    return {"plugins": out}
+
+
+@app.post("/transitions/preview")
+async def preview_transition(request: dict):
+    """Drive a transition plugin once and return its frame sequence.
+
+    Gated behind ``beta.transition_plugins_enabled`` -- see
+    ``_ensure_transition_plugins_beta``.
+    """
+    _ensure_transition_plugins_beta()
+    return await _preview_transition_impl(request)
+
+
+async def _preview_transition_impl(request: dict):
+    """Run a transition plugin once and return the resulting frame sequence.
+
+    Designed for the standalone /transitions test harness in the web UI.
+    Frames are generated in-process and returned as JSON; nothing is sent
+    to a real board.
+
+    Request body:
+      - plugin_id (str, required): the transition plugin to drive
+      - from_text (str, optional): text to render into the from-grid
+        (uses text_to_board_array).  Defaults to a blank grid.
+      - to_text (str, required): text to render into the to-grid
+      - config (dict, optional): per-run overrides for the plugin's
+        settings_schema fields.  Merged on top of the plugin's
+        currently-bound config.
+      - device_type (str, optional): "flagship" (default), "note", or
+        "note_array" (sized by notes_wide/notes_tall)
+      - notes_wide, notes_tall (int, optional): note-array geometry
+        (1-8 each; only used when device_type is "note_array")
+
+    Response:
+      ``{"frames": [{"grid": [[..]], "delay_ms": int}, ...],
+         "total_delay_ms": int, "capped": bool, "plugin_id": str}``
+
+    The runner's caps (max_frames, max_runtime_seconds, min_interval_ms)
+    are honored.  If the plugin exceeds either max_frames or
+    max_runtime_seconds the response is truncated and ``capped`` is set
+    to true so the UI can display a hint.
+
+    Iteration happens on a worker thread (``asyncio.to_thread``) so a
+    slow / runaway plugin generator cannot block FastAPI's event loop.
+    """
+    import asyncio
+
+    from .devices import MAX_NOTES_PER_AXIS, board_context_for
+    from .plugins.registry import get_plugin_registry
+    from .text_to_board import text_to_board_array
+
+    plugin_id = request.get("plugin_id")
+    if not plugin_id or not isinstance(plugin_id, str):
+        raise HTTPException(status_code=400, detail="plugin_id is required")
+
+    registry = get_plugin_registry()
+    plugin = registry.get_transition_plugin(plugin_id)
+    if plugin is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Transition plugin {plugin_id!r} not loaded or not enabled",
+        )
+
+    device_type = request.get("device_type", "flagship")
+    if device_type not in ("flagship", "note", "note_array"):
+        raise HTTPException(status_code=400, detail=f"Unknown device_type: {device_type}")
+    try:
+        notes_wide = int(request.get("notes_wide", 1))
+        notes_tall = int(request.get("notes_tall", 1))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="notes_wide/notes_tall must be integers") from exc
+    if not (1 <= notes_wide <= MAX_NOTES_PER_AXIS and 1 <= notes_tall <= MAX_NOTES_PER_AXIS):
+        raise HTTPException(
+            status_code=400,
+            detail=f"notes_wide/notes_tall must be between 1 and {MAX_NOTES_PER_AXIS}",
+        )
+    device = board_context_for(device_type, notes_wide=notes_wide, notes_tall=notes_tall)
+
+    from_text = request.get("from_text", "")
+    to_text = request.get("to_text", "")
+    from_grid = text_to_board_array(from_text, rows=device.rows, cols=device.cols)
+    to_grid = text_to_board_array(to_text, rows=device.rows, cols=device.cols)
+
+    # Merge override config on top of the plugin's currently-bound config.
+    config = dict(plugin.config or {})
+    overrides = request.get("config") or {}
+    if isinstance(overrides, dict):
+        config.update(overrides)
+
+    caps = plugin.transition_settings
+    max_frames = int(caps["max_frames"])
+    min_interval_ms = int(caps["min_interval_ms"])
+    max_runtime_s = int(caps["max_runtime_seconds"])
+
+    def _collect_frames() -> tuple[list, int, bool, str | None]:
+        """Run on a worker thread; returns (frames, total_delay, capped, error)."""
+        import time
+
+        frames: list = []
+        total_delay = 0
+        capped_flag = False
+        started = time.monotonic()
+        try:
+            for raw_frame in plugin.generate_frames(from_grid, to_grid, device, config):
+                if len(frames) >= max_frames:
+                    capped_flag = True
+                    break
+                if (time.monotonic() - started) >= max_runtime_s:
+                    capped_flag = True
+                    break
+                if isinstance(raw_frame, tuple) and len(raw_frame) == 2:
+                    grid, delay = raw_frame
+                else:
+                    grid, delay = raw_frame, 0
+                try:
+                    delay = int(delay or 0)
+                except (TypeError, ValueError):
+                    delay = 0
+                delay = max(delay, min_interval_ms)
+                if not isinstance(grid, list) or not grid or not isinstance(grid[0], list):
+                    continue
+                frames.append({"grid": grid, "delay_ms": delay})
+                total_delay += delay
+        except Exception as exc:
+            return frames, total_delay, capped_flag, str(exc)
+        return frames, total_delay, capped_flag, None
+
+    try:
+        # Bound the thread itself: if iteration takes longer than the cap +
+        # a small grace period, give up rather than letting a runaway
+        # plugin tie up a worker thread indefinitely.
+        frames, total_delay, capped, error = await asyncio.wait_for(
+            asyncio.to_thread(_collect_frames),
+            timeout=max_runtime_s + 5,
+        )
+    except TimeoutError as exc:
+        logger.warning(
+            "Transition preview for %s exceeded %ds; aborting",
+            plugin_id,
+            max_runtime_s,
+        )
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                f"Plugin {plugin_id!r} exceeded the {max_runtime_s}s "
+                "runtime cap and was aborted."
+            ),
+        ) from exc
+
+    if error is not None:
+        logger.warning("Transition preview failed for %s: %s", plugin_id, error)
+        raise HTTPException(status_code=500, detail=f"Plugin error: {error}")
+
+    return {
+        "plugin_id": plugin_id,
+        "device_type": device_type,
+        "frames": frames,
+        "frame_count": len(frames),
+        "total_delay_ms": total_delay,
+        "capped": capped,
+        "from_grid": from_grid,
+        "to_grid": to_grid,
+    }
+
+
 @app.put("/settings/transitions")
 async def update_transition_settings(request: dict):
     """
     Update transition animation settings.
 
     Body can include:
-    - strategy: One of column, reverse-column, edges-to-center, row, diagonal, random, or null
+    - strategy: One of column, reverse-column, edges-to-center, row, diagonal, random,
+                "plugin:<id>" to drive a transition plugin, or null to disable.
     - step_interval_ms: Delay between animation steps (ms), or null for default
     - step_size: How many columns/rows animate at once, or null for default
     """
@@ -5375,8 +5630,12 @@ async def set_active_page(request: dict):
 
                 dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
                 board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-                success, was_sent = service.vb_client.send_characters(
-                    board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
+                success, was_sent = service.vb_client.render(
+                    board_array,
+                    strategy=strategy,
+                    step_interval_ms=interval_ms,
+                    step_size=step_size,
+                    device_type=page.device_type,
                 )
                 sent_to_board = was_sent
                 if not success:
@@ -6018,6 +6277,9 @@ async def update_beta_settings(request: dict):
 
     Body may include:
     - https_enabled: bool — enable/disable the HTTPS (Beta) feature.
+    - transition_plugins_enabled: bool — enable/disable the experimental
+      transition-plugin system (frame-by-frame board animations). Takes
+      effect immediately; no restart required.
 
     Side effects:
     - When https_enabled flips to ``true``, a self-signed certificate is
@@ -6614,6 +6876,7 @@ async def create_page(page_data: PageCreate):
     - composite: Combine rows from multiple sources (set rows)
     - template: Custom templated content (set template)
     """
+    _reject_plugin_strategy_when_beta_off(page_data.transition_strategy)
     page_service = get_page_service()
 
     try:
@@ -6638,6 +6901,7 @@ async def get_page(page_id: str):
 @app.put("/pages/{page_id}")
 async def update_page(page_id: str, page_data: PageUpdate):
     """Update an existing page."""
+    _reject_plugin_strategy_when_beta_off(page_data.transition_strategy)
     page_service = get_page_service()
 
     try:
@@ -6719,8 +6983,11 @@ async def import_page(body: PageImportRequest):
     page_service = get_page_service()
     try:
         page_create = PageCreate(**{k: v for k, v in page_data.items() if k in PageCreate.model_fields})
+        _reject_plugin_strategy_when_beta_off(page_create.transition_strategy)
         page = page_service.create_page(page_create)
         return {"status": "success", "page": page.model_dump()}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
@@ -6965,8 +7232,12 @@ async def send_page(page_id: str, target: str | None = None, payload: dict | Non
             # Convert to board array with dimensions for page's device type (flagship vs note)
             dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-            success, was_sent = service.vb_client.send_characters(
-                board_array, strategy=strategy, step_interval_ms=interval_ms, step_size=step_size
+            success, was_sent = service.vb_client.render(
+                board_array,
+                strategy=strategy,
+                step_interval_ms=interval_ms,
+                step_size=step_size,
+                device_type=page.device_type,
             )
             sent_to_board = was_sent
             if not success:
@@ -7619,11 +7890,20 @@ async def render_template_live(request: dict):
                 board_array = text_to_board_array(rendered, rows=dims.rows, cols=dims.cols)
 
                 transition_settings = settings_service.get_transition_settings()
+                # Live editor sends are rapid-fire; a "plugin:<id>" system
+                # default would run a multi-second frame animation per edit
+                # (and this ad-hoc client has no transition runner attached).
+                # Fall back to an instant send for plugin strategies.
+                from .board_client import TRANSITION_PLUGIN_PREFIX
+
+                live_strategy = transition_settings.strategy
+                if isinstance(live_strategy, str) and live_strategy.startswith(TRANSITION_PLUGIN_PREFIX):
+                    live_strategy = None
                 try:
                     success, was_sent = await asyncio.to_thread(
                         client.send_characters,
                         board_array,
-                        strategy=transition_settings.strategy,
+                        strategy=live_strategy,
                         step_interval_ms=transition_settings.step_interval_ms,
                         step_size=transition_settings.step_size,
                         force=True,
