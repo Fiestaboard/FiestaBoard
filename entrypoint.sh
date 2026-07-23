@@ -153,15 +153,16 @@ configure_frame_headers() {
 # SPA's asset paths (`/assets/`, `/sw.js`, `/icons/`, `/manifest.json`,
 # `/favicon.ico`) and the API (`/api/`).
 #
-# Why this is safer than the Next.js setup we replaced: Vite emits
-# every asset URL as a string literal in the build output (HTML
-# `<link>`/`<script>` srcs, JS chunk import paths, CSS `url()`). There
-# is no analog of Next.js's React 19 `ReactDOM.preload()` that
-# constructs URLs at runtime from an empty build-time `assetPrefix`.
-# So sub_filter sees every URL and can rewrite it; no client-side
-# prototype patches of HTMLLinkElement / fetch / XMLHttpRequest are
-# needed. The four-fix chain (#913, #914, #915, #918) collapses to
-# this snippet.
+# Division of labor with the SPA: sub_filter rewrites the build-time
+# string literals it can see — asset URLs in HTML/JS/CSS bodies and,
+# crucially, the inlined React Router hydration literal
+# `"basename":"/"`. API request URLs are NOT rewritten here: the SPA
+# constructs them at runtime by concatenating a "/api" constant (no
+# trailing slash, so the `"/api/` patterns below never matched — the
+# API-404-under-Ingress bug). Instead the SPA reads the rewritten
+# basename back via web/src/lib/base-path.ts and prefixes its own
+# API calls. The `"/api/` rules below remain only as a fallback for
+# full-path literals.
 #
 # Direct deployments (X-Ingress-Path absent): the variable expands
 # to "", every substitution becomes a no-op self-rewrite, and the
@@ -211,7 +212,9 @@ sub_filter_once off;
 # literals baked at build time). CSS contains `@font-face` `url(...)`
 # and CSS `url(/assets/...)` references. Without these the SPA loads
 # under HA Ingress but lazy routes 404 against the host origin root.
-sub_filter_types application/javascript text/css application/json;
+# Both JS MIME types are listed: Debian nginx <= 1.26 maps `.js` to
+# application/javascript, newer mime.types map it to text/javascript.
+sub_filter_types application/javascript text/javascript text/css application/json;
 # Rewrite double-quoted ("/assets/"), single-quoted ('/assets/'), and
 # unquoted (CSS url(/assets/...) ) references. Same shape for /api/,
 # /sw.js, /registerSW.js, /icons/, /manifest.json, /favicon.ico —
@@ -223,6 +226,19 @@ sub_filter '"/sw.js' '"$http_x_ingress_path/sw.js';
 sub_filter "'/sw.js" "'$http_x_ingress_path/sw.js";
 sub_filter '"/registerSW.js' '"$http_x_ingress_path/registerSW.js';
 sub_filter "'/registerSW.js" "'$http_x_ingress_path/registerSW.js";
+# vite-plugin-pwa's generated registerSW.js registers the service worker
+# with a hard-coded root scope. A worker served from <prefix>/sw.js may
+# not claim scope "/", so without this rewrite SW registration silently
+# fails under Ingress. (Workbox precache entries are relative URLs that
+# resolve against the worker's own prefixed location, so they need no
+# rewriting of their own.)
+sub_filter "{ scope: '/' }" "{ scope: '$http_x_ingress_path/' }";
+# NOTE: keep the trailing slash in the /api patterns. The SPA now
+# prefixes its own API URLs at runtime (web/src/lib/base-path.ts reads
+# the rewritten React Router basename below), and its bundle contains a
+# quote-terminated "/api" literal. A no-slash `"/api"` sub_filter would
+# match that literal and double-prefix every request. These rules remain
+# only as a fallback for full-path literals emitted by third-party code.
 sub_filter '"/api/' '"$http_x_ingress_path/api/';
 sub_filter "'/api/" "'$http_x_ingress_path/api/";
 sub_filter '"/icons/' '"$http_x_ingress_path/icons/';
