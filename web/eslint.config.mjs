@@ -113,12 +113,17 @@ const eslintConfig = [
     },
   },
   {
-    // Guard against HA-Ingress regressions: hard-coded "/api" URLs bypass
-    // the runtime base-path prefix (lib/base-path.ts) and 404 behind
-    // Home Assistant Ingress — the exact bug in
-    // Fiestaboard/FiestaBoard-Home-Assistant-App#48. base-path.ts itself
-    // and mcp-settings.tsx (a display-only URL for external MCP clients
-    // that connect via the LAN port, never through Ingress) are exempt.
+    // Guard against HA-Ingress regressions (the exact bug in
+    // Fiestaboard/FiestaBoard-Home-Assistant-App#48): URLs that bypass the
+    // runtime base-path prefix (lib/base-path.ts) 404 behind Home Assistant
+    // Ingress. Two banned shapes:
+    //   1. Hard-coded "/api..." string/template literals — use apiUrl().
+    //   2. Root-relative literals passed to location.assign()/replace() or
+    //      assigned to location.href — hard navigations skip React Router's
+    //      basename handling, so they must go through appUrl().
+    // base-path.ts itself and mcp-settings.tsx (a display-only URL for
+    // external MCP clients that connect via the LAN port, never through
+    // Ingress) are exempt.
     files: ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
     ignores: ["src/__tests__/**", "src/lib/base-path.ts", "src/components/settings/mcp-settings.tsx"],
     rules: {
@@ -133,6 +138,30 @@ const eslintConfig = [
           selector: "TemplateElement[value.raw=/^\\u002Fapi(\\u002F|$)/]",
           message:
             'Hard-coded "/api" URLs break HA Ingress (issue #48). Build the URL with apiUrl() from "@/lib/base-path".',
+        },
+        {
+          selector:
+            ":matches(CallExpression[callee.object.property.name='location'], CallExpression[callee.object.name='location'])[callee.property.name=/^(assign|replace)$/] > Literal[value=/^\\u002F(?!\\u002F)/]",
+          message:
+            "Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from \"@/lib/base-path\".",
+        },
+        {
+          selector:
+            ":matches(CallExpression[callee.object.property.name='location'], CallExpression[callee.object.name='location'])[callee.property.name=/^(assign|replace)$/] > TemplateLiteral[quasis.0.value.raw=/^\\u002F(?!\\u002F)/]",
+          message:
+            "Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from \"@/lib/base-path\".",
+        },
+        {
+          selector:
+            "AssignmentExpression[left.property.name='href']:matches([left.object.property.name='location'], [left.object.name='location']) > Literal[value=/^\\u002F(?!\\u002F)/]",
+          message:
+            "Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from \"@/lib/base-path\".",
+        },
+        {
+          selector:
+            "AssignmentExpression[left.property.name='href']:matches([left.object.property.name='location'], [left.object.name='location']) > TemplateLiteral[quasis.0.value.raw=/^\\u002F(?!\\u002F)/]",
+          message:
+            "Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from \"@/lib/base-path\".",
         },
       ],
     },
