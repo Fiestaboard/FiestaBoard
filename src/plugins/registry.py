@@ -740,6 +740,13 @@ class PluginRegistry:
 
         plugin = self._plugins[plugin_id]
 
+        # Transition plugins animate sends; they have no data or template
+        # variables.  Data-oriented callers (variable discovery, display
+        # rendering, /plugins/{id}/data) sweep every enabled plugin, so
+        # answer cleanly instead of raising AttributeError on get_data.
+        if not isinstance(plugin, PluginBase):
+            return PluginResult(available=False, error=f"Plugin {plugin_id} is a transition plugin (no data)")
+
         try:
             return plugin.get_data(board)
         except Exception as e:

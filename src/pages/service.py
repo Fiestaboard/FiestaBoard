@@ -145,6 +145,9 @@ class PageService:
             template=data.template,
             line_metadata=data.line_metadata,
             duration_seconds=data.duration_seconds,
+            transition_strategy=data.transition_strategy,
+            transition_interval_ms=data.transition_interval_ms,
+            transition_step_size=data.transition_step_size,
             demo_plugin_id=data.demo_plugin_id,
             # PageCreate leaves W×H optional (None) — default to a single Note.
             notes_wide=data.notes_wide or 1,

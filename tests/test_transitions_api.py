@@ -270,3 +270,43 @@ def test_endpoints_404_when_beta_disabled(patched_registry):
         assert exc.value.status_code == 404
     finally:
         settings.update_beta_settings({"transition_plugins_enabled": True})
+
+
+# ---------------------------------------------------------------------------
+# Integration seams surfaced by mock-board e2e
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_plugin_data_answers_cleanly_for_transition_plugins(patched_registry):
+    """Data sweeps (variable discovery, displays) hit every enabled plugin;
+    a transition plugin must yield an unavailable result, not AttributeError."""
+    result = patched_registry.fetch_plugin_data("fake_typewriter")
+    assert result.available is False
+    assert "transition" in (result.error or "").lower()
+
+
+def test_page_create_persists_transition_fields(tmp_path):
+    """PageCreate.transition_* must survive create_page (not only update_page).
+
+    Regression: create_page dropped the three transition fields, so a page
+    created with a plugin strategy silently sent with no animation.
+    """
+    from src.pages.models import PageCreate
+    from src.pages.service import PageService
+    from src.pages.storage import PageStorage
+
+    service = PageService(storage=PageStorage(storage_file=str(tmp_path / "pages.json")))
+    page = service.create_page(
+        PageCreate(
+            name="Transition Persist",
+            type="template",
+            template=["HELLO"],
+            transition_strategy="plugin:fake_typewriter",
+            transition_interval_ms=50,
+            transition_step_size=2,
+        )
+    )
+    stored = service.get_page(page.id)
+    assert stored.transition_strategy == "plugin:fake_typewriter"
+    assert stored.transition_interval_ms == 50
+    assert stored.transition_step_size == 2

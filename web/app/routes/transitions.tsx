@@ -120,10 +120,13 @@ export default function TransitionsLabPage() {
     };
   }, [isPlaying, frameIdx, preview]);
 
-  // When a new preview lands, reset playback to the first frame.
+  // When a new preview lands, reset playback to the first frame and
+  // autoplay if it has frames.  Autoplay must happen HERE, not in
+  // runPreview — this effect runs after the setPreview render, so a
+  // setIsPlaying(true) in runPreview would be immediately reverted.
   useEffect(() => {
     setFrameIdx(0);
-    setIsPlaying(false);
+    setIsPlaying(Boolean(preview && preview.frames.length > 0));
   }, [preview]);
 
   const runPreview = useCallback(async () => {
@@ -149,9 +152,6 @@ export default function TransitionsLabPage() {
         config: parsedConfig,
       });
       setPreview(result);
-      if (result.frames.length > 0) {
-        setIsPlaying(true);
-      }
     } catch (err) {
       setPreviewError((err as Error).message);
     } finally {
