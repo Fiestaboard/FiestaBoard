@@ -14,7 +14,9 @@ import {
   Code2,
   Copy,
   Download,
+  Eraser,
   Palette,
+  Pencil,
   Redo2,
   Scissors,
   SquareFunction,
@@ -28,11 +30,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
+import { getBoardColor } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
 
 import type { LineAlignment } from "../TipTapTemplateEditor";
+import type { DrawBrush } from "../utils/draw-mode";
 import { insertTemplateContent } from "../utils/insertion";
 import { ColorPickerContent } from "./ColorPickerContent";
+import { DrawColorPickerContent } from "./DrawColorPickerContent";
 import { FormattingPickerContent } from "./FormattingPickerContent";
 import { ToolbarDropdown } from "./ToolbarDropdown";
 import { VariablePickerContent } from "./VariablePickerContent";
@@ -47,6 +52,10 @@ interface TemplateEditorToolbarProps {
   deviceType?: DeviceType;
   onSyncFromBoard?: () => void;
   syncFromBoardPending?: boolean;
+  drawMode?: boolean;
+  onDrawModeToggle?: () => void;
+  drawBrush?: DrawBrush;
+  onDrawBrushChange?: (brush: DrawBrush) => void;
 }
 
 export function TemplateEditorToolbar({
@@ -59,8 +68,14 @@ export function TemplateEditorToolbar({
   deviceType,
   onSyncFromBoard,
   syncFromBoardPending = false,
+  drawMode = false,
+  onDrawModeToggle,
+  drawBrush,
+  onDrawBrushChange,
 }: TemplateEditorToolbarProps) {
   const t = useTranslations("templateEditor");
+  const editingDisabled = !!drawMode;
+  const effectiveBrush: DrawBrush = drawBrush ?? "red";
   const { data: templateVars } = useQuery({
     queryKey: ["template-variables"],
     queryFn: api.getTemplateVariables,
@@ -240,6 +255,64 @@ export function TemplateEditorToolbar({
     // layout and the cursor briefly hovers a different button.
     <TooltipProvider skipDelayDuration={0}>
       <div className={cn("flex items-center gap-1 p-2 border rounded-t-md bg-background", "flex-wrap", className)}>
+        {/* Draw Mode Toggle + Brush Picker */}
+        {onDrawModeToggle && (
+          <>
+            <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={onDrawModeToggle}
+                    data-testid="draw-mode-toggle"
+                    aria-pressed={drawMode}
+                    className={cn(
+                      "px-2 py-1.5 transition-colors",
+                      drawMode ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                    )}
+                    aria-label={drawMode ? t("drawModeActive") : t("drawMode")}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{drawMode ? t("drawModeActive") : t("drawMode")}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {drawMode && (
+                <ToolbarDropdown
+                  label={t("drawBrush")}
+                  data-testid="draw-brush-dropdown"
+                  icon={
+                    effectiveBrush === "eraser" ? (
+                      <Eraser className="w-4 h-4" />
+                    ) : (
+                      <span
+                        className="block h-4 w-4 rounded"
+                        style={{ backgroundColor: getBoardColor(effectiveBrush) }}
+                      />
+                    )
+                  }
+                >
+                  {(close) => (
+                    <DrawColorPickerContent
+                      current={effectiveBrush}
+                      onSelect={(brush) => {
+                        onDrawBrushChange?.(brush);
+                        close();
+                      }}
+                    />
+                  )}
+                </ToolbarDropdown>
+              )}
+            </div>
+
+            {/* Divider after draw controls */}
+            <div className="h-6 w-px bg-border mx-1" />
+          </>
+        )}
+
         {/* Undo/Redo Controls */}
         <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
           <Tooltip>
@@ -294,10 +367,10 @@ export function TemplateEditorToolbar({
               <button
                 type="button"
                 onClick={handleCut}
-                disabled={!hasSelection}
+                disabled={!hasSelection || editingDisabled}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  hasSelection ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
+                  hasSelection && !editingDisabled ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
                   "border-r border-border",
                 )}
                 aria-label="Cut"
@@ -315,10 +388,10 @@ export function TemplateEditorToolbar({
               <button
                 type="button"
                 onClick={handleCopy}
-                disabled={!hasSelection}
+                disabled={!hasSelection || editingDisabled}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  hasSelection ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
+                  hasSelection && !editingDisabled ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
                   "border-r border-border",
                 )}
                 aria-label="Copy"
@@ -336,10 +409,10 @@ export function TemplateEditorToolbar({
               <button
                 type="button"
                 onClick={handlePaste}
-                disabled={!hasClipboardContent}
+                disabled={!hasClipboardContent || editingDisabled}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  hasClipboardContent ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
+                  hasClipboardContent && !editingDisabled ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
                 )}
                 aria-label="Paste"
               >
@@ -357,7 +430,7 @@ export function TemplateEditorToolbar({
 
         {/* Variables Dropdown */}
         {hasVariables ? (
-          <ToolbarDropdown label={t("variables")} icon={<Code2 className="w-4 h-4" />}>
+          <ToolbarDropdown label={t("variables")} icon={<Code2 className="w-4 h-4" />} disabled={editingDisabled}>
             {(close) => (
               <VariablePickerContent
                 onInsert={(variable) => {
@@ -391,7 +464,7 @@ export function TemplateEditorToolbar({
 
         {/* Colors Dropdown */}
         {hasColors && (
-          <ToolbarDropdown label={t("colors")} icon={<Palette className="w-4 h-4" />}>
+          <ToolbarDropdown label={t("colors")} icon={<Palette className="w-4 h-4" />} disabled={editingDisabled}>
             {(close) => (
               <ColorPickerContent
                 onInsert={(color) => {
@@ -406,7 +479,7 @@ export function TemplateEditorToolbar({
 
         {/* Formatting Dropdown */}
         {hasFormatting && (
-          <ToolbarDropdown label={t("formatting")} icon={<Type className="w-4 h-4" />}>
+          <ToolbarDropdown label={t("formatting")} icon={<Type className="w-4 h-4" />} disabled={editingDisabled}>
             {(close) => (
               <FormattingPickerContent
                 formatting={templateVars?.formatting}
@@ -434,9 +507,11 @@ export function TemplateEditorToolbar({
                   })
                   .run();
               }}
+              disabled={editingDisabled}
               className={cn(
                 "flex items-center gap-1 px-2 py-1.5 rounded-md text-sm font-medium",
-                "hover:bg-muted/50 transition-colors",
+                "transition-colors",
+                editingDisabled ? "opacity-60 cursor-not-allowed" : "hover:bg-muted/50",
               )}
               aria-label={t("insertFormula")}
             >
@@ -454,10 +529,15 @@ export function TemplateEditorToolbar({
             <button
               type="button"
               onClick={onWrapToggle}
+              disabled={editingDisabled}
               className={cn(
                 "flex items-center justify-center p-1.5 rounded-md transition-colors",
                 "border border-transparent",
-                currentWrapEnabled ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                editingDisabled
+                  ? "opacity-60 cursor-not-allowed"
+                  : currentWrapEnabled
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted/50",
               )}
               aria-label={t("toggleWrap")}
             >
@@ -479,9 +559,14 @@ export function TemplateEditorToolbar({
               <button
                 type="button"
                 onClick={() => handleAlignmentClick("left")}
+                disabled={editingDisabled}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  currentAlignment === "left" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                  editingDisabled
+                    ? "opacity-60 cursor-not-allowed"
+                    : currentAlignment === "left"
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted/50",
                 )}
                 aria-label={t("alignLeft")}
               >
@@ -496,9 +581,14 @@ export function TemplateEditorToolbar({
               <button
                 type="button"
                 onClick={() => handleAlignmentClick("center")}
+                disabled={editingDisabled}
                 className={cn(
                   "px-2 py-1.5 border-x border-border transition-colors",
-                  currentAlignment === "center" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                  editingDisabled
+                    ? "opacity-60 cursor-not-allowed"
+                    : currentAlignment === "center"
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted/50",
                 )}
                 aria-label={t("alignCenter")}
               >
@@ -513,9 +603,14 @@ export function TemplateEditorToolbar({
               <button
                 type="button"
                 onClick={() => handleAlignmentClick("right")}
+                disabled={editingDisabled}
                 className={cn(
                   "px-2 py-1.5 transition-colors",
-                  currentAlignment === "right" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                  editingDisabled
+                    ? "opacity-60 cursor-not-allowed"
+                    : currentAlignment === "right"
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted/50",
                 )}
                 aria-label={t("alignRight")}
               >
@@ -534,11 +629,11 @@ export function TemplateEditorToolbar({
                 <button
                   type="button"
                   onClick={onSyncFromBoard}
-                  disabled={syncFromBoardPending}
+                  disabled={syncFromBoardPending || editingDisabled}
                   className={cn(
                     "flex items-center justify-center p-1.5 rounded-md transition-colors",
                     "hover:bg-muted/50 border border-transparent",
-                    syncFromBoardPending && "opacity-60 cursor-not-allowed",
+                    (syncFromBoardPending || editingDisabled) && "opacity-60 cursor-not-allowed",
                   )}
                   aria-label={t("syncFromBoard")}
                 >
