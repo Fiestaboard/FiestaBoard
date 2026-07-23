@@ -22,10 +22,15 @@ interface DrawableBoardPreviewProps {
   children: ReactNode;
 }
 
-function cellAtPoint(x: number, y: number): StrokeCell | null {
+function cellAtPoint(wrapper: HTMLElement, x: number, y: number): StrokeCell | null {
   const el = document.elementFromPoint(x, y);
   const tile = el?.closest("[data-row][data-col]") as HTMLElement | null;
-  if (!tile) return null;
+  // Pointer capture means move/up events keep firing on this wrapper even
+  // when the pointer has physically drifted over some other board preview
+  // elsewhere on the page (e.g. the AI chat drawer's inline previews, which
+  // also render data-row/data-col tiles). Reject hits outside this surface
+  // so a drag never paints another preview's coordinates into this stroke.
+  if (!tile || !wrapper.contains(tile)) return null;
   const row = Number(tile.dataset.row);
   const col = Number(tile.dataset.col);
   if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
@@ -74,7 +79,7 @@ export function DrawableBoardPreview({ active, onStrokePreview, onStrokeCommit, 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!active || e.button !== 0) return;
     if (strokeRef.current) return; // a stroke is already in progress — ignore other pointers
-    const cell = cellAtPoint(e.clientX, e.clientY);
+    const cell = cellAtPoint(e.currentTarget, e.clientX, e.clientY);
     if (!cell) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -85,7 +90,7 @@ export function DrawableBoardPreview({ active, onStrokePreview, onStrokeCommit, 
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!strokeRef.current || e.pointerId !== pointerIdRef.current) return;
-    const cell = cellAtPoint(e.clientX, e.clientY);
+    const cell = cellAtPoint(e.currentTarget, e.clientX, e.clientY);
     if (!cell) return;
     const key = `${cell.row}:${cell.col}`;
     if (!strokeRef.current.has(key)) {
@@ -103,6 +108,9 @@ export function DrawableBoardPreview({ active, onStrokePreview, onStrokeCommit, 
     const cells = [...strokeRef.current.values()];
     strokeRef.current = null;
     pointerIdRef.current = null;
+    // Clear preview state before committing so a consumer that forgets to
+    // clear it itself doesn't get left with a stuck ghost stroke.
+    onStrokePreview([]);
     onStrokeCommit(cells);
   };
 
