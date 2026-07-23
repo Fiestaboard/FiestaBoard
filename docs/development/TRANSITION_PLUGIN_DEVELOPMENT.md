@@ -14,9 +14,11 @@ This is a different plugin type from the data plugins documented in [PLUGIN_DEVE
 ## Quick Start
 
 1. Copy the template:
+
    ```bash
    cp -r plugins/_template_transition plugins/my_transition
    ```
+
 2. Edit `plugins/my_transition/manifest.json`:
    - Set `id` to `my_transition` (must match the directory)
    - Set `plugin_type` to `"transition"` (required)
