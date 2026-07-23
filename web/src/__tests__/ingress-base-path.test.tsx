@@ -111,9 +111,7 @@ describe("API URLs under HA Ingress (issue #48)", () => {
   });
 
   it("generateAiPage's bespoke fetch carries the ingress prefix", async () => {
-    await api.generateAiPage({ prompt: "p", device_type: "flagship" } as Parameters<
-      typeof api.generateAiPage
-    >[0]);
+    await api.generateAiPage({ prompt: "p", device_type: "flagship" } as Parameters<typeof api.generateAiPage>[0]);
     expect(requestedUrls).toContain(`${INGRESS_PREFIX}/api/pages/ai/generate`);
   });
 
@@ -176,9 +174,7 @@ describe("API URLs under HA Ingress (issue #48)", () => {
     // The redirect target is app-relative (the router re-applies the
     // basename after login), while the /login document URL itself
     // must carry the ingress prefix to reach the SPA at all.
-    expect(window.location.assign).toHaveBeenCalledWith(
-      `${INGRESS_PREFIX}/login?redirect=%2Fsettings`,
-    );
+    expect(window.location.assign).toHaveBeenCalledWith(`${INGRESS_PREFIX}/login?redirect=%2Fsettings`);
   });
 
   it("does not redirect-loop on the login page under ingress", async () => {

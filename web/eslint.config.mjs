@@ -143,25 +143,25 @@ const eslintConfig = [
           selector:
             ":matches(CallExpression[callee.object.property.name='location'], CallExpression[callee.object.name='location'])[callee.property.name=/^(assign|replace)$/] > Literal[value=/^\\u002F(?!\\u002F)/]",
           message:
-            "Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from \"@/lib/base-path\".",
+            'Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from "@/lib/base-path".',
         },
         {
           selector:
             ":matches(CallExpression[callee.object.property.name='location'], CallExpression[callee.object.name='location'])[callee.property.name=/^(assign|replace)$/] > TemplateLiteral[quasis.0.value.raw=/^\\u002F(?!\\u002F)/]",
           message:
-            "Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from \"@/lib/base-path\".",
+            'Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from "@/lib/base-path".',
         },
         {
           selector:
             "AssignmentExpression[left.property.name='href']:matches([left.object.property.name='location'], [left.object.name='location']) > Literal[value=/^\\u002F(?!\\u002F)/]",
           message:
-            "Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from \"@/lib/base-path\".",
+            'Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from "@/lib/base-path".',
         },
         {
           selector:
             "AssignmentExpression[left.property.name='href']:matches([left.object.property.name='location'], [left.object.name='location']) > TemplateLiteral[quasis.0.value.raw=/^\\u002F(?!\\u002F)/]",
           message:
-            "Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from \"@/lib/base-path\".",
+            'Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from "@/lib/base-path".',
         },
       ],
     },
