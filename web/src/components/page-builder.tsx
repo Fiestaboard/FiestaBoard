@@ -6,11 +6,16 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
+import type { StrokeCell } from "@/components/drawable-board-preview";
+import { DrawableBoardPreview } from "@/components/drawable-board-preview";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import type { TipTapTemplateEditorHandle } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
 // Direct import – bypasses next/dynamic chunk caching issues in dev mode.
 // TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
 import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
+import type { CellPaint, DrawBrush } from "@/components/tiptap-template-editor/utils/draw-mode";
+import { isPositionalLine, paintLine, renderPositionalLine } from "@/components/tiptap-template-editor/utils/draw-mode";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -153,6 +158,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [_pendingPreview, setPendingPreview] = useState<string | null>(null); // Preview waiting to be shown after transition
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
+
+  // Pencil draw-mode state — see handleStrokeCommit / drawPreviewMessage
+  // below for how a painted stroke flows back into templateLines.
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawBrush, setDrawBrush] = useState<DrawBrush>("red");
+  const [strokePreviewCells, setStrokePreviewCells] = useState<StrokeCell[]>([]);
+  const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
 
   // Snapshot of the page state as loaded from the server, used to detect unsaved changes.
   const [savedSnapshot, setSavedSnapshot] = useState<{
@@ -373,6 +385,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   const handleEditorModeChange = useCallback((mode: "rich" | "plain") => {
     setEditorMode(mode);
+    setDrawMode(false);
     try {
       localStorage.setItem(EDITOR_MODE_KEY, mode);
     } catch {}
@@ -1159,6 +1172,104 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     }
   }, [boardSettings?.boards, selectedBoardId]);
 
+  // Draw mode: a committed stroke is applied straight to the editor's live
+  // ProseMirror doc (one undo step), which fires onChange -> setTemplateLines
+  // on its own — no separate setTemplateLines call needed here. Painted rows
+  // are positional, so force left alignment + wrap off so the client-side
+  // preview composition below (and the server render on save) don't
+  // reinterpret the painted cells.
+  const handleStrokeCommit = useCallback(
+    (cells: StrokeCell[]) => {
+      setStrokePreviewCells([]);
+      const color = drawBrush === "eraser" ? null : drawBrush;
+      const rows = tipTapRef.current?.applyStroke(cells, color) ?? [];
+      if (rows.length === 0) return;
+      // Painted lines are positional: force left alignment + wrap off.
+      setLineAlignments((prev) => {
+        const next = [...prev];
+        for (const r of rows) next[r] = "left";
+        return next;
+      });
+      setLineWrapEnabled((prev) => {
+        const next = [...prev];
+        for (const r of rows) next[r] = false;
+        return next;
+      });
+    },
+    [drawBrush],
+  );
+
+  // Draw-mode preview composition (client-side, instant — no server
+  // round-trip for painted rows). Falls back to the server-rendered preview
+  // for rows that aren't locally renderable (dynamic content, non-left
+  // alignment, or wrap enabled).
+  const drawPreviewMessage = useMemo(() => {
+    if (!drawMode) return null;
+    const serverLines = (preview ?? lastPreview ?? "").split("\n");
+    const strokeByRow = new Map<number, CellPaint[]>();
+    const strokeColor = drawBrush === "eraser" ? null : drawBrush;
+    for (const c of strokePreviewCells) {
+      const arr = strokeByRow.get(c.row) ?? [];
+      arr.push({ col: c.col, color: strokeColor });
+      strokeByRow.set(c.row, arr);
+    }
+    const out: string[] = [];
+    for (let r = 0; r < dims.rows; r++) {
+      const tpl = templateLines[r] ?? "";
+      const strokePaints = strokeByRow.get(r);
+      const isLocallyRenderable =
+        isPositionalLine(tpl) && (lineAlignments[r] ?? "left") === "left" && !(lineWrapEnabled[r] ?? false);
+      if (strokePaints) {
+        // Preview exactly what committing this stroke will produce
+        // (including variable stripping + left alignment).
+        out.push(renderPositionalLine(paintLine(tpl, strokePaints, dims.cols)));
+      } else if (isLocallyRenderable) {
+        out.push(renderPositionalLine(tpl));
+      } else {
+        out.push(serverLines[r] ?? "");
+      }
+    }
+    return out.join("\n");
+  }, [
+    drawMode,
+    strokePreviewCells,
+    drawBrush,
+    templateLines,
+    lineAlignments,
+    lineWrapEnabled,
+    preview,
+    lastPreview,
+    dims.rows,
+    dims.cols,
+  ]);
+
+  // Keyboard shortcuts while drawing: Esc exits; undo/redo work even though
+  // the editor itself is visually hidden (and thus not focused) in draw mode.
+  useEffect(() => {
+    if (!drawMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === "Escape") {
+        setDrawMode(false);
+        return;
+      }
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) {
+        e.preventDefault();
+        tipTapRef.current?.undo();
+      } else if (k === "y" || (k === "z" && e.shiftKey)) {
+        e.preventDefault();
+        tipTapRef.current?.redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawMode]);
+
   if (pageId && loadingPage) {
     return (
       <Card>
@@ -1354,6 +1465,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <div>
                     {/* Template editor with device-specific dimensions */}
                     <TipTapTemplateEditor
+                      ref={tipTapRef}
                       value={templateLines.join("\n")}
                       onChange={(newValue) => {
                         if (isUpdatingWrap.current) {
@@ -1430,6 +1542,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       deviceType={deviceType}
                       onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
                       syncFromBoardPending={syncFromBoardMutation.isPending}
+                      drawMode={drawMode}
+                      onDrawModeToggle={() => setDrawMode((v) => !v)}
+                      drawBrush={drawBrush}
+                      onDrawBrushChange={setDrawBrush}
                     />
                   </div>
                 ) : (
@@ -1480,7 +1596,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           locked once the page is saved (converting saved content
                           between 6×22 and 3×15 is lossy, so that stays out of scope). */}
                       {!pageId && (
-                        <Select value={deviceType} onValueChange={(v) => setDeviceType(v as DeviceType)}>
+                        <Select
+                          value={deviceType}
+                          onValueChange={(v) => {
+                            setDeviceType(v as DeviceType);
+                            setDrawMode(false);
+                          }}
+                        >
                           <SelectTrigger
                             className="h-7 w-auto gap-1 px-2 text-xs"
                             aria-label={t("deviceTypeSwitcherAriaLabel")}
@@ -1523,41 +1645,57 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </div>
                   </div>
                   <div className="flex justify-center">
-                    <ScaledBoardDisplay
-                      message={(() => {
-                        // Use new loading pattern: keep previous message visible during loading/transition
-                        // This allows tiles to cycle through characters (like real FiestaBoard)
-                        // instead of showing legacy FlipTiles
+                    <DrawableBoardPreview
+                      active={drawMode}
+                      onStrokePreview={setStrokePreviewCells}
+                      onStrokeCommit={handleStrokeCommit}
+                    >
+                      <ScaledBoardDisplay
+                        message={
+                          drawMode
+                            ? drawPreviewMessage
+                            : (() => {
+                                // Use new loading pattern: keep previous message visible during loading/transition
+                                // This allows tiles to cycle through characters (like real FiestaBoard)
+                                // instead of showing legacy FlipTiles
 
-                        const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                        const isPending = previewMutation.isPending;
-                        const shouldIgnore = shouldIgnoreNextResponse.current;
+                                const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+                                const isPending = previewMutation.isPending;
+                                const shouldIgnore = shouldIgnoreNextResponse.current;
 
-                        if (isTransitioning && lastPreview) return lastPreview;
-                        if (preview !== null) return preview;
-                        if (!hasContent && !isPending && !shouldIgnore) return "";
-                        if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
-                        if (isPending && hasContent && !shouldIgnore) return "";
-                        return null;
-                      })()}
-                      isLoading={(() => {
-                        const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                        const isPending = previewMutation.isPending;
-                        const shouldIgnore = shouldIgnoreNextResponse.current;
+                                if (isTransitioning && lastPreview) return lastPreview;
+                                if (preview !== null) return preview;
+                                if (!hasContent && !isPending && !shouldIgnore) return "";
+                                if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
+                                if (isPending && hasContent && !shouldIgnore) return "";
+                                return null;
+                              })()
+                        }
+                        isLoading={
+                          drawMode
+                            ? false
+                            : (() => {
+                                const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+                                const isPending = previewMutation.isPending;
+                                const shouldIgnore = shouldIgnoreNextResponse.current;
 
-                        if (isTransitioning) return true;
-                        if (preview !== null) return false;
-                        if (!hasContent) return false;
-                        if (shouldIgnore) return false;
-                        return isPending && hasContent;
-                      })()}
-                      size="md"
-                      boardType={effectiveBoardColor}
-                      deviceType={deviceType}
-                      notesWide={notesWide}
-                      notesTall={notesTall}
-                    />
+                                if (isTransitioning) return true;
+                                if (preview !== null) return false;
+                                if (!hasContent) return false;
+                                if (shouldIgnore) return false;
+                                return isPending && hasContent;
+                              })()
+                        }
+                        isStatic={drawMode}
+                        size="md"
+                        boardType={effectiveBoardColor}
+                        deviceType={deviceType}
+                        notesWide={notesWide}
+                        notesTall={notesTall}
+                      />
+                    </DrawableBoardPreview>
                   </div>
+                  {drawMode && <p className="mt-1 text-center text-xs text-muted-foreground">{t("drawModeHint")}</p>}
 
                   {/* Live output controls */}
                   <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
