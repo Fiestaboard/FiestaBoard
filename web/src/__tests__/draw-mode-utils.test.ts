@@ -33,6 +33,9 @@ describe("lineToCells", () => {
   it("keeps non-color single-bracket tokens as literal characters", () => {
     expect(lineToCells("{sun}")).toEqual(["{", "s", "u", "n", "}"]);
   });
+  it("does not treat inherited object keys as colors", () => {
+    expect(lineToCells("{{constructor}}X")).toEqual(["X"]);
+  });
 });
 
 describe("cellsToLine", () => {
@@ -53,6 +56,9 @@ describe("isPositionalLine", () => {
     expect(isPositionalLine("A{{weather.temp}}")).toBe(false);
     expect(isPositionalLine("{{fill_space}}")).toBe(false);
     expect(isPositionalLine("{{= 1 }}")).toBe(false);
+  });
+  it("is false for inherited object keys", () => {
+    expect(isPositionalLine("{{constructor}}")).toBe(false);
   });
 });
 

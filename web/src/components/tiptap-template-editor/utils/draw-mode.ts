@@ -48,7 +48,7 @@ export function lineToCells(line: string): Cell[] {
     const dbl = remaining.match(/^\{\{([^}]+)\}\}/);
     if (dbl) {
       const content = dbl[1].trim().toLowerCase();
-      if (content in BOARD_COLORS) {
+      if (Object.hasOwn(BOARD_COLORS, content)) {
         cells.push(colorCell(content as BoardColorName));
       }
       // Non-color {{...}} tokens are dynamic — dropped.
@@ -60,7 +60,7 @@ export function lineToCells(line: string): Cell[] {
     if (single) {
       const token = single[1].toLowerCase();
       const numeric = Number(token);
-      if (token in BOARD_COLORS) {
+      if (Object.hasOwn(BOARD_COLORS, token)) {
         cells.push(colorCell(token as BoardColorName));
         remaining = remaining.slice(single[0].length);
         continue;
@@ -90,7 +90,7 @@ export function isPositionalLine(line: string): boolean {
   const re = /\{\{([^}]+)\}\}/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(line))) {
-    if (!(match[1].trim().toLowerCase() in BOARD_COLORS)) return false;
+    if (!Object.hasOwn(BOARD_COLORS, match[1].trim().toLowerCase())) return false;
   }
   return true;
 }
