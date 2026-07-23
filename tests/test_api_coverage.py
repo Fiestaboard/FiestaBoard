@@ -457,7 +457,7 @@ class TestSendWelcomeMessage:
             mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
-            board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 30 for _ in range(3)]
@@ -496,7 +496,7 @@ class TestSendWelcomeMessage:
             mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
-            board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 15 for _ in range(6)]

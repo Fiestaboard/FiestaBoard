@@ -161,13 +161,13 @@ class TestUpdateSecondaryBoards:
     def test_secondary_board_receives_its_scheduled_page(self, service):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
         client = MagicMock()
-        client.send_characters.return_value = (True, True)
+        client.render.return_value = (True, True)
         service.board_clients = {"b1": MagicMock(), "b2": client}
 
         self._run(service, boards)
 
-        client.send_characters.assert_called_once()
-        rows = client.send_characters.call_args.args[0]
+        client.render.assert_called_once()
+        rows = client.render.call_args.args[0]
         assert len(rows) == 6 and len(rows[0]) == 22  # flagship dimensions
         assert service._secondary_last_sent["b2"] == ("page-2", "HELLO BOARD TWO")
 
@@ -175,23 +175,23 @@ class TestUpdateSecondaryBoards:
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
         primary = MagicMock()
         secondary = MagicMock()
-        secondary.send_characters.return_value = (True, True)
+        secondary.render.return_value = (True, True)
         service.board_clients = {"b1": primary, "b2": secondary}
 
         self._run(service, boards)
 
-        primary.send_characters.assert_not_called()
+        primary.render.assert_not_called()
 
     def test_unchanged_content_is_not_resent(self, service):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
         client = MagicMock()
-        client.send_characters.return_value = (True, True)
+        client.render.return_value = (True, True)
         service.board_clients = {"b2": client}
 
         self._run(service, boards)
         self._run(service, boards)
 
-        assert client.send_characters.call_count == 1
+        assert client.render.call_count == 1
 
     def test_paused_secondary_board_is_skipped(self, service):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
@@ -200,7 +200,7 @@ class TestUpdateSecondaryBoards:
 
         self._run(service, boards, paused=("b2",))
 
-        client.send_characters.assert_not_called()
+        client.render.assert_not_called()
 
     def test_schedule_disabled_secondary_board_is_skipped(self, service):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
@@ -209,7 +209,7 @@ class TestUpdateSecondaryBoards:
 
         self._run(service, boards, schedule_off=("b2",))
 
-        client.send_characters.assert_not_called()
+        client.render.assert_not_called()
 
     def test_disabled_secondary_board_is_skipped(self, service):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001, enabled=False)]
@@ -218,7 +218,7 @@ class TestUpdateSecondaryBoards:
 
         self._run(service, boards)
 
-        client.send_characters.assert_not_called()
+        client.render.assert_not_called()
 
     def test_no_matching_schedule_sends_nothing(self, service):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
@@ -227,7 +227,7 @@ class TestUpdateSecondaryBoards:
 
         self._run(service, boards, active={"b2": None})
 
-        client.send_characters.assert_not_called()
+        client.render.assert_not_called()
 
     def test_silence_mode_silences_secondary_boards(self, service):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
@@ -243,7 +243,7 @@ class TestUpdateSecondaryBoards:
             mock_config.is_silence_mode_active.return_value = True
             service._update_secondary_boards()
 
-        client.send_characters.assert_not_called()
+        client.render.assert_not_called()
 
     def test_single_board_is_a_noop(self, service):
         boards = [_board("b1", "One")]
@@ -252,12 +252,12 @@ class TestUpdateSecondaryBoards:
 
         self._run(service, boards)
 
-        client.send_characters.assert_not_called()
+        client.render.assert_not_called()
 
     def test_send_failure_does_not_cache_content(self, service):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
         client = MagicMock()
-        client.send_characters.return_value = (False, False)
+        client.render.return_value = (False, False)
         service.board_clients = {"b2": client}
 
         self._run(service, boards)

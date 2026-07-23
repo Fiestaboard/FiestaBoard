@@ -416,7 +416,7 @@ class TestTemporaryOverrideDuringSilence:
             sent = service.check_and_send_active_page()
 
         assert sent is True
-        args, _ = service.vb_client.send_characters.call_args
+        args, _ = service.vb_client.render.call_args
         text = _decode_board_text(args[0]).strip()
         assert "HELLO" in text
         assert "SNOOZING" not in text
@@ -434,8 +434,8 @@ class TestTemporaryOverrideDuringSilence:
             sent = service.check_and_send_active_page()
 
         assert sent is True
-        service.vb_client.send_characters.assert_called_once()
-        args, _ = service.vb_client.send_characters.call_args
+        service.vb_client.render.assert_called_once()
+        args, _ = service.vb_client.render.call_args
         assert "HELLO" in _decode_board_text(args[0])
 
     def test_no_override_still_silences(self, service):
@@ -450,7 +450,7 @@ class TestTemporaryOverrideDuringSilence:
         ):
             service.check_and_send_active_page()
 
-        args, _ = service.vb_client.send_characters.call_args
+        args, _ = service.vb_client.render.call_args
         assert _decode_board_text(args[0]).strip() == "SNOOZING"
 
 

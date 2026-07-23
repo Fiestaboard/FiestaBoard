@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  FlaskConical,
   GalleryHorizontalEnd,
   HelpCircle,
   Home,
@@ -54,6 +55,10 @@ const primaryItems: NavItem[] = [
   { key: "schedule", href: "/schedule", icon: Calendar },
   { key: "integrations", href: "/integrations", icon: Puzzle },
 ];
+
+// Shown only while the transition-plugins beta flag is on (see
+// `showTransitionsLab` below) — the whole feature is invisible otherwise.
+const transitionsLabItem: NavItem = { key: "transitions", href: "/transitions", icon: FlaskConical };
 
 const secondaryItems: NavItem[] = [
   { key: "picks", href: "/picks", icon: Award },
@@ -187,6 +192,13 @@ export function NavigationSidebar() {
     queryFn: () => api.getAiSettings(),
   });
   const hasAiProviders = (aiSettings?.enabled ?? false) && (aiSettings?.providers?.length ?? 0) > 0;
+
+  const { data: betaData } = useQuery({
+    queryKey: ["settings", "beta"],
+    queryFn: () => api.getBetaSettings(),
+  });
+  const showTransitionsLab = betaData?.settings.transition_plugins_enabled ?? false;
+  const navPrimaryItems = showTransitionsLab ? [...primaryItems, transitionsLabItem] : primaryItems;
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -402,7 +414,7 @@ export function NavigationSidebar() {
         }}
       >
         <nav aria-label={t("primaryNavigation")} className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {primaryItems.map(renderMobileNavItem)}
+          {navPrimaryItems.map(renderMobileNavItem)}
           {hasAiProviders && (
             <button
               type="button"
@@ -508,7 +520,7 @@ export function NavigationSidebar() {
 
             {/* Primary Navigation — flex-1 pins secondary + version row to the bottom */}
             <nav aria-label={t("primaryNavigation")} className="min-h-0 flex-1 space-y-1 overflow-y-auto py-4 px-2">
-              {primaryItems.map(renderDesktopNavItem)}
+              {navPrimaryItems.map(renderDesktopNavItem)}
             </nav>
 
             {hasAiProviders && (

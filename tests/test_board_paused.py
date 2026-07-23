@@ -88,6 +88,7 @@ def paused_service_factory():
         svc = DisplayService()
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
+        svc.vb_client.render.return_value = (True, True)
 
         return svc, mocks, page_service, patches
 
@@ -127,7 +128,7 @@ class TestPolicyPolling:
             svc.check_and_send_active_page()
 
         page_service.preview_page.assert_called()
-        svc.vb_client.send_characters.assert_called_once()
+        svc.vb_client.render.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

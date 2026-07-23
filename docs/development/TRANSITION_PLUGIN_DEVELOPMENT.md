@@ -34,6 +34,8 @@ Transition plugins inherit from `src.plugins.base.TransitionPluginBase` and must
 - `plugin_id` (property): unique id matching the manifest
 - `generate_frames(from_grid, to_grid, device, config) -> Iterator[(grid, delay_ms)]`
 
+The `device` argument is a `src.devices.BoardContext` — a frozen descriptor with `device_type` (`"flagship"`, `"note"`, or `"note_array"`), `rows`, and `cols` (plus `height`/`width` aliases). Note arrays are true W×H grids (up to 24×120), so derive geometry from `device.rows`/`device.cols` (or from the grids themselves) rather than hardcoding 6×22.
+
 Optional hooks:
 
 - `validate_config(config) -> List[str]`: return error strings for bad config
@@ -139,6 +141,7 @@ The **Transition Lab** at `/transitions` lets you preview any enabled transition
 
 - The Vestaboard hardware has internal timing constraints. Sending frames faster than the flap mechanism can settle (~14s for a full revolution under heavy update) will cause the board to drop requests.
 - The Cloud API has stricter rate limits than the Local API. Transition plugins are the *only* way to animate on Cloud-mode boards (hardware strategies are ignored), but the practical frame rate is much lower.
+- Cloud **note arrays** are throttled to one send per 15 seconds. The runner automatically paces your frames (and the final snap) to the board client's `min_send_interval_ms`, so your plugin still works — it just runs no faster than that floor. Slow, deliberate transitions (see `plugins/quiet_library`) are the natural fit there.
 - Use `min_interval_ms` to protect users from runaway loops in your own plugin.
 
 ## Publishing an external transition plugin
@@ -151,4 +154,4 @@ External plugins follow the same registry mechanism as data plugins (see [PLUGIN
 - **Runner**: `src/transitions/runner.py` → `TransitionRunner`
 - **Send chokepoint**: `src/board_client.py` → `BoardClient.render()`
 - **API endpoints**: `GET /transitions/plugins`, `POST /transitions/preview` in `src/api_server.py`
-- **First-party examples**: `plugins/typewriter`, `plugins/simple_dissolve`, `plugins/slot_machine`
+- **First-party examples**: `plugins/typewriter`, `plugins/simple_dissolve`, `plugins/slot_machine`, `plugins/quiet_library` (diff-based, word-aware, long-delay)
