@@ -32,6 +32,16 @@ option) only.
 - **Undo/redo:** full stack via ProseMirror history — paints are applied as
   TipTap document transactions, so Cmd/Ctrl+Z / Shift+Z and the toolbar
   undo/redo buttons work naturally. One drag stroke = one undo step.
+  **Known limitation:** undo restores line *content* (including any
+  `{variable}` tokens stripped by normalization), but the `alignment: "left"` /
+  `wrap: "off"` metadata forced onto a line the first time it is painted is
+  NOT restored by undo — that metadata lives in `PageBuilder`'s React state
+  (`lineAlignments` / `lineWrapEnabled`), outside ProseMirror's document and
+  therefore outside its history stack. Undoing a paint can leave a line back
+  at its original (pre-paint) text with alignment/wrap still forced from the
+  paint. Full metadata restore (e.g. snapshotting and rolling back alignment/
+  wrap alongside the document transaction) is a known follow-up, not covered
+  by this design.
 - **Exit:** Esc or clicking the pencil toggle again exits draw mode and
   restores the text area.
 
