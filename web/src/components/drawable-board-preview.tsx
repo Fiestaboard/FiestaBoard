@@ -24,7 +24,7 @@ interface DrawableBoardPreviewProps {
 
 function cellAtPoint(x: number, y: number): StrokeCell | null {
   const el = document.elementFromPoint(x, y);
-  const tile = el?.closest?.("[data-row][data-col]") as HTMLElement | null;
+  const tile = el?.closest("[data-row][data-col]") as HTMLElement | null;
   if (!tile) return null;
   const row = Number(tile.dataset.row);
   const col = Number(tile.dataset.col);
@@ -35,6 +35,7 @@ function cellAtPoint(x: number, y: number): StrokeCell | null {
 export function DrawableBoardPreview({ active, onStrokePreview, onStrokeCommit, children }: DrawableBoardPreviewProps) {
   const strokeRef = useRef<Map<string, StrokeCell> | null>(null);
   const rafRef = useRef<number | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
 
   const flushPreview = useCallback(() => {
     rafRef.current = null;
@@ -50,6 +51,7 @@ export function DrawableBoardPreview({ active, onStrokePreview, onStrokeCommit, 
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
+    pointerIdRef.current = null;
     if (strokeRef.current) {
       strokeRef.current = null;
       onStrokePreview([]);
@@ -61,18 +63,28 @@ export function DrawableBoardPreview({ active, onStrokePreview, onStrokeCommit, 
     if (!active) abortStroke();
   }, [active, abortStroke]);
 
+  // A pending preview flush must not fire after unmount.
+  useEffect(
+    () => () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    },
+    [],
+  );
+
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!active || e.button !== 0) return;
+    if (strokeRef.current) return; // a stroke is already in progress — ignore other pointers
     const cell = cellAtPoint(e.clientX, e.clientY);
     if (!cell) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
+    pointerIdRef.current = e.pointerId;
     strokeRef.current = new Map([[`${cell.row}:${cell.col}`, cell]]);
     schedulePreview();
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!strokeRef.current) return;
+    if (!strokeRef.current || e.pointerId !== pointerIdRef.current) return;
     const cell = cellAtPoint(e.clientX, e.clientY);
     if (!cell) return;
     const key = `${cell.row}:${cell.col}`;
@@ -82,14 +94,15 @@ export function DrawableBoardPreview({ active, onStrokePreview, onStrokeCommit, 
     }
   };
 
-  const handlePointerUp = () => {
-    if (!strokeRef.current) return;
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!strokeRef.current || e.pointerId !== pointerIdRef.current) return;
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
     const cells = [...strokeRef.current.values()];
     strokeRef.current = null;
+    pointerIdRef.current = null;
     onStrokeCommit(cells);
   };
 
@@ -98,7 +111,9 @@ export function DrawableBoardPreview({ active, onStrokePreview, onStrokeCommit, 
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerCancel={abortStroke}
+      onPointerCancel={(e) => {
+        if (e.pointerId === pointerIdRef.current) abortStroke();
+      }}
       className={active ? "cursor-crosshair select-none" : undefined}
       style={active ? { touchAction: "none" } : undefined}
       data-draw-surface={active ? "true" : undefined}

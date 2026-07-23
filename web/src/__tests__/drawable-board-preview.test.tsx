@@ -78,6 +78,52 @@ describe("DrawableBoardPreview", () => {
     expect(onStrokeCommit).not.toHaveBeenCalled();
   });
 
+  it("coalesces multiple new cells into one rAF preview flush", () => {
+    let frame: FrameRequestCallback | null = null;
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      frame = cb;
+      return 1;
+    });
+    const { surface, onStrokePreview } = setup();
+    const t1 = makeTile(0, 0);
+    const t2 = makeTile(0, 1);
+    document.elementFromPoint = vi.fn().mockReturnValueOnce(t1).mockReturnValue(t2);
+
+    fireEvent.pointerDown(surface, { button: 0, pointerId: 1 });
+    fireEvent.pointerMove(surface, { pointerId: 1 });
+    expect(onStrokePreview).not.toHaveBeenCalled();
+
+    frame!(0);
+    expect(onStrokePreview).toHaveBeenCalledTimes(1);
+    expect(onStrokePreview).toHaveBeenCalledWith([
+      { row: 0, col: 0 },
+      { row: 0, col: 1 },
+    ]);
+  });
+
+  it("aborts the stroke when deactivated mid-stroke", () => {
+    const onStrokePreview = vi.fn();
+    const onStrokeCommit = vi.fn();
+    const utils = render(
+      <DrawableBoardPreview active onStrokePreview={onStrokePreview} onStrokeCommit={onStrokeCommit}>
+        <div data-testid="board" />
+      </DrawableBoardPreview>,
+    );
+    const surface = utils.getByTestId("board").parentElement as HTMLElement;
+    document.elementFromPoint = vi.fn().mockReturnValue(makeTile(0, 0));
+
+    fireEvent.pointerDown(surface, { button: 0, pointerId: 1 });
+    utils.rerender(
+      <DrawableBoardPreview active={false} onStrokePreview={onStrokePreview} onStrokeCommit={onStrokeCommit}>
+        <div data-testid="board" />
+      </DrawableBoardPreview>,
+    );
+
+    expect(onStrokePreview).toHaveBeenLastCalledWith([]);
+    fireEvent.pointerUp(surface, { pointerId: 1 });
+    expect(onStrokeCommit).not.toHaveBeenCalled();
+  });
+
   it("clears the stroke without committing on pointercancel", () => {
     const { surface, onStrokePreview, onStrokeCommit } = setup();
     document.elementFromPoint = vi.fn().mockReturnValue(makeTile(0, 0));
