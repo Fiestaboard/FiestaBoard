@@ -114,9 +114,7 @@ def test_batches_never_span_words(plugin):
     """Two 2-letter words with batch_size=6 still take two frames."""
     from_grid = _grid(0, rows=1, cols=8)
     to_grid = [_row("HI.BY", 8)]
-    frames = list(
-        plugin.generate_frames(from_grid, to_grid, FLAGSHIP, {"batch_size": 6, "step_delay_ms": 0})
-    )
+    frames = list(plugin.generate_frames(from_grid, to_grid, FLAGSHIP, {"batch_size": 6, "step_delay_ms": 0}))
     assert len(frames) == 2
     # First frame flips only the first word.
     assert frames[0][0][0][:3] == to_grid[0][:3]
@@ -129,9 +127,7 @@ def test_word_larger_than_batch_is_micro_batched(plugin):
     """A 7-letter word with batch_size=6 splits into a 6-tile and a 1-tile step."""
     from_grid = _grid(0, rows=1, cols=10)
     to_grid = [_row("LIBRARY", 10)]
-    frames = list(
-        plugin.generate_frames(from_grid, to_grid, FLAGSHIP, {"batch_size": 6, "step_delay_ms": 0})
-    )
+    frames = list(plugin.generate_frames(from_grid, to_grid, FLAGSHIP, {"batch_size": 6, "step_delay_ms": 0}))
     assert len(frames) == 2
     first_flipped = sum(1 for c in range(10) if frames[0][0][0][c] != 0)
     assert first_flipped == 6
@@ -139,11 +135,7 @@ def test_word_larger_than_batch_is_micro_batched(plugin):
 
 
 def test_final_frame_equals_target(plugin):
-    frames = list(
-        plugin.generate_frames(
-            _grid(3), _grid(7), FLAGSHIP, {"batch_size": 6, "step_delay_ms": 0}
-        )
-    )
+    frames = list(plugin.generate_frames(_grid(3), _grid(7), FLAGSHIP, {"batch_size": 6, "step_delay_ms": 0}))
     assert frames[-1][0] == _grid(7)
 
 
@@ -169,9 +161,7 @@ def test_unchanged_cells_never_touched_early(plugin):
     """Cells identical in from/to are never flipped in intermediate frames."""
     from_grid = [_row("HI.OLD", 6)]
     to_grid = [_row("HI.NEW", 6)]
-    frames = list(
-        plugin.generate_frames(from_grid, to_grid, FLAGSHIP, {"batch_size": 1, "step_delay_ms": 0})
-    )
+    frames = list(plugin.generate_frames(from_grid, to_grid, FLAGSHIP, {"batch_size": 1, "step_delay_ms": 0}))
     for grid, _ in frames:
         assert grid[0][:3] == from_grid[0][:3]  # "HI " untouched throughout
 
@@ -180,9 +170,7 @@ def test_mismatched_from_grid_shape_is_tolerated(plugin):
     """A from-grid smaller than the target is padded with blanks, not crashed."""
     from_grid = [[1, 2]]  # 1x2 stale cache
     to_grid = [_row("HI", 4), _row("YO", 4)]
-    frames = list(
-        plugin.generate_frames(from_grid, to_grid, FLAGSHIP, {"batch_size": 6, "step_delay_ms": 0})
-    )
+    frames = list(plugin.generate_frames(from_grid, to_grid, FLAGSHIP, {"batch_size": 6, "step_delay_ms": 0}))
     assert frames[-1][0] == to_grid
 
 
