@@ -7,8 +7,8 @@
  * ScaledBoardDisplay's CSS transform never enters coordinate math.
  */
 
-import { useCallback, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export interface StrokeCell {
   row: number;
