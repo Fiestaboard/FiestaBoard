@@ -7,24 +7,32 @@
 
 Add a pencil tool to the rich (TipTap) template editor toolbar. When active, the
 board preview below the editor becomes a paintable surface: the user picks a
-color from a dropdown attached to the pencil button and clicks or drags across
-board tiles to paint them that color. Typing characters remains the job of the
-rich editor itself — the pencil paints colors (and blanks, via an eraser
-option) only.
+brush from the toolbar — one of 8 inline color swatches, an eraser button, or a
+stamp character from a character dropdown — and clicks or drags across board
+tiles to paint them. Typing characters remains the primary text path via the
+rich editor itself; the character brush is for stamping individual tiles.
 
 ## Decisions (from brainstorming)
 
 - **Location:** pencil toggle lives in the existing TipTap toolbar in
   `PageBuilder`'s rich mode. No third editor mode, no new route.
-- **Tools:** pencil (click + drag painting) with an 8-color dropdown plus an
-  eraser/blank option. No fill-all, no character stamping on the preview —
-  characters are typed in the editor.
-- **Editor collapse:** while the pencil is active, the RCE text content area is
-  collapsed (toolbar remains visible) so it is obvious the board preview is the
-  editing surface. Toolbar buttons that operate on text content
-  (bold/color-insert/variable-insert/etc.) are disabled while drawing; undo/redo
-  stay enabled. (User floated a full toolbar swap as an alternative; disabling
-  is less invasive and keeps undo/redo in one place.)
+- **Tools:** pencil (click + drag painting) with 8 inline color swatches on the
+  toolbar, a dedicated eraser icon button, and a character dropdown for
+  stamping A–Z / digits / punctuation onto tiles. No fill-all. *(Superseded:
+  the first iteration used a color dropdown attached to the pencil and had no
+  character stamping; user feedback moved the swatches inline and brought
+  character stamping in scope — typing in the RCE remains the primary text
+  path.)*
+- **Toolbar transform:** while the pencil is active, the RCE text content area
+  is collapsed (toolbar remains visible) so it is obvious the board preview is
+  the editing surface, and the toolbar **transforms** into
+  `[pencil active] | [undo/redo] | [8 color swatches] [eraser] | [character dropdown]`.
+  All content-editing controls (cut/copy/paste, variable/color/formatting
+  inserts, formula, wrap, alignment, sync-from-board) are hidden — not
+  rendered — while drawing; undo/redo stay. Exiting restores the normal
+  toolbar. *(Supersedes the first-iteration decision to keep the full toolbar
+  visible with content buttons disabled; user feedback was that the disabled
+  buttons were clutter.)*
 - **Variables:** painting is positional, variables are dynamic. Painting any
   cell of a line that contains `{variable}` tokens strips those tokens from the
   line (it does NOT freeze rendered values into static text). The removal is
@@ -117,8 +125,9 @@ transaction (or a single history group) so it is one undo step.
   positional normalization (variable stripping, padding), paint application,
   eraser, doc-position mapping.
 - **Playwright e2e** (`web/tests/draw-mode.spec.ts`): activate pencil, pick a
-  color, click cells, drag a stroke, erase, paint over a variable and undo to
-  restore it, editor collapse/restore, disabled toolbar buttons, save the page,
+  color swatch, click cells, drag a stroke, erase, stamp a character, paint
+  over a variable and undo to restore it, editor collapse/restore, toolbar
+  swap (content controls absent, swatches/eraser/char dropdown present), save the page,
   send to board and verify painted codes in the mock board grid
   (`getMockBoardState()` + helpers). Runs against flagship, note, and a
   note-array configuration.
@@ -131,14 +140,18 @@ transaction (or a single history group) so it is one undo step.
 
 - New strings under a `drawMode` (or `tiptapEditor`) namespace in
   `web/messages/en.json` and all 14 locales: pencil tooltip, color names
-  (reuse existing color keys where present), eraser, drawing-mode hint.
+  (reuse existing color keys where present), eraser, stamp-character dropdown
+  label, drawing-mode hint.
 - Pencil toggle exposes `aria-pressed`; tiles get `aria-label`s only in paint
   mode if cheap, otherwise the RCE remains the accessible editing path (the
   preview is `aria-hidden` decorative today).
 
 ## Out of scope
 
-- Character stamping on the preview (typing happens in the RCE).
+- ~~Character stamping on the preview (typing happens in the RCE).~~
+  **Superseded:** character stamping is now IN scope via the toolbar's
+  character dropdown (`DrawBrush = { kind: "char", char }`); typing in the RCE
+  remains the primary text path.
 - Fill-all / clear-all tools.
 - New page content types or backend changes.
 - Plain-text editor mode integration (pencil is rich-mode only).
