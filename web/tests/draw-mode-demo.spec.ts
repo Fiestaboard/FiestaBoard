@@ -1,11 +1,12 @@
 /**
  * Draw-mode video walkthrough — NOT a regression test.
  *
- * A single deliberately-paced tour of the pencil feature for video capture:
- * paint a red heart, drag a yellow underline, erase, undo/redo, exit to the
- * restored editor with its color chips, save, send to the board, and finish
- * on the pages list. Run only via playwright-video.config.ts (the main
- * suite ignores this spec).
+ * A single deliberately-paced tour of the pencil feature for video capture,
+ * showing off the drawing toolbar: inline color swatches (red → yellow →
+ * blue), the eraser icon button, character stamping ("HI!") via the
+ * character dropdown, undo/redo, exit to the restored editor, save, and
+ * board delivery. Run only via playwright-video.config.ts (the main suite
+ * ignores this spec).
  */
 import type { Page } from "@playwright/test";
 
@@ -29,10 +30,17 @@ function tile(page: Page, row: number, col: number) {
   return page.locator(`[data-draw-surface="true"] [data-row="${row}"][data-col="${col}"]`);
 }
 
+/** Pick a brush from the inline toolbar swatches (color name or "eraser"). */
 async function pickBrush(page: Page, brush: string): Promise<void> {
-  await page.getByTestId("draw-brush-dropdown").click();
-  await page.waitForTimeout(400);
   await page.getByTestId(`draw-color-${brush}`).click();
+  await page.waitForTimeout(500);
+}
+
+/** Pick a stamp character from the character dropdown, with demo pacing. */
+async function pickChar(page: Page, char: string): Promise<void> {
+  await page.getByTestId("draw-char-dropdown").click();
+  await page.waitForTimeout(500);
+  await page.locator(`[data-draw-char="${char}"]`).click();
   await page.waitForTimeout(400);
 }
 
@@ -64,12 +72,16 @@ test("pencil draw mode walkthrough", async ({ page }) => {
   await expect(page.getByTestId("draw-mode-toggle")).toBeVisible({ timeout: 10_000 });
   await beat(page, 800);
 
-  // --- Enter draw mode ---
+  // --- Enter draw mode: the toolbar swaps to dedicated drawing controls ---
   await page.getByTestId("draw-mode-toggle").click();
   await expect(page.locator('[data-draw-surface="true"]')).toBeVisible();
-  await beat(page, 800);
+  await expect(page.getByTestId("draw-color-red")).toBeVisible();
+  await expect(page.getByTestId("draw-color-eraser")).toBeVisible();
+  await expect(page.getByTestId("draw-char-dropdown")).toBeVisible();
+  // Linger so the swatch row, eraser, and character dropdown register.
+  await beat(page, 1_200);
 
-  // --- Draw a red heart, cell by cell ---
+  // --- Red swatch: draw a heart, cell by cell ---
   await pickBrush(page, "red");
   const heart: Array<[number, number]> = [
     [1, 9],
@@ -89,43 +101,53 @@ test("pencil draw mode walkthrough", async ({ page }) => {
     await page.waitForTimeout(180);
   }
   await expect(tile(page, 4, 10)).toHaveAttribute("data-cell-value", "red");
-  await beat(page, 800);
+  await beat(page, 700);
 
-  // --- Drag a yellow underline across the bottom row ---
+  // --- Yellow swatch: sparkle accents above the heart ---
   await pickBrush(page, "yellow");
-  const start = await tile(page, 5, 6).boundingBox();
-  expect(start).toBeTruthy();
-  await page.mouse.move(start!.x + start!.width / 2, start!.y + start!.height / 2);
-  await page.mouse.down();
-  for (let col = 7; col <= 15; col++) {
-    const box = await tile(page, 5, col).boundingBox();
-    expect(box).toBeTruthy();
-    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2, { steps: 4 });
-    await page.waitForTimeout(60);
-  }
-  await page.mouse.up();
-  await expect(tile(page, 5, 15)).toHaveAttribute("data-cell-value", "yellow");
+  await tile(page, 0, 8).click();
+  await page.waitForTimeout(250);
+  await tile(page, 0, 12).click();
+  await expect(tile(page, 0, 12)).toHaveAttribute("data-cell-value", "yellow");
+  await beat(page, 700);
+
+  // --- Blue swatch: accents beside the heart ---
+  await pickBrush(page, "blue");
+  await tile(page, 2, 6).click();
+  await page.waitForTimeout(250);
+  await tile(page, 2, 14).click();
+  await expect(tile(page, 2, 14)).toHaveAttribute("data-cell-value", "blue");
+  await beat(page, 700);
+
+  // --- Eraser icon: remove one blue accent ---
+  await pickBrush(page, "eraser");
+  await tile(page, 2, 14).click();
+  await expect(tile(page, 2, 14)).toHaveAttribute("data-cell-value", " ");
+  await beat(page, 700);
+
+  // --- Character dropdown: stamp "HI!" on the bottom row ---
+  await pickChar(page, "H");
+  await tile(page, 5, 9).click();
+  await expect(tile(page, 5, 9)).toHaveAttribute("data-cell-value", "H");
+  await pickChar(page, "I");
+  await tile(page, 5, 10).click();
+  await expect(tile(page, 5, 10)).toHaveAttribute("data-cell-value", "I");
+  await pickChar(page, "!");
+  await tile(page, 5, 11).click();
+  await expect(tile(page, 5, 11)).toHaveAttribute("data-cell-value", "!");
   await beat(page, 800);
 
-  // --- Erase two cells from the heart's shoulders ---
-  await pickBrush(page, "eraser");
-  await tile(page, 2, 8).click();
-  await beat(page, 500);
-  await tile(page, 2, 12).click();
-  await expect(tile(page, 2, 12)).toHaveAttribute("data-cell-value", " ");
-  await beat(page, 700);
-
-  // --- Undo brings the last erased cell back... ---
+  // --- Undo removes the last stamp... ---
   await page.keyboard.press("Control+z");
-  await expect(tile(page, 2, 12)).toHaveAttribute("data-cell-value", "red");
+  await expect(tile(page, 5, 11)).toHaveAttribute("data-cell-value", " ");
   await beat(page, 700);
 
-  // --- ...and redo erases it again ---
+  // --- ...and redo brings it back ---
   await page.keyboard.press("Control+y");
-  await expect(tile(page, 2, 12)).toHaveAttribute("data-cell-value", " ");
+  await expect(tile(page, 5, 11)).toHaveAttribute("data-cell-value", "!");
   await beat(page, 700);
 
-  // --- Escape restores the editor, now full of color chips ---
+  // --- Escape restores the editor, now full of color chips and characters ---
   await page.keyboard.press("Escape");
   await expect(page.locator('[data-draw-surface="true"]')).toHaveCount(0);
   await expect(page.locator('[contenteditable="true"]').first()).toBeVisible();

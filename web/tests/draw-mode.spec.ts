@@ -30,8 +30,10 @@ import {
   test,
 } from "./helpers";
 
-// Vestaboard character codes for painted colors on the physical board.
+// Vestaboard character codes on the physical board.
 const BLUE_CODE = 67;
+const LETTER_A_CODE = 1;
+const BLANK_CODE = 0;
 
 /** Trigger an immediate main-loop refresh so active-page content reaches the board. */
 async function forceRefresh(): Promise<void> {
@@ -50,10 +52,15 @@ async function enterDrawMode(page: Page): Promise<void> {
   await expect(page.locator('[data-draw-surface="true"]')).toBeVisible();
 }
 
-/** Pick a brush (color name or "eraser") from the brush dropdown. */
+/** Pick a brush (color name or "eraser") from the inline toolbar swatches. */
 async function pickBrush(page: Page, brush: string): Promise<void> {
-  await page.getByTestId("draw-brush-dropdown").click();
   await page.getByTestId(`draw-color-${brush}`).click();
+}
+
+/** Pick a stamp character from the character dropdown. */
+async function pickChar(page: Page, char: string): Promise<void> {
+  await page.getByTestId("draw-char-dropdown").click();
+  await page.locator(`[data-draw-char="${char}"]`).click();
 }
 
 /** Open the builder for a new page and wait for it to be interactive. */
@@ -193,7 +200,7 @@ test.describe("Draw mode", () => {
     await expect(tile(page, 0, 0)).toHaveAttribute("data-cell-value", "H", { timeout: 10_000 });
   });
 
-  test("toolbar editing controls lock while drawing and unlock on exit", async ({ page }) => {
+  test("toolbar swaps to drawing controls while drawing and back on exit", async ({ page }) => {
     // The Variables dropdown only renders when variables exist.
     await enablePlugin("date_time");
     await gotoNewPage(page);
@@ -209,22 +216,32 @@ test.describe("Draw mode", () => {
     await expect(variablesTrigger).toBeVisible({ timeout: 10_000 });
 
     await enterDrawMode(page);
-    await expect(cutButton).toBeDisabled();
-    await expect(pasteButton).toBeDisabled();
+    // Content-editing controls are removed from the toolbar entirely...
+    await expect(cutButton).toHaveCount(0);
+    await expect(pasteButton).toHaveCount(0);
     for (const btn of alignButtons) {
-      await expect(btn).toBeDisabled();
+      await expect(btn).toHaveCount(0);
     }
-    await expect(variablesTrigger).toBeDisabled();
+    await expect(variablesTrigger).toHaveCount(0);
+    // ...replaced by the 8 inline color swatches, eraser, and char dropdown.
+    for (const name of ["red", "orange", "yellow", "green", "blue", "violet", "white", "black"]) {
+      await expect(page.getByTestId(`draw-color-${name}`)).toBeVisible();
+    }
+    await expect(page.getByTestId("draw-color-eraser")).toBeVisible();
+    await expect(page.getByTestId("draw-char-dropdown")).toBeVisible();
 
     await page.keyboard.press("Escape");
     await expect(page.locator('[data-draw-surface="true"]')).toHaveCount(0);
-    // Paste, alignment, and variables re-enable. (Cut stays disabled until
-    // there is a text selection, so it is only asserted while locked above.)
-    await expect(pasteButton).toBeEnabled();
+    // The editing toolbar returns; the drawing controls leave.
+    await expect(cutButton).toBeVisible();
+    await expect(pasteButton).toBeVisible();
     for (const btn of alignButtons) {
-      await expect(btn).toBeEnabled();
+      await expect(btn).toBeVisible();
     }
-    await expect(variablesTrigger).toBeEnabled();
+    await expect(variablesTrigger).toBeVisible();
+    await expect(page.getByTestId("draw-color-red")).toHaveCount(0);
+    await expect(page.getByTestId("draw-color-eraser")).toHaveCount(0);
+    await expect(page.getByTestId("draw-char-dropdown")).toHaveCount(0);
   });
 
   test("painting works to the bottom-right corner of a 3×15 Note board", async ({ page }) => {
@@ -288,5 +305,43 @@ test.describe("Draw mode", () => {
     // Column 20 lives in the SECOND note of the 3×30 composite grid.
     await tile(page, 1, 20).click();
     await expect(tile(page, 1, 20)).toHaveAttribute("data-cell-value", "blue");
+  });
+
+  test("character stamping reaches the board; eraser removes a stamp", async ({ page }) => {
+    test.setTimeout(60_000);
+    await gotoNewPage(page);
+    await enterDrawMode(page);
+
+    // Pick "A" from the character dropdown and stamp two tiles.
+    await pickChar(page, "A");
+    await tile(page, 0, 2).click();
+    await tile(page, 0, 4).click();
+    await expect(tile(page, 0, 2)).toHaveAttribute("data-cell-value", "A");
+    await expect(tile(page, 0, 4)).toHaveAttribute("data-cell-value", "A");
+
+    // The eraser button clears one of the stamps.
+    await pickBrush(page, "eraser");
+    await tile(page, 0, 4).click();
+    await expect(tile(page, 0, 4)).toHaveAttribute("data-cell-value", " ");
+    await expect(tile(page, 0, 2)).toHaveAttribute("data-cell-value", "A");
+
+    await page.keyboard.press("Escape");
+    const pageName = `Stamp E2E ${Date.now()}`;
+    await page.getByPlaceholder("My Custom Page").fill(pageName);
+    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    await saveButton.first().click();
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
+
+    const res = await fetch(`${API_URL}/pages`, { headers: authHeaders() });
+    const data = await res.json();
+    const saved = data.pages.find((p: { name: string }) => p.name === pageName);
+    expect(saved).toBeTruthy();
+
+    await setActivePage(saved.id);
+    await forceRefresh();
+    await expect
+      .poll(async () => (await getMockBoardState()).current_message?.[0]?.[2], { timeout: 20_000 })
+      .toBe(LETTER_A_CODE);
+    expect((await getMockBoardState()).current_message?.[0]?.[4]).toBe(BLANK_CODE);
   });
 });
