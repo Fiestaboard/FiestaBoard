@@ -17,7 +17,11 @@ export function DrawCharPickerContent({ current, onSelect }: DrawCharPickerConte
   const selectedChar = current.kind === "char" ? current.char : null;
 
   return (
-    <div className="p-2">
+    // w-64 matters: the dropdown panel is absolutely positioned inside a
+    // trigger-sized wrapper, so without an explicit width the panel
+    // shrink-fits to ~36px and the grid-cols-8 tracks (minmax(0,1fr))
+    // collapse until the glyph buttons overlap.
+    <div className="w-64 p-2" data-testid="draw-char-picker">
       <div className="grid grid-cols-8 gap-1">
         {DRAW_CHARS.map((char) => (
           <button

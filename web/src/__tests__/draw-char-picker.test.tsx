@@ -26,4 +26,13 @@ describe("DrawCharPickerContent", () => {
     expect(container.querySelector('[data-draw-char="Z"]')).toHaveAttribute("aria-pressed", "true");
     expect(container.querySelector('[data-draw-char="A"]')).toHaveAttribute("aria-pressed", "false");
   });
+
+  it("keeps an explicit width on the wrapper so the dropdown panel cannot shrink-fit", () => {
+    // Regression pin: the ToolbarDropdown panel is absolutely positioned in a
+    // trigger-sized wrapper; without an explicit width the panel collapses to
+    // ~36px and the grid-cols-8 (minmax(0,1fr)) tracks overlap the buttons.
+    // jsdom can't measure layout, so pin the class itself.
+    render(<DrawCharPickerContent current={{ kind: "eraser" }} onSelect={vi.fn()} />);
+    expect(screen.getByTestId("draw-char-picker")).toHaveClass("w-64");
+  });
 });
