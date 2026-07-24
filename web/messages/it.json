@@ -1653,7 +1653,7 @@
     "colors": "Colori",
     "drawMode": "Disegna sul board",
     "drawModeActive": "Esci dalla modalità disegno",
-    "drawBrush": "Colore di disegno",
+    "drawCharacter": "Timbra carattere",
     "drawEraser": "Gomma",
     "drawColors": {
       "red": "Rosso",

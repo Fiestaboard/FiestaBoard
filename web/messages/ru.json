@@ -1653,7 +1653,7 @@
     "colors": "Цвета",
     "drawMode": "Рисовать на доске",
     "drawModeActive": "Выйти из режима рисования",
-    "drawBrush": "Цвет рисования",
+    "drawCharacter": "Штамповать символ",
     "drawEraser": "Ластик",
     "drawColors": {
       "red": "Красный",

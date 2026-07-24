@@ -1653,7 +1653,7 @@
     "colors": "Couleurs",
     "drawMode": "Dessiner sur le board",
     "drawModeActive": "Quitter le mode dessin",
-    "drawBrush": "Couleur de dessin",
+    "drawCharacter": "Tamponner un caractère",
     "drawEraser": "Gomme",
     "drawColors": {
       "red": "Rouge",

@@ -1653,7 +1653,7 @@
     "colors": "Cores",
     "drawMode": "Desenhar no board",
     "drawModeActive": "Sair do modo de desenho",
-    "drawBrush": "Cor de desenho",
+    "drawCharacter": "Carimbar caractere",
     "drawEraser": "Borracha",
     "drawColors": {
       "red": "Vermelho",

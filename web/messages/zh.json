@@ -1653,7 +1653,7 @@
     "colors": "颜色",
     "drawMode": "在看板上绘制",
     "drawModeActive": "退出绘制模式",
-    "drawBrush": "绘制颜色",
+    "drawCharacter": "盖印字符",
     "drawEraser": "橡皮擦",
     "drawColors": {
       "red": "红色",

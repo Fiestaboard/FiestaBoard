@@ -107,6 +107,20 @@ describe("PageBuilder draw mode wiring", () => {
     expect(toggle).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("defaults the draw brush to the red color swatch", async () => {
+    const user = userEvent.setup();
+    render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });
+
+    const toggle = await screen.findByTestId("draw-mode-toggle");
+    await user.click(toggle);
+
+    // Default brush is { kind: "color", color: "red" } — the red swatch is
+    // pressed, the rest (and the eraser) are not.
+    expect(screen.getByTestId("draw-color-red")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("draw-color-blue")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("draw-color-eraser")).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("activating draw mode hides the rich-text textbox and shows the draw surface", async () => {
     const user = userEvent.setup();
     const { container } = render(<PageBuilder onClose={vi.fn()} onSave={vi.fn()} />, { wrapper: TestWrapper });

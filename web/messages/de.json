@@ -1653,7 +1653,7 @@
     "colors": "Farben",
     "drawMode": "Auf dem Board zeichnen",
     "drawModeActive": "Zeichenmodus beenden",
-    "drawBrush": "Zeichenfarbe",
+    "drawCharacter": "Zeichen stempeln",
     "drawEraser": "Radierer",
     "drawColors": {
       "red": "Rot",

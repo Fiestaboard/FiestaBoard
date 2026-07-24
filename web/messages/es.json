@@ -1653,7 +1653,7 @@
     "colors": "Colores",
     "drawMode": "Dibujar en el tablero",
     "drawModeActive": "Salir del modo de dibujo",
-    "drawBrush": "Color de dibujo",
+    "drawCharacter": "Estampar carácter",
     "drawEraser": "Borrador",
     "drawColors": {
       "red": "Rojo",

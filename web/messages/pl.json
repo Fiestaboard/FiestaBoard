@@ -1653,7 +1653,7 @@
     "colors": "Kolory",
     "drawMode": "Rysuj na tablicy",
     "drawModeActive": "Zakończ tryb rysowania",
-    "drawBrush": "Kolor rysowania",
+    "drawCharacter": "Stempluj znak",
     "drawEraser": "Gumka",
     "drawColors": {
       "red": "Czerwony",

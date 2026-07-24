@@ -1653,7 +1653,7 @@
     "colors": "Renkler",
     "drawMode": "Panoya çiz",
     "drawModeActive": "Çizim modundan çık",
-    "drawBrush": "Çizim rengi",
+    "drawCharacter": "Karakter damgala",
     "drawEraser": "Silgi",
     "drawColors": {
       "red": "Kırmızı",

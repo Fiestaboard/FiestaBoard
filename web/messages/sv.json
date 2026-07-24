@@ -1653,7 +1653,7 @@
     "colors": "Färger",
     "drawMode": "Rita på tavlan",
     "drawModeActive": "Avsluta ritläget",
-    "drawBrush": "Ritfärg",
+    "drawCharacter": "Stämpla tecken",
     "drawEraser": "Suddgummi",
     "drawColors": {
       "red": "Röd",

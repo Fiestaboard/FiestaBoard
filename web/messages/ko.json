@@ -1653,7 +1653,7 @@
     "colors": "색상",
     "drawMode": "보드에 그리기",
     "drawModeActive": "그리기 모드 종료",
-    "drawBrush": "그리기 색상",
+    "drawCharacter": "문자 스탬프",
     "drawEraser": "지우개",
     "drawColors": {
       "red": "빨강",

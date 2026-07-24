@@ -1653,7 +1653,7 @@
     "colors": "Kleuren",
     "drawMode": "Tekenen op het bord",
     "drawModeActive": "Tekenmodus afsluiten",
-    "drawBrush": "Tekenkleur",
+    "drawCharacter": "Teken stempelen",
     "drawEraser": "Gum",
     "drawColors": {
       "red": "Rood",

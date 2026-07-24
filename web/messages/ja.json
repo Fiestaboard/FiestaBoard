@@ -1653,7 +1653,7 @@
     "colors": "色",
     "drawMode": "ボードに描画",
     "drawModeActive": "描画モードを終了",
-    "drawBrush": "描画色",
+    "drawCharacter": "文字をスタンプ",
     "drawEraser": "消しゴム",
     "drawColors": {
       "red": "赤",

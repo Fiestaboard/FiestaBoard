@@ -1610,7 +1610,7 @@
     "colors": "Colors",
     "drawMode": "Draw on board",
     "drawModeActive": "Exit drawing mode",
-    "drawBrush": "Drawing color",
+    "drawCharacter": "Stamp character",
     "drawEraser": "Eraser",
     "drawColors": {
       "red": "Red",

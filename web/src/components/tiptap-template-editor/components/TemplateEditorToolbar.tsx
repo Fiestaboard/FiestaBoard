@@ -30,14 +30,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
-import { getBoardColor } from "@/lib/board-colors";
+import { AVAILABLE_COLORS, getBoardColor } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
 
 import type { LineAlignment } from "../TipTapTemplateEditor";
 import type { DrawBrush } from "../utils/draw-mode";
 import { insertTemplateContent } from "../utils/insertion";
 import { ColorPickerContent } from "./ColorPickerContent";
-import { DrawColorPickerContent } from "./DrawColorPickerContent";
+import { DrawCharPickerContent } from "./DrawCharPickerContent";
 import { FormattingPickerContent } from "./FormattingPickerContent";
 import { ToolbarDropdown } from "./ToolbarDropdown";
 import { VariablePickerContent } from "./VariablePickerContent";
@@ -74,8 +74,7 @@ export function TemplateEditorToolbar({
   onDrawBrushChange,
 }: TemplateEditorToolbarProps) {
   const t = useTranslations("templateEditor");
-  const editingDisabled = !!drawMode;
-  const effectiveBrush: DrawBrush = drawBrush ?? "red";
+  const effectiveBrush: DrawBrush = drawBrush ?? { kind: "color", color: "red" };
   const { data: templateVars } = useQuery({
     queryKey: ["template-variables"],
     queryFn: api.getTemplateVariables,
@@ -255,7 +254,7 @@ export function TemplateEditorToolbar({
     // layout and the cursor briefly hovers a different button.
     <TooltipProvider skipDelayDuration={0}>
       <div className={cn("flex items-center gap-1 p-2 border rounded-t-md bg-background", "flex-wrap", className)}>
-        {/* Draw Mode Toggle + Brush Picker */}
+        {/* Draw Mode Toggle */}
         {onDrawModeToggle && (
           <>
             <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
@@ -279,36 +278,9 @@ export function TemplateEditorToolbar({
                   <p>{drawMode ? t("drawModeActive") : t("drawMode")}</p>
                 </TooltipContent>
               </Tooltip>
-
-              {drawMode && (
-                <ToolbarDropdown
-                  label={t("drawBrush")}
-                  data-testid="draw-brush-dropdown"
-                  icon={
-                    effectiveBrush === "eraser" ? (
-                      <Eraser className="w-4 h-4" />
-                    ) : (
-                      <span
-                        className="block h-4 w-4 rounded"
-                        style={{ backgroundColor: getBoardColor(effectiveBrush) }}
-                      />
-                    )
-                  }
-                >
-                  {(close) => (
-                    <DrawColorPickerContent
-                      current={effectiveBrush}
-                      onSelect={(brush) => {
-                        onDrawBrushChange?.(brush);
-                        close();
-                      }}
-                    />
-                  )}
-                </ToolbarDropdown>
-              )}
             </div>
 
-            {/* Divider after draw controls */}
+            {/* Divider after draw toggle */}
             <div className="h-6 w-px bg-border mx-1" />
           </>
         )}
@@ -360,290 +332,358 @@ export function TemplateEditorToolbar({
         {/* Divider after undo/redo */}
         <div className="h-6 w-px bg-border mx-1" />
 
-        {/* Cut/Copy/Paste Controls */}
-        <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={handleCut}
-                disabled={!hasSelection || editingDisabled}
-                className={cn(
-                  "px-2 py-1.5 transition-colors",
-                  hasSelection && !editingDisabled ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
-                  "border-r border-border",
-                )}
-                aria-label="Cut"
-              >
-                <Scissors className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{t("cut")}</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={handleCopy}
-                disabled={!hasSelection || editingDisabled}
-                className={cn(
-                  "px-2 py-1.5 transition-colors",
-                  hasSelection && !editingDisabled ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
-                  "border-r border-border",
-                )}
-                aria-label="Copy"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{t("copy")}</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={handlePaste}
-                disabled={!hasClipboardContent || editingDisabled}
-                className={cn(
-                  "px-2 py-1.5 transition-colors",
-                  hasClipboardContent && !editingDisabled ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
-                )}
-                aria-label="Paste"
-              >
-                <ClipboardPaste className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{t("paste")}</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-
-        {/* Divider after clipboard controls */}
-        <div className="h-6 w-px bg-border mx-1" />
-
-        {/* Variables Dropdown */}
-        {hasVariables ? (
-          <ToolbarDropdown label={t("variables")} icon={<Code2 className="w-4 h-4" />} disabled={editingDisabled}>
-            {(close) => (
-              <VariablePickerContent
-                onInsert={(variable) => {
-                  handleInsert(variable);
-                  close();
-                }}
-              />
-            )}
-          </ToolbarDropdown>
-        ) : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                disabled
-                className={cn(
-                  "flex items-center justify-center p-1.5 rounded-md",
-                  "text-muted-foreground cursor-not-allowed opacity-60",
-                  "border border-transparent",
-                )}
-                aria-label={t("variablesNoVarsAvailable")}
-              >
-                <Code2 className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{t("noVariablesAvailable")}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        {/* Colors Dropdown */}
-        {hasColors && (
-          <ToolbarDropdown label={t("colors")} icon={<Palette className="w-4 h-4" />} disabled={editingDisabled}>
-            {(close) => (
-              <ColorPickerContent
-                onInsert={(color) => {
-                  handleInsert(color);
-                  close();
-                }}
-                deviceType={deviceType}
-              />
-            )}
-          </ToolbarDropdown>
-        )}
-
-        {/* Formatting Dropdown */}
-        {hasFormatting && (
-          <ToolbarDropdown label={t("formatting")} icon={<Type className="w-4 h-4" />} disabled={editingDisabled}>
-            {(close) => (
-              <FormattingPickerContent
-                formatting={templateVars?.formatting}
-                onInsert={(formatting) => {
-                  handleInsert(formatting);
-                  close();
-                }}
-              />
-            )}
-          </ToolbarDropdown>
-        )}
-
-        {/* Formulas — insert an empty formula node; the pill's panel auto-opens in the editor */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => {
-                editor
-                  ?.chain()
-                  .focus()
-                  .insertContent({
-                    type: "formula",
-                    attrs: { expression: "", autoOpen: true },
-                  })
-                  .run();
-              }}
-              disabled={editingDisabled}
-              className={cn(
-                "flex items-center gap-1 px-2 py-1.5 rounded-md text-sm font-medium",
-                "transition-colors",
-                editingDisabled ? "opacity-60 cursor-not-allowed" : "hover:bg-muted/50",
-              )}
-              aria-label={t("insertFormula")}
-            >
-              <SquareFunction className="w-4 h-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{t("insertFormula")}</p>
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Wrap Toggle Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={onWrapToggle}
-              disabled={editingDisabled}
-              className={cn(
-                "flex items-center justify-center p-1.5 rounded-md transition-colors",
-                "border border-transparent",
-                editingDisabled
-                  ? "opacity-60 cursor-not-allowed"
-                  : currentWrapEnabled
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-muted/50",
-              )}
-              aria-label={t("toggleWrap")}
-            >
-              <WrapText className="w-4 h-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{currentWrapEnabled ? t("disableWrap") : t("enableWrap")}</p>
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Divider */}
-        {(hasVariables || hasColors || hasFormatting) && <div className="h-6 w-px bg-border mx-1" />}
-
-        {/* Alignment Controls */}
-        <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => handleAlignmentClick("left")}
-                disabled={editingDisabled}
-                className={cn(
-                  "px-2 py-1.5 transition-colors",
-                  editingDisabled
-                    ? "opacity-60 cursor-not-allowed"
-                    : currentAlignment === "left"
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted/50",
-                )}
-                aria-label={t("alignLeft")}
-              >
-                <AlignLeft className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{t("alignLeft")}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => handleAlignmentClick("center")}
-                disabled={editingDisabled}
-                className={cn(
-                  "px-2 py-1.5 border-x border-border transition-colors",
-                  editingDisabled
-                    ? "opacity-60 cursor-not-allowed"
-                    : currentAlignment === "center"
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted/50",
-                )}
-                aria-label={t("alignCenter")}
-              >
-                <AlignCenter className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{t("alignCenter")}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => handleAlignmentClick("right")}
-                disabled={editingDisabled}
-                className={cn(
-                  "px-2 py-1.5 transition-colors",
-                  editingDisabled
-                    ? "opacity-60 cursor-not-allowed"
-                    : currentAlignment === "right"
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted/50",
-                )}
-                aria-label={t("alignRight")}
-              >
-                <AlignRight className="w-4 h-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{t("alignRight")}</TooltipContent>
-          </Tooltip>
-        </div>
-
-        {/* Sync from Board — icon-only button pushed to the far right */}
-        {onSyncFromBoard && (
+        {/* Drawing controls — in draw mode the toolbar transforms: all
+            content-editing controls are hidden and replaced by inline color
+            swatches, an eraser, and a stamp-character dropdown. */}
+        {drawMode && (
           <>
+            <div className="flex items-center gap-0.5">
+              {AVAILABLE_COLORS.map((name) => {
+                const selected = effectiveBrush.kind === "color" && effectiveBrush.color === name;
+                return (
+                  <Tooltip key={name}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        data-testid={`draw-color-${name}`}
+                        aria-pressed={selected}
+                        aria-label={t(`drawColors.${name}`)}
+                        onClick={() => onDrawBrushChange?.({ kind: "color", color: name })}
+                        className={cn(
+                          "flex items-center justify-center p-1.5 rounded-md transition-colors",
+                          "border border-transparent",
+                          selected ? "ring-2 ring-primary" : "hover:bg-muted/50",
+                        )}
+                      >
+                        <span
+                          className="block h-4 w-4 rounded border border-border/50"
+                          style={{ backgroundColor: getBoardColor(name) }}
+                        />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t(`drawColors.${name}`)}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    data-testid="draw-color-eraser"
+                    aria-pressed={effectiveBrush.kind === "eraser"}
+                    aria-label={t("drawEraser")}
+                    onClick={() => onDrawBrushChange?.({ kind: "eraser" })}
+                    className={cn(
+                      "flex items-center justify-center p-1.5 rounded-md transition-colors",
+                      "border border-transparent",
+                      effectiveBrush.kind === "eraser" ? "ring-2 ring-primary bg-muted/70" : "hover:bg-muted/50",
+                    )}
+                  >
+                    <Eraser className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t("drawEraser")}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
+            <ToolbarDropdown
+              label={t("drawCharacter")}
+              data-testid="draw-char-dropdown"
+              className={cn(effectiveBrush.kind === "char" && "ring-2 ring-primary")}
+              icon={
+                effectiveBrush.kind === "char" ? (
+                  <span className="flex h-4 w-4 items-center justify-center rounded border border-border font-mono text-xs leading-none">
+                    {effectiveBrush.char}
+                  </span>
+                ) : (
+                  <Type className="w-4 h-4" />
+                )
+              }
+            >
+              {(close) => (
+                <DrawCharPickerContent
+                  current={effectiveBrush}
+                  onSelect={(brush) => {
+                    onDrawBrushChange?.(brush);
+                    close();
+                  }}
+                />
+              )}
+            </ToolbarDropdown>
+          </>
+        )}
+
+        {!drawMode && (
+          <>
+            {/* Cut/Copy/Paste Controls */}
+            <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={handleCut}
+                    disabled={!hasSelection}
+                    className={cn(
+                      "px-2 py-1.5 transition-colors",
+                      hasSelection ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
+                      "border-r border-border",
+                    )}
+                    aria-label="Cut"
+                  >
+                    <Scissors className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t("cut")}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    disabled={!hasSelection}
+                    className={cn(
+                      "px-2 py-1.5 transition-colors",
+                      hasSelection ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
+                      "border-r border-border",
+                    )}
+                    aria-label="Copy"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t("copy")}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={handlePaste}
+                    disabled={!hasClipboardContent}
+                    className={cn(
+                      "px-2 py-1.5 transition-colors",
+                      hasClipboardContent ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
+                    )}
+                    aria-label="Paste"
+                  >
+                    <ClipboardPaste className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t("paste")}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* Divider after clipboard controls */}
+            <div className="h-6 w-px bg-border mx-1" />
+
+            {/* Variables Dropdown */}
+            {hasVariables ? (
+              <ToolbarDropdown label={t("variables")} icon={<Code2 className="w-4 h-4" />}>
+                {(close) => (
+                  <VariablePickerContent
+                    onInsert={(variable) => {
+                      handleInsert(variable);
+                      close();
+                    }}
+                  />
+                )}
+              </ToolbarDropdown>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    disabled
+                    className={cn(
+                      "flex items-center justify-center p-1.5 rounded-md",
+                      "text-muted-foreground cursor-not-allowed opacity-60",
+                      "border border-transparent",
+                    )}
+                    aria-label={t("variablesNoVarsAvailable")}
+                  >
+                    <Code2 className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t("noVariablesAvailable")}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Colors Dropdown */}
+            {hasColors && (
+              <ToolbarDropdown label={t("colors")} icon={<Palette className="w-4 h-4" />}>
+                {(close) => (
+                  <ColorPickerContent
+                    onInsert={(color) => {
+                      handleInsert(color);
+                      close();
+                    }}
+                    deviceType={deviceType}
+                  />
+                )}
+              </ToolbarDropdown>
+            )}
+
+            {/* Formatting Dropdown */}
+            {hasFormatting && (
+              <ToolbarDropdown label={t("formatting")} icon={<Type className="w-4 h-4" />}>
+                {(close) => (
+                  <FormattingPickerContent
+                    formatting={templateVars?.formatting}
+                    onInsert={(formatting) => {
+                      handleInsert(formatting);
+                      close();
+                    }}
+                  />
+                )}
+              </ToolbarDropdown>
+            )}
+
+            {/* Formulas — insert an empty formula node; the pill's panel auto-opens in the editor */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  onClick={onSyncFromBoard}
-                  disabled={syncFromBoardPending || editingDisabled}
+                  onClick={() => {
+                    editor
+                      ?.chain()
+                      .focus()
+                      .insertContent({
+                        type: "formula",
+                        attrs: { expression: "", autoOpen: true },
+                      })
+                      .run();
+                  }}
                   className={cn(
-                    "flex items-center justify-center p-1.5 rounded-md transition-colors",
-                    "hover:bg-muted/50 border border-transparent",
-                    (syncFromBoardPending || editingDisabled) && "opacity-60 cursor-not-allowed",
+                    "flex items-center gap-1 px-2 py-1.5 rounded-md text-sm font-medium",
+                    "hover:bg-muted/50 transition-colors",
                   )}
-                  aria-label={t("syncFromBoard")}
+                  aria-label={t("insertFormula")}
                 >
-                  <Download className={cn("w-4 h-4", syncFromBoardPending && "animate-pulse")} />
+                  <SquareFunction className="w-4 h-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{t("syncFromBoardTooltip")}</p>
+                <p>{t("insertFormula")}</p>
               </TooltipContent>
             </Tooltip>
+
+            {/* Wrap Toggle Button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onWrapToggle}
+                  className={cn(
+                    "flex items-center justify-center p-1.5 rounded-md transition-colors",
+                    "border border-transparent",
+                    currentWrapEnabled ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                  )}
+                  aria-label={t("toggleWrap")}
+                >
+                  <WrapText className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{currentWrapEnabled ? t("disableWrap") : t("enableWrap")}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Divider */}
+            {(hasVariables || hasColors || hasFormatting) && <div className="h-6 w-px bg-border mx-1" />}
+
+            {/* Alignment Controls */}
+            <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignmentClick("left")}
+                    className={cn(
+                      "px-2 py-1.5 transition-colors",
+                      currentAlignment === "left" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                    )}
+                    aria-label={t("alignLeft")}
+                  >
+                    <AlignLeft className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{t("alignLeft")}</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignmentClick("center")}
+                    className={cn(
+                      "px-2 py-1.5 border-x border-border transition-colors",
+                      currentAlignment === "center" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                    )}
+                    aria-label={t("alignCenter")}
+                  >
+                    <AlignCenter className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{t("alignCenter")}</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => handleAlignmentClick("right")}
+                    className={cn(
+                      "px-2 py-1.5 transition-colors",
+                      currentAlignment === "right" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50",
+                    )}
+                    aria-label={t("alignRight")}
+                  >
+                    <AlignRight className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{t("alignRight")}</TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* Sync from Board — icon-only button pushed to the far right */}
+            {onSyncFromBoard && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={onSyncFromBoard}
+                      disabled={syncFromBoardPending}
+                      className={cn(
+                        "flex items-center justify-center p-1.5 rounded-md transition-colors",
+                        "hover:bg-muted/50 border border-transparent",
+                        syncFromBoardPending && "opacity-60 cursor-not-allowed",
+                      )}
+                      aria-label={t("syncFromBoard")}
+                    >
+                      <Download className={cn("w-4 h-4", syncFromBoardPending && "animate-pulse")} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{t("syncFromBoardTooltip")}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            )}
           </>
         )}
       </div>
