@@ -15,7 +15,12 @@ import type { TipTapTemplateEditorHandle } from "@/components/tiptap-template-ed
 // TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
 import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
 import type { CellPaint, DrawBrush } from "@/components/tiptap-template-editor/utils/draw-mode";
-import { isPositionalLine, paintLine, renderPositionalLine } from "@/components/tiptap-template-editor/utils/draw-mode";
+import {
+  brushToCell,
+  isPositionalLine,
+  paintLine,
+  renderPositionalLine,
+} from "@/components/tiptap-template-editor/utils/draw-mode";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -162,7 +167,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   // Pencil draw-mode state — see handleStrokeCommit / drawPreviewMessage
   // below for how a painted stroke flows back into templateLines.
   const [drawMode, setDrawMode] = useState(false);
-  const [drawBrush, setDrawBrush] = useState<DrawBrush>("red");
+  const [drawBrush, setDrawBrush] = useState<DrawBrush>({ kind: "color", color: "red" });
   const [strokePreviewCells, setStrokePreviewCells] = useState<StrokeCell[]>([]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
 
@@ -1181,8 +1186,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const handleStrokeCommit = useCallback(
     (cells: StrokeCell[]) => {
       setStrokePreviewCells([]);
-      const color = drawBrush === "eraser" ? null : drawBrush;
-      const rows = tipTapRef.current?.applyStroke(cells, color) ?? [];
+      const rows = tipTapRef.current?.applyStroke(cells, drawBrush) ?? [];
       if (rows.length === 0) return;
       // Painted lines are positional: force left alignment + wrap off.
       setLineAlignments((prev) => {
@@ -1207,10 +1211,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (!drawMode) return null;
     const serverLines = (preview ?? lastPreview ?? "").split("\n");
     const strokeByRow = new Map<number, CellPaint[]>();
-    const strokeColor = drawBrush === "eraser" ? null : drawBrush;
+    const strokeCell = brushToCell(drawBrush);
     for (const c of strokePreviewCells) {
       const arr = strokeByRow.get(c.row) ?? [];
-      arr.push({ col: c.col, color: strokeColor });
+      arr.push({ col: c.col, cell: strokeCell });
       strokeByRow.set(c.row, arr);
     }
     const out: string[] = [];

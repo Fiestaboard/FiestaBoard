@@ -5,7 +5,9 @@
  * document without going through TipTap's normal text-input path. Each
  * stroke must land as ONE undo step (via closeHistory) so a drag gesture
  * doesn't produce dozens of undo entries, and undo must restore any dynamic
- * content (variables) that painting stripped from the line.
+ * content (variables) that painting stripped from the line. The brush is a
+ * DrawBrush (color, eraser, or stamp character), mapped to a cell via
+ * brushToCell.
  */
 import { render, waitFor } from "@testing-library/react";
 import { createRef } from "react";
@@ -39,7 +41,7 @@ describe("TipTapTemplateEditor applyStroke", () => {
         { row: 0, col: 1 },
         { row: 2, col: 0 },
       ],
-      "blue",
+      { kind: "color", color: "blue" },
     );
     expect(rows).toEqual([0, 2]);
     await waitFor(() => {
@@ -49,9 +51,29 @@ describe("TipTapTemplateEditor applyStroke", () => {
     });
   });
 
+  it("stamps a character with a char brush and undo restores the original", async () => {
+    const { ref, onChange } = await setup("HELLO\n\n\n\n\n");
+    ref.current!.applyStroke([{ row: 0, col: 1 }], { kind: "char", char: "A" });
+    await waitFor(() => {
+      expect((onChange.mock.calls.at(-1)![0] as string).split("\n")[0]).toBe("HALLO");
+    });
+    ref.current!.undo();
+    await waitFor(() => {
+      expect((onChange.mock.calls.at(-1)![0] as string).split("\n")[0]).toBe("HELLO");
+    });
+  });
+
+  it("erases cells with the eraser brush", async () => {
+    const { ref, onChange } = await setup("HELLO\n\n\n\n\n");
+    ref.current!.applyStroke([{ row: 0, col: 4 }], { kind: "eraser" });
+    await waitFor(() => {
+      expect((onChange.mock.calls.at(-1)![0] as string).split("\n")[0]).toBe("HELL");
+    });
+  });
+
   it("strips variables on painted lines and undo restores them", async () => {
     const { ref, onChange } = await setup("HI {{weather.temp}}\n\n\n\n\n");
-    ref.current!.applyStroke([{ row: 0, col: 0 }], "red");
+    ref.current!.applyStroke([{ row: 0, col: 0 }], { kind: "color", color: "red" });
     await waitFor(() => {
       expect((onChange.mock.calls.at(-1)![0] as string).split("\n")[0]).toBe("{{red}}I");
     });
@@ -63,8 +85,8 @@ describe("TipTapTemplateEditor applyStroke", () => {
 
   it("two strokes are two undo steps", async () => {
     const { ref, onChange } = await setup("\n\n\n\n\n");
-    ref.current!.applyStroke([{ row: 0, col: 0 }], "red");
-    ref.current!.applyStroke([{ row: 0, col: 1 }], "green");
+    ref.current!.applyStroke([{ row: 0, col: 0 }], { kind: "color", color: "red" });
+    ref.current!.applyStroke([{ row: 0, col: 1 }], { kind: "color", color: "green" });
     ref.current!.undo();
     await waitFor(() => {
       expect((onChange.mock.calls.at(-1)![0] as string).split("\n")[0]).toBe("{{red}}");

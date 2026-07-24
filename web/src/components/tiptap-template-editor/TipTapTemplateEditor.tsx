@@ -24,10 +24,9 @@ import { SingleParagraphDoc } from "./extensions/single-paragraph-doc";
 import { TrailingNewline } from "./extensions/trailing-newline";
 import { VariableNode } from "./extensions/variable-node";
 import { WrappedTextNode } from "./extensions/wrapped-text-node";
-import type { BoardColorName } from "./utils/constants";
 import { BOARD_LINES, BOARD_WIDTH } from "./utils/constants";
 import type { CellPaint, DrawBrush } from "./utils/draw-mode";
-import { paintLine } from "./utils/draw-mode";
+import { brushToCell, paintLine } from "./utils/draw-mode";
 import { parseLineContent, parseTemplateSimple, serializeTemplateSimple } from "./utils/serialization";
 export type LineAlignment = "left" | "center" | "right";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -44,7 +43,7 @@ export interface StrokePaint {
 /** Imperative handle exposed via ref for draw-mode's cell-painting flow. */
 export interface TipTapTemplateEditorHandle {
   /** Applies one stroke as ONE undo step. Returns affected row indices. */
-  applyStroke(paints: StrokePaint[], color: BoardColorName | null): number[];
+  applyStroke(paints: StrokePaint[], brush: DrawBrush): number[];
   undo(): void;
   redo(): void;
 }
@@ -129,7 +128,7 @@ interface TipTapTemplateEditorProps {
   syncFromBoardPending?: boolean; // True while the sync mutation is in flight
   drawMode?: boolean; // True while draw mode is active (collapses the editor, keeps toolbar)
   onDrawModeToggle?: () => void; // Toggle draw mode on/off
-  drawBrush?: DrawBrush; // Currently selected draw brush (color or eraser)
+  drawBrush?: DrawBrush; // Currently selected draw brush (color, eraser, or stamp character)
   onDrawBrushChange?: (brush: DrawBrush) => void; // Change the draw brush
 }
 
@@ -746,16 +745,17 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     useImperativeHandle(
       ref,
       () => ({
-        applyStroke(paints: StrokePaint[], color: BoardColorName | null): number[] {
+        applyStroke(paints: StrokePaint[], brush: DrawBrush): number[] {
           const ed = editorRef.current;
           if (!ed || ed.isDestroyed) return [];
 
+          const cell = brushToCell(brush);
           const lines = serializeTemplateSimple(ed.getJSON(), boardLines).split("\n");
           const byRow = new Map<number, CellPaint[]>();
           for (const p of paints) {
             if (p.row < 0 || p.row >= boardLines || p.col < 0 || p.col >= boardWidth) continue;
             const arr = byRow.get(p.row) ?? [];
-            arr.push({ col: p.col, color });
+            arr.push({ col: p.col, cell });
             byRow.set(p.row, arr);
           }
           if (byRow.size === 0) return [];

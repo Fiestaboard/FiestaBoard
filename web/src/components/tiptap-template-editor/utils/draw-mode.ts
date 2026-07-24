@@ -10,16 +10,51 @@
 
 import { BOARD_COLORS, type BoardColorName } from "./constants";
 
-export type DrawBrush = BoardColorName | "eraser";
+/**
+ * The active drawing tool: a color brush, the eraser, or a stamp character
+ * picked from the toolbar's character dropdown.
+ */
+export type DrawBrush = { kind: "color"; color: BoardColorName } | { kind: "eraser" } | { kind: "char"; char: string };
 
 /** One board cell: a single literal character, or a "{{color}}" marker. */
 export type Cell = string;
 
 export interface CellPaint {
   col: number;
-  /** Color to paint, or null to erase (blank the cell). */
-  color: BoardColorName | null;
+  /** Cell content to write: "{{color}}", a literal character, or " " to erase. */
+  cell: Cell;
 }
+
+/**
+ * The stampable character set — every REAL character on the board (A-Z,
+ * digits, punctuation incl. °), mirroring BOARD_CHARS in board-display.tsx
+ * codes 1-62 minus blank (that's the eraser) and the undefined placeholder
+ * slots (43, 45, 51, 57, 58, 61).
+ */
+export const DRAW_CHARS: string[] = [
+  ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ", // 1-26
+  ..."1234567890", // 27-36
+  "!", // 37
+  "@", // 38
+  "#", // 39
+  "$", // 40
+  "(", // 41
+  ")", // 42
+  "-", // 44
+  "+", // 46
+  "&", // 47
+  "=", // 48
+  ";", // 49
+  ":", // 50
+  "'", // 52
+  '"', // 53
+  "%", // 54
+  ",", // 55
+  ".", // 56
+  "/", // 59
+  "?", // 60
+  "°", // 62 - Degree on Flagship, Heart on Note
+];
 
 const COLOR_CELL_RE = /^\{\{([a-z]+)\}\}$/;
 
@@ -38,6 +73,22 @@ const CODE_TO_NAME: Record<number, BoardColorName> = {
 
 function colorCell(color: BoardColorName): Cell {
   return `{{${color}}}`;
+}
+
+/** Maps the active brush to the cell content it writes. */
+export function brushToCell(brush: DrawBrush): Cell {
+  switch (brush.kind) {
+    case "color":
+      return colorCell(brush.color);
+    case "eraser":
+      return " ";
+    case "char": {
+      const char = brush.char.toUpperCase();
+      if (char.length === 1 && DRAW_CHARS.includes(char)) return char;
+      console.warn(`[draw-mode] Invalid stamp character ${JSON.stringify(brush.char)} — erasing instead.`);
+      return " ";
+    }
+  }
 }
 
 export function lineToCells(line: string): Cell[] {
@@ -102,7 +153,7 @@ export function paintLine(line: string, paints: CellPaint[], cols: number): stri
   const validPaints = paints.filter((p) => p.col >= 0 && p.col < cols);
   for (const paint of validPaints) {
     while (cells.length <= paint.col) cells.push(" ");
-    cells[paint.col] = paint.color ? colorCell(paint.color) : " ";
+    cells[paint.col] = paint.cell;
   }
   return cellsToLine(cells);
 }
