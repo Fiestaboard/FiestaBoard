@@ -253,10 +253,9 @@ export function ActivePageDisplay() {
   // Set active page mutation — targets the selected board only
   const setActivePageMutation = useSetActivePage(scopedBoardId);
 
-  // Board currently managed in the sidebar selector — used to filter the page
-  // picker to size-compatible pages and to warn about partially-fitting
-  // collections (issue #1249).
-  const { currentBoard } = useCurrentBoard();
+  // currentBoard (destructured above from useCurrentBoard()) is also used to
+  // filter the page picker to size-compatible pages and to warn about
+  // partially-fitting collections (issue #1249).
 
   // Get the active page ID based on mode
   const activePageId = scheduleEnabled ? activeScheduleData?.page_id || null : activePageData?.page_id || null;
