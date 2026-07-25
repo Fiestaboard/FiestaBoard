@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.schedules.models import ScheduleCreate
+from src.schedules.models import ScheduleCreate, ScheduleUpdate
 from src.schedules.service import ScheduleService
 from src.schedules.storage import ScheduleStorage
 
@@ -649,3 +649,120 @@ class TestDefaultPage:
         service.set_default_page("page-123")
         service.set_default_page(None)
         assert service.get_default_page() is None
+
+
+class TestScheduleSizeCompatibility:
+    """Page<->board size compatibility enforcement on schedule writes (issue #1245)."""
+
+    @pytest.fixture
+    def page_env(self, monkeypatch, tmp_path):
+        """Real page/collection services on temp storage + mocked board settings."""
+        from src.collections.models import CollectionCreate
+        from src.collections.service import CollectionService
+        from src.collections.storage import CollectionStorage
+        from src.pages.models import PageCreate
+        from src.pages.service import PageService
+        from src.pages.storage import PageStorage
+
+        page_service = PageService(storage=PageStorage(storage_file=str(tmp_path / "pages.json")))
+        collection_service = CollectionService(
+            storage=CollectionStorage(storage_file=str(tmp_path / "collections.json"))
+        )
+
+        boards = [
+            {"id": "board-flagship", "name": "Big", "device_type": "flagship"},
+            {"id": "board-note", "name": "Small", "device_type": "note"},
+            {"id": "board-array", "name": "Grid", "device_type": "note_array", "notes_wide": 2, "notes_tall": 2},
+        ]
+        settings = MagicMock()
+        settings.get_board_settings.return_value.boards = boards
+        settings.get_primary_board_id.return_value = "board-flagship"
+
+        monkeypatch.setattr("src.pages.service.get_page_service", lambda: page_service)
+        monkeypatch.setattr("src.pages.service.get_settings_service", lambda: settings)
+        monkeypatch.setattr("src.collections.service.get_collection_service", lambda: collection_service)
+
+        flagship_page = page_service.create_page(PageCreate(name="Flag", type="template", template=["a"]))
+        note_page = page_service.create_page(
+            PageCreate(name="Small", type="template", device_type="note", template=["a"])
+        )
+        array_page = page_service.create_page(
+            PageCreate(
+                name="Grid", type="template", device_type="note_array", template=["a"], notes_wide=2, notes_tall=2
+            )
+        )
+
+        def make_collection(page_ids, name="Mixed"):
+            return collection_service.create_collection(CollectionCreate(name=name, page_ids=page_ids))
+
+        return {
+            "flagship_page": flagship_page,
+            "note_page": note_page,
+            "array_page": array_page,
+            "make_collection": make_collection,
+        }
+
+    @staticmethod
+    def _create(service, page_id, board_id):
+        return service.create_schedule(
+            ScheduleCreate(page_id=page_id, board_id=board_id, start_time="09:00", end_time="10:00")
+        )
+
+    def test_create_compatible_page_passes(self, service, page_env):
+        created = self._create(service, page_env["flagship_page"].id, "board-flagship")
+        assert created.page_id == page_env["flagship_page"].id
+
+    def test_create_incompatible_page_blocked(self, service, page_env):
+        with pytest.raises(ValueError, match="not compatible"):
+            self._create(service, page_env["note_page"].id, "board-flagship")
+
+    def test_create_note_array_exact_match_required(self, service, page_env):
+        created = self._create(service, page_env["array_page"].id, "board-array")
+        assert created.page_id == page_env["array_page"].id
+        with pytest.raises(ValueError, match="not compatible"):
+            self._create(service, page_env["array_page"].id, "board-note")
+
+    def test_create_legacy_default_board_id_resolves_primary(self, service, page_env):
+        """board_id "" (legacy single-board) validates against the primary board."""
+        created = self._create(service, page_env["flagship_page"].id, "")
+        assert created.board_id == ""
+        with pytest.raises(ValueError, match="not compatible"):
+            self._create(service, page_env["note_page"].id, "")
+
+    def test_create_unknown_page_passes(self, service, page_env):
+        """Nonexistent page ids are not blocked (back-compat, existence not enforced here)."""
+        created = self._create(service, "no-such-page", "board-flagship")
+        assert created.page_id == "no-such-page"
+
+    def test_create_unknown_board_passes(self, service, page_env):
+        created = self._create(service, page_env["note_page"].id, "no-such-board")
+        assert created.page_id == page_env["note_page"].id
+
+    def test_update_to_incompatible_page_blocked(self, service, page_env):
+        created = self._create(service, page_env["flagship_page"].id, "board-flagship")
+        with pytest.raises(ValueError, match="not compatible"):
+            service.update_schedule(created.id, ScheduleUpdate(page_id=page_env["note_page"].id))
+
+    def test_update_to_incompatible_board_blocked(self, service, page_env):
+        created = self._create(service, page_env["flagship_page"].id, "board-flagship")
+        with pytest.raises(ValueError, match="not compatible"):
+            service.update_schedule(created.id, ScheduleUpdate(board_id="board-note"))
+
+    def test_update_compatible_passes(self, service, page_env):
+        created = self._create(service, page_env["flagship_page"].id, "board-flagship")
+        updated = service.update_schedule(created.id, ScheduleUpdate(start_time="11:00"))
+        assert updated.start_time == "11:00"
+
+    def test_collection_with_some_compatible_members_allowed(self, service, page_env):
+        collection = page_env["make_collection"]([page_env["flagship_page"].id, page_env["note_page"].id])
+        created = self._create(service, collection.id, "board-flagship")
+        assert created.page_id == collection.id
+
+    def test_collection_with_no_compatible_members_blocked(self, service, page_env):
+        collection = page_env["make_collection"]([page_env["note_page"].id, page_env["array_page"].id])
+        with pytest.raises(ValueError, match=r"none of its"):
+            self._create(service, collection.id, "board-flagship")
+
+    def test_collection_unknown_or_empty_passes(self, service, page_env):
+        created = self._create(service, "collection:does-not-exist", "board-flagship")
+        assert created.page_id == "collection:does-not-exist"
