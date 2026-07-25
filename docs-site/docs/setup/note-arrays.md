@@ -42,6 +42,23 @@ Cloud mode. Pick your size with the **Board type** dropdown — five presets
 (2 side-by-side, 4 side-by-side, 2 stacked, 4 stacked, 2×2 grid) plus
 **Custom…** for anything up to 8 × 8 Notes.
 
+## Multiple boards
+
+Adding a Note array alongside another board (or a second array) puts your
+install in FiestaBoard's per-board model:
+
+- A **board selector** appears in the sidebar once you have more than one
+  board. It picks which board the **Dashboard** and **Schedule** pages
+  manage — each board keeps its own active page and schedule, independent of
+  the others.
+- **Pages and Collections stay global.** There's one shared library, not one
+  per board; when you're managing a board, its page pickers filter to pages
+  sized for that board (an array's W×H, a Flagship's 22×6, a Note's 15×3) so
+  you only see pages that will render 1:1.
+- Manual sends and scheduled rotations are routed to whichever board is
+  selected — a Flagship board is never affected by an array's schedule, or
+  vice versa.
+
 ## Cloud mode
 
 1. Keep the connection on **Cloud API**.
