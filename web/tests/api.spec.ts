@@ -155,13 +155,19 @@ test.describe("API – Schedules", () => {
   });
 
   test("can create and delete a schedule", async () => {
-    // Ensure at least one page exists to reference
+    // Ensure at least one page exists to reference. The primary board is a
+    // flagship, and since #1245 the backend rejects size-incompatible
+    // schedule pages — so pick a FLAGSHIP page (pages[0] may be a
+    // note/note-array page left behind by another spec).
     const pagesRes = await fetch(`${API()}/pages`);
     const pagesData = await pagesRes.json();
     let pageId: string;
 
-    if (pagesData.total > 0) {
-      pageId = pagesData.pages[0].id;
+    const flagshipPage = (pagesData.pages ?? []).find(
+      (p: { device_type?: string }) => (p.device_type || "flagship") === "flagship",
+    );
+    if (flagshipPage) {
+      pageId = flagshipPage.id;
     } else {
       // Create a temporary page
       const createPageRes = await fetch(`${API()}/pages`, {
