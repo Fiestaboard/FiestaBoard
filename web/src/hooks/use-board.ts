@@ -54,7 +54,10 @@ export function useConfig() {
 export function useActivePage() {
   return useQuery({
     queryKey: queryKeys.activePage,
-    queryFn: api.getActivePage,
+    // Explicit lambda — a bare `api.getActivePage` reference would receive
+    // TanStack Query's context object as the optional boardId param and
+    // request board_id=[object Object] (issue #1244 regression).
+    queryFn: () => api.getActivePage(),
     retry: 1,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
