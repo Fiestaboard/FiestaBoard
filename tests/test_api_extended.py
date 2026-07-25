@@ -2087,3 +2087,43 @@ class TestStatusPerBoard:
         assert "running" in data
         assert "config_summary" in data
         assert data["config_summary"]["active_page_id"] == "page1"
+
+
+class TestStatusPerBoardResilience:
+    """Issue #1244 regression pins: per-board status must never break /status.
+
+    The dashboard polls /status; a 500 here puts the UI in a retry loop.
+    These pin the defensive paths for unreachable/mid-init/garbage states.
+    """
+
+    def test_status_ok_when_board_client_lookup_raises(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        mock_service.get_board_client = Mock(side_effect=RuntimeError("runtimes not built yet"))
+        with patch("src.api_server._service_running", True):
+            response = client.get("/status")
+        assert response.status_code == 200
+        boards = response.json()["boards"]
+        assert boards["b1"]["configured"] is False
+        assert boards["b2"]["configured"] is False
+
+    def test_status_ok_when_boards_list_is_garbage(self, client, mock_service, mock_settings_service):
+        board_settings = Mock()
+        board_settings.boards = [None, 42, {"no_id": True}]
+        mock_settings_service.get_board_settings.return_value = board_settings
+        with patch("src.api_server._service_running", True):
+            response = client.get("/status")
+        assert response.status_code == 200
+        assert response.json()["boards"] == {}
+
+
+class TestActivePageUnknownBoardIsSafe:
+    """Issue #1244 regression pin: GET /settings/active-page with an unknown
+    board_id (e.g. a mangled "[object Object]") must return 200 with a null
+    page_id — never 404/500 — because the dashboard polls this endpoint."""
+
+    def test_get_active_page_unknown_board_returns_null_not_error(self, client, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        mock_settings_service.get_active_page_id.return_value = None
+        response = client.get("/settings/active-page?board_id=%5Bobject%20Object%5D")
+        assert response.status_code == 200
+        assert response.json()["page_id"] is None
