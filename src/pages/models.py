@@ -165,6 +165,10 @@ class PageUpdate(BaseModel):
     """Request model for updating an existing page."""
 
     name: str | None = Field(default=None, min_length=1, max_length=100)
+    # Device/size retarget (issue #1250). Converting between geometries is
+    # lossy (content that doesn't fit is truncated at render time) — the
+    # editor confirms shrinking retargets before saving.
+    device_type: DeviceType | None = None
     display_type: str | None = None
     rows: list[RowConfig] | None = None
     template: list[str] | None = None

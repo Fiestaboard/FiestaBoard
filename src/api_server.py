@@ -41,7 +41,7 @@ from .displays.service import get_display_service, reset_display_service  # noqa
 from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.models import PageCreate, PageUpdate  # noqa: E402
-from .pages.service import check_ref_board_compatibility, get_page_service  # noqa: E402
+from .pages.service import check_ref_board_compatibility, find_incompatible_references, get_page_service  # noqa: E402
 from .pages.share import decode_page, encode_page  # noqa: E402
 from .schedules.models import ScheduleCreate, ScheduleUpdate  # noqa: E402
 from .schedules.service import get_schedule_service  # noqa: E402
@@ -6650,15 +6650,30 @@ async def get_page(page_id: str):
 
 @app.put("/pages/{page_id}")
 async def update_page(page_id: str, page_data: PageUpdate):
-    """Update an existing page."""
+    """Update an existing page.
+
+    When the update changes the page's size (device/size retarget, issue
+    #1250), the response includes ``incompatible_references``: schedule
+    entries and per-board active pages that now point this page at a board
+    it no longer fits. Warn-only — no reference is mutated or removed.
+    """
+    from .devices import size_key
+
     page_service = get_page_service()
+    existing = page_service.get_page(page_id)
 
     try:
         page = page_service.update_page(page_id, page_data)
         if not page:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
-        return {"status": "success", "page": page.model_dump()}
+        response = {"status": "success", "page": page.model_dump()}
+        if existing is not None:
+            old_size = size_key(existing.device_type, existing.notes_wide, existing.notes_tall)
+            new_size = size_key(page.device_type, page.notes_wide, page.notes_tall)
+            if old_size != new_size:
+                response["incompatible_references"] = find_incompatible_references(page)
+        return response
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

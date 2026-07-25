@@ -163,8 +163,28 @@ class PageService:
 
         Returns:
             Updated page or None if not found
+
+        Raises:
+            ValueError: If a device/size retarget (issue #1250) would leave
+                the page config invalid (e.g. a composite row that no longer
+                fits the new geometry)
         """
         updates = data.model_dump(exclude_unset=True)
+
+        # Device/size retarget (issue #1250): re-validate the prospective page
+        # before persisting so a retarget can't strand an invalid config.
+        # Lossy template truncation is accepted (handled at render time);
+        # structural errors (composite rows out of range) are blocked.
+        if any(key in updates for key in ("device_type", "notes_wide", "notes_tall")):
+            existing = self.storage.get(page_id)
+            if existing is not None:
+                # Mirror storage.update() semantics: None never overwrites the
+                # geometry fields, so validate with None values dropped.
+                prospective = Page(**{**existing.model_dump(), **{k: v for k, v in updates.items() if v is not None}})
+                errors = prospective.validate_config()
+                if errors:
+                    raise ValueError(f"Cannot retarget page: {'; '.join(errors)}")
+
         updated_page = self.storage.update(page_id, updates)
 
         # Invalidate preview cache for this page
@@ -754,3 +774,75 @@ def _board_geometry(board: dict) -> tuple[str, int, int]:
         board.get("notes_wide") or 1,
         board.get("notes_tall") or 1,
     )
+
+
+def find_incompatible_references(page: Page) -> list[dict]:
+    """Find schedule/active-page references the page no longer fits (issue #1250).
+
+    After a device/size retarget, existing references may point the page at
+    boards whose size no longer matches. This scans, for every board the page
+    is now incompatible with:
+
+      - schedule entries referencing the page directly or via a collection
+        that contains it (``surface: "schedule"``, with ``schedule_id``)
+      - the board's manual active page, direct or via a containing collection
+        (``surface: "active_page"``)
+
+    Warn-only by design: nothing is mutated or auto-fixed — callers surface
+    the returned refs to the user. Returns
+    ``[{board_id, board_name, surface, schedule_id}]``; failures degrade to
+    partial results rather than breaking the page save.
+    """
+    refs: list[dict] = []
+    try:
+        settings = get_settings_service()
+        boards = [b for b in (settings.get_board_settings().boards or []) if isinstance(b, dict)]
+        if not boards:
+            return refs
+
+        # Collections containing this page: a schedule/active-page ref to such
+        # a collection references this page too (it would be skipped there).
+        try:
+            from src.collections.service import get_collection_service
+
+            containing = {c.id for c in get_collection_service().list_collections() if page.id in c.page_ids}
+        except Exception:
+            logger.exception("Collection scan failed during stale-reference detection")
+            containing = set()
+
+        def references_page(ref: str | None) -> bool:
+            return bool(ref) and (ref == page.id or ref in containing)
+
+        from src.schedules.service import get_schedule_service
+
+        schedule_service = get_schedule_service()
+
+        for board in boards:
+            if pages_compatible_with_board(page, board):
+                continue
+            board_id = board.get("id") or ""
+            board_name = board.get("name") or board_id
+            # list_schedules() already folds legacy board_id "" entries into
+            # the primary board, so no extra mapping is needed here.
+            for schedule in schedule_service.list_schedules(board_id=board_id):
+                if references_page(schedule.page_id):
+                    refs.append(
+                        {
+                            "board_id": board_id,
+                            "board_name": board_name,
+                            "surface": "schedule",
+                            "schedule_id": schedule.id,
+                        }
+                    )
+            if references_page(settings.get_active_page_id(board_id=board_id)):
+                refs.append(
+                    {
+                        "board_id": board_id,
+                        "board_name": board_name,
+                        "surface": "active_page",
+                        "schedule_id": None,
+                    }
+                )
+    except Exception:  # pragma: no cover - defensive: never let the scan break a save
+        logger.exception("Stale-reference detection failed; returning partial results")
+    return refs
