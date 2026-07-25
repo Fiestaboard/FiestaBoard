@@ -21,7 +21,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PageBuilder } from "@/components/page-builder";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
-import type { BoardSettings } from "@/lib/api";
+import type { BoardSettings, Page } from "@/lib/api";
 import { api } from "@/lib/api";
 
 vi.mock("@/lib/api", async () => {
@@ -208,5 +208,116 @@ describe("PageBuilder draw mode wiring", () => {
     expect(container.querySelector('[aria-label="red color tile"]')).toBeTruthy();
 
     efpSpy.mockRestore();
+  });
+});
+
+/**
+ * Committing a stroke forces the painted rows to left alignment with wrap
+ * off (painted lines are positional). That metadata lives in React state,
+ * outside ProseMirror history — so undoing the stroke must restore the
+ * captured pre-stroke alignment/wrap, and redoing it must re-force
+ * left/no-wrap. Observed through the renderTemplate preview payload, which
+ * carries the line metadata the server would use.
+ */
+describe("PageBuilder draw mode undo restores line metadata", () => {
+  const centeredPage: Page = {
+    id: "page-1",
+    name: "Centered Page",
+    type: "template",
+    device_type: "flagship",
+    template: ["HELLO", "", "", "", "", ""],
+    line_metadata: [
+      { alignment: "center", wrap: true },
+      { alignment: "left", wrap: false },
+      { alignment: "left", wrap: false },
+      { alignment: "left", wrap: false },
+      { alignment: "left", wrap: false },
+      { alignment: "left", wrap: false },
+    ],
+    duration_seconds: 30,
+    created_at: "2026-01-01T00:00:00Z",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.getTemplateVariables).mockResolvedValue({
+      variables: {},
+      max_lengths: {},
+      colors: {},
+      symbols: [],
+      filters: [],
+      formatting: {},
+      syntax_examples: {},
+    });
+    vi.mocked(api.renderTemplate).mockResolvedValue({
+      rendered: "test preview",
+      lines: ["test preview"],
+      line_count: 1,
+    });
+    vi.mocked(api.getBoardSettings).mockResolvedValue(boardSettings);
+    vi.mocked(api.getPage).mockResolvedValue(centeredPage);
+  });
+
+  /** Enter draw mode and commit a single-cell stroke at (0,0) with the default red brush. */
+  async function paintTopLeftCell(container: HTMLElement) {
+    const user = userEvent.setup();
+    const toggle = await screen.findByTestId("draw-mode-toggle");
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+    const tile = await waitFor(() => {
+      const el = container.querySelector('[data-row="0"][data-col="0"]');
+      expect(el).toBeTruthy();
+      return el as HTMLElement;
+    });
+    const efpSpy = vi.spyOn(document, "elementFromPoint").mockReturnValue(tile);
+    const surface = container.querySelector('[data-draw-surface="true"]') as HTMLElement;
+    expect(surface).toBeTruthy();
+
+    fireEvent.pointerDown(surface, { button: 0, pointerId: 1, clientX: 1, clientY: 1 });
+    fireEvent.pointerUp(surface, { pointerId: 1 });
+    efpSpy.mockRestore();
+  }
+
+  async function waitForLastRender(line0: string, alignment: string, wrap: boolean) {
+    await waitFor(
+      () => {
+        const last = vi.mocked(api.renderTemplate).mock.calls.at(-1);
+        expect(last).toBeTruthy();
+        expect(last![0][0]).toBe(line0);
+        expect(last![1][0]).toEqual({ alignment, wrap });
+      },
+      { timeout: 4000 },
+    );
+  }
+
+  it("undoing a stroke restores the painted row's pre-stroke alignment and wrap", async () => {
+    const { container } = render(<PageBuilder pageId="page-1" onClose={vi.fn()} onSave={vi.fn()} />, {
+      wrapper: TestWrapper,
+    });
+
+    await paintTopLeftCell(container);
+
+    // The commit forced row 0 to left/no-wrap.
+    await waitForLastRender("{{red}}ELLO", "left", false);
+
+    // Undo (draw-mode keyboard path) rewinds the doc AND the metadata.
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    await waitForLastRender("HELLO", "center", true);
+  });
+
+  it("redoing a stroke re-forces left alignment and wrap off", async () => {
+    const { container } = render(<PageBuilder pageId="page-1" onClose={vi.fn()} onSave={vi.fn()} />, {
+      wrapper: TestWrapper,
+    });
+
+    await paintTopLeftCell(container);
+    await waitForLastRender("{{red}}ELLO", "left", false);
+
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    await waitForLastRender("HELLO", "center", true);
+
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true, shiftKey: true });
+    await waitForLastRender("{{red}}ELLO", "left", false);
   });
 });
