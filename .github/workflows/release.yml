@@ -68,7 +68,9 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          # react-router 8 requires Node >= 22.22 (issue #1381); the Docker
+          # image runs Node 26.
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
