@@ -148,6 +148,7 @@
     "listView": "リスト表示",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "ページがまだありません",
     "noPagesDescription": "最初のページを作成してボードに表示しましょう。",
     "createFirstPage": "最初のページを作成",

@@ -25,7 +25,7 @@ import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 
-const DEVICE_ORDER: DeviceType[] = ["flagship", "note"];
+const DEVICE_ORDER: DeviceType[] = ["flagship", "note", "note_array"];
 
 // Lazy load PageGridSelector so the header renders immediately
 const PageGridSelectorLazy = lazy(() =>
@@ -221,6 +221,9 @@ export default function PagesPage() {
             <TabsList className="mb-5">
               {availableDevices.includes("flagship") && <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>}
               {availableDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
+              {availableDevices.includes("note_array") && (
+                <TabsTrigger value="note_array">{t("noteArrayTab")}</TabsTrigger>
+              )}
             </TabsList>
             {availableDevices.includes("flagship") && (
               <TabsContent value="flagship">
@@ -240,6 +243,17 @@ export default function PagesPage() {
                   showActiveIndicator={false}
                   showCollections={false}
                   deviceTypeFilter="note"
+                  viewMode={viewMode}
+                />
+              </TabsContent>
+            )}
+            {availableDevices.includes("note_array") && (
+              <TabsContent value="note_array">
+                <PageGridSelector
+                  onSelectPage={handleSelectPage}
+                  showActiveIndicator={false}
+                  showCollections={false}
+                  deviceTypeFilter="note_array"
                   viewMode={viewMode}
                 />
               </TabsContent>

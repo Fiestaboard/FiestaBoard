@@ -148,6 +148,7 @@
     "listView": "Список",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "Страницы ещё не созданы.",
     "noPagesDescription": "Создайте первую страницу для отображения на доске.",
     "createFirstPage": "Создайте свою первую страницу",

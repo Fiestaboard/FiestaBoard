@@ -148,6 +148,7 @@
     "listView": "목록 보기",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "생성된 페이지가 없습니다.",
     "noPagesDescription": "보드에 표시할 첫 번째 페이지를 만들어 보세요.",
     "createFirstPage": "첫 번째 페이지 만들기",
