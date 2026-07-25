@@ -188,7 +188,19 @@ const config: Config = {
           includeCurrentVersion: false,
           ...(onlyIncludeVersions ? { onlyIncludeVersions } : {}),
         },
-        blog: false, // Disable blog for now - keep it simple
+        blog: {
+          blogTitle: "FiestaBoard Blog",
+          blogDescription: "News, release announcements, and project updates from FiestaBoard",
+          showReadingTime: true,
+          blogSidebarTitle: "Recent posts",
+          onUntruncatedBlogPosts: "throw",
+          feedOptions: {
+            type: ["rss", "atom"],
+            title: "FiestaBoard Blog",
+            description: "News, release announcements, and project updates from FiestaBoard",
+            copyright: `Copyright © ${new Date().getFullYear()} FiestaBoard.`,
+          },
+        },
         theme: {
           customCss: "./src/css/custom.css",
         },
@@ -260,6 +272,11 @@ const config: Config = {
         {
           to: "/stats",
           label: "Stats",
+          position: "left",
+        },
+        {
+          to: "/blog",
+          label: "Blog",
           position: "left",
         },
         {
@@ -335,6 +352,10 @@ const config: Config = {
         {
           title: "Community",
           items: [
+            {
+              label: "Blog",
+              to: "/blog",
+            },
             {
               label: "Docker Hub",
               href: "https://hub.docker.com/r/fiestaboard/fiestaboard",
