@@ -1434,9 +1434,12 @@ export const api = {
   // Queries (read-only)
   getStatus: () => fetchApi<StatusResponse>("/status"),
   getConfig: () => fetchApi<ConfigSummary>("/config"),
+  // Non-empty string only — see the getActivePage note (issue #1244).
   getBoardCurrentMessage: (boardId?: string) =>
     fetchApi<BoardCurrentMessageResponse>(
-      boardId ? `/board/current-message?board_id=${encodeURIComponent(boardId)}` : "/board/current-message",
+      typeof boardId === "string" && boardId
+        ? `/board/current-message?board_id=${encodeURIComponent(boardId)}`
+        : "/board/current-message",
     ),
 
   // Mutations (actions)
@@ -1473,15 +1476,23 @@ export const api = {
       body: JSON.stringify({ target }),
     }),
 
-  // Active page settings (optional boardId targets a specific board)
+  // Active page settings (optional boardId targets a specific board).
+  // boardId is only honored when it's a non-empty string: these wrappers may
+  // be handed to TanStack Query or event handlers as bare references, which
+  // would otherwise pass a context/event object as boardId (issue #1244).
   getActivePage: (boardId?: string) =>
     fetchApi<ActivePageResponse>(
-      boardId ? `/settings/active-page?board_id=${encodeURIComponent(boardId)}` : "/settings/active-page",
+      typeof boardId === "string" && boardId
+        ? `/settings/active-page?board_id=${encodeURIComponent(boardId)}`
+        : "/settings/active-page",
     ),
   setActivePage: (pageId: string | null, boardId?: string) =>
     fetchApi<SetActivePageResponse>("/settings/active-page", {
       method: "PUT",
-      body: JSON.stringify({ page_id: pageId, ...(boardId != null && { board_id: boardId }) }),
+      body: JSON.stringify({
+        page_id: pageId,
+        ...(typeof boardId === "string" && boardId && { board_id: boardId }),
+      }),
     }),
 
   // Temporary override endpoints
@@ -1520,7 +1531,8 @@ export const api = {
   sendPage: (pageId: string, target?: "ui" | "board" | "both", boardId?: string) => {
     const query = new URLSearchParams();
     if (target) query.set("target", target);
-    if (boardId) query.set("board_id", boardId);
+    // Non-empty string only — see the getActivePage note (issue #1244).
+    if (typeof boardId === "string" && boardId) query.set("board_id", boardId);
     const qs = query.toString();
     return fetchApi<PageSendResponse>(`/pages/${pageId}/send${qs ? `?${qs}` : ""}`, { method: "POST" });
   },
