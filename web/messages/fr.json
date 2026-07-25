@@ -148,6 +148,7 @@
     "listView": "Vue en liste",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "Aucune page créée pour le moment.",
     "noPagesDescription": "Créez votre première page à afficher sur le tableau.",
     "createFirstPage": "Créer votre première page",
