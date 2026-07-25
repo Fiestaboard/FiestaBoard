@@ -1696,6 +1696,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         deviceType={deviceType}
                         notesWide={notesWide}
                         notesTall={notesTall}
+                        // DrawableBoardPreview hit-tests strokes through the
+                        // tiles' data-row/data-col attributes; only this
+                        // editor preview opts into emitting them.
+                        emitCellMetadata
                       />
                     </DrawableBoardPreview>
                   </div>
