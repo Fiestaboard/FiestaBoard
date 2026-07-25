@@ -9,5 +9,5 @@ pytest-xdist>=3.6.0
 coverage>=7.6.0
 
 # Linting
-ruff>=0.9.0
+ruff==0.16.0  # pinned: unpinned ruff made `ruff format --check` in CI nondeterministic across releases
 
