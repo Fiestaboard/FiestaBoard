@@ -1658,13 +1658,52 @@ def _check_github_releases_for_latest() -> str | None:
         return None
 
 
+def _parse_version(v: str) -> tuple[int, ...]:
+    """Parse a numeric ``a.b.c`` version string into a comparable tuple.
+
+    Raises ``ValueError`` for anything that is not purely dot-separated
+    integers (e.g. a stray ``v`` prefix or an ``-rc`` suffix).
+    """
+    parts = v.split(".")
+    if not parts or not all(p.isdigit() for p in parts):
+        raise ValueError(f"Invalid version: {v}")
+    return tuple(int(x) for x in parts)
+
+
+def _pick_latest_version(*candidates: str | None) -> str | None:
+    """Return the newest parseable version among the given candidates.
+
+    Update availability is sourced from more than one place (Docker Hub tags
+    and the GitHub Releases API). Those sources can disagree or lag — Docker
+    Hub's tag-listing metadata sometimes trails a release that GitHub already
+    publishes. Taking the highest version any source reports (rather than
+    preferring one source and only falling back when it is empty) surfaces a
+    real release as soon as either source sees it. Empty or unparseable
+    candidates are ignored.
+    """
+    best_parsed: tuple[int, ...] | None = None
+    best_str: str | None = None
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            parsed = _parse_version(candidate)
+        except (ValueError, AttributeError):
+            continue
+        if best_parsed is None or parsed > best_parsed:
+            best_parsed = parsed
+            best_str = candidate
+    return best_str
+
+
 @app.get("/system/update-check", response_model=UpdateCheckResponse)
 async def system_update_check():
     """Check if a newer version of FiestaBoard is available.
 
-    Checks Docker Hub for the latest container image tag, with a fallback to
-    the GitHub Releases API. No authentication is required because the package
-    and repository are public.
+    Checks both Docker Hub and the GitHub Releases API and reports the newest
+    version either source lists (neither is preferred over the other, so a
+    lagging source cannot hide a release the other already sees). No
+    authentication is required because the package and repository are public.
 
     Returns the current version, latest version, and whether an update is available.
     """
@@ -1682,12 +1721,16 @@ async def _perform_update_check() -> "UpdateCheckResponse":
     is_production = os.getenv("PRODUCTION", "false").lower() == "true"
 
     try:
-        # Run both source checks in parallel; prefer Docker Hub, fall back to GitHub.
+        # Run both source checks in parallel and take the newest version either
+        # reports. Trusting one source and only falling back when it is empty
+        # lets a lagging source (e.g. Docker Hub tag metadata that has not yet
+        # registered a freshly published release) mask a real update the other
+        # source already sees.
         dh_version, gh_version = await asyncio.gather(
             asyncio.to_thread(_check_dockerhub_for_latest),
             asyncio.to_thread(_check_github_releases_for_latest),
         )
-        latest_version = dh_version or gh_version
+        latest_version = _pick_latest_version(dh_version, gh_version)
 
         if latest_version:
             update_available = _is_newer_version(latest_version, __version__)
@@ -1725,14 +1768,7 @@ def _is_newer_version(latest: str, current: str) -> bool:
     Handles version strings with varying component counts (e.g. "2.0" vs "2.0.1").
     """
     try:
-
-        def parse_version(v: str):
-            parts = v.split(".")
-            if not parts or not all(p.isdigit() for p in parts):
-                raise ValueError(f"Invalid version: {v}")
-            return tuple(int(x) for x in parts)
-
-        return parse_version(latest) > parse_version(current)
+        return _parse_version(latest) > _parse_version(current)
     except (ValueError, AttributeError):
         return False
 

@@ -9,5 +9,9 @@ pytest-xdist>=3.6.0
 coverage>=7.6.0
 
 # Linting
-ruff==0.16.0  # pinned: unpinned ruff made `ruff format --check` in CI nondeterministic across releases
+# Pinned exactly: ruff's formatter output changes between releases (e.g. 0.16.0
+# began reformatting code blocks inside Markdown), so an unpinned range makes
+# `ruff format --check` in CI nondeterministic — a new release can turn CI red
+# on unchanged code. Bump this deliberately and reformat in the same commit.
+ruff==0.16.0
 
