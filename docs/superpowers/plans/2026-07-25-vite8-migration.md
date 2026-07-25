@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Branch: `feat-vite8-migration` in worktree `/Users/jeffre/workspace/FiestaBoard/.claude/worktrees/feat-vite8-migration`
+- Branch: `feat-vite8-migration` in a dedicated git worktree under `.claude/worktrees/feat-vite8-migration`
 - NEVER run npm/node on the host — every npm command runs in a Docker container
 - All lockfile/install operations use `--legacy-peer-deps` (pre-existing eslint-10 vs eslint-plugin-jsx-a11y peer conflict)
 - Never touch the shared dev container or port 4420; this branch's stack uses port 4499 and compose-free `docker run` with a dedicated network `fiesta-vite8-net`
