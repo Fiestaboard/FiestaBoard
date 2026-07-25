@@ -26,8 +26,10 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe("BoardDisplay tile coordinates", () => {
-  it("exposes data-row/data-col on static tiles with cell values", () => {
-    const { container } = render(<BoardDisplay message={"A{red}"} isStatic />, { wrapper: TestWrapper });
+  it("exposes data-row/data-col on static tiles with cell values when emitCellMetadata is set", () => {
+    const { container } = render(<BoardDisplay message={"A{red}"} isStatic emitCellMetadata />, {
+      wrapper: TestWrapper,
+    });
     const a = container.querySelector('[data-row="0"][data-col="0"]');
     const red = container.querySelector('[data-row="0"][data-col="1"]');
     expect(a).not.toBeNull();
@@ -37,8 +39,26 @@ describe("BoardDisplay tile coordinates", () => {
     expect(container.querySelector('[data-row="5"][data-col="21"]')).not.toBeNull();
   });
 
-  it("exposes data-row/data-col on animated tiles", () => {
-    const { container } = render(<BoardDisplay message={"HI"} />, { wrapper: TestWrapper });
+  it("exposes data-row/data-col on animated tiles when emitCellMetadata is set", () => {
+    const { container } = render(<BoardDisplay message={"HI"} emitCellMetadata />, { wrapper: TestWrapper });
     expect(container.querySelector('[data-row="0"][data-col="1"]')).not.toBeNull();
+  });
+
+  it("omits cell metadata by default on static tiles (draw mode is the only consumer)", () => {
+    const { container } = render(<BoardDisplay message={"A{red}"} isStatic />, { wrapper: TestWrapper });
+    // Tiles still render (the wrapper hook is unconditional)...
+    expect(container.querySelector("[data-note-tile]")).not.toBeNull();
+    // ...but none carry draw-mode metadata.
+    expect(container.querySelector("[data-row]")).toBeNull();
+    expect(container.querySelector("[data-col]")).toBeNull();
+    expect(container.querySelector("[data-cell-value]")).toBeNull();
+  });
+
+  it("omits cell metadata by default on animated tiles", () => {
+    const { container } = render(<BoardDisplay message={"HI"} />, { wrapper: TestWrapper });
+    expect(container.querySelector("[data-note-tile]")).not.toBeNull();
+    expect(container.querySelector("[data-row]")).toBeNull();
+    expect(container.querySelector("[data-col]")).toBeNull();
+    expect(container.querySelector("[data-cell-value]")).toBeNull();
   });
 });

@@ -388,3 +388,50 @@ class TestStatePublisherEvents:
         pub.mark_display_updated()
         assert pub._last_display_update != ""
         assert "T" in pub._last_display_update
+
+
+class TestStatePublisherPerBoardAttributes:
+    """Issue #1244: current_page attributes include per-board active pages."""
+
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_gather_publishes_per_board_active_page_attributes(self, mock_config, get_settings, get_page, mock_client):
+        mock_config.is_silence_mode_active.return_value = False
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.side_effect = lambda board_id=None: {
+            None: "page-42",
+            "b1": "page-42",
+            "b2": "page-7",
+        }.get(board_id)
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        board_settings = MagicMock()
+        board_settings.boards = [
+            {"id": "b1", "name": "Lobby", "device_type": "flagship"},
+            {"id": "b2", "name": "Kitchen", "device_type": "note"},
+        ]
+        settings.get_board_settings.return_value = board_settings
+        get_settings.return_value = settings
+
+        page42 = MagicMock()
+        page42.id = "page-42"
+        page42.name = "Weather"
+        page7 = MagicMock()
+        page7.id = "page-7"
+        page7.name = "Transit"
+        page_svc = MagicMock()
+        page_svc.get_page.side_effect = lambda pid: {"page-42": page42, "page-7": page7}.get(pid)
+        page_svc.list_pages.return_value = [page42, page7]
+        get_page.return_value = page_svc
+
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+
+        attrs_calls = mock_client.publish_attributes.call_args_list
+        attrs_topics = [c[0][0] for c in attrs_calls]
+        assert "current_page" in attrs_topics
+        attrs = json.loads(attrs_calls[attrs_topics.index("current_page")][0][1])
+        assert attrs["by_board"]["b1"] == {"page_id": "page-42", "page_name": "Weather"}
+        assert attrs["by_board"]["b2"] == {"page_id": "page-7", "page_name": "Transit"}

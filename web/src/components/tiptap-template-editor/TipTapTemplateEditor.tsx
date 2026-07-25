@@ -5,8 +5,9 @@
  */
 "use client";
 
-import { closeHistory } from "@tiptap/pm/history";
+import { closeHistory, undoDepth } from "@tiptap/pm/history";
 import type { Slice } from "@tiptap/pm/model";
+import type { Transaction } from "@tiptap/pm/state";
 import { TextSelection } from "@tiptap/pm/state";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -26,8 +27,9 @@ import { VariableNode } from "./extensions/variable-node";
 import { WrappedTextNode } from "./extensions/wrapped-text-node";
 import { BOARD_LINES, BOARD_WIDTH } from "./utils/constants";
 import type { CellPaint, DrawBrush } from "./utils/draw-mode";
-import { brushToCell, paintLine } from "./utils/draw-mode";
+import { brushToCell } from "./utils/draw-mode";
 import { parseLineContent, parseTemplateSimple, serializeTemplateSimple } from "./utils/serialization";
+import { buildStrokeTransaction } from "./utils/stroke-transaction";
 export type LineAlignment = "left" | "center" | "right";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslations } from "@/i18n/translations";
@@ -46,6 +48,18 @@ export interface TipTapTemplateEditorHandle {
   applyStroke(paints: StrokePaint[], brush: DrawBrush): number[];
   undo(): void;
   redo(): void;
+}
+
+/**
+ * Reported through onDrawHistoryEvent whenever an undo/redo crosses a
+ * history step, on any path (imperative handle, keyboard, toolbar).
+ * `stroke` is true when the step crossed was a draw-mode paint stroke
+ * (applyStroke), so the host can restore/re-force per-row metadata that
+ * lives outside the ProseMirror document.
+ */
+export interface DrawHistoryEvent {
+  action: "undo" | "redo";
+  stroke: boolean;
 }
 
 /** Inline atom node types that this editor renders as click-targets. Excludes
@@ -130,6 +144,7 @@ interface TipTapTemplateEditorProps {
   onDrawModeToggle?: () => void; // Toggle draw mode on/off
   drawBrush?: DrawBrush; // Currently selected draw brush (color, eraser, or stamp character)
   onDrawBrushChange?: (brush: DrawBrush) => void; // Change the draw brush
+  onDrawHistoryEvent?: (event: DrawHistoryEvent) => void; // Undo/redo crossed a history step (stroke or not)
 }
 
 /**
@@ -159,6 +174,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       onDrawModeToggle,
       drawBrush,
       onDrawBrushChange,
+      onDrawHistoryEvent,
     },
     ref,
   ) {
@@ -739,9 +755,75 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       }
     }, [editor]);
 
+    // Draw-mode stroke history bookkeeping. Each applyStroke records the
+    // prosemirror-history undo depth its event occupies; watching every
+    // transaction then lets any undo/redo path (imperative handle, keyboard,
+    // toolbar) report through onDrawHistoryEvent whether the step crossed
+    // was a stroke, so the host can restore/re-force per-row alignment/wrap
+    // metadata that lives outside the ProseMirror document. If the history
+    // depth cap prunes old events, recorded depths can go stale — stale
+    // entries are dropped defensively below, degrading to stroke:false (no
+    // metadata restore) rather than misreporting a typing undo as a stroke.
+    const strokeDepthsRef = useRef<{ done: number[]; undone: number[] }>({ done: [], undone: [] });
+    const pendingStrokeRef = useRef(false);
+    const onDrawHistoryEventRef = useRef(onDrawHistoryEvent);
+    useEffect(() => {
+      onDrawHistoryEventRef.current = onDrawHistoryEvent;
+    }, [onDrawHistoryEvent]);
+
+    useEffect(() => {
+      if (!editor) return;
+      const onTransaction = ({ transaction }: { transaction: Transaction }) => {
+        if (!transaction.docChanged) return;
+        const stacks = strokeDepthsRef.current;
+        // prosemirror-history stamps undo/redo transactions with its plugin
+        // meta (key "history$"); shape-check defensively so a future rename
+        // degrades to "normal doc change" instead of throwing.
+        const meta = transaction.getMeta("history$") as { redo?: unknown } | undefined;
+        const depthAfter = undoDepth(editor.state);
+        if (meta && typeof meta === "object" && typeof meta.redo === "boolean") {
+          if (meta.redo) {
+            // The event restored by this redo now sits at depthAfter.
+            while (stacks.undone.length > 0 && stacks.undone[stacks.undone.length - 1] > depthAfter) {
+              stacks.undone.pop();
+            }
+            const stroke = stacks.undone[stacks.undone.length - 1] === depthAfter;
+            if (stroke) stacks.done.push(stacks.undone.pop()!);
+            onDrawHistoryEventRef.current?.({ action: "redo", stroke });
+          } else {
+            // The event removed by this undo sat at depthAfter + 1.
+            const depthBefore = depthAfter + 1;
+            while (stacks.done.length > 0 && stacks.done[stacks.done.length - 1] > depthBefore) {
+              stacks.done.pop();
+            }
+            const stroke = stacks.done[stacks.done.length - 1] === depthBefore;
+            if (stroke) stacks.undone.push(stacks.done.pop()!);
+            onDrawHistoryEventRef.current?.({ action: "undo", stroke });
+          }
+        } else {
+          // A regular doc change clears prosemirror-history's redo stack,
+          // and no recorded stroke can share a depth with the new event.
+          stacks.undone.length = 0;
+          while (stacks.done.length > 0 && stacks.done[stacks.done.length - 1] >= depthAfter) {
+            stacks.done.pop();
+          }
+          if (pendingStrokeRef.current) {
+            pendingStrokeRef.current = false;
+            stacks.done.push(depthAfter);
+          }
+        }
+      };
+      editor.on("transaction", onTransaction);
+      return () => {
+        editor.off("transaction", onTransaction);
+      };
+    }, [editor]);
+
     // Imperative paint API used by draw mode. Each stroke is applied as a
-    // single ProseMirror transaction so it lands as ONE undo step regardless
-    // of how many cells the stroke touched.
+    // single row-scoped ProseMirror transaction (see buildStrokeTransaction)
+    // so it lands as ONE undo step regardless of how many cells the stroke
+    // touched, only rebuilds the painted rows, and leaves the caret alone
+    // when it sits outside them.
     useImperativeHandle(
       ref,
       () => ({
@@ -760,23 +842,28 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           }
           if (byRow.size === 0) return [];
 
-          while (lines.length < boardLines) lines.push("");
-          for (const [row, rowPaints] of byRow) {
-            lines[row] = paintLine(lines[row] ?? "", rowPaints, boardWidth);
-          }
+          const tr = buildStrokeTransaction(ed.state, lines, byRow, boardWidth);
+          if (!tr) return [];
 
-          const json = parseTemplateSimple(lines.join("\n"), boardLines);
-          const paragraph = ed.schema.nodeFromJSON(json.content![0]);
-          const { state, view } = ed;
-          view.dispatch(closeHistory(state.tr.replaceWith(0, state.doc.content.size, paragraph)));
+          const { view } = ed;
+          pendingStrokeRef.current = true;
+          view.dispatch(closeHistory(tr));
+          // Seal the stroke's history group on the trailing side too, so a
+          // fast follow-up edit can't merge into it and the stroke stays
+          // exactly one undo step.
+          view.dispatch(closeHistory(view.state.tr));
 
           return [...byRow.keys()].sort((a, b) => a - b);
         },
         undo() {
-          editorRef.current?.chain().undo().run();
+          const ed = editorRef.current;
+          if (!ed || ed.isDestroyed) return;
+          ed.chain().undo().run();
         },
         redo() {
-          editorRef.current?.chain().redo().run();
+          const ed = editorRef.current;
+          if (!ed || ed.isDestroyed) return;
+          ed.chain().redo().run();
         },
       }),
       [boardLines, boardWidth],
@@ -786,6 +873,10 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     // even when a line's content wraps to multiple visual rows.
     const measureLineHeights = useCallback(() => {
       if (!editor || editor.isDestroyed) return;
+      // In draw mode the editor container is display:none (still connected),
+      // so coordsAtPos would measure a hidden node and produce garbage.
+      // Skip; a measure is scheduled when draw mode exits.
+      if (drawMode) return;
       try {
         const { state, view } = editor;
         if (!view.dom.isConnected) return;
@@ -826,7 +917,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       } catch {
         // ignore transient measurement errors
       }
-    }, [editor, boardLines]);
+    }, [editor, boardLines, drawMode]);
 
     const scheduleMeasure = useCallback(() => {
       if (measureScheduledRef.current) return;
@@ -841,6 +932,12 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     useEffect(() => {
       scheduleMeasureRef.current = scheduleMeasure;
     }, [scheduleMeasure]);
+
+    // Measurement is skipped while draw mode hides the editor, so schedule a
+    // fresh measure as soon as draw mode exits (and the editor is visible).
+    useEffect(() => {
+      if (!drawMode) scheduleMeasure();
+    }, [drawMode, scheduleMeasure]);
 
     // Re-measure when the editor container is resized (e.g. window resize)
     useEffect(() => {

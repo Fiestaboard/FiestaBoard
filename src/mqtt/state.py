@@ -191,6 +191,31 @@ class StatePublisher:
                     break
             out["current_page"] = page_attrs
 
+            # Per-board active pages (issue #1244) — additive attributes so HA
+            # automations can read every board's page, not just the primary's.
+            # Guarded separately: a failure here must never drop the legacy
+            # current_page attributes above.
+            try:
+                boards = settings.get_board_settings().boards or []
+                by_board: dict = {}
+                for board in boards:
+                    if not isinstance(board, dict) or not board.get("id"):
+                        continue
+                    bid = board["id"]
+                    board_page_id = settings.get_active_page_id(board_id=bid)
+                    if not isinstance(board_page_id, str):
+                        board_page_id = ""
+                    board_page_name = ""
+                    if board_page_id:
+                        board_page = page_service.get_page(board_page_id)
+                        if board_page:
+                            board_page_name = board_page.name
+                    by_board[bid] = {"page_id": board_page_id, "page_name": board_page_name}
+                if by_board:
+                    page_attrs["by_board"] = by_board
+            except Exception as e:
+                logger.debug("Per-board attributes gather error: %s", e)
+
         except Exception as e:
             logger.debug("Attributes gather error: %s", e)
         return out

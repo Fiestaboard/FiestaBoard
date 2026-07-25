@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} из {total} страниц в этой коллекции не подходят под размер этой доски и будут пропущены.",
+      "incompatiblePageWarning": "Эта страница не подходит под размер этой доски и может отображаться некорректно."
     },
     "descriptionWithTimezone": "Автоматизация смены страниц по времени и дню · {timezone}",
     "gapDefaultPlaceholder": "По умолчанию для пропуска…",
@@ -628,7 +630,8 @@
     "changeModeOverrideDescription": "Показать страницу заданное время, затем продолжить расписание.",
     "changeModeDisableTitle": "Отключить режим расписания",
     "changeModeDisableDescription": "Отключите расписание и управляйте board вручную.",
-    "changeModeDisableSuccess": "Режим расписания отключён"
+    "changeModeDisableSuccess": "Режим расписания отключён",
+    "collectionSizeWarning": "{count} из {total} страниц в этой коллекции не подходят под размер этой доски и будут пропущены."
   },
   "forceSetDialog": {
     "title": "Принудительно установить board",
@@ -720,7 +723,15 @@
     "exportDialogTitle": "Экспорт страницы",
     "exportDialogDescription": "Скопируйте эту строку обмена, чтобы поделиться страницей с другими.",
     "exportStringAriaLabel": "Строка обмена",
-    "exportCopyAriaLabel": "Скопировать строку обмена"
+    "exportCopyAriaLabel": "Скопировать строку обмена",
+    "retargetConfirmTitle": "Изменить размер доски?",
+    "retargetConfirmDescription": "Эта страница была сохранена для {oldSize} и будет изменена на {newSize}. Содержимое, которое не поместится на меньшей доске, будет обрезано.",
+    "retargetConfirmAction": "Изменить размер и сохранить",
+    "retargetIncompatibleWarning": "Эта страница больше не помещается: {list}",
+    "retargetSurfaceSchedule": "запись расписания",
+    "retargetSurfaceActivePage": "активная страница",
+    "notesWideOption": "{count} в ширину",
+    "notesTallOption": "{count} в высоту"
   },
   "displaySettings": {
     "title": "Ваши доски",
@@ -1260,7 +1271,9 @@
     "collectionsTab": "Карусели ({count})",
     "noPagesTitle": "Страницы ещё не созданы.",
     "noPagesDescription": "Создайте первую страницу для отображения на board.",
-    "createFirstPage": "Создать первую страницу"
+    "createFirstPage": "Создать первую страницу",
+    "noCompatiblePagesTitle": "Нет страниц, подходящих под размер этой доски.",
+    "noCompatiblePagesDescription": "Создайте страницу под размер этой доски, чтобы увидеть её здесь."
   },
   "profile": {
     "title": "Профиль",

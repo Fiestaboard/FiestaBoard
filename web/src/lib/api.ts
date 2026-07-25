@@ -9,6 +9,14 @@ export interface StatusResponse {
   running: boolean;
   initialized: boolean;
   config_summary: ConfigSummary;
+  /** Per-board status keyed by board id (issue #1244). */
+  boards?: Record<string, BoardStatus>;
+}
+
+export interface BoardStatus {
+  configured: boolean;
+  paused: boolean;
+  active_page_id: string | null;
 }
 
 export interface ConfigSummary {
@@ -186,12 +194,14 @@ export interface OutputSettings {
 // Active page settings
 export interface ActivePageResponse {
   page_id: string | null;
+  board_id?: string | null;
 }
 
 export interface SetActivePageResponse {
   status: string;
   page_id: string | null;
   sent_to_board: boolean;
+  board_id?: string | null;
 }
 
 // Page types
@@ -256,6 +266,8 @@ export interface PageCreate {
 
 export interface PageUpdate {
   name?: string;
+  /** Device/size retarget (issue #1250) — converting geometries is lossy. */
+  device_type?: DeviceType;
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
@@ -274,6 +286,25 @@ export interface PageUpdate {
 export interface PagesResponse {
   pages: Page[];
   total: number;
+}
+
+/**
+ * A schedule/active-page reference left pointing at a board the page no
+ * longer fits after a device/size retarget (issue #1250). Warn-only — the
+ * backend never mutates or removes these.
+ */
+export interface IncompatibleReference {
+  board_id: string;
+  board_name: string;
+  surface: "schedule" | "active_page";
+  schedule_id?: string | null;
+}
+
+export interface PageUpdateResponse {
+  status: string;
+  page: Page;
+  /** Present iff the update changed the page's size (may be empty). */
+  incompatible_references?: IncompatibleReference[];
 }
 
 export interface StaffPickPlugin {
@@ -311,6 +342,7 @@ export interface PageSendResponse {
   message: string;
   sent_to_board: boolean;
   target: string;
+  board_id?: string | null;
 }
 
 export interface CurrentDisplayResponse {
@@ -1456,12 +1488,23 @@ export const api = {
       body: JSON.stringify({ target }),
     }),
 
-  // Active page settings
-  getActivePage: () => fetchApi<ActivePageResponse>("/settings/active-page"),
-  setActivePage: (pageId: string | null) =>
+  // Active page settings (optional boardId targets a specific board).
+  // boardId is only honored when it's a non-empty string: these wrappers may
+  // be handed to TanStack Query or event handlers as bare references, which
+  // would otherwise pass a context/event object as boardId (issue #1244).
+  getActivePage: (boardId?: string) =>
+    fetchApi<ActivePageResponse>(
+      typeof boardId === "string" && boardId
+        ? `/settings/active-page?board_id=${encodeURIComponent(boardId)}`
+        : "/settings/active-page",
+    ),
+  setActivePage: (pageId: string | null, boardId?: string) =>
     fetchApi<SetActivePageResponse>("/settings/active-page", {
       method: "PUT",
-      body: JSON.stringify({ page_id: pageId }),
+      body: JSON.stringify({
+        page_id: pageId,
+        ...(typeof boardId === "string" && boardId && { board_id: boardId }),
+      }),
     }),
 
   // Temporary override endpoints
@@ -1486,7 +1529,7 @@ export const api = {
       body: JSON.stringify(page),
     }),
   updatePage: (pageId: string, page: PageUpdate) =>
-    fetchApi<{ status: string; page: Page }>(`/pages/${pageId}`, {
+    fetchApi<PageUpdateResponse>(`/pages/${pageId}`, {
       method: "PUT",
       body: JSON.stringify(page),
     }),
@@ -1497,9 +1540,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ page_ids: pageIds }),
     }),
-  sendPage: (pageId: string, target?: "ui" | "board" | "both") => {
-    const params = target ? `?target=${target}` : "";
-    return fetchApi<PageSendResponse>(`/pages/${pageId}/send${params}`, { method: "POST" });
+  sendPage: (pageId: string, target?: "ui" | "board" | "both", boardId?: string) => {
+    const query = new URLSearchParams();
+    if (target) query.set("target", target);
+    // Non-empty string only — see the getActivePage note (issue #1244).
+    if (typeof boardId === "string" && boardId) query.set("board_id", boardId);
+    const qs = query.toString();
+    return fetchApi<PageSendResponse>(`/pages/${pageId}/send${qs ? `?${qs}` : ""}`, { method: "POST" });
   },
   getPageShareString: (pageId: string) => fetchApi<{ share_string: string }>(`/pages/${pageId}/share`),
   importPage: (shareString: string) =>

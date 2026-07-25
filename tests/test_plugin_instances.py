@@ -825,6 +825,39 @@ class TestPluginInstanceEndpoints:
         # Uses public delete_plugin_config() (not private internals)
         mock_cm.delete_plugin_config.assert_called_once_with("weather:sf")
 
+    def test_delete_instance_tombstones_compound_key(self, client, mock_registry):
+        """Deleting an instance is a deliberate removal — tombstone the compound
+        key so a post-upgrade auto-restore cannot resurrect it (#1394)."""
+        mock_registry.delete_instance.return_value = []
+        mock_cm = Mock()
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.api_server.reset_display_service"),
+            patch("src.api_server.reset_template_engine"),
+        ):
+            resp = client.delete("/plugins/weather/instances/sf")
+        assert resp.status_code == 200
+        mock_cm.mark_plugin_removed.assert_called_once_with("weather:sf")
+
+    def test_create_instance_clears_tombstone(self, client, mock_registry):
+        """Re-creating an instance clears any deliberate-removal tombstone for
+        its compound key (#1394)."""
+        mock_registry.get_plugin.return_value = Mock()
+        mock_registry.create_instance.return_value = []
+        mock_cm = Mock()
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.api_server.reset_display_service"),
+            patch("src.api_server.reset_template_engine"),
+        ):
+            resp = client.post("/plugins/weather/instances", json={"label": "sf"})
+        assert resp.status_code == 200
+        mock_cm.clear_plugin_removed.assert_called_once_with("weather:sf")
+
     def test_delete_instance_resets_services(self, client, mock_registry):
         """Deleting an instance should reset display and template services."""
         mock_registry.delete_instance.return_value = []

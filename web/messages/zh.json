@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "此合集中的 {total} 个页面中有 {count} 个不适合此板的尺寸，将被跳过。",
+      "incompatiblePageWarning": "此页面与此板的尺寸不匹配，可能无法正确显示。"
     },
     "descriptionWithTimezone": "按时间和日期自动轮换页面 · {timezone}",
     "gapDefaultPlaceholder": "空隙默认…",
@@ -628,7 +630,8 @@
     "changeModeOverrideDescription": "显示一个页面一段时间,然后恢复您的计划。",
     "changeModeDisableTitle": "关闭计划模式",
     "changeModeDisableDescription": "禁用计划并手动控制 board。",
-    "changeModeDisableSuccess": "计划模式已禁用"
+    "changeModeDisableSuccess": "计划模式已禁用",
+    "collectionSizeWarning": "此合集中的 {total} 个页面中有 {count} 个不适合此板的尺寸，将被跳过。"
   },
   "forceSetDialog": {
     "title": "强制设置 Board",
@@ -720,7 +723,15 @@
     "exportDialogTitle": "导出页面",
     "exportDialogDescription": "复制此分享字符串以与他人分享您的页面。",
     "exportStringAriaLabel": "分享字符串",
-    "exportCopyAriaLabel": "复制分享字符串"
+    "exportCopyAriaLabel": "复制分享字符串",
+    "retargetConfirmTitle": "更改板面尺寸？",
+    "retargetConfirmDescription": "此页面是为 {oldSize} 保存的，将调整为 {newSize}。无法放入较小板面的内容将被截断。",
+    "retargetConfirmAction": "调整尺寸并保存",
+    "retargetIncompatibleWarning": "此页面已无法适配：{list}",
+    "retargetSurfaceSchedule": "排程条目",
+    "retargetSurfaceActivePage": "活动页面",
+    "notesWideOption": "横向 {count} 块",
+    "notesTallOption": "纵向 {count} 块"
   },
   "displaySettings": {
     "title": "您的看板",
@@ -1260,7 +1271,9 @@
     "collectionsTab": "轮播（{count}）",
     "noPagesTitle": "尚未创建页面。",
     "noPagesDescription": "创建您的第一个页面以在 board 上显示。",
-    "createFirstPage": "创建您的第一个页面"
+    "createFirstPage": "创建您的第一个页面",
+    "noCompatiblePagesTitle": "没有与此板尺寸匹配的页面。",
+    "noCompatiblePagesDescription": "创建适合此板尺寸的页面后将显示在这里。"
   },
   "profile": {
     "title": "个人资料",

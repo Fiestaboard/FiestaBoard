@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-24T06:29:15Z",
+  "generated_at": "2026-07-25T06:20:47Z",
   "window_days": 14,
   "plugins": [
     {
@@ -11,8 +11,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:40Z",
       "updated_at": "2026-06-06T18:21:46Z",
-      "clones_14d_count": 8,
-      "clones_14d_uniques": 8
+      "clones_14d_count": 6,
+      "clones_14d_uniques": 6
     },
     {
       "id": "air_fog",
@@ -23,8 +23,8 @@
       "version": "1.2.2",
       "created_at": "2026-03-22T01:21:49Z",
       "updated_at": "2026-05-17T06:24:22Z",
-      "clones_14d_count": 228,
-      "clones_14d_uniques": 181
+      "clones_14d_count": 231,
+      "clones_14d_uniques": 185
     },
     {
       "id": "aurora_forecast",
@@ -35,8 +35,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:44Z",
       "updated_at": "2026-05-17T06:24:28Z",
-      "clones_14d_count": 3,
-      "clones_14d_uniques": 3
+      "clones_14d_count": 4,
+      "clones_14d_uniques": 4
     },
     {
       "id": "lyft_bike_share",
@@ -47,8 +47,8 @@
       "version": "2.0.3",
       "created_at": "2026-03-22T01:21:56Z",
       "updated_at": "2026-06-06T18:23:02Z",
-      "clones_14d_count": 231,
-      "clones_14d_uniques": 183
+      "clones_14d_count": 234,
+      "clones_14d_uniques": 188
     },
     {
       "id": "calendar_sub",
@@ -83,8 +83,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:02Z",
       "updated_at": "2026-05-17T06:24:37Z",
-      "clones_14d_count": 4942,
-      "clones_14d_uniques": 660
+      "clones_14d_count": 5018,
+      "clones_14d_uniques": 667
     },
     {
       "id": "disney_parks_times",
@@ -143,8 +143,8 @@
       "version": "1.4.2",
       "created_at": "2026-05-02T18:33:00Z",
       "updated_at": "2026-05-17T06:24:50Z",
-      "clones_14d_count": 11,
-      "clones_14d_uniques": 9
+      "clones_14d_count": 10,
+      "clones_14d_uniques": 8
     },
     {
       "id": "guest_wifi",
@@ -155,8 +155,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:22:24Z",
       "updated_at": "2026-06-07T01:59:31Z",
-      "clones_14d_count": 224,
-      "clones_14d_uniques": 189
+      "clones_14d_count": 227,
+      "clones_14d_uniques": 193
     },
     {
       "id": "hacker_news",
@@ -179,8 +179,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:31Z",
       "updated_at": "2026-05-17T06:25:03Z",
-      "clones_14d_count": 7,
-      "clones_14d_uniques": 7
+      "clones_14d_count": 5,
+      "clones_14d_uniques": 5
     },
     {
       "id": "home_assistant",
@@ -191,8 +191,8 @@
       "version": "1.2.2",
       "created_at": "2026-03-22T01:22:37Z",
       "updated_at": "2026-05-17T06:25:06Z",
-      "clones_14d_count": 235,
-      "clones_14d_uniques": 186
+      "clones_14d_count": 234,
+      "clones_14d_uniques": 187
     },
     {
       "id": "iss_tracker",
@@ -251,8 +251,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:49Z",
       "updated_at": "2026-06-06T18:22:49Z",
-      "clones_14d_count": 235,
-      "clones_14d_uniques": 192
+      "clones_14d_count": 230,
+      "clones_14d_uniques": 188
     },
     {
       "id": "national_day",
@@ -275,7 +275,7 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:57Z",
       "updated_at": "2026-05-17T06:25:32Z",
-      "clones_14d_count": 16,
+      "clones_14d_count": 15,
       "clones_14d_uniques": 14
     },
     {
@@ -299,8 +299,8 @@
       "version": "0.1.4",
       "created_at": "2026-05-02T07:01:20Z",
       "updated_at": "2026-05-17T06:25:38Z",
-      "clones_14d_count": 5,
-      "clones_14d_uniques": 5
+      "clones_14d_count": 6,
+      "clones_14d_uniques": 6
     },
     {
       "id": "pet_facts",
@@ -335,8 +335,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:32Z",
       "updated_at": "2026-06-06T18:24:48Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 7
+      "clones_14d_count": 7,
+      "clones_14d_uniques": 5
     },
     {
       "id": "reddit_hot",
@@ -359,8 +359,8 @@
       "version": "1.0.0",
       "created_at": "2026-05-02T07:01:39Z",
       "updated_at": "2026-07-18T03:40:11Z",
-      "clones_14d_count": 61,
-      "clones_14d_uniques": 33
+      "clones_14d_count": 64,
+      "clones_14d_uniques": 36
     },
     {
       "id": "santa_tracker",
@@ -383,8 +383,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:43Z",
       "updated_at": "2026-05-17T06:26:00Z",
-      "clones_14d_count": 3,
-      "clones_14d_uniques": 3
+      "clones_14d_count": 4,
+      "clones_14d_uniques": 4
     },
     {
       "id": "spacecraft_launches",
@@ -395,8 +395,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:09Z",
       "updated_at": "2026-06-06T18:24:19Z",
-      "clones_14d_count": 8,
-      "clones_14d_uniques": 8
+      "clones_14d_count": 7,
+      "clones_14d_uniques": 7
     },
     {
       "id": "sports_scores",
@@ -407,7 +407,7 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:17Z",
       "updated_at": "2026-05-17T06:26:07Z",
-      "clones_14d_count": 19,
+      "clones_14d_count": 18,
       "clones_14d_uniques": 15
     },
     {
@@ -419,8 +419,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:23:22Z",
       "updated_at": "2026-06-07T01:58:18Z",
-      "clones_14d_count": 2110,
-      "clones_14d_uniques": 584
+      "clones_14d_count": 2136,
+      "clones_14d_uniques": 587
     },
     {
       "id": "stardate",
@@ -455,8 +455,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:41Z",
       "updated_at": "2026-05-17T06:26:19Z",
-      "clones_14d_count": 14,
-      "clones_14d_uniques": 12
+      "clones_14d_count": 13,
+      "clones_14d_uniques": 11
     },
     {
       "id": "surf",
@@ -491,8 +491,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:54Z",
       "updated_at": "2026-05-17T06:26:29Z",
-      "clones_14d_count": 226,
-      "clones_14d_uniques": 177
+      "clones_14d_count": 224,
+      "clones_14d_uniques": 176
     },
     {
       "id": "uv_index",
@@ -587,8 +587,8 @@
       "version": "0.2.1",
       "created_at": "2026-05-02T07:02:05Z",
       "updated_at": "2026-06-06T18:26:16Z",
-      "clones_14d_count": 10,
-      "clones_14d_uniques": 8
+      "clones_14d_count": 9,
+      "clones_14d_uniques": 7
     },
     {
       "id": "airport_departures",

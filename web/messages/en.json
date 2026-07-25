@@ -284,7 +284,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} of {total} pages in this collection don't fit this board's size and will be skipped.",
+      "incompatiblePageWarning": "This page doesn't match this board's size and may not display correctly."
     },
     "descriptionWithTimezone": "Automate page rotation by time and day · {timezone}",
     "gapDefaultPlaceholder": "Gap default…",
@@ -585,7 +587,8 @@
     "changeModeOverrideDescription": "Show a page for a set duration, then resume your schedule.",
     "changeModeDisableTitle": "Turn off schedule mode",
     "changeModeDisableDescription": "Disable the schedule and control the board manually.",
-    "changeModeDisableSuccess": "Schedule mode disabled"
+    "changeModeDisableSuccess": "Schedule mode disabled",
+    "collectionSizeWarning": "{count} of {total} pages in this collection don't fit this board's size and will be skipped."
   },
   "forceSetDialog": {
     "title": "Force Set Board",
@@ -677,7 +680,15 @@
     "exportDialogTitle": "Export Page",
     "exportDialogDescription": "Copy this share string to share your page with others.",
     "exportStringAriaLabel": "Share string",
-    "exportCopyAriaLabel": "Copy share string"
+    "exportCopyAriaLabel": "Copy share string",
+    "retargetConfirmTitle": "Change board size?",
+    "retargetConfirmDescription": "This page was saved for {oldSize} and will be resized to {newSize}. Content that doesn't fit the smaller board will be cut off.",
+    "retargetConfirmAction": "Resize and save",
+    "retargetIncompatibleWarning": "This page no longer fits: {list}",
+    "retargetSurfaceSchedule": "schedule entry",
+    "retargetSurfaceActivePage": "active page",
+    "notesWideOption": "{count} wide",
+    "notesTallOption": "{count} tall"
   },
   "displaySettings": {
     "title": "Your Boards",
@@ -1217,7 +1228,9 @@
     "collectionsTab": "Collections ({count})",
     "noPagesTitle": "No pages created yet.",
     "noPagesDescription": "Create your first page to display on the board.",
-    "createFirstPage": "Create your first page"
+    "createFirstPage": "Create your first page",
+    "noCompatiblePagesTitle": "No pages match this board's size.",
+    "noCompatiblePagesDescription": "Create a page sized for this board to see it here."
   },
   "profile": {
     "title": "Profile",

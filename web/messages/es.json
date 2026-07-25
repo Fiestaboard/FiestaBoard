@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} de {total} páginas de esta colección no se ajustan al tamaño de este tablero y se omitirán.",
+      "incompatiblePageWarning": "Esta página no coincide con el tamaño de este tablero y puede no mostrarse correctamente."
     },
     "descriptionWithTimezone": "Automatiza la rotación de páginas por hora y día · {timezone}",
     "gapDefaultPlaceholder": "Predeterminada para huecos…",
@@ -628,7 +630,8 @@
     "changeModeOverrideDescription": "Mostrar una página durante un tiempo determinado y luego reanudar tu programación.",
     "changeModeDisableTitle": "Desactivar modo programado",
     "changeModeDisableDescription": "Desactivar la programación y controlar la pantalla manualmente.",
-    "changeModeDisableSuccess": "Modo programado desactivado"
+    "changeModeDisableSuccess": "Modo programado desactivado",
+    "collectionSizeWarning": "{count} de {total} páginas de esta colección no se ajustan al tamaño de este tablero y se omitirán."
   },
   "forceSetDialog": {
     "title": "Forzar pantalla",
@@ -720,7 +723,15 @@
     "exportDialogTitle": "Exportar página",
     "exportDialogDescription": "Copia este código compartido para compartir tu página con otros.",
     "exportStringAriaLabel": "Código compartido",
-    "exportCopyAriaLabel": "Copiar código compartido"
+    "exportCopyAriaLabel": "Copiar código compartido",
+    "retargetConfirmTitle": "¿Cambiar el tamaño del tablero?",
+    "retargetConfirmDescription": "Esta página se guardó para {oldSize} y se redimensionará a {newSize}. El contenido que no quepa en el tablero más pequeño se recortará.",
+    "retargetConfirmAction": "Redimensionar y guardar",
+    "retargetIncompatibleWarning": "Esta página ya no cabe en: {list}",
+    "retargetSurfaceSchedule": "entrada de horario",
+    "retargetSurfaceActivePage": "página activa",
+    "notesWideOption": "{count} de ancho",
+    "notesTallOption": "{count} de alto"
   },
   "displaySettings": {
     "title": "Tus tableros",
@@ -1260,7 +1271,9 @@
     "collectionsTab": "Carruseles ({count})",
     "noPagesTitle": "Aún no se han creado páginas.",
     "noPagesDescription": "Crea tu primera página para mostrarla en el tablero.",
-    "createFirstPage": "Crear tu primera página"
+    "createFirstPage": "Crear tu primera página",
+    "noCompatiblePagesTitle": "Ninguna página coincide con el tamaño de este tablero.",
+    "noCompatiblePagesDescription": "Crea una página del tamaño de este tablero para verla aquí."
   },
   "profile": {
     "title": "Perfil",
