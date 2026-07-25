@@ -598,6 +598,7 @@
   },
   "activeDisplay": {
     "title": "Exibição Ativa",
+    "boardIndicator": "Mostrando {boardName}",
     "viewSchedule": "Ver Agenda",
     "changePage": "Alterar Página",
     "scheduleMode": "Modo Agenda",

@@ -625,7 +625,7 @@ export default function CollectionsPage() {
 
   const invalidateAll = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.collections });
-    queryClient.invalidateQueries({ queryKey: queryKeys.activePage });
+    queryClient.invalidateQueries({ queryKey: queryKeys.activePage() });
   }, [queryClient]);
 
   const createMutation = useMutation({

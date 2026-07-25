@@ -598,6 +598,7 @@
   },
   "activeDisplay": {
     "title": "Aktywny wyświetlacz",
+    "boardIndicator": "Wyświetla {boardName}",
     "viewSchedule": "Zobacz harmonogram",
     "changePage": "Zmień stronę",
     "scheduleMode": "Tryb harmonogramu",

@@ -598,6 +598,7 @@
   },
   "activeDisplay": {
     "title": "Actieve weergave",
+    "boardIndicator": "Toont {boardName}",
     "viewSchedule": "Planning bekijken",
     "changePage": "Pagina wijzigen",
     "scheduleMode": "Planningsmodus",

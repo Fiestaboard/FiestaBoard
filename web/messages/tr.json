@@ -598,6 +598,7 @@
   },
   "activeDisplay": {
     "title": "Aktif Ekran",
+    "boardIndicator": "{boardName} gösteriliyor",
     "viewSchedule": "Zamanlamayı Görüntüle",
     "changePage": "Sayfa Değiştir",
     "scheduleMode": "Zamanlama Modu",

@@ -825,7 +825,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       queryClient.invalidateQueries({ queryKey: ["pagePreview"], refetchType: "active" });
 
       // If this page is currently active, refresh the active page data
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: "active" });
 
       toast.success(pageId ? t("toastPageUpdated") : t("toastPageCreated"));
@@ -859,7 +859,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
       // Also invalidate active page if it was updated
       if (data.active_page_updated) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+        queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
         queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: "active" });
       }
 

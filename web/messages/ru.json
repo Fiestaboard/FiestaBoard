@@ -598,6 +598,7 @@
   },
   "activeDisplay": {
     "title": "Активное отображение",
+    "boardIndicator": "Показывается {boardName}",
     "viewSchedule": "Посмотреть расписание",
     "changePage": "Сменить страницу",
     "scheduleMode": "Режим расписания",

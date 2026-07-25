@@ -598,6 +598,7 @@
   },
   "activeDisplay": {
     "title": "Aktiv visning",
+    "boardIndicator": "Visar {boardName}",
     "viewSchedule": "Visa schema",
     "changePage": "Byt sida",
     "scheduleMode": "Schemaläge",
