@@ -366,3 +366,174 @@ class TestCommandHandlerPageNavigation:
         get_page.return_value = page_svc
         handler.handle("next_page", "")
         # Should not raise
+
+
+class TestCommandHandlerPerBoardRouting:
+    """Issue #1244: JSON payloads may name a target board (id or name)."""
+
+    @staticmethod
+    def _settings_with_boards():
+        settings = MagicMock()
+        board_settings = MagicMock()
+        board_settings.boards = [
+            {"id": "b1", "name": "Lobby", "device_type": "flagship", "notes_wide": 1, "notes_tall": 1},
+            {"id": "b2", "name": "Kitchen", "device_type": "note", "notes_wide": 1, "notes_tall": 1},
+        ]
+        settings.get_board_settings.return_value = board_settings
+        settings.get_primary_board_id.return_value = "b1"
+        settings.should_send_to_board.return_value = True
+        settings.is_paused.return_value = False
+        settings.get_transition_settings.return_value = MagicMock(strategy="column", step_interval_ms=100, step_size=1)
+        return settings
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_send_message_routes_to_board_by_name(self, mock_config, get_settings, get_service, handler):
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        b2_client = MagicMock()
+        b2_client.send_characters.return_value = (True, True)
+        service.get_board_client.return_value = b2_client
+        get_service.return_value = service
+
+        handler.handle("send_message", '{"message": "HELLO", "board": "Kitchen"}')
+
+        service.get_board_client.assert_called_once_with("b2")
+        b2_client.send_characters.assert_called_once()
+        service.vb_client.send_characters.assert_not_called()
+        # Grid sized to the note board (3x15), not the flagship default
+        board_array = b2_client.send_characters.call_args[0][0]
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_send_message_unknown_board_skips_send(self, mock_config, get_settings, get_service, handler):
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        get_service.return_value = service
+
+        handler.handle("send_message", '{"message": "HELLO", "board_id": "nope"}')
+
+        service.get_board_client.assert_not_called()
+        service.vb_client.send_characters.assert_not_called()
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_send_message_plain_payload_uses_primary_client(self, mock_config, get_settings, get_service, handler):
+        """Back-compat: a plain-text payload still goes to service.vb_client."""
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        get_service.return_value = service
+
+        handler.handle("send_message", "Hello World")
+
+        service.vb_client.send_characters.assert_called_once()
+        service.get_board_client.assert_not_called()
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    def test_blank_board_routes_and_sizes_to_target_board(self, get_settings, get_service, handler):
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        b2_client = MagicMock()
+        service.get_board_client.return_value = b2_client
+        get_service.return_value = service
+
+        handler.handle("blank_board", '{"board_id": "b2"}')
+
+        service.get_board_client.assert_called_once_with("b2")
+        board_array = b2_client.send_characters.call_args[0][0]
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+        assert all(code == 0 for row in board_array for code in row)
+
+    @patch("src.api_server._get_board_client")
+    @patch("src.settings.service.get_settings_service")
+    def test_blank_board_default_sizes_to_primary_board(self, get_settings, get_board, handler):
+        """Without a board ref the blank grid uses the primary board's dims."""
+        settings = self._settings_with_boards()
+        settings.get_board_settings.return_value.boards = [
+            {"id": "b1", "name": "Solo", "device_type": "note", "notes_wide": 1, "notes_tall": 1},
+        ]
+        get_settings.return_value = settings
+        board_client = MagicMock()
+        get_board.return_value = board_client
+
+        handler.handle("blank_board", "")
+
+        board_array = board_client.send_characters.call_args[0][0]
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.api_server.get_service")
+    def test_refresh_display_with_board_id_drives_single_board(self, get_service, get_settings, handler):
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        rt = MagicMock()
+        service.get_runtime.return_value = rt
+        get_service.return_value = service
+
+        handler.handle("refresh_display", '{"board_id": "b2"}')
+
+        service.get_runtime.assert_called_once_with("b2")
+        service.check_and_send_for_board.assert_called_once()
+        args, kwargs = service.check_and_send_for_board.call_args
+        assert args[0] == "b2"
+        assert args[1] is rt
+        assert kwargs["is_primary"] is False
+        assert kwargs["board"]["id"] == "b2"
+        service.check_and_send_active_page.assert_not_called()
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.api_server.get_service")
+    def test_refresh_display_plain_payload_refreshes_all(self, get_service, get_settings, handler):
+        """Back-compat: no board ref keeps the legacy all-boards refresh."""
+        get_settings.return_value = self._settings_with_boards()
+        service = MagicMock()
+        get_service.return_value = service
+
+        handler.handle("refresh_display", "PRESS")
+
+        service.check_and_send_active_page.assert_called_once()
+        service.check_and_send_for_board.assert_not_called()
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_json_targets_board(self, get_page, get_settings, handler):
+        page_svc = MagicMock()
+        page = MagicMock()
+        page.name = "Weather"
+        page.id = "page-weather-id"
+        page_svc.list_pages.return_value = [page]
+        get_page.return_value = page_svc
+        settings = self._settings_with_boards()
+        get_settings.return_value = settings
+
+        handler.handle("active_page", '{"page": "Weather", "board": "Kitchen"}')
+
+        settings.set_active_page_id.assert_called_once_with("page-weather-id", board_id="b2")
+
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_plain_payload_unchanged(self, get_page, get_settings, handler):
+        """Back-compat: a plain page-name payload keeps the single-arg setter call."""
+        page_svc = MagicMock()
+        page = MagicMock()
+        page.name = "Weather"
+        page.id = "page-weather-id"
+        page_svc.list_pages.return_value = [page]
+        get_page.return_value = page_svc
+        settings = self._settings_with_boards()
+        get_settings.return_value = settings
+
+        handler.handle("active_page", "Weather")
+
+        settings.set_active_page_id.assert_called_once_with("page-weather-id")
