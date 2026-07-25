@@ -600,6 +600,7 @@
   },
   "activeDisplay": {
     "title": "Affichage actif",
+    "boardIndicator": "Affichage de {boardName}",
     "viewSchedule": "Voir la planification",
     "changePage": "Changer de page",
     "scheduleMode": "Mode planification",

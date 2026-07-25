@@ -600,6 +600,7 @@
   },
   "activeDisplay": {
     "title": "アクティブ表示",
+    "boardIndicator": "{boardName} を表示中",
     "viewSchedule": "スケジュールを表示",
     "changePage": "ページを変更",
     "scheduleMode": "スケジュールモード",

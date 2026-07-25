@@ -1181,4 +1181,30 @@ describe("Per-board boardId params (issue #1244)", () => {
     );
     expect(capturedUrl).not.toContain("board_id");
   });
+
+  it("getBoardCurrentMessage only appends board_id for a non-empty string", async () => {
+    let capturedUrl = "";
+    server.use(
+      http.get(`${API_BASE}/board/current-message`, ({ request }) => {
+        capturedUrl = request.url;
+        return HttpResponse.json({
+          characters: [],
+          message: "",
+          rows: 6,
+          cols: 22,
+          expected_characters: null,
+          cached_at: null,
+          api_mode: "local",
+        });
+      }),
+    );
+    await api.getBoardCurrentMessage("b2");
+    expect(capturedUrl).toContain("board_id=b2");
+
+    // Bare queryFn reference hazard (issue #1244): a context object must
+    // never be serialized into board_id.
+    const contextLike = { queryKey: ["board-current-message"], signal: new AbortController().signal, meta: undefined };
+    await (api.getBoardCurrentMessage as unknown as (arg?: unknown) => Promise<unknown>)(contextLike);
+    expect(capturedUrl).not.toContain("board_id");
+  });
 });

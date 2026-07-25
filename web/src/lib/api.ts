@@ -39,13 +39,16 @@ export interface PreviewResponse {
 }
 
 export interface BoardCurrentMessageResponse {
-  characters: number[][];
-  message: string;
+  // characters/message are null for a secondary board that has no cached
+  // content yet (board-state polling is primary-only; see issue #1247).
+  characters: number[][] | null;
+  message: string | null;
   rows: number;
   cols: number;
   expected_characters: number[][] | null;
   cached_at: string | null;
   api_mode: "local" | "cloud";
+  board_id?: string | null;
 }
 
 export interface ActionResponse {
@@ -1452,7 +1455,13 @@ export const api = {
   // Queries (read-only)
   getStatus: () => fetchApi<StatusResponse>("/status"),
   getConfig: () => fetchApi<ConfigSummary>("/config"),
-  getBoardCurrentMessage: () => fetchApi<BoardCurrentMessageResponse>("/board/current-message"),
+  // Non-empty string only — see the getActivePage note (issue #1244).
+  getBoardCurrentMessage: (boardId?: string) =>
+    fetchApi<BoardCurrentMessageResponse>(
+      typeof boardId === "string" && boardId
+        ? `/board/current-message?board_id=${encodeURIComponent(boardId)}`
+        : "/board/current-message",
+    ),
 
   // Mutations (actions)
   startService: () => fetchApi<ActionResponse>("/start", { method: "POST" }),

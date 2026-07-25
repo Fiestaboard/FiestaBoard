@@ -3137,12 +3137,21 @@ def _characters_to_message(characters: list) -> str:
 
 
 @app.get("/board/current-message")
-async def get_board_current_message(force: bool = False):
+async def get_board_current_message(force: bool = False, board_id: str | None = None):
     """Return the current state of the physical board.
 
     Normally serves from the cached result of the background poll thread
     (updated every 30 s local / 3 min cloud) so callers don't hammer the
     Vestaboard API.  Pass ?force=true to trigger a live read instead.
+
+    Args:
+        force: Trigger a live board read instead of serving the poll cache.
+            Only honored for the primary board.
+        board_id: Optional board to read (issue #1247). Omitted or the
+            primary board → legacy live-polled behavior. A secondary board is
+            served from its runtime cache (last-sent/polled content) because
+            board-state polling is primary-only by design; ``characters`` /
+            ``message`` are null when nothing has been sent to it yet.
 
     Returns:
         characters:          Actual 2-D grid currently on the board
@@ -3151,10 +3160,52 @@ async def get_board_current_message(force: bool = False):
         expected_characters: What FiestaBoard last sent (None until first send)
         cached_at:           ISO timestamp of last poll, or null on live read
         api_mode:            "local" or "cloud"
+        board_id:            Echo of the requested board id (null = primary)
     """
     service = get_service()
     if not service or not service.vb_client:
         raise HTTPException(status_code=503, detail="Board client not initialized")
+
+    if board_id is not None:
+        board = _find_board(board_id)
+        if board is None:
+            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        if board_id != get_settings_service().get_primary_board_id():
+            # Secondary board: serve from its runtime cache. No live read —
+            # the poll thread only tracks the primary board (issue #1243).
+            rt = service.get_runtime(board_id)
+            rt_client = rt.client if rt is not None else None
+            last_sent = getattr(rt_client, "_last_characters", None) if rt_client is not None else None
+            polled = rt.polled_characters if rt is not None else None
+            characters = polled if polled is not None else last_sent
+            cached_at = None
+            if polled is not None and rt is not None and rt.polled_at is not None:
+                cached_at = datetime.fromtimestamp(rt.polled_at, tz=UTC).isoformat()
+            board_api_mode = "cloud" if getattr(rt_client, "use_cloud", False) else "local"
+            if characters is None:
+                # Nothing sent to this board yet — return its geometry so the
+                # UI can degrade gracefully (render the active page instead).
+                dims = _board_dims(board)
+                return {
+                    "characters": None,
+                    "message": None,
+                    "rows": dims.rows,
+                    "cols": dims.cols,
+                    "expected_characters": None,
+                    "cached_at": None,
+                    "api_mode": board_api_mode,
+                    "board_id": board_id,
+                }
+            return {
+                "characters": characters,
+                "message": _characters_to_message(characters),
+                "rows": len(characters),
+                "cols": len(characters[0]) if characters else 0,
+                "expected_characters": last_sent,
+                "cached_at": cached_at,
+                "api_mode": board_api_mode,
+                "board_id": board_id,
+            }
 
     api_mode = "cloud" if getattr(service.vb_client, "use_cloud", False) else "local"
     expected_characters = service.vb_client._last_characters
@@ -3184,6 +3235,7 @@ async def get_board_current_message(force: bool = False):
         "expected_characters": expected_characters,
         "cached_at": cached_at,
         "api_mode": api_mode,
+        "board_id": board_id,
     }
 
 

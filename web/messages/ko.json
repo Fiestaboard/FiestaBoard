@@ -600,6 +600,7 @@
   },
   "activeDisplay": {
     "title": "활성 디스플레이",
+    "boardIndicator": "{boardName} 표시 중",
     "viewSchedule": "스케줄 보기",
     "changePage": "페이지 변경",
     "scheduleMode": "스케줄 모드",

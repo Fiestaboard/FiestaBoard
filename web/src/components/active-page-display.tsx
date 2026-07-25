@@ -40,8 +40,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   getEffectiveBoardColor,
   getEffectiveDeviceType,
+  queryKeys,
   useActivePage,
+  useBoardCurrentMessage,
   useBoardSettings,
+  usePagePreview,
   usePages,
   useSetActivePage,
 } from "@/hooks/use-board";
@@ -55,6 +58,14 @@ export function ActivePageDisplay() {
   const t = useTranslations("activeDisplay");
   const _tc = useTranslations("common");
   const tPause = useTranslations("displaySettings.pause");
+
+  // Current board selection (issue #1247). Queries are board-scoped only in
+  // multi-board installs so single-board behavior is completely unchanged.
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
+  const isMultiBoard = boards.length > 1;
+  const scopedBoardId = isMultiBoard && currentBoardId ? currentBoardId : undefined;
+  // Live board polling (and Live Output) only track the primary board.
+  const isPrimaryBoard = !scopedBoardId || scopedBoardId === boards[0]?.id;
 
   // Sheet open state
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -103,8 +114,10 @@ export function ActivePageDisplay() {
   // regardless of mode, eliminating the need for a separate heavyweight
   // getSchedules() call that fetched the entire schedule list.
   const { data: activeScheduleData } = useQuery({
-    queryKey: ["schedules", "active"],
-    queryFn: () => api.getActiveSchedule(),
+    // Board-scoped key: the unscoped ["schedules", "active"] invalidations
+    // used elsewhere still match it as a prefix.
+    queryKey: scopedBoardId ? ["schedules", "active", scopedBoardId] : ["schedules", "active"],
+    queryFn: () => api.getActiveSchedule(scopedBoardId),
     refetchInterval: 60000, // Poll every minute for schedule changes
   });
 
@@ -116,8 +129,8 @@ export function ActivePageDisplay() {
   const overrideRemainingMinutes =
     overrideActive && temporaryOverride?.remaining_seconds ? Math.floor(temporaryOverride.remaining_seconds / 60) : 0;
 
-  // Fetch manual active page setting
-  const { data: activePageData, isLoading: isLoadingActivePage } = useActivePage();
+  // Fetch manual active page setting for the selected board
+  const { data: activePageData, isLoading: isLoadingActivePage } = useActivePage(scopedBoardId);
 
   // Fetch silence mode status to show snoozing indicator
   const { data: silenceStatus } = useQuery<SilenceStatus>({
@@ -182,7 +195,7 @@ export function ActivePageDisplay() {
   });
 
   const disableScheduleMutation = useMutation({
-    mutationFn: () => api.setScheduleEnabled(false),
+    mutationFn: () => api.setScheduleEnabled(false, scopedBoardId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"] });
       toast.success(t("changeModeDisableSuccess"));
@@ -202,12 +215,15 @@ export function ActivePageDisplay() {
       // Optimistically mark as in-sync so the alert disappears immediately.
       // The backend schedules a ~3 s deferred board read after each send;
       // we update the cache now and do a real refetch after 4 s to confirm.
-      queryClient.setQueryData(["board-current-message"], (old: BoardCurrentMessageResponse | undefined) => {
-        if (!old) return old;
-        return { ...old, characters: old.expected_characters ?? old.characters };
-      });
+      queryClient.setQueryData(
+        queryKeys.boardCurrentMessage(scopedBoardId),
+        (old: BoardCurrentMessageResponse | undefined) => {
+          if (!old) return old;
+          return { ...old, characters: old.expected_characters ?? old.characters };
+        },
+      );
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["board-current-message"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.boardCurrentMessage() });
       }, 4000);
       toast.success(t("toastResendSuccess"));
     } catch {
@@ -215,7 +231,7 @@ export function ActivePageDisplay() {
     } finally {
       setIsSyncing(false);
     }
-  }, [queryClient, t]);
+  }, [queryClient, scopedBoardId, t]);
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
@@ -234,13 +250,12 @@ export function ActivePageDisplay() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Set active page mutation
-  const setActivePageMutation = useSetActivePage();
+  // Set active page mutation — targets the selected board only
+  const setActivePageMutation = useSetActivePage(scopedBoardId);
 
-  // Board currently managed in the sidebar selector — used to filter the page
-  // picker to size-compatible pages and to warn about partially-fitting
-  // collections (issue #1249).
-  const { currentBoard } = useCurrentBoard();
+  // currentBoard (destructured above from useCurrentBoard()) is also used to
+  // filter the page picker to size-compatible pages and to warn about
+  // partially-fitting collections (issue #1249).
 
   // Get the active page ID based on mode
   const activePageId = scheduleEnabled ? activeScheduleData?.page_id || null : activePageData?.page_id || null;
@@ -363,26 +378,34 @@ export function ActivePageDisplay() {
   }, [activePage, activePageId, scheduleEnabled, activeCollection]);
 
   // Poll the actual board state from the backend cache (backend hits Vestaboard
-  // at the configured interval; we just read the cached result here).
-  const { data: boardState } = useQuery({
-    queryKey: ["board-current-message"],
-    queryFn: () => api.getBoardCurrentMessage(),
-    refetchInterval: 30_000,
-    staleTime: 25_000,
-  });
+  // at the configured interval; we just read the cached result here). Secondary
+  // boards are served from their runtime's last-sent cache (issue #1247).
+  const { data: boardState } = useBoardCurrentMessage(scopedBoardId);
 
-  // Derive device type from board state dimensions, falling back to board settings
+  // Live Output drives the primary board, so only surface it there.
+  const liveMessageForBoard = isPrimaryBoard ? (liveOutputMessage ?? null) : null;
+
+  // Graceful degrade for a secondary board with no cached content yet
+  // (nothing sent since startup): render its active page instead of a blank.
+  const needsPreviewFallback = !!scopedBoardId && !!boardState && boardState.message === null;
+  const fallbackPageId = needsPreviewFallback && activePageId && !isCollectionId(activePageId) ? activePageId : null;
+  const { data: fallbackPreview } = usePagePreview(fallbackPageId, { enabled: needsPreviewFallback });
+
+  // Derive device type from board state dimensions, falling back to the
+  // selected board's settings.
   const activeDeviceType = useMemo((): "flagship" | "note" => {
     if (boardState) {
       if (boardState.rows === 3 && boardState.cols === 15) return "note";
       return "flagship";
     }
+    if (currentBoard?.device_type) return currentBoard.device_type === "note" ? "note" : "flagship";
     return getEffectiveDeviceType(boardSettings);
-  }, [boardState, boardSettings]);
+  }, [boardState, currentBoard, boardSettings]);
 
   // The display message: prefer live output (page editor override), then the
-  // actual board state. Falls back to null (BoardDisplay shows a skeleton).
-  const displayMessage = liveOutputMessage ?? boardState?.message ?? null;
+  // actual board state, then the active-page render fallback for a secondary
+  // board with no cached content. Falls back to null (skeleton).
+  const displayMessage = liveMessageForBoard ?? boardState?.message ?? fallbackPreview?.message ?? null;
 
   // Out-of-sync: the board was updated externally if its current state differs
   // from what FiestaBoard last sent.
@@ -396,7 +419,14 @@ export function ActivePageDisplay() {
       <Card className="card-interactive">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">{t("title")}</CardTitle>
+            <div className="flex items-baseline gap-2 min-w-0">
+              <CardTitle className="text-lg">{t("title")}</CardTitle>
+              {isMultiBoard && currentBoard && (
+                <span className="text-xs text-muted-foreground truncate" data-testid="active-display-board-name">
+                  {t("boardIndicator", { boardName: currentBoard.name })}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               {scheduleEnabled && (
                 <Link
@@ -423,7 +453,7 @@ export function ActivePageDisplay() {
             <div className="flex items-center gap-1.5">
               <span className="font-medium text-foreground">{activePageName}</span>
             </div>
-            {liveOutputMessage ? (
+            {liveMessageForBoard ? (
               <Badge
                 variant="destructive"
                 className="text-xs gap-1 animate-pulse pr-1 cursor-pointer hover:opacity-90 focus-within:ring-2 focus-within:ring-ring"
@@ -515,7 +545,7 @@ export function ActivePageDisplay() {
           )}
 
           {/* Out-of-sync warning: board was changed by another app */}
-          {isOutOfSync && !liveOutputMessage && (
+          {isOutOfSync && !liveMessageForBoard && (
             <Alert variant="default" className="border-warning/50 bg-warning/10">
               <AlertTriangle className="h-4 w-4 text-warning" />
               <AlertDescription className="flex items-center justify-between gap-3">
@@ -541,9 +571,9 @@ export function ActivePageDisplay() {
           <div className="flex justify-center overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
             <ScaledBoardDisplay
               message={displayMessage}
-              isLoading={!boardState && !liveOutputMessage}
+              isLoading={!boardState && !liveMessageForBoard}
               size="md"
-              boardType={getEffectiveBoardColor(boardSettings)}
+              boardType={currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
               deviceType={activeDeviceType}
             />
           </div>

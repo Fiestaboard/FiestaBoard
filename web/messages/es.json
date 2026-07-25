@@ -600,6 +600,7 @@
   },
   "activeDisplay": {
     "title": "Pantalla activa",
+    "boardIndicator": "Mostrando {boardName}",
     "viewSchedule": "Ver horario",
     "changePage": "Cambiar página",
     "scheduleMode": "Modo de horario",

@@ -600,6 +600,7 @@
   },
   "activeDisplay": {
     "title": "当前显示",
+    "boardIndicator": "正在显示 {boardName}",
     "viewSchedule": "查看日程",
     "changePage": "切换页面",
     "scheduleMode": "日程模式",

@@ -557,6 +557,7 @@
   },
   "activeDisplay": {
     "title": "Active Display",
+    "boardIndicator": "Showing {boardName}",
     "viewSchedule": "View Schedule",
     "changePage": "Change Page",
     "scheduleMode": "Schedule Mode",

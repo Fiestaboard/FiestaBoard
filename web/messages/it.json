@@ -600,6 +600,7 @@
   },
   "activeDisplay": {
     "title": "Visualizzazione attiva",
+    "boardIndicator": "Mostrando {boardName}",
     "viewSchedule": "Visualizza programmazione",
     "changePage": "Cambia pagina",
     "scheduleMode": "Modalità programmata",
