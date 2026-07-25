@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} des {total} pages de cette collection ne correspondent pas à la taille de ce tableau et seront ignorées.",
+      "incompatiblePageWarning": "Cette page ne correspond pas à la taille de ce tableau et pourrait ne pas s'afficher correctement."
     },
     "descriptionWithTimezone": "Automatisez la rotation des pages par heure et jour · {timezone}",
     "gapDefaultPlaceholder": "Page par défaut…",
@@ -628,7 +630,8 @@
     "changeModeOverrideDescription": "Affichez une page pendant une durée définie, puis reprenez votre planning.",
     "changeModeDisableTitle": "Désactiver le mode planning",
     "changeModeDisableDescription": "Désactivez le planning et contrôlez le board manuellement.",
-    "changeModeDisableSuccess": "Mode planning désactivé"
+    "changeModeDisableSuccess": "Mode planning désactivé",
+    "collectionSizeWarning": "{count} des {total} pages de cette collection ne correspondent pas à la taille de ce tableau et seront ignorées."
   },
   "forceSetDialog": {
     "title": "Forcer l'affichage",
@@ -1268,7 +1271,9 @@
     "collectionsTab": "Carrousels ({count})",
     "noPagesTitle": "Aucune page créée pour le moment.",
     "noPagesDescription": "Créez votre première page à afficher sur le tableau.",
-    "createFirstPage": "Créer votre première page"
+    "createFirstPage": "Créer votre première page",
+    "noCompatiblePagesTitle": "Aucune page ne correspond à la taille de ce tableau.",
+    "noCompatiblePagesDescription": "Créez une page à la taille de ce tableau pour la voir ici."
   },
   "profile": {
     "title": "Profil",

@@ -1575,6 +1575,75 @@ class ConfigManager:
         """Drop any persisted retry queue. Equivalent to ``set_v2_plugin_failed_installs([])``."""
         self.set_v2_plugin_failed_installs([])
 
+    # ── deliberate-removal tombstones (issue #1394) ───────────────────────────
+    #
+    # When the user uninstalls a plugin (or deletes a named instance) we record
+    # its id in a persistent top-level ``removed_plugins`` list. The post-upgrade
+    # auto-restore and the v2→v3 reconcile consult this list so a pre-update
+    # snapshot or an orphaned config entry can never resurrect something the
+    # user deliberately removed. The tombstone is cleared when the user
+    # explicitly reinstalls the plugin (or re-creates the instance).
+    #
+    # Compound instance keys use the ``base:label`` form (see
+    # ``src.plugins.registry.INSTANCE_SEPARATOR``); a base-plugin tombstone
+    # covers all of its instances.
+
+    def get_removed_plugins(self) -> list[str]:
+        """Return the list of deliberately removed plugin ids (tombstones)."""
+        with self._file_lock:
+            raw = self._config.get("removed_plugins")
+            if not isinstance(raw, list):
+                return []
+            return [pid for pid in raw if isinstance(pid, str) and pid]
+
+    def is_plugin_removed(self, plugin_id: str) -> bool:
+        """Return True when *plugin_id* — or, for an instance key like
+        ``weather:sf``, its base plugin — was deliberately removed."""
+        removed = set(self.get_removed_plugins())
+        if plugin_id in removed:
+            return True
+        base = plugin_id.split(":", 1)[0]
+        return base != plugin_id and base in removed
+
+    def mark_plugin_removed(self, plugin_id: str) -> None:
+        """Persist a deliberate-removal tombstone for *plugin_id*."""
+        if not isinstance(plugin_id, str) or not plugin_id:
+            return
+        with self._file_lock:
+            current = self._config.get("removed_plugins")
+            current = [pid for pid in current if isinstance(pid, str) and pid] if isinstance(current, list) else []
+            if plugin_id in current:
+                return
+            self._config["removed_plugins"] = sorted({*current, plugin_id})
+            self._save_internal()
+        logger.info("Plugin '%s' tombstoned as deliberately removed", plugin_id)
+
+    def clear_plugin_removed(self, plugin_id: str) -> None:
+        """Drop the tombstone for *plugin_id*.
+
+        For a base plugin id this also drops tombstones of its named
+        instances (``plugin_id:*``), since reinstalling the base is the
+        explicit user action that makes those ids installable again.
+        """
+        with self._file_lock:
+            current = self._config.get("removed_plugins")
+            if not isinstance(current, list):
+                return
+            prefix = f"{plugin_id}:"
+            kept = [
+                pid
+                for pid in current
+                if isinstance(pid, str) and pid and pid != plugin_id and not pid.startswith(prefix)
+            ]
+            if kept == current:
+                return
+            if kept:
+                self._config["removed_plugins"] = kept
+            else:
+                self._config.pop("removed_plugins", None)
+            self._save_internal()
+        logger.info("Cleared deliberate-removal tombstone for plugin '%s'", plugin_id)
+
     def migrate_feature_to_plugin(self, feature_name: str, plugin_id: str) -> bool:
         """Migrate a legacy feature configuration to plugin format.
 

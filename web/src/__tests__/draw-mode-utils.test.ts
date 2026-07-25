@@ -38,6 +38,12 @@ describe("lineToCells", () => {
   it("does not treat inherited object keys as colors", () => {
     expect(lineToCells("{{constructor}}X")).toEqual(["X"]);
   });
+  it("normalizes the purple alias to the canonical violet cell in every token form", () => {
+    expect(lineToCells("{{purple}}")).toEqual(["{{violet}}"]);
+    expect(lineToCells("{purple}")).toEqual(["{{violet}}"]);
+    expect(lineToCells("{68}")).toEqual(["{{violet}}"]);
+    expect(lineToCells("{{violet}}")).toEqual(["{{violet}}"]);
+  });
 });
 
 describe("cellsToLine", () => {
@@ -61,6 +67,12 @@ describe("isPositionalLine", () => {
   });
   it("is false for inherited object keys", () => {
     expect(isPositionalLine("{{constructor}}")).toBe(false);
+  });
+  it("accepts every color token form lineToCells accepts (shared tokenizer)", () => {
+    // Single-brace named colors and numeric codes are one cell each in
+    // lineToCells, so they must count as positional too.
+    expect(isPositionalLine("{red}{63}{71}AB")).toBe(true);
+    expect(isPositionalLine("{{purple}}{{ RED }}")).toBe(true);
   });
 });
 
@@ -111,6 +123,9 @@ describe("brushToCell", () => {
   it("maps a color brush to a {{color}} cell", () => {
     expect(brushToCell({ kind: "color", color: "red" })).toBe("{{red}}");
     expect(brushToCell({ kind: "color", color: "black" })).toBe("{{black}}");
+  });
+  it("maps a purple brush to the canonical {{violet}} cell", () => {
+    expect(brushToCell({ kind: "color", color: "purple" })).toBe("{{violet}}");
   });
   it("maps the eraser brush to a blank cell", () => {
     expect(brushToCell({ kind: "eraser" })).toBe(" ");
@@ -189,5 +204,8 @@ describe("renderPositionalLine", () => {
   });
   it("passes literals through and drops dynamic tokens", () => {
     expect(renderPositionalLine("HI {{weather.temp}}!")).toBe("HI !");
+  });
+  it("renders the purple alias as the canonical violet marker", () => {
+    expect(renderPositionalLine("{{purple}}")).toBe("{violet}");
   });
 });

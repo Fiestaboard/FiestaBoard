@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "このコレクションの{total}ページ中{count}ページがこのボードのサイズに合わないため、スキップされます。",
+      "incompatiblePageWarning": "このページはこのボードのサイズに合わないため、正しく表示されない可能性があります。"
     },
     "descriptionWithTimezone": "時刻と曜日でページの切り替えを自動化 · {timezone}",
     "gapDefaultPlaceholder": "空き時間のデフォルト…",
@@ -628,7 +630,8 @@
     "changeModeOverrideDescription": "ページを指定時間だけ表示し、その後スケジュールを再開します。",
     "changeModeDisableTitle": "スケジュールモードをオフ",
     "changeModeDisableDescription": "スケジュールを無効化し、ボードを手動で操作します。",
-    "changeModeDisableSuccess": "スケジュールモードを無効化しました"
+    "changeModeDisableSuccess": "スケジュールモードを無効化しました",
+    "collectionSizeWarning": "このコレクションの{total}ページ中{count}ページがこのボードのサイズに合わないため、スキップされます。"
   },
   "forceSetDialog": {
     "title": "ボードを強制設定",
@@ -1268,7 +1271,9 @@
     "collectionsTab": "カルーセル（{count}）",
     "noPagesTitle": "ページがまだ作成されていません。",
     "noPagesDescription": "ボードに表示する最初のページを作成しましょう。",
-    "createFirstPage": "最初のページを作成"
+    "createFirstPage": "最初のページを作成",
+    "noCompatiblePagesTitle": "このボードのサイズに合うページがありません。",
+    "noCompatiblePagesDescription": "このボードのサイズに合わせたページを作成すると、ここに表示されます。"
   },
   "profile": {
     "title": "プロフィール",

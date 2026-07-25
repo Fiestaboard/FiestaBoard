@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} pagine su {total} in questa raccolta non corrispondono alle dimensioni di questa board e verranno saltate.",
+      "incompatiblePageWarning": "Questa pagina non corrisponde alle dimensioni di questa board e potrebbe non essere visualizzata correttamente."
     },
     "descriptionWithTimezone": "Automatizza la rotazione delle pagine per ora e giorno · {timezone}",
     "gapDefaultPlaceholder": "Predefinita per intervalli…",
@@ -628,7 +630,8 @@
     "changeModeOverrideDescription": "Mostra una pagina per una durata definita, poi riprendi la pianificazione.",
     "changeModeDisableTitle": "Disattiva modalità pianificazione",
     "changeModeDisableDescription": "Disattiva la pianificazione e controlla il board manualmente.",
-    "changeModeDisableSuccess": "Modalità pianificazione disattivata"
+    "changeModeDisableSuccess": "Modalità pianificazione disattivata",
+    "collectionSizeWarning": "{count} pagine su {total} in questa raccolta non corrispondono alle dimensioni di questa board e verranno saltate."
   },
   "forceSetDialog": {
     "title": "Forza impostazione board",
@@ -1268,7 +1271,9 @@
     "collectionsTab": "Caroselli ({count})",
     "noPagesTitle": "Nessuna pagina creata.",
     "noPagesDescription": "Crea la tua prima pagina da mostrare sul board.",
-    "createFirstPage": "Crea la tua prima pagina"
+    "createFirstPage": "Crea la tua prima pagina",
+    "noCompatiblePagesTitle": "Nessuna pagina corrisponde alle dimensioni di questa board.",
+    "noCompatiblePagesDescription": "Crea una pagina delle dimensioni di questa board per vederla qui."
   },
   "profile": {
     "title": "Profilo",

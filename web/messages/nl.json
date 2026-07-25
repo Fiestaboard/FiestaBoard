@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} van de {total} pagina's in deze collectie passen niet bij het formaat van dit bord en worden overgeslagen.",
+      "incompatiblePageWarning": "Deze pagina past niet bij het formaat van dit bord en wordt mogelijk niet correct weergegeven."
     },
     "descriptionWithTimezone": "Automatiseer paginarotatie op tijd en dag · {timezone}",
     "gapDefaultPlaceholder": "Standaard bij gat…",
@@ -628,7 +630,8 @@
     "changeModeOverrideDescription": "Toon een pagina voor een ingestelde duur en hervat daarna je rooster.",
     "changeModeDisableTitle": "Roostermodus uitschakelen",
     "changeModeDisableDescription": "Schakel het rooster uit en bedien het board handmatig.",
-    "changeModeDisableSuccess": "Roostermodus uitgeschakeld"
+    "changeModeDisableSuccess": "Roostermodus uitgeschakeld",
+    "collectionSizeWarning": "{count} van de {total} pagina's in deze collectie passen niet bij het formaat van dit bord en worden overgeslagen."
   },
   "forceSetDialog": {
     "title": "Board forceren",
@@ -1268,7 +1271,9 @@
     "collectionsTab": "Carrousels ({count})",
     "noPagesTitle": "Nog geen pagina's gemaakt.",
     "noPagesDescription": "Maak je eerste pagina om op het board te tonen.",
-    "createFirstPage": "Maak je eerste pagina"
+    "createFirstPage": "Maak je eerste pagina",
+    "noCompatiblePagesTitle": "Geen pagina's passen bij het formaat van dit bord.",
+    "noCompatiblePagesDescription": "Maak een pagina in het formaat van dit bord om deze hier te zien."
   },
   "profile": {
     "title": "Profiel",

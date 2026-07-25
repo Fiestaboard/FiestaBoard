@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} von {total} Seiten in dieser Sammlung passen nicht zur Größe dieses Boards und werden übersprungen.",
+      "incompatiblePageWarning": "Diese Seite passt nicht zur Größe dieses Boards und wird möglicherweise nicht richtig angezeigt."
     },
     "descriptionWithTimezone": "Automatisiere die Seitenrotation nach Zeit und Tag · {timezone}",
     "gapDefaultPlaceholder": "Standard für Lücken…",
@@ -628,7 +630,8 @@
     "changeModeOverrideDescription": "Zeige eine Seite für eine festgelegte Dauer und setze dann deinen Zeitplan fort.",
     "changeModeDisableTitle": "Zeitplan-Modus deaktivieren",
     "changeModeDisableDescription": "Deaktiviere den Zeitplan und steuere das Board manuell.",
-    "changeModeDisableSuccess": "Zeitplan-Modus deaktiviert"
+    "changeModeDisableSuccess": "Zeitplan-Modus deaktiviert",
+    "collectionSizeWarning": "{count} von {total} Seiten in dieser Sammlung passen nicht zur Größe dieses Boards und werden übersprungen."
   },
   "forceSetDialog": {
     "title": "Board erzwingen",
@@ -1268,7 +1271,9 @@
     "collectionsTab": "Karussells ({count})",
     "noPagesTitle": "Noch keine Seiten erstellt.",
     "noPagesDescription": "Erstellen Sie Ihre erste Seite, um sie auf dem Board anzuzeigen.",
-    "createFirstPage": "Erste Seite erstellen"
+    "createFirstPage": "Erste Seite erstellen",
+    "noCompatiblePagesTitle": "Keine Seiten passen zur Größe dieses Boards.",
+    "noCompatiblePagesDescription": "Erstelle eine Seite in der Größe dieses Boards, um sie hier zu sehen."
   },
   "profile": {
     "title": "Profil",

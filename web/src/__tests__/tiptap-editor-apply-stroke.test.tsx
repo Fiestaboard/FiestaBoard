@@ -20,7 +20,7 @@ describe("TipTapTemplateEditor applyStroke", () => {
   async function setup(value: string) {
     const ref = createRef<TipTapTemplateEditorHandle>();
     const onChange = vi.fn();
-    render(
+    const { unmount } = render(
       <TipTapTemplateEditor
         ref={ref}
         value={value}
@@ -31,7 +31,7 @@ describe("TipTapTemplateEditor applyStroke", () => {
       />,
     );
     await waitFor(() => expect(ref.current).not.toBeNull());
-    return { ref, onChange };
+    return { ref, onChange, unmount };
   }
 
   it("paints cells into template lines as one change", async () => {
@@ -95,5 +95,18 @@ describe("TipTapTemplateEditor applyStroke", () => {
     await waitFor(() => {
       expect((onChange.mock.calls.at(-1)![0] as string).split("\n")[0]).toBe("");
     });
+  });
+
+  it("undo/redo/applyStroke are safe no-ops once the editor is destroyed", async () => {
+    const { ref, unmount } = await setup("HELLO\n\n\n\n\n");
+    const handle = ref.current!;
+    unmount();
+    // TipTap's useEditor schedules the destroy after unmount — wait until the
+    // guard actually sees a destroyed editor before asserting the no-ops.
+    await waitFor(() => {
+      expect(handle.applyStroke([{ row: 0, col: 0 }], { kind: "eraser" })).toEqual([]);
+    });
+    expect(() => handle.undo()).not.toThrow();
+    expect(() => handle.redo()).not.toThrow();
   });
 });

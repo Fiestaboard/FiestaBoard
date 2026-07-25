@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} av {total} sidor i den här samlingen passar inte den här tavlans storlek och hoppas över.",
+      "incompatiblePageWarning": "Den här sidan matchar inte den här tavlans storlek och kanske inte visas korrekt."
     },
     "descriptionWithTimezone": "Automatisera sidrotation efter tid och dag · {timezone}",
     "gapDefaultPlaceholder": "Standard för lucka…",
@@ -628,7 +630,8 @@
     "changeModeOverrideDescription": "Visa en sida under en bestämd tid och återuppta sedan ditt schema.",
     "changeModeDisableTitle": "Stäng av schemaläge",
     "changeModeDisableDescription": "Inaktivera schemat och styr board manuellt.",
-    "changeModeDisableSuccess": "Schemaläge inaktiverat"
+    "changeModeDisableSuccess": "Schemaläge inaktiverat",
+    "collectionSizeWarning": "{count} av {total} sidor i den här samlingen passar inte den här tavlans storlek och hoppas över."
   },
   "forceSetDialog": {
     "title": "Tvinga inställning av board",
@@ -1268,7 +1271,9 @@
     "collectionsTab": "Karuseller ({count})",
     "noPagesTitle": "Inga sidor har skapats än.",
     "noPagesDescription": "Skapa din första sida för att visa på board.",
-    "createFirstPage": "Skapa din första sida"
+    "createFirstPage": "Skapa din första sida",
+    "noCompatiblePagesTitle": "Inga sidor matchar den här tavlans storlek.",
+    "noCompatiblePagesDescription": "Skapa en sida i den här tavlans storlek för att se den här."
   },
   "profile": {
     "title": "Profil",

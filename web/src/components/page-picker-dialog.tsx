@@ -2,17 +2,24 @@
 
 import { Check, FileText, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
 
+import { BoardSizeIndicator } from "@/components/board-size-indicator";
+import { useCurrentBoard } from "@/components/current-board-context";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslations } from "@/i18n/translations";
 import type { Collection } from "@/lib/api";
 import { isCollectionId } from "@/lib/api";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
 interface Page {
   id: string;
   name: string;
   type?: string;
+  /** Board geometry for size badges/filtering; pages without it act as flagship. */
+  device_type?: string;
+  notes_wide?: number;
+  notes_tall?: number;
 }
 
 interface PagePickerDialogProps {
@@ -21,6 +28,8 @@ interface PagePickerDialogProps {
   selectedPageId: string | null;
   onSelect: (pageId: string | null) => void;
   allowNone?: boolean;
+  /** Show only pages whose size matches the current board (issue #1249). */
+  filterByCurrentBoardSize?: boolean;
 }
 
 /**
@@ -33,8 +42,16 @@ export function PagePickerDialog({
   selectedPageId,
   onSelect,
   allowNone = false,
+  filterByCurrentBoardSize = false,
 }: PagePickerDialogProps) {
   const t = useTranslations("pagePickerDialog");
+  const { currentBoard } = useCurrentBoard();
+  // Size filter (issue #1249): keep the current selection visible even when it
+  // no longer fits, so an existing choice never silently disappears.
+  const visiblePages =
+    filterByCurrentBoardSize && currentBoard
+      ? pages.filter((p) => p.id === selectedPageId || pagesCompatibleWithBoard(p, currentBoard))
+      : pages;
   const hasCollections = collections.length > 0;
   const defaultTab = selectedPageId && isCollectionId(selectedPageId) ? "collections" : "pages";
 
@@ -53,7 +70,7 @@ export function PagePickerDialog({
 
   const pagesList = (
     <div className="space-y-2" role="listbox" aria-label={t("pagesAriaLabel")}>
-      {pages.map((page) => (
+      {visiblePages.map((page) => (
         <button
           key={page.id}
           role="option"
@@ -69,6 +86,13 @@ export function PagePickerDialog({
               <Badge variant="secondary" className="text-[10px]">
                 {page.type}
               </Badge>
+            )}
+            {page.device_type && (
+              <BoardSizeIndicator
+                deviceType={page.device_type}
+                notesWide={page.notes_wide}
+                notesTall={page.notes_tall}
+              />
             )}
           </div>
           {selectedPageId === page.id && <Check className="h-4 w-4 text-brand" aria-hidden="true" />}
@@ -106,7 +130,7 @@ export function PagePickerDialog({
     return (
       <div className="space-y-2">
         {noneOption}
-        {pages.length === 0 ? (
+        {visiblePages.length === 0 ? (
           <EmptyState icon={FileText} title={t("noPagesTitle")} description={t("noPagesDescription")} />
         ) : (
           pagesList
@@ -122,7 +146,7 @@ export function PagePickerDialog({
         <TabsList className="w-full">
           <TabsTrigger value="pages" className="flex-1 gap-1.5">
             <LayoutTemplate className="h-4 w-4" aria-hidden="true" />
-            {t("pagesTab", { count: pages.length })}
+            {t("pagesTab", { count: visiblePages.length })}
           </TabsTrigger>
           <TabsTrigger value="collections" className="flex-1 gap-1.5">
             <GalleryHorizontalEnd className="h-4 w-4" aria-hidden="true" />
@@ -130,7 +154,7 @@ export function PagePickerDialog({
           </TabsTrigger>
         </TabsList>
         <TabsContent value="pages">
-          {pages.length === 0 ? (
+          {visiblePages.length === 0 ? (
             <EmptyState icon={FileText} title={t("noPagesTitle")} description={t("noPagesDescription")} />
           ) : (
             pagesList
