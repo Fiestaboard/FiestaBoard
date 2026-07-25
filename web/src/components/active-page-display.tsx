@@ -51,6 +51,7 @@ import {
 import { useTranslations } from "@/i18n/translations";
 import type { BoardCurrentMessageResponse, Collection, SilenceStatus } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
 
 export function ActivePageDisplay() {
@@ -252,6 +253,11 @@ export function ActivePageDisplay() {
   // Set active page mutation — targets the selected board only
   const setActivePageMutation = useSetActivePage(scopedBoardId);
 
+  // Board currently managed in the sidebar selector — used to filter the page
+  // picker to size-compatible pages and to warn about partially-fitting
+  // collections (issue #1249).
+  const { currentBoard } = useCurrentBoard();
+
   // Get the active page ID based on mode
   const activePageId = scheduleEnabled ? activeScheduleData?.page_id || null : activePageData?.page_id || null;
 
@@ -316,6 +322,19 @@ export function ActivePageDisplay() {
         return;
       }
 
+      // Non-fatal size warning when a collection only partially fits the
+      // current board — mirrors the backend `warnings` from #1245.
+      if (currentBoard && isCollectionId(pageId)) {
+        const collection = collectionsData?.collections?.find((c: Collection) => c.id === pageId);
+        const members = (collection?.page_ids ?? [])
+          .map((pid) => pages.find((p) => p.id === pid))
+          .filter((p): p is (typeof pages)[number] => Boolean(p));
+        const misfits = members.filter((p) => !pagesCompatibleWithBoard(p, currentBoard));
+        if (members.length > 0 && misfits.length > 0) {
+          toast.warning(t("collectionSizeWarning", { count: misfits.length, total: members.length }));
+        }
+      }
+
       // Manual mode (or after the user chose to disable schedule): switch immediately.
       setOpenSheetAsManual(false);
       setActivePageMutation.mutate(pageId, {
@@ -330,7 +349,17 @@ export function ActivePageDisplay() {
         },
       });
     },
-    [activePageId, scheduleEnabled, overrideActive, openSheetAsManual, setActivePageMutation],
+    [
+      activePageId,
+      scheduleEnabled,
+      overrideActive,
+      openSheetAsManual,
+      setActivePageMutation,
+      currentBoard,
+      collectionsData,
+      pages,
+      t,
+    ],
   );
 
   // Get the active page for name resolution
@@ -561,6 +590,7 @@ export function ActivePageDisplay() {
             isPending={isPending || setActivePageMutation.isPending}
             showActiveIndicator={true}
             label=""
+            filterByCurrentBoardSize
           />
         </div>
       )}
@@ -595,6 +625,7 @@ export function ActivePageDisplay() {
                 isPending={isPending || setActivePageMutation.isPending}
                 showActiveIndicator={true}
                 label=""
+                filterByCurrentBoardSize
               />
             ) : (
               <div className="text-center text-sm text-muted-foreground py-8">{t("loadingPages")}</div>

@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} de {total} páginas desta coleção não se ajustam ao tamanho deste quadro e serão ignoradas.",
+      "incompatiblePageWarning": "Esta página não corresponde ao tamanho deste quadro e pode não ser exibida corretamente."
     },
     "descriptionWithTimezone": "Automatize a rotação de páginas por hora e dia · {timezone}",
     "gapDefaultPlaceholder": "Predefinida para intervalo…",
@@ -629,7 +631,8 @@
     "changeModeOverrideDescription": "Mostrar uma página durante um tempo definido e depois retomar o agendamento.",
     "changeModeDisableTitle": "Desativar modo de agendamento",
     "changeModeDisableDescription": "Desativar o agendamento e controlar o board manualmente.",
-    "changeModeDisableSuccess": "Modo de agendamento desativado"
+    "changeModeDisableSuccess": "Modo de agendamento desativado",
+    "collectionSizeWarning": "{count} de {total} páginas desta coleção não se ajustam ao tamanho deste quadro e serão ignoradas."
   },
   "forceSetDialog": {
     "title": "Forçar board",
@@ -1261,7 +1264,9 @@
     "collectionsTab": "Carrosséis ({count})",
     "noPagesTitle": "Ainda não foram criadas páginas.",
     "noPagesDescription": "Crie a sua primeira página para mostrar no board.",
-    "createFirstPage": "Crie a sua primeira página"
+    "createFirstPage": "Crie a sua primeira página",
+    "noCompatiblePagesTitle": "Nenhuma página corresponde ao tamanho deste quadro.",
+    "noCompatiblePagesDescription": "Crie uma página no tamanho deste quadro para vê-la aqui."
   },
   "profile": {
     "title": "Perfil",

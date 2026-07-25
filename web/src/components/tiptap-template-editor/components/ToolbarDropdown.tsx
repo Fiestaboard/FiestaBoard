@@ -126,7 +126,7 @@ export function ToolbarDropdown({
                 "hover:bg-muted/50 transition-colors",
                 "border border-transparent",
                 isOpen && "bg-muted/70 border-border",
-                disabled && "opacity-50 cursor-not-allowed",
+                disabled && "opacity-60 cursor-not-allowed",
                 className,
               )}
               aria-expanded={isOpen}

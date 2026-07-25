@@ -41,7 +41,7 @@ from .displays.service import get_display_service, reset_display_service  # noqa
 from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.models import PageCreate, PageUpdate  # noqa: E402
-from .pages.service import get_page_service  # noqa: E402
+from .pages.service import check_ref_board_compatibility, get_page_service  # noqa: E402
 from .pages.share import decode_page, encode_page  # noqa: E402
 from .schedules.models import ScheduleCreate, ScheduleUpdate  # noqa: E402
 from .schedules.service import get_schedule_service  # noqa: E402
@@ -2144,8 +2144,15 @@ def _build_post_upgrade_restore_set(snap_config: dict[str, Any], live_config: di
 
     snap_plugins = snap_config.get("plugins") or {}
     live_plugins = live_config.get("plugins") or {}
+    # Deliberate-removal tombstones (#1394): a plugin the user uninstalled is
+    # absent from the live config *on purpose* — never restore it from the
+    # snapshot. A base-plugin tombstone also covers its instances ("stocks:sf").
+    raw_removed = live_config.get("removed_plugins")
+    removed = {pid for pid in raw_removed if isinstance(pid, str)} if isinstance(raw_removed, list) else set()
     plugins: dict[str, Any] = {}
     for pid, snap_cfg in snap_plugins.items():
+        if pid in removed or pid.split(":", 1)[0] in removed:
+            continue  # deliberately uninstalled — do not resurrect (#1394)
         if not (isinstance(snap_cfg, dict) and snap_cfg.get("enabled") is True):
             continue  # only auto-restore plugins the user had ENABLED (#937 invariant)
         live_cfg = live_plugins.get(pid)
@@ -5454,6 +5461,16 @@ async def set_active_page(request: dict):
             if not page:
                 raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
+    # Enforce page<->board size compatibility (issue #1245). Collections are
+    # allowed when at least one member fits (non-fitting members become
+    # warnings); plain pages must match the board size exactly.
+    compat_warnings: list[str] = []
+    if page_id is not None:
+        compat = check_ref_board_compatibility(page_id, request.get("board_id"))
+        if not compat.ok:
+            raise HTTPException(status_code=400, detail=compat.error)
+        compat_warnings = compat.warnings
+
     # Dismiss any active plugin triggers so the user's explicit page change
     # actually sticks. Without this, a plugin re-emitting the same trigger
     # every display loop tick (e.g. calendar_sub during a countdown window)
@@ -5518,13 +5535,16 @@ async def set_active_page(request: dict):
                     # Adaptive post-send refresh polls the primary board only.
                     service.request_board_refresh()
 
-    return {
+    response = {
         "status": "success",
         "page_id": page_id,
         "sent_to_board": sent_to_board,
         "paused": paused,
         "board_id": board_id,
     }
+    if compat_warnings:
+        response["warnings"] = compat_warnings
+    return response
 
 
 @app.get("/settings/temporary-override")
@@ -7267,6 +7287,20 @@ async def list_schedules(board_id: str | None = None):
     }
 
 
+def _with_compat_warnings(response: dict, schedule) -> dict:
+    """Attach non-fatal page<->board size warnings to a schedule response.
+
+    Collections may mix page sizes; the write is allowed when at least one
+    member fits the board, and the members that don't fit are surfaced as a
+    ``warnings`` list (issue #1245). The key is omitted when there is nothing
+    to warn about.
+    """
+    compat = check_ref_board_compatibility(schedule.page_id, schedule.board_id)
+    if compat.ok and compat.warnings:
+        response["warnings"] = compat.warnings
+    return response
+
+
 @app.post("/schedules")
 async def create_schedule(schedule_data: ScheduleCreate):
     """Create a new schedule entry.
@@ -7281,7 +7315,8 @@ async def create_schedule(schedule_data: ScheduleCreate):
 
     try:
         schedule = schedule_service.create_schedule(schedule_data)
-        return _enrich_schedule_with_sun_times(schedule.model_dump())
+        response = _enrich_schedule_with_sun_times(schedule.model_dump())
+        return _with_compat_warnings(response, schedule)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -7434,7 +7469,8 @@ async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
         schedule = schedule_service.update_schedule(schedule_id, schedule_data)
         if not schedule:
             raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-        return _enrich_schedule_with_sun_times(schedule.model_dump())
+        response = _enrich_schedule_with_sun_times(schedule.model_dump())
+        return _with_compat_warnings(response, schedule)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -8510,6 +8546,9 @@ async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRe
     # Persist empty config so the instance survives restarts
     config_manager = get_config_manager()
     config_manager.set_plugin_config(compound_key, {"enabled": False})
+    # Re-creating an instance is an explicit user action — drop any
+    # deliberate-removal tombstone left by a prior delete (#1394).
+    config_manager.clear_plugin_removed(compound_key)
 
     # Reset services so the new instance is available to templates immediately
     reset_display_service()
@@ -8547,9 +8586,11 @@ async def delete_plugin_instance(plugin_id: str, instance_label: str):
 
     compound_key = registry.make_instance_key(base_id, instance_label)
 
-    # Remove persisted config
+    # Remove persisted config and tombstone the compound key so a
+    # post-upgrade auto-restore cannot resurrect the deleted instance (#1394).
     config_manager = get_config_manager()
     config_manager.delete_plugin_config(compound_key)
+    config_manager.mark_plugin_removed(compound_key)
 
     # Reset services
     reset_display_service()

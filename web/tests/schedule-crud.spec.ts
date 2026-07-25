@@ -28,8 +28,14 @@ test.beforeEach(async ({ page }) => {
 async function ensurePage(): Promise<string> {
   const pagesRes = await fetch(`${API()}/pages`);
   const pagesData = await pagesRes.json();
-  if (pagesData.total > 0) {
-    return pagesData.pages[0].id;
+  // The primary board is a flagship (configureBoard) and since #1245 the
+  // backend rejects size-incompatible schedule pages, so pick a FLAGSHIP page
+  // — pages[0] may be a note/note-array page left behind by another spec.
+  const flagshipPage = (pagesData.pages ?? []).find(
+    (p: { device_type?: string }) => (p.device_type || "flagship") === "flagship",
+  );
+  if (flagshipPage) {
+    return flagshipPage.id;
   }
   const createRes = await fetch(`${API()}/pages`, {
     method: "POST",

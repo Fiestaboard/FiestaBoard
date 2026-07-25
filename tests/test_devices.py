@@ -987,3 +987,99 @@ class TestIdentifyPattern:
 
         assert identify_pattern(0, 0, 2) != identify_pattern(0, 1, 2)
         assert identify_pattern(0, 1, 2) != identify_pattern(1, 0, 2)
+
+
+class TestSizeKey:
+    """Canonical family+size key for page/board compatibility (issue #1245)."""
+
+    def test_flagship(self):
+        from src.devices import size_key
+
+        assert size_key("flagship") == "flagship:6x22"
+
+    def test_note(self):
+        from src.devices import size_key
+
+        assert size_key("note") == "note:3x15"
+
+    def test_note_array_resolves_dimensions(self):
+        from src.devices import size_key
+
+        assert size_key("note_array", notes_wide=2, notes_tall=2) == "note_array:6x30"
+        assert size_key("note_array", notes_wide=2, notes_tall=1) == "note_array:3x30"
+        assert size_key("note_array", notes_wide=1, notes_tall=4) == "note_array:12x15"
+        assert size_key("note_array") == "note_array:3x15"
+
+    def test_flagship_ignores_note_counts(self):
+        from src.devices import size_key
+
+        assert size_key("flagship", notes_wide=3, notes_tall=2) == "flagship:6x22"
+
+    def test_unknown_device_type_falls_back_to_default(self):
+        from src.devices import size_key
+
+        assert size_key("mystery") == "flagship:6x22"
+
+
+class TestPagesCompatibleWithBoard:
+    """Exact size_key compatibility predicate (issue #1245)."""
+
+    @staticmethod
+    def _board(device_type, notes_wide=1, notes_tall=1):
+        return {"id": "b1", "device_type": device_type, "notes_wide": notes_wide, "notes_tall": notes_tall}
+
+    @staticmethod
+    def _page(device_type, notes_wide=1, notes_tall=1):
+        from src.pages.models import Page
+
+        return Page(
+            name="p",
+            type="template",
+            device_type=device_type,
+            template=["hi"],
+            notes_wide=notes_wide,
+            notes_tall=notes_tall,
+        )
+
+    def test_flagship_page_flagship_board(self):
+        from src.devices import pages_compatible_with_board
+
+        assert pages_compatible_with_board(self._page("flagship"), self._board("flagship")) is True
+
+    def test_flagship_page_note_board(self):
+        from src.devices import pages_compatible_with_board
+
+        assert pages_compatible_with_board(self._page("flagship"), self._board("note")) is False
+
+    def test_note_page_note_board(self):
+        from src.devices import pages_compatible_with_board
+
+        assert pages_compatible_with_board(self._page("note"), self._board("note")) is True
+
+    def test_note_page_1x1_note_array_board_is_family_mismatch(self):
+        """Same 3x15 dimensions but different family: note != note_array."""
+        from src.devices import pages_compatible_with_board
+
+        assert pages_compatible_with_board(self._page("note"), self._board("note_array", 1, 1)) is False
+
+    def test_note_array_exact_grid_match(self):
+        from src.devices import pages_compatible_with_board
+
+        page = self._page("note_array", notes_wide=2, notes_tall=2)
+        assert pages_compatible_with_board(page, self._board("note_array", 2, 2)) is True
+        assert pages_compatible_with_board(page, self._board("note_array", 2, 1)) is False
+        assert pages_compatible_with_board(page, self._board("note_array", 4, 1)) is False
+
+    def test_board_instance_object(self):
+        from src.devices import pages_compatible_with_board
+
+        board = BoardInstance(device_type="note_array", notes_wide=2, notes_tall=1)
+        assert pages_compatible_with_board(self._page("note_array", 2, 1), board) is True
+        assert pages_compatible_with_board(self._page("note_array", 1, 2), board) is False
+
+    def test_board_dict_missing_geometry_defaults(self):
+        """Board dicts without device_type/notes fields behave as a flagship."""
+        from src.devices import pages_compatible_with_board
+
+        assert pages_compatible_with_board(self._page("flagship"), {"id": "b1"}) is True
+        assert pages_compatible_with_board(self._page("note"), {"id": "b1"}) is False

@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} из {total} страниц в этой коллекции не подходят под размер этой доски и будут пропущены.",
+      "incompatiblePageWarning": "Эта страница не подходит под размер этой доски и может отображаться некорректно."
     },
     "descriptionWithTimezone": "Автоматизация смены страниц по времени и дню · {timezone}",
     "gapDefaultPlaceholder": "По умолчанию для пропуска…",
@@ -629,7 +631,8 @@
     "changeModeOverrideDescription": "Показать страницу заданное время, затем продолжить расписание.",
     "changeModeDisableTitle": "Отключить режим расписания",
     "changeModeDisableDescription": "Отключите расписание и управляйте board вручную.",
-    "changeModeDisableSuccess": "Режим расписания отключён"
+    "changeModeDisableSuccess": "Режим расписания отключён",
+    "collectionSizeWarning": "{count} из {total} страниц в этой коллекции не подходят под размер этой доски и будут пропущены."
   },
   "forceSetDialog": {
     "title": "Принудительно установить board",
@@ -1261,7 +1264,9 @@
     "collectionsTab": "Карусели ({count})",
     "noPagesTitle": "Страницы ещё не созданы.",
     "noPagesDescription": "Создайте первую страницу для отображения на board.",
-    "createFirstPage": "Создать первую страницу"
+    "createFirstPage": "Создать первую страницу",
+    "noCompatiblePagesTitle": "Нет страниц, подходящих под размер этой доски.",
+    "noCompatiblePagesDescription": "Создайте страницу под размер этой доски, чтобы увидеть её здесь."
   },
   "profile": {
     "title": "Профиль",

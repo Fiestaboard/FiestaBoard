@@ -10,7 +10,10 @@ import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
-import type { TipTapTemplateEditorHandle } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
+import type {
+  DrawHistoryEvent,
+  TipTapTemplateEditorHandle,
+} from "@/components/tiptap-template-editor/TipTapTemplateEditor";
 // Direct import – bypasses next/dynamic chunk caching issues in dev mode.
 // TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
 import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
@@ -93,6 +96,18 @@ interface PageSnapshot {
   lineWrapEnabled: boolean[];
 }
 
+/**
+ * Pre-stroke alignment/wrap for the rows a paint stroke touched. Committing
+ * a stroke forces those rows to left/no-wrap; since that metadata lives in
+ * React state (outside ProseMirror history), undoing the stroke needs this
+ * capture to restore it — see handleDrawHistoryEvent.
+ */
+interface StrokeMetaSnapshot {
+  rows: number[];
+  alignments: LineAlignment[];
+  wraps: boolean[];
+}
+
 const UNDO_STACK_LIMIT = 5;
 
 // Draft storage key helper
@@ -170,6 +185,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [drawBrush, setDrawBrush] = useState<DrawBrush>({ kind: "color", color: "red" });
   const [strokePreviewCells, setStrokePreviewCells] = useState<StrokeCell[]>([]);
   const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
+  // Metadata history keyed to stroke boundaries: done/undone mirror the
+  // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
+  const strokeMetaHistoryRef = useRef<{ done: StrokeMetaSnapshot[]; undone: StrokeMetaSnapshot[] }>({
+    done: [],
+    undone: [],
+  });
 
   // Snapshot of the page state as loaded from the server, used to detect unsaved changes.
   const [savedSnapshot, setSavedSnapshot] = useState<{
@@ -1188,6 +1209,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setStrokePreviewCells([]);
       const rows = tipTapRef.current?.applyStroke(cells, drawBrush) ?? [];
       if (rows.length === 0) return;
+      // Capture the pre-stroke metadata so undoing this stroke can restore
+      // it; a new stroke also invalidates any redoable strokes (the editor's
+      // redo stack is cleared by the new doc change).
+      const hist = strokeMetaHistoryRef.current;
+      hist.done.push({
+        rows,
+        alignments: rows.map((r) => lineAlignmentsRef.current[r] ?? "left"),
+        wraps: rows.map((r) => lineWrapEnabledRef.current[r] ?? false),
+      });
+      hist.undone = [];
       // Painted lines are positional: force left alignment + wrap off.
       setLineAlignments((prev) => {
         const next = [...prev];
@@ -1202,6 +1233,47 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     },
     [drawBrush],
   );
+
+  // Undo/redo crossed a paint-stroke boundary in the editor's history: the
+  // editor already rewound/reapplied the ProseMirror doc — mirror that onto
+  // the alignment/wrap metadata the stroke commit force-overwrote.
+  const handleDrawHistoryEvent = useCallback((event: DrawHistoryEvent) => {
+    if (!event.stroke) return;
+    const hist = strokeMetaHistoryRef.current;
+    if (event.action === "undo") {
+      const entry = hist.done.pop();
+      if (!entry) return;
+      hist.undone.push(entry);
+      setLineAlignments((prev) => {
+        const next = [...prev];
+        entry.rows.forEach((r, i) => {
+          next[r] = entry.alignments[i] ?? "left";
+        });
+        return next;
+      });
+      setLineWrapEnabled((prev) => {
+        const next = [...prev];
+        entry.rows.forEach((r, i) => {
+          next[r] = entry.wraps[i] ?? false;
+        });
+        return next;
+      });
+    } else {
+      const entry = hist.undone.pop();
+      if (!entry) return;
+      hist.done.push(entry);
+      setLineAlignments((prev) => {
+        const next = [...prev];
+        for (const r of entry.rows) next[r] = "left";
+        return next;
+      });
+      setLineWrapEnabled((prev) => {
+        const next = [...prev];
+        for (const r of entry.rows) next[r] = false;
+        return next;
+      });
+    }
+  }, []);
 
   // Draw-mode preview composition (client-side, instant — no server
   // round-trip for painted rows). Falls back to the server-rendered preview
@@ -1550,6 +1622,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       onDrawModeToggle={() => setDrawMode((v) => !v)}
                       drawBrush={drawBrush}
                       onDrawBrushChange={setDrawBrush}
+                      onDrawHistoryEvent={handleDrawHistoryEvent}
                     />
                   </div>
                 ) : (
@@ -1696,6 +1769,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         deviceType={deviceType}
                         notesWide={notesWide}
                         notesTall={notesTall}
+                        // DrawableBoardPreview hit-tests strokes through the
+                        // tiles' data-row/data-col attributes; only this
+                        // editor preview opts into emitting them.
+                        emitCellMetadata
                       />
                     </DrawableBoardPreview>
                   </div>

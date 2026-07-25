@@ -738,7 +738,7 @@ export default function SchedulePage() {
           {pagesData && (
             <ScheduleEntryForm
               schedule={editingSchedule || undefined}
-              pages={pagesData.pages.map((p) => ({ id: p.id, name: p.name }))}
+              pages={pagesData.pages}
               collections={collectionsData?.collections}
               onSubmit={handleSubmit}
               onCancel={handleCloseForm}

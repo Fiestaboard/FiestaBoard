@@ -3,6 +3,8 @@
 import { Clock, FilePlus, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { BoardSizeIndicator } from "@/components/board-size-indicator";
+import { useCurrentBoard } from "@/components/current-board-context";
 import Link from "@/components/smart-link";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +17,7 @@ import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } fr
 import { useTranslations } from "@/i18n/translations";
 import type { Collection, DeviceType, Page, PagePreviewResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
 // Cache key for batch previews in localStorage
 const BATCH_CACHE_KEY = "fiestaboard_previews_batch";
@@ -215,6 +218,12 @@ const PageButton = memo(
         <div className="flex items-center gap-2.5 min-w-0">
           <TypeIcon className={iconClassName} aria-hidden="true" />
           <span className={nameClassName}>{page.name}</span>
+          <BoardSizeIndicator
+            deviceType={page.device_type || "flagship"}
+            notesWide={page.notes_wide}
+            notesTall={page.notes_tall}
+            className="ml-auto shrink-0"
+          />
         </div>
 
         <div className="hover-stable">
@@ -304,6 +313,12 @@ const PageListItem = memo(
       >
         <LayoutTemplate className={iconClassName} aria-hidden="true" />
         <span className={nameClassName}>{page.name}</span>
+        <BoardSizeIndicator
+          deviceType={page.device_type || "flagship"}
+          notesWide={page.notes_wide}
+          notesTall={page.notes_tall}
+          className="ml-auto shrink-0"
+        />
         {formattedDate && (
           <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground shrink-0">
             <Clock className="h-3 w-3" aria-hidden="true" />
@@ -472,6 +487,12 @@ export interface PageGridSelectorProps {
   viewMode?: ViewMode;
   /** Whether to include collections in the grid */
   showCollections?: boolean;
+  /**
+   * Show only pages whose size matches the current board (issue #1249).
+   * Used by pickers that ASSIGN a page to a board (e.g. Change Page); the
+   * global Pages library keeps showing everything.
+   */
+  filterByCurrentBoardSize?: boolean;
 }
 
 export function PageGridSelector({
@@ -483,6 +504,7 @@ export function PageGridSelector({
   deviceTypeFilter,
   viewMode = "grid",
   showCollections = true,
+  filterByCurrentBoardSize = false,
 }: PageGridSelectorProps) {
   const t = useTranslations("pageGridSelector");
   const effectiveLabel = label === undefined ? t("selectPageLabel") : label;
@@ -496,12 +518,22 @@ export function PageGridSelector({
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
 
+  // Current board for size-compatibility filtering (issue #1249). Single-board
+  // installs see no change: their pages match the only board by construction.
+  const { currentBoard } = useCurrentBoard();
+
   // Memoize pages array to prevent unnecessary re-renders, with optional device type filter
   const allPages = useMemo(() => pagesData?.pages || [], [pagesData]);
   const pages = useMemo(() => {
-    if (!deviceTypeFilter) return allPages;
-    return allPages.filter((p) => (p.device_type || "flagship") === deviceTypeFilter);
-  }, [allPages, deviceTypeFilter]);
+    let result = allPages;
+    if (deviceTypeFilter) {
+      result = result.filter((p) => (p.device_type || "flagship") === deviceTypeFilter);
+    }
+    if (filterByCurrentBoardSize && currentBoard) {
+      result = result.filter((p) => pagesCompatibleWithBoard(p, currentBoard));
+    }
+    return result;
+  }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard]);
 
   // State for batch preview data
   const [previews, setPreviews] = useState<Record<string, PagePreviewResponse>>({});
@@ -608,6 +640,27 @@ export function PageGridSelector({
           </div>
         )}
       </div>
+    );
+  }
+
+  // All pages exist but none match the current board's size: explain the
+  // filter instead of claiming no pages were created (issue #1249).
+  if (pages.length === 0 && allPages.length > 0 && filterByCurrentBoardSize && currentBoard) {
+    return (
+      <Card>
+        <CardContent className="py-6">
+          <EmptyState
+            icon={FilePlus}
+            title={t("noCompatiblePagesTitle")}
+            description={t("noCompatiblePagesDescription")}
+            action={
+              <Button asChild variant="brand" size="sm" className="btn-lift">
+                <Link href="/pages/new">{t("createFirstPage")}</Link>
+              </Button>
+            }
+          />
+        </CardContent>
+      </Card>
     );
   }
 

@@ -1139,7 +1139,7 @@ class TestPageService:
         mock_get_engine.return_value = mock_engine
 
         mock_registry = Mock()
-        mock_registry.build_template_contexts_for.return_value = {"flagship": {"weather": {"temp": 72}}}
+        mock_registry.build_template_contexts_for.return_value = {"flagship:6x22": {"weather": {"temp": 72}}}
         mock_get_registry.return_value = mock_registry
 
         # Create multiple template pages (all default to the flagship device)
@@ -1157,7 +1157,8 @@ class TestPageService:
         # not once per page.
         assert mock_registry.build_template_contexts_for.call_count == 1
         boards_arg = mock_registry.build_template_contexts_for.call_args.args[0]
-        assert set(boards_arg) == {"flagship"}
+        # Keys are the canonical size_key (family + resolved dims) since #1245
+        assert set(boards_arg) == {"flagship:6x22"}
         # But render_lines should be called three times (once per page)
         assert mock_engine.render_lines.call_count == 3
 

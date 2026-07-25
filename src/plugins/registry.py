@@ -480,6 +480,29 @@ class PluginRegistry:
         if orphan_subset is not None:
             orphaned = [pid for pid in orphaned if pid in orphan_subset]
 
+        # Never re-clone a deliberately removed plugin (#1394). Uninstall
+        # deletes the stored config, so a tombstoned id normally never shows
+        # up here — this guards the case where an old snapshot restore or a
+        # lagging config write resurrected the entry anyway.
+        removed: set[str] = set()
+        try:
+            from src.config_manager import get_config_manager
+
+            raw_removed = get_config_manager().get_removed_plugins()
+            if isinstance(raw_removed, list):
+                removed = {pid for pid in raw_removed if isinstance(pid, str)}
+        except Exception:
+            logger.debug("Could not read removal tombstones", exc_info=True)
+        if removed:
+            tombstoned = [pid for pid in orphaned if pid in removed]
+            if tombstoned:
+                logger.info(
+                    "V3 migration: skipping %d deliberately removed plugin(s): %s",
+                    len(tombstoned),
+                    tombstoned,
+                )
+                orphaned = [pid for pid in orphaned if pid not in tombstoned]
+
         # Only reinstall plugins that are actually in use: enabled themselves
         # or with at least one enabled instance. The v2 migration seeded
         # configs for every ex-builtin plugin, so unconditionally re-cloning
@@ -1109,6 +1132,16 @@ class PluginRegistry:
             for e in entries
         ]
 
+    @staticmethod
+    def _clear_removed_tombstone(plugin_id: str) -> None:
+        """Drop any deliberate-removal tombstone after an explicit install (#1394)."""
+        try:
+            from src.config_manager import get_config_manager
+
+            get_config_manager().clear_plugin_removed(plugin_id)
+        except Exception:
+            logger.debug("Could not clear removal tombstone for '%s'", plugin_id, exc_info=True)
+
     def install_from_registry(self, plugin_id: str) -> list[str]:
         """Install a plugin from the registry by its id.
 
@@ -1141,6 +1174,7 @@ class PluginRegistry:
             self._enabled[plugin_id] = False
             logger.info("Installed registry plugin: %s", plugin_id)
 
+        self._clear_removed_tombstone(plugin_id)
         return []
 
     def install_from_git(self, repo_url: str, plugin_id: str | None = None, branch: str = "") -> list[str]:
@@ -1182,6 +1216,7 @@ class PluginRegistry:
             self._enabled[plugin_id] = False
             logger.info("Installed git plugin: %s from %s", plugin_id, repo_url)
 
+        self._clear_removed_tombstone(plugin_id)
         return []
 
     def uninstall_external_plugin(self, plugin_id: str) -> list[str]:
@@ -1225,6 +1260,24 @@ class PluginRegistry:
         # Remove the directory
         local_path = Path(source.local_path)
         remove_external_plugin(local_path)
+
+        # Persist the deliberate removal (#1394): purge the stored configs for
+        # the base plugin and every named instance, then tombstone the id so
+        # neither the post-upgrade auto-restore nor the v2→v3 reconcile can
+        # resurrect it on a later boot. Doing this here (not only in the HTTP
+        # endpoint) also covers uninstall paths that call the registry
+        # directly, e.g. the MCP server's uninstall_plugin tool.
+        try:
+            from src.config_manager import get_config_manager
+
+            cm = get_config_manager()
+            stored = cm.get_all_plugin_configs()
+            for key in [k for k in stored if k == plugin_id or k.startswith(instance_prefix)]:
+                cm.delete_plugin_config(key)
+            cm.mark_plugin_removed(plugin_id)
+        except Exception:
+            logger.exception("Could not persist deliberate removal of plugin '%s'", plugin_id)
+
         logger.info("Uninstalled external plugin: %s", plugin_id)
         return []
 
