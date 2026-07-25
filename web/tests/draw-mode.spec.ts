@@ -87,7 +87,17 @@ test.beforeEach(async ({ page }) => {
 
 test.afterEach(async () => {
   await deleteAllPages();
+  // Some tests below mutate device config (note-array boards, an extra Note
+  // device) — reset both the board list AND the device list here explicitly
+  // instead of leaning on the next test's beforeEach, so this spec leaves
+  // the shared backend clean even when a mutating test runs last or fails
+  // midway. The devices pin mirrors configureBoard() in helpers.ts.
   await resetToSingleBoard();
+  await fetch(`${API_URL}/settings/board`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ devices: ["flagship"] }),
+  });
   // Some tests enable date_time to get template variables — leave it off.
   await disablePlugin("date_time").catch(() => {});
 });
@@ -156,6 +166,29 @@ test.describe("Draw mode", () => {
     for (const col of [2, 3, 4, 5, 6]) {
       await expect(tile(page, 2, col)).toHaveAttribute("data-cell-value", " ");
     }
+  });
+
+  test("toolbar Undo and Redo buttons revert and re-apply a paint stroke", async ({ page }) => {
+    await gotoNewPage(page);
+    await enterDrawMode(page);
+    await pickBrush(page, "blue");
+
+    await tile(page, 1, 5).click();
+    await expect(tile(page, 1, 5)).toHaveAttribute("data-cell-value", "blue");
+
+    // Same behavior as the Ctrl+Z path above, but through the toolbar's
+    // Undo/Redo buttons (rendered unconditionally, draw mode included) so
+    // the click path stays covered independently of the keyboard shortcut.
+    const undoButton = page.getByRole("button", { name: "Undo", exact: true });
+    const redoButton = page.getByRole("button", { name: "Redo", exact: true });
+
+    await expect(undoButton).toBeEnabled();
+    await undoButton.click();
+    await expect(tile(page, 1, 5)).toHaveAttribute("data-cell-value", " ");
+
+    await expect(redoButton).toBeEnabled();
+    await redoButton.click();
+    await expect(tile(page, 1, 5)).toHaveAttribute("data-cell-value", "blue");
   });
 
   test("eraser clears a painted cell without touching its neighbor", async ({ page }) => {
@@ -264,9 +297,11 @@ test.describe("Draw mode", () => {
   });
 
   test("painting works beyond single-note bounds on a 2×1 note array", async ({ page }) => {
-    // Mirror the note-array setup: size the cloud mock and configure a 2×1
-    // local note-array board whose tiles point at the mock's two listeners.
-    await configureMockCloud(2, 1);
+    // Configure a 2×1 LOCAL-mode note-array board whose tiles point at the
+    // mock board server's two Local-API listeners (7000/7001). No cloud mock
+    // involved: local-mode arrays fan out per-tile local POSTs (see
+    // board_client_from_board_dict), and this test only paints in the editor
+    // and reads data-cell-value — it never sends board output at all.
     const board = {
       name: "Local Array",
       device_type: "note_array",
