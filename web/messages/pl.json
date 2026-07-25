@@ -327,7 +327,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} z {total} stron w tej kolekcji nie pasuje do rozmiaru tej tablicy i zostaną pominięte.",
+      "incompatiblePageWarning": "Ta strona nie pasuje do rozmiaru tej tablicy i może nie wyświetlać się poprawnie."
     },
     "descriptionWithTimezone": "Automatyzuj rotację stron według czasu i dnia · {timezone}",
     "gapDefaultPlaceholder": "Domyślna dla luki…",
@@ -628,7 +630,8 @@
     "changeModeOverrideDescription": "Pokaż stronę przez określony czas, a następnie wznów harmonogram.",
     "changeModeDisableTitle": "Wyłącz tryb harmonogramu",
     "changeModeDisableDescription": "Wyłącz harmonogram i steruj boardem ręcznie.",
-    "changeModeDisableSuccess": "Tryb harmonogramu wyłączony"
+    "changeModeDisableSuccess": "Tryb harmonogramu wyłączony",
+    "collectionSizeWarning": "{count} z {total} stron w tej kolekcji nie pasuje do rozmiaru tej tablicy i zostaną pominięte."
   },
   "forceSetDialog": {
     "title": "Wymuś ustawienie boarda",
@@ -1260,7 +1263,9 @@
     "collectionsTab": "Karuzele ({count})",
     "noPagesTitle": "Nie utworzono jeszcze żadnych stron.",
     "noPagesDescription": "Utwórz pierwszą stronę do wyświetlenia na boardzie.",
-    "createFirstPage": "Utwórz pierwszą stronę"
+    "createFirstPage": "Utwórz pierwszą stronę",
+    "noCompatiblePagesTitle": "Żadna strona nie pasuje do rozmiaru tej tablicy.",
+    "noCompatiblePagesDescription": "Utwórz stronę o rozmiarze tej tablicy, aby zobaczyć ją tutaj."
   },
   "profile": {
     "title": "Profil",

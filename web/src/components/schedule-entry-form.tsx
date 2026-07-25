@@ -1,8 +1,10 @@
 "use client";
 
-import { AlertCircle, GalleryHorizontalEnd, Loader2, Sunrise, Sunset, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlertCircle, AlertTriangle, GalleryHorizontalEnd, Loader2, Sunrise, Sunset, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
+import { BoardSizeIndicator } from "@/components/board-size-indicator";
+import { useCurrentBoard } from "@/components/current-board-context";
 import { DaySelector } from "@/components/day-selector";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -20,10 +22,21 @@ import type {
   ScheduleUpdate,
   TimeType,
 } from "@/lib/api";
+import { isCollectionId } from "@/lib/api";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+
+interface SchedulePageOption {
+  id: string;
+  name: string;
+  /** Board geometry for size filtering; pages without it act as flagship. */
+  device_type?: string;
+  notes_wide?: number;
+  notes_tall?: number;
+}
 
 interface ScheduleEntryFormProps {
   schedule?: ScheduleEntry;
-  pages: Array<{ id: string; name: string }>;
+  pages: SchedulePageOption[];
   collections?: Collection[];
   onSubmit: (data: ScheduleCreate | ScheduleUpdate) => Promise<void>;
   onCancel: () => void;
@@ -100,6 +113,10 @@ export function ScheduleEntryForm({
   const tc = useTranslations("common");
   const isEdit = Boolean(schedule);
 
+  // Board the schedule targets: the app-wide current board (issue #1249).
+  // Single-board installs see no change — every page for that board matches.
+  const { currentBoard } = useCurrentBoard();
+
   // Use schedule values if editing, prefill values if creating from calendar, or defaults
   const [pageId, setPageId] = useState(schedule?.page_id || prefillPageId || "");
   const [startTime, setStartTime] = useState(schedule?.start_time || prefillStartTime || "09:00");
@@ -130,6 +147,38 @@ export function ScheduleEntryForm({
 
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Only pages whose size matches the current board are offered (issue #1249).
+  // The currently selected page is always kept so editing an existing entry
+  // never renders an empty Select.
+  const visiblePages = useMemo(() => {
+    if (!currentBoard) return pages;
+    return pages.filter((p) => p.id === pageId || pagesCompatibleWithBoard(p, currentBoard));
+  }, [pages, currentBoard, pageId]);
+
+  // Non-fatal size warning for the current selection: a collection with some
+  // members that don't fit the board, or a plain page that doesn't fit
+  // (possible when editing a pre-existing entry). Mirrors the backend
+  // `warnings` from #1245.
+  const sizeWarning = useMemo(() => {
+    if (!currentBoard || !pageId) return null;
+    if (isCollectionId(pageId)) {
+      const collection = collections.find((c) => c.id === pageId);
+      if (!collection) return null;
+      const members = collection.page_ids
+        .map((pid) => pages.find((p) => p.id === pid))
+        .filter((p): p is SchedulePageOption => Boolean(p));
+      if (members.length === 0) return null;
+      const misfits = members.filter((p) => !pagesCompatibleWithBoard(p, currentBoard));
+      if (misfits.length === 0) return null;
+      return t("scheduleEntryForm.collectionSizeWarning", { count: misfits.length, total: members.length });
+    }
+    const page = pages.find((p) => p.id === pageId);
+    if (page && !pagesCompatibleWithBoard(page, currentBoard)) {
+      return t("scheduleEntryForm.incompatiblePageWarning");
+    }
+    return null;
+  }, [currentBoard, pageId, collections, pages, t]);
 
   // Validation
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -320,13 +369,28 @@ export function ScheduleEntryForm({
                 </div>
               </>
             )}
-            {pages.map((page) => (
+            {visiblePages.map((page) => (
               <SelectItem key={page.id} value={page.id}>
-                {page.name}
+                <span className="flex items-center gap-2">
+                  {page.name}
+                  {page.device_type && (
+                    <BoardSizeIndicator
+                      deviceType={page.device_type}
+                      notesWide={page.notes_wide}
+                      notesTall={page.notes_tall}
+                    />
+                  )}
+                </span>
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {sizeWarning && (
+          <Alert variant="default" className="border-warning/50 bg-warning/10">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <AlertDescription className="text-sm">{sizeWarning}</AlertDescription>
+          </Alert>
+        )}
       </div>
 
       {/* Time Selection */}
