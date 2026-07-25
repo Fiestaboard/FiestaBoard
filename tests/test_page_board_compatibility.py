@@ -153,6 +153,25 @@ class TestScheduleRoutesCompatibility:
         response = client.post("/schedules", json=self._payload(env["flagship_page"].id))
         assert response.status_code == 200
 
+    def test_create_flagship_page_on_note_board_rejected_400(self, client, env):
+        """Pin the multi-board e2e scenario: a default (flagship) page scheduled
+        on a Note board must 400.
+
+        The e2e helper ensureTwoBoards() adds board 2 as a Note board; the
+        multi-board-schedule fixtures used to schedule flagship pages on it and
+        relied on silent truncation. Since #1245 that write is rejected — the
+        fixtures now create note-sized pages for board 2
+        (web/tests/multi-board-schedule.spec.ts).
+        """
+        response = client.post("/schedules", json=self._payload(env["flagship_page"].id, board_id="board-note"))
+        assert response.status_code == 400
+        assert "not compatible" in response.json()["detail"]
+
+    def test_create_note_page_on_note_board_accepted(self, client, env):
+        """The compatible variant of the e2e scenario passes."""
+        response = client.post("/schedules", json=self._payload(env["note_page"].id, board_id="board-note"))
+        assert response.status_code == 200
+
     def test_create_collection_mixed_returns_warnings(self, client, env):
         response = client.post("/schedules", json=self._payload(env["mixed_collection"].id))
         assert response.status_code == 200
