@@ -124,11 +124,17 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(seen.activePage).toContain("board-2");
-      expect(seen.currentMessage).toContain("board-2");
-      expect(seen.schedule).toContain("board-2");
-    });
+    // Board scoping only kicks in after boards load -> context effect runs ->
+    // scopedBoardId flips -> queries re-key -> refetch; give that chain more
+    // than the default 1000ms under CI's heavier parallel load.
+    await waitFor(
+      () => {
+        expect(seen.activePage).toContain("board-2");
+        expect(seen.currentMessage).toContain("board-2");
+        expect(seen.schedule).toContain("board-2");
+      },
+      { timeout: 3000 },
+    );
   });
 
   it("shows which board the Active Display is reflecting", async () => {
@@ -161,15 +167,21 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
       { wrapper: TestWrapper },
     );
 
-    await waitFor(() => {
-      expect(seenActivePage).toContain("board-2");
-    });
+    await waitFor(
+      () => {
+        expect(seenActivePage).toContain("board-2");
+      },
+      { timeout: 3000 },
+    );
 
     await user.click(screen.getByRole("button", { name: "switch-board-board-1" }));
 
-    await waitFor(() => {
-      expect(seenActivePage).toContain("board-1");
-    });
+    await waitFor(
+      () => {
+        expect(seenActivePage).toContain("board-1");
+      },
+      { timeout: 3000 },
+    );
   });
 
   it("Change Page sets the active page for the selected board only", async () => {
