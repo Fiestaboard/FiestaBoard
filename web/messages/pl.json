@@ -720,7 +720,15 @@
     "exportDialogTitle": "Eksportuj stronę",
     "exportDialogDescription": "Skopiuj ten ciąg udostępniania, aby udostępnić stronę innym.",
     "exportStringAriaLabel": "Ciąg udostępniania",
-    "exportCopyAriaLabel": "Skopiuj ciąg udostępniania"
+    "exportCopyAriaLabel": "Skopiuj ciąg udostępniania",
+    "retargetConfirmTitle": "Zmienić rozmiar tablicy?",
+    "retargetConfirmDescription": "Ta strona została zapisana dla rozmiaru {oldSize} i zostanie zmieniona na {newSize}. Treść, która nie zmieści się na mniejszej tablicy, zostanie ucięta.",
+    "retargetConfirmAction": "Zmień rozmiar i zapisz",
+    "retargetIncompatibleWarning": "Ta strona już nie mieści się na: {list}",
+    "retargetSurfaceSchedule": "wpis harmonogramu",
+    "retargetSurfaceActivePage": "aktywna strona",
+    "notesWideOption": "{count} wszerz",
+    "notesTallOption": "{count} wzwyż"
   },
   "displaySettings": {
     "title": "Twoje tablice",

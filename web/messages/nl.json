@@ -720,7 +720,15 @@
     "exportDialogTitle": "Pagina exporteren",
     "exportDialogDescription": "Kopieer deze deelreeks om je pagina met anderen te delen.",
     "exportStringAriaLabel": "Deelreeks",
-    "exportCopyAriaLabel": "Deelreeks kopiëren"
+    "exportCopyAriaLabel": "Deelreeks kopiëren",
+    "retargetConfirmTitle": "Bordgrootte wijzigen?",
+    "retargetConfirmDescription": "Deze pagina is opgeslagen voor {oldSize} en wordt aangepast naar {newSize}. Inhoud die niet op het kleinere bord past, wordt afgekapt.",
+    "retargetConfirmAction": "Formaat wijzigen en opslaan",
+    "retargetIncompatibleWarning": "Deze pagina past niet meer op: {list}",
+    "retargetSurfaceSchedule": "schema-item",
+    "retargetSurfaceActivePage": "actieve pagina",
+    "notesWideOption": "{count} breed",
+    "notesTallOption": "{count} hoog"
   },
   "displaySettings": {
     "title": "Je borden",

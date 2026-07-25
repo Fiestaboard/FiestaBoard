@@ -720,7 +720,15 @@
     "exportDialogTitle": "Exporter la page",
     "exportDialogDescription": "Copiez cette chaîne de partage pour partager votre page avec d'autres.",
     "exportStringAriaLabel": "Chaîne de partage",
-    "exportCopyAriaLabel": "Copier la chaîne de partage"
+    "exportCopyAriaLabel": "Copier la chaîne de partage",
+    "retargetConfirmTitle": "Changer la taille du tableau ?",
+    "retargetConfirmDescription": "Cette page a été enregistrée pour {oldSize} et sera redimensionnée en {newSize}. Le contenu qui ne tient pas sur le tableau plus petit sera tronqué.",
+    "retargetConfirmAction": "Redimensionner et enregistrer",
+    "retargetIncompatibleWarning": "Cette page ne tient plus sur : {list}",
+    "retargetSurfaceSchedule": "entrée de planning",
+    "retargetSurfaceActivePage": "page active",
+    "notesWideOption": "{count} en largeur",
+    "notesTallOption": "{count} en hauteur"
   },
   "displaySettings": {
     "title": "Vos tableaux",

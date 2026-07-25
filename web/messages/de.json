@@ -720,7 +720,15 @@
     "exportDialogTitle": "Seite exportieren",
     "exportDialogDescription": "Kopiere diese Freigabezeichenfolge, um deine Seite mit anderen zu teilen.",
     "exportStringAriaLabel": "Freigabezeichenfolge",
-    "exportCopyAriaLabel": "Freigabezeichenfolge kopieren"
+    "exportCopyAriaLabel": "Freigabezeichenfolge kopieren",
+    "retargetConfirmTitle": "Boardgröße ändern?",
+    "retargetConfirmDescription": "Diese Seite wurde für {oldSize} gespeichert und wird auf {newSize} geändert. Inhalte, die nicht auf das kleinere Board passen, werden abgeschnitten.",
+    "retargetConfirmAction": "Größe ändern und speichern",
+    "retargetIncompatibleWarning": "Diese Seite passt nicht mehr auf: {list}",
+    "retargetSurfaceSchedule": "Zeitplaneintrag",
+    "retargetSurfaceActivePage": "aktive Seite",
+    "notesWideOption": "{count} breit",
+    "notesTallOption": "{count} hoch"
   },
   "displaySettings": {
     "title": "Ihre Boards",

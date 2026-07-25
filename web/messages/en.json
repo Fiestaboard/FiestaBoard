@@ -677,7 +677,15 @@
     "exportDialogTitle": "Export Page",
     "exportDialogDescription": "Copy this share string to share your page with others.",
     "exportStringAriaLabel": "Share string",
-    "exportCopyAriaLabel": "Copy share string"
+    "exportCopyAriaLabel": "Copy share string",
+    "retargetConfirmTitle": "Change board size?",
+    "retargetConfirmDescription": "This page was saved for {oldSize} and will be resized to {newSize}. Content that doesn't fit the smaller board will be cut off.",
+    "retargetConfirmAction": "Resize and save",
+    "retargetIncompatibleWarning": "This page no longer fits: {list}",
+    "retargetSurfaceSchedule": "schedule entry",
+    "retargetSurfaceActivePage": "active page",
+    "notesWideOption": "{count} wide",
+    "notesTallOption": "{count} tall"
   },
   "displaySettings": {
     "title": "Your Boards",
