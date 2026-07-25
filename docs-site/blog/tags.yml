@@ -1,0 +1,6 @@
+announcement:
+  label: Announcement
+  description: FiestaBoard project announcements
+release:
+  label: Release
+  description: New FiestaBoard features and releases
