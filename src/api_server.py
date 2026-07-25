@@ -41,7 +41,7 @@ from .displays.service import get_display_service, reset_display_service  # noqa
 from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.models import PageCreate, PageUpdate  # noqa: E402
-from .pages.service import get_page_service  # noqa: E402
+from .pages.service import check_ref_board_compatibility, get_page_service  # noqa: E402
 from .pages.share import decode_page, encode_page  # noqa: E402
 from .schedules.models import ScheduleCreate, ScheduleUpdate  # noqa: E402
 from .schedules.service import get_schedule_service  # noqa: E402
@@ -5337,6 +5337,16 @@ async def set_active_page(request: dict):
             if not page:
                 raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
+    # Enforce page<->board size compatibility (issue #1245). Collections are
+    # allowed when at least one member fits (non-fitting members become
+    # warnings); plain pages must match the board size exactly.
+    compat_warnings: list[str] = []
+    if page_id is not None:
+        compat = check_ref_board_compatibility(page_id, request.get("board_id"))
+        if not compat.ok:
+            raise HTTPException(status_code=400, detail=compat.error)
+        compat_warnings = compat.warnings
+
     # Dismiss any active plugin triggers so the user's explicit page change
     # actually sticks. Without this, a plugin re-emitting the same trigger
     # every display loop tick (e.g. calendar_sub during a countdown window)
@@ -5384,12 +5394,15 @@ async def set_active_page(request: dict):
                 elif was_sent:
                     service.request_board_refresh()
 
-    return {
+    response = {
         "status": "success",
         "page_id": page_id,
         "sent_to_board": sent_to_board,
         "paused": paused,
     }
+    if compat_warnings:
+        response["warnings"] = compat_warnings
+    return response
 
 
 @app.get("/settings/temporary-override")
@@ -7074,6 +7087,20 @@ async def list_schedules(board_id: str | None = None):
     }
 
 
+def _with_compat_warnings(response: dict, schedule) -> dict:
+    """Attach non-fatal page<->board size warnings to a schedule response.
+
+    Collections may mix page sizes; the write is allowed when at least one
+    member fits the board, and the members that don't fit are surfaced as a
+    ``warnings`` list (issue #1245). The key is omitted when there is nothing
+    to warn about.
+    """
+    compat = check_ref_board_compatibility(schedule.page_id, schedule.board_id)
+    if compat.ok and compat.warnings:
+        response["warnings"] = compat.warnings
+    return response
+
+
 @app.post("/schedules")
 async def create_schedule(schedule_data: ScheduleCreate):
     """Create a new schedule entry.
@@ -7088,7 +7115,8 @@ async def create_schedule(schedule_data: ScheduleCreate):
 
     try:
         schedule = schedule_service.create_schedule(schedule_data)
-        return _enrich_schedule_with_sun_times(schedule.model_dump())
+        response = _enrich_schedule_with_sun_times(schedule.model_dump())
+        return _with_compat_warnings(response, schedule)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -7241,7 +7269,8 @@ async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
         schedule = schedule_service.update_schedule(schedule_id, schedule_data)
         if not schedule:
             raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-        return _enrich_schedule_with_sun_times(schedule.model_dump())
+        response = _enrich_schedule_with_sun_times(schedule.model_dump())
+        return _with_compat_warnings(response, schedule)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
