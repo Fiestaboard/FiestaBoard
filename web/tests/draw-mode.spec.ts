@@ -24,6 +24,8 @@ import {
   enablePlugin,
   expect,
   getMockBoardState,
+  getMockCloudState,
+  resetMockCloud,
   resetToSingleBoard,
   setActivePage,
   suppressWizard,
@@ -32,6 +34,7 @@ import {
 
 // Vestaboard character codes on the physical board.
 const BLUE_CODE = 67;
+const RED_CODE = 63;
 const LETTER_A_CODE = 1;
 const BLANK_CODE = 0;
 
@@ -343,5 +346,103 @@ test.describe("Draw mode", () => {
       .poll(async () => (await getMockBoardState()).current_message?.[0]?.[2], { timeout: 20_000 })
       .toBe(LETTER_A_CODE);
     expect((await getMockBoardState()).current_message?.[0]?.[4]).toBe(BLANK_CODE);
+  });
+
+  test("painting spans the full 24×120 grid of an 8×8 note array and reaches the cloud", async ({ page }) => {
+    test.setTimeout(90_000);
+    // Cloud-mode array (mirrors note-array-output.spec.ts): the local-API
+    // path can't back 64 notes with two mock ports, so the board speaks the
+    // Cloud API against the mock cloud sized to 8×8 (24 rows × 120 cols).
+    await configureMockCloud(8, 8);
+    await resetMockCloud();
+    const board = {
+      name: "Big Array",
+      device_type: "note_array",
+      board_color: "black",
+      enabled: true,
+      api_mode: "cloud",
+      notes_wide: 8,
+      notes_tall: 8,
+      // Unique per run: the backend's ≥15s note-array send throttle is keyed
+      // by token at module level; a fresh token guarantees the send below.
+      note_array_token: `test-array-token-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    };
+    const boardRes = await fetch(`${API_URL}/settings/board`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ boards: [board] }),
+    });
+    expect(boardRes.ok).toBe(true);
+
+    const pageRes = await fetch(`${API_URL}/pages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        name: `Array Draw 8x8 ${Date.now()}`,
+        type: "template",
+        template: Array.from({ length: 24 }, () => ""),
+        device_type: "note_array",
+        notes_wide: 8,
+        notes_tall: 8,
+      }),
+    });
+    expect(pageRes.ok).toBe(true);
+    const pageId = (await pageRes.json()).page.id;
+
+    await gotoEditPage(page, pageId);
+    await enterDrawMode(page);
+    await pickBrush(page, "blue");
+
+    // First note, a cell mid-array (note row 3, note col 4), and the far
+    // corner of the last note — bounds hold across all 2,880 tiles.
+    await tile(page, 0, 0).click();
+    await tile(page, 11, 60).click();
+    await tile(page, 23, 119).click();
+    await expect(tile(page, 0, 0)).toHaveAttribute("data-cell-value", "blue");
+    await expect(tile(page, 11, 60)).toHaveAttribute("data-cell-value", "blue");
+    await expect(tile(page, 23, 119)).toHaveAttribute("data-cell-value", "blue");
+
+    // A drag stroke still paints multiple cells at this scale (tiles are
+    // only a few px wide in the fit-to-width preview).
+    await pickBrush(page, "red");
+    const start = await tile(page, 12, 58).boundingBox();
+    expect(start).toBeTruthy();
+    await page.mouse.move(start!.x + start!.width / 2, start!.y + start!.height / 2);
+    await page.mouse.down();
+    for (const col of [59, 60, 61, 62]) {
+      const box = await tile(page, 12, col).boundingBox();
+      expect(box).toBeTruthy();
+      await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2, { steps: 2 });
+    }
+    await page.mouse.up();
+    for (const col of [58, 59, 60, 61, 62]) {
+      await expect(tile(page, 12, col)).toHaveAttribute("data-cell-value", "red");
+    }
+
+    // Save, then deliver to the cloud mock. The manual-send path plus a
+    // fresh note_array_token avoids the ≥15s send throttle (same recipe as
+    // note-array-output.spec.ts), so delivery can be asserted directly.
+    await page.keyboard.press("Escape");
+    const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+    await saveButton.first().click();
+    await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
+
+    const sendRes = await fetch(`${API_URL}/pages/${pageId}/send?target=board`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    expect(sendRes.ok).toBe(true);
+
+    await expect
+      .poll(async () => (await getMockCloudState()).current_grid?.[23]?.[119], { timeout: 15_000 })
+      .toBe(BLUE_CODE);
+    const grid = (await getMockCloudState()).current_grid;
+    expect(grid).toHaveLength(24);
+    expect(grid?.[0]).toHaveLength(120);
+    expect(grid?.[0]?.[0]).toBe(BLUE_CODE);
+    expect(grid?.[11]?.[60]).toBe(BLUE_CODE);
+    for (const col of [58, 59, 60, 61, 62]) {
+      expect(grid?.[12]?.[col]).toBe(RED_CODE);
+    }
   });
 });

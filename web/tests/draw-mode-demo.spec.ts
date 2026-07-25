@@ -14,9 +14,11 @@ import {
   API_URL,
   authHeaders,
   configureBoard,
+  configureMockCloud,
   deleteAllPages,
   expect,
   getMockBoardState,
+  resetMockCloud,
   resetToSingleBoard,
   setActivePage,
   suppressWizard,
@@ -176,5 +178,110 @@ test("pencil draw mode walkthrough", async ({ page }) => {
 
   // --- End on the pages list showing the saved demo page ---
   await expect(page.getByText(pageName).first()).toBeVisible({ timeout: 10_000 });
+  await beat(page, 1_200);
+});
+
+test("pencil draw mode on an 8x8 note array", async ({ page }) => {
+  // 24 rows × 120 cols — the biggest board the product supports (2,880 tiles).
+  // 1600×1000 keeps the exact 1.6 aspect of the 1280×800 video frame, so the
+  // recording downscales without letterboxing while the preview gets more
+  // pixels per tile.
+  await page.setViewportSize({ width: 1600, height: 1000 });
+
+  // Cloud-mode 8×8 array board + a blank 24-line page to draw on.
+  await configureMockCloud(8, 8);
+  await resetMockCloud();
+  const boardRes = await fetch(`${API_URL}/settings/board`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({
+      boards: [
+        {
+          name: "Big Array",
+          device_type: "note_array",
+          board_color: "black",
+          enabled: true,
+          api_mode: "cloud",
+          notes_wide: 8,
+          notes_tall: 8,
+          note_array_token: `test-array-token-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        },
+      ],
+    }),
+  });
+  expect(boardRes.ok).toBe(true);
+  const pageRes = await fetch(`${API_URL}/pages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({
+      name: "Big Array Demo",
+      type: "template",
+      template: Array.from({ length: 24 }, () => ""),
+      device_type: "note_array",
+      notes_wide: 8,
+      notes_tall: 8,
+    }),
+  });
+  expect(pageRes.ok).toBe(true);
+  const pageId = (await pageRes.json()).page.id;
+
+  // --- Open the editor: the 24×120 preview fills the card ---
+  await page.goto(`/pages/edit/${pageId}`);
+  await expect(page.getByText("Edit Page").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("draw-mode-toggle")).toBeVisible({ timeout: 10_000 });
+  await beat(page, 1_000);
+
+  // --- Pencil on ---
+  await page.getByTestId("draw-mode-toggle").click();
+  await expect(page.locator('[data-draw-surface="true"]')).toBeVisible();
+  await beat(page, 1_000);
+
+  /** Drag one continuous stroke through per-row waypoints of a diagonal. */
+  async function dragDiagonal(colForRow: (row: number) => number): Promise<void> {
+    const first = await tile(page, 0, colForRow(0)).boundingBox();
+    expect(first).toBeTruthy();
+    await page.mouse.move(first!.x + first!.width / 2, first!.y + first!.height / 2);
+    await page.mouse.down();
+    for (let row = 1; row < 24; row++) {
+      const box = await tile(page, row, colForRow(row)).boundingBox();
+      expect(box).toBeTruthy();
+      await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2, { steps: 3 });
+      await page.waitForTimeout(40);
+    }
+    await page.mouse.up();
+  }
+
+  // --- Red: drag the main diagonal corner to corner, crossing every note ---
+  await pickBrush(page, "red");
+  await dragDiagonal((row) => Math.round((row * 119) / 23));
+  await expect(tile(page, 23, 119)).toHaveAttribute("data-cell-value", "red");
+  await beat(page, 800);
+
+  // --- Yellow: the anti-diagonal completes a big X across the array ---
+  await pickBrush(page, "yellow");
+  await dragDiagonal((row) => 119 - Math.round((row * 119) / 23));
+  await expect(tile(page, 23, 0)).toHaveAttribute("data-cell-value", "yellow");
+  await beat(page, 800);
+
+  // --- Eraser: nip two cells out of the diagonals ---
+  await pickBrush(page, "eraser");
+  await tile(page, 11, Math.round((11 * 119) / 23)).click();
+  await page.waitForTimeout(300);
+  await tile(page, 12, Math.round((12 * 119) / 23)).click();
+  await beat(page, 800);
+
+  // --- Stamp a character on the big grid ---
+  await pickChar(page, "X");
+  await tile(page, 0, 3).click();
+  await expect(tile(page, 0, 3)).toHaveAttribute("data-cell-value", "X");
+  await beat(page, 800);
+
+  // --- Save the page and end on the pages list ---
+  // NOTE: the saved card itself is not asserted here — pages._index.tsx's
+  // DEVICE_ORDER omits "note_array", so note-array pages don't (yet) appear
+  // on the Pages list. Pre-existing platform gap, tracked outside this spec.
+  const saveButton = page.getByRole("button", { name: "Save Page" }).or(page.getByRole("button", { name: /save/i }));
+  await saveButton.first().click();
+  await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
   await beat(page, 1_200);
 });
