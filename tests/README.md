@@ -18,6 +18,7 @@ This directory contains shared test infrastructure to reduce boilerplate and imp
 ```python
 from tests import sample_page, mock_board_client
 
+
 def test_something(sample_page, mock_board_client):
     # Use fixtures directly
     pass
