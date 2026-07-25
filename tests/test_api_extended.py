@@ -1862,3 +1862,228 @@ class TestQueueTimes:
         with patch("src.api_server._queue_times_get", side_effect=Exception("fail")):
             response = client.get("/queue-times/parks/1/rides")
         assert response.status_code == 502
+
+
+# ============================================================
+# Per-board send routing (issue #1244)
+# ============================================================
+
+
+BOARDS_1244 = [
+    {"id": "b1", "name": "Lobby", "device_type": "flagship", "notes_wide": 1, "notes_tall": 1, "enabled": True},
+    {"id": "b2", "name": "Kitchen", "device_type": "note", "notes_wide": 1, "notes_tall": 1, "enabled": True},
+]
+
+
+def _configure_boards(mock_settings_service):
+    """Give the mocked settings service a two-board setup (b1 primary, b2 note)."""
+    board_settings = Mock()
+    board_settings.boards = [dict(b) for b in BOARDS_1244]
+    mock_settings_service.get_board_settings.return_value = board_settings
+    mock_settings_service.get_primary_board_id.return_value = "b1"
+
+
+class TestSendPagePerBoard:
+    """POST /pages/{page_id}/send with an optional board_id routes to that board."""
+
+    def test_send_page_routes_to_target_board_client(
+        self, client, mock_service, mock_settings_service, mock_page_service
+    ):
+        _configure_boards(mock_settings_service)
+        b2_client = Mock()
+        b2_client.send_characters.return_value = (True, True)
+        mock_service.get_board_client = Mock(return_value=b2_client)
+
+        response = client.post("/pages/page1/send?target=board&board_id=b2")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["sent_to_board"] is True
+        assert data["board_id"] == "b2"
+        mock_service.get_board_client.assert_called_once_with("b2")
+        b2_client.send_characters.assert_called_once()
+        mock_service.vb_client.send_characters.assert_not_called()
+
+    def test_send_page_sizes_grid_to_target_board(self, client, mock_service, mock_settings_service, mock_page_service):
+        """The grid is sized to the target board (note 3x15), not the page's device type."""
+        _configure_boards(mock_settings_service)
+        b2_client = Mock()
+        b2_client.send_characters.return_value = (True, True)
+        mock_service.get_board_client = Mock(return_value=b2_client)
+
+        response = client.post("/pages/page1/send?target=board&board_id=b2")
+
+        assert response.status_code == 200
+        board_array = b2_client.send_characters.call_args[0][0]
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+
+    def test_send_page_board_id_in_body(self, client, mock_service, mock_settings_service, mock_page_service):
+        _configure_boards(mock_settings_service)
+        b2_client = Mock()
+        b2_client.send_characters.return_value = (True, True)
+        mock_service.get_board_client = Mock(return_value=b2_client)
+
+        response = client.post("/pages/page1/send", json={"target": "board", "board_id": "b2"})
+
+        assert response.status_code == 200
+        assert response.json()["board_id"] == "b2"
+        b2_client.send_characters.assert_called_once()
+
+    def test_send_page_unknown_board_404(self, client, mock_service, mock_settings_service, mock_page_service):
+        _configure_boards(mock_settings_service)
+        response = client.post("/pages/page1/send?target=board&board_id=nope")
+        assert response.status_code == 404
+
+    def test_send_page_board_without_client_503(self, client, mock_service, mock_settings_service, mock_page_service):
+        _configure_boards(mock_settings_service)
+        mock_service.get_board_client = Mock(return_value=None)
+        response = client.post("/pages/page1/send?target=board&board_id=b2")
+        assert response.status_code == 503
+
+    def test_send_page_without_board_id_uses_primary_client(
+        self, client, mock_service, mock_settings_service, mock_page_service
+    ):
+        """Back-compat: omitting board_id keeps sending via the primary client."""
+        _configure_boards(mock_settings_service)
+        response = client.post("/pages/page1/send?target=board")
+        assert response.status_code == 200
+        mock_service.vb_client.send_characters.assert_called_once()
+
+
+class TestRefreshPerBoard:
+    """POST /refresh with an optional board_id refreshes just that board."""
+
+    def test_refresh_with_board_id_drives_only_that_board(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        rt = Mock()
+        mock_service.get_runtime = Mock(return_value=rt)
+
+        response = client.post("/refresh?board_id=b2")
+
+        assert response.status_code == 200
+        assert response.json()["board_id"] == "b2"
+        mock_service.get_runtime.assert_called_once_with("b2")
+        mock_service.check_and_send_for_board.assert_called_once()
+        args, kwargs = mock_service.check_and_send_for_board.call_args
+        assert args[0] == "b2"
+        assert args[1] is rt
+        assert kwargs["is_primary"] is False
+        assert kwargs["board"]["id"] == "b2"
+        mock_service.check_and_send_active_page.assert_not_called()
+
+    def test_refresh_board_id_in_body_primary(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        rt = Mock()
+        mock_service.get_runtime = Mock(return_value=rt)
+
+        response = client.post("/refresh", json={"board_id": "b1"})
+
+        assert response.status_code == 200
+        kwargs = mock_service.check_and_send_for_board.call_args[1]
+        assert kwargs["is_primary"] is True
+
+    def test_refresh_unknown_board_404(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        response = client.post("/refresh?board_id=nope")
+        assert response.status_code == 404
+
+    def test_refresh_without_board_id_refreshes_all(self, client, mock_service, mock_settings_service):
+        """Back-compat: omitting board_id keeps the legacy all-boards refresh."""
+        _configure_boards(mock_settings_service)
+        response = client.post("/refresh")
+        assert response.status_code == 200
+        mock_service.check_and_send_active_page.assert_called_once()
+        mock_service.check_and_send_for_board.assert_not_called()
+
+
+class TestActivePagePerBoard:
+    """GET/PUT /settings/active-page accept an optional board_id."""
+
+    def test_get_active_page_with_board_id(self, client, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        response = client.get("/settings/active-page?board_id=b2")
+        assert response.status_code == 200
+        mock_settings_service.get_active_page_id.assert_called_once_with(board_id="b2")
+        assert response.json()["board_id"] == "b2"
+
+    def test_get_active_page_without_board_id_unchanged(self, client, mock_settings_service):
+        response = client.get("/settings/active-page")
+        assert response.status_code == 200
+        assert response.json()["page_id"] == "page1"
+        mock_settings_service.get_active_page_id.assert_called_once_with()
+
+    def test_set_active_page_with_board_id(self, client, mock_settings_service, mock_page_service, mock_service):
+        _configure_boards(mock_settings_service)
+        mock_settings_service.should_send_to_board.return_value = True
+        b2_client = Mock()
+        b2_client.send_characters.return_value = (True, True)
+        mock_service.get_board_client = Mock(return_value=b2_client)
+
+        response = client.put("/settings/active-page", json={"page_id": "page1", "board_id": "b2"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["board_id"] == "b2"
+        assert data["sent_to_board"] is True
+        mock_settings_service.set_active_page_id.assert_called_once_with("page1", board_id="b2")
+        b2_client.send_characters.assert_called_once()
+        mock_service.vb_client.send_characters.assert_not_called()
+
+    def test_set_active_page_with_board_id_sizes_grid_to_board(
+        self, client, mock_settings_service, mock_page_service, mock_service
+    ):
+        _configure_boards(mock_settings_service)
+        mock_settings_service.should_send_to_board.return_value = True
+        b2_client = Mock()
+        b2_client.send_characters.return_value = (True, True)
+        mock_service.get_board_client = Mock(return_value=b2_client)
+
+        client.put("/settings/active-page", json={"page_id": "page1", "board_id": "b2"})
+
+        board_array = b2_client.send_characters.call_args[0][0]
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+
+    def test_set_active_page_unknown_board_404(self, client, mock_settings_service, mock_page_service, mock_service):
+        _configure_boards(mock_settings_service)
+        response = client.put("/settings/active-page", json={"page_id": "page1", "board_id": "nope"})
+        assert response.status_code == 404
+
+    def test_set_active_page_without_board_id_unchanged(
+        self, client, mock_settings_service, mock_page_service, mock_service
+    ):
+        """Back-compat: omitting board_id keeps the legacy single-arg setter call."""
+        _configure_boards(mock_settings_service)
+        response = client.put("/settings/active-page", json={"page_id": "page1"})
+        assert response.status_code == 200
+        mock_settings_service.set_active_page_id.assert_called_once_with("page1")
+
+
+class TestStatusPerBoard:
+    """GET /status reports per-board configured/paused/active_page_id."""
+
+    def test_status_reports_per_board_state(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        mock_settings_service.get_active_page_id.return_value = "page1"
+        mock_settings_service.is_paused.side_effect = lambda board_id=None: board_id == "b2"
+        mock_service.get_board_client = Mock(side_effect=lambda bid: Mock() if bid == "b1" else None)
+
+        with patch("src.api_server._service_running", True):
+            response = client.get("/status")
+
+        assert response.status_code == 200
+        boards = response.json()["boards"]
+        assert boards["b1"] == {"configured": True, "paused": False, "active_page_id": "page1"}
+        assert boards["b2"]["configured"] is False
+        assert boards["b2"]["paused"] is True
+
+    def test_status_keeps_top_level_fields(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        with patch("src.api_server._service_running", True):
+            response = client.get("/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert "running" in data
+        assert "config_summary" in data
+        assert data["config_summary"]["active_page_id"] == "page1"
