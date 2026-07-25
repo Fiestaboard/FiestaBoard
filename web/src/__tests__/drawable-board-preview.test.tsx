@@ -168,6 +168,43 @@ describe("DrawableBoardPreview", () => {
     ]);
   });
 
+  it("ignores a second concurrent pointer mid-stroke (down, move, and up)", () => {
+    const { surface, onStrokePreview, onStrokeCommit } = setup();
+    const t1 = makeTile(0, 0, surface);
+    const t2 = makeTile(0, 1, surface);
+    const intruderTile = makeTile(3, 3, surface);
+    // Key hit-testing off coordinates rather than call order so the mock
+    // stays valid no matter which handlers consult elementFromPoint.
+    const byPoint: Record<string, HTMLElement> = { "5,5": t1, "6,6": t2, "50,50": intruderTile };
+    document.elementFromPoint = vi.fn((x: number, y: number) => byPoint[`${x},${y}`] ?? null);
+
+    // Pointer 1 starts a stroke.
+    fireEvent.pointerDown(surface, { button: 0, pointerId: 1, clientX: 5, clientY: 5 });
+    expect(onStrokePreview).toHaveBeenLastCalledWith([{ row: 0, col: 0 }]);
+
+    // A second pointer lands mid-stroke on a different tile: its down must
+    // not restart the stroke, its moves must not extend it, and its up must
+    // not commit it.
+    fireEvent.pointerDown(surface, { button: 0, pointerId: 2, clientX: 50, clientY: 50 });
+    fireEvent.pointerMove(surface, { pointerId: 2, clientX: 50, clientY: 50 });
+    fireEvent.pointerUp(surface, { pointerId: 2, clientX: 50, clientY: 50 });
+    expect(onStrokeCommit).not.toHaveBeenCalled();
+
+    // Pointer 1 is still drawing and finishes its stroke normally.
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 6, clientY: 6 });
+    fireEvent.pointerUp(surface, { pointerId: 1, clientX: 6, clientY: 6 });
+
+    expect(onStrokeCommit).toHaveBeenCalledTimes(1);
+    expect(onStrokeCommit).toHaveBeenCalledWith([
+      { row: 0, col: 0 },
+      { row: 0, col: 1 },
+    ]);
+    // The intruder's cell never leaked into any preview flush either.
+    for (const call of onStrokePreview.mock.calls) {
+      expect(call[0]).not.toContainEqual({ row: 3, col: 3 });
+    }
+  });
+
   it("ignores hits on tiles outside the draw surface (e.g. another board preview elsewhere on the page)", () => {
     const { surface, onStrokePreview, onStrokeCommit } = setup();
     // Deliberately NOT passed `surface` — this tile lives in document.body,
