@@ -184,6 +184,35 @@ note-array branch, so a single Note never classifies as a 1 × 1 array.
 > `notes_tall` against the preset table to drive the dropdown — it does not rely
 > on the `matched_preset` label string, which is a human-readable hint only.
 
+## Multi-board model (per-board scheduling, driving, and the sidebar selector)
+
+Arrays motivated generalizing FiestaBoard from one implicit "primary board"
+to N independently-driven boards (epic #1241, issues #1242-#1251):
+
+- **Per-board:** display engine (`DisplayService` → `runtimes` in
+  `src/main.py`), active page (`settings_service.get_active_page_id(board_id=)`),
+  schedule + `schedule_enabled`, send routing (`board_id` query param on
+  `/settings/active-page`, `/pages/{id}/send`, `/board/current-message`),
+  MQTT/trigger delivery, pause, board-state polling.
+- **Global:** Pages and Collections — one shared library, never duplicated
+  per board. Their pickers filter by the current board's size
+  (`web/src/lib/board-dimensions.ts` `pagesCompatibleWithBoard`,
+  mirrored in `src/devices.py`).
+- **Current board:** a persisted sidebar selector
+  (`web/src/components/current-board-context.tsx` `CurrentBoardProvider`,
+  `web/src/components/navigation-sidebar.tsx` `BoardSelector`) sets which
+  board the Dashboard and Schedule pages manage — frontend-only state
+  (`localStorage`, default primary board, shown only when
+  `boards.length > 1`), reconciled against the live board list on every
+  render so a stale/removed board id falls back to the primary.
+
+The end-to-end regression for this — a Flagship + a Note Array driven
+through the sidebar selector, Dashboard, Schedule, page-picker filtering, and
+the editor's stale-reference warning — lives in
+`web/tests/regression/multi-board-e2e.spec.ts`. Backend send→read coverage
+for a mixed fleet against both stdlib mocks is in the "mixed fleet" test of
+`web/tests/note-array-output.spec.ts`.
+
 ## Local development — mock Cloud board
 
 Note arrays talk to the Vestaboard **Cloud** API, so there's no local hardware to

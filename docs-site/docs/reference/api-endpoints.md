@@ -107,11 +107,24 @@ When creating or updating a page, the following fields are available:
 
 ### Board Management
 
+Installs with more than one board follow a **per-board** model: each board
+has its own active page, schedule, and send routing, addressed by a
+`board_id` query param (or body field) on the relevant endpoints below.
+Omitting `board_id` always falls back to the primary board (`boards[0]`),
+which keeps single-board installs behaving exactly as before. **Pages** and
+**Collections** are not per-board — they're one shared library, and their
+pickers filter to the boards they're compatible with (see
+[Board Instance Fields](#board-instance-fields) for the size model).
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `PUT` | `/settings/board` | Update board configuration (devices, connection) |
 | `POST` | `/settings/board/add` | Add a new board instance |
 | `DELETE` | `/settings/board/{id}` | Remove a board instance |
+| `GET` | `/settings/active-page` | Get a board's active page id (`?board_id=`) |
+| `PUT` | `/settings/active-page` | Set a board's active page (renders and sends immediately) |
+| `POST` | `/pages/{id}/send` | Send a page (`?target=board&board_id=`) |
+| `GET` | `/board/current-message` | Read a board's current display (`?board_id=`) |
 
 #### `PUT /settings/board` — request body fields
 
@@ -121,19 +134,30 @@ When creating or updating a page, the following fields are available:
 | `devices` | string[] | Device type list e.g. `["flagship", "note"]` (backward-compatible) |
 | `board_type` | string | Legacy field — still accepted |
 
+#### `PUT /settings/active-page` — request body fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `page_id` | string \| null | Page (or collection) id to activate, or `null` to clear |
+| `board_id` | string | Optional. Omitted → primary board (legacy behavior) |
+
 #### Board Instance Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | UUID (auto-generated on create) |
 | `name` | string | Display name for this board |
-| `device_type` | string | `"flagship"` (22×6) or `"note"` (15×3) |
+| `device_type` | string | `"flagship"` (22×6), `"note"` (15×3), or `"note_array"` (variable W×H) |
 | `board_color` | string | `"black"` or `"white"` |
 | `api_mode` | string | `"local"` or `"cloud"` |
 | `host` | string | Board IP address (local mode) |
 | `local_api_key` | string | Local API key |
 | `cloud_key` | string | Cloud Read/Write key |
+| `note_array_token` | string | Cloud API token (note-array boards in cloud mode) |
+| `notes_wide` / `notes_tall` | number | Note-array grid dimensions — resolves to `(notes_wide × 15) × (notes_tall × 3)` characters |
 | `enabled` | boolean | Whether this board is active |
+| `schedule_enabled` | boolean | Whether this board follows its schedule (vs. manual mode) |
+| `paused` | boolean | Whether this board's output is paused |
 
 ## Example Requests
 
