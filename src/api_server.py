@@ -2141,8 +2141,15 @@ def _build_post_upgrade_restore_set(snap_config: dict[str, Any], live_config: di
 
     snap_plugins = snap_config.get("plugins") or {}
     live_plugins = live_config.get("plugins") or {}
+    # Deliberate-removal tombstones (#1394): a plugin the user uninstalled is
+    # absent from the live config *on purpose* — never restore it from the
+    # snapshot. A base-plugin tombstone also covers its instances ("stocks:sf").
+    raw_removed = live_config.get("removed_plugins")
+    removed = {pid for pid in raw_removed if isinstance(pid, str)} if isinstance(raw_removed, list) else set()
     plugins: dict[str, Any] = {}
     for pid, snap_cfg in snap_plugins.items():
+        if pid in removed or pid.split(":", 1)[0] in removed:
+            continue  # deliberately uninstalled — do not resurrect (#1394)
         if not (isinstance(snap_cfg, dict) and snap_cfg.get("enabled") is True):
             continue  # only auto-restore plugins the user had ENABLED (#937 invariant)
         live_cfg = live_plugins.get(pid)
@@ -8317,6 +8324,9 @@ async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRe
     # Persist empty config so the instance survives restarts
     config_manager = get_config_manager()
     config_manager.set_plugin_config(compound_key, {"enabled": False})
+    # Re-creating an instance is an explicit user action — drop any
+    # deliberate-removal tombstone left by a prior delete (#1394).
+    config_manager.clear_plugin_removed(compound_key)
 
     # Reset services so the new instance is available to templates immediately
     reset_display_service()
@@ -8354,9 +8364,11 @@ async def delete_plugin_instance(plugin_id: str, instance_label: str):
 
     compound_key = registry.make_instance_key(base_id, instance_label)
 
-    # Remove persisted config
+    # Remove persisted config and tombstone the compound key so a
+    # post-upgrade auto-restore cannot resurrect the deleted instance (#1394).
     config_manager = get_config_manager()
     config_manager.delete_plugin_config(compound_key)
+    config_manager.mark_plugin_removed(compound_key)
 
     # Reset services
     reset_display_service()
