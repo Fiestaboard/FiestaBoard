@@ -723,7 +723,15 @@
     "exportDialogTitle": "페이지 내보내기",
     "exportDialogDescription": "이 공유 문자열을 복사하여 다른 사람과 페이지를 공유하세요.",
     "exportStringAriaLabel": "공유 문자열",
-    "exportCopyAriaLabel": "공유 문자열 복사"
+    "exportCopyAriaLabel": "공유 문자열 복사",
+    "retargetConfirmTitle": "보드 크기를 변경할까요?",
+    "retargetConfirmDescription": "이 페이지는 {oldSize}용으로 저장되었으며 {newSize}(으)로 변경됩니다. 더 작은 보드에 맞지 않는 내용은 잘립니다.",
+    "retargetConfirmAction": "크기 변경 후 저장",
+    "retargetIncompatibleWarning": "이 페이지가 더 이상 맞지 않는 위치: {list}",
+    "retargetSurfaceSchedule": "일정 항목",
+    "retargetSurfaceActivePage": "활성 페이지",
+    "notesWideOption": "가로 {count}개",
+    "notesTallOption": "세로 {count}개"
   },
   "displaySettings": {
     "title": "내 보드",

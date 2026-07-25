@@ -723,7 +723,15 @@
     "exportDialogTitle": "Exportera sida",
     "exportDialogDescription": "Kopiera denna delningssträng för att dela din sida med andra.",
     "exportStringAriaLabel": "Delningssträng",
-    "exportCopyAriaLabel": "Kopiera delningssträng"
+    "exportCopyAriaLabel": "Kopiera delningssträng",
+    "retargetConfirmTitle": "Ändra tavlans storlek?",
+    "retargetConfirmDescription": "Den här sidan sparades för {oldSize} och kommer att ändras till {newSize}. Innehåll som inte får plats på den mindre tavlan klipps bort.",
+    "retargetConfirmAction": "Ändra storlek och spara",
+    "retargetIncompatibleWarning": "Den här sidan får inte längre plats på: {list}",
+    "retargetSurfaceSchedule": "schemapost",
+    "retargetSurfaceActivePage": "aktiv sida",
+    "notesWideOption": "{count} bred",
+    "notesTallOption": "{count} hög"
   },
   "displaySettings": {
     "title": "Dina tavlor",

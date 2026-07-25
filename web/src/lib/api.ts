@@ -266,6 +266,8 @@ export interface PageCreate {
 
 export interface PageUpdate {
   name?: string;
+  /** Device/size retarget (issue #1250) — converting geometries is lossy. */
+  device_type?: DeviceType;
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
@@ -284,6 +286,25 @@ export interface PageUpdate {
 export interface PagesResponse {
   pages: Page[];
   total: number;
+}
+
+/**
+ * A schedule/active-page reference left pointing at a board the page no
+ * longer fits after a device/size retarget (issue #1250). Warn-only — the
+ * backend never mutates or removes these.
+ */
+export interface IncompatibleReference {
+  board_id: string;
+  board_name: string;
+  surface: "schedule" | "active_page";
+  schedule_id?: string | null;
+}
+
+export interface PageUpdateResponse {
+  status: string;
+  page: Page;
+  /** Present iff the update changed the page's size (may be empty). */
+  incompatible_references?: IncompatibleReference[];
 }
 
 export interface StaffPickPlugin {
@@ -1508,7 +1529,7 @@ export const api = {
       body: JSON.stringify(page),
     }),
   updatePage: (pageId: string, page: PageUpdate) =>
-    fetchApi<{ status: string; page: Page }>(`/pages/${pageId}`, {
+    fetchApi<PageUpdateResponse>(`/pages/${pageId}`, {
       method: "PUT",
       body: JSON.stringify(page),
     }),

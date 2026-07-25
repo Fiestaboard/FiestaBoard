@@ -723,7 +723,15 @@
     "exportDialogTitle": "Sayfayı Dışa Aktar",
     "exportDialogDescription": "Sayfanızı başkalarıyla paylaşmak için bu paylaşım dizgesini kopyalayın.",
     "exportStringAriaLabel": "Paylaşım dizgesi",
-    "exportCopyAriaLabel": "Paylaşım dizgesini kopyala"
+    "exportCopyAriaLabel": "Paylaşım dizgesini kopyala",
+    "retargetConfirmTitle": "Pano boyutu değiştirilsin mi?",
+    "retargetConfirmDescription": "Bu sayfa {oldSize} için kaydedildi ve {newSize} boyutuna getirilecek. Küçük panoya sığmayan içerik kesilecek.",
+    "retargetConfirmAction": "Yeniden boyutlandır ve kaydet",
+    "retargetIncompatibleWarning": "Bu sayfa artık şuraya sığmıyor: {list}",
+    "retargetSurfaceSchedule": "zamanlama girdisi",
+    "retargetSurfaceActivePage": "etkin sayfa",
+    "notesWideOption": "{count} genişlik",
+    "notesTallOption": "{count} yükseklik"
   },
   "displaySettings": {
     "title": "Panolarınız",

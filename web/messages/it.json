@@ -723,7 +723,15 @@
     "exportDialogTitle": "Esporta pagina",
     "exportDialogDescription": "Copia questa stringa di condivisione per condividere la tua pagina con altri.",
     "exportStringAriaLabel": "Stringa di condivisione",
-    "exportCopyAriaLabel": "Copia stringa di condivisione"
+    "exportCopyAriaLabel": "Copia stringa di condivisione",
+    "retargetConfirmTitle": "Cambiare le dimensioni della board?",
+    "retargetConfirmDescription": "Questa pagina è stata salvata per {oldSize} e verrà ridimensionata a {newSize}. Il contenuto che non entra nella board più piccola verrà tagliato.",
+    "retargetConfirmAction": "Ridimensiona e salva",
+    "retargetIncompatibleWarning": "Questa pagina non entra più in: {list}",
+    "retargetSurfaceSchedule": "voce della pianificazione",
+    "retargetSurfaceActivePage": "pagina attiva",
+    "notesWideOption": "{count} in larghezza",
+    "notesTallOption": "{count} in altezza"
   },
   "displaySettings": {
     "title": "Le tue bacheche",

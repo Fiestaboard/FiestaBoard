@@ -723,7 +723,15 @@
     "exportDialogTitle": "Exportar página",
     "exportDialogDescription": "Copie esta string de partilha para partilhar a sua página com outros.",
     "exportStringAriaLabel": "String de partilha",
-    "exportCopyAriaLabel": "Copiar string de partilha"
+    "exportCopyAriaLabel": "Copiar string de partilha",
+    "retargetConfirmTitle": "Alterar o tamanho do quadro?",
+    "retargetConfirmDescription": "Esta página foi salva para {oldSize} e será redimensionada para {newSize}. O conteúdo que não couber no quadro menor será cortado.",
+    "retargetConfirmAction": "Redimensionar e salvar",
+    "retargetIncompatibleWarning": "Esta página não cabe mais em: {list}",
+    "retargetSurfaceSchedule": "entrada de agenda",
+    "retargetSurfaceActivePage": "página ativa",
+    "notesWideOption": "{count} de largura",
+    "notesTallOption": "{count} de altura"
   },
   "displaySettings": {
     "title": "Seus Painéis",

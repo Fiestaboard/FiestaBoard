@@ -58,7 +58,7 @@ import type {
   PageUpdate,
 } from "@/lib/api";
 import { api } from "@/lib/api";
-import { resolveDimensions } from "@/lib/board-dimensions";
+import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
@@ -109,6 +109,9 @@ interface StrokeMetaSnapshot {
 }
 
 const UNDO_STACK_LIMIT = 5;
+
+// 1..MAX_NOTES_PER_AXIS choices for the note-array W×H selectors.
+const NOTE_AXIS_OPTIONS = Array.from({ length: MAX_NOTES_PER_AXIS }, (_, i) => i + 1);
 
 // Draft storage key helper
 function getDraftKey(pageId?: string): string {
@@ -204,6 +207,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [exportOpen, setExportOpen] = useState(false);
   const [exportShareString, setExportShareString] = useState("");
   const [exportCopied, setExportCopied] = useState(false);
+
+  // Shrinking-retarget confirmation (issue #1250). Converting a saved page
+  // to a smaller geometry is lossy, so the save is gated behind a confirm.
+  const [confirmRetargetOpen, setConfirmRetargetOpen] = useState(false);
 
   // Snapshot stack so the AI chat panel can offer a one-click Undo
   // after the model applies a change. Bounded to keep the editor
@@ -374,6 +381,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           if (pageId) {
             result = await api.updatePage(pageId, {
               name: nameRef.current,
+              device_type: deviceTypeRef.current,
               template: cleanedLines,
               line_metadata: metadata,
               ...noteArrayDims,
@@ -546,6 +554,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     queryFn: () => api.getPage(pageId!),
     enabled: !!pageId,
   });
+
+  // Device/size retarget (issue #1250): compare the saved geometry with the
+  // editor's current one. A shrink on either axis is lossy (content that
+  // doesn't fit is cut off), so the save asks for confirmation first.
+  const originalDims = existingPage
+    ? resolveDimensions(existingPage.device_type, existingPage.notes_wide ?? 1, existingPage.notes_tall ?? 1)
+    : null;
+  const isShrinkingRetarget =
+    !!pageId && !!originalDims && (dims.rows < originalDims.rows || dims.cols < originalDims.cols);
 
   // Load draft or existing page data
   useEffect(() => {
@@ -801,6 +818,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (pageId) {
         const payload: PageUpdate = {
           name,
+          device_type: deviceType,
           template: cleanedLines,
           line_metadata: metadata,
           ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
@@ -850,6 +868,22 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: "active" });
 
       toast.success(pageId ? t("toastPageUpdated") : t("toastPageCreated"));
+
+      // Stale-reference warning after a device/size retarget (issue #1250):
+      // list the schedules / active pages now pointing this page at a board
+      // it no longer fits. Non-blocking — the save already succeeded and
+      // nothing is auto-removed.
+      const incompatibleRefs = "incompatible_references" in data ? data.incompatible_references : undefined;
+      if (incompatibleRefs && incompatibleRefs.length > 0) {
+        const list = incompatibleRefs
+          .map(
+            (ref) =>
+              `${ref.board_name} (${ref.surface === "schedule" ? t("retargetSurfaceSchedule") : t("retargetSurfaceActivePage")})`,
+          )
+          .join(", ");
+        toast.warning(t("retargetIncompatibleWarning", { list }), { duration: 10000 });
+      }
+
       onSave?.();
       onClose();
     },
@@ -1435,7 +1469,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         variant="brand"
                         size="sm"
                         className="h-8 gap-1.5 px-3"
-                        onClick={() => saveMutation.mutate()}
+                        onClick={() => {
+                          // A shrinking retarget loses content — confirm first.
+                          if (isShrinkingRetarget) {
+                            setConfirmRetargetOpen(true);
+                          } else {
+                            saveMutation.mutate();
+                          }
+                        }}
                         disabled={!name.trim() || saveMutation.isPending}
                         aria-label={t("savePageAriaLabel")}
                       >
@@ -1669,32 +1710,68 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         notesTall={notesTall}
                         className="ml-1"
                       />
-                      {/* New pages can still change device size — the type is only
-                          locked once the page is saved (converting saved content
-                          between 6×22 and 3×15 is lossy, so that stays out of scope). */}
-                      {!pageId && (
-                        <Select
-                          value={deviceType}
-                          onValueChange={(v) => {
-                            setDeviceType(v as DeviceType);
-                            setDrawMode(false);
-                          }}
+                      {/* Device/size retarget (issue #1250): both new AND saved
+                          pages can change board size. Converting a saved page is
+                          lossy (shrinks truncate), so saving a shrinking retarget
+                          asks for confirmation first. */}
+                      <Select
+                        value={deviceType}
+                        onValueChange={(v) => {
+                          setDeviceType(v as DeviceType);
+                          setDrawMode(false);
+                        }}
+                      >
+                        <SelectTrigger
+                          className="h-7 w-auto gap-1 px-2 text-xs"
+                          aria-label={t("deviceTypeSwitcherAriaLabel")}
                         >
-                          <SelectTrigger
-                            className="h-7 w-auto gap-1 px-2 text-xs"
-                            aria-label={t("deviceTypeSwitcherAriaLabel")}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="flagship" className="text-xs">
-                              {tDisplaySettings("flagshipLabel")}
-                            </SelectItem>
-                            <SelectItem value="note" className="text-xs">
-                              {tDisplaySettings("noteLabel")}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="flagship" className="text-xs">
+                            {tDisplaySettings("flagshipLabel")}
+                          </SelectItem>
+                          <SelectItem value="note" className="text-xs">
+                            {tDisplaySettings("noteLabel")}
+                          </SelectItem>
+                          <SelectItem value="note_array" className="text-xs">
+                            {tDisplaySettings("noteArrayLabel")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {deviceType === "note_array" && (
+                        <>
+                          <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
+                            <SelectTrigger
+                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              aria-label={tDisplaySettings("notesWideLabel")}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {NOTE_AXIS_OPTIONS.map((n) => (
+                                <SelectItem key={`w-${n}`} value={String(n)} className="text-xs">
+                                  {t("notesWideOption", { count: n })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
+                            <SelectTrigger
+                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              aria-label={tDisplaySettings("notesTallLabel")}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {NOTE_AXIS_OPTIONS.map((n) => (
+                                <SelectItem key={`t-${n}`} value={String(n)} className="text-xs">
+                                  {t("notesTallOption", { count: n })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -1852,6 +1929,34 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Shrinking-retarget confirmation (issue #1250). Conversion between
+          geometries is lossy: content that doesn't fit the smaller board is
+          cut off, so the save is gated behind an explicit confirm. */}
+      <AlertDialog open={confirmRetargetOpen} onOpenChange={setConfirmRetargetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("retargetConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("retargetConfirmDescription", {
+                oldSize: originalDims ? `${originalDims.rows} × ${originalDims.cols}` : "",
+                newSize: `${dims.rows} × ${dims.cols}`,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmRetargetOpen(false);
+                saveMutation.mutate();
+              }}
+            >
+              {t("retargetConfirmAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 });

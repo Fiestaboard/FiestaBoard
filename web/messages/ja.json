@@ -723,7 +723,15 @@
     "exportDialogTitle": "ページをエクスポート",
     "exportDialogDescription": "この共有文字列をコピーしてページを他の人と共有します。",
     "exportStringAriaLabel": "共有文字列",
-    "exportCopyAriaLabel": "共有文字列をコピー"
+    "exportCopyAriaLabel": "共有文字列をコピー",
+    "retargetConfirmTitle": "ボードサイズを変更しますか？",
+    "retargetConfirmDescription": "このページは {oldSize} 用に保存されており、{newSize} に変更されます。小さいボードに収まらない内容は切り捨てられます。",
+    "retargetConfirmAction": "サイズを変更して保存",
+    "retargetIncompatibleWarning": "このページは次の場所に収まらなくなりました: {list}",
+    "retargetSurfaceSchedule": "スケジュール項目",
+    "retargetSurfaceActivePage": "アクティブページ",
+    "notesWideOption": "横 {count} 枚",
+    "notesTallOption": "縦 {count} 枚"
   },
   "displaySettings": {
     "title": "ボード一覧",

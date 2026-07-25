@@ -723,7 +723,15 @@
     "exportDialogTitle": "导出页面",
     "exportDialogDescription": "复制此分享字符串以与他人分享您的页面。",
     "exportStringAriaLabel": "分享字符串",
-    "exportCopyAriaLabel": "复制分享字符串"
+    "exportCopyAriaLabel": "复制分享字符串",
+    "retargetConfirmTitle": "更改板面尺寸？",
+    "retargetConfirmDescription": "此页面是为 {oldSize} 保存的，将调整为 {newSize}。无法放入较小板面的内容将被截断。",
+    "retargetConfirmAction": "调整尺寸并保存",
+    "retargetIncompatibleWarning": "此页面已无法适配：{list}",
+    "retargetSurfaceSchedule": "排程条目",
+    "retargetSurfaceActivePage": "活动页面",
+    "notesWideOption": "横向 {count} 块",
+    "notesTallOption": "纵向 {count} 块"
   },
   "displaySettings": {
     "title": "您的看板",

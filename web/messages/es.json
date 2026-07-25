@@ -723,7 +723,15 @@
     "exportDialogTitle": "Exportar página",
     "exportDialogDescription": "Copia este código compartido para compartir tu página con otros.",
     "exportStringAriaLabel": "Código compartido",
-    "exportCopyAriaLabel": "Copiar código compartido"
+    "exportCopyAriaLabel": "Copiar código compartido",
+    "retargetConfirmTitle": "¿Cambiar el tamaño del tablero?",
+    "retargetConfirmDescription": "Esta página se guardó para {oldSize} y se redimensionará a {newSize}. El contenido que no quepa en el tablero más pequeño se recortará.",
+    "retargetConfirmAction": "Redimensionar y guardar",
+    "retargetIncompatibleWarning": "Esta página ya no cabe en: {list}",
+    "retargetSurfaceSchedule": "entrada de horario",
+    "retargetSurfaceActivePage": "página activa",
+    "notesWideOption": "{count} de ancho",
+    "notesTallOption": "{count} de alto"
   },
   "displaySettings": {
     "title": "Tus tableros",
