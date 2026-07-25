@@ -773,10 +773,14 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           return [...byRow.keys()].sort((a, b) => a - b);
         },
         undo() {
-          editorRef.current?.chain().undo().run();
+          const ed = editorRef.current;
+          if (!ed || ed.isDestroyed) return;
+          ed.chain().undo().run();
         },
         redo() {
-          editorRef.current?.chain().redo().run();
+          const ed = editorRef.current;
+          if (!ed || ed.isDestroyed) return;
+          ed.chain().redo().run();
         },
       }),
       [boardLines, boardWidth],
@@ -786,6 +790,10 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     // even when a line's content wraps to multiple visual rows.
     const measureLineHeights = useCallback(() => {
       if (!editor || editor.isDestroyed) return;
+      // In draw mode the editor container is display:none (still connected),
+      // so coordsAtPos would measure a hidden node and produce garbage.
+      // Skip; a measure is scheduled when draw mode exits.
+      if (drawMode) return;
       try {
         const { state, view } = editor;
         if (!view.dom.isConnected) return;
@@ -826,7 +834,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       } catch {
         // ignore transient measurement errors
       }
-    }, [editor, boardLines]);
+    }, [editor, boardLines, drawMode]);
 
     const scheduleMeasure = useCallback(() => {
       if (measureScheduledRef.current) return;
@@ -841,6 +849,12 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     useEffect(() => {
       scheduleMeasureRef.current = scheduleMeasure;
     }, [scheduleMeasure]);
+
+    // Measurement is skipped while draw mode hides the editor, so schedule a
+    // fresh measure as soon as draw mode exits (and the editor is visible).
+    useEffect(() => {
+      if (!drawMode) scheduleMeasure();
+    }, [drawMode, scheduleMeasure]);
 
     // Re-measure when the editor container is resized (e.g. window resize)
     useEffect(() => {

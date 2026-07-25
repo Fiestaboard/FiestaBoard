@@ -71,8 +71,13 @@ const CODE_TO_NAME: Record<number, BoardColorName> = {
   71: "black",
 };
 
+/** Canonical spelling for aliased color names ("purple" is an alias of "violet"). */
+function canonicalColor(color: BoardColorName): BoardColorName {
+  return color === "purple" ? "violet" : color;
+}
+
 function colorCell(color: BoardColorName): Cell {
-  return `{{${color}}}`;
+  return `{{${canonicalColor(color)}}}`;
 }
 
 /** Maps the active brush to the cell content it writes. */
@@ -91,8 +96,13 @@ export function brushToCell(brush: DrawBrush): Cell {
   }
 }
 
-export function lineToCells(line: string): Cell[] {
+/**
+ * Shared tokenizer behind lineToCells and isPositionalLine so their notion of
+ * "what is a color token vs a dynamic token" can never diverge.
+ */
+function tokenizeLine(line: string): { cells: Cell[]; droppedDynamic: boolean } {
   const cells: Cell[] = [];
+  let droppedDynamic = false;
   let remaining = line;
 
   while (remaining.length > 0) {
@@ -101,8 +111,10 @@ export function lineToCells(line: string): Cell[] {
       const content = dbl[1].trim().toLowerCase();
       if (Object.hasOwn(BOARD_COLORS, content)) {
         cells.push(colorCell(content as BoardColorName));
+      } else {
+        // Non-color {{...}} tokens are dynamic — dropped.
+        droppedDynamic = true;
       }
-      // Non-color {{...}} tokens are dynamic — dropped.
       remaining = remaining.slice(dbl[0].length);
       continue;
     }
@@ -128,7 +140,11 @@ export function lineToCells(line: string): Cell[] {
     remaining = remaining.slice(1);
   }
 
-  return cells;
+  return { cells, droppedDynamic };
+}
+
+export function lineToCells(line: string): Cell[] {
+  return tokenizeLine(line).cells;
 }
 
 export function cellsToLine(cells: Cell[]): string {
@@ -138,12 +154,7 @@ export function cellsToLine(cells: Cell[]): string {
 }
 
 export function isPositionalLine(line: string): boolean {
-  const re = /\{\{([^}]+)\}\}/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(line))) {
-    if (!Object.hasOwn(BOARD_COLORS, match[1].trim().toLowerCase())) return false;
-  }
-  return true;
+  return !tokenizeLine(line).droppedDynamic;
 }
 
 export function paintLine(line: string, paints: CellPaint[], cols: number): string {
