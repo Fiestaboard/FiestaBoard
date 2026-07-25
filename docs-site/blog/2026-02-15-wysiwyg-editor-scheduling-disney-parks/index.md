@@ -1,5 +1,5 @@
 ---
-title: "Now with a Rich WYSIWYG Editor, Scheduling, and Disney Parks Queue Times 🥳"
+title: "Now with a Rich WYSIWYG Editor, Scheduling, and Disney Parks Queue Times"
 description: "A major FiestaBoard update: a pixel-perfect WYSIWYG editor with live board preview, scheduled messages and layouts, and real-time Disney Parks wait times."
 slug: wysiwyg-editor-scheduling-disney-parks
 authors: [team]
@@ -15,19 +15,19 @@ We've been working on FiestaBoard — the free, open-source web dashboard for Ve
 
 If you're looking for more "pixel-perfect" control or specific automation, here is what's new:
 
-## 🎨 New Rich WYSIWYG Editor
+## New Rich WYSIWYG Editor
 
 No more guessing. The new editor gives you a real-time preview of the Vestaboard grid. You can "paint" individual bits, toggle colors, and align text exactly where you want it before sending it to your board.
 
 ![The rich page editor with live grid preview and the template variable picker open](./rich-editor.png)
 
-## 📅 Scheduling Mode
+## Scheduling Mode
 
 You can now schedule specific messages or layouts to trigger at set times. Perfect for recurring morning greetings, "Meeting in Progress" signs, or daily reminders.
 
 ![The schedule calendar showing pages rotating through a full week](./schedule-calendar.jpg)
 
-## 🏰 Disney Parks Plugin
+## Disney Parks Plugin
 
 By popular request, we've added a plugin that pulls real-time queue times for Disney Parks. You can now turn your board into a live wait-time tracker.
 
