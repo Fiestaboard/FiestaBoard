@@ -7,7 +7,7 @@ tags: [release]
 image: ./social-card.png
 ---
 
-Hi friends 👋
+Hi friends,
 
 For anyone who missed the [first](/blog/introducing-fiestaboard) and [second](/blog/wysiwyg-editor-scheduling-disney-parks) posts: FiestaBoard is the free, open-source dashboard for Vestaboard. You self-host it, plug in the data sources you care about (weather, transit, stocks, sports, surf, your calendar, Last.fm, Home Assistant, dad jokes — you name it), and it drives your board. Flagship and Note both supported.
 
@@ -15,7 +15,7 @@ For anyone who missed the [first](/blog/introducing-fiestaboard) and [second](/b
 
 Since the last update, two things have changed that we think genuinely matter for this project:
 
-## 🍓 You no longer need to know Docker — just flash a Raspberry Pi
+## You no longer need to know Docker — just flash a Raspberry Pi
 
 The biggest accessibility unlock: there's now a FiestaPi image you flash onto a microSD card with the official Raspberry Pi Imager. No command line, no docker-compose, no editing config files. Boot the Pi, open `http://fiestapi.local:4420` on any device on your network, and the setup wizard walks you the rest of the way.
 
@@ -23,13 +23,13 @@ While it runs on the Raspberry Pi Zero 2 W, we are testing and using a Pi 3B+ be
 
 Setup guide: [Raspberry Pi setup](/docs/setup/raspberry-pi)
 
-## 🔄 One-click auto-updates
+## One-click auto-updates
 
 The other big quality-of-life change: FiestaBoard now updates itself. There's an in-app "Update available" banner with a single button — click it, you get a full-screen progress overlay, and a minute or two later you're on the latest version. This does require a second "sidecar" docker image that comes automatically with the FiestaPi. For existing users you'll want to pull the new docker compose file to join in on the fun.
 
 Translation: you're not stuck on whatever version you installed six months ago. Bug fixes and new plugins land on your board without you having to think about it.
 
-## 🧩 25+ new plugins since the last post
+## 25+ new plugins since the last post
 
 The plugin registry has roughly doubled. A non-exhaustive sampler of what's new:
 
