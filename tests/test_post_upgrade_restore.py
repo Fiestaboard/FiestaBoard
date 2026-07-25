@@ -43,6 +43,49 @@ def test_restore_set_recovers_plugin_that_lost_only_its_secret():
     assert result["plugins"]["weather"] == snap["plugins"]["weather"]
 
 
+def test_restore_set_does_not_resurrect_deliberately_deleted_enabled_plugin():
+    # User uninstalled the plugin (tombstoned) -> the snapshot's enabled entry
+    # must NOT come back after an update (#1394).
+    snap = {"plugins": {"stocks": {"enabled": True, "finnhub_api_key": "k"}}}
+    live = {"plugins": {}, "removed_plugins": ["stocks"]}
+    result = api_server._build_post_upgrade_restore_set(snap, live)
+    assert result.get("plugins", {}) == {}
+
+
+def test_restore_set_does_not_resurrect_instances_of_deleted_plugin():
+    # A base-plugin tombstone also covers its named instances ("stocks:sf").
+    snap = {"plugins": {"stocks:sf": {"enabled": True, "finnhub_api_key": "k"}}}
+    live = {"plugins": {}, "removed_plugins": ["stocks"]}
+    result = api_server._build_post_upgrade_restore_set(snap, live)
+    assert result.get("plugins", {}) == {}
+
+
+def test_restore_set_instance_tombstone_only_blocks_that_instance():
+    snap = {
+        "plugins": {
+            "stocks": {"enabled": True, "finnhub_api_key": "k"},
+            "stocks:sf": {"enabled": True},
+        }
+    }
+    live = {"plugins": {}, "removed_plugins": ["stocks:sf"]}
+    result = api_server._build_post_upgrade_restore_set(snap, live)
+    assert set(result.get("plugins", {})) == {"stocks"}
+
+
+def test_restore_set_still_recovers_plugin_with_unrelated_tombstone():
+    snap = {"plugins": {"stocks": {"enabled": True, "finnhub_api_key": "k"}}}
+    live = {"plugins": {}, "removed_plugins": ["weather"]}
+    result = api_server._build_post_upgrade_restore_set(snap, live)
+    assert "stocks" in result["plugins"]
+
+
+def test_restore_set_tolerates_malformed_removed_plugins():
+    snap = {"plugins": {"stocks": {"enabled": True}}}
+    live = {"plugins": {}, "removed_plugins": "not-a-list"}
+    result = api_server._build_post_upgrade_restore_set(snap, live)
+    assert "stocks" in result["plugins"]
+
+
 def test_restore_set_does_not_resurrect_disabled_plugin():
     # User deliberately disabled it under the old version -> snapshot has enabled False.
     snap = {"plugins": {"weather": {"enabled": False, "api_key": "real-key"}}}

@@ -1730,3 +1730,136 @@ def test_enable_plugin_installs_missing_registry_plugin(registry):
 def test_enable_plugin_unknown_plugin_still_fails(registry):
     with patch("src.plugins.registry.load_registry", return_value=[]):
         assert registry.enable_plugin("nope") is False
+
+
+# --- deliberate-removal tombstones (issue #1394) ---
+
+
+@patch("src.plugins.registry.remove_external_plugin")
+def test_uninstall_tombstones_plugin_and_purges_stored_configs(
+    mock_remove, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """uninstall_external_plugin must tombstone the id and purge stored configs
+    for the base plugin AND its instances, so no later boot can resurrect it —
+    including uninstalls that bypass the HTTP endpoint (MCP path, #1394)."""
+    registry._plugins["ext"] = mock_plugin
+    registry._manifests["ext"] = mock_manifest
+    registry._enabled["ext"] = True
+    registry._configs["ext"] = {"enabled": True}
+    mock_loader.get_source.return_value = PluginSource(source_type="external", local_path="/ext/ext")
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        inst = mock_cm.return_value
+        inst.get_all_plugin_configs.return_value = {
+            "ext": {"enabled": True},
+            "ext:sf": {"enabled": True},
+            "other": {"enabled": True},
+        }
+        errors = registry.uninstall_external_plugin("ext")
+
+    assert errors == []
+    inst.mark_plugin_removed.assert_called_once_with("ext")
+    deleted = {call.args[0] for call in inst.delete_plugin_config.call_args_list}
+    assert deleted == {"ext", "ext:sf"}
+
+
+@patch("src.plugins.registry.remove_external_plugin")
+def test_uninstall_does_not_tombstone_on_failure(mock_remove, registry, mock_loader):
+    """A failed uninstall (unknown plugin / builtin) must not write a tombstone."""
+    mock_loader.get_source.return_value = PluginSource(source_type="builtin", local_path="/plugins/test")
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        errors = registry.uninstall_external_plugin("test")
+    assert errors
+    mock_cm.return_value.mark_plugin_removed.assert_not_called()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_install_from_registry_clears_tombstone(
+    mock_load, mock_install, mock_dir, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """An explicit reinstall clears the deliberate-removal tombstone (#1394)."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather", name="Weather", repository="https://github.com/Org/fiestaboard-plugin--weather"
+        ),
+    ]
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        errors = registry.install_from_registry("weather")
+
+    assert errors == []
+    mock_cm.return_value.clear_plugin_removed.assert_called_once_with("weather")
+
+
+@patch("src.plugins.registry.install_registry_plugin", return_value=(False, "clone failed"))
+@patch("src.plugins.registry.load_registry")
+def test_install_from_registry_failure_keeps_tombstone(mock_load, mock_install, registry):
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather", name="Weather", repository="https://github.com/Org/fiestaboard-plugin--weather"
+        ),
+    ]
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        errors = registry.install_from_registry("weather")
+    assert errors == ["clone failed"]
+    mock_cm.return_value.clear_plugin_removed.assert_not_called()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_git_plugin", return_value=(True, ""))
+def test_install_from_git_clears_tombstone(mock_install, mock_dir, registry, mock_loader, mock_plugin, mock_manifest):
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        errors = registry.install_from_git("https://github.com/someone/my-plugin", plugin_id="my_plugin")
+
+    assert errors == []
+    mock_cm.return_value.clear_plugin_removed.assert_called_once_with("my_plugin")
+
+
+def test_migration_skips_tombstoned_orphan(registry):
+    """The v2 reconcile must never re-clone a deliberately removed plugin, even
+    if its config entry somehow survived or was resurrected (#1394)."""
+    stored = {"stocks": {"enabled": True}}
+    registry.install_from_registry = MagicMock(return_value=[])
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        inst = _cm_first_run(mock_cm, stored)
+        inst.get_removed_plugins.return_value = ["stocks"]
+        registry._auto_migrate_v2_plugins(stored)
+
+    registry.install_from_registry.assert_not_called()
+
+
+def test_migration_tombstone_covers_instance_configs(registry):
+    """A tombstoned base plugin is not reinstalled even when an instance config
+    ("stocks:sf") would otherwise mark it as in use."""
+    stored = {
+        "stocks": {"enabled": False},
+        "stocks:sf": {"enabled": True},
+    }
+    registry.install_from_registry = MagicMock(return_value=[])
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        inst = _cm_first_run(mock_cm, stored)
+        inst.get_removed_plugins.return_value = ["stocks"]
+        registry._auto_migrate_v2_plugins(stored)
+
+    registry.install_from_registry.assert_not_called()
+
+
+def test_migration_still_installs_untombstoned_orphan(registry):
+    stored = {"weather": {"enabled": True}}
+    registry.install_from_registry = MagicMock(return_value=[])
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        inst = _cm_first_run(mock_cm, stored)
+        inst.get_removed_plugins.return_value = ["stocks"]
+        registry._auto_migrate_v2_plugins(stored)
+
+    registry.install_from_registry.assert_called_once_with("weather")
