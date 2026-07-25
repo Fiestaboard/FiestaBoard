@@ -2060,6 +2060,113 @@ class TestActivePagePerBoard:
         mock_settings_service.set_active_page_id.assert_called_once_with("page1")
 
 
+class TestBoardCurrentMessagePerBoard:
+    """GET /board/current-message accepts an optional board_id (issue #1247)."""
+
+    @staticmethod
+    def _make_runtime(last_sent=None, polled=None, polled_at=None, use_cloud=False):
+        rt = Mock()
+        rt.client = Mock()
+        rt.client._last_characters = last_sent
+        rt.client.use_cloud = use_cloud
+        rt.polled_characters = polled
+        rt.polled_at = polled_at
+        return rt
+
+    def test_unknown_board_404(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        response = client.get("/board/current-message?board_id=nope")
+        assert response.status_code == 404
+
+    def test_primary_board_id_uses_legacy_live_path(self, client, mock_service, mock_settings_service):
+        """board_id pointing at the primary board keeps the live-polled path."""
+        _configure_boards(mock_settings_service)
+        grid = [[0] * 22 for _ in range(6)]
+        mock_service.vb_client.read_current_message.return_value = grid
+        response = client.get("/board/current-message?board_id=b1")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] == grid
+        assert data["board_id"] == "b1"
+        mock_service.vb_client.read_current_message.assert_called_once()
+
+    def test_secondary_board_serves_last_sent_content(self, client, mock_service, mock_settings_service):
+        """A secondary board is served from its runtime cache with no live read."""
+        _configure_boards(mock_settings_service)
+        last_sent = [[8, 9] + [0] * 13 for _ in range(3)]
+        mock_service.get_runtime = Mock(return_value=self._make_runtime(last_sent=last_sent))
+
+        response = client.get("/board/current-message?board_id=b2")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] == last_sent
+        assert data["expected_characters"] == last_sent
+        assert data["rows"] == 3
+        assert data["cols"] == 15
+        assert data["message"].startswith("HI")
+        assert data["cached_at"] is None
+        assert data["board_id"] == "b2"
+        mock_service.get_runtime.assert_called_once_with("b2")
+        mock_service.vb_client.read_current_message.assert_not_called()
+
+    def test_secondary_board_prefers_polled_cache(self, client, mock_service, mock_settings_service):
+        import time
+
+        _configure_boards(mock_settings_service)
+        last_sent = [[1] * 15 for _ in range(3)]
+        polled = [[2] * 15 for _ in range(3)]
+        mock_service.get_runtime = Mock(
+            return_value=self._make_runtime(last_sent=last_sent, polled=polled, polled_at=time.time())
+        )
+
+        response = client.get("/board/current-message?board_id=b2")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] == polled
+        assert data["expected_characters"] == last_sent
+        assert data["cached_at"] is not None
+
+    def test_secondary_board_with_no_content_returns_nulls_and_geometry(
+        self, client, mock_service, mock_settings_service
+    ):
+        """Nothing sent yet → null content plus the board's geometry so the UI can degrade."""
+        _configure_boards(mock_settings_service)
+        mock_service.get_runtime = Mock(return_value=self._make_runtime())
+
+        response = client.get("/board/current-message?board_id=b2")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] is None
+        assert data["message"] is None
+        assert data["expected_characters"] is None
+        # b2 is a 1x1 note array → 3x15
+        assert data["rows"] == 3
+        assert data["cols"] == 15
+        assert data["board_id"] == "b2"
+
+    def test_secondary_board_missing_runtime_returns_nulls(self, client, mock_service, mock_settings_service):
+        _configure_boards(mock_settings_service)
+        mock_service.get_runtime = Mock(return_value=None)
+
+        response = client.get("/board/current-message?board_id=b2")
+
+        assert response.status_code == 200
+        assert response.json()["characters"] is None
+
+    def test_without_board_id_unchanged(self, client, mock_service, mock_settings_service):
+        """Back-compat: omitting board_id keeps the legacy primary response shape."""
+        grid = [[0] * 22 for _ in range(6)]
+        mock_service.vb_client.read_current_message.return_value = grid
+        response = client.get("/board/current-message")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["characters"] == grid
+        assert data["board_id"] is None
+
+
 class TestStatusPerBoard:
     """GET /status reports per-board configured/paused/active_page_id."""
 
