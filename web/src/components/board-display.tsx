@@ -331,6 +331,9 @@ const StaticGridRow = memo(function StaticGridRow({
           <div
             key={`col-${rowIdx}-${colIdx}`}
             data-note-tile=""
+            data-row={rowIdx}
+            data-col={colIdx}
+            data-cell-value={getCharFromToken(token)}
             {...(isColSeam ? { "data-note-col-seam": "true" } : {})}
             style={isColSeam ? { marginLeft: seamGap } : undefined}
           >
@@ -387,6 +390,8 @@ const GridRow = memo(
             <div
               key={`col-${rowIdx}-${colIdx}`}
               data-note-tile=""
+              data-row={rowIdx}
+              data-col={colIdx}
               {...(isColSeam ? { "data-note-col-seam": "true" } : {})}
               style={isColSeam ? { marginLeft: seamGap } : undefined}
             >

@@ -198,6 +198,10 @@ Create and edit board pages with a visual editor. See exactly how content will a
 
 ![Rich Page Editor](./images/page-editor-wysiwyg.png)
 
+### Pencil Draw Mode
+
+Toggle the pencil in the editor toolbar to paint directly on the board preview. Click or drag to fill tiles with any of the 8 board colors, erase, or stamp individual characters — with full undo/redo. Works on every board size, from a single Note to large note arrays.
+
 ### Schedule Mode
 
 Use the visual calendar to schedule which page displays at which time. Set different pages for mornings, afternoons, and evenings. Choose a default page for gaps, or turn scheduling off to pick pages manually.
