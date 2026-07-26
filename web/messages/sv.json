@@ -149,6 +149,7 @@
     "listView": "Listvy",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "Inga sidor skapade ännu.",
     "noPagesDescription": "Skapa din första sida att visa på tavlan.",
     "createFirstPage": "Skapa din första sida",
@@ -327,7 +328,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} av {total} sidor i den här samlingen passar inte den här tavlans storlek och hoppas över.",
+      "incompatiblePageWarning": "Den här sidan matchar inte den här tavlans storlek och kanske inte visas korrekt."
     },
     "descriptionWithTimezone": "Automatisera sidrotation efter tid och dag · {timezone}",
     "gapDefaultPlaceholder": "Standard för lucka…",
@@ -598,6 +601,7 @@
   },
   "activeDisplay": {
     "title": "Aktiv visning",
+    "boardIndicator": "Visar {boardName}",
     "viewSchedule": "Visa schema",
     "changePage": "Byt sida",
     "scheduleMode": "Schemaläge",
@@ -628,7 +632,8 @@
     "changeModeOverrideDescription": "Visa en sida under en bestämd tid och återuppta sedan ditt schema.",
     "changeModeDisableTitle": "Stäng av schemaläge",
     "changeModeDisableDescription": "Inaktivera schemat och styr board manuellt.",
-    "changeModeDisableSuccess": "Schemaläge inaktiverat"
+    "changeModeDisableSuccess": "Schemaläge inaktiverat",
+    "collectionSizeWarning": "{count} av {total} sidor i den här samlingen passar inte den här tavlans storlek och hoppas över."
   },
   "forceSetDialog": {
     "title": "Tvinga inställning av board",
@@ -691,6 +696,7 @@
     "plainEditorPlaceholder": "Skriv din malltext med '{{variable}}'-syntax för dynamisk data",
     "lineCountWarning": "Mallen har {lineCount} rader men tavlan visar bara {maxLines}. Rader efter {maxLines} kommer att ignoreras.",
     "wrapBudgetWarning": "Rad {lineNumber} har radbrytning aktiverad men ryms bara på en rad. Aktivera radbrytning på raden nedan eller lämna den tom så att text kan flöda.",
+    "drawModeHint": "Ritläget är på — klicka eller dra i förhandsvisningen för att måla rutor. Esc för att avsluta.",
     "warningLabel": "Varning:",
     "previewLabel": "Förhandsvisning",
     "boardColorLabel": "Tavlans färg",
@@ -719,7 +725,15 @@
     "exportDialogTitle": "Exportera sida",
     "exportDialogDescription": "Kopiera denna delningssträng för att dela din sida med andra.",
     "exportStringAriaLabel": "Delningssträng",
-    "exportCopyAriaLabel": "Kopiera delningssträng"
+    "exportCopyAriaLabel": "Kopiera delningssträng",
+    "retargetConfirmTitle": "Ändra tavlans storlek?",
+    "retargetConfirmDescription": "Den här sidan sparades för {oldSize} och kommer att ändras till {newSize}. Innehåll som inte får plats på den mindre tavlan klipps bort.",
+    "retargetConfirmAction": "Ändra storlek och spara",
+    "retargetIncompatibleWarning": "Den här sidan får inte längre plats på: {list}",
+    "retargetSurfaceSchedule": "schemapost",
+    "retargetSurfaceActivePage": "aktiv sida",
+    "notesWideOption": "{count} bred",
+    "notesTallOption": "{count} hög"
   },
   "displaySettings": {
     "title": "Dina tavlor",
@@ -1259,7 +1273,9 @@
     "collectionsTab": "Karuseller ({count})",
     "noPagesTitle": "Inga sidor har skapats än.",
     "noPagesDescription": "Skapa din första sida för att visa på board.",
-    "createFirstPage": "Skapa din första sida"
+    "createFirstPage": "Skapa din första sida",
+    "noCompatiblePagesTitle": "Inga sidor matchar den här tavlans storlek.",
+    "noCompatiblePagesDescription": "Skapa en sida i den här tavlans storlek för att se den här."
   },
   "profile": {
     "title": "Profil",
@@ -1695,6 +1711,20 @@
     "variablesNoVarsAvailable": "Variabler (inga variabler tillgängliga)",
     "noVariablesAvailable": "Inga mallvariabler tillgängliga. Konfigurera plugins i Inställningar.",
     "colors": "Färger",
+    "drawMode": "Rita på tavlan",
+    "drawModeActive": "Avsluta ritläget",
+    "drawCharacter": "Stämpla tecken",
+    "drawEraser": "Suddgummi",
+    "drawColors": {
+      "red": "Röd",
+      "orange": "Orange",
+      "yellow": "Gul",
+      "green": "Grön",
+      "blue": "Blå",
+      "violet": "Violett",
+      "white": "Vit",
+      "black": "Svart"
+    },
     "formatting": "Formatering",
     "insertFormula": "Infoga formel",
     "toggleWrap": "Växla radbrytning för aktuell rad",

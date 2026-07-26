@@ -149,6 +149,7 @@
     "listView": "Listenansicht",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "Noch keine Seiten erstellt.",
     "noPagesDescription": "Erstellen Sie Ihre erste Seite zur Anzeige auf dem Board.",
     "createFirstPage": "Erste Seite erstellen",
@@ -327,7 +328,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} von {total} Seiten in dieser Sammlung passen nicht zur Größe dieses Boards und werden übersprungen.",
+      "incompatiblePageWarning": "Diese Seite passt nicht zur Größe dieses Boards und wird möglicherweise nicht richtig angezeigt."
     },
     "descriptionWithTimezone": "Automatisiere die Seitenrotation nach Zeit und Tag · {timezone}",
     "gapDefaultPlaceholder": "Standard für Lücken…",
@@ -598,6 +601,7 @@
   },
   "activeDisplay": {
     "title": "Aktive Anzeige",
+    "boardIndicator": "Zeigt {boardName}",
     "viewSchedule": "Zeitplan anzeigen",
     "changePage": "Seite wechseln",
     "scheduleMode": "Zeitplanmodus",
@@ -628,7 +632,8 @@
     "changeModeOverrideDescription": "Zeige eine Seite für eine festgelegte Dauer und setze dann deinen Zeitplan fort.",
     "changeModeDisableTitle": "Zeitplan-Modus deaktivieren",
     "changeModeDisableDescription": "Deaktiviere den Zeitplan und steuere das Board manuell.",
-    "changeModeDisableSuccess": "Zeitplan-Modus deaktiviert"
+    "changeModeDisableSuccess": "Zeitplan-Modus deaktiviert",
+    "collectionSizeWarning": "{count} von {total} Seiten in dieser Sammlung passen nicht zur Größe dieses Boards und werden übersprungen."
   },
   "forceSetDialog": {
     "title": "Board erzwingen",
@@ -691,6 +696,7 @@
     "plainEditorPlaceholder": "Vorlagentext mit '{{variable}}'-Syntax für dynamische Daten eingeben",
     "lineCountWarning": "Die Vorlage hat {lineCount} Zeilen, aber das Board zeigt nur {maxLines} an. Zeilen über {maxLines} hinaus werden ignoriert.",
     "wrapBudgetWarning": "Zeile {lineNumber} hat Umbruch aktiviert, passt aber nur in eine Zeile. Aktiviere Umbruch in der Zeile darunter oder lasse sie leer, damit der Text fließen kann.",
+    "drawModeHint": "Der Zeichenmodus ist aktiv — in der Vorschau klicken oder ziehen, um Kacheln zu bemalen. Esc zum Beenden.",
     "warningLabel": "Warnung:",
     "previewLabel": "Vorschau",
     "boardColorLabel": "Boardfarbe",
@@ -719,7 +725,15 @@
     "exportDialogTitle": "Seite exportieren",
     "exportDialogDescription": "Kopiere diese Freigabezeichenfolge, um deine Seite mit anderen zu teilen.",
     "exportStringAriaLabel": "Freigabezeichenfolge",
-    "exportCopyAriaLabel": "Freigabezeichenfolge kopieren"
+    "exportCopyAriaLabel": "Freigabezeichenfolge kopieren",
+    "retargetConfirmTitle": "Boardgröße ändern?",
+    "retargetConfirmDescription": "Diese Seite wurde für {oldSize} gespeichert und wird auf {newSize} geändert. Inhalte, die nicht auf das kleinere Board passen, werden abgeschnitten.",
+    "retargetConfirmAction": "Größe ändern und speichern",
+    "retargetIncompatibleWarning": "Diese Seite passt nicht mehr auf: {list}",
+    "retargetSurfaceSchedule": "Zeitplaneintrag",
+    "retargetSurfaceActivePage": "aktive Seite",
+    "notesWideOption": "{count} breit",
+    "notesTallOption": "{count} hoch"
   },
   "displaySettings": {
     "title": "Ihre Boards",
@@ -1259,7 +1273,9 @@
     "collectionsTab": "Karussells ({count})",
     "noPagesTitle": "Noch keine Seiten erstellt.",
     "noPagesDescription": "Erstellen Sie Ihre erste Seite, um sie auf dem Board anzuzeigen.",
-    "createFirstPage": "Erste Seite erstellen"
+    "createFirstPage": "Erste Seite erstellen",
+    "noCompatiblePagesTitle": "Keine Seiten passen zur Größe dieses Boards.",
+    "noCompatiblePagesDescription": "Erstelle eine Seite in der Größe dieses Boards, um sie hier zu sehen."
   },
   "profile": {
     "title": "Profil",
@@ -1695,6 +1711,20 @@
     "variablesNoVarsAvailable": "Variablen (keine Variablen verfügbar)",
     "noVariablesAvailable": "Keine Vorlagenvariablen verfügbar. Konfiguriere Plugins in den Einstellungen.",
     "colors": "Farben",
+    "drawMode": "Auf dem Board zeichnen",
+    "drawModeActive": "Zeichenmodus beenden",
+    "drawCharacter": "Zeichen stempeln",
+    "drawEraser": "Radierer",
+    "drawColors": {
+      "red": "Rot",
+      "orange": "Orange",
+      "yellow": "Gelb",
+      "green": "Grün",
+      "blue": "Blau",
+      "violet": "Violett",
+      "white": "Weiß",
+      "black": "Schwarz"
+    },
     "formatting": "Formatierung",
     "insertFormula": "Formel einfügen",
     "toggleWrap": "Umbruch für aktuelle Zeile umschalten",

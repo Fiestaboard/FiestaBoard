@@ -149,6 +149,7 @@
     "listView": "リスト表示",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "ページがまだありません",
     "noPagesDescription": "最初のページを作成してボードに表示しましょう。",
     "createFirstPage": "最初のページを作成",
@@ -327,7 +328,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "このコレクションの{total}ページ中{count}ページがこのボードのサイズに合わないため、スキップされます。",
+      "incompatiblePageWarning": "このページはこのボードのサイズに合わないため、正しく表示されない可能性があります。"
     },
     "descriptionWithTimezone": "時刻と曜日でページの切り替えを自動化 · {timezone}",
     "gapDefaultPlaceholder": "空き時間のデフォルト…",
@@ -598,6 +601,7 @@
   },
   "activeDisplay": {
     "title": "アクティブ表示",
+    "boardIndicator": "{boardName} を表示中",
     "viewSchedule": "スケジュールを表示",
     "changePage": "ページを変更",
     "scheduleMode": "スケジュールモード",
@@ -628,7 +632,8 @@
     "changeModeOverrideDescription": "ページを指定時間だけ表示し、その後スケジュールを再開します。",
     "changeModeDisableTitle": "スケジュールモードをオフ",
     "changeModeDisableDescription": "スケジュールを無効化し、ボードを手動で操作します。",
-    "changeModeDisableSuccess": "スケジュールモードを無効化しました"
+    "changeModeDisableSuccess": "スケジュールモードを無効化しました",
+    "collectionSizeWarning": "このコレクションの{total}ページ中{count}ページがこのボードのサイズに合わないため、スキップされます。"
   },
   "forceSetDialog": {
     "title": "ボードを強制設定",
@@ -691,6 +696,7 @@
     "plainEditorPlaceholder": "動的データには '{{variable}}' 構文を使用してテンプレートテキストを入力してください",
     "lineCountWarning": "テンプレートは {lineCount} 行ありますが、ボードの表示は {maxLines} 行までです。{maxLines} 行を超える部分は無視されます。",
     "wrapBudgetWarning": "行 {lineNumber} は折り返しが有効ですが 1 行しか収まりません。次の行で折り返しを有効にするか、空のままにしてテキストを流せるようにしてください。",
+    "drawModeHint": "描画モードがオンです — プレビューをクリックまたはドラッグしてタイルを塗ります。Esc で終了します。",
     "warningLabel": "警告:",
     "previewLabel": "プレビュー",
     "boardColorLabel": "ボードカラー",
@@ -719,7 +725,15 @@
     "exportDialogTitle": "ページをエクスポート",
     "exportDialogDescription": "この共有文字列をコピーしてページを他の人と共有します。",
     "exportStringAriaLabel": "共有文字列",
-    "exportCopyAriaLabel": "共有文字列をコピー"
+    "exportCopyAriaLabel": "共有文字列をコピー",
+    "retargetConfirmTitle": "ボードサイズを変更しますか？",
+    "retargetConfirmDescription": "このページは {oldSize} 用に保存されており、{newSize} に変更されます。小さいボードに収まらない内容は切り捨てられます。",
+    "retargetConfirmAction": "サイズを変更して保存",
+    "retargetIncompatibleWarning": "このページは次の場所に収まらなくなりました: {list}",
+    "retargetSurfaceSchedule": "スケジュール項目",
+    "retargetSurfaceActivePage": "アクティブページ",
+    "notesWideOption": "横 {count} 枚",
+    "notesTallOption": "縦 {count} 枚"
   },
   "displaySettings": {
     "title": "ボード一覧",
@@ -1259,7 +1273,9 @@
     "collectionsTab": "カルーセル（{count}）",
     "noPagesTitle": "ページがまだ作成されていません。",
     "noPagesDescription": "ボードに表示する最初のページを作成しましょう。",
-    "createFirstPage": "最初のページを作成"
+    "createFirstPage": "最初のページを作成",
+    "noCompatiblePagesTitle": "このボードのサイズに合うページがありません。",
+    "noCompatiblePagesDescription": "このボードのサイズに合わせたページを作成すると、ここに表示されます。"
   },
   "profile": {
     "title": "プロフィール",
@@ -1695,6 +1711,20 @@
     "variablesNoVarsAvailable": "変数(利用可能な変数はありません)",
     "noVariablesAvailable": "利用可能なテンプレート変数がありません。設定でプラグインを構成してください。",
     "colors": "色",
+    "drawMode": "ボードに描画",
+    "drawModeActive": "描画モードを終了",
+    "drawCharacter": "文字をスタンプ",
+    "drawEraser": "消しゴム",
+    "drawColors": {
+      "red": "赤",
+      "orange": "オレンジ",
+      "yellow": "黄",
+      "green": "緑",
+      "blue": "青",
+      "violet": "紫",
+      "white": "白",
+      "black": "黒"
+    },
     "formatting": "フォーマット",
     "insertFormula": "数式を挿入",
     "toggleWrap": "現在の行の折り返しを切り替え",

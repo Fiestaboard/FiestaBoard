@@ -6,11 +6,24 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
+import type { StrokeCell } from "@/components/drawable-board-preview";
+import { DrawableBoardPreview } from "@/components/drawable-board-preview";
 import { PlainTextEditor } from "@/components/plain-text-editor";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import type {
+  DrawHistoryEvent,
+  TipTapTemplateEditorHandle,
+} from "@/components/tiptap-template-editor/TipTapTemplateEditor";
 // Direct import – bypasses next/dynamic chunk caching issues in dev mode.
 // TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
 import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
+import type { CellPaint, DrawBrush } from "@/components/tiptap-template-editor/utils/draw-mode";
+import {
+  brushToCell,
+  isPositionalLine,
+  paintLine,
+  renderPositionalLine,
+} from "@/components/tiptap-template-editor/utils/draw-mode";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -45,7 +58,7 @@ import type {
   PageUpdate,
 } from "@/lib/api";
 import { api } from "@/lib/api";
-import { resolveDimensions } from "@/lib/board-dimensions";
+import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
@@ -83,7 +96,22 @@ interface PageSnapshot {
   lineWrapEnabled: boolean[];
 }
 
+/**
+ * Pre-stroke alignment/wrap for the rows a paint stroke touched. Committing
+ * a stroke forces those rows to left/no-wrap; since that metadata lives in
+ * React state (outside ProseMirror history), undoing the stroke needs this
+ * capture to restore it — see handleDrawHistoryEvent.
+ */
+interface StrokeMetaSnapshot {
+  rows: number[];
+  alignments: LineAlignment[];
+  wraps: boolean[];
+}
+
 const UNDO_STACK_LIMIT = 5;
+
+// 1..MAX_NOTES_PER_AXIS choices for the note-array W×H selectors.
+const NOTE_AXIS_OPTIONS = Array.from({ length: MAX_NOTES_PER_AXIS }, (_, i) => i + 1);
 
 // Draft storage key helper
 function getDraftKey(pageId?: string): string {
@@ -154,6 +182,19 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
 
+  // Pencil draw-mode state — see handleStrokeCommit / drawPreviewMessage
+  // below for how a painted stroke flows back into templateLines.
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawBrush, setDrawBrush] = useState<DrawBrush>({ kind: "color", color: "red" });
+  const [strokePreviewCells, setStrokePreviewCells] = useState<StrokeCell[]>([]);
+  const tipTapRef = useRef<TipTapTemplateEditorHandle>(null);
+  // Metadata history keyed to stroke boundaries: done/undone mirror the
+  // editor's stroke undo/redo stacks (reported via onDrawHistoryEvent).
+  const strokeMetaHistoryRef = useRef<{ done: StrokeMetaSnapshot[]; undone: StrokeMetaSnapshot[] }>({
+    done: [],
+    undone: [],
+  });
+
   // Snapshot of the page state as loaded from the server, used to detect unsaved changes.
   const [savedSnapshot, setSavedSnapshot] = useState<{
     name: string;
@@ -166,6 +207,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [exportOpen, setExportOpen] = useState(false);
   const [exportShareString, setExportShareString] = useState("");
   const [exportCopied, setExportCopied] = useState(false);
+
+  // Shrinking-retarget confirmation (issue #1250). Converting a saved page
+  // to a smaller geometry is lossy, so the save is gated behind a confirm.
+  const [confirmRetargetOpen, setConfirmRetargetOpen] = useState(false);
 
   // Snapshot stack so the AI chat panel can offer a one-click Undo
   // after the model applies a change. Bounded to keep the editor
@@ -336,6 +381,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           if (pageId) {
             result = await api.updatePage(pageId, {
               name: nameRef.current,
+              device_type: deviceTypeRef.current,
               template: cleanedLines,
               line_metadata: metadata,
               ...noteArrayDims,
@@ -373,6 +419,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   const handleEditorModeChange = useCallback((mode: "rich" | "plain") => {
     setEditorMode(mode);
+    setDrawMode(false);
     try {
       localStorage.setItem(EDITOR_MODE_KEY, mode);
     } catch {}
@@ -507,6 +554,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     queryFn: () => api.getPage(pageId!),
     enabled: !!pageId,
   });
+
+  // Device/size retarget (issue #1250): compare the saved geometry with the
+  // editor's current one. A shrink on either axis is lossy (content that
+  // doesn't fit is cut off), so the save asks for confirmation first.
+  const originalDims = existingPage
+    ? resolveDimensions(existingPage.device_type, existingPage.notes_wide ?? 1, existingPage.notes_tall ?? 1)
+    : null;
+  const isShrinkingRetarget =
+    !!pageId && !!originalDims && (dims.rows < originalDims.rows || dims.cols < originalDims.cols);
 
   // Load draft or existing page data
   useEffect(() => {
@@ -762,6 +818,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (pageId) {
         const payload: PageUpdate = {
           name,
+          device_type: deviceType,
           template: cleanedLines,
           line_metadata: metadata,
           ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
@@ -807,10 +864,26 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       queryClient.invalidateQueries({ queryKey: ["pagePreview"], refetchType: "active" });
 
       // If this page is currently active, refresh the active page data
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: "active" });
 
       toast.success(pageId ? t("toastPageUpdated") : t("toastPageCreated"));
+
+      // Stale-reference warning after a device/size retarget (issue #1250):
+      // list the schedules / active pages now pointing this page at a board
+      // it no longer fits. Non-blocking — the save already succeeded and
+      // nothing is auto-removed.
+      const incompatibleRefs = "incompatible_references" in data ? data.incompatible_references : undefined;
+      if (incompatibleRefs && incompatibleRefs.length > 0) {
+        const list = incompatibleRefs
+          .map(
+            (ref) =>
+              `${ref.board_name} (${ref.surface === "schedule" ? t("retargetSurfaceSchedule") : t("retargetSurfaceActivePage")})`,
+          )
+          .join(", ");
+        toast.warning(t("retargetIncompatibleWarning", { list }), { duration: 10000 });
+      }
+
       onSave?.();
       onClose();
     },
@@ -841,7 +914,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
       // Also invalidate active page if it was updated
       if (data.active_page_updated) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+        queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
         queryClient.invalidateQueries({ queryKey: queryKeys.status, refetchType: "active" });
       }
 
@@ -1159,6 +1232,154 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     }
   }, [boardSettings?.boards, selectedBoardId]);
 
+  // Draw mode: a committed stroke is applied straight to the editor's live
+  // ProseMirror doc (one undo step), which fires onChange -> setTemplateLines
+  // on its own — no separate setTemplateLines call needed here. Painted rows
+  // are positional, so force left alignment + wrap off so the client-side
+  // preview composition below (and the server render on save) don't
+  // reinterpret the painted cells.
+  const handleStrokeCommit = useCallback(
+    (cells: StrokeCell[]) => {
+      setStrokePreviewCells([]);
+      const rows = tipTapRef.current?.applyStroke(cells, drawBrush) ?? [];
+      if (rows.length === 0) return;
+      // Capture the pre-stroke metadata so undoing this stroke can restore
+      // it; a new stroke also invalidates any redoable strokes (the editor's
+      // redo stack is cleared by the new doc change).
+      const hist = strokeMetaHistoryRef.current;
+      hist.done.push({
+        rows,
+        alignments: rows.map((r) => lineAlignmentsRef.current[r] ?? "left"),
+        wraps: rows.map((r) => lineWrapEnabledRef.current[r] ?? false),
+      });
+      hist.undone = [];
+      // Painted lines are positional: force left alignment + wrap off.
+      setLineAlignments((prev) => {
+        const next = [...prev];
+        for (const r of rows) next[r] = "left";
+        return next;
+      });
+      setLineWrapEnabled((prev) => {
+        const next = [...prev];
+        for (const r of rows) next[r] = false;
+        return next;
+      });
+    },
+    [drawBrush],
+  );
+
+  // Undo/redo crossed a paint-stroke boundary in the editor's history: the
+  // editor already rewound/reapplied the ProseMirror doc — mirror that onto
+  // the alignment/wrap metadata the stroke commit force-overwrote.
+  const handleDrawHistoryEvent = useCallback((event: DrawHistoryEvent) => {
+    if (!event.stroke) return;
+    const hist = strokeMetaHistoryRef.current;
+    if (event.action === "undo") {
+      const entry = hist.done.pop();
+      if (!entry) return;
+      hist.undone.push(entry);
+      setLineAlignments((prev) => {
+        const next = [...prev];
+        entry.rows.forEach((r, i) => {
+          next[r] = entry.alignments[i] ?? "left";
+        });
+        return next;
+      });
+      setLineWrapEnabled((prev) => {
+        const next = [...prev];
+        entry.rows.forEach((r, i) => {
+          next[r] = entry.wraps[i] ?? false;
+        });
+        return next;
+      });
+    } else {
+      const entry = hist.undone.pop();
+      if (!entry) return;
+      hist.done.push(entry);
+      setLineAlignments((prev) => {
+        const next = [...prev];
+        for (const r of entry.rows) next[r] = "left";
+        return next;
+      });
+      setLineWrapEnabled((prev) => {
+        const next = [...prev];
+        for (const r of entry.rows) next[r] = false;
+        return next;
+      });
+    }
+  }, []);
+
+  // Draw-mode preview composition (client-side, instant — no server
+  // round-trip for painted rows). Falls back to the server-rendered preview
+  // for rows that aren't locally renderable (dynamic content, non-left
+  // alignment, or wrap enabled).
+  const drawPreviewMessage = useMemo(() => {
+    if (!drawMode) return null;
+    const serverLines = (preview ?? lastPreview ?? "").split("\n");
+    const strokeByRow = new Map<number, CellPaint[]>();
+    const strokeCell = brushToCell(drawBrush);
+    for (const c of strokePreviewCells) {
+      const arr = strokeByRow.get(c.row) ?? [];
+      arr.push({ col: c.col, cell: strokeCell });
+      strokeByRow.set(c.row, arr);
+    }
+    const out: string[] = [];
+    for (let r = 0; r < dims.rows; r++) {
+      const tpl = templateLines[r] ?? "";
+      const strokePaints = strokeByRow.get(r);
+      const isLocallyRenderable =
+        isPositionalLine(tpl) && (lineAlignments[r] ?? "left") === "left" && !(lineWrapEnabled[r] ?? false);
+      if (strokePaints) {
+        // Preview exactly what committing this stroke will produce
+        // (including variable stripping + left alignment).
+        out.push(renderPositionalLine(paintLine(tpl, strokePaints, dims.cols)));
+      } else if (isLocallyRenderable) {
+        out.push(renderPositionalLine(tpl));
+      } else {
+        out.push(serverLines[r] ?? "");
+      }
+    }
+    return out.join("\n");
+  }, [
+    drawMode,
+    strokePreviewCells,
+    drawBrush,
+    templateLines,
+    lineAlignments,
+    lineWrapEnabled,
+    preview,
+    lastPreview,
+    dims.rows,
+    dims.cols,
+  ]);
+
+  // Keyboard shortcuts while drawing: Esc exits; undo/redo work even though
+  // the editor itself is visually hidden (and thus not focused) in draw mode.
+  useEffect(() => {
+    if (!drawMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === "Escape") {
+        setDrawMode(false);
+        return;
+      }
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) {
+        e.preventDefault();
+        tipTapRef.current?.undo();
+      } else if (k === "y" || (k === "z" && e.shiftKey)) {
+        e.preventDefault();
+        tipTapRef.current?.redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawMode]);
+
   if (pageId && loadingPage) {
     return (
       <Card>
@@ -1248,7 +1469,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         variant="brand"
                         size="sm"
                         className="h-8 gap-1.5 px-3"
-                        onClick={() => saveMutation.mutate()}
+                        onClick={() => {
+                          // A shrinking retarget loses content — confirm first.
+                          if (isShrinkingRetarget) {
+                            setConfirmRetargetOpen(true);
+                          } else {
+                            saveMutation.mutate();
+                          }
+                        }}
                         disabled={!name.trim() || saveMutation.isPending}
                         aria-label={t("savePageAriaLabel")}
                       >
@@ -1354,6 +1582,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   <div>
                     {/* Template editor with device-specific dimensions */}
                     <TipTapTemplateEditor
+                      ref={tipTapRef}
                       value={templateLines.join("\n")}
                       onChange={(newValue) => {
                         if (isUpdatingWrap.current) {
@@ -1430,6 +1659,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       deviceType={deviceType}
                       onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
                       syncFromBoardPending={syncFromBoardMutation.isPending}
+                      drawMode={drawMode}
+                      onDrawModeToggle={() => setDrawMode((v) => !v)}
+                      drawBrush={drawBrush}
+                      onDrawBrushChange={setDrawBrush}
+                      onDrawHistoryEvent={handleDrawHistoryEvent}
                     />
                   </div>
                 ) : (
@@ -1476,26 +1710,68 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         notesTall={notesTall}
                         className="ml-1"
                       />
-                      {/* New pages can still change device size — the type is only
-                          locked once the page is saved (converting saved content
-                          between 6×22 and 3×15 is lossy, so that stays out of scope). */}
-                      {!pageId && (
-                        <Select value={deviceType} onValueChange={(v) => setDeviceType(v as DeviceType)}>
-                          <SelectTrigger
-                            className="h-7 w-auto gap-1 px-2 text-xs"
-                            aria-label={t("deviceTypeSwitcherAriaLabel")}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="flagship" className="text-xs">
-                              {tDisplaySettings("flagshipLabel")}
-                            </SelectItem>
-                            <SelectItem value="note" className="text-xs">
-                              {tDisplaySettings("noteLabel")}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                      {/* Device/size retarget (issue #1250): both new AND saved
+                          pages can change board size. Converting a saved page is
+                          lossy (shrinks truncate), so saving a shrinking retarget
+                          asks for confirmation first. */}
+                      <Select
+                        value={deviceType}
+                        onValueChange={(v) => {
+                          setDeviceType(v as DeviceType);
+                          setDrawMode(false);
+                        }}
+                      >
+                        <SelectTrigger
+                          className="h-7 w-auto gap-1 px-2 text-xs"
+                          aria-label={t("deviceTypeSwitcherAriaLabel")}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="flagship" className="text-xs">
+                            {tDisplaySettings("flagshipLabel")}
+                          </SelectItem>
+                          <SelectItem value="note" className="text-xs">
+                            {tDisplaySettings("noteLabel")}
+                          </SelectItem>
+                          <SelectItem value="note_array" className="text-xs">
+                            {tDisplaySettings("noteArrayLabel")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {deviceType === "note_array" && (
+                        <>
+                          <Select value={String(notesWide)} onValueChange={(v) => setNotesWide(Number(v))}>
+                            <SelectTrigger
+                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              aria-label={tDisplaySettings("notesWideLabel")}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {NOTE_AXIS_OPTIONS.map((n) => (
+                                <SelectItem key={`w-${n}`} value={String(n)} className="text-xs">
+                                  {t("notesWideOption", { count: n })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select value={String(notesTall)} onValueChange={(v) => setNotesTall(Number(v))}>
+                            <SelectTrigger
+                              className="h-7 w-auto gap-1 px-2 text-xs"
+                              aria-label={tDisplaySettings("notesTallLabel")}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {NOTE_AXIS_OPTIONS.map((n) => (
+                                <SelectItem key={`t-${n}`} value={String(n)} className="text-xs">
+                                  {t("notesTallOption", { count: n })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -1523,41 +1799,61 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     </div>
                   </div>
                   <div className="flex justify-center">
-                    <ScaledBoardDisplay
-                      message={(() => {
-                        // Use new loading pattern: keep previous message visible during loading/transition
-                        // This allows tiles to cycle through characters (like real FiestaBoard)
-                        // instead of showing legacy FlipTiles
+                    <DrawableBoardPreview
+                      active={drawMode}
+                      onStrokePreview={setStrokePreviewCells}
+                      onStrokeCommit={handleStrokeCommit}
+                    >
+                      <ScaledBoardDisplay
+                        message={
+                          drawMode
+                            ? drawPreviewMessage
+                            : (() => {
+                                // Use new loading pattern: keep previous message visible during loading/transition
+                                // This allows tiles to cycle through characters (like real FiestaBoard)
+                                // instead of showing legacy FlipTiles
 
-                        const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                        const isPending = previewMutation.isPending;
-                        const shouldIgnore = shouldIgnoreNextResponse.current;
+                                const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+                                const isPending = previewMutation.isPending;
+                                const shouldIgnore = shouldIgnoreNextResponse.current;
 
-                        if (isTransitioning && lastPreview) return lastPreview;
-                        if (preview !== null) return preview;
-                        if (!hasContent && !isPending && !shouldIgnore) return "";
-                        if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
-                        if (isPending && hasContent && !shouldIgnore) return "";
-                        return null;
-                      })()}
-                      isLoading={(() => {
-                        const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
-                        const isPending = previewMutation.isPending;
-                        const shouldIgnore = shouldIgnoreNextResponse.current;
+                                if (isTransitioning && lastPreview) return lastPreview;
+                                if (preview !== null) return preview;
+                                if (!hasContent && !isPending && !shouldIgnore) return "";
+                                if (isPending && hasContent && !shouldIgnore && lastPreview) return lastPreview;
+                                if (isPending && hasContent && !shouldIgnore) return "";
+                                return null;
+                              })()
+                        }
+                        isLoading={
+                          drawMode
+                            ? false
+                            : (() => {
+                                const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
+                                const isPending = previewMutation.isPending;
+                                const shouldIgnore = shouldIgnoreNextResponse.current;
 
-                        if (isTransitioning) return true;
-                        if (preview !== null) return false;
-                        if (!hasContent) return false;
-                        if (shouldIgnore) return false;
-                        return isPending && hasContent;
-                      })()}
-                      size="md"
-                      boardType={effectiveBoardColor}
-                      deviceType={deviceType}
-                      notesWide={notesWide}
-                      notesTall={notesTall}
-                    />
+                                if (isTransitioning) return true;
+                                if (preview !== null) return false;
+                                if (!hasContent) return false;
+                                if (shouldIgnore) return false;
+                                return isPending && hasContent;
+                              })()
+                        }
+                        isStatic={drawMode}
+                        size="md"
+                        boardType={effectiveBoardColor}
+                        deviceType={deviceType}
+                        notesWide={notesWide}
+                        notesTall={notesTall}
+                        // DrawableBoardPreview hit-tests strokes through the
+                        // tiles' data-row/data-col attributes; only this
+                        // editor preview opts into emitting them.
+                        emitCellMetadata
+                      />
+                    </DrawableBoardPreview>
                   </div>
+                  {drawMode && <p className="mt-1 text-center text-xs text-muted-foreground">{t("drawModeHint")}</p>}
 
                   {/* Live output controls */}
                   <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
@@ -1633,6 +1929,34 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Shrinking-retarget confirmation (issue #1250). Conversion between
+          geometries is lossy: content that doesn't fit the smaller board is
+          cut off, so the save is gated behind an explicit confirm. */}
+      <AlertDialog open={confirmRetargetOpen} onOpenChange={setConfirmRetargetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("retargetConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("retargetConfirmDescription", {
+                oldSize: originalDims ? `${originalDims.rows} × ${originalDims.cols}` : "",
+                newSize: `${dims.rows} × ${dims.cols}`,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmRetargetOpen(false);
+                saveMutation.mutate();
+              }}
+            >
+              {t("retargetConfirmAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 });

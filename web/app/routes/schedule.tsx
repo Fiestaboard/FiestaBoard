@@ -248,7 +248,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(schedulesData?.enabled ? t("toastScheduleDisabled") : t("toastScheduleEnabled"));
     },
     onError: () => {
@@ -264,7 +264,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(t("toastCreated"));
       setShowForm(false);
       setPrefillData(null);
@@ -282,7 +282,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(t("toastUpdated"));
       setShowForm(false);
       setEditingSchedule(null);
@@ -300,7 +300,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(t("toastDeleted"));
       setDeleteScheduleId(null);
     },
@@ -316,7 +316,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(t("toastDefaultPageUpdated"));
     },
     onError: () => {
@@ -348,7 +348,7 @@ export default function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: ["schedules"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "active"], refetchType: "active" });
       queryClient.invalidateQueries({ queryKey: ["schedules", "validation"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage, refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activePage(), refetchType: "active" });
       toast.success(variables.enabled ? t("toastEntryEnabled") : t("toastEntryDisabled"));
     },
     onError: () => {
@@ -738,7 +738,7 @@ export default function SchedulePage() {
           {pagesData && (
             <ScheduleEntryForm
               schedule={editingSchedule || undefined}
-              pages={pagesData.pages.map((p) => ({ id: p.id, name: p.name }))}
+              pages={pagesData.pages}
               collections={collectionsData?.collections}
               onSubmit={handleSubmit}
               onCancel={handleCloseForm}

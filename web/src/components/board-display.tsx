@@ -306,6 +306,7 @@ const StaticGridRow = memo(function StaticGridRow({
   showSeams = false,
   isRowSeam = false,
   seamGap = "6px",
+  emitCellMetadata = false,
 }: {
   row: Token[];
   rowIdx: number;
@@ -315,6 +316,7 @@ const StaticGridRow = memo(function StaticGridRow({
   showSeams?: boolean;
   isRowSeam?: boolean;
   seamGap?: string;
+  emitCellMetadata?: boolean;
 }) {
   return (
     <div
@@ -326,11 +328,16 @@ const StaticGridRow = memo(function StaticGridRow({
       {row.map((token, colIdx) => {
         const isColSeam = showSeams && colIdx > 0 && colIdx % NOTE_COLS === 0;
         // Mirror the animated path's wrapper for DOM consistency; hosts the
-        // data-note-tile hook + note-array seam margin.
+        // data-note-tile hook + note-array seam margin. Draw-mode cell
+        // metadata (coordinates + cell value) is opt-in — see
+        // BoardDisplayProps.emitCellMetadata.
         return (
           <div
             key={`col-${rowIdx}-${colIdx}`}
             data-note-tile=""
+            {...(emitCellMetadata
+              ? { "data-row": rowIdx, "data-col": colIdx, "data-cell-value": getCharFromToken(token) }
+              : {})}
             {...(isColSeam ? { "data-note-col-seam": "true" } : {})}
             style={isColSeam ? { marginLeft: seamGap } : undefined}
           >
@@ -359,6 +366,7 @@ const GridRow = memo(
     showSeams = false,
     isRowSeam = false,
     seamGap = "6px",
+    emitCellMetadata = false,
   }: {
     row: Token[];
     rowIdx: number;
@@ -370,6 +378,7 @@ const GridRow = memo(
     showSeams?: boolean;
     isRowSeam?: boolean;
     seamGap?: string;
+    emitCellMetadata?: boolean;
   }) {
     return (
       <div
@@ -383,10 +392,13 @@ const GridRow = memo(
           // The wrapper is structurally required: CharTile returns a fragment
           // (flap-animation layers), so it needs a single containing flex item.
           // It also hosts the data-note-tile hook + note-array seam margin.
+          // Draw-mode cell coordinates are opt-in — see
+          // BoardDisplayProps.emitCellMetadata.
           return (
             <div
               key={`col-${rowIdx}-${colIdx}`}
               data-note-tile=""
+              {...(emitCellMetadata ? { "data-row": rowIdx, "data-col": colIdx } : {})}
               {...(isColSeam ? { "data-note-col-seam": "true" } : {})}
               style={isColSeam ? { marginLeft: seamGap } : undefined}
             >
@@ -416,6 +428,7 @@ const GridRow = memo(
     if (prevProps.showSeams !== nextProps.showSeams) return false;
     if (prevProps.isRowSeam !== nextProps.isRowSeam) return false;
     if (prevProps.seamGap !== nextProps.seamGap) return false;
+    if (prevProps.emitCellMetadata !== nextProps.emitCellMetadata) return false;
 
     // Deep compare tokens
     for (let i = 0; i < prevProps.row.length; i++) {
@@ -1145,6 +1158,14 @@ interface BoardDisplayProps {
   notesWide?: number;
   /** Notes tall (for note_array device; ignored otherwise). */
   notesTall?: number;
+  /** Emit data-row / data-col / data-cell-value on every tile wrapper.
+   *  Only the page editor's draw mode consumes these (DrawableBoardPreview
+   *  hit-tests strokes via data-row/data-col and tests read data-cell-value),
+   *  so they are off by default — computing per-tile metadata is wasted work
+   *  for the many static previews (dashboards, lists, chat cards) that never
+   *  draw, and stray data-row/data-col on unrelated previews would force the
+   *  draw surface's hit-testing to reject them one by one. */
+  emitCellMetadata?: boolean;
 }
 
 // Backward compatibility alias
@@ -1161,6 +1182,7 @@ export const BoardDisplay = memo(
     isStatic = false,
     notesWide = 1,
     notesTall = 1,
+    emitCellMetadata = false,
   }: BoardDisplayProps) {
     const t = useTranslations("boardDisplay");
     const animationsEnabled = useBoardAnimationsEnabled();
@@ -1267,6 +1289,7 @@ export const BoardDisplay = memo(
                     showSeams={showSeams}
                     isRowSeam={isRowSeam}
                     seamGap={seamGap}
+                    emitCellMetadata={emitCellMetadata}
                   />
                 ) : (
                   <GridRow
@@ -1281,6 +1304,7 @@ export const BoardDisplay = memo(
                     showSeams={showSeams}
                     isRowSeam={isRowSeam}
                     seamGap={seamGap}
+                    emitCellMetadata={emitCellMetadata}
                   />
                 );
               })}
@@ -1300,7 +1324,8 @@ export const BoardDisplay = memo(
       prevProps.deviceType === nextProps.deviceType &&
       prevProps.notesWide === nextProps.notesWide &&
       prevProps.notesTall === nextProps.notesTall &&
-      prevProps.isStatic === nextProps.isStatic
+      prevProps.isStatic === nextProps.isStatic &&
+      prevProps.emitCellMetadata === nextProps.emitCellMetadata
     );
   },
 );

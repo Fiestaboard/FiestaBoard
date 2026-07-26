@@ -27,83 +27,312 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+class BoardRuntime:
+    """Client + per-board display state for one configured board.
+
+    Introduced by issue #1243: every board FiestaBoard drives gets its own
+    ``BoardRuntime`` so per-board caches (last-sent content, silence/snooze
+    state, board-read cache) never clobber each other. The ``DisplayService``
+    holds ``runtimes: dict[board_id, BoardRuntime]`` and routes every board
+    through a single unified per-board path (``check_and_send_for_board``).
+
+    ``config_signature`` lets a hot reload keep an unchanged board's runtime
+    (and its caches) instead of rebuilding it — see
+    ``DisplayService.rebuild_board_clients``.
+    """
+
+    def __init__(self, client: BoardClient | None, board_id):
+        self.board_id = board_id
+        self.client = client
+        self.config_signature = None
+
+        # Active-page send cache (dedupes unchanged sends per board).
+        self.last_active_page_content: str | None = None
+        self.last_active_page_id: str | None = None
+
+        # Silence-mode state (global decision, per-board delivery).
+        self.last_silence_mode_active: bool = False
+        self.snoozing_message_sent: bool = False
+
+        # Board-state read cache (populated by the poll thread / adaptive
+        # refresh). Board-state polling stays primary-only (see
+        # ``_board_poll_loop``), but the cache lives on the runtime so a
+        # future per-board poll is a drop-in change.
+        self.polled_characters: list[list[int]] | None = None
+        self.polled_at: float | None = None
+
+        # Adaptive post-send refresh thread + its cancel event.
+        self.refresh_thread: threading.Thread | None = None
+        self.refresh_cancel: threading.Event | None = None
+
+        # Collection cadence gate for the run loop: monotonic-ish epoch time
+        # of the next collection-boundary check for this board. 0.0 means
+        # "check immediately". Only the primary runtime is consulted today.
+        self.next_collection_check: float = 0.0
+
+
 class DisplayService:
     """Main service for displaying information on the board."""
+
+    # Runtime key for the primary board when no board id is available
+    # (legacy single-board Config installs, or tests that set ``vb_client``
+    # directly without a boards list).
+    _PRIMARY_FALLBACK_KEY = "__primary__"
 
     def __init__(self):
         """Initialize the display service."""
         self.running = True
-        self.vb_client: BoardClient | None = None
-        # One client per configured board (keyed by board id). ``vb_client``
-        # stays the first board's client for the many single-board code
-        # paths (manual send, debug, plugins); the update loop uses this map
-        # to drive secondary boards. See issue #1243.
-        self.board_clients: dict[str, BoardClient] = {}
+        # One runtime per configured board (keyed by board id). All per-board
+        # display state lives on the runtime; ``self.vb_client`` and the
+        # ``self._last_*`` / ``self._polled_*`` attributes are back-compat
+        # properties aliasing the PRIMARY board's runtime so untouched callers
+        # (api_server.py, mqtt/commands.py) and existing tests keep working.
+        self.runtimes: dict[str, BoardRuntime] = {}
+        self._primary_board_id = None
 
-        # Active page polling state
-        self._last_active_page_content: str | None = None
-        self._last_active_page_id: str | None = None
-        self._last_silence_mode_active: bool = False
-        self._snoozing_message_sent: bool = False
-        # Per-secondary-board content cache: board_id -> (page_id, content).
-        # Mirrors _last_active_page_* for the primary board.
-        self._secondary_last_sent: dict[str, tuple[str, str]] = {}
-
-        # Board state polling (background thread reads actual board state)
-        self._polled_characters: list[list[int]] | None = None
-        self._polled_at: float | None = None
+        # Board state polling (background thread reads actual board state).
         self._poll_thread: threading.Thread | None = None
-        # Adaptive post-send refresh: a background thread polls the board
-        # on a short ramp after each send and stops early once the read
-        # matches what we just sent. ``_refresh_cancel`` lets a subsequent
-        # call abort an in-flight cycle so rapid sends don't pile up.
-        self._refresh_thread: threading.Thread | None = None
-        self._refresh_cancel: threading.Event | None = None
+
+    # ------------------------------------------------------------------ #
+    # Primary-runtime resolution + back-compat property shims
+    # ------------------------------------------------------------------ #
+
+    def _primary_runtime(self) -> BoardRuntime | None:
+        """Return the primary board's runtime, or None if none exists yet."""
+        if self._primary_board_id is None:
+            return None
+        return self.runtimes.get(self._primary_board_id)
+
+    def _resolve_primary_key(self):
+        """Best-effort key for the primary runtime.
+
+        Prefers the already-established primary id, then the settings SSOT
+        (``get_primary_board_id``), then a stable sentinel so setting
+        ``vb_client`` always has somewhere to live.
+        """
+        if self._primary_board_id is not None:
+            return self._primary_board_id
+        try:
+            bid = get_settings_service().get_primary_board_id()
+        except Exception:
+            bid = None
+        return bid if bid else self._PRIMARY_FALLBACK_KEY
+
+    def _ensure_primary_runtime(self) -> BoardRuntime:
+        """Return the primary runtime, creating an empty one if needed."""
+        rt = self._primary_runtime()
+        if rt is None:
+            key = self._resolve_primary_key()
+            rt = self.runtimes.get(key)
+            if rt is None:
+                rt = BoardRuntime(client=None, board_id=key)
+                self.runtimes[key] = rt
+            self._primary_board_id = key
+        return rt
+
+    @property
+    def vb_client(self) -> BoardClient | None:
+        """The primary board's client (kept for single-board code paths)."""
+        rt = self._primary_runtime()
+        return rt.client if rt is not None else None
+
+    @vb_client.setter
+    def vb_client(self, client: BoardClient | None) -> None:
+        key = self._resolve_primary_key()
+        self._primary_board_id = key
+        rt = self.runtimes.get(key)
+        if rt is None:
+            self.runtimes[key] = BoardRuntime(client=client, board_id=key)
+        else:
+            rt.client = client
+
+    @property
+    def board_clients(self) -> dict:
+        """Read-only view {board_id -> client} for callers that iterate boards."""
+        return {bid: rt.client for bid, rt in self.runtimes.items() if rt.client is not None}
+
+    def get_board_client(self, board_id) -> BoardClient | None:
+        """Return the client for a board id, or None. Seam for per-board send routing (#1244)."""
+        rt = self.runtimes.get(board_id)
+        return rt.client if rt is not None else None
+
+    # Issue-#1243 wording alias for the same seam.
+    get_client = get_board_client
+
+    def get_runtime(self, board_id) -> BoardRuntime | None:
+        """Return the runtime for a board id, or None."""
+        return self.runtimes.get(board_id)
+
+    # -- State shims aliasing the primary runtime (read + write). --------- #
+
+    @property
+    def _last_active_page_content(self):
+        rt = self._primary_runtime()
+        return rt.last_active_page_content if rt is not None else None
+
+    @_last_active_page_content.setter
+    def _last_active_page_content(self, value):
+        self._ensure_primary_runtime().last_active_page_content = value
+
+    @property
+    def _last_active_page_id(self):
+        rt = self._primary_runtime()
+        return rt.last_active_page_id if rt is not None else None
+
+    @_last_active_page_id.setter
+    def _last_active_page_id(self, value):
+        self._ensure_primary_runtime().last_active_page_id = value
+
+    @property
+    def _last_silence_mode_active(self) -> bool:
+        rt = self._primary_runtime()
+        return rt.last_silence_mode_active if rt is not None else False
+
+    @_last_silence_mode_active.setter
+    def _last_silence_mode_active(self, value):
+        self._ensure_primary_runtime().last_silence_mode_active = value
+
+    @property
+    def _snoozing_message_sent(self) -> bool:
+        rt = self._primary_runtime()
+        return rt.snoozing_message_sent if rt is not None else False
+
+    @_snoozing_message_sent.setter
+    def _snoozing_message_sent(self, value):
+        self._ensure_primary_runtime().snoozing_message_sent = value
+
+    @property
+    def _polled_characters(self):
+        rt = self._primary_runtime()
+        return rt.polled_characters if rt is not None else None
+
+    @_polled_characters.setter
+    def _polled_characters(self, value):
+        self._ensure_primary_runtime().polled_characters = value
+
+    @property
+    def _polled_at(self):
+        rt = self._primary_runtime()
+        return rt.polled_at if rt is not None else None
+
+    @_polled_at.setter
+    def _polled_at(self, value):
+        self._ensure_primary_runtime().polled_at = value
+
+    @property
+    def _refresh_thread(self):
+        rt = self._primary_runtime()
+        return rt.refresh_thread if rt is not None else None
+
+    @_refresh_thread.setter
+    def _refresh_thread(self, value):
+        self._ensure_primary_runtime().refresh_thread = value
+
+    @property
+    def _refresh_cancel(self):
+        rt = self._primary_runtime()
+        return rt.refresh_cancel if rt is not None else None
+
+    @_refresh_cancel.setter
+    def _refresh_cancel(self, value):
+        self._ensure_primary_runtime().refresh_cancel = value
+
+    # ------------------------------------------------------------------ #
+    # Building / rebuilding runtimes
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _config_signature(board: dict) -> tuple:
+        """Connection-config signature: unchanged => keep the existing runtime.
+
+        Includes the Local Array Mode tile list (#1399) so editing a tile's
+        host/key/enabled state rebuilds the NoteArrayLocalClient.
+        """
+        tiles = board.get("tiles") or []
+        tiles_sig = tuple(sorted(str(t) for t in tiles)) if isinstance(tiles, list) else ()
+        return (
+            (board.get("api_mode") or "local").lower(),
+            board.get("host") or "",
+            board.get("port"),
+            board.get("local_api_key") or "",
+            board.get("cloud_key") or "",
+            board.get("note_array_token") or "",
+            board.get("device_type") or "flagship",
+            board.get("notes_wide") or 1,
+            board.get("notes_tall") or 1,
+            tiles_sig,
+        )
 
     def _build_board_clients(self, sync_cache: bool = True):
-        """Build one client per configured board (settings.boards) or fall back to Config.
+        """Build one runtime per configured board (settings.boards) or fall back to Config.
 
-        Sets ``self.board_clients`` (board_id -> client for every board with
-        connection credentials) and ``self.vb_client`` (the first board's
-        client, kept for single-board code paths).
+        Populates ``self.runtimes`` (board_id -> BoardRuntime for every board
+        with a usable connection) and ``self._primary_board_id`` (the first
+        board, kept for single-board code paths via the ``vb_client``
+        property). Unchanged boards keep their existing runtime (and caches)
+        so editing one board doesn't reset another's state.
+
+        No credential pre-filter: each device type has its own credential
+        field (local_api_key / cloud_key / note_array_token / per-tile local
+        keys) and ``board_client_from_board_dict`` already returns None for a
+        board without a usable connection. A pre-filter on local/cloud keys
+        silently dropped note-array boards (issue #1243 item 3).
 
         Args:
             sync_cache: read the primary board's current message to seed the
                 skip-unchanged cache. Startup wants this; reinitialization
                 from an API request must NOT block on board I/O (an
-                unreachable board would stall the request), so it skips it —
-                a cold cache just means the next send isn't deduplicated.
+                unreachable board would stall the request), so it skips it.
         """
         settings_service = get_settings_service()
         boards = settings_service.get_board_settings().boards or []
-        clients: dict[str, BoardClient] = {}
+
+        new_runtimes: dict[str, BoardRuntime] = {}
         for board in boards:
-            # No credential pre-filter here: each device type has its own
-            # credential field (local_api_key / cloud_key / note_array_token)
-            # and board_client_from_board_dict already returns None for a
-            # board without a usable connection. A pre-filter on local/cloud
-            # keys silently dropped note-array boards (issue #1243 item 3).
+            if not isinstance(board, dict):
+                continue
+            bid = board.get("id")
+            if not bid:
+                continue
+            sig = self._config_signature(board)
+            existing = self.runtimes.get(bid)
+            if existing is not None and existing.config_signature == sig and existing.client is not None:
+                # Unchanged connection: keep the runtime so its caches survive.
+                new_runtimes[bid] = existing
+                continue
             client = board_client_from_board_dict(board)
-            if client and board.get("id"):
-                self._attach_transition_runner(client)
-                clients[board["id"]] = client
-        self.board_clients = clients
-        if boards and boards[0].get("id") in clients:
-            self.vb_client = clients[boards[0]["id"]]
+            if client is None:
+                continue
+            self._attach_transition_runner(client)
+            rt = BoardRuntime(client=client, board_id=bid)
+            rt.config_signature = sig
+            new_runtimes[bid] = rt
+
+        self.runtimes = new_runtimes
+
+        if boards and isinstance(boards[0], dict) and boards[0].get("id") in new_runtimes:
+            self._primary_board_id = boards[0]["id"]
         else:
+            # Legacy single-board Config path: no usable settings.boards entry.
             use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
-            self.vb_client = BoardClient(
+            client = BoardClient(
                 api_key=Config.get_board_api_key(),
                 host=Config.BOARD_HOST if not use_cloud else None,
                 use_cloud=use_cloud,
                 skip_unchanged=True,
             )
-            self._attach_transition_runner(self.vb_client)
+            self._attach_transition_runner(client)
+            key = self._PRIMARY_FALLBACK_KEY
+            self.runtimes[key] = BoardRuntime(client=client, board_id=key)
+            self._primary_board_id = key
+
         if sync_cache:
-            try:
-                self.vb_client.read_current_message(sync_cache=True)
-            except Exception as e:
-                logger.warning(f"Could not sync cache with board: {e}")
+            rt = self._primary_runtime()
+            if rt is not None and rt.client is not None:
+                try:
+                    rt.client.read_current_message(sync_cache=True)
+                except Exception as e:
+                    logger.warning(f"Could not sync cache with board: {e}")
 
     @staticmethod
     def _attach_transition_runner(client: BoardClient) -> None:
@@ -122,54 +351,65 @@ class DisplayService:
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning(f"Could not attach transition runner: {exc}")
 
-    def reinitialize_board_client(self) -> bool:
-        """Reinitialize all board clients with current config.
+    def rebuild_board_clients(self) -> bool:
+        """Rebuild runtimes from current config (diff-based, keyed by board id).
 
-        Prefers settings.boards (one client per board with connection);
-        falls back to Config for the primary. Must be called after any
-        boards-list mutation, otherwise sends keep targeting the old
+        Prefers settings.boards (one runtime per board with a connection);
+        falls back to Config for the primary. Unchanged boards keep their
+        runtime + caches; removed/disabled boards are pruned. Must be called
+        after any boards-list mutation, otherwise sends keep targeting the old
         connections (issue: content delivered to a removed board).
         """
-        logger.info("Reinitializing board clients with updated config...")
+        logger.info("Rebuilding board clients with updated config...")
         try:
-            # sync_cache=False: reinit runs inside API request handlers, and a
+            # sync_cache=False: this runs inside API request handlers, and a
             # blocking read against an unreachable board would stall them.
             self._build_board_clients(sync_cache=False)
-            if self.vb_client:
-                # Clear stale polled state from the old config; poll thread will
-                # populate it again on its next iteration using the new client.
-                self._polled_characters = None
-                self._polled_at = None
-                # Drop per-board content caches for boards that no longer exist
-                # (or whose connection may have changed).
-                self._secondary_last_sent = {
-                    board_id: sent
-                    for board_id, sent in self._secondary_last_sent.items()
-                    if board_id in self.board_clients
-                }
-                logger.info(f"Board clients reinitialized successfully ({len(self.board_clients)} board(s))")
+            rt = self._primary_runtime()
+            if rt is not None and rt.client is not None:
+                # Clear stale board-read state from the old config; the poll
+                # thread repopulates it on its next iteration.
+                rt.polled_characters = None
+                rt.polled_at = None
+                logger.info(f"Board clients rebuilt successfully ({len(self.runtimes)} runtime(s))")
                 return True
             return False
         except Exception as e:
-            logger.error(f"Failed to reinitialize board client: {e}")
+            logger.error(f"Failed to rebuild board clients: {e}")
             return False
+
+    # Back-compat alias: external callers + tests use this name.
+    reinitialize_board_client = rebuild_board_clients
 
     def invalidate_board_content(self, board_id: str) -> None:
         """Force the next update cycle to re-send this board's content.
 
-        Clears the display loop's content dedupe for the board (primary or
-        secondary) and the board client's character cache. Used after an
-        out-of-band write to the physical board — e.g. the local-array
-        identify flash — so the real frame is restored on the next poll
-        cycle even though the rendered page content hasn't changed.
+        Clears the board's runtime content dedupe and its client's character
+        cache. Used after an out-of-band write to the physical board — e.g.
+        the local-array identify flash (#1399) — so the real frame is
+        restored on the next poll cycle even though the rendered page
+        content hasn't changed.
         """
-        primary_id = get_settings_service().get_primary_board_id()
-        if board_id == primary_id:
-            self._last_active_page_content = None
-        self._secondary_last_sent.pop(board_id, None)
-        client = self.board_clients.get(board_id)
-        if client is not None:
-            client.clear_cache()
+        rt = self.runtimes.get(board_id)
+        if rt is None:
+            # Legacy installs may key the primary runtime under the fallback
+            # sentinel rather than its settings board id.
+            try:
+                primary_id = get_settings_service().get_primary_board_id()
+            except Exception:
+                primary_id = None
+            if board_id == primary_id:
+                rt = self._primary_runtime()
+        if rt is None:
+            return
+        rt.last_active_page_content = None
+        rt.last_active_page_id = None
+        if rt.client is not None:
+            rt.client.clear_cache()
+
+    # ------------------------------------------------------------------ #
+    # Board-state polling (primary board only; state lives on the runtime)
+    # ------------------------------------------------------------------ #
 
     def _get_board_read_interval(self) -> int:
         """Return the board-state read poll interval in seconds based on API mode."""
@@ -178,15 +418,21 @@ class DisplayService:
         return polling.board_read_interval_cloud if use_cloud else polling.board_read_interval_local
 
     def _board_poll_loop(self) -> None:
-        """Background thread: periodically read actual board state and cache it."""
+        """Background thread: periodically read the primary board's state and cache it.
+
+        Polling stays primary-only (single board-read thread — a thread per
+        board would break the single-threaded send invariant the note-array
+        >=15s throttle relies on). The cache lives on the primary runtime.
+        """
         while self.running:
             interval = self._get_board_read_interval()
             try:
-                if self.vb_client:
-                    chars = self.vb_client.read_current_message()
+                rt = self._primary_runtime()
+                if rt is not None and rt.client is not None:
+                    chars = rt.client.read_current_message()
                     if chars:
-                        self._polled_characters = chars
-                        self._polled_at = time.time()
+                        rt.polled_characters = chars
+                        rt.polled_at = time.time()
                         logger.debug("Board state poll succeeded")
             except Exception as e:
                 logger.debug(f"Board state poll failed: {e}")
@@ -198,29 +444,28 @@ class DisplayService:
         retry_interval_seconds: float = 1.0,
         max_total_seconds: float = 3.0,
     ) -> None:
-        """Adaptively poll the board after a send so the cached state catches up
-        quickly without waiting for the next full poll interval.
+        """Adaptively poll the primary board after a send so the cached state
+        catches up quickly without waiting for the next full poll interval.
 
         Strategy: sleep ``initial_delay_seconds``, read the board. If the read
         matches what we just sent, update the cache and stop. Otherwise sleep
         ``retry_interval_seconds`` and try again, until ``max_total_seconds``
-        elapses. The latest successful read is always cached, so the display
-        cache improves even when we never observe a match (e.g. during a long
-        transition animation).
+        elapses. The latest successful read is always cached.
 
         A subsequent call cancels any in-flight refresh so rapid sends don't
         stack up threads.
         """
+        rt = self._primary_runtime()
         # Cancel any in-flight refresh from a prior send.
-        if self._refresh_cancel is not None:
-            self._refresh_cancel.set()
+        if rt is not None and rt.refresh_cancel is not None:
+            rt.refresh_cancel.set()
 
-        client = self.vb_client
-        if client is None:
+        if rt is None or rt.client is None:
             return
 
+        client = rt.client
         cancel = threading.Event()
-        self._refresh_cancel = cancel
+        rt.refresh_cancel = cancel
 
         # Snapshot what we just sent so we can detect when the board has
         # caught up. May be None if no send has happened on this client yet.
@@ -235,8 +480,8 @@ class DisplayService:
                 try:
                     chars = client.read_current_message()
                     if chars:
-                        self._polled_characters = chars
-                        self._polled_at = time.time()
+                        rt.polled_characters = chars
+                        rt.polled_at = time.time()
                         if expected is not None and chars == expected:
                             logger.debug("Post-send refresh: board state matches sent content")
                             return
@@ -251,7 +496,7 @@ class DisplayService:
                     return
 
         thread = threading.Thread(target=_do_refresh, daemon=True)
-        self._refresh_thread = thread
+        rt.refresh_thread = thread
         thread.start()
 
     def initialize(self) -> bool:
@@ -263,7 +508,7 @@ class DisplayService:
             logger.error("Configuration validation failed")
             return False
 
-        # Initialize board client from settings.boards (first board) or Config
+        # Initialize board runtimes from settings.boards (all boards) or Config
         try:
             self._build_board_clients()
             if not self.vb_client:
@@ -297,126 +542,70 @@ class DisplayService:
         """Return the ID of the primary (first) configured board, or None."""
         return get_settings_service().get_primary_board_id()
 
-    def check_and_send_active_page(self) -> bool:
-        """Update every configured board from its schedule/active page.
+    # ------------------------------------------------------------------ #
+    # Per-board display engine (single tick loop)
+    # ------------------------------------------------------------------ #
 
-        The primary board (boards[0]) keeps the full feature set — triggers,
-        temporary overrides, silence indicator, manual active page. Secondary
-        boards are schedule-driven (issue #1243): each enabled, unpaused,
-        schedule-enabled board resolves its own active page and receives it
-        via its own client.
+    def check_and_send_active_page(self) -> bool:
+        """Drive every configured board from its schedule/active page.
+
+        Back-compat entry point (retained for /refresh, /force-refresh, MQTT,
+        the run loop, and existing tests). It drives the PRIMARY board through
+        the full feature set (triggers, temporary override, silence indicator,
+        per-board active page) and then each secondary board through the same
+        unified per-board path. Every board keeps its own state on its runtime.
 
         Returns:
-            True if content was sent to the primary board, False otherwise
+            True if content was sent to the PRIMARY board, False otherwise.
         """
-        sent = self._update_primary_board()
+        primary_id = self._get_first_board_id()
+        rt = self._ensure_primary_runtime()
+        sent = self.check_and_send_for_board(primary_id, rt, is_primary=True)
         try:
-            self._update_secondary_boards()
+            self._drive_secondary_boards()
         except Exception as e:  # secondaries must never break the primary loop
             logger.error(f"Error updating secondary boards: {e}")
         return sent
 
-    def _update_secondary_boards(self) -> None:
-        """Drive every board after the first from its own schedule.
+    def _drive_secondary_boards(self) -> None:
+        """Drive every board after the first through the unified per-board path.
 
-        Scope (first slice of #1243): schedule + per-board default page,
-        per-board pause and schedule_enabled, collections, per-page
-        transitions. Global silence mode silences secondaries entirely
-        (freeze semantics — the SNOOZING indicator stays a primary-board
-        feature). Triggers, temporary overrides and the manual active page
-        remain primary-only.
+        Each board raising is isolated so one failure never blocks the others.
         """
         settings_service = get_settings_service()
         boards = settings_service.get_board_settings().boards or []
         if len(boards) <= 1:
             return
-        if Config.is_silence_mode_active():
-            return
-
-        page_service = get_page_service()
-        schedule_service = get_schedule_service()
-        collection_service = get_collection_service()
-        from .time_service import get_time_service
-
-        now = get_time_service().get_current_time()
-        current_time = now.time()
-        current_day = now.strftime("%A").lower()
 
         for board in boards[1:]:
+            if not isinstance(board, dict):
+                continue
             board_id = board.get("id")
             if not board_id:
                 continue
-            client = self.board_clients.get(board_id)
-            if client is None:
+            rt = self.runtimes.get(board_id)
+            if rt is None:
                 continue
             if not board.get("enabled", True):
                 continue
-            if settings_service.is_paused(board_id=board_id) is True:
-                continue
-            if not settings_service.is_schedule_enabled(board_id=board_id):
-                continue
-
-            active_page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
-            if not active_page_id:
-                continue
-            if is_collection_id(active_page_id):
-                active_page_id = collection_service.resolve_page_id(active_page_id)
-                if not active_page_id:
-                    continue
-
-            page = page_service.get_page(active_page_id)
-            if not page:
-                logger.warning(f"Board {board_id}: active page not found: {active_page_id}")
-                continue
-            result = page_service.preview_page(active_page_id, force_refresh=True)
-            if not result or not result.available:
-                logger.warning(f"Board {board_id}: failed to render active page: {active_page_id}")
-                continue
-
-            content = result.formatted
-            if self._secondary_last_sent.get(board_id) == (active_page_id, content):
-                continue
-
-            system_transition = settings_service.get_transition_settings()
-            strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
-            interval_ms = (
-                page.transition_interval_ms
-                if page.transition_interval_ms is not None
-                else system_transition.step_interval_ms
-            )
-            step_size = (
-                page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
-            )
-
-            dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
-            board_array = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
             try:
-                success, was_sent = client.render(
-                    board_array,
-                    strategy=strategy,
-                    step_interval_ms=interval_ms,
-                    step_size=step_size,
-                    device_type=page.device_type,
-                )
-            except Exception as e:
-                logger.error(f"Board {board_id}: send failed: {e}")
-                continue
-            if success:
-                self._secondary_last_sent[board_id] = (active_page_id, content)
-                if was_sent:
-                    logger.info(f"Board {board_id}: active page sent: {active_page_id}")
-            else:
-                logger.error(f"Board {board_id}: failed to send active page: {active_page_id}")
+                self.check_and_send_for_board(board_id, rt, is_primary=False, board=board)
+            except Exception as e:  # partial-failure isolation
+                logger.error(f"Board {board_id}: update failed: {e}")
 
-    def _update_primary_board(self) -> bool:
-        """Check the primary board's active page and send if content changed.
+    def check_and_send_for_board(
+        self, board_id, rt: BoardRuntime, *, is_primary: bool, board: dict | None = None
+    ) -> bool:
+        """Resolve and send one board's active page. Unified per-board path.
 
-        Respects schedule mode - uses schedule-based page selection when enabled,
-        otherwise falls back to manual active page setting.
-        Active triggers take priority over scheduled/manual pages.
+        Respects schedule mode (per board) - uses schedule-based page selection
+        when that board's schedule is enabled, otherwise the board's manual
+        active page. Triggers and temporary overrides are the PRIMARY board's
+        feature set (locked epic decision); silence is a global decision with
+        per-board delivery. All state reads/writes go through ``rt``.
 
         Returns:
-            True if content was sent to board, False otherwise
+            True if content was sent to this board, False otherwise.
         """
         try:
             settings_service = get_settings_service()
@@ -424,122 +613,102 @@ class DisplayService:
             schedule_service = get_schedule_service()
 
             # --- Pause short-circuit (issue #970) ---
-            # When the board is paused the user wants FiestaBoard to be
-            # completely hands-off: no scheduled rotation, no silence
+            # A paused board is completely hands-off: no rotation, no silence
             # indicator, no trigger overrides, no override revert. Evaluate
-            # this BEFORE silence so a paused board doesn't even emit the
-            # one-shot SNOOZING indicator on entering silence.
-            board_id = self._get_first_board_id()
-            # Only treat a strict ``True`` as paused — guards against Mock
-            # returns from older fixtures that pre-date the pause feature.
+            # this BEFORE silence. Only a strict ``True`` counts as paused
+            # (guards against Mock returns from older fixtures).
             if settings_service.is_paused(board_id=board_id) is True:
                 logger.debug("Board %s is paused - skipping update", board_id or "(default)")
                 return False
 
-            # --- Silence mode short-circuit (evaluated FIRST) ---
-            # Important: we evaluate silence before doing ANY plugin/API work
-            # (trigger evaluation, page rendering, collection resolution) so a
-            # "snoozed" board doesn't cause weather/transit/stocks/etc. APIs
-            # to be hit on every poll. We send exactly one update when entering
-            # silence (with the SNOOZING indicator) and then go quiet until
-            # the silence window ends.
+            # --- Silence mode short-circuit (global decision, per-board state) ---
+            # Evaluate silence before any plugin/API work so a snoozed board
+            # doesn't hit weather/transit/stocks APIs on every poll. We send
+            # exactly one update on entering silence, then go quiet.
             silence_mode_active = Config.is_silence_mode_active()
-            entering_silence_mode = silence_mode_active and not self._last_silence_mode_active
-            exiting_silence_mode = not silence_mode_active and self._last_silence_mode_active
+            entering_silence_mode = silence_mode_active and not rt.last_silence_mode_active
+            exiting_silence_mode = not silence_mode_active and rt.last_silence_mode_active
 
-            if silence_mode_active and self._snoozing_message_sent:
-                # Steady-state silence: indicator is already on the board.
-                # Do nothing — no rendering, no plugin fetches, no trigger
-                # evaluation, no board send.
-                # (If we are here, _snoozing_message_sent=True implies a prior
-                # successful silence-mode send, which set _last_silence_mode_active
-                # to True, so this is necessarily not the entering-silence tick.)
-                logger.debug("Silence mode active - skipping update (board already snoozing)")
-                self._last_silence_mode_active = True
+            if silence_mode_active and rt.snoozing_message_sent:
+                # Steady-state silence: indicator is already on this board.
+                logger.debug(
+                    "Silence mode active - skipping update (board %s already snoozing)", board_id or "(default)"
+                )
+                rt.last_silence_mode_active = True
                 return False
 
             if exiting_silence_mode:
                 logger.info("▶️  Exiting silence mode - resuming normal updates")
-                self._snoozing_message_sent = False
-                # The board currently shows the SNOOZING indicator on top of
-                # whatever content was last rendered. Clear the content cache
-                # so the next render is unconditionally pushed to the board,
-                # otherwise we'd see "content unchanged, skipping send" and
-                # leave the indicator stuck on the board.
-                self._last_active_page_content = None
+                rt.snoozing_message_sent = False
+                # The board still shows the SNOOZING indicator on top of the
+                # last-rendered content. Clear the content cache so the next
+                # render is unconditionally pushed, otherwise "content
+                # unchanged, skipping send" leaves the indicator stuck.
+                rt.last_active_page_content = None
 
-            # --- Check for active triggers (highest priority, but suppressed during silence) ---
-            if not silence_mode_active:
+            # --- Triggers (PRIMARY only; suppressed during silence) ---
+            if is_primary and not silence_mode_active:
                 trigger_content = self._check_trigger_override()
                 if trigger_content is not None:
-                    return self._send_trigger_content(trigger_content)
+                    return self._send_trigger_content(trigger_content, rt)
 
-            # --- Temporary override check (user-initiated, time-limited; below triggers) ---
-            # Issue #949: an explicit user override (POST /settings/temporary-override)
-            # must win over the silence schedule. The user pressed "show this page
-            # now" — honoring silence here would silently swallow that intent.
-            # Plugin-driven trigger overrides above DO still defer to silence;
-            # only this user-initiated path bypasses it.
+            # --- Temporary override (PRIMARY only; global consume-once store) ---
+            # Issue #949: an explicit user override wins over the silence
+            # schedule. Plugin-driven trigger overrides above still defer to
+            # silence; only this user-initiated path bypasses it.
             active_page_id = None
             override_active = False
-            override = settings_service.consume_temporary_override()
-            if override is not None:
-                if not override.is_expired():
-                    active_page_id = override.page_id
-                    override_active = True
-                    logger.debug(f"Temporary override active: using page {active_page_id}")
-                elif not silence_mode_active:
-                    # Override just expired — apply revert before resuming normal flow.
-                    # Skip during silence: the silence-mode dispatch below will own
-                    # the board until the silence window ends.
-                    logger.info(f"Temporary override expired, applying revert: {override.revert_mode}")
-                    if override.revert_mode == "blank":
-                        return self._send_blank_board()
-                    if override.revert_mode == "page" and override.revert_page_id:
-                        settings_service.set_active_page_id(override.revert_page_id)
-                    # "schedule" (and fallback): clear content cache so next tick rerenders
-                    self._last_active_page_content = None
+            if is_primary:
+                override = settings_service.consume_temporary_override()
+                if override is not None:
+                    if not override.is_expired():
+                        active_page_id = override.page_id
+                        override_active = True
+                        logger.debug(f"Temporary override active: using page {active_page_id}")
+                    elif not silence_mode_active:
+                        # Override just expired — apply revert before resuming.
+                        # Skip during silence: the silence dispatch owns the
+                        # board until the window ends.
+                        logger.info(f"Temporary override expired, applying revert: {override.revert_mode}")
+                        if override.revert_mode == "blank":
+                            return self._send_blank_board(rt)
+                        if override.revert_mode == "page" and override.revert_page_id:
+                            settings_service.set_active_page_id(override.revert_page_id, board_id=board_id)
+                        # "schedule" (and fallback): clear cache so next tick rerenders.
+                        rt.last_active_page_content = None
 
-            # Determine active page based on schedule mode (skipped when override is active)
-            if active_page_id is None and settings_service.is_schedule_enabled():
-                # Schedule mode: Use schedule service to determine page
-                # Use TimeService to get current time in configured timezone
+            # --- Determine this board's active page (schedule vs manual) ---
+            if active_page_id is None and settings_service.is_schedule_enabled(board_id=board_id):
                 from .time_service import get_time_service
 
-                time_service = get_time_service()
-                now = time_service.get_current_time()
+                now = get_time_service().get_current_time()
                 current_time = now.time()
                 current_day = now.strftime("%A").lower()  # monday, tuesday, etc.
-
-                # Pass the first board's ID so schedules scoped to that board are found
-                board_id = self._get_first_board_id()
                 active_page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
-
                 if active_page_id:
-                    logger.debug(f"Schedule mode: Active page determined by schedule: {active_page_id}")
+                    logger.debug(f"Board {board_id}: schedule active page: {active_page_id}")
                 else:
                     logger.debug(
-                        f"Schedule mode: No matching schedule for {current_day} {current_time.strftime('%H:%M')}"
+                        f"Board {board_id}: no matching schedule for {current_day} {current_time.strftime('%H:%M')}"
                     )
             elif active_page_id is None:
-                # Manual mode: Use manual active page setting
-                active_page_id = settings_service.get_active_page_id()
-                logger.debug(f"Manual mode: Using manual active page: {active_page_id}")
+                active_page_id = settings_service.get_active_page_id(board_id=board_id)
+                logger.debug(f"Board {board_id}: manual active page: {active_page_id}")
 
-            # No active page set - try to default to first page (manual mode only)
-            if not active_page_id and not settings_service.is_schedule_enabled():
+            # Primary never goes dark: default to first page in manual mode.
+            # Secondary boards do NOT default (they go dark when no page is set).
+            if not active_page_id and is_primary and not settings_service.is_schedule_enabled(board_id=board_id):
                 pages = page_service.list_pages()
                 if pages:
                     active_page_id = pages[0].id
-                    settings_service.set_active_page_id(active_page_id)
+                    settings_service.set_active_page_id(active_page_id, board_id=board_id)
                     logger.info(f"No active page set, defaulting to first page: {active_page_id}")
                 else:
                     logger.debug("No active page and no pages available")
                     return False
 
-            # If schedule mode but no page (gap without default), don't update board
             if not active_page_id:
-                logger.debug("No active page available (schedule gap with no default)")
+                logger.debug("Board %s: no active page available", board_id or "(default)")
                 return False
 
             # Resolve collections: if the active ref is a collection, determine
@@ -553,60 +722,54 @@ class DisplayService:
                 logger.debug(f"Collection {active_page_id} resolved to page {resolved}")
                 active_page_id = resolved
 
-            # Get the page for transition settings
             page = page_service.get_page(active_page_id)
             if not page:
                 logger.warning(f"Active page not found: {active_page_id}")
                 return False
 
-            # Render the page with fresh data — force_refresh bypasses the preview
-            # cache so template variables (weather, time, stocks, etc.) are current.
+            # Render with fresh data — force_refresh bypasses the preview cache
+            # so template variables (weather, time, stocks, etc.) are current.
             result = page_service.preview_page(active_page_id, force_refresh=True)
             if not result or not result.available:
                 logger.warning(f"Failed to render active page: {active_page_id}")
                 return False
 
-            # Silence-mode state was already evaluated at the top of this method.
-            # If we get here while silence is active, it means we are entering
-            # silence (or recovering from a missing indicator after restart /
-            # power outage) and need to send exactly one update with the
-            # silence-mode display, or suppress updates entirely (freeze mode).
-            #
-            # Exception (issue #949): a user-initiated temporary override wins
-            # over silence. The user explicitly asked to see this page now, so
-            # we render it and skip the silence dispatch. Once the override
-            # expires, normal silence behavior resumes on the next tick.
+            # --- Silence dispatch (per-board delivery, sized to this board) ---
+            # A user-initiated temporary override (primary only) wins over
+            # silence (issue #949); everything else is silenced.
             if silence_mode_active and not override_active:
                 silence_mode = Config.SILENCE_SCHEDULE_MODE
+                if is_primary:
+                    silence_dt = self._silence_device_type()
+                    silence_nw = silence_nt = 1
+                else:
+                    silence_dt = (board or {}).get("device_type") or "flagship"
+                    silence_nw = (board or {}).get("notes_wide", 1) or 1
+                    silence_nt = (board or {}).get("notes_tall", 1) or 1
                 if silence_mode == "freeze":
                     if entering_silence_mode:
                         logger.info("⏸️  Entering silence mode (freeze) - leaving board untouched")
                     else:
                         logger.debug("Silence mode active (freeze) - blocking update")
-                    self._last_silence_mode_active = True
-                    self._snoozing_message_sent = True
+                    rt.last_silence_mode_active = True
+                    rt.snoozing_message_sent = True
                     return False
                 if silence_mode == "page":
-                    return self._send_silence_page()
-                return self._send_silence_indicator(page.device_type)
+                    return self._send_silence_page(rt)
+                return self._send_silence_indicator(silence_dt, rt, silence_nw, silence_nt)
 
-            # Get base content
+            # --- Normal send (content changed) ---
             current_content = result.formatted
-            content_to_send = current_content
-
-            # Normal mode (not in silence) - check if content changed
-            if current_content == self._last_active_page_content and active_page_id == self._last_active_page_id:
-                logger.debug("Active page content unchanged, skipping send")
+            if current_content == rt.last_active_page_content and active_page_id == rt.last_active_page_id:
+                logger.debug("Board %s: content unchanged, skipping send", board_id or "(default)")
                 return False
-            logger.info(f"Active page content changed, sending to board: {active_page_id}")
+            logger.info(f"Board {board_id}: active page content changed, sending: {active_page_id}")
 
-            # At this point, we're going to send an update
-
-            if not self.vb_client:
+            if not rt.client:
                 logger.warning("Board client not initialized")
                 return False
 
-            # Get transition settings - use page-level if set, otherwise system defaults
+            # Transition settings — page-level if set, otherwise system defaults.
             system_transition = settings_service.get_transition_settings()
             strategy = page.transition_strategy if page.transition_strategy else system_transition.strategy
             interval_ms = (
@@ -618,11 +781,12 @@ class DisplayService:
                 page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
             )
 
-            # Send to board
+            # resolve_dimensions (never get_dimensions, which raises for
+            # note_array) so a note-array page renders at its true size.
             dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
-            board_array = text_to_board_array(content_to_send, rows=dims.rows, cols=dims.cols)
+            board_array = text_to_board_array(current_content, rows=dims.rows, cols=dims.cols)
 
-            success, was_sent = self.vb_client.render(
+            success, was_sent = rt.client.render(
                 board_array,
                 strategy=strategy,
                 step_interval_ms=interval_ms,
@@ -631,30 +795,34 @@ class DisplayService:
             )
 
             if success:
-                self._last_active_page_content = content_to_send
-                self._last_active_page_id = active_page_id
-                self._last_silence_mode_active = silence_mode_active
-
+                rt.last_active_page_content = current_content
+                rt.last_active_page_id = active_page_id
+                rt.last_silence_mode_active = silence_mode_active
                 if was_sent:
-                    logger.info(f"Active page sent to board: {active_page_id}")
-                    self.request_board_refresh()
+                    logger.info(f"Board {board_id}: active page sent: {active_page_id}")
+                    # Board-state adaptive refresh is primary-only (see
+                    # _board_poll_loop). Secondary boards don't feed the
+                    # board-read cache the Active Display UI shows.
+                    if is_primary:
+                        self.request_board_refresh()
                 else:
                     logger.debug("Active page unchanged at board level")
                 return was_sent
-            logger.error(f"Failed to send active page to board: {active_page_id}")
+            logger.error(f"Board {board_id}: failed to send active page: {active_page_id}")
             return False
 
         except Exception as e:
-            logger.error(f"Error checking active page: {e}")
+            logger.error(f"Error checking active page for board {board_id}: {e}")
             return False
 
     # ------------------------------------------------------------------ #
     # Temporary override helpers
     # ------------------------------------------------------------------ #
 
-    def _send_blank_board(self) -> bool:
+    def _send_blank_board(self, rt: BoardRuntime | None = None) -> bool:
         """Send a fully blank board when a temporary override expires with revert_mode='blank'."""
-        if not self.vb_client:
+        rt = rt if rt is not None else self._ensure_primary_runtime()
+        if rt is None or rt.client is None:
             logger.warning("Board client not initialized")
             return False
 
@@ -665,7 +833,7 @@ class DisplayService:
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
 
-        success, was_sent = self.vb_client.render(
+        success, was_sent = rt.client.render(
             board_array,
             strategy=system_transition.strategy,
             step_interval_ms=system_transition.step_interval_ms,
@@ -674,8 +842,8 @@ class DisplayService:
         )
 
         if success:
-            self._last_active_page_content = None
-            self._last_active_page_id = None
+            rt.last_active_page_content = None
+            rt.last_active_page_id = None
             logger.info("Temporary override expired (blank) - board cleared")
             if was_sent:
                 self.request_board_refresh()
@@ -688,7 +856,7 @@ class DisplayService:
     # ------------------------------------------------------------------ #
 
     def _silence_device_type(self) -> str:
-        """Pick a device type for the silence display.
+        """Pick a device type for the primary board's silence display.
 
         Prefers the first configured board's device type so the silence
         display is sized for the actual hardware (Note vs Flagship). Falls
@@ -704,13 +872,13 @@ class DisplayService:
             logger.warning("Could not determine device type from board settings: %s", e)
         return "flagship"
 
-    def _build_silence_indicator_array(self, device_type: str):
+    def _build_silence_indicator_array(self, device_type: str, notes_wide: int = 1, notes_tall: int = 1):
         """Build a clean board array with 'SNOOZING' centered.
 
-        Sized for the given device so the message fits the Note (15 cols)
-        as well as the Flagship (22 cols) without overlaying other content.
+        Sized via resolve_dimensions so it fits the Note (15 cols), the
+        Flagship (22 cols), and any note-array grid without overlaying content.
         """
-        dims = get_dimensions(device_type)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
         board_array = [[BoardChars.SPACE] * dims.cols for _ in range(dims.rows)]
 
         indicator = Config.SILENCE_SCHEDULE_INDICATOR_TEXT
@@ -735,20 +903,28 @@ class DisplayService:
                 board_array[row][start_col + i] = char_code
         return board_array
 
-    def _send_silence_indicator(self, page_device_type: str) -> bool:
+    def _send_silence_indicator(
+        self, page_device_type: str, rt: BoardRuntime | None = None, notes_wide: int = 1, notes_tall: int = 1
+    ) -> bool:
         """Send a clean SNOOZING-only board sized for the device."""
-        if not self.vb_client:
+        rt = rt if rt is not None else self._ensure_primary_runtime()
+        if rt is None or rt.client is None:
             logger.warning("Board client not initialized")
             return False
 
-        device_type = self._silence_device_type() or page_device_type
+        # Primary board: prefer the first configured board's device type
+        # (legacy behavior). Secondary boards pass their own resolved geometry.
+        if rt.board_id == self._primary_board_id:
+            device_type = self._silence_device_type() or page_device_type
+        else:
+            device_type = page_device_type
         logger.info(f"⏸️  Entering silence mode (indicator) - displaying SNOOZING for {device_type}")
 
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
-        board_array = self._build_silence_indicator_array(device_type)
+        board_array = self._build_silence_indicator_array(device_type, notes_wide, notes_tall)
 
-        success, was_sent = self.vb_client.render(
+        success, was_sent = rt.client.render(
             board_array,
             strategy=system_transition.strategy,
             step_interval_ms=system_transition.step_interval_ms,
@@ -757,23 +933,24 @@ class DisplayService:
         )
 
         if success:
-            self._last_active_page_content = "snoozing"
-            self._last_active_page_id = "__silence__"
-            self._last_silence_mode_active = True
-            self._snoozing_message_sent = True
+            rt.last_active_page_content = "snoozing"
+            rt.last_active_page_id = "__silence__"
+            rt.last_silence_mode_active = True
+            rt.snoozing_message_sent = True
             logger.info("🔇 Silence mode active - further updates blocked until silence ends")
             return was_sent
 
         logger.error("Failed to send silence indicator to board")
         return False
 
-    def _send_silence_page(self) -> bool:
+    def _send_silence_page(self, rt: BoardRuntime | None = None) -> bool:
         """Render the configured silence page once and freeze it on the board.
 
         Variables in the page are rendered with the values present at the
         moment silence begins; the board is not refreshed afterwards.
         """
-        if not self.vb_client:
+        rt = rt if rt is not None else self._ensure_primary_runtime()
+        if rt is None or rt.client is None:
             logger.warning("Board client not initialized")
             return False
 
@@ -786,14 +963,14 @@ class DisplayService:
                 "Silence mode 'page' selected but page %r not found - falling back to indicator",
                 page_id,
             )
-            return self._send_silence_indicator(self._silence_device_type())
+            return self._send_silence_indicator(self._silence_device_type(), rt)
 
         logger.info(f"⏸️  Entering silence mode (page) - displaying {page.id}")
 
         result = page_service.preview_page(page.id, force_refresh=True)
         if not result or not result.available:
             logger.warning("Silence page %s could not be rendered - falling back to indicator", page.id)
-            return self._send_silence_indicator(page.device_type)
+            return self._send_silence_indicator(page.device_type, rt)
 
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
@@ -808,7 +985,7 @@ class DisplayService:
         dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
         board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
 
-        success, was_sent = self.vb_client.render(
+        success, was_sent = rt.client.render(
             board_array,
             strategy=strategy,
             step_interval_ms=interval_ms,
@@ -817,10 +994,10 @@ class DisplayService:
         )
 
         if success:
-            self._last_active_page_content = result.formatted
-            self._last_active_page_id = f"__silence_page__:{page.id}"
-            self._last_silence_mode_active = True
-            self._snoozing_message_sent = True
+            rt.last_active_page_content = result.formatted
+            rt.last_active_page_id = f"__silence_page__:{page.id}"
+            rt.last_silence_mode_active = True
+            rt.snoozing_message_sent = True
             logger.info("🔇 Silence page sent - further updates blocked until silence ends")
             return was_sent
 
@@ -874,16 +1051,17 @@ class DisplayService:
             logger.error(f"Error checking triggers: {e}")
             return None
 
-    def _send_trigger_content(self, content: str) -> bool:
-        """Send trigger content to the board.
+    def _send_trigger_content(self, content: str, rt: BoardRuntime | None = None) -> bool:
+        """Send trigger content to the board (primary board).
 
         Returns True if the content was sent successfully.
         """
-        if not self.vb_client:
+        rt = rt if rt is not None else self._ensure_primary_runtime()
+        if rt is None or rt.client is None:
             logger.warning("Board client not initialized")
             return False
 
-        if content == self._last_active_page_content:
+        if content == rt.last_active_page_content:
             logger.debug("Trigger content unchanged, skipping send")
             return False
 
@@ -895,7 +1073,7 @@ class DisplayService:
         dims = get_dimensions(device_type)
         board_array = text_to_board_array(content, rows=dims.rows, cols=dims.cols)
 
-        success, was_sent = self.vb_client.render(
+        success, was_sent = rt.client.render(
             board_array,
             strategy=system_transition.strategy,
             step_interval_ms=system_transition.step_interval_ms,
@@ -904,8 +1082,8 @@ class DisplayService:
         )
 
         if success:
-            self._last_active_page_content = content
-            self._last_active_page_id = "__trigger__"
+            rt.last_active_page_content = content
+            rt.last_active_page_id = "__trigger__"
             if was_sent:
                 logger.info("Triggered message sent to board")
             return was_sent
@@ -945,7 +1123,6 @@ class DisplayService:
         self.check_and_send_active_page()
 
         logger.info("Service started, waiting for scheduled updates...")
-        _next_collection_check: float = time.time()
         try:
             while self.running:
                 schedule.run_pending()
@@ -971,20 +1148,22 @@ class DisplayService:
 
                 # When a collection is active, poll at its mode-specific cadence:
                 # time-mode aligns with the next page boundary; variable-mode uses
-                # the configured poll_seconds.
+                # the configured poll_seconds. The gate lives on the primary
+                # runtime (issue #1243) so a runtime rebuild resets it cleanly.
                 now = time.time()
-                if now >= _next_collection_check:
+                primary_rt = self._ensure_primary_runtime()
+                if now >= primary_rt.next_collection_check:
                     ref_id = self._get_active_ref_id()
                     if ref_id and is_collection_id(ref_id):
                         collection_service = get_collection_service()
                         secs = collection_service.seconds_until_next_check(ref_id, now)
                         if secs is not None:
                             self.check_and_send_active_page()
-                            _next_collection_check = now + max(1, secs)
+                            primary_rt.next_collection_check = now + max(1, secs)
                         else:
-                            _next_collection_check = now + polling_interval
+                            primary_rt.next_collection_check = now + polling_interval
                     else:
-                        _next_collection_check = now + polling_interval
+                        primary_rt.next_collection_check = now + polling_interval
                 time.sleep(1)
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")

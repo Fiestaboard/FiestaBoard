@@ -1106,3 +1106,105 @@ describe("API Extended Tests", () => {
     });
   });
 });
+
+describe("Per-board boardId params (issue #1244)", () => {
+  it("getActivePage appends board_id for a real board id", async () => {
+    let capturedUrl = "";
+    server.use(
+      http.get(`${API_BASE}/settings/active-page`, ({ request }) => {
+        capturedUrl = request.url;
+        return HttpResponse.json({ page_id: "page-1", board_id: "b2" });
+      }),
+    );
+    await api.getActivePage("b2");
+    expect(capturedUrl).toContain("board_id=b2");
+  });
+
+  it("getActivePage used as a bare queryFn ignores TanStack Query's context object", async () => {
+    // Regression pin: `queryFn: api.getActivePage` hands the wrapper a
+    // QueryFunctionContext as its first arg. It must NOT become
+    // board_id=[object Object] (that made the backend return page_id null,
+    // looping the dashboard's default-page effect forever).
+    let capturedUrl = "";
+    server.use(
+      http.get(`${API_BASE}/settings/active-page`, ({ request }) => {
+        capturedUrl = request.url;
+        return HttpResponse.json({ page_id: "page-1" });
+      }),
+    );
+    const contextLike = { queryKey: ["activePage"], signal: new AbortController().signal, meta: undefined };
+    await (api.getActivePage as unknown as (arg?: unknown) => Promise<unknown>)(contextLike);
+    expect(capturedUrl).not.toContain("board_id");
+  });
+
+  it("setActivePage ignores a non-string second argument", async () => {
+    let capturedBody: Record<string, unknown> = {};
+    server.use(
+      http.put(`${API_BASE}/settings/active-page`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ status: "success", page_id: "page-1", sent_to_board: false });
+      }),
+    );
+    // e.g. an onClick handler passing the click event through
+    await (api.setActivePage as unknown as (pageId: string | null, arg?: unknown) => Promise<unknown>)("page-1", {
+      type: "click",
+    });
+    expect(capturedBody).toEqual({ page_id: "page-1" });
+
+    await api.setActivePage("page-1", "b2");
+    expect(capturedBody).toEqual({ page_id: "page-1", board_id: "b2" });
+  });
+
+  it("sendPage only appends board_id for a non-empty string", async () => {
+    let capturedUrl = "";
+    server.use(
+      http.post(`${API_BASE}/pages/:id/send`, ({ request }) => {
+        capturedUrl = request.url;
+        return HttpResponse.json({
+          status: "success",
+          page_id: "page-1",
+          message: "sent",
+          sent_to_board: true,
+          target: "board",
+        });
+      }),
+    );
+    await api.sendPage("page-1", "board", "b2");
+    expect(capturedUrl).toContain("board_id=b2");
+
+    await (api.sendPage as unknown as (pageId: string, target?: string, arg?: unknown) => Promise<unknown>)(
+      "page-1",
+      "board",
+      {
+        not: "a-board",
+      },
+    );
+    expect(capturedUrl).not.toContain("board_id");
+  });
+
+  it("getBoardCurrentMessage only appends board_id for a non-empty string", async () => {
+    let capturedUrl = "";
+    server.use(
+      http.get(`${API_BASE}/board/current-message`, ({ request }) => {
+        capturedUrl = request.url;
+        return HttpResponse.json({
+          characters: [],
+          message: "",
+          rows: 6,
+          cols: 22,
+          expected_characters: null,
+          cached_at: null,
+          api_mode: "local",
+        });
+      }),
+    );
+    await api.getBoardCurrentMessage("b2");
+    expect(capturedUrl).toContain("board_id=b2");
+
+    // Bare queryFn reference hazard (issue #1244): a context object must
+    // never be serialized into board_id.
+    const contextLike = { queryKey: ["board-current-message"], signal: new AbortController().signal, meta: undefined };
+    await (api.getBoardCurrentMessage as unknown as (arg?: unknown) => Promise<unknown>)(contextLike);
+    expect(capturedUrl).not.toContain("board_id");
+  });
+});

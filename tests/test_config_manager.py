@@ -1319,3 +1319,90 @@ def test_save_internal_is_atomic_on_mid_write_crash(tmp_path, monkeypatch):
     # The original file must be byte-identical — the crash should have hit a
     # .tmp file that never got renamed over the real one.
     assert config_path.read_bytes() == original_bytes
+
+
+# --- deliberate-removal tombstones (issue #1394) ---
+
+
+def test_mark_plugin_removed_persists_tombstone(tmp_path):
+    """Uninstalling a plugin records a tombstone that survives in config.json."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.mark_plugin_removed("stocks")
+
+    assert cm.get_removed_plugins() == ["stocks"]
+    assert cm.is_plugin_removed("stocks") is True
+    assert cm.is_plugin_removed("weather") is False
+
+    on_disk = json.loads(config_path.read_text())
+    assert on_disk["removed_plugins"] == ["stocks"]
+
+
+def test_mark_plugin_removed_is_idempotent(tmp_path):
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.mark_plugin_removed("stocks")
+    cm.mark_plugin_removed("stocks")
+    assert cm.get_removed_plugins() == ["stocks"]
+
+
+def test_is_plugin_removed_covers_instances_of_removed_base(tmp_path):
+    """A base-plugin tombstone also marks its named instances as removed."""
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.mark_plugin_removed("stocks")
+    assert cm.is_plugin_removed("stocks:sf") is True
+    assert cm.is_plugin_removed("weather:sf") is False
+
+
+def test_clear_plugin_removed_drops_base_and_instance_tombstones(tmp_path):
+    """Reinstalling a plugin clears its tombstone and any instance tombstones."""
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm.mark_plugin_removed("stocks")
+    cm.mark_plugin_removed("stocks:sf")
+    cm.mark_plugin_removed("weather")
+
+    cm.clear_plugin_removed("stocks")
+
+    assert cm.get_removed_plugins() == ["weather"]
+    on_disk = json.loads(config_path.read_text())
+    assert on_disk["removed_plugins"] == ["weather"]
+
+
+def test_clear_plugin_removed_noop_when_absent(tmp_path):
+    cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+    cm.clear_plugin_removed("stocks")  # must not raise or create the key
+    assert cm.get_removed_plugins() == []
+
+
+def test_removed_plugins_survives_reload_and_merge_with_defaults(tmp_path):
+    """Tombstones must survive a config reload (which merges with defaults)."""
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "board": {},
+                "features": {},
+                "general": {},
+                "removed_plugins": ["stocks"],
+            }
+        )
+    )
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_removed_plugins() == ["stocks"]
+    assert cm.get_all().get("removed_plugins") == ["stocks"]
+
+
+def test_get_removed_plugins_tolerates_garbage(tmp_path):
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "board": {},
+                "features": {},
+                "general": {},
+                "removed_plugins": ["stocks", 42, "", None],
+            }
+        )
+    )
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_removed_plugins() == ["stocks"]

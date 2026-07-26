@@ -45,7 +45,9 @@ function renderPage() {
   );
 }
 
-function mockBoardSettings(devices: ("flagship" | "note")[]) {
+type TestDevice = "flagship" | "note" | "note_array";
+
+function mockBoardSettings(devices: TestDevice[]) {
   server.use(
     http.get(`${API_BASE}/settings/board`, () =>
       HttpResponse.json({
@@ -57,7 +59,7 @@ function mockBoardSettings(devices: ("flagship" | "note")[]) {
   );
 }
 
-function mockPages(pages: { id: string; name: string; device_type: "flagship" | "note" }[]) {
+function mockPages(pages: { id: string; name: string; device_type: TestDevice }[]) {
   server.use(
     http.get(`${API_BASE}/pages`, () =>
       HttpResponse.json({
@@ -123,6 +125,39 @@ describe("PagesPage device-type tabs", () => {
       const noteTab = screen.getByRole("tab", { name: "Note" });
       expect(noteTab.getAttribute("aria-selected")).toBe("true");
     });
+  });
+
+  // Regression for issue #1416: note_array was missing from DEVICE_ORDER, so
+  // note-array pages were filtered out of every tab and became invisible.
+  it("shows the note-array tab and its page on a note-array-only setup", async () => {
+    mockBoardSettings(["note_array"]);
+    mockPages([
+      { id: "p1", name: "My Note Array Page", device_type: "note_array" },
+      { id: "p2", name: "Orphan Flagship Demo", device_type: "flagship" },
+    ]);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Note Array" })).toBeInTheDocument();
+    });
+    // The note-array page is visible under its default (configured) tab.
+    await waitFor(() => expect(screen.getByText("My Note Array Page")).toBeInTheDocument());
+  });
+
+  it("clicking the note-array tab reveals its page when another device is configured", async () => {
+    const user = userEvent.setup();
+    mockBoardSettings(["flagship"]);
+    mockPages([
+      { id: "p1", name: "My Flagship", device_type: "flagship" },
+      { id: "p2", name: "Note Array Page", device_type: "note_array" },
+    ]);
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Note Array" })).toBeInTheDocument());
+    await user.click(screen.getByRole("tab", { name: "Note Array" }));
+    await waitFor(() => expect(screen.getByText("Note Array Page")).toBeInTheDocument());
   });
 
   it("clicking the orphan flagship tab reveals the orphan page", async () => {

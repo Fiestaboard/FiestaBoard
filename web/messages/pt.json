@@ -149,6 +149,7 @@
     "listView": "Exibição em lista",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "Nenhuma página criada ainda.",
     "noPagesDescription": "Crie sua primeira página para exibir no painel.",
     "createFirstPage": "Crie sua primeira página",
@@ -327,7 +328,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} de {total} páginas desta coleção não se ajustam ao tamanho deste quadro e serão ignoradas.",
+      "incompatiblePageWarning": "Esta página não corresponde ao tamanho deste quadro e pode não ser exibida corretamente."
     },
     "descriptionWithTimezone": "Automatize a rotação de páginas por hora e dia · {timezone}",
     "gapDefaultPlaceholder": "Predefinida para intervalo…",
@@ -598,6 +601,7 @@
   },
   "activeDisplay": {
     "title": "Exibição Ativa",
+    "boardIndicator": "Mostrando {boardName}",
     "viewSchedule": "Ver Agenda",
     "changePage": "Alterar Página",
     "scheduleMode": "Modo Agenda",
@@ -628,7 +632,8 @@
     "changeModeOverrideDescription": "Mostrar uma página durante um tempo definido e depois retomar o agendamento.",
     "changeModeDisableTitle": "Desativar modo de agendamento",
     "changeModeDisableDescription": "Desativar o agendamento e controlar o board manualmente.",
-    "changeModeDisableSuccess": "Modo de agendamento desativado"
+    "changeModeDisableSuccess": "Modo de agendamento desativado",
+    "collectionSizeWarning": "{count} de {total} páginas desta coleção não se ajustam ao tamanho deste quadro e serão ignoradas."
   },
   "forceSetDialog": {
     "title": "Forçar board",
@@ -691,6 +696,7 @@
     "plainEditorPlaceholder": "Digite o texto do template usando a sintaxe '{{variable}}' para dados dinâmicos",
     "lineCountWarning": "O template tem {lineCount} linhas, mas o painel exibe apenas {maxLines}. As linhas além de {maxLines} serão ignoradas.",
     "wrapBudgetWarning": "A linha {lineNumber} tem quebra ativada mas só cabe numa linha. Ative a quebra na linha abaixo ou deixe-a vazia para o texto poder fluir.",
+    "drawModeHint": "O modo de desenho está ativo — clique ou arraste na pré-visualização para pintar os blocos. Esc para sair.",
     "warningLabel": "Aviso:",
     "previewLabel": "Pré-visualização",
     "boardColorLabel": "Cor do painel",
@@ -719,7 +725,15 @@
     "exportDialogTitle": "Exportar página",
     "exportDialogDescription": "Copie esta string de partilha para partilhar a sua página com outros.",
     "exportStringAriaLabel": "String de partilha",
-    "exportCopyAriaLabel": "Copiar string de partilha"
+    "exportCopyAriaLabel": "Copiar string de partilha",
+    "retargetConfirmTitle": "Alterar o tamanho do quadro?",
+    "retargetConfirmDescription": "Esta página foi salva para {oldSize} e será redimensionada para {newSize}. O conteúdo que não couber no quadro menor será cortado.",
+    "retargetConfirmAction": "Redimensionar e salvar",
+    "retargetIncompatibleWarning": "Esta página não cabe mais em: {list}",
+    "retargetSurfaceSchedule": "entrada de agenda",
+    "retargetSurfaceActivePage": "página ativa",
+    "notesWideOption": "{count} de largura",
+    "notesTallOption": "{count} de altura"
   },
   "displaySettings": {
     "title": "Seus Painéis",
@@ -1259,7 +1273,9 @@
     "collectionsTab": "Carrosséis ({count})",
     "noPagesTitle": "Ainda não foram criadas páginas.",
     "noPagesDescription": "Crie a sua primeira página para mostrar no board.",
-    "createFirstPage": "Crie a sua primeira página"
+    "createFirstPage": "Crie a sua primeira página",
+    "noCompatiblePagesTitle": "Nenhuma página corresponde ao tamanho deste quadro.",
+    "noCompatiblePagesDescription": "Crie uma página no tamanho deste quadro para vê-la aqui."
   },
   "profile": {
     "title": "Perfil",
@@ -1695,6 +1711,20 @@
     "variablesNoVarsAvailable": "Variáveis (nenhuma variável disponível)",
     "noVariablesAvailable": "Nenhuma variável de modelo disponível. Configure plugins em Definições.",
     "colors": "Cores",
+    "drawMode": "Desenhar no board",
+    "drawModeActive": "Sair do modo de desenho",
+    "drawCharacter": "Carimbar caractere",
+    "drawEraser": "Borracha",
+    "drawColors": {
+      "red": "Vermelho",
+      "orange": "Laranja",
+      "yellow": "Amarelo",
+      "green": "Verde",
+      "blue": "Azul",
+      "violet": "Violeta",
+      "white": "Branco",
+      "black": "Preto"
+    },
     "formatting": "Formatação",
     "insertFormula": "Inserir fórmula",
     "toggleWrap": "Alternar quebra para a linha atual",

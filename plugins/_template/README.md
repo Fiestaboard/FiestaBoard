@@ -177,6 +177,7 @@ The `screenshots` array makes plugin images discoverable by the docs site, API, 
 ```python
 from src.plugins.base import PluginBase, PluginResult
 
+
 class MyPlugin(PluginBase):
     @property
     def plugin_id(self) -> str:
@@ -226,18 +227,25 @@ python scripts/run_plugin_tests.py
 
 ```python
 """Tests for the my_plugin plugin."""
+
 import json, pytest
 from pathlib import Path
 from plugins.my_plugin import MyPlugin
 from src.plugins.base import PluginResult
-from src.plugins.manifest import PluginManifest
 
 MANIFEST_PATH = Path(__file__).parent.parent / "manifest.json"
 
+
+# PluginBase stores the manifest as a plain dict and calls `.get()` on it,
+# so the fixture must return the parsed dict — exactly what the loader passes
+# in production (`plugin_class(manifest.raw)`). Do NOT wrap it in
+# PluginManifest.from_dict(); that object has no `.get()` and any test that
+# touches `self.info` or `self.get_settings_schema()` would raise AttributeError.
 @pytest.fixture
 def manifest():
     with open(MANIFEST_PATH) as f:
-        return PluginManifest.from_dict(json.load(f))
+        return json.load(f)
+
 
 class TestMyPlugin:
     def test_plugin_id(self, manifest):

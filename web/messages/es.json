@@ -149,6 +149,7 @@
     "listView": "Vista de lista",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "Aún no se han creado páginas.",
     "noPagesDescription": "Crea tu primera página para mostrarla en el tablero.",
     "createFirstPage": "Crea tu primera página",
@@ -327,7 +328,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} de {total} páginas de esta colección no se ajustan al tamaño de este tablero y se omitirán.",
+      "incompatiblePageWarning": "Esta página no coincide con el tamaño de este tablero y puede no mostrarse correctamente."
     },
     "descriptionWithTimezone": "Automatiza la rotación de páginas por hora y día · {timezone}",
     "gapDefaultPlaceholder": "Predeterminada para huecos…",
@@ -598,6 +601,7 @@
   },
   "activeDisplay": {
     "title": "Pantalla activa",
+    "boardIndicator": "Mostrando {boardName}",
     "viewSchedule": "Ver horario",
     "changePage": "Cambiar página",
     "scheduleMode": "Modo de horario",
@@ -628,7 +632,8 @@
     "changeModeOverrideDescription": "Mostrar una página durante un tiempo determinado y luego reanudar tu programación.",
     "changeModeDisableTitle": "Desactivar modo programado",
     "changeModeDisableDescription": "Desactivar la programación y controlar la pantalla manualmente.",
-    "changeModeDisableSuccess": "Modo programado desactivado"
+    "changeModeDisableSuccess": "Modo programado desactivado",
+    "collectionSizeWarning": "{count} de {total} páginas de esta colección no se ajustan al tamaño de este tablero y se omitirán."
   },
   "forceSetDialog": {
     "title": "Forzar pantalla",
@@ -691,6 +696,7 @@
     "plainEditorPlaceholder": "Escribe el texto de tu plantilla usando la sintaxis '{{variable}}' para datos dinámicos",
     "lineCountWarning": "La plantilla tiene {lineCount} líneas pero el tablero solo muestra {maxLines}. Las líneas después de {maxLines} serán ignoradas.",
     "wrapBudgetWarning": "La línea {lineNumber} tiene ajuste activado pero solo cabe una fila. Activa el ajuste en la línea siguiente o déjala vacía para que el texto pueda fluir.",
+    "drawModeHint": "El modo de dibujo está activo — haz clic o arrastra en la vista previa para pintar mosaicos. Esc para salir.",
     "warningLabel": "Advertencia:",
     "previewLabel": "Vista previa",
     "boardColorLabel": "Color del tablero",
@@ -719,7 +725,15 @@
     "exportDialogTitle": "Exportar página",
     "exportDialogDescription": "Copia este código compartido para compartir tu página con otros.",
     "exportStringAriaLabel": "Código compartido",
-    "exportCopyAriaLabel": "Copiar código compartido"
+    "exportCopyAriaLabel": "Copiar código compartido",
+    "retargetConfirmTitle": "¿Cambiar el tamaño del tablero?",
+    "retargetConfirmDescription": "Esta página se guardó para {oldSize} y se redimensionará a {newSize}. El contenido que no quepa en el tablero más pequeño se recortará.",
+    "retargetConfirmAction": "Redimensionar y guardar",
+    "retargetIncompatibleWarning": "Esta página ya no cabe en: {list}",
+    "retargetSurfaceSchedule": "entrada de horario",
+    "retargetSurfaceActivePage": "página activa",
+    "notesWideOption": "{count} de ancho",
+    "notesTallOption": "{count} de alto"
   },
   "displaySettings": {
     "title": "Tus tableros",
@@ -1259,7 +1273,9 @@
     "collectionsTab": "Carruseles ({count})",
     "noPagesTitle": "Aún no se han creado páginas.",
     "noPagesDescription": "Crea tu primera página para mostrarla en el tablero.",
-    "createFirstPage": "Crear tu primera página"
+    "createFirstPage": "Crear tu primera página",
+    "noCompatiblePagesTitle": "Ninguna página coincide con el tamaño de este tablero.",
+    "noCompatiblePagesDescription": "Crea una página del tamaño de este tablero para verla aquí."
   },
   "profile": {
     "title": "Perfil",
@@ -1695,6 +1711,20 @@
     "variablesNoVarsAvailable": "Variables (no hay variables disponibles)",
     "noVariablesAvailable": "No hay variables de plantilla disponibles. Configura plugins en Ajustes.",
     "colors": "Colores",
+    "drawMode": "Dibujar en el tablero",
+    "drawModeActive": "Salir del modo de dibujo",
+    "drawCharacter": "Estampar carácter",
+    "drawEraser": "Borrador",
+    "drawColors": {
+      "red": "Rojo",
+      "orange": "Naranja",
+      "yellow": "Amarillo",
+      "green": "Verde",
+      "blue": "Azul",
+      "violet": "Violeta",
+      "white": "Blanco",
+      "black": "Negro"
+    },
     "formatting": "Formato",
     "insertFormula": "Insertar fórmula",
     "toggleWrap": "Alternar ajuste en la línea actual",

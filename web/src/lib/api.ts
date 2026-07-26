@@ -1,12 +1,22 @@
 // API client for FiestaBoard service
 // All API calls go through nginx at /api/* (same origin, unified container).
-const API_BASE = "/api";
+// URLs are built via apiUrl() so they pick up the runtime base path when
+// the app is served from a subpath (HA Ingress) — see lib/base-path.ts.
+import { apiUrl, appUrl, stripBasePath } from "./base-path";
 
 // Types for API responses
 export interface StatusResponse {
   running: boolean;
   initialized: boolean;
   config_summary: ConfigSummary;
+  /** Per-board status keyed by board id (issue #1244). */
+  boards?: Record<string, BoardStatus>;
+}
+
+export interface BoardStatus {
+  configured: boolean;
+  paused: boolean;
+  active_page_id: string | null;
 }
 
 export interface ConfigSummary {
@@ -29,13 +39,16 @@ export interface PreviewResponse {
 }
 
 export interface BoardCurrentMessageResponse {
-  characters: number[][];
-  message: string;
+  // characters/message are null for a secondary board that has no cached
+  // content yet (board-state polling is primary-only; see issue #1247).
+  characters: number[][] | null;
+  message: string | null;
   rows: number;
   cols: number;
   expected_characters: number[][] | null;
   cached_at: string | null;
   api_mode: "local" | "cloud";
+  board_id?: string | null;
 }
 
 export interface ActionResponse {
@@ -184,12 +197,14 @@ export interface OutputSettings {
 // Active page settings
 export interface ActivePageResponse {
   page_id: string | null;
+  board_id?: string | null;
 }
 
 export interface SetActivePageResponse {
   status: string;
   page_id: string | null;
   sent_to_board: boolean;
+  board_id?: string | null;
 }
 
 // Page types
@@ -254,6 +269,8 @@ export interface PageCreate {
 
 export interface PageUpdate {
   name?: string;
+  /** Device/size retarget (issue #1250) — converting geometries is lossy. */
+  device_type?: DeviceType;
   display_type?: string;
   rows?: RowConfig[];
   template?: string[];
@@ -272,6 +289,25 @@ export interface PageUpdate {
 export interface PagesResponse {
   pages: Page[];
   total: number;
+}
+
+/**
+ * A schedule/active-page reference left pointing at a board the page no
+ * longer fits after a device/size retarget (issue #1250). Warn-only — the
+ * backend never mutates or removes these.
+ */
+export interface IncompatibleReference {
+  board_id: string;
+  board_name: string;
+  surface: "schedule" | "active_page";
+  schedule_id?: string | null;
+}
+
+export interface PageUpdateResponse {
+  status: string;
+  page: Page;
+  /** Present iff the update changed the page's size (may be empty). */
+  incompatible_references?: IncompatibleReference[];
 }
 
 export interface StaffPickPlugin {
@@ -309,6 +345,7 @@ export interface PageSendResponse {
   message: string;
   sent_to_board: boolean;
   target: string;
+  board_id?: string | null;
 }
 
 export interface CurrentDisplayResponse {
@@ -1325,7 +1362,9 @@ const DEFAULT_TIMEOUT_MS = 30000;
  */
 function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
   if (typeof window === "undefined") return false;
-  if (window.location.pathname.startsWith("/login")) return false;
+  // Compare app-relative routes: under HA Ingress the raw pathname is
+  // "<prefix>/login", which a bare "/login" check would miss and loop.
+  if (stripBasePath(window.location.pathname).startsWith("/login")) return false;
   if (res.status === 401 || res.status === 409) {
     // For 409 only redirect when the body actually says setup_required —
     // other 409s (e.g. "already set up") should bubble up as errors.
@@ -1338,8 +1377,7 @@ function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
         .json()
         .then((body) => {
           if (body?.setup_required) {
-            const target = encodeURIComponent(window.location.pathname + window.location.search);
-            window.location.assign(`/login?redirect=${target}`);
+            window.location.assign(appUrl(`/login?redirect=${loginRedirectTarget()}`));
           }
         })
         .catch(() => {
@@ -1347,11 +1385,19 @@ function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
         });
       return false;
     }
-    const target = encodeURIComponent(window.location.pathname + window.location.search);
-    window.location.assign(`/login?redirect=${target}`);
+    window.location.assign(appUrl(`/login?redirect=${loginRedirectTarget()}`));
     return true;
   }
   return false;
+}
+
+/**
+ * App-relative route to bounce back to after login. Kept prefix-free:
+ * the login page navigates with the basename-aware router, which
+ * re-applies the ingress prefix on its own.
+ */
+function loginRedirectTarget(): string {
+  return encodeURIComponent(stripBasePath(window.location.pathname) + window.location.search);
 }
 
 async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: number }): Promise<T> {
@@ -1361,7 +1407,7 @@ async function fetchApi<T>(path: string, options?: RequestInit & { timeoutMs?: n
 
   let res: globalThis.Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    res = await fetch(apiUrl(path), {
       ...fetchOptions,
       signal,
       // Send the session cookie on every API call so auth-protected
@@ -1460,7 +1506,13 @@ export const api = {
   // Queries (read-only)
   getStatus: () => fetchApi<StatusResponse>("/status"),
   getConfig: () => fetchApi<ConfigSummary>("/config"),
-  getBoardCurrentMessage: () => fetchApi<BoardCurrentMessageResponse>("/board/current-message"),
+  // Non-empty string only — see the getActivePage note (issue #1244).
+  getBoardCurrentMessage: (boardId?: string) =>
+    fetchApi<BoardCurrentMessageResponse>(
+      typeof boardId === "string" && boardId
+        ? `/board/current-message?board_id=${encodeURIComponent(boardId)}`
+        : "/board/current-message",
+    ),
 
   // Mutations (actions)
   startService: () => fetchApi<ActionResponse>("/start", { method: "POST" }),
@@ -1496,12 +1548,23 @@ export const api = {
       body: JSON.stringify({ target }),
     }),
 
-  // Active page settings
-  getActivePage: () => fetchApi<ActivePageResponse>("/settings/active-page"),
-  setActivePage: (pageId: string | null) =>
+  // Active page settings (optional boardId targets a specific board).
+  // boardId is only honored when it's a non-empty string: these wrappers may
+  // be handed to TanStack Query or event handlers as bare references, which
+  // would otherwise pass a context/event object as boardId (issue #1244).
+  getActivePage: (boardId?: string) =>
+    fetchApi<ActivePageResponse>(
+      typeof boardId === "string" && boardId
+        ? `/settings/active-page?board_id=${encodeURIComponent(boardId)}`
+        : "/settings/active-page",
+    ),
+  setActivePage: (pageId: string | null, boardId?: string) =>
     fetchApi<SetActivePageResponse>("/settings/active-page", {
       method: "PUT",
-      body: JSON.stringify({ page_id: pageId }),
+      body: JSON.stringify({
+        page_id: pageId,
+        ...(typeof boardId === "string" && boardId && { board_id: boardId }),
+      }),
     }),
 
   // Temporary override endpoints
@@ -1526,7 +1589,7 @@ export const api = {
       body: JSON.stringify(page),
     }),
   updatePage: (pageId: string, page: PageUpdate) =>
-    fetchApi<{ status: string; page: Page }>(`/pages/${pageId}`, {
+    fetchApi<PageUpdateResponse>(`/pages/${pageId}`, {
       method: "PUT",
       body: JSON.stringify(page),
     }),
@@ -1537,9 +1600,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ page_ids: pageIds }),
     }),
-  sendPage: (pageId: string, target?: "ui" | "board" | "both") => {
-    const params = target ? `?target=${target}` : "";
-    return fetchApi<PageSendResponse>(`/pages/${pageId}/send${params}`, { method: "POST" });
+  sendPage: (pageId: string, target?: "ui" | "board" | "both", boardId?: string) => {
+    const query = new URLSearchParams();
+    if (target) query.set("target", target);
+    // Non-empty string only — see the getActivePage note (issue #1244).
+    if (typeof boardId === "string" && boardId) query.set("board_id", boardId);
+    const qs = query.toString();
+    return fetchApi<PageSendResponse>(`/pages/${pageId}/send${qs ? `?${qs}` : ""}`, { method: "POST" });
   },
   getPageShareString: (pageId: string) => fetchApi<{ share_string: string }>(`/pages/${pageId}/share`),
   importPage: (shareString: string) =>
@@ -2109,7 +2176,7 @@ export const api = {
 
   // Backup & Restore — return URL/raw content directly so the browser can
   // trigger a file download or upload arbitrary JSON.
-  exportBackupUrl: () => `${API_BASE}/backup/export`,
+  exportBackupUrl: () => apiUrl("/backup/export"),
 
   importBackup: (payload: unknown, reinstallPlugins: boolean = true) =>
     fetchApi<{
@@ -2160,7 +2227,7 @@ export const api = {
   }): Promise<AIGenerateResult> => {
     // Bespoke fetch so we can surface the FastAPI `detail` message
     // (the LLM's own error text) directly to the user.
-    const res = await fetch(`${API_BASE}/pages/ai/generate`, {
+    const res = await fetch(apiUrl("/pages/ai/generate"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
@@ -2196,7 +2263,7 @@ export const api = {
    * "Current password is incorrect".
    */
   changePassword: async (currentPassword: string, newPassword: string) => {
-    const res = await fetch("/api/auth/change-password", {
+    const res = await fetch(apiUrl("/auth/change-password"), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -2222,7 +2289,7 @@ export const api = {
 
   /** Rename the signed-in user. Same bespoke-fetch reasoning as changePassword. */
   changeUsername: async (currentPassword: string, newUsername: string) => {
-    const res = await fetch("/api/auth/change-username", {
+    const res = await fetch(apiUrl("/auth/change-username"), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -2254,7 +2321,7 @@ export const api = {
    * Account tab after a user has previously disabled auth.
    */
   setAuthPreference: async (enabled: boolean) => {
-    const res = await fetch("/api/auth/preference", {
+    const res = await fetch(apiUrl("/auth/preference"), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -2283,7 +2350,7 @@ export const api = {
    * page) since /login no longer applies.
    */
   disableAuth: async (currentPassword: string) => {
-    const res = await fetch("/api/auth/disable", {
+    const res = await fetch(apiUrl("/auth/disable"), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },

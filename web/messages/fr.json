@@ -149,6 +149,7 @@
     "listView": "Vue en liste",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "Aucune page créée pour le moment.",
     "noPagesDescription": "Créez votre première page à afficher sur le tableau.",
     "createFirstPage": "Créer votre première page",
@@ -327,7 +328,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "{count} des {total} pages de cette collection ne correspondent pas à la taille de ce tableau et seront ignorées.",
+      "incompatiblePageWarning": "Cette page ne correspond pas à la taille de ce tableau et pourrait ne pas s'afficher correctement."
     },
     "descriptionWithTimezone": "Automatisez la rotation des pages par heure et jour · {timezone}",
     "gapDefaultPlaceholder": "Page par défaut…",
@@ -598,6 +601,7 @@
   },
   "activeDisplay": {
     "title": "Affichage actif",
+    "boardIndicator": "Affichage de {boardName}",
     "viewSchedule": "Voir la planification",
     "changePage": "Changer de page",
     "scheduleMode": "Mode planification",
@@ -628,7 +632,8 @@
     "changeModeOverrideDescription": "Affichez une page pendant une durée définie, puis reprenez votre planning.",
     "changeModeDisableTitle": "Désactiver le mode planning",
     "changeModeDisableDescription": "Désactivez le planning et contrôlez le board manuellement.",
-    "changeModeDisableSuccess": "Mode planning désactivé"
+    "changeModeDisableSuccess": "Mode planning désactivé",
+    "collectionSizeWarning": "{count} des {total} pages de cette collection ne correspondent pas à la taille de ce tableau et seront ignorées."
   },
   "forceSetDialog": {
     "title": "Forcer l'affichage",
@@ -691,6 +696,7 @@
     "plainEditorPlaceholder": "Tapez votre texte de modèle en utilisant la syntaxe '{{variable}}' pour les données dynamiques",
     "lineCountWarning": "Le modèle contient {lineCount} lignes mais le tableau n'en affiche que {maxLines}. Les lignes au-delà de {maxLines} seront ignorées.",
     "wrapBudgetWarning": "La ligne {lineNumber} a le retour à la ligne activé mais ne tient que sur une rangée. Activez le retour à la ligne suivante ou laissez-la vide pour que le texte puisse s'écouler.",
+    "drawModeHint": "Le mode dessin est activé — cliquez ou faites glisser sur l'aperçu pour peindre les tuiles. Échap pour quitter.",
     "warningLabel": "Attention :",
     "previewLabel": "Aperçu",
     "boardColorLabel": "Couleur du tableau",
@@ -719,7 +725,15 @@
     "exportDialogTitle": "Exporter la page",
     "exportDialogDescription": "Copiez cette chaîne de partage pour partager votre page avec d'autres.",
     "exportStringAriaLabel": "Chaîne de partage",
-    "exportCopyAriaLabel": "Copier la chaîne de partage"
+    "exportCopyAriaLabel": "Copier la chaîne de partage",
+    "retargetConfirmTitle": "Changer la taille du tableau ?",
+    "retargetConfirmDescription": "Cette page a été enregistrée pour {oldSize} et sera redimensionnée en {newSize}. Le contenu qui ne tient pas sur le tableau plus petit sera tronqué.",
+    "retargetConfirmAction": "Redimensionner et enregistrer",
+    "retargetIncompatibleWarning": "Cette page ne tient plus sur : {list}",
+    "retargetSurfaceSchedule": "entrée de planning",
+    "retargetSurfaceActivePage": "page active",
+    "notesWideOption": "{count} en largeur",
+    "notesTallOption": "{count} en hauteur"
   },
   "displaySettings": {
     "title": "Vos tableaux",
@@ -1259,7 +1273,9 @@
     "collectionsTab": "Carrousels ({count})",
     "noPagesTitle": "Aucune page créée pour le moment.",
     "noPagesDescription": "Créez votre première page à afficher sur le tableau.",
-    "createFirstPage": "Créer votre première page"
+    "createFirstPage": "Créer votre première page",
+    "noCompatiblePagesTitle": "Aucune page ne correspond à la taille de ce tableau.",
+    "noCompatiblePagesDescription": "Créez une page à la taille de ce tableau pour la voir ici."
   },
   "profile": {
     "title": "Profil",
@@ -1695,6 +1711,20 @@
     "variablesNoVarsAvailable": "Variables (aucune variable disponible)",
     "noVariablesAvailable": "Aucune variable de modèle disponible. Configurez les plugins dans les paramètres.",
     "colors": "Couleurs",
+    "drawMode": "Dessiner sur le board",
+    "drawModeActive": "Quitter le mode dessin",
+    "drawCharacter": "Tamponner un caractère",
+    "drawEraser": "Gomme",
+    "drawColors": {
+      "red": "Rouge",
+      "orange": "Orange",
+      "yellow": "Jaune",
+      "green": "Vert",
+      "blue": "Bleu",
+      "violet": "Violet",
+      "white": "Blanc",
+      "black": "Noir"
+    },
     "formatting": "Mise en forme",
     "insertFormula": "Insérer une formule",
     "toggleWrap": "Activer/désactiver le retour à la ligne sur la ligne actuelle",

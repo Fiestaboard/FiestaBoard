@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # Load environment variables from .env file before importing modules that may
 # read them at import time. The intra-package imports below intentionally come
@@ -41,7 +41,7 @@ from .displays.service import get_display_service, reset_display_service  # noqa
 from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.models import PageCreate, PageUpdate  # noqa: E402
-from .pages.service import get_page_service  # noqa: E402
+from .pages.service import check_ref_board_compatibility, find_incompatible_references, get_page_service  # noqa: E402
 from .pages.share import decode_page, encode_page  # noqa: E402
 from .schedules.models import ScheduleCreate, ScheduleUpdate  # noqa: E402
 from .schedules.service import get_schedule_service  # noqa: E402
@@ -457,6 +457,9 @@ class StatusResponse(BaseModel):
     running: bool
     initialized: bool
     config_summary: dict[str, Any]
+    # Per-board status keyed by board id (issue #1244). Additive: the
+    # top-level fields keep their legacy single-board meaning.
+    boards: dict[str, Any] = Field(default_factory=dict)
 
 
 class HealthResponse(BaseModel):
@@ -1655,13 +1658,52 @@ def _check_github_releases_for_latest() -> str | None:
         return None
 
 
+def _parse_version(v: str) -> tuple[int, ...]:
+    """Parse a numeric ``a.b.c`` version string into a comparable tuple.
+
+    Raises ``ValueError`` for anything that is not purely dot-separated
+    integers (e.g. a stray ``v`` prefix or an ``-rc`` suffix).
+    """
+    parts = v.split(".")
+    if not parts or not all(p.isdigit() for p in parts):
+        raise ValueError(f"Invalid version: {v}")
+    return tuple(int(x) for x in parts)
+
+
+def _pick_latest_version(*candidates: str | None) -> str | None:
+    """Return the newest parseable version among the given candidates.
+
+    Update availability is sourced from more than one place (Docker Hub tags
+    and the GitHub Releases API). Those sources can disagree or lag — Docker
+    Hub's tag-listing metadata sometimes trails a release that GitHub already
+    publishes. Taking the highest version any source reports (rather than
+    preferring one source and only falling back when it is empty) surfaces a
+    real release as soon as either source sees it. Empty or unparseable
+    candidates are ignored.
+    """
+    best_parsed: tuple[int, ...] | None = None
+    best_str: str | None = None
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            parsed = _parse_version(candidate)
+        except (ValueError, AttributeError):
+            continue
+        if best_parsed is None or parsed > best_parsed:
+            best_parsed = parsed
+            best_str = candidate
+    return best_str
+
+
 @app.get("/system/update-check", response_model=UpdateCheckResponse)
 async def system_update_check():
     """Check if a newer version of FiestaBoard is available.
 
-    Checks Docker Hub for the latest container image tag, with a fallback to
-    the GitHub Releases API. No authentication is required because the package
-    and repository are public.
+    Checks both Docker Hub and the GitHub Releases API and reports the newest
+    version either source lists (neither is preferred over the other, so a
+    lagging source cannot hide a release the other already sees). No
+    authentication is required because the package and repository are public.
 
     Returns the current version, latest version, and whether an update is available.
     """
@@ -1679,12 +1721,16 @@ async def _perform_update_check() -> "UpdateCheckResponse":
     is_production = os.getenv("PRODUCTION", "false").lower() == "true"
 
     try:
-        # Run both source checks in parallel; prefer Docker Hub, fall back to GitHub.
+        # Run both source checks in parallel and take the newest version either
+        # reports. Trusting one source and only falling back when it is empty
+        # lets a lagging source (e.g. Docker Hub tag metadata that has not yet
+        # registered a freshly published release) mask a real update the other
+        # source already sees.
         dh_version, gh_version = await asyncio.gather(
             asyncio.to_thread(_check_dockerhub_for_latest),
             asyncio.to_thread(_check_github_releases_for_latest),
         )
-        latest_version = dh_version or gh_version
+        latest_version = _pick_latest_version(dh_version, gh_version)
 
         if latest_version:
             update_available = _is_newer_version(latest_version, __version__)
@@ -1722,14 +1768,7 @@ def _is_newer_version(latest: str, current: str) -> bool:
     Handles version strings with varying component counts (e.g. "2.0" vs "2.0.1").
     """
     try:
-
-        def parse_version(v: str):
-            parts = v.split(".")
-            if not parts or not all(p.isdigit() for p in parts):
-                raise ValueError(f"Invalid version: {v}")
-            return tuple(int(x) for x in parts)
-
-        return parse_version(latest) > parse_version(current)
+        return _parse_version(latest) > _parse_version(current)
     except (ValueError, AttributeError):
         return False
 
@@ -2141,8 +2180,15 @@ def _build_post_upgrade_restore_set(snap_config: dict[str, Any], live_config: di
 
     snap_plugins = snap_config.get("plugins") or {}
     live_plugins = live_config.get("plugins") or {}
+    # Deliberate-removal tombstones (#1394): a plugin the user uninstalled is
+    # absent from the live config *on purpose* — never restore it from the
+    # snapshot. A base-plugin tombstone also covers its instances ("stocks:sf").
+    raw_removed = live_config.get("removed_plugins")
+    removed = {pid for pid in raw_removed if isinstance(pid, str)} if isinstance(raw_removed, list) else set()
     plugins: dict[str, Any] = {}
     for pid, snap_cfg in snap_plugins.items():
+        if pid in removed or pid.split(":", 1)[0] in removed:
+            continue  # deliberately uninstalled — do not resurrect (#1394)
         if not (isinstance(snap_cfg, dict) and snap_cfg.get("enabled") is True):
             continue  # only auto-restore plugins the user had ENABLED (#937 invariant)
         live_cfg = live_plugins.get(pid)
@@ -2914,6 +2960,30 @@ async def get_status():
     )
     # Add active page ID to config summary
     status.config_summary["active_page_id"] = settings_service.get_active_page_id()
+
+    # Per-board status (issue #1244): configured/paused/active page for every
+    # configured board, keyed by board id. Defensive throughout — a partial
+    # boards list must never break the legacy top-level status fields.
+    try:
+        boards = settings_service.get_board_settings().boards or []
+        for board in boards:
+            if not isinstance(board, dict) or not board.get("id"):
+                continue
+            bid = board["id"]
+            try:
+                configured = service.get_board_client(bid) is not None
+            except Exception:
+                configured = False
+            active_page_id = settings_service.get_active_page_id(board_id=bid)
+            if not isinstance(active_page_id, str):
+                active_page_id = None
+            status.boards[bid] = {
+                "configured": configured,
+                "paused": _board_is_paused(bid),
+                "active_page_id": active_page_id,
+            }
+    except Exception as e:
+        logger.debug(f"Per-board status unavailable: {e}")
     return status
 
 
@@ -2972,15 +3042,37 @@ async def stop_service():
 
 
 @app.post("/refresh")
-async def refresh_display():
-    """Manually trigger a display refresh."""
+async def refresh_display(board_id: str | None = None, payload: dict | None = Body(None)):
+    """Manually trigger a display refresh.
+
+    Args:
+        board_id: Optional board to refresh (query param, or
+            ``{"board_id": ...}`` in the JSON body). Omitted → legacy
+            behavior: refresh every board, primary first (issue #1244).
+    """
+    if board_id is None and payload:
+        board_id = payload.get("board_id")
+
     service = get_service()
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     try:
-        service.check_and_send_active_page()
-        return {"status": "success", "message": "Display refreshed successfully"}
+        if board_id is None:
+            service.check_and_send_active_page()
+            return {"status": "success", "message": "Display refreshed successfully", "board_id": None}
+
+        board = _find_board(board_id)
+        if board is None:
+            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        rt = service.get_runtime(board_id)
+        if rt is None:
+            raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
+        is_primary = board_id == get_settings_service().get_primary_board_id()
+        service.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
+        return {"status": "success", "message": f"Board {board_id} refreshed successfully", "board_id": board_id}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error refreshing display: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to refresh display: {str(e)}") from e
@@ -3081,12 +3173,21 @@ def _characters_to_message(characters: list) -> str:
 
 
 @app.get("/board/current-message")
-async def get_board_current_message(force: bool = False):
+async def get_board_current_message(force: bool = False, board_id: str | None = None):
     """Return the current state of the physical board.
 
     Normally serves from the cached result of the background poll thread
     (updated every 30 s local / 3 min cloud) so callers don't hammer the
     Vestaboard API.  Pass ?force=true to trigger a live read instead.
+
+    Args:
+        force: Trigger a live board read instead of serving the poll cache.
+            Only honored for the primary board.
+        board_id: Optional board to read (issue #1247). Omitted or the
+            primary board → legacy live-polled behavior. A secondary board is
+            served from its runtime cache (last-sent/polled content) because
+            board-state polling is primary-only by design; ``characters`` /
+            ``message`` are null when nothing has been sent to it yet.
 
     Returns:
         characters:          Actual 2-D grid currently on the board
@@ -3095,10 +3196,52 @@ async def get_board_current_message(force: bool = False):
         expected_characters: What FiestaBoard last sent (None until first send)
         cached_at:           ISO timestamp of last poll, or null on live read
         api_mode:            "local" or "cloud"
+        board_id:            Echo of the requested board id (null = primary)
     """
     service = get_service()
     if not service or not service.vb_client:
         raise HTTPException(status_code=503, detail="Board client not initialized")
+
+    if board_id is not None:
+        board = _find_board(board_id)
+        if board is None:
+            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        if board_id != get_settings_service().get_primary_board_id():
+            # Secondary board: serve from its runtime cache. No live read —
+            # the poll thread only tracks the primary board (issue #1243).
+            rt = service.get_runtime(board_id)
+            rt_client = rt.client if rt is not None else None
+            last_sent = getattr(rt_client, "_last_characters", None) if rt_client is not None else None
+            polled = rt.polled_characters if rt is not None else None
+            characters = polled if polled is not None else last_sent
+            cached_at = None
+            if polled is not None and rt is not None and rt.polled_at is not None:
+                cached_at = datetime.fromtimestamp(rt.polled_at, tz=UTC).isoformat()
+            board_api_mode = "cloud" if getattr(rt_client, "use_cloud", False) else "local"
+            if characters is None:
+                # Nothing sent to this board yet — return its geometry so the
+                # UI can degrade gracefully (render the active page instead).
+                dims = _board_dims(board)
+                return {
+                    "characters": None,
+                    "message": None,
+                    "rows": dims.rows,
+                    "cols": dims.cols,
+                    "expected_characters": None,
+                    "cached_at": None,
+                    "api_mode": board_api_mode,
+                    "board_id": board_id,
+                }
+            return {
+                "characters": characters,
+                "message": _characters_to_message(characters),
+                "rows": len(characters),
+                "cols": len(characters[0]) if characters else 0,
+                "expected_characters": last_sent,
+                "cached_at": cached_at,
+                "api_mode": board_api_mode,
+                "board_id": board_id,
+            }
 
     api_mode = "cloud" if getattr(service.vb_client, "use_cloud", False) else "local"
     expected_characters = service.vb_client._last_characters
@@ -3128,6 +3271,7 @@ async def get_board_current_message(force: bool = False):
         "expected_characters": expected_characters,
         "cached_at": cached_at,
         "api_mode": api_mode,
+        "board_id": board_id,
     }
 
 
@@ -5552,11 +5696,19 @@ async def update_output_settings(request: dict):
 
 
 @app.get("/settings/active-page")
-async def get_active_page():
-    """Get the currently active page ID."""
+async def get_active_page(board_id: str | None = None):
+    """Get the currently active page ID.
+
+    Args:
+        board_id: Optional board to read (query param). Omitted → primary
+            board, legacy behavior (issue #1244).
+    """
     settings_service = get_settings_service()
-    page_id = settings_service.get_active_page_id()
-    return {"page_id": page_id}
+    if board_id is not None:
+        page_id = settings_service.get_active_page_id(board_id=board_id)
+    else:
+        page_id = settings_service.get_active_page_id()
+    return {"page_id": page_id, "board_id": board_id}
 
 
 @app.put("/settings/active-page")
@@ -5566,6 +5718,8 @@ async def set_active_page(request: dict):
 
     Body should include:
     - page_id: Page ID to set as active, or null to clear
+    - board_id: Optional board to target. Omitted → primary board,
+      legacy behavior (issue #1244).
 
     When a page is set, it will be immediately rendered and sent to the board.
     """
@@ -5574,6 +5728,12 @@ async def set_active_page(request: dict):
     service = get_service()
 
     page_id = request.get("page_id")
+    board_id = request.get("board_id")
+    board = None
+    if board_id is not None:
+        board = _find_board(board_id)
+        if board is None:
+            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
     collection_service = get_collection_service()
 
     # Validate page or collection exists if not clearing
@@ -5592,6 +5752,16 @@ async def set_active_page(request: dict):
             if not page:
                 raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
+    # Enforce page<->board size compatibility (issue #1245). Collections are
+    # allowed when at least one member fits (non-fitting members become
+    # warnings); plain pages must match the board size exactly.
+    compat_warnings: list[str] = []
+    if page_id is not None:
+        compat = check_ref_board_compatibility(page_id, request.get("board_id"))
+        if not compat.ok:
+            raise HTTPException(status_code=400, detail=compat.error)
+        compat_warnings = compat.warnings
+
     # Dismiss any active plugin triggers so the user's explicit page change
     # actually sticks. Without this, a plugin re-emitting the same trigger
     # every display loop tick (e.g. calendar_sub during a countdown window)
@@ -5601,17 +5771,28 @@ async def set_active_page(request: dict):
 
         get_trigger_service().dismiss_active_for_user_override()
 
-    # Set the active page (stores the collection ID or page ID as-is)
-    settings_service.set_active_page_id(page_id)
+    # Set the active page (stores the collection ID or page ID as-is).
+    # An explicit board_id targets that board's slot; omitted keeps the
+    # legacy primary-board call (issue #1244).
+    if board_id is not None:
+        settings_service.set_active_page_id(page_id, board_id=board_id)
+    else:
+        settings_service.set_active_page_id(page_id)
+
+    # Resolve the client for the immediate send: explicit board_id routes to
+    # that board's client, omitted keeps the legacy primary-client path.
+    send_client = None
+    if service:
+        send_client = service.get_board_client(board_id) if board_id is not None else service.vb_client
 
     # Immediately send to board if a page is set
     sent_to_board = False
     paused = False
-    if render_page_id and page and service and service.vb_client and settings_service.should_send_to_board():
+    if render_page_id and page and send_client and settings_service.should_send_to_board():
         # Skip immediate send when the board is paused (issue #970). The
         # active-page selection is still persisted so it takes effect when
         # the user later resumes the board.
-        if _board_is_paused():
+        if _board_is_paused(board_id):
             logger.info("Board is paused - skipping immediate active-page send")
             paused = True
         else:
@@ -5628,27 +5809,37 @@ async def set_active_page(request: dict):
                     page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
                 )
 
-                dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
+                # Size the grid to the explicit target board when given
+                # (issue #1244); otherwise keep the page's device type.
+                if board is not None:
+                    dims = _board_dims(board)
+                else:
+                    dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
                 board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-                success, was_sent = service.vb_client.render(
+                success, was_sent = send_client.render(
                     board_array,
                     strategy=strategy,
                     step_interval_ms=interval_ms,
                     step_size=step_size,
-                    device_type=page.device_type,
+                    device_type=(board.get("device_type") if board is not None else page.device_type),
                 )
                 sent_to_board = was_sent
                 if not success:
                     logger.warning(f"Failed to send active page to board: {page_id}")
-                elif was_sent:
+                elif was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
+                    # Adaptive post-send refresh polls the primary board only.
                     service.request_board_refresh()
 
-    return {
+    response = {
         "status": "success",
         "page_id": page_id,
         "sent_to_board": sent_to_board,
         "paused": paused,
+        "board_id": board_id,
     }
+    if compat_warnings:
+        response["warnings"] = compat_warnings
+    return response
 
 
 @app.get("/settings/temporary-override")
@@ -6485,6 +6676,36 @@ def _get_first_board_dims():
     return resolve_dimensions("flagship")
 
 
+def _find_board(board_id: str) -> dict | None:
+    """Return the settings.boards entry for a board id, or None (issue #1244)."""
+    try:
+        boards = get_settings_service().get_board_settings().boards or []
+    except Exception as exc:
+        logger.debug("Could not read boards list: %s", exc)
+        return None
+    for board in boards:
+        if isinstance(board, dict) and board.get("id") == board_id:
+            return board
+    return None
+
+
+def _board_dims(board: dict):
+    """Resolved dimensions for a settings.boards entry (flagship fallback).
+
+    Uses resolve_dimensions — never get_dimensions, which raises for
+    note_array boards. Safe to call from any endpoint — never raises.
+    """
+    try:
+        return resolve_dimensions(
+            board.get("device_type") or "flagship",
+            board.get("notes_wide") or 1,
+            board.get("notes_tall") or 1,
+        )
+    except Exception as exc:
+        logger.debug("Could not resolve board dims (using flagship default): %s", exc)
+        return resolve_dimensions("flagship")
+
+
 def _board_is_paused(board_id: str | None = None) -> bool:
     """Return True when the target board (or default board) is paused.
 
@@ -6900,16 +7121,31 @@ async def get_page(page_id: str):
 
 @app.put("/pages/{page_id}")
 async def update_page(page_id: str, page_data: PageUpdate):
-    """Update an existing page."""
+    """Update an existing page.
+
+    When the update changes the page's size (device/size retarget, issue
+    #1250), the response includes ``incompatible_references``: schedule
+    entries and per-board active pages that now point this page at a board
+    it no longer fits. Warn-only — no reference is mutated or removed.
+    """
+    from .devices import size_key
+
     _reject_plugin_strategy_when_beta_off(page_data.transition_strategy)
     page_service = get_page_service()
+    existing = page_service.get_page(page_id)
 
     try:
         page = page_service.update_page(page_id, page_data)
         if not page:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
 
-        return {"status": "success", "page": page.model_dump()}
+        response = {"status": "success", "page": page.model_dump()}
+        if existing is not None:
+            old_size = size_key(existing.device_type, existing.notes_wide, existing.notes_tall)
+            new_size = size_key(page.device_type, page.notes_wide, page.notes_tall)
+            if old_size != new_size:
+                response["incompatible_references"] = find_incompatible_references(page)
+        return response
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -7163,7 +7399,9 @@ async def clear_page_cache(request: dict = None):
 
 
 @app.post("/pages/{page_id}/send")
-async def send_page(page_id: str, target: str | None = None, payload: dict | None = Body(None)):
+async def send_page(
+    page_id: str, target: str | None = None, board_id: str | None = None, payload: dict | None = Body(None)
+):
     """
     Send a page to the configured target.
 
@@ -7171,9 +7409,14 @@ async def send_page(page_id: str, target: str | None = None, payload: dict | Non
         page_id: The page ID
         target: Override output target (ui, board, both) — query param,
             or ``{"target": ...}`` in the JSON body
+        board_id: Optional board to send to (query param, or
+            ``{"board_id": ...}`` in the JSON body). Omitted → primary
+            board, legacy behavior (issue #1244).
     """
     if target is None and payload:
         target = payload.get("target")
+    if board_id is None and payload:
+        board_id = payload.get("board_id")
     if target is not None and target not in VALID_OUTPUT_TARGETS:
         raise HTTPException(status_code=400, detail=f"Invalid target: {target}. Valid targets: {VALID_OUTPUT_TARGETS}")
 
@@ -7181,8 +7424,22 @@ async def send_page(page_id: str, target: str | None = None, payload: dict | Non
     settings_service = get_settings_service()
     service = get_service()
 
-    if not service or not service.vb_client:
-        raise HTTPException(status_code=503, detail="Service not initialized")
+    # Resolve the target board's client: explicit board_id routes to that
+    # board's client; omitted keeps the legacy primary-client path.
+    board = None
+    if board_id is not None:
+        if not service:
+            raise HTTPException(status_code=503, detail="Service not initialized")
+        board = _find_board(board_id)
+        if board is None:
+            raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
+        board_client = service.get_board_client(board_id)
+        if board_client is None:
+            raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
+    else:
+        if not service or not service.vb_client:
+            raise HTTPException(status_code=503, detail="Service not initialized")
+        board_client = service.vb_client
 
     # Get the page for transition settings
     page = page_service.get_page(page_id)
@@ -7212,8 +7469,8 @@ async def send_page(page_id: str, target: str | None = None, payload: dict | Non
             logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
             sent_to_board = False
             # Don't raise error, just skip sending
-        elif _board_is_paused():
-            # Block when the (first) board is paused (issue #970).
+        elif _board_is_paused(board_id):
+            # Block when the target (or first) board is paused (issue #970).
             logger.info("Board is paused - blocking manual page send")
             paused = True
         else:
@@ -7229,15 +7486,19 @@ async def send_page(page_id: str, target: str | None = None, payload: dict | Non
                 page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
             )
 
-            # Convert to board array with dimensions for page's device type (flagship vs note)
-            dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
+            # Size the grid to the explicit target board when given (issue
+            # #1244); otherwise keep sizing to the page's device type.
+            if board is not None:
+                dims = _board_dims(board)
+            else:
+                dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
             board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
-            success, was_sent = service.vb_client.render(
+            success, was_sent = board_client.render(
                 board_array,
                 strategy=strategy,
                 step_interval_ms=interval_ms,
                 step_size=step_size,
-                device_type=page.device_type,
+                device_type=(board.get("device_type") if board is not None else page.device_type),
             )
             sent_to_board = was_sent
             if not success:
@@ -7256,9 +7517,11 @@ async def send_page(page_id: str, target: str | None = None, payload: dict | Non
                         "sent_to_board": False,
                         "paused": False,
                         "target": target or settings_service.get_output_settings().target,
+                        "board_id": board_id,
                     },
                 )
-            if was_sent:
+            if was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
+                # Adaptive post-send refresh polls the primary board only.
                 service.request_board_refresh()
 
     return {
@@ -7268,6 +7531,7 @@ async def send_page(page_id: str, target: str | None = None, payload: dict | Non
         "sent_to_board": sent_to_board,
         "paused": paused,
         "target": target or settings_service.get_output_settings().target,
+        "board_id": board_id,
     }
 
 
@@ -7345,6 +7609,20 @@ async def list_schedules(board_id: str | None = None):
     }
 
 
+def _with_compat_warnings(response: dict, schedule) -> dict:
+    """Attach non-fatal page<->board size warnings to a schedule response.
+
+    Collections may mix page sizes; the write is allowed when at least one
+    member fits the board, and the members that don't fit are surfaced as a
+    ``warnings`` list (issue #1245). The key is omitted when there is nothing
+    to warn about.
+    """
+    compat = check_ref_board_compatibility(schedule.page_id, schedule.board_id)
+    if compat.ok and compat.warnings:
+        response["warnings"] = compat.warnings
+    return response
+
+
 @app.post("/schedules")
 async def create_schedule(schedule_data: ScheduleCreate):
     """Create a new schedule entry.
@@ -7359,7 +7637,8 @@ async def create_schedule(schedule_data: ScheduleCreate):
 
     try:
         schedule = schedule_service.create_schedule(schedule_data)
-        return _enrich_schedule_with_sun_times(schedule.model_dump())
+        response = _enrich_schedule_with_sun_times(schedule.model_dump())
+        return _with_compat_warnings(response, schedule)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -7512,7 +7791,8 @@ async def update_schedule(schedule_id: str, schedule_data: ScheduleUpdate):
         schedule = schedule_service.update_schedule(schedule_id, schedule_data)
         if not schedule:
             raise HTTPException(status_code=404, detail=f"Schedule not found: {schedule_id}")
-        return _enrich_schedule_with_sun_times(schedule.model_dump())
+        response = _enrich_schedule_with_sun_times(schedule.model_dump())
+        return _with_compat_warnings(response, schedule)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -8597,6 +8877,9 @@ async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRe
     # Persist empty config so the instance survives restarts
     config_manager = get_config_manager()
     config_manager.set_plugin_config(compound_key, {"enabled": False})
+    # Re-creating an instance is an explicit user action — drop any
+    # deliberate-removal tombstone left by a prior delete (#1394).
+    config_manager.clear_plugin_removed(compound_key)
 
     # Reset services so the new instance is available to templates immediately
     reset_display_service()
@@ -8634,9 +8917,11 @@ async def delete_plugin_instance(plugin_id: str, instance_label: str):
 
     compound_key = registry.make_instance_key(base_id, instance_label)
 
-    # Remove persisted config
+    # Remove persisted config and tombstone the compound key so a
+    # post-upgrade auto-restore cannot resurrect the deleted instance (#1394).
     config_manager = get_config_manager()
     config_manager.delete_plugin_config(compound_key)
+    config_manager.mark_plugin_removed(compound_key)
 
     # Reset services
     reset_display_service()

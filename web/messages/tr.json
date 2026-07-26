@@ -149,6 +149,7 @@
     "listView": "Liste görünümü",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "Henüz sayfa oluşturulmadı.",
     "noPagesDescription": "Panoda görüntülemek için ilk sayfanızı oluşturun.",
     "createFirstPage": "İlk sayfanızı oluşturun",
@@ -327,7 +328,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "Bu koleksiyondaki {total} sayfadan {count} tanesi bu panonun boyutuna uymuyor ve atlanacak.",
+      "incompatiblePageWarning": "Bu sayfa bu panonun boyutuyla eşleşmiyor ve doğru görüntülenmeyebilir."
     },
     "descriptionWithTimezone": "Sayfa rotasyonunu saat ve güne göre otomatikleştir · {timezone}",
     "gapDefaultPlaceholder": "Boşluk varsayılanı…",
@@ -598,6 +601,7 @@
   },
   "activeDisplay": {
     "title": "Aktif Ekran",
+    "boardIndicator": "{boardName} gösteriliyor",
     "viewSchedule": "Zamanlamayı Görüntüle",
     "changePage": "Sayfa Değiştir",
     "scheduleMode": "Zamanlama Modu",
@@ -628,7 +632,8 @@
     "changeModeOverrideDescription": "Belirli bir süre için bir sayfa gösterip zamanlamanıza devam edin.",
     "changeModeDisableTitle": "Zamanlama modunu kapat",
     "changeModeDisableDescription": "Zamanlamayı devre dışı bırakıp board'u manuel olarak kontrol edin.",
-    "changeModeDisableSuccess": "Zamanlama modu devre dışı bırakıldı"
+    "changeModeDisableSuccess": "Zamanlama modu devre dışı bırakıldı",
+    "collectionSizeWarning": "Bu koleksiyondaki {total} sayfadan {count} tanesi bu panonun boyutuna uymuyor ve atlanacak."
   },
   "forceSetDialog": {
     "title": "Board'u Zorla Ayarla",
@@ -691,6 +696,7 @@
     "plainEditorPlaceholder": "Dinamik veri için '{{değişken}}' sözdizimini kullanarak şablon metninizi yazın",
     "lineCountWarning": "Şablon {lineCount} satır içeriyor ancak pano yalnızca {maxLines} satır görüntüler. {maxLines} satırın ötesindeki satırlar göz ardı edilecektir.",
     "wrapBudgetWarning": "{lineNumber}. satırda kaydırma etkin ancak yalnızca tek satıra sığıyor. Aşağıdaki satırda kaydırmayı etkinleştirin veya metnin akabilmesi için boş bırakın.",
+    "drawModeHint": "Çizim modu açık — kareleri boyamak için önizlemeye tıklayın veya sürükleyin. Çıkmak için Esc.",
     "warningLabel": "Uyarı:",
     "previewLabel": "Önizleme",
     "boardColorLabel": "Pano rengi",
@@ -719,7 +725,15 @@
     "exportDialogTitle": "Sayfayı Dışa Aktar",
     "exportDialogDescription": "Sayfanızı başkalarıyla paylaşmak için bu paylaşım dizgesini kopyalayın.",
     "exportStringAriaLabel": "Paylaşım dizgesi",
-    "exportCopyAriaLabel": "Paylaşım dizgesini kopyala"
+    "exportCopyAriaLabel": "Paylaşım dizgesini kopyala",
+    "retargetConfirmTitle": "Pano boyutu değiştirilsin mi?",
+    "retargetConfirmDescription": "Bu sayfa {oldSize} için kaydedildi ve {newSize} boyutuna getirilecek. Küçük panoya sığmayan içerik kesilecek.",
+    "retargetConfirmAction": "Yeniden boyutlandır ve kaydet",
+    "retargetIncompatibleWarning": "Bu sayfa artık şuraya sığmıyor: {list}",
+    "retargetSurfaceSchedule": "zamanlama girdisi",
+    "retargetSurfaceActivePage": "etkin sayfa",
+    "notesWideOption": "{count} genişlik",
+    "notesTallOption": "{count} yükseklik"
   },
   "displaySettings": {
     "title": "Panolarınız",
@@ -1259,7 +1273,9 @@
     "collectionsTab": "Döngüler ({count})",
     "noPagesTitle": "Henüz sayfa oluşturulmadı.",
     "noPagesDescription": "Board'da görüntülemek için ilk sayfanızı oluşturun.",
-    "createFirstPage": "İlk sayfanızı oluşturun"
+    "createFirstPage": "İlk sayfanızı oluşturun",
+    "noCompatiblePagesTitle": "Bu panonun boyutuyla eşleşen sayfa yok.",
+    "noCompatiblePagesDescription": "Burada görmek için bu pano boyutunda bir sayfa oluşturun."
   },
   "profile": {
     "title": "Profil",
@@ -1695,6 +1711,20 @@
     "variablesNoVarsAvailable": "Değişkenler (kullanılabilir değişken yok)",
     "noVariablesAvailable": "Kullanılabilir şablon değişkeni yok. Ayarlar'da eklentileri yapılandırın.",
     "colors": "Renkler",
+    "drawMode": "Panoya çiz",
+    "drawModeActive": "Çizim modundan çık",
+    "drawCharacter": "Karakter damgala",
+    "drawEraser": "Silgi",
+    "drawColors": {
+      "red": "Kırmızı",
+      "orange": "Turuncu",
+      "yellow": "Sarı",
+      "green": "Yeşil",
+      "blue": "Mavi",
+      "violet": "Mor",
+      "white": "Beyaz",
+      "black": "Siyah"
+    },
     "formatting": "Biçimlendirme",
     "insertFormula": "Formül ekle",
     "toggleWrap": "Mevcut satır için kaydırmayı değiştir",

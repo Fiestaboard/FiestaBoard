@@ -180,9 +180,10 @@ class TestDockerHubCheck:
         assert result is None
 
     def test_update_check_uses_dockerhub_first(self, client):
-        """Test that Docker Hub is queried and its result takes priority over GitHub Releases.
+        """Docker Hub's version is used when it is the newest of the two sources.
 
-        Both sources are checked in parallel; Docker Hub's version wins when it succeeds.
+        Both sources are checked in parallel and the highest version wins; here
+        Docker Hub (99.0.0) outranks GitHub Releases (1.0.0).
         """
         call_order = []
 
@@ -207,7 +208,7 @@ class TestDockerHubCheck:
 
         assert response.status_code == 200
         data = response.json()
-        # Docker Hub's version (99.0.0) wins over GitHub's (1.0.0)
+        # Newest version across both sources (99.0.0) wins over GitHub's (1.0.0)
         assert data["latest_version"] == "99.0.0"
         assert data["update_available"] is True
         assert any(_host_is(url, "hub.docker.com") for url in call_order)
@@ -237,6 +238,72 @@ class TestDockerHubCheck:
         assert data["update_available"] is True
         assert call_count["dockerhub"] > 0  # Docker Hub was attempted
         assert call_count["github"] > 0  # GitHub was used as fallback
+
+    def test_update_check_prefers_newest_when_dockerhub_tag_metadata_lags(self, client):
+        """A newer GitHub release is surfaced even when Docker Hub's tags lag.
+
+        Regression: Docker Hub's tag-listing metadata can trail a freshly
+        published release — its ``/tags`` endpoint still reports an older
+        version while the GitHub Releases API already lists the new one. The
+        newest of the two must win, rather than a preferred-but-stale source
+        masking the real release.
+        """
+        tags_resp = Mock()
+        tags_resp.status_code = 200
+        tags_resp.json.return_value = {"results": [{"name": "8.2.4"}]}  # stale/lagging
+        tags_resp.raise_for_status = Mock()
+
+        github_resp = Mock()
+        github_resp.status_code = 200
+        github_resp.json.return_value = {"tag_name": "v8.3.0"}  # newest, not yet on Docker Hub
+        github_resp.raise_for_status = Mock()
+
+        def mock_get(url, **kwargs):
+            if _host_is(url, "hub.docker.com"):
+                return tags_resp
+            return github_resp
+
+        with patch("src.api_server.requests.get", side_effect=mock_get):
+            response = client.get("/system/update-check")
+
+        assert response.status_code == 200
+        data = response.json()
+        # GitHub's 8.3.0 beats Docker Hub's stale 8.2.4.
+        assert data["latest_version"] == "8.3.0"
+        assert "/releases/tag/v8.3.0" in data["package_url"]
+
+
+class TestPickLatestVersion:
+    """Tests for the _pick_latest_version helper (newest-of-all-sources selection)."""
+
+    def test_returns_higher_when_first_is_higher(self):
+        from src.api_server import _pick_latest_version
+
+        assert _pick_latest_version("8.3.0", "8.2.4") == "8.3.0"
+
+    def test_returns_higher_when_second_is_higher(self):
+        from src.api_server import _pick_latest_version
+
+        # Docker Hub (first) lags behind a newer GitHub release (second).
+        assert _pick_latest_version("8.2.4", "8.3.0") == "8.3.0"
+
+    def test_ignores_none_candidates(self):
+        from src.api_server import _pick_latest_version
+
+        assert _pick_latest_version(None, "8.3.0") == "8.3.0"
+        assert _pick_latest_version("8.3.0", None) == "8.3.0"
+
+    def test_returns_none_when_all_empty(self):
+        from src.api_server import _pick_latest_version
+
+        assert _pick_latest_version(None, None) is None
+
+    def test_ignores_unparseable_candidate(self):
+        from src.api_server import _pick_latest_version
+
+        # A non-numeric tag must never be chosen over a valid one.
+        assert _pick_latest_version("v8.3.0", "8.2.4") == "8.2.4"
+        assert _pick_latest_version("latest", None) is None
 
 
 class TestIsNewerVersion:

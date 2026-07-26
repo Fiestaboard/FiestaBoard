@@ -5,11 +5,16 @@ import { useCallback } from "react";
 
 import { api } from "@/lib/api";
 
-// Query keys for cache management
+// Query keys for cache management.
+// Board-scoped keys (issue #1247): calling `activePage()` / `boardCurrentMessage()`
+// without a boardId yields the legacy unscoped key, which also works as an
+// invalidation prefix matching every board-scoped variant.
 export const queryKeys = {
   status: ["status"] as const,
   config: ["config"] as const,
-  activePage: ["activePage"] as const,
+  activePage: (boardId?: string) => (boardId ? (["activePage", boardId] as const) : (["activePage"] as const)),
+  boardCurrentMessage: (boardId?: string) =>
+    boardId ? (["board-current-message", boardId] as const) : (["board-current-message"] as const),
   pages: ["pages"] as const,
   pagePreview: (pageId: string) => ["pagePreview", pageId] as const,
   boardSettings: ["boardSettings"] as const,
@@ -22,7 +27,8 @@ export const queryKeys = {
 // backend's window closes. Without this, the UI would wait up to 30s for
 // the next board-current-message refetch tick.
 function scheduleBoardStateInvalidations(queryClient: ReturnType<typeof useQueryClient>) {
-  const key = ["board-current-message"];
+  // Unscoped key = prefix match, so every board-scoped variant refetches too.
+  const key = queryKeys.boardCurrentMessage();
   setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 750);
   setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 3500);
 }
@@ -50,31 +56,50 @@ export function useConfig() {
   });
 }
 
-// Active page query
-export function useActivePage() {
+// Active page query. Pass a boardId to read that board's active page
+// (issue #1247); omitted keeps the legacy primary-board behavior.
+export function useActivePage(boardId?: string) {
   return useQuery({
-    queryKey: queryKeys.activePage,
-    queryFn: api.getActivePage,
+    queryKey: queryKeys.activePage(boardId),
+    // Explicit lambda — a bare `api.getActivePage` reference would receive
+    // TanStack Query's context object as the optional boardId param and
+    // request board_id=[object Object] (issue #1244 regression).
+    queryFn: () => api.getActivePage(boardId),
     retry: 1,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 }
 
-// Set active page mutation - backend handles immediate send to board
-export function useSetActivePage() {
+// Board state query — what is actually on the physical board right now.
+// A secondary boardId is served from the backend's per-board runtime cache
+// (last-sent content); `message`/`characters` are null until something is
+// sent to it (issue #1247).
+export function useBoardCurrentMessage(boardId?: string) {
+  return useQuery({
+    queryKey: queryKeys.boardCurrentMessage(boardId),
+    queryFn: () => api.getBoardCurrentMessage(boardId),
+    refetchInterval: 30_000,
+    staleTime: 25_000,
+  });
+}
+
+// Set active page mutation - backend handles immediate send to board.
+// Pass a boardId to target that board's active-page slot (issue #1247).
+export function useSetActivePage(boardId?: string) {
   const queryClient = useQueryClient();
+  const activePageKey = queryKeys.activePage(boardId);
   return useMutation({
-    mutationFn: (pageId: string | null) => api.setActivePage(pageId),
+    mutationFn: (pageId: string | null) => api.setActivePage(pageId, boardId),
     onMutate: async (newPageId) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: queryKeys.activePage });
+      await queryClient.cancelQueries({ queryKey: activePageKey });
 
       // Snapshot the previous value
-      const previousActivePage = queryClient.getQueryData(queryKeys.activePage);
+      const previousActivePage = queryClient.getQueryData(activePageKey);
 
       // Optimistically update to the new value
-      queryClient.setQueryData(queryKeys.activePage, { page_id: newPageId });
+      queryClient.setQueryData(activePageKey, { page_id: newPageId });
 
       // Return context with the snapshotted value
       return { previousActivePage };
@@ -82,7 +107,7 @@ export function useSetActivePage() {
     onError: (err, newPageId, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousActivePage) {
-        queryClient.setQueryData(queryKeys.activePage, context.previousActivePage);
+        queryClient.setQueryData(activePageKey, context.previousActivePage);
       }
     },
     onSuccess: () => {
@@ -92,7 +117,7 @@ export function useSetActivePage() {
     },
     onSettled: () => {
       // Always refetch after error or success to ensure consistency
-      queryClient.invalidateQueries({ queryKey: queryKeys.activePage });
+      queryClient.invalidateQueries({ queryKey: activePageKey });
     },
   });
 }

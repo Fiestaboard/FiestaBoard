@@ -462,6 +462,54 @@ def classify_dimensions(rows: int, cols: int) -> dict:
 DEFAULT_DEVICE_TYPE: DeviceType = "flagship"
 
 
+def size_key(device_type: str, notes_wide: int = 1, notes_tall: int = 1) -> str:
+    """Canonical family + resolved-size key for page<->board compatibility.
+
+    Examples: ``"flagship:6x22"``, ``"note:3x15"``, ``"note_array:6x30"``
+    (a 2x2 note grid). The device family is part of the key on purpose:
+    a Note page is NOT compatible with a 1x1 note array even though both
+    resolve to 3x15 — they are driven differently and are distinct families.
+
+    Falls back to the default device type for an unrecognized ``device_type``
+    so a bad stored value never crashes a validation path (mirrors
+    :func:`board_context_for`).
+    """
+    try:
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+    except ValueError:
+        device_type = DEFAULT_DEVICE_TYPE
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
+    return f"{device_type}:{dims.rows}x{dims.cols}"
+
+
+def _geometry_of(obj) -> tuple[str, int, int]:
+    """Extract (device_type, notes_wide, notes_tall) from a page/board.
+
+    Accepts either a mapping (board dicts from settings storage) or an object
+    with attributes (Page models, BoardInstance). Missing or falsy values get
+    the platform defaults (flagship, 1x1).
+    """
+    if isinstance(obj, dict):
+        device_type = obj.get("device_type") or DEFAULT_DEVICE_TYPE
+        notes_wide = obj.get("notes_wide") or 1
+        notes_tall = obj.get("notes_tall") or 1
+    else:
+        device_type = getattr(obj, "device_type", None) or DEFAULT_DEVICE_TYPE
+        notes_wide = getattr(obj, "notes_wide", None) or 1
+        notes_tall = getattr(obj, "notes_tall", None) or 1
+    return str(device_type), int(notes_wide), int(notes_tall)
+
+
+def pages_compatible_with_board(page, board) -> bool:
+    """True when *page* renders 1:1 on *board*: EXACT :func:`size_key` match.
+
+    Family-aware: flagship != note even at identical dimensions, and note
+    arrays must match the resolved W×H grid exactly. Both arguments may be
+    Page/BoardInstance objects or raw board dicts.
+    """
+    return size_key(*_geometry_of(page)) == size_key(*_geometry_of(board))
+
+
 def board_context_for(device_type: str, notes_wide: int = 1, notes_tall: int = 1) -> BoardContext:
     """Build a :class:`BoardContext` for any device type, including note arrays.
 

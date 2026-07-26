@@ -149,6 +149,7 @@
     "listView": "列表视图",
     "flagshipTab": "Flagship",
     "noteTab": "Note",
+    "noteArrayTab": "Note Array",
     "noPagesTitle": "尚未创建任何页面。",
     "noPagesDescription": "创建您的第一个页面以在看板上显示。",
     "createFirstPage": "创建您的第一个页面",
@@ -327,7 +328,9 @@
       "dateOverrideHint": "Overrides any weekly schedule active during this window.",
       "validationAnnualDateRequired": "Please pick a month and day",
       "validationOneOffDateRequired": "Please pick a date",
-      "validationEndDateBeforeStart": "End date must be on or after start date"
+      "validationEndDateBeforeStart": "End date must be on or after start date",
+      "collectionSizeWarning": "此合集中的 {total} 个页面中有 {count} 个不适合此板的尺寸，将被跳过。",
+      "incompatiblePageWarning": "此页面与此板的尺寸不匹配，可能无法正确显示。"
     },
     "descriptionWithTimezone": "按时间和日期自动轮换页面 · {timezone}",
     "gapDefaultPlaceholder": "空隙默认…",
@@ -598,6 +601,7 @@
   },
   "activeDisplay": {
     "title": "当前显示",
+    "boardIndicator": "正在显示 {boardName}",
     "viewSchedule": "查看日程",
     "changePage": "切换页面",
     "scheduleMode": "日程模式",
@@ -628,7 +632,8 @@
     "changeModeOverrideDescription": "显示一个页面一段时间,然后恢复您的计划。",
     "changeModeDisableTitle": "关闭计划模式",
     "changeModeDisableDescription": "禁用计划并手动控制 board。",
-    "changeModeDisableSuccess": "计划模式已禁用"
+    "changeModeDisableSuccess": "计划模式已禁用",
+    "collectionSizeWarning": "此合集中的 {total} 个页面中有 {count} 个不适合此板的尺寸，将被跳过。"
   },
   "forceSetDialog": {
     "title": "强制设置 Board",
@@ -691,6 +696,7 @@
     "plainEditorPlaceholder": "使用 '{{variable}}' 语法输入模板文本以获取动态数据",
     "lineCountWarning": "模板有 {lineCount} 行，但看板仅显示 {maxLines} 行。超出 {maxLines} 行的内容将被忽略。",
     "wrapBudgetWarning": "第 {lineNumber} 行启用了换行但只能容纳一行。在下方行启用换行或保持其为空,以便文本可以流入。",
+    "drawModeHint": "绘制模式已开启 — 在预览上点击或拖动即可为色块上色。按 Esc 退出。",
     "warningLabel": "警告：",
     "previewLabel": "预览",
     "boardColorLabel": "看板颜色",
@@ -719,7 +725,15 @@
     "exportDialogTitle": "导出页面",
     "exportDialogDescription": "复制此分享字符串以与他人分享您的页面。",
     "exportStringAriaLabel": "分享字符串",
-    "exportCopyAriaLabel": "复制分享字符串"
+    "exportCopyAriaLabel": "复制分享字符串",
+    "retargetConfirmTitle": "更改板面尺寸？",
+    "retargetConfirmDescription": "此页面是为 {oldSize} 保存的，将调整为 {newSize}。无法放入较小板面的内容将被截断。",
+    "retargetConfirmAction": "调整尺寸并保存",
+    "retargetIncompatibleWarning": "此页面已无法适配：{list}",
+    "retargetSurfaceSchedule": "排程条目",
+    "retargetSurfaceActivePage": "活动页面",
+    "notesWideOption": "横向 {count} 块",
+    "notesTallOption": "纵向 {count} 块"
   },
   "displaySettings": {
     "title": "您的看板",
@@ -1259,7 +1273,9 @@
     "collectionsTab": "轮播（{count}）",
     "noPagesTitle": "尚未创建页面。",
     "noPagesDescription": "创建您的第一个页面以在 board 上显示。",
-    "createFirstPage": "创建您的第一个页面"
+    "createFirstPage": "创建您的第一个页面",
+    "noCompatiblePagesTitle": "没有与此板尺寸匹配的页面。",
+    "noCompatiblePagesDescription": "创建适合此板尺寸的页面后将显示在这里。"
   },
   "profile": {
     "title": "个人资料",
@@ -1695,6 +1711,20 @@
     "variablesNoVarsAvailable": "变量(没有可用的变量)",
     "noVariablesAvailable": "没有可用的模板变量。在设置中配置插件。",
     "colors": "颜色",
+    "drawMode": "在看板上绘制",
+    "drawModeActive": "退出绘制模式",
+    "drawCharacter": "盖印字符",
+    "drawEraser": "橡皮擦",
+    "drawColors": {
+      "red": "红色",
+      "orange": "橙色",
+      "yellow": "黄色",
+      "green": "绿色",
+      "blue": "蓝色",
+      "violet": "紫色",
+      "white": "白色",
+      "black": "黑色"
+    },
     "formatting": "格式化",
     "insertFormula": "插入公式",
     "toggleWrap": "切换当前行的换行",

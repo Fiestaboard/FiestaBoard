@@ -5,10 +5,12 @@
  * Renders the document shell, mounts the provider tree, and exposes
  * `<Outlet />` for nested routes. Localized `<title>` and
  * `<meta description>` are kept in sync via a `useEffect` on the locale.
- * The HTML `<base href>` is injected by nginx from `X-Ingress-Path` —
- * the browser uses it to resolve all relative asset URLs (Vite emits
- * `./assets/...`), which is how HA Ingress works without any
- * build-time `assetPrefix`.
+ *
+ * HA Ingress support: nginx sub_filter rewrites the absolute asset
+ * URLs in served bodies and the inlined React Router `"basename":"/"`
+ * hydration literal (entrypoint.sh::configure_ingress_path_rewrite);
+ * the SPA reads that basename back at runtime to prefix API calls
+ * (web/src/lib/base-path.ts). No `<base href>` is involved.
  */
 import "./globals.css";
 import "@fontsource-variable/geist";

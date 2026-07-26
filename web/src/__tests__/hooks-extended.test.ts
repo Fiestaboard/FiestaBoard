@@ -30,7 +30,12 @@ describe("use-board extended", () => {
     it("has correct key structures", () => {
       expect(queryKeys.status).toEqual(["status"]);
       expect(queryKeys.config).toEqual(["config"]);
-      expect(queryKeys.activePage).toEqual(["activePage"]);
+      // Board-scopable keys (issue #1247): no arg → legacy key (also the
+      // invalidation prefix for every board-scoped variant); id → scoped key.
+      expect(queryKeys.activePage()).toEqual(["activePage"]);
+      expect(queryKeys.activePage("board-2")).toEqual(["activePage", "board-2"]);
+      expect(queryKeys.boardCurrentMessage()).toEqual(["board-current-message"]);
+      expect(queryKeys.boardCurrentMessage("board-2")).toEqual(["board-current-message", "board-2"]);
       expect(queryKeys.pages).toEqual(["pages"]);
       expect(queryKeys.boardSettings).toEqual(["boardSettings"]);
       expect(queryKeys.pagePreview("p1")).toEqual(["pagePreview", "p1"]);

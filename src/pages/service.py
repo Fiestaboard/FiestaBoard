@@ -5,16 +5,16 @@ Provides high-level operations on pages including preview and send.
 
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from src.devices import (
     DEFAULT_DEVICE_TYPE,
-    DEVICE_DIMENSIONS,
     BoardContext,
     board_context_for,
-    is_note_array,
+    pages_compatible_with_board,
     resolve_dimensions,
+    size_key,
 )
 from src.displays.service import DisplayResult, get_display_service
 from src.plugins.manifest import DemoPageSchema
@@ -166,8 +166,28 @@ class PageService:
 
         Returns:
             Updated page or None if not found
+
+        Raises:
+            ValueError: If a device/size retarget (issue #1250) would leave
+                the page config invalid (e.g. a composite row that no longer
+                fits the new geometry)
         """
         updates = data.model_dump(exclude_unset=True)
+
+        # Device/size retarget (issue #1250): re-validate the prospective page
+        # before persisting so a retarget can't strand an invalid config.
+        # Lossy template truncation is accepted (handled at render time);
+        # structural errors (composite rows out of range) are blocked.
+        if any(key in updates for key in ("device_type", "notes_wide", "notes_tall")):
+            existing = self.storage.get(page_id)
+            if existing is not None:
+                # Mirror storage.update() semantics: None never overwrites the
+                # geometry fields, so validate with None values dropped.
+                prospective = Page(**{**existing.model_dump(), **{k: v for k, v in updates.items() if v is not None}})
+                errors = prospective.validate_config()
+                if errors:
+                    raise ValueError(f"Cannot retarget page: {'; '.join(errors)}")
+
         updated_page = self.storage.update(page_id, updates)
 
         # Invalidate preview cache for this page
@@ -361,12 +381,11 @@ class PageService:
     def _board_key(page: Page) -> str:
         """Stable key identifying a page's board *size* for batch context sharing.
 
-        Flagship/Note have fixed sizes (keyed by device_type); note arrays vary,
-        so their dimensions are folded in — matching :meth:`PluginBase._cache_key`.
+        Delegates to the canonical :func:`src.devices.size_key` so batch
+        context sharing and page<->board compatibility use the same notion
+        of "same board size". The key is opaque to its consumers.
         """
-        if is_note_array(page.device_type):
-            return f"note_array:{page.notes_wide}x{page.notes_tall}"
-        return page.device_type if page.device_type in DEVICE_DIMENSIONS else DEFAULT_DEVICE_TYPE
+        return size_key(page.device_type, page.notes_wide, page.notes_tall)
 
     def _render_single(self, page: Page) -> DisplayResult:
         """Render a single-source page."""
@@ -647,3 +666,186 @@ def get_page_service() -> PageService:
     if _page_service is None:
         _page_service = PageService()
     return _page_service
+
+
+# ---------------------------------------------------------------------------
+# Page <-> board size compatibility (issue #1245)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class BoardCompatibility:
+    """Result of validating a page/collection ref against a board.
+
+    ``error`` is set when the write must be blocked (HTTP 400 at the API
+    layer); ``warnings`` is a non-fatal list for collections whose members
+    only partially fit the board.
+    """
+
+    error: str | None = None
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return self.error is None
+
+
+def _find_board(board_id: str | None) -> dict | None:
+    """Resolve a board dict by id; ``None``/`""` resolve to the primary board.
+
+    Returns None when the board (or any board at all) cannot be found —
+    callers treat that as "cannot validate, don't block" for back-compat.
+    """
+    settings = get_settings_service()
+    bid = board_id if board_id else settings.get_primary_board_id()
+    if not bid:
+        return None
+    for board in settings.get_board_settings().boards or []:
+        if isinstance(board, dict) and board.get("id") == bid:
+            return board
+    return None
+
+
+def check_ref_board_compatibility(page_ref: str | None, board_id: str | None) -> BoardCompatibility:
+    """Validate a page or ``collection:`` ref against a board's size.
+
+    Rules (issue #1245):
+      - A plain page must match the board's :func:`src.devices.size_key`
+        exactly; a mismatch blocks the write.
+      - A collection may mix sizes: it is blocked only when ZERO member
+        pages fit the board; otherwise it passes with one warning per
+        member page that does not fit.
+      - Anything that cannot be resolved (missing page, unknown collection,
+        unknown board, no boards configured) passes silently so legacy
+        installs and defensive callers see zero behavior change.
+    """
+    result = BoardCompatibility()
+    if not page_ref:
+        return result
+
+    try:
+        board = _find_board(board_id)
+        if board is None:
+            return result
+
+        board_label = f"'{board.get('name') or board.get('id')}' ({size_key(*_board_geometry(board))})"
+        page_service = get_page_service()
+
+        from src.collections.models import is_collection_id
+
+        if is_collection_id(page_ref):
+            from src.collections.service import get_collection_service
+
+            collection = get_collection_service().get_collection(page_ref)
+            if not collection:
+                return result
+            members = [p for p in (page_service.get_page(pid) for pid in collection.page_ids) if p]
+            if not members:
+                return result
+            misfits = [p for p in members if not pages_compatible_with_board(p, board)]
+            if len(misfits) == len(members):
+                result.error = (
+                    f"Collection '{collection.name}' cannot be used on board {board_label}: "
+                    f"none of its {len(members)} pages fit this board size."
+                )
+                return result
+            result.warnings = [
+                f"Page '{p.name}' ({size_key(p.device_type, p.notes_wide, p.notes_tall)}) in "
+                f"collection '{collection.name}' does not fit board {board_label} and will be skipped."
+                for p in misfits
+            ]
+            return result
+
+        page = page_service.get_page(page_ref)
+        if page is None:
+            return result
+        if not pages_compatible_with_board(page, board):
+            result.error = (
+                f"Page '{page.name}' ({size_key(page.device_type, page.notes_wide, page.notes_tall)}) "
+                f"is not compatible with board {board_label}: page and board sizes must match exactly."
+            )
+        return result
+    except Exception:  # pragma: no cover - defensive: never let validation crash a write
+        logger.exception("Page/board compatibility check failed; allowing write")
+        return BoardCompatibility()
+
+
+def _board_geometry(board: dict) -> tuple[str, int, int]:
+    """Board dict -> (device_type, notes_wide, notes_tall) with defaults."""
+    return (
+        board.get("device_type") or DEFAULT_DEVICE_TYPE,
+        board.get("notes_wide") or 1,
+        board.get("notes_tall") or 1,
+    )
+
+
+def find_incompatible_references(page: Page) -> list[dict]:
+    """Find schedule/active-page references the page no longer fits (issue #1250).
+
+    After a device/size retarget, existing references may point the page at
+    boards whose size no longer matches. This scans, for every board the page
+    is now incompatible with:
+
+      - schedule entries referencing the page directly or via a collection
+        that contains it (``surface: "schedule"``, with ``schedule_id``)
+      - the board's manual active page, direct or via a containing collection
+        (``surface: "active_page"``)
+
+    Warn-only by design: nothing is mutated or auto-fixed — callers surface
+    the returned refs to the user. Returns
+    ``[{board_id, board_name, surface, schedule_id}]``; failures degrade to
+    partial results rather than breaking the page save.
+    """
+    refs: list[dict] = []
+    try:
+        settings = get_settings_service()
+        boards = [b for b in (settings.get_board_settings().boards or []) if isinstance(b, dict)]
+        if not boards:
+            return refs
+
+        # Collections containing this page: a schedule/active-page ref to such
+        # a collection references this page too (it would be skipped there).
+        try:
+            from src.collections.service import get_collection_service
+
+            containing = {c.id for c in get_collection_service().list_collections() if page.id in c.page_ids}
+        except Exception:
+            logger.exception("Collection scan failed during stale-reference detection")
+            containing = set()
+
+        def references_page(ref: str | None) -> bool:
+            return bool(ref) and (ref == page.id or ref in containing)
+
+        from src.schedules.service import get_schedule_service
+
+        schedule_service = get_schedule_service()
+
+        for board in boards:
+            if pages_compatible_with_board(page, board):
+                continue
+            board_id = board.get("id") or ""
+            board_name = board.get("name") or board_id
+            # list_schedules() already folds legacy board_id "" entries into
+            # the primary board, so no extra mapping is needed here.
+            for schedule in schedule_service.list_schedules(board_id=board_id):
+                if references_page(schedule.page_id):
+                    refs.append(
+                        {
+                            "board_id": board_id,
+                            "board_name": board_name,
+                            "surface": "schedule",
+                            "schedule_id": schedule.id,
+                        }
+                    )
+            if references_page(settings.get_active_page_id(board_id=board_id)):
+                refs.append(
+                    {
+                        "board_id": board_id,
+                        "board_name": board_name,
+                        "surface": "active_page",
+                        "schedule_id": None,
+                    }
+                )
+    except Exception:  # pragma: no cover - defensive: never let the scan break a save
+        logger.exception("Stale-reference detection failed; returning partial results")
+    return refs

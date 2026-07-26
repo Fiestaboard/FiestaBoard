@@ -16,6 +16,9 @@ interface ToolbarDropdownProps {
   onClose?: () => void;
   /** When false, clicking outside will NOT close the dropdown. Default: true */
   closeOnOutsideClick?: boolean;
+  /** Disables the trigger button and prevents opening. */
+  disabled?: boolean;
+  "data-testid"?: string;
 }
 
 export function ToolbarDropdown({
@@ -25,6 +28,8 @@ export function ToolbarDropdown({
   className,
   onClose,
   closeOnOutsideClick = true,
+  disabled = false,
+  "data-testid": dataTestId,
 }: ToolbarDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -110,12 +115,18 @@ export function ToolbarDropdown({
           <TooltipTrigger asChild>
             <button
               type="button"
-              onClick={() => setIsOpen(!isOpen)}
+              disabled={disabled}
+              data-testid={dataTestId}
+              onClick={() => {
+                if (disabled) return;
+                setIsOpen(!isOpen);
+              }}
               className={cn(
                 "flex items-center justify-center p-1.5 rounded-md",
                 "hover:bg-muted/50 transition-colors",
                 "border border-transparent",
                 isOpen && "bg-muted/70 border-border",
+                disabled && "opacity-60 cursor-not-allowed",
                 className,
               )}
               aria-expanded={isOpen}

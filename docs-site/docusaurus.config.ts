@@ -188,7 +188,19 @@ const config: Config = {
           includeCurrentVersion: false,
           ...(onlyIncludeVersions ? { onlyIncludeVersions } : {}),
         },
-        blog: false, // Disable blog for now - keep it simple
+        blog: {
+          blogTitle: "FiestaBoard Blog",
+          blogDescription: "News, release announcements, and project updates from FiestaBoard",
+          showReadingTime: true,
+          blogSidebarTitle: "Recent posts",
+          onUntruncatedBlogPosts: "throw",
+          feedOptions: {
+            type: ["rss", "atom"],
+            title: "FiestaBoard Blog",
+            description: "News, release announcements, and project updates from FiestaBoard",
+            copyright: `Copyright © ${new Date().getFullYear()} FiestaBoard.`,
+          },
+        },
         theme: {
           customCss: "./src/css/custom.css",
         },
@@ -214,17 +226,12 @@ const config: Config = {
         content:
           "FiestaBoard is free, open-source software for split-flap displays. Add weather, stocks, sports scores, transit times, and more with 26 plugins, a visual editor, and scheduling. Compatible with Vestaboard.",
       },
-      { name: "og:type", content: "website" },
-      { name: "og:site_name", content: "FiestaBoard" },
-      { name: "og:image", content: "https://fiestaboard.app/img/logo.png" },
+      // og:title/og:description/og:image/og:type are emitted per-page by
+      // Docusaurus (blog posts get og:type=article + their own social card);
+      // only add tags here that have no per-page counterpart, or they win
+      // over the page-specific ones in social scrapers.
+      { property: "og:site_name", content: "FiestaBoard" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "FiestaBoard — Split-Flap Display Software" },
-      {
-        name: "twitter:description",
-        content:
-          "Free, open-source software for split-flap displays. 26 plugins, visual editor, scheduling. Compatible with Vestaboard.",
-      },
-      { name: "twitter:image", content: "https://fiestaboard.app/img/logo.png" },
     ],
     colorMode: {
       respectPrefersColorScheme: true,
@@ -260,6 +267,11 @@ const config: Config = {
         {
           to: "/stats",
           label: "Stats",
+          position: "left",
+        },
+        {
+          to: "/blog",
+          label: "Blog",
           position: "left",
         },
         {
@@ -335,6 +347,10 @@ const config: Config = {
         {
           title: "Community",
           items: [
+            {
+              label: "Blog",
+              to: "/blog",
+            },
             {
               label: "Docker Hub",
               href: "https://hub.docker.com/r/fiestaboard/fiestaboard",
