@@ -6,11 +6,11 @@ How to enable Simple Dissolve and use it on a page.
 
 **What it does**: Animates board updates by flipping changed tiles in a random order, producing a gradual dissolve from the current message to the target.
 
-**Prerequisites**: None.
+**Prerequisites**: The **Transition Plugins** beta must be enabled first (Settings → Advanced → Beta Features).
 
 ## Quick Setup
 
-1. **Enable** — Open Settings → Plugins, find Simple Dissolve under "Transition Plugins", and toggle it on.
+1. **Enable** — Open the Integrations page, find Simple Dissolve under "Transition Plugins", and toggle it on.
 2. **Configure** — Optionally adjust `tiles_per_frame`, `frame_interval_ms`, and `seed`.
 3. **Apply** — Open a page in the editor, set its Transition to "Simple Dissolve", and save. Or set it as the global default in Settings → Transitions.
 4. **View** — The next page transition will dissolve into the new content.

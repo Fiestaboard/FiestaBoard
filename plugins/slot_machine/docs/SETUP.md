@@ -6,11 +6,11 @@ How to enable Slot Machine and use it on a page.
 
 **What it does**: Animates board updates by spinning each column through random characters like a slot-machine reel before locking on the target. Columns lock left-to-right with a configurable stagger.
 
-**Prerequisites**: None.
+**Prerequisites**: The **Transition Plugins** beta must be enabled first (Settings → Advanced → Beta Features).
 
 ## Quick Setup
 
-1. **Enable** — Open Settings → Plugins, find Slot Machine under "Transition Plugins", and toggle it on.
+1. **Enable** — Open the Integrations page, find Slot Machine under "Transition Plugins", and toggle it on.
 2. **Configure** — Optionally adjust `spin_frames`, `column_stagger`, `frame_interval_ms`, and `seed`.
 3. **Apply** — Open a page in the editor, set its Transition to "Slot Machine", and save. Or set it as the global default in Settings → Transitions.
 4. **View** — The next page transition will spin each column before locking on the new content.
