@@ -7,7 +7,7 @@ import { enUS } from "date-fns/locale/en-US";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
-import withDragAndDrop, { type EventInteractionArgs } from "react-big-calendar/lib/addons/dragAndDrop";
+import withDragAndDropImport, { type EventInteractionArgs } from "react-big-calendar/lib/addons/dragAndDrop";
 
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -36,6 +36,16 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales,
 });
+
+// The dragAndDrop addon is a Babel-compiled CJS file (`exports.default`).
+// Vite 8 resolves a default import of CJS to `module.exports` itself (Node
+// semantics — see the "Consistent CommonJS Interop" migration note), so the
+// import is the `{ __esModule, default }` exports object there, while older
+// bundlers hand us the unwrapped function. Calling the object sent the
+// /schedule route chunk into React Router's reload-on-failed-module loop
+// (#1381). Unwrap whichever shape we were given.
+const withDragAndDrop = ((withDragAndDropImport as unknown as { default?: typeof withDragAndDropImport }).default ??
+  withDragAndDropImport) as typeof withDragAndDropImport;
 
 // Create DnD-enabled calendar
 const DnDCalendar = withDragAndDrop<CalendarEvent>(Calendar);
