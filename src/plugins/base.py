@@ -756,6 +756,15 @@ class TransitionPluginBase(ABC):
         return self._manifest.get("settings_schema", {})
 
     @property
+    def supports_triggers(self) -> bool:
+        """Transition plugins never fire event triggers."""
+        return False
+
+    def _validate_refresh_seconds(self, config: dict[str, Any]) -> list[str]:
+        """Transition plugins have no refresh cadence; nothing to validate."""
+        return []
+
+    @property
     def transition_settings(self) -> dict[str, Any]:
         """Return the merged ``transition_settings`` block from manifest.
 

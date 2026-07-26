@@ -160,6 +160,42 @@ def test_generate_frames_yields_expected_sequence():
     assert frames == [(from_grid, 10), (to_grid, 0)]
 
 
+def test_supports_triggers_always_false():
+    # Even a manifest that (wrongly) claims trigger support: transition
+    # plugins never participate in trigger sweeps.
+    plugin = _FakeTransition(_manifest(supports_triggers=True))
+    assert plugin.supports_triggers is False
+
+
+def test_validate_refresh_seconds_is_noop():
+    plugin = _FakeTransition(_manifest())
+    assert plugin._validate_refresh_seconds({"refresh_seconds": "bogus"}) == []
+
+
+def test_registry_config_and_trigger_paths_accept_transition_plugin():
+    """Regression: set_plugin_config raised AttributeError (API 500) and
+    trigger_plugins crashed the trigger sweep for transition plugins."""
+    from unittest.mock import MagicMock, patch
+
+    from src.plugins.registry import PluginRegistry
+
+    plugin = _FakeTransition(_manifest())
+    loader = MagicMock()
+    loader.load_all_plugins.return_value = {"fake_transition": plugin}
+    loader.get_manifest.side_effect = (
+        lambda pid: MagicMock(supports_triggers=False) if pid == "fake_transition" else None
+    )
+    with patch("src.plugins.registry.PluginLoader", return_value=loader):
+        registry = PluginRegistry(plugins_dir=Path("/fake/plugins"))
+    registry.initialize()
+    registry.enable_plugin("fake_transition")
+
+    errors = registry.set_plugin_config("fake_transition", {"step_delay_ms": 1000})
+    assert errors == []
+    assert plugin.config == {"step_delay_ms": 1000}
+    assert registry.trigger_plugins == {}
+
+
 # ---------------------------------------------------------------------------
 # Manifest validation
 # ---------------------------------------------------------------------------
