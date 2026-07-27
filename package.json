@@ -1,6 +1,6 @@
 {
   "name": "fiestaboard",
-  "version": "8.9.0",
+  "version": "8.10.0",
   "description": "Open-source server that turns your split-flap display into a living dashboard with weather, stocks, sports, transit, and more",
   "keywords": [
     "split-flap",
