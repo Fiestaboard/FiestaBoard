@@ -128,7 +128,7 @@ def _service_with_runtimes(boards):
     clients = {}
     for board in boards:
         client = MagicMock()
-        client.send_characters.return_value = (True, True)
+        client.render.return_value = (True, True)
         client._last_characters = None
         clients[board["id"]] = client
         runtimes[board["id"]] = BoardRuntime(client=client, board_id=board["id"])
@@ -173,12 +173,12 @@ class TestPerBoardRouting:
 
         _drive(svc, boards, pages=pages, schedule=schedule)
 
-        clients["b1"].send_characters.assert_called_once()
-        rows1 = clients["b1"].send_characters.call_args.args[0]
+        clients["b1"].render.assert_called_once()
+        rows1 = clients["b1"].render.call_args.args[0]
         assert len(rows1) == 6 and len(rows1[0]) == 22  # flagship
 
-        clients["b2"].send_characters.assert_called_once()
-        rows2 = clients["b2"].send_characters.call_args.args[0]
+        clients["b2"].render.assert_called_once()
+        rows2 = clients["b2"].render.call_args.args[0]
         assert len(rows2) == 6 and len(rows2[0]) == 30  # note-array 2x2 -> 6x30
 
         assert svc.runtimes["b1"].last_active_page_id == "pA"
@@ -205,8 +205,8 @@ class TestPerBoardRouting:
         _drive(svc, boards, pages=pages, schedule=schedule)
 
         # Primary had no scheduled page and no manual page -> no send.
-        clients["b1"].send_characters.assert_not_called()
-        clients["b2"].send_characters.assert_called_once()
+        clients["b1"].render.assert_not_called()
+        clients["b2"].render.assert_called_once()
 
     def test_unchanged_content_is_not_resent(self):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
@@ -217,7 +217,7 @@ class TestPerBoardRouting:
         _drive(svc, boards, pages=pages, schedule=schedule)
         _drive(svc, boards, pages=pages, schedule=schedule)
 
-        assert clients["b2"].send_characters.call_count == 1
+        assert clients["b2"].render.call_count == 1
 
 
 class TestSkips:
@@ -230,7 +230,7 @@ class TestSkips:
 
         _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
 
-        clients["b2"].send_characters.assert_not_called()
+        clients["b2"].render.assert_not_called()
 
     def test_schedule_disabled_board_uses_manual_page(self):
         """Schedule off for a secondary -> its manual by_board page is shown."""
@@ -241,7 +241,7 @@ class TestSkips:
 
         _drive(svc, boards, settings=settings, pages=pages)
 
-        clients["b2"].send_characters.assert_called_once()
+        clients["b2"].render.assert_called_once()
         assert svc.runtimes["b2"].last_active_page_id == "pManual"
 
     def test_secondary_with_no_active_page_goes_dark(self):
@@ -253,7 +253,7 @@ class TestSkips:
 
         _drive(svc, boards, settings=settings, pages=pages)
 
-        clients["b2"].send_characters.assert_not_called()
+        clients["b2"].render.assert_not_called()
 
     def test_disabled_board_is_skipped(self):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001, enabled=False)]
@@ -263,7 +263,7 @@ class TestSkips:
 
         _drive(svc, boards, pages=pages, schedule=schedule)
 
-        clients["b2"].send_characters.assert_not_called()
+        clients["b2"].render.assert_not_called()
 
 
 class TestPrimaryFallback:
@@ -276,7 +276,7 @@ class TestPrimaryFallback:
 
         _drive(svc, boards, settings=settings, pages=pages)
 
-        clients["b1"].send_characters.assert_called_once()
+        clients["b1"].render.assert_called_once()
         settings.set_active_page_id.assert_called_once()
         assert svc.runtimes["b1"].last_active_page_id == "pFirst"
 
@@ -285,26 +285,26 @@ class TestPartialFailureIsolation:
     def test_secondary_raising_does_not_block_primary(self):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
         svc, clients = _service_with_runtimes(boards)
-        clients["b2"].send_characters.side_effect = RuntimeError("board 2 exploded")
+        clients["b2"].render.side_effect = RuntimeError("board 2 exploded")
         pages = _page_service({"pA": {"content": "ALPHA"}, "pB": {"content": "BETA"}})
         schedule = _schedule_service({"b1": "pA", "b2": "pB"})
 
         result = _drive(svc, boards, pages=pages, schedule=schedule)
 
         assert result is True  # primary still sent
-        clients["b1"].send_characters.assert_called_once()
+        clients["b1"].render.assert_called_once()
 
     def test_primary_error_isolated_from_secondary(self):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
         svc, clients = _service_with_runtimes(boards)
-        clients["b1"].send_characters.side_effect = RuntimeError("board 1 exploded")
+        clients["b1"].render.side_effect = RuntimeError("board 1 exploded")
         pages = _page_service({"pA": {"content": "ALPHA"}, "pB": {"content": "BETA"}})
         schedule = _schedule_service({"b1": "pA", "b2": "pB"})
 
         result = _drive(svc, boards, pages=pages, schedule=schedule)
 
         assert result is False  # primary failed gracefully
-        clients["b2"].send_characters.assert_called_once()  # secondary unaffected
+        clients["b2"].render.assert_called_once()  # secondary unaffected
 
 
 class TestTemporaryOverridePrimaryOnly:
@@ -338,9 +338,9 @@ class TestPerBoardSilenceDelivery:
 
         # Both boards receive a SNOOZING indicator on entering silence, each
         # sized to its own geometry (flagship 6x22, note-array 2x1 -> 3x30).
-        rows1 = clients["b1"].send_characters.call_args.args[0]
+        rows1 = clients["b1"].render.call_args.args[0]
         assert len(rows1) == 6 and len(rows1[0]) == 22
-        rows2 = clients["b2"].send_characters.call_args.args[0]
+        rows2 = clients["b2"].render.call_args.args[0]
         assert len(rows2) == 3 and len(rows2[0]) == 30
 
         # Silence state is tracked per runtime.
@@ -357,8 +357,8 @@ class TestPerBoardSilenceDelivery:
         _drive(svc, boards, pages=pages, schedule=schedule, silence=True)
 
         # Exactly one send per board (the entering-silence indicator).
-        assert clients["b1"].send_characters.call_count == 1
-        assert clients["b2"].send_characters.call_count == 1
+        assert clients["b1"].render.call_count == 1
+        assert clients["b2"].render.call_count == 1
 
 
 class TestSeams:

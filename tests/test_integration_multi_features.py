@@ -275,6 +275,7 @@ class TestScheduleModeIntegration:
             mock_client_instance = Mock()
             mock_client_instance.read_current_message.return_value = None
             mock_client_instance.send_characters.return_value = (True, True)
+            mock_client_instance.render.return_value = (True, True)
             mock_board_client.return_value = mock_client_instance
 
             with patch("src.main.get_page_service", return_value=page_service):
@@ -326,6 +327,7 @@ class TestScheduleModeIntegration:
             mock_client_instance = Mock()
             mock_client_instance.read_current_message.return_value = None
             mock_client_instance.send_characters.return_value = (True, True)
+            mock_client_instance.render.return_value = (True, True)
             mock_board_client.return_value = mock_client_instance
 
             with patch("src.main.get_page_service", return_value=page_service):
@@ -387,6 +389,7 @@ class TestScheduleModeIntegration:
             mock_client_instance = Mock()
             mock_client_instance.read_current_message.return_value = None
             mock_client_instance.send_characters.return_value = (True, True)
+            mock_client_instance.render.return_value = (True, True)
             mock_board_client.return_value = mock_client_instance
 
             with patch("src.main.get_page_service", return_value=page_service):

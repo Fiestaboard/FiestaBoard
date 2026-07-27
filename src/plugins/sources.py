@@ -33,9 +33,15 @@ GIT_REF_RE = re.compile(r"^(?!-)(?!.*\.\.)(?!.*//)[A-Za-z0-9._/-]{1,255}$")
 REGISTRY_FILENAME = "plugin-registry.json"
 EXTERNAL_PLUGINS_DIR = "external_plugins"
 
-# Naming convention for registry plugins
+# Naming convention for registry plugins.  Data plugins use the
+# ``fiestaboard-plugin--<name>`` prefix; transition plugins use the
+# distinct ``fiestaboard-transition--<name>`` prefix so the loader and
+# UI can distinguish them by repo name alone before any cloning happens.
 REGISTRY_PREFIX = "fiestaboard-plugin--"
-REGISTRY_NAME_RE = re.compile(r"^fiestaboard-plugin--[a-z][a-z0-9-]*$")
+REGISTRY_TRANSITION_PREFIX = "fiestaboard-transition--"
+REGISTRY_NAME_RE = re.compile(
+    r"^(?:fiestaboard-plugin--|fiestaboard-transition--)[a-z][a-z0-9-]*$"
+)
 
 # Plugin id must be a safe single-segment identifier so it can be used as a
 # directory name without enabling path traversal.  Same character set as a
@@ -187,23 +193,28 @@ def validate_registry_repo_name(repo_url: str) -> tuple[bool, str]:
         return (
             False,
             f"Repository name '{repo_name}' does not follow the required "
-            f"'{REGISTRY_PREFIX}{{name}}' naming convention",
+            f"'{REGISTRY_PREFIX}{{name}}' or "
+            f"'{REGISTRY_TRANSITION_PREFIX}{{name}}' naming convention",
         )
     return True, ""
 
 
 def plugin_id_from_repo_name(repo_name: str) -> str:
-    """Derive the plugin id from a ``fiestaboard-plugin--{name}`` repo name.
+    """Derive the plugin id from a registry repo name.
 
-    Dashes in the suffix are converted to underscores to match manifest id
+    Accepts both ``fiestaboard-plugin--{name}`` (data plugins) and
+    ``fiestaboard-transition--{name}`` (transition plugins).  Dashes in
+    the suffix are converted to underscores to match manifest id
     conventions.
 
     >>> plugin_id_from_repo_name("fiestaboard-plugin--my-weather")
     'my_weather'
+    >>> plugin_id_from_repo_name("fiestaboard-transition--my-fade")
+    'my_fade'
     """
-    if repo_name.startswith(REGISTRY_PREFIX):
-        suffix = repo_name[len(REGISTRY_PREFIX):]
-        return suffix.replace("-", "_")
+    for prefix in (REGISTRY_PREFIX, REGISTRY_TRANSITION_PREFIX):
+        if repo_name.startswith(prefix):
+            return repo_name[len(prefix):].replace("-", "_")
     return repo_name.replace("-", "_")
 
 

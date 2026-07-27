@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time as _time_module
 from collections.abc import Callable
 from typing import Any, Literal, Optional
@@ -24,6 +25,10 @@ from typing import Any, Literal, Optional
 import requests
 
 logger = logging.getLogger(__name__)
+
+# Sentinel prefix on the strategy string that routes a render() call through
+# a transition plugin instead of the hardware's built-in strategies.
+TRANSITION_PLUGIN_PREFIX = "plugin:"
 
 # Regex pattern to match color markers like {63}, {red}, {/}, {/red}
 COLOR_MARKER_PATTERN = re.compile(
@@ -136,7 +141,157 @@ def is_successful_board_read_response(data: Any) -> bool:
     return bool(isinstance(data, dict) and "currentMessage" in data and data.get("currentMessage") is None)
 
 
-class BoardClient:
+class TransitionRenderMixin:
+    """Adds transition-plugin support on top of a ``send_characters`` client.
+
+    Shared by :class:`BoardClient` and
+    :class:`~src.note_array_local_client.NoteArrayLocalClient` so every
+    board type honors ``"plugin:<id>"`` strategies through one code path.
+    The host class must provide ``send_characters(grid, strategy=None,
+    step_interval_ms=None, step_size=None, force=False)`` and call
+    :meth:`_init_transition_state` from its ``__init__``.
+    """
+
+    def _init_transition_state(self) -> None:
+        # Per-board lock serializing sends.  Used by the transition runner to
+        # make sure rotation / manual API / trigger sends don't interleave
+        # frames mid-transition.  RLock so render() → send_characters chains
+        # don't self-deadlock.
+        self._send_lock = threading.RLock()
+
+        # Cancellation flag for the currently-running interruptible transition.
+        # Each render() call installs a fresh Event under the send lock and
+        # passes it to the runner.  A concurrent render() signals the
+        # currently-active event *before* acquiring the lock so an in-flight
+        # transition actually wakes up between frames.  Using a per-run Event
+        # (rather than set/clear-ing one shared Event) means a freshly-started
+        # transition can't be pre-cancelled by a signal that was meant for the
+        # previous run.
+        self._cancel_transition: threading.Event = threading.Event()
+
+        # Pluggable transition runner.  Set via set_transition_runner() by
+        # the service layer at startup.  When None, "plugin:<id>" strategies
+        # fall back to a plain send (logged warning).
+        self._transition_runner: Any | None = None
+
+    def set_transition_runner(self, runner: Any | None) -> None:
+        """Attach (or detach) the transition runner used by :meth:`render`.
+
+        Decouples this module from the runner implementation; the service
+        layer injects the runner once both are constructed.
+        """
+        self._transition_runner = runner
+
+    @staticmethod
+    def _transition_plugins_beta_enabled() -> bool:
+        """Return whether the transition-plugin beta flag is currently on.
+
+        Imported lazily so this module has no hard dependency on the
+        settings layer.  Failures default to *False* -- if the settings
+        service can't be reached, we'd rather fall back to a no-strategy
+        send than execute experimental code.
+        """
+        try:
+            from .settings.service import get_settings_service
+
+            return bool(get_settings_service().get_beta_settings().transition_plugins_enabled)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("render: could not read transition_plugins beta flag: %s", exc)
+            return False
+
+    def render(
+        self,
+        characters: list[list[int]],
+        *,
+        strategy: str | None = None,
+        step_interval_ms: int | None = None,
+        step_size: int | None = None,
+        force: bool = False,
+        device_type: str | None = None,
+    ) -> tuple[bool, bool]:
+        """High-level send that understands transition-plugin strategies.
+
+        Behaves identically to :meth:`send_characters` for built-in
+        strategies (``column``, ``edges-to-center``, etc. or *None*).  When
+        *strategy* starts with ``"plugin:"`` and a transition runner is
+        attached, the runner drives a frame-by-frame animation toward
+        *characters*; the final frame is always *characters* itself.
+
+        Args:
+            characters: Target grid to render.
+            strategy: Built-in strategy name, ``"plugin:<id>"``, or *None*.
+            step_interval_ms: Forwarded to built-in strategies.
+            step_size: Forwarded to built-in strategies.
+            force: Bypass the unchanged-message cache.
+            device_type: Optional device hint forwarded to the transition
+                runner so plugins receive the right dimensions.
+
+        Returns:
+            ``(success, was_sent)`` mirroring :meth:`send_characters`.
+        """
+        is_plugin = isinstance(strategy, str) and strategy.startswith(TRANSITION_PLUGIN_PREFIX)
+
+        # Signal any in-flight transition to wind down *before* we wait on
+        # the send lock.  Without this, a built-in render() arriving during
+        # a plugin transition would block on the lock instead of preempting
+        # the animation, and the in-flight runner would never see a cancel.
+        self._cancel_transition.set()
+
+        with self._send_lock:
+            # Install a fresh Event for this run so a stale set() from the
+            # previous caller can't immediately cancel us.  The runner of
+            # the just-cancelled transition still holds its own reference
+            # to the old Event, so its cancellation signal isn't lost.
+            run_cancel_event = threading.Event()
+            self._cancel_transition = run_cancel_event
+
+            if not is_plugin:
+                return self.send_characters(
+                    characters,
+                    strategy=strategy,
+                    step_interval_ms=step_interval_ms,
+                    step_size=step_size,
+                    force=force,
+                )
+
+            plugin_id = strategy[len(TRANSITION_PLUGIN_PREFIX) :].strip()
+            if not plugin_id:
+                logger.warning(
+                    "render: empty transition plugin id in strategy %r; sending as-is",
+                    strategy,
+                )
+                return self.send_characters(characters, strategy=None, force=force)
+
+            # Defense in depth: if the operator toggled the beta flag off
+            # after pages were saved with a plugin: strategy, the runtime
+            # must not execute plugin code anyway -- the API surface is
+            # gated, and so is the execution path.  Import locally to avoid
+            # a hard dependency from this module on settings.
+            if not self._transition_plugins_beta_enabled():
+                logger.warning(
+                    "render: transition_plugins beta is off; plugin:%s ignored, snapping to target",
+                    plugin_id,
+                )
+                return self.send_characters(characters, strategy=None, force=force)
+
+            runner = self._transition_runner
+            if runner is None:
+                logger.warning(
+                    "render: no transition runner attached; plugin:%s ignored, snapping to target grid",
+                    plugin_id,
+                )
+                return self.send_characters(characters, strategy=None, force=force)
+
+            return runner.run(
+                plugin_id=plugin_id,
+                to_grid=characters,
+                board_client=self,
+                cancel_event=run_cancel_event,
+                device_type=device_type,
+            )
+
+
+class BoardClient(TransitionRenderMixin):
     """Client for the board with support for Local and Cloud APIs.
 
     Features:
@@ -221,6 +376,21 @@ class BoardClient:
         self._is_note_array: bool = bool(note_array_token)
         # Injectable monotonic clock for the note-array send throttle (tests).
         self._time_func: Callable[[], float] = _time_func if _time_func is not None else _time_module.monotonic
+
+        # Transition-plugin render state (lock, cancel event, runner slot).
+        self._init_transition_state()
+
+    @property
+    def min_send_interval_ms(self) -> int:
+        """Floor between consecutive sends the transition runner must respect.
+
+        Cloud note arrays are throttled to one send per
+        :data:`NOTE_ARRAY_MIN_SEND_INTERVAL` seconds — sends inside that
+        window are silently skipped, which would drop transition frames
+        (and the final snap-to-target).  Exposing the floor lets the
+        runner pace frames so every send actually lands.
+        """
+        return int(NOTE_ARRAY_MIN_SEND_INTERVAL * 1000) if self._is_note_array else 0
 
     @property
     def _note_array_headers(self) -> dict[str, str]:

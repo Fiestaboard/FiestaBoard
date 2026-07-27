@@ -369,6 +369,16 @@ export const handlers = [
     return HttpResponse.json(mockStatus);
   }),
 
+  // Beta settings — queried by the navigation sidebar on every render.
+  // Both flags default off; tests exercising beta features override via
+  // server.use().
+  http.get(`${API_BASE}/settings/beta`, () => {
+    return HttpResponse.json({
+      settings: { https_enabled: false, transition_plugins_enabled: false },
+      https: { cert_present: false, cert_path: "", key_path: "", updater_available: false },
+    });
+  }),
+
   http.get(`${API_BASE}/preview`, () => {
     return HttpResponse.json(mockPreview);
   }),

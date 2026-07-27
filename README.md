@@ -188,6 +188,21 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Word of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--word-of-day) | Word, pronunciation, and definition | No |
 | [WSDOT Ferries](https://github.com/Fiestaboard/fiestaboard-plugin--wsdot) | WA State ferry schedules and alerts | Yes (free) |
 
+### Transition Plugins (Beta)
+
+> ⚠️ **Experimental.** Enable in Settings → Beta. The plugin SDK is not yet stable — APIs and manifest fields may change before general availability.
+
+Transition plugins drive **frame-by-frame board animations** that aren't possible with Vestaboard's built-in hardware transitions. They're picked per-page (or as the system default) and animate the change from one display to the next. Preview any transition without a real board at `/transitions` (Transition Lab).
+
+<!-- Sorted alphabetically -->
+| Plugin | What It Does |
+|--------|--------------|
+| [Simple Dissolve](./plugins/simple_dissolve/README.md) | Flips changed tiles in a random order for a gradual dissolve |
+| [Slot Machine](./plugins/slot_machine/README.md) | Spins each column like a flap reel before locking left-to-right |
+| [Typewriter](./plugins/typewriter/README.md) | Reveals the message one character at a time, left-to-right |
+
+Build your own with the [Transition Plugin Development Guide](./docs/development/TRANSITION_PLUGIN_DEVELOPMENT.md).
+
 ---
 
 ## Features

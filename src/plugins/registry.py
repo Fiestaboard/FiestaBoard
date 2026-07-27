@@ -595,6 +595,25 @@ class PluginRegistry:
         """
         return self._plugins.get(plugin_id)
 
+    def get_transition_plugin(self, plugin_id: str):
+        """Return a loaded *transition* plugin instance, or None.
+
+        Transition plugins inherit from
+        :class:`~src.plugins.base.TransitionPluginBase` and produce
+        frame-by-frame board animations; data plugins are filtered out so
+        ``board_client.render("plugin:typewriter")`` can never accidentally
+        invoke a data source.  Only plugins that are currently enabled are
+        returned to prevent disabled plugins from running on the board.
+        """
+        from .base import TransitionPluginBase  # local import to avoid cycles
+
+        plugin = self._plugins.get(plugin_id)
+        if plugin is None or not isinstance(plugin, TransitionPluginBase):
+            return None
+        if not self._enabled.get(plugin_id, False):
+            return None
+        return plugin
+
     def get_manifest(self, plugin_id: str) -> PluginManifest | None:
         """Get a plugin's manifest.
 
@@ -743,6 +762,13 @@ class PluginRegistry:
             return PluginResult(available=False, error=f"Plugin not enabled: {plugin_id}")
 
         plugin = self._plugins[plugin_id]
+
+        # Transition plugins animate sends; they have no data or template
+        # variables.  Data-oriented callers (variable discovery, display
+        # rendering, /plugins/{id}/data) sweep every enabled plugin, so
+        # answer cleanly instead of raising AttributeError on get_data.
+        if not isinstance(plugin, PluginBase):
+            return PluginResult(available=False, error=f"Plugin {plugin_id} is a transition plugin (no data)")
 
         try:
             return plugin.get_data(board)

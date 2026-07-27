@@ -31,6 +31,7 @@ def mock_service():
     service = Mock()
     service.vb_client = Mock()
     service.vb_client.send_characters.return_value = (True, True)
+    service.vb_client.render.return_value = (True, True)
     service.vb_client.clear_cache.return_value = None
     service.vb_client.test_connection.return_value = True
     service.vb_client.get_cache_status.return_value = {"has_cached_text": False}
@@ -268,6 +269,7 @@ class TestSendWelcomeMessage:
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -299,6 +301,7 @@ class TestSendWelcomeMessage:
 
             board_client = Mock()
             board_client.send_characters.return_value = (False, False)
+            board_client.render.return_value = (False, False)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -329,6 +332,7 @@ class TestSendWelcomeMessage:
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, False)
+            board_client.render.return_value = (True, False)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -362,6 +366,7 @@ class TestSendWelcomeMessage:
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 15 for _ in range(3)]
@@ -411,6 +416,7 @@ class TestSendWelcomeMessage:
 
             board_client = Mock()
             board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 22 for _ in range(6)]
@@ -451,7 +457,7 @@ class TestSendWelcomeMessage:
             mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
-            board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 30 for _ in range(3)]
@@ -490,7 +496,7 @@ class TestSendWelcomeMessage:
             mock_config.BOARD_HOST = "192.168.1.100"
 
             board_client = Mock()
-            board_client.send_characters.return_value = (True, True)
+            board_client.render.return_value = (True, True)
             MockBoardClient.return_value = board_client
 
             mock_ttba.return_value = [[0] * 15 for _ in range(6)]
@@ -955,6 +961,7 @@ class TestSetActivePage:
         """Board send failure still returns success but sent_to_board is False."""
         mock_settings_service.should_send_to_board.return_value = True
         mock_service.vb_client.send_characters.return_value = (False, False)
+        mock_service.vb_client.render.return_value = (False, False)
         with (
             patch("src.api_server.resolve_dimensions") as mock_dims,
             patch("src.api_server.text_to_board_array") as mock_ttba,
@@ -1133,6 +1140,7 @@ class TestSendDisplay:
         """Board send failure → 500."""
         mock_settings_service.should_send_to_board.return_value = True
         mock_service.vb_client.send_characters.return_value = (False, False)
+        mock_service.vb_client.render.return_value = (False, False)
         with (
             patch("src.api_server.get_display_service") as mock_ds,
             patch("src.api_server.text_to_board_array") as mock_ttba,
@@ -1240,6 +1248,7 @@ class TestSendPage:
         """Board send failure → 500."""
         mock_settings_service.should_send_to_board.return_value = True
         mock_service.vb_client.send_characters.return_value = (False, False)
+        mock_service.vb_client.render.return_value = (False, False)
         with (
             patch("src.api_server.Config") as mock_config,
             patch("src.api_server.resolve_dimensions") as mock_dims,
@@ -1334,6 +1343,7 @@ class TestDebugBlankErrorPaths:
         ):
             bc = Mock()
             bc.send_characters.return_value = (False, False)
+            bc.render.return_value = (False, False)
             mock_bc.return_value = bc
             ss = Mock()
             ss.should_send_to_board.return_value = True
@@ -1382,6 +1392,7 @@ class TestDebugFillErrorPaths:
         ):
             bc = Mock()
             bc.send_characters.return_value = (False, False)
+            bc.render.return_value = (False, False)
             mock_bc.return_value = bc
             ss = Mock()
             ss.should_send_to_board.return_value = True
@@ -1450,6 +1461,7 @@ class TestDebugInfoErrorPaths:
         ):
             bc = Mock()
             bc.send_characters.return_value = (False, False)
+            bc.render.return_value = (False, False)
             mock_bc.return_value = bc
             ss = Mock()
             ss.should_send_to_board.return_value = True

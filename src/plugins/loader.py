@@ -11,12 +11,15 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .base import PluginBase
+from .base import PluginBase, TransitionPluginBase
 from .manifest import PluginManifest, load_manifest
 from .sources import (
     PluginSource,
     get_external_plugins_dir,
 )
+
+# A loaded plugin instance can be either a data plugin or a transition plugin.
+AnyPlugin = PluginBase | TransitionPluginBase
 
 logger = logging.getLogger(__name__)
 
@@ -120,8 +123,8 @@ class PluginLoader:
         else:
             self._external_dirs = list(external_dirs)
 
-        self._loaded_plugins: dict[str, tuple[PluginBase, PluginManifest]] = {}
-        self._plugin_classes: dict[str, type[PluginBase]] = {}
+        self._loaded_plugins: dict[str, tuple[AnyPlugin, PluginManifest]] = {}
+        self._plugin_classes: dict[str, type[AnyPlugin]] = {}
         self._load_errors: dict[str, list[str]] = {}
         self._plugin_sources: dict[str, PluginSource] = {}
 
@@ -132,9 +135,31 @@ class PluginLoader:
         )
 
     @property
-    def loaded_plugins(self) -> dict[str, tuple[PluginBase, PluginManifest]]:
-        """Return all successfully loaded plugins."""
+    def loaded_plugins(self) -> dict[str, tuple[AnyPlugin, PluginManifest]]:
+        """Return all successfully loaded plugins (data + transition)."""
         return self._loaded_plugins.copy()
+
+    @property
+    def data_plugins(self) -> dict[str, tuple[PluginBase, PluginManifest]]:
+        """Return only loaded *data* plugins (PluginBase subclasses)."""
+        return {pid: (inst, m) for pid, (inst, m) in self._loaded_plugins.items() if isinstance(inst, PluginBase)}
+
+    @property
+    def transition_plugins(self) -> dict[str, tuple[TransitionPluginBase, PluginManifest]]:
+        """Return only loaded *transition* plugins."""
+        return {
+            pid: (inst, m) for pid, (inst, m) in self._loaded_plugins.items() if isinstance(inst, TransitionPluginBase)
+        }
+
+    def get_transition_plugin(self, plugin_id: str) -> TransitionPluginBase | None:
+        """Return a loaded transition plugin instance, or None."""
+        entry = self._loaded_plugins.get(plugin_id)
+        if entry is None:
+            return None
+        instance, _ = entry
+        if isinstance(instance, TransitionPluginBase):
+            return instance
+        return None
 
     @property
     def load_errors(self) -> dict[str, list[str]]:
@@ -221,7 +246,7 @@ class PluginLoader:
 
     # ── loading ──────────────────────────────────────────────────────────
 
-    def load_plugin(self, plugin_name: str) -> PluginBase | None:
+    def load_plugin(self, plugin_name: str) -> AnyPlugin | None:
         """Load a single plugin by directory name.
 
         Args:
@@ -284,18 +309,47 @@ class PluginLoader:
                 return None
 
         try:
-            # Import the plugin module dynamically
+            # Import the plugin module dynamically.  If the module has
+            # already been *fully* imported via the normal Python import
+            # machinery (e.g. a test holds ``from plugins.date_time import X``),
+            # reuse that existing entry instead of clobbering it -- a
+            # replaced sys.modules entry leaves the prior import's
+            # references pointing at a stale module object, which breaks
+            # any patches the caller has applied.
+            #
+            # We must NOT reuse a partially-loaded module: when a previous
+            # exec_module raised mid-execution, sys.modules can still hold
+            # a module object whose ``__file__`` matches.  Reusing that
+            # half-initialized module would mask the original failure.
+            # The ``__fiestaboard_loaded__`` sentinel is set only after a
+            # successful exec_module below.
             module_name = f"plugins.{plugin_name}"
-            spec = importlib.util.spec_from_file_location(module_name, init_path)
+            existing = sys.modules.get(module_name)
+            existing_path = getattr(existing, "__file__", None) if existing is not None else None
+            if (
+                existing is not None
+                and existing_path == str(init_path)
+                and getattr(existing, "__fiestaboard_loaded__", False)
+            ):
+                module = existing
+            else:
+                spec = importlib.util.spec_from_file_location(module_name, init_path)
 
-            if spec is None or spec.loader is None:
-                errors.append(f"Failed to create module spec for {plugin_name}")
-                self._load_errors[plugin_name] = errors
-                return None
+                if spec is None or spec.loader is None:
+                    errors.append(f"Failed to create module spec for {plugin_name}")
+                    self._load_errors[plugin_name] = errors
+                    return None
 
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module
-            spec.loader.exec_module(module)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                try:
+                    spec.loader.exec_module(module)
+                except Exception:
+                    # Drop the half-loaded module so a retry doesn't pick
+                    # up an inconsistent object.
+                    sys.modules.pop(module_name, None)
+                    raise
+                module.__fiestaboard_loaded__ = True
 
         except Exception as e:
             errors.append(f"Failed to import plugin module: {e}")
@@ -303,10 +357,13 @@ class PluginLoader:
             logger.exception(f"Error importing plugin {plugin_name}")
             return None
 
-        # Find PluginBase subclass
-        plugin_class = self._find_plugin_class(module, manifest.id)
+        # Find PluginBase or TransitionPluginBase subclass.  The manifest's
+        # plugin_type determines which we expect; mismatches are errors.
+        expected_type = manifest.plugin_type or "data"
+        plugin_class = self._find_plugin_class(module, expected_type)
         if plugin_class is None:
-            errors.append(f"No PluginBase subclass found in {plugin_name}")
+            base_name = "TransitionPluginBase" if expected_type == "transition" else "PluginBase"
+            errors.append(f"No {base_name} subclass found in {plugin_name} (manifest plugin_type={expected_type!r})")
             self._load_errors[plugin_name] = errors
             return None
 
@@ -336,36 +393,32 @@ class PluginLoader:
             logger.exception(f"Error instantiating plugin {plugin_name}")
             return None
 
-    def _find_plugin_class(self, module: Any, expected_id: str) -> type[PluginBase] | None:
-        """Find the PluginBase subclass in a module.
+    def _find_plugin_class(self, module: Any, expected_type: str = "data") -> type[AnyPlugin] | None:
+        """Find a plugin class in *module* matching *expected_type*.
 
         Args:
-            module: Loaded Python module
-            expected_id: Expected plugin_id for validation
+            module: Loaded Python module to scan.
+            expected_type: ``"data"`` (look for :class:`PluginBase` subclass)
+                or ``"transition"`` (look for :class:`TransitionPluginBase`).
 
         Returns:
-            PluginBase subclass, or None if not found
+            The matching plugin class, or None if not found.
         """
-        # Look for exported Plugin class
+        base_class: type[AnyPlugin] = TransitionPluginBase if expected_type == "transition" else PluginBase
+
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
-
-            # Skip non-classes
             if not isinstance(attr, type):
                 continue
-
-            # Skip PluginBase itself
-            if attr is PluginBase:
+            # Skip the base classes themselves.
+            if attr is PluginBase or attr is TransitionPluginBase:
                 continue
-
-            # Check if it's a PluginBase subclass
-            if issubclass(attr, PluginBase):
-                logger.debug(f"Found plugin class: {attr_name}")
+            if issubclass(attr, base_class):
+                logger.debug(f"Found {expected_type} plugin class: {attr_name}")
                 return attr
-
         return None
 
-    def load_all_plugins(self) -> dict[str, PluginBase]:
+    def load_all_plugins(self) -> dict[str, AnyPlugin]:
         """Discover and load all available plugins.
 
         Returns:
@@ -387,7 +440,7 @@ class PluginLoader:
 
         return loaded
 
-    def reload_plugin(self, plugin_id: str) -> PluginBase | None:
+    def reload_plugin(self, plugin_id: str) -> AnyPlugin | None:
         """Reload a plugin (unload and load again).
 
         Args:
@@ -459,7 +512,7 @@ class PluginLoader:
         """
         return self._plugin_sources.get(plugin_id)
 
-    def get_plugin_class(self, plugin_id: str) -> type[PluginBase] | None:
+    def get_plugin_class(self, plugin_id: str) -> type[AnyPlugin] | None:
         """Get the plugin class for a loaded plugin.
 
         This is used to create additional instances of the same plugin type.
@@ -468,11 +521,12 @@ class PluginLoader:
             plugin_id: Plugin ID
 
         Returns:
-            The PluginBase subclass or None if not loaded.
+            The plugin class (PluginBase or TransitionPluginBase subclass)
+            or None if not loaded.
         """
         return self._plugin_classes.get(plugin_id)
 
-    def create_instance(self, plugin_id: str) -> PluginBase | None:
+    def create_instance(self, plugin_id: str) -> AnyPlugin | None:
         """Create a new instance of a loaded plugin.
 
         Returns a fresh PluginBase instance using the stored class and

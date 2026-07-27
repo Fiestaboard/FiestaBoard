@@ -1,0 +1,45 @@
+{
+  "id": "typewriter",
+  "name": "Typewriter",
+  "version": "1.0.0",
+  "description": "Reveals the target message left-to-right, character by character, like a typewriter.",
+  "author": "FiestaBoard",
+  "icon": "type",
+  "category": "transition",
+  "plugin_type": "transition",
+  "documentation": "README.md",
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "chars_per_frame": {
+        "type": "integer",
+        "title": "Characters per frame",
+        "description": "How many tiles flip in each step. Larger = faster.",
+        "default": 1,
+        "minimum": 1,
+        "maximum": 22
+      },
+      "frame_interval_ms": {
+        "type": "integer",
+        "title": "Delay between frames (ms)",
+        "description": "Time to pause between each step.",
+        "default": 120,
+        "minimum": 0,
+        "maximum": 2000
+      }
+    }
+  },
+  "transition_settings": {
+    "interruptible": true,
+    "min_interval_ms": 50,
+    "max_frames": 200,
+    "max_runtime_seconds": 60
+  },
+  "screenshots": [
+    {
+      "src": "docs/board-display.png",
+      "alt": "Typewriter transition reveal",
+      "primary": true
+    }
+  ]
+}

@@ -117,6 +117,7 @@ def display_service():
     svc = DisplayService()
     svc.vb_client = Mock()
     svc.vb_client.send_characters.return_value = (True, True)
+    svc.vb_client.render.return_value = (True, True)
     return svc
 
 
@@ -537,7 +538,7 @@ class TestSendTriggerContent:
             sent = display_service._send_trigger_content("HELLO TRIGGER")
 
         assert sent is True
-        display_service.vb_client.send_characters.assert_called_once()
+        display_service.vb_client.render.assert_called_once()
         assert display_service._last_active_page_content == "HELLO TRIGGER"
         assert display_service._last_active_page_id == "__trigger__"
 
@@ -545,4 +546,4 @@ class TestSendTriggerContent:
         display_service._last_active_page_content = "ALREADY ON BOARD"
         sent = display_service._send_trigger_content("ALREADY ON BOARD")
         assert sent is False
-        display_service.vb_client.send_characters.assert_not_called()
+        display_service.vb_client.render.assert_not_called()

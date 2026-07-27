@@ -51,6 +51,7 @@
     "behaviour",
     "byok",
     "cerebras",
+    "chokepoint",
     "ciphertext",
     "citibike",
     "conftest",
@@ -71,6 +72,7 @@
     "heatsink",
     "icanhazdadjoke",
     "imager",
+    "interruptible",
     "laggy",
     "localisation",
     "meteo",
@@ -103,6 +105,7 @@
     "wcag",
     "weatherapi",
     "wlan",
+    "wonkybutt",
     "wsdot",
     "zigbee"
   ]

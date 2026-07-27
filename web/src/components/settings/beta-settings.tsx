@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, FlaskConical, Loader2, Lock, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ExternalLink, FlaskConical, Loader2, Lock, RefreshCw, ShieldCheck, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -24,9 +24,11 @@ import { api } from "@/lib/api";
 /**
  * Settings → Beta section.
  *
- * Currently exposes a single experimental toggle: HTTPS (Beta).
+ * Exposes the experimental toggles: HTTPS (Beta) and Transition
+ * Plugins (Beta). Transition plugins take effect immediately (no
+ * restart); HTTPS requires a container restart.
  *
- * Behaviour:
+ * HTTPS behaviour:
  *   - Toggling ON persists the preference and eagerly generates a
  *     self-signed cert into data/certs/. nginx only switches over on
  *     the next container restart, so we prompt the user to restart.
@@ -70,6 +72,19 @@ export function BetaSettings() {
     },
   });
 
+  const transitionsMutation = useMutation({
+    mutationFn: (next: boolean) => api.updateBetaSettings({ transition_plugins_enabled: next }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "beta"] });
+      queryClient.invalidateQueries({ queryKey: ["settings", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["transition-plugins"] });
+      toast.success(t("savedToast"));
+    },
+    onError: (err: Error) => {
+      toast.error(t("saveFailedToast", { error: err.message }));
+    },
+  });
+
   const restartMutation = useMutation({
     mutationFn: () => api.restartSystem(),
     onSuccess: () => {
@@ -103,6 +118,7 @@ export function BetaSettings() {
   const httpsEnabled = data.settings.https_enabled;
   const certPresent = data.https.cert_present;
   const updaterAvailable = data.https.updater_available;
+  const transitionsEnabled = data.settings.transition_plugins_enabled;
 
   return (
     <>
@@ -141,6 +157,35 @@ export function BetaSettings() {
               disabled={mutation.isPending}
               onCheckedChange={(checked) => mutation.mutate(checked)}
               aria-label={t("httpsLabel")}
+            />
+          </div>
+
+          <div className="flex items-start justify-between gap-4 rounded-md border p-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Wand2 className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{t("transitionsLabel")}</span>
+              </div>
+              <p className="text-sm text-muted-foreground">{t("transitionsDescription")}</p>
+              <p className="text-xs text-muted-foreground flex items-start gap-1.5 pt-1">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>{t("transitionsWarning")}</span>
+              </p>
+              {transitionsEnabled && (
+                <a
+                  href="/transitions"
+                  className="text-xs text-primary inline-flex items-center gap-1 pt-1 hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  {t("transitionsLabLink")}
+                </a>
+              )}
+            </div>
+            <Switch
+              checked={transitionsEnabled}
+              disabled={transitionsMutation.isPending}
+              onCheckedChange={(checked) => transitionsMutation.mutate(checked)}
+              aria-label={t("transitionsLabel")}
             />
           </div>
         </CardContent>

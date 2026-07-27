@@ -299,6 +299,7 @@ def mock_service():
         svc = Mock()
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
+        svc.vb_client.render.return_value = (True, True)
         svc.vb_client.get_cache_status.return_value = {"has_cached_text": False}
         svc.vb_client.clear_cache.return_value = None
         svc.vb_client.use_cloud = False
@@ -910,6 +911,7 @@ class TestTemplateEndpoints:
         with patch("src.api_server.board_client_from_board_dict") as mock_bcfbd:
             mock_board_client = Mock()
             mock_board_client.send_characters.return_value = (True, True)
+            mock_board_client.render.return_value = (True, True)
             mock_bcfbd.return_value = mock_board_client
             response = client.post(
                 "/templates/render/live",
@@ -1384,6 +1386,7 @@ class TestServiceLifecycle:
 
     def test_send_message_skipped(self, client, mock_service, mock_settings_service):
         mock_service.vb_client.send_characters.return_value = (True, False)
+        mock_service.vb_client.render.return_value = (True, False)
         with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 200
@@ -1391,6 +1394,7 @@ class TestServiceLifecycle:
 
     def test_send_message_failure(self, client, mock_service, mock_settings_service):
         mock_service.vb_client.send_characters.return_value = (False, False)
+        mock_service.vb_client.render.return_value = (False, False)
         with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 500
@@ -1891,7 +1895,7 @@ class TestSendPagePerBoard:
     ):
         _configure_boards(mock_settings_service)
         b2_client = Mock()
-        b2_client.send_characters.return_value = (True, True)
+        b2_client.render.return_value = (True, True)
         mock_service.get_board_client = Mock(return_value=b2_client)
 
         response = client.post("/pages/page1/send?target=board&board_id=b2")
@@ -1901,34 +1905,34 @@ class TestSendPagePerBoard:
         assert data["sent_to_board"] is True
         assert data["board_id"] == "b2"
         mock_service.get_board_client.assert_called_once_with("b2")
-        b2_client.send_characters.assert_called_once()
-        mock_service.vb_client.send_characters.assert_not_called()
+        b2_client.render.assert_called_once()
+        mock_service.vb_client.render.assert_not_called()
 
     def test_send_page_sizes_grid_to_target_board(self, client, mock_service, mock_settings_service, mock_page_service):
         """The grid is sized to the target board (note 3x15), not the page's device type."""
         _configure_boards(mock_settings_service)
         b2_client = Mock()
-        b2_client.send_characters.return_value = (True, True)
+        b2_client.render.return_value = (True, True)
         mock_service.get_board_client = Mock(return_value=b2_client)
 
         response = client.post("/pages/page1/send?target=board&board_id=b2")
 
         assert response.status_code == 200
-        board_array = b2_client.send_characters.call_args[0][0]
+        board_array = b2_client.render.call_args[0][0]
         assert len(board_array) == 3
         assert len(board_array[0]) == 15
 
     def test_send_page_board_id_in_body(self, client, mock_service, mock_settings_service, mock_page_service):
         _configure_boards(mock_settings_service)
         b2_client = Mock()
-        b2_client.send_characters.return_value = (True, True)
+        b2_client.render.return_value = (True, True)
         mock_service.get_board_client = Mock(return_value=b2_client)
 
         response = client.post("/pages/page1/send", json={"target": "board", "board_id": "b2"})
 
         assert response.status_code == 200
         assert response.json()["board_id"] == "b2"
-        b2_client.send_characters.assert_called_once()
+        b2_client.render.assert_called_once()
 
     def test_send_page_unknown_board_404(self, client, mock_service, mock_settings_service, mock_page_service):
         _configure_boards(mock_settings_service)
@@ -1948,7 +1952,7 @@ class TestSendPagePerBoard:
         _configure_boards(mock_settings_service)
         response = client.post("/pages/page1/send?target=board")
         assert response.status_code == 200
-        mock_service.vb_client.send_characters.assert_called_once()
+        mock_service.vb_client.render.assert_called_once()
 
 
 class TestRefreshPerBoard:
@@ -2017,7 +2021,7 @@ class TestActivePagePerBoard:
         _configure_boards(mock_settings_service)
         mock_settings_service.should_send_to_board.return_value = True
         b2_client = Mock()
-        b2_client.send_characters.return_value = (True, True)
+        b2_client.render.return_value = (True, True)
         mock_service.get_board_client = Mock(return_value=b2_client)
 
         response = client.put("/settings/active-page", json={"page_id": "page1", "board_id": "b2"})
@@ -2027,8 +2031,8 @@ class TestActivePagePerBoard:
         assert data["board_id"] == "b2"
         assert data["sent_to_board"] is True
         mock_settings_service.set_active_page_id.assert_called_once_with("page1", board_id="b2")
-        b2_client.send_characters.assert_called_once()
-        mock_service.vb_client.send_characters.assert_not_called()
+        b2_client.render.assert_called_once()
+        mock_service.vb_client.render.assert_not_called()
 
     def test_set_active_page_with_board_id_sizes_grid_to_board(
         self, client, mock_settings_service, mock_page_service, mock_service
@@ -2036,12 +2040,12 @@ class TestActivePagePerBoard:
         _configure_boards(mock_settings_service)
         mock_settings_service.should_send_to_board.return_value = True
         b2_client = Mock()
-        b2_client.send_characters.return_value = (True, True)
+        b2_client.render.return_value = (True, True)
         mock_service.get_board_client = Mock(return_value=b2_client)
 
         client.put("/settings/active-page", json={"page_id": "page1", "board_id": "b2"})
 
-        board_array = b2_client.send_characters.call_args[0][0]
+        board_array = b2_client.render.call_args[0][0]
         assert len(board_array) == 3
         assert len(board_array[0]) == 15
 

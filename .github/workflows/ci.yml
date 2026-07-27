@@ -991,7 +991,7 @@ jobs:
         # Verify each plugin has required files
         for plugin in plugins/*/; do
           plugin_name=$(basename "$plugin")
-          if [ "$plugin_name" != "_template" ] && [ -d "$plugin" ]; then
+          if [ "$plugin_name" != "_template" ] && [ "$plugin_name" != "_template_transition" ] && [ -d "$plugin" ]; then
             echo "Checking plugin: $plugin_name"
             test -f "$plugin/__init__.py" || (echo "❌ $plugin_name/__init__.py missing" && exit 1)
             test -f "$plugin/manifest.json" || (echo "❌ $plugin_name/manifest.json missing" && exit 1)

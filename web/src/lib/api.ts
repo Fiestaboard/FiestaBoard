@@ -826,6 +826,57 @@ export interface DisplaySettings {
 
 export interface BetaSettings {
   https_enabled: boolean;
+  transition_plugins_enabled: boolean;
+}
+
+// Transition plugins (beta): frame-by-frame board animation plugins.
+// Endpoints 404 until beta.transition_plugins_enabled is on.
+export interface TransitionPluginEntry {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  version: string;
+  author: string;
+  settings_schema: Record<string, unknown>;
+  transition_settings: {
+    interruptible: boolean;
+    min_interval_ms: number;
+    max_frames: number;
+    max_runtime_seconds: number;
+  };
+  config: Record<string, unknown>;
+  strategy: string;
+}
+
+export interface TransitionPluginsResponse {
+  plugins: TransitionPluginEntry[];
+}
+
+export interface TransitionPreviewFrame {
+  grid: number[][];
+  delay_ms: number;
+}
+
+export interface TransitionPreviewResponse {
+  plugin_id: string;
+  device_type: DeviceType;
+  frames: TransitionPreviewFrame[];
+  frame_count: number;
+  total_delay_ms: number;
+  capped: boolean;
+  from_grid: number[][];
+  to_grid: number[][];
+}
+
+export interface TransitionPreviewRequest {
+  plugin_id: string;
+  to_text: string;
+  from_text?: string;
+  device_type?: DeviceType;
+  notes_wide?: number;
+  notes_tall?: number;
+  config?: Record<string, unknown>;
 }
 
 export interface PluginSettings {
@@ -1903,13 +1954,23 @@ export const api = {
   getSunTimesWeek: (weekStart: string) =>
     fetchApi<SunTimesWeekResponse>(`/settings/location/sun-times-week?week_start=${weekStart}`),
 
-  // Beta features (HTTPS, etc.)
+  // Beta features (HTTPS, transition plugins, etc.)
   getBetaSettings: () => fetchApi<BetaSettingsResponse>("/settings/beta"),
   updateBetaSettings: (updates: Partial<BetaSettings>) =>
     fetchApi<BetaSettingsUpdateResponse>("/settings/beta", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
+    }),
+
+  // Transition plugins (beta): frame-by-frame animation plugins. Distinct
+  // from the global transition strategy settings — these live under
+  // /transitions/* and 404 while the beta flag is off.
+  listTransitionPlugins: () => fetchApi<TransitionPluginsResponse>("/transitions/plugins"),
+  previewTransition: (request: TransitionPreviewRequest) =>
+    fetchApi<TransitionPreviewResponse>("/transitions/preview", {
+      method: "POST",
+      body: JSON.stringify(request),
     }),
 
   getPluginSettings: () => fetchApi<PluginSettingsResponse>("/settings/plugins"),
