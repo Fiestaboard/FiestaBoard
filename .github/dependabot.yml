@@ -19,6 +19,12 @@ updates:
       npm-dependencies:
         patterns:
           - "*"
+    ignore:
+      # TS 7 (native compiler) breaks typescript-eslint (hard-refuses TS >= 7,
+      # typescript-eslint#10940) and Storybook's react-docgen-typescript plugin.
+      # Remove once both support TS 7, then migrate deliberately.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
