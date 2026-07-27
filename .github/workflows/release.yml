@@ -29,8 +29,10 @@ permissions:
 
 jobs:
   # Prevent loop: skip release when this run was triggered by our own version-bump push.
+  # Repository guard: forks that push to their main otherwise self-bump and publish.
   guard:
     name: Skip if version-bump commit
+    if: github.repository == 'Fiestaboard/FiestaBoard'
     runs-on: ubuntu-latest
     outputs:
       skip: ${{ steps.check.outputs.skip }}

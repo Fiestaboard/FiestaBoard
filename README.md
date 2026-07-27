@@ -197,6 +197,7 @@ Transition plugins drive **frame-by-frame board animations** that aren't possibl
 <!-- Sorted alphabetically -->
 | Plugin | What It Does |
 |--------|--------------|
+| [Quiet Library](./plugins/quiet_library/README.md) | Updates word by word in small batches with long pauses — the quietest refresh |
 | [Simple Dissolve](./plugins/simple_dissolve/README.md) | Flips changed tiles in a random order for a gradual dissolve |
 | [Slot Machine](./plugins/slot_machine/README.md) | Spins each column like a flap reel before locking left-to-right |
 | [Typewriter](./plugins/typewriter/README.md) | Reveals the message one character at a time, left-to-right |
