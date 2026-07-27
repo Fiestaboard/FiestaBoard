@@ -1,0 +1,99 @@
+{
+  "docs": [
+    "intro",
+    {
+      "type": "category",
+      "label": "Getting Started",
+      "collapsed": false,
+      "items": [
+        "setup/raspberry-pi",
+        "setup/quick-start",
+        "setup/beginners-guide",
+        "setup/first-10-minutes",
+        "setup/api-keys",
+        "setup/home-assistant-mqtt"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Using FiestaBoard",
+      "collapsed": false,
+      "items": [
+        "plugins/overview",
+        "plugins/configuration",
+        "features/page-editor",
+        "setup/ai-providers",
+        "features/schedule",
+        "features/silence-schedule",
+        "features/home-assistant-control",
+        "features/updating"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Plugins",
+      "collapsed": true,
+      "items": [
+        "plugins/weather",
+        "plugins/air-fog",
+        "plugins/surf",
+        "plugins/muni",
+        "plugins/traffic",
+        "plugins/baywheels",
+        "plugins/wsdot",
+        "plugins/stocks",
+        "plugins/sports-scores",
+        "plugins/nearby-aircraft",
+        "plugins/disney-parks",
+        "plugins/last-fm",
+        "plugins/star-trek-quotes",
+        "plugins/stardate",
+        "plugins/sun-art",
+        "plugins/visual-clock",
+        "plugins/date-time",
+        "plugins/guest-wifi",
+        "plugins/home-assistant",
+        "plugins/entertainment",
+        "plugins/transit"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "collapsed": true,
+      "items": [
+        "deployment/production",
+        "deployment/raspberry-pi",
+        "deployment/fiestaupdater",
+        "setup/docker-setup",
+        "setup/cloud-api"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Reference",
+      "collapsed": true,
+      "items": [
+        "reference/api-endpoints",
+        "reference/environment-variables",
+        "reference/character-codes",
+        "reference/color-guide",
+        "reference/accessibility"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
+      "collapsed": true,
+      "items": [
+        "development/contributing",
+        "development/plugin-guide",
+        "development/testing",
+        "setup/local-development",
+        "setup/local-home-assistant"
+      ]
+    },
+    "setup/v2-migration",
+    "troubleshooting"
+  ]
+}
