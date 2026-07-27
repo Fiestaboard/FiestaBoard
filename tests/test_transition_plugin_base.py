@@ -182,8 +182,8 @@ def test_registry_config_and_trigger_paths_accept_transition_plugin():
     plugin = _FakeTransition(_manifest())
     loader = MagicMock()
     loader.load_all_plugins.return_value = {"fake_transition": plugin}
-    loader.get_manifest.side_effect = (
-        lambda pid: MagicMock(supports_triggers=False) if pid == "fake_transition" else None
+    loader.get_manifest.side_effect = lambda pid: (
+        MagicMock(supports_triggers=False) if pid == "fake_transition" else None
     )
     with patch("src.plugins.registry.PluginLoader", return_value=loader):
         registry = PluginRegistry(plugins_dir=Path("/fake/plugins"))

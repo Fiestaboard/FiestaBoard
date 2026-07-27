@@ -100,7 +100,7 @@ export default function TransitionsLabPage() {
   }, []);
 
   // Drive playback: each frame schedules the next based on its delay_ms
-  // (clamped so a 14.5s quiet-library delay doesn't stall the preview).
+  // (clamped so a long per-frame step delay doesn't stall the preview).
   useEffect(() => {
     if (!isPlaying || !preview) return;
     if (frameIdx >= preview.frames.length - 1) {
