@@ -15,7 +15,7 @@ pydantic>=2.10.0
 httpx>=0.28.1
 
 # Stock market data
-yfinance>=1.5.1
+yfinance>=1.5.2
 finnhub-python>=2.4.29
 
 # Sun position calculations
@@ -35,7 +35,7 @@ icalendar>=7.2.2
 recurring-ical-events>=3.8.2
 
 # Timezone support (used by santa_tracker, visual_clock, stardate, calendar_sub plugins)
-pytz>=2026.2
+pytz>=2026.3.post1
 
 # MCP (Model Context Protocol) server — exposes FiestaBoard as an MCP tool server
 mcp>=1.28.1
