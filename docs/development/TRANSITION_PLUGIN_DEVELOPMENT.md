@@ -36,7 +36,7 @@ Transition plugins inherit from `src.plugins.base.TransitionPluginBase` and must
 - `plugin_id` (property): unique id matching the manifest
 - `generate_frames(from_grid, to_grid, device, config) -> Iterator[(grid, delay_ms)]`
 
-The `device` argument is a `src.devices.BoardContext` — a frozen descriptor with `device_type` (`"flagship"`, `"note"`, or `"note_array"`), `rows`, and `cols` (plus `height`/`width` aliases). Note arrays are true W×H grids (up to 24×120), so derive geometry from `device.rows`/`device.cols` (or from the grids themselves) rather than hardcoding 6×22.
+The `device` argument is a `src.devices.BoardContext` — a frozen descriptor with `device_type` (`"flagship"`, `"note"`, or `"note_array"`), `rows`, and `cols` (plus `height`/`width` aliases). Note arrays are true 2-D grids — up to **120×24 characters** (width×height, matching the `120 × 24` max in [`NOTE_ARRAYS.md`](../reference/NOTE_ARRAYS.md)) — so derive geometry from `device.rows`/`device.cols` (or from the grids themselves) rather than hardcoding the flagship's 22×6.
 
 Optional hooks:
 
