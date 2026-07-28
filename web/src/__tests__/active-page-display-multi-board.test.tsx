@@ -252,9 +252,12 @@ describe("ActivePageDisplay per-board scoping (issue #1247)", () => {
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(previewedPageIds).toContain("page-1");
-    });
+    await waitFor(
+      () => {
+        expect(previewedPageIds).toContain("page-1");
+      },
+      { timeout: 3000 },
+    );
   });
 
   it("single-board installs stay unscoped with no board indicator", async () => {

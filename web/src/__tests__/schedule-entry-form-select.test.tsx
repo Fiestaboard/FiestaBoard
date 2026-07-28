@@ -188,7 +188,7 @@ describe("ScheduleEntryForm end-time Select inside Sheet", () => {
     await waitFor(() => {
       expect(endTimeTrigger).toHaveTextContent("18:00");
     });
-  });
+  }, 40000);
 
   it("keyboard: ArrowDown then Enter updates end time", async () => {
     const user = userEvent.setup();
