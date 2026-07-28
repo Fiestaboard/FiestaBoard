@@ -281,12 +281,13 @@ if (typeof Range !== "undefined") {
   Range.prototype.getBoundingClientRect = vi.fn(mockDOMRect);
 }
 
-// Mock scrollIntoView and pointer capture (needed by Radix UI)
+// Mock scrollIntoView, pointer capture, and getAnimations (needed by Base UI)
 if (typeof Element !== "undefined") {
   Element.prototype.scrollIntoView = vi.fn();
   Element.prototype.hasPointerCapture = vi.fn(() => false);
   Element.prototype.setPointerCapture = vi.fn();
   Element.prototype.releasePointerCapture = vi.fn();
+  Element.prototype.getAnimations = vi.fn(() => []);
 }
 
 // Mock ResizeObserver for components that use it (e.g., ScrollArea)

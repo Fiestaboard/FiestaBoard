@@ -165,7 +165,7 @@ describe("Live Output Mode", () => {
 
     await waitFor(() => {
       const toggle = screen.getByRole("switch", { name: /toggle live output to board/i });
-      expect(toggle).toHaveAttribute("data-state", "unchecked");
+      expect(toggle).toHaveAttribute("aria-checked", "false");
     });
   });
 
@@ -181,7 +181,7 @@ describe("Live Output Mode", () => {
     await user.click(toggle);
 
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "checked");
+      expect(toggle).toHaveAttribute("aria-checked", "true");
     });
   });
 
@@ -197,12 +197,12 @@ describe("Live Output Mode", () => {
 
     await user.click(toggle);
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "checked");
+      expect(toggle).toHaveAttribute("aria-checked", "true");
     });
 
     await user.click(toggle);
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "unchecked");
+      expect(toggle).toHaveAttribute("aria-checked", "false");
     });
   });
 
@@ -219,7 +219,7 @@ describe("Live Output Mode", () => {
     // Turn on live output
     await user.click(toggle);
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "checked");
+      expect(toggle).toHaveAttribute("aria-checked", "true");
     });
 
     vi.mocked(api.forceRefresh).mockClear();
@@ -227,7 +227,7 @@ describe("Live Output Mode", () => {
     // Turn off live output
     await user.click(toggle);
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "unchecked");
+      expect(toggle).toHaveAttribute("aria-checked", "false");
     });
 
     // forceRefresh should be called immediately to restore normal board state
@@ -432,7 +432,7 @@ describe("Live Output - Auto-timeout", () => {
     await user.click(toggle);
 
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "checked");
+      expect(toggle).toHaveAttribute("aria-checked", "true");
     });
 
     // Advance past the 5-minute timeout
@@ -440,7 +440,7 @@ describe("Live Output - Auto-timeout", () => {
       vi.advanceTimersByTime(5 * 60 * 1000 + 100);
     });
 
-    expect(toggle).toHaveAttribute("data-state", "unchecked");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
   });
 
   it("does not auto-disable before the 5 minute timeout", async () => {
@@ -458,7 +458,7 @@ describe("Live Output - Auto-timeout", () => {
     await user.click(toggle);
 
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "checked");
+      expect(toggle).toHaveAttribute("aria-checked", "true");
     });
 
     // Advance to just under 5 minutes
@@ -467,7 +467,7 @@ describe("Live Output - Auto-timeout", () => {
     });
 
     // Should still be enabled
-    expect(toggle).toHaveAttribute("data-state", "checked");
+    expect(toggle).toHaveAttribute("aria-checked", "true");
   });
 
   it("calls forceRefresh when auto-timeout disables live mode", async () => {
@@ -485,7 +485,7 @@ describe("Live Output - Auto-timeout", () => {
     await user.click(toggle);
 
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "checked");
+      expect(toggle).toHaveAttribute("aria-checked", "true");
     });
 
     vi.mocked(api.forceRefresh).mockClear();
@@ -495,7 +495,7 @@ describe("Live Output - Auto-timeout", () => {
       vi.advanceTimersByTime(5 * 60 * 1000 + 100);
     });
 
-    expect(toggle).toHaveAttribute("data-state", "unchecked");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
     // forceRefresh should be called to restore normal board state
     expect(vi.mocked(api.forceRefresh)).toHaveBeenCalled();
   });
@@ -547,7 +547,7 @@ describe("Live Output - Cleanup on unmount", () => {
     await user.click(toggle);
 
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "checked");
+      expect(toggle).toHaveAttribute("aria-checked", "true");
     });
 
     unmount();
@@ -558,7 +558,7 @@ describe("Live Output - Cleanup on unmount", () => {
     await waitFor(
       () => {
         const newToggle = screen.getByRole("switch", { name: /toggle live output to board/i });
-        expect(newToggle).toHaveAttribute("data-state", "unchecked");
+        expect(newToggle).toHaveAttribute("aria-checked", "false");
       },
       { timeout: 10000 },
     );
@@ -580,7 +580,7 @@ describe("Live Output - Cleanup on unmount", () => {
     await user.click(toggle);
 
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "checked");
+      expect(toggle).toHaveAttribute("aria-checked", "true");
     });
 
     unmount();
@@ -616,7 +616,7 @@ describe("Live Output - Cleanup on unmount", () => {
     await user.click(toggle);
 
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "checked");
+      expect(toggle).toHaveAttribute("aria-checked", "true");
     });
 
     // Simulate another tab (e.g. the Home page kill switch) clearing the
@@ -633,7 +633,7 @@ describe("Live Output - Cleanup on unmount", () => {
     window.dispatchEvent(storageEvent);
 
     await waitFor(() => {
-      expect(toggle).toHaveAttribute("data-state", "unchecked");
+      expect(toggle).toHaveAttribute("aria-checked", "false");
     });
   });
 });

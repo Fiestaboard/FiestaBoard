@@ -122,7 +122,7 @@ test.describe("regression: settings.behavior", () => {
     // trigger fresh PUTs, but here we just confirm the toggle reflects the
     // newly-saved value (hasChanges flipped back: no Save button hanging
     // around because save is auto-debounced).
-    await expect(silenceToggle).toHaveAttribute("data-state", !originalEnabled ? "checked" : "unchecked");
+    await expect(silenceToggle).toHaveAttribute("aria-checked", !originalEnabled ? "true" : "false");
 
     // Restore original state through the same endpoint.
     await fetch(`${API_URL}/settings/silence-schedule`, {

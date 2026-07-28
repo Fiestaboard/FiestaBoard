@@ -170,6 +170,6 @@ describe("PagePickerDialog", () => {
 
     // When a collection ID is selected, the collections tab should be active
     const collectionsTab = screen.getByRole("tab", { name: /collections/i });
-    expect(collectionsTab).toHaveAttribute("data-state", "active");
+    expect(collectionsTab).toHaveAttribute("aria-selected", "true");
   });
 });
