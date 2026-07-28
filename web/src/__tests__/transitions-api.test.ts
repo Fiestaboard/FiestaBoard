@@ -176,4 +176,75 @@ describe("transition API client", () => {
       expect(result.capped).toBe(true);
     });
   });
+
+  describe("testTransitionLive", () => {
+    it("POSTs the page ids and config", async () => {
+      let capturedBody: unknown = null;
+      server.use(
+        http.post(`${API_BASE}/transitions/test-live`, async ({ request }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json({
+            status: "success",
+            sent: true,
+            plugin_id: "typewriter",
+            from_page_id: "page-a",
+            to_page_id: "page-b",
+            board_id: null,
+          });
+        }),
+      );
+
+      const result = await api.testTransitionLive({
+        plugin_id: "typewriter",
+        from_page_id: "page-a",
+        to_page_id: "page-b",
+        config: { chars_per_frame: 2 },
+      });
+
+      expect(capturedBody).toEqual({
+        plugin_id: "typewriter",
+        from_page_id: "page-a",
+        to_page_id: "page-b",
+        config: { chars_per_frame: 2 },
+      });
+      expect(result.sent).toBe(true);
+    });
+
+    it("surfaces 409 when the board is paused or silenced", async () => {
+      server.use(
+        http.post(
+          `${API_BASE}/transitions/test-live`,
+          () => new HttpResponse(null, { status: 409, statusText: "Conflict" }),
+        ),
+      );
+      await expect(api.testTransitionLive({ plugin_id: "typewriter", to_page_id: "page-b" })).rejects.toThrow(/409/);
+    });
+  });
+
+  describe("restoreTransitionTest", () => {
+    it("POSTs an empty body by default and parses the response", async () => {
+      let capturedBody: unknown = null;
+      server.use(
+        http.post(`${API_BASE}/transitions/restore`, async ({ request }) => {
+          capturedBody = await request.json();
+          return HttpResponse.json({ status: "success", page_id: "page-active", sent: true, board_id: null });
+        }),
+      );
+
+      const result = await api.restoreTransitionTest();
+      expect(capturedBody).toEqual({});
+      expect(result.page_id).toBe("page-active");
+      expect(result.sent).toBe(true);
+    });
+
+    it("surfaces 404 when no active page is set", async () => {
+      server.use(
+        http.post(
+          `${API_BASE}/transitions/restore`,
+          () => new HttpResponse(null, { status: 404, statusText: "Not Found" }),
+        ),
+      );
+      await expect(api.restoreTransitionTest()).rejects.toThrow(/404/);
+    });
+  });
 });

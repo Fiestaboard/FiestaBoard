@@ -15,7 +15,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { FlaskConical, Pause, Play, RotateCcw, SkipBack, SkipForward, Wand2 } from "lucide-react";
+import { Cast, FlaskConical, Pause, Play, RotateCcw, SkipBack, SkipForward, Undo2, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { PageHeader } from "@/components/page-header";
@@ -49,6 +49,13 @@ export default function TransitionsLabPage() {
   const [preview, setPreview] = useState<TransitionPreviewResponse | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
+
+  // Live-test state: run the transition on the real board, then restore.
+  const [liveTesting, setLiveTesting] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [hasLiveTested, setHasLiveTested] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
 
   // Playback state.
   const [frameIdx, setFrameIdx] = useState(0);
@@ -203,6 +210,51 @@ export default function TransitionsLabPage() {
       setPreviewing(false);
     }
   }, [configJson, deviceType, fromPageId, notesTall, notesWide, selectedPluginId, stopPlayback, t, toPageId]);
+
+  // Run the transition on the real board: the backend snaps the board to
+  // the from-page, drives the plugin toward the to-page, and leaves the
+  // board there until the user restores (or the display loop takes over).
+  const runLiveTest = useCallback(async () => {
+    if (!selectedPluginId || !toPageId) return;
+    setLiveError(null);
+    setLiveStatus(null);
+    setLiveTesting(true);
+    try {
+      let parsedConfig: Record<string, unknown> = {};
+      try {
+        parsedConfig = configJson.trim() ? JSON.parse(configJson) : {};
+      } catch (err) {
+        setLiveError(t("configInvalid", { error: (err as Error).message }));
+        return;
+      }
+      await api.testTransitionLive({
+        plugin_id: selectedPluginId,
+        to_page_id: toPageId,
+        ...(fromPageId ? { from_page_id: fromPageId } : {}),
+        config: parsedConfig,
+      });
+      setHasLiveTested(true);
+      setLiveStatus(t("liveSuccess"));
+    } catch (err) {
+      setLiveError((err as Error).message);
+    } finally {
+      setLiveTesting(false);
+    }
+  }, [configJson, fromPageId, selectedPluginId, t, toPageId]);
+
+  const restoreBoard = useCallback(async () => {
+    setLiveError(null);
+    setLiveStatus(null);
+    setRestoring(true);
+    try {
+      await api.restoreTransitionTest();
+      setLiveStatus(t("restoreSuccess"));
+    } catch (err) {
+      setLiveError((err as Error).message);
+    } finally {
+      setRestoring(false);
+    }
+  }, [t]);
 
   // Frame to display: current playback index, or the to-grid when the
   // plugin produced no frames (e.g. from == to).
@@ -378,6 +430,34 @@ export default function TransitionsLabPage() {
             </Button>
 
             {previewError && <p className="text-sm text-destructive">{previewError}</p>}
+
+            <div className="space-y-2 border-t pt-4">
+              <p className="text-xs text-muted-foreground">{t("liveHint")}</p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={runLiveTest}
+                  disabled={!selectedPluginId || !toPageId || liveTesting || restoring}
+                >
+                  <Cast className="mr-2 h-4 w-4" />
+                  {liveTesting ? t("testingLive") : t("testLive")}
+                </Button>
+                {hasLiveTested && (
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={restoreBoard}
+                    disabled={liveTesting || restoring}
+                  >
+                    <Undo2 className="mr-2 h-4 w-4" />
+                    {restoring ? t("restoring") : t("restoreBoard")}
+                  </Button>
+                )}
+              </div>
+              {liveStatus && <p className="text-sm text-muted-foreground">{liveStatus}</p>}
+              {liveError && <p className="text-sm text-destructive">{liveError}</p>}
+            </div>
           </CardContent>
         </Card>
 

@@ -208,6 +208,7 @@ class TransitionRenderMixin:
         step_size: int | None = None,
         force: bool = False,
         device_type: str | None = None,
+        transition_config: dict | None = None,
     ) -> tuple[bool, bool]:
         """High-level send that understands transition-plugin strategies.
 
@@ -225,6 +226,9 @@ class TransitionRenderMixin:
             force: Bypass the unchanged-message cache.
             device_type: Optional device hint forwarded to the transition
                 runner so plugins receive the right dimensions.
+            transition_config: Optional per-run plugin config override
+                forwarded to the transition runner (used by the Transition
+                Lab's live test).  *None* keeps the plugin's bound config.
 
         Returns:
             ``(success, was_sent)`` mirroring :meth:`send_characters`.
@@ -288,6 +292,7 @@ class TransitionRenderMixin:
                 board_client=self,
                 cancel_event=run_cancel_event,
                 device_type=device_type,
+                config=transition_config,
             )
 
 

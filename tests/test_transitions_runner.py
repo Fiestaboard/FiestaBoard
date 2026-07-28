@@ -410,11 +410,12 @@ def test_render_with_plugin_strategy_invokes_runner():
     captured = {}
 
     class _Runner:
-        def run(self, plugin_id, to_grid, board_client, cancel_event, device_type):
+        def run(self, plugin_id, to_grid, board_client, cancel_event, device_type, config=None):
             captured["plugin_id"] = plugin_id
             captured["to_grid"] = to_grid
             captured["cancel"] = cancel_event
             captured["device_type"] = device_type
+            captured["config"] = config
             return (True, True)
 
     bc.set_transition_runner(_Runner())
@@ -427,6 +428,28 @@ def test_render_with_plugin_strategy_invokes_runner():
     assert captured["to_grid"] == _grid(2)
     assert captured["device_type"] == "flagship"
     assert isinstance(captured["cancel"], threading.Event)
+    # No override passed: the runner falls back to the plugin's bound config.
+    assert captured["config"] is None
+
+
+def test_render_forwards_transition_config_to_runner():
+    """A transition_config override reaches the runner (Lab live test)."""
+    bc = _build_board_client()
+
+    captured = {}
+
+    class _Runner:
+        def run(self, plugin_id, to_grid, board_client, cancel_event, device_type, config=None):
+            captured["config"] = config
+            return (True, True)
+
+    bc.set_transition_runner(_Runner())
+    bc.render(
+        _grid(1),
+        strategy=f"{TRANSITION_PLUGIN_PREFIX}typewriter",
+        transition_config={"chars_per_frame": 3},
+    )
+    assert captured["config"] == {"chars_per_frame": 3}
 
 
 def test_render_empty_plugin_id_falls_back():
@@ -446,7 +469,7 @@ def test_render_sets_cancel_event_before_handing_off():
     events_seen: list[bool] = []
 
     class _Runner:
-        def run(self, plugin_id, to_grid, board_client, cancel_event, device_type):
+        def run(self, plugin_id, to_grid, board_client, cancel_event, device_type, config=None):
             # The new render call should clear the event before invoking us.
             events_seen.append(cancel_event.is_set())
             return (True, True)
