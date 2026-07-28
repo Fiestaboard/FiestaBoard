@@ -879,6 +879,34 @@ export interface TransitionPreviewRequest {
   config?: Record<string, unknown>;
 }
 
+export interface TransitionTestLiveRequest {
+  plugin_id: string;
+  to_page_id: string;
+  from_page_id?: string;
+  config?: Record<string, unknown>;
+  board_id?: string;
+}
+
+export interface TransitionTestLiveResponse {
+  status: string;
+  sent: boolean;
+  plugin_id: string;
+  from_page_id: string | null;
+  to_page_id: string;
+  board_id: string | null;
+}
+
+export interface TransitionRestoreRequest {
+  board_id?: string;
+}
+
+export interface TransitionRestoreResponse {
+  status: string;
+  page_id: string;
+  sent: boolean;
+  board_id: string | null;
+}
+
 export interface PluginSettings {
   auto_update: boolean;
 }
@@ -1969,6 +1997,16 @@ export const api = {
   listTransitionPlugins: () => fetchApi<TransitionPluginsResponse>("/transitions/plugins"),
   previewTransition: (request: TransitionPreviewRequest) =>
     fetchApi<TransitionPreviewResponse>("/transitions/preview", {
+      method: "POST",
+      body: JSON.stringify(request),
+    }),
+  testTransitionLive: (request: TransitionTestLiveRequest) =>
+    fetchApi<TransitionTestLiveResponse>("/transitions/test-live", {
+      method: "POST",
+      body: JSON.stringify(request),
+    }),
+  restoreTransitionTest: (request: TransitionRestoreRequest = {}) =>
+    fetchApi<TransitionRestoreResponse>("/transitions/restore", {
       method: "POST",
       body: JSON.stringify(request),
     }),

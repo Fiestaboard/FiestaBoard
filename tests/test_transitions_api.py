@@ -9,11 +9,18 @@ their own module's datetime.
 
 import asyncio
 from collections.abc import Iterator
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
 
-from src.api_server import list_transition_plugins, preview_transition
+import src.api_server as api_server
+from src.api_server import (
+    list_transition_plugins,
+    preview_transition,
+    restore_after_transition_test,
+    run_live_transition_test,
+)
 from src.plugins.base import TransitionPluginBase
 from src.plugins.manifest import PluginManifest
 
@@ -283,6 +290,164 @@ def test_fetch_plugin_data_answers_cleanly_for_transition_plugins(patched_regist
     result = patched_registry.fetch_plugin_data("fake_typewriter")
     assert result.available is False
     assert "transition" in (result.error or "").lower()
+
+
+# ---------------------------------------------------------------------------
+# run_live_transition_test / restore_after_transition_test
+# ---------------------------------------------------------------------------
+
+
+class _FakeBoardClient:
+    """Records send_characters/render calls; always reports success."""
+
+    def __init__(self):
+        self.calls = []
+
+    def send_characters(self, grid, strategy=None, force=False, **kwargs):
+        self.calls.append(("send", strategy, force))
+        return (True, True)
+
+    def render(self, grid, strategy=None, force=False, device_type=None, transition_config=None, **kwargs):
+        self.calls.append(("render", strategy, device_type, transition_config))
+        return (True, True)
+
+
+class _FakePageService:
+    """Serves two flagship template pages: page-from and page-to."""
+
+    def __init__(self):
+        self.pages = {
+            pid: SimpleNamespace(id=pid, device_type="flagship", notes_wide=None, notes_tall=None)
+            for pid in ("page-from", "page-to")
+        }
+
+    def get_page(self, page_id):
+        return self.pages.get(page_id)
+
+    def preview_page(self, page_id, force_refresh=False):
+        if page_id not in self.pages:
+            return None
+        return SimpleNamespace(available=True, formatted="HELLO", error=None)
+
+
+@pytest.fixture
+def live_env(monkeypatch, patched_registry):
+    """Wire the live-test endpoints to fakes: board client, page service,
+    no silence, no pause, zero from-page hold."""
+    board_client = _FakeBoardClient()
+    fake_service = SimpleNamespace(vb_client=board_client, get_board_client=lambda board_id: board_client)
+    monkeypatch.setattr(api_server, "get_service", lambda: fake_service)
+    monkeypatch.setattr(api_server, "get_page_service", _FakePageService)
+    monkeypatch.setattr(api_server.Config, "is_silence_mode_active", staticmethod(lambda: False))
+    monkeypatch.setattr(api_server, "_board_is_paused", lambda board_id=None: False)
+    monkeypatch.setattr(api_server, "LIVE_TEST_FROM_HOLD_SECONDS", 0)
+    return board_client
+
+
+def test_live_requires_plugin_id(live_env):
+    with pytest.raises(HTTPException) as exc:
+        _run(run_live_transition_test({"to_page_id": "page-to"}))
+    assert exc.value.status_code == 400
+
+
+def test_live_requires_to_page_id(live_env):
+    with pytest.raises(HTTPException) as exc:
+        _run(run_live_transition_test({"plugin_id": "fake_typewriter"}))
+    assert exc.value.status_code == 400
+
+
+def test_live_unknown_plugin_returns_404(live_env):
+    with pytest.raises(HTTPException) as exc:
+        _run(run_live_transition_test({"plugin_id": "ghost", "to_page_id": "page-to"}))
+    assert exc.value.status_code == 404
+
+
+def test_live_unknown_page_returns_404(live_env):
+    with pytest.raises(HTTPException) as exc:
+        _run(run_live_transition_test({"plugin_id": "fake_typewriter", "to_page_id": "nope"}))
+    assert exc.value.status_code == 404
+
+
+def test_live_snaps_from_page_then_runs_plugin(live_env):
+    data = _run(
+        run_live_transition_test(
+            {
+                "plugin_id": "fake_typewriter",
+                "from_page_id": "page-from",
+                "to_page_id": "page-to",
+                "config": {"frame_interval_ms": 30},
+            }
+        )
+    )
+    assert data["status"] == "success"
+    assert data["sent"] is True
+    # First a forced plain snap to the from-page, then the plugin render.
+    assert live_env.calls[0] == ("send", None, True)
+    kind, strategy, device_type, config = live_env.calls[1]
+    assert (kind, strategy, device_type) == ("render", "plugin:fake_typewriter", "flagship")
+    # Override merged on top of the plugin's bound config ({frame_interval_ms: 50}).
+    assert config == {"frame_interval_ms": 30}
+
+
+def test_live_without_from_page_skips_snap(live_env):
+    data = _run(run_live_transition_test({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
+    assert data["status"] == "success"
+    assert [c[0] for c in live_env.calls] == ["render"]
+
+
+def test_live_blocked_by_silence_mode(live_env, monkeypatch):
+    monkeypatch.setattr(api_server.Config, "is_silence_mode_active", staticmethod(lambda: True))
+    with pytest.raises(HTTPException) as exc:
+        _run(run_live_transition_test({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
+    assert exc.value.status_code == 409
+
+
+def test_live_blocked_when_board_paused(live_env, monkeypatch):
+    monkeypatch.setattr(api_server, "_board_is_paused", lambda board_id=None: True)
+    with pytest.raises(HTTPException) as exc:
+        _run(run_live_transition_test({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
+    assert exc.value.status_code == 409
+
+
+def test_restore_sends_active_page_plainly(live_env, monkeypatch):
+    fake_settings = SimpleNamespace(
+        get_active_page_id=lambda board_id=None: "page-to",
+        get_beta_settings=lambda: SimpleNamespace(transition_plugins_enabled=True),
+    )
+    monkeypatch.setattr(api_server, "get_settings_service", lambda: fake_settings)
+    data = _run(restore_after_transition_test({}))
+    assert data["status"] == "success"
+    assert data["page_id"] == "page-to"
+    # Restore is a plain render (no transition strategy).
+    assert live_env.calls == [("render", None, None, None)]
+
+
+def test_restore_without_active_page_returns_404(live_env, monkeypatch):
+    fake_settings = SimpleNamespace(
+        get_active_page_id=lambda board_id=None: None,
+        get_beta_settings=lambda: SimpleNamespace(transition_plugins_enabled=True),
+    )
+    monkeypatch.setattr(api_server, "get_settings_service", lambda: fake_settings)
+    with pytest.raises(HTTPException) as exc:
+        _run(restore_after_transition_test({}))
+    assert exc.value.status_code == 404
+
+
+def test_live_endpoints_404_when_beta_disabled(live_env):
+    from src.settings.service import get_settings_service
+
+    settings = get_settings_service()
+    settings.update_beta_settings({"transition_plugins_enabled": False})
+    try:
+        with pytest.raises(HTTPException) as exc:
+            _run(run_live_transition_test({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
+        assert exc.value.status_code == 404
+
+        with pytest.raises(HTTPException) as exc:
+            _run(restore_after_transition_test({}))
+        assert exc.value.status_code == 404
+    finally:
+        settings.update_beta_settings({"transition_plugins_enabled": True})
 
 
 def test_page_create_persists_transition_fields(tmp_path):

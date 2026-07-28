@@ -2,18 +2,20 @@
  * Transition Lab (beta): transition-plugin test harness.
  *
  * Authors of transition plugins use this page to preview a frame-by-frame
- * animation against arbitrary from/to text without sending anything to a
- * real board.  The page fetches the list of enabled transition plugins,
- * lets the user pick one, type from/to text, optionally edit per-plugin
- * config knobs, and then drives the resulting frame array through a raw
- * grid renderer with play / pause / step / scrub controls.
+ * animation between two real pages without sending anything to a real
+ * board.  The page fetches the list of enabled transition plugins and the
+ * user's pages, lets the user pick a plugin plus from/to pages, optionally
+ * edit per-plugin config knobs, and then drives the resulting frame array
+ * through a raw grid renderer with play / pause / step / scrub controls.
+ * Each selected page is rendered through the normal page-preview endpoint
+ * so the transition runs against exactly what the board would show.
  *
  * The whole feature sits behind beta.transition_plugins_enabled — when
  * the flag is off the backend 404s and this page shows an opt-in gate.
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { FlaskConical, Pause, Play, RotateCcw, SkipBack, SkipForward, Wand2 } from "lucide-react";
+import { Cast, FlaskConical, Pause, Play, RotateCcw, SkipBack, SkipForward, Undo2, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { PageHeader } from "@/components/page-header";
@@ -22,7 +24,6 @@ import { TransitionGridDisplay } from "@/components/transitions/transition-grid-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
@@ -32,8 +33,6 @@ import { useTranslations } from "@/i18n/translations";
 import type { DeviceType, TransitionPreviewResponse } from "@/lib/api";
 import { api } from "@/lib/api";
 
-const DEFAULT_FROM = "HELLO WORLD";
-const DEFAULT_TO = "FIESTABOARD";
 const NOTE_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function TransitionsLabPage() {
@@ -41,8 +40,8 @@ export default function TransitionsLabPage() {
   const router = useRouter();
 
   const [selectedPluginId, setSelectedPluginId] = useState<string>("");
-  const [fromText, setFromText] = useState(DEFAULT_FROM);
-  const [toText, setToText] = useState(DEFAULT_TO);
+  const [fromPageId, setFromPageId] = useState<string>("");
+  const [toPageId, setToPageId] = useState<string>("");
   const [deviceType, setDeviceType] = useState<DeviceType>("flagship");
   const [notesWide, setNotesWide] = useState(2);
   const [notesTall, setNotesTall] = useState(1);
@@ -50,6 +49,13 @@ export default function TransitionsLabPage() {
   const [preview, setPreview] = useState<TransitionPreviewResponse | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
+
+  // Live-test state: run the transition on the real board, then restore.
+  const [liveTesting, setLiveTesting] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [hasLiveTested, setHasLiveTested] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
 
   // Playback state.
   const [frameIdx, setFrameIdx] = useState(0);
@@ -70,12 +76,31 @@ export default function TransitionsLabPage() {
 
   const plugins = useMemo(() => pluginsQuery.data?.plugins ?? [], [pluginsQuery.data]);
 
+  const pagesQuery = useQuery({
+    queryKey: ["pages"],
+    queryFn: () => api.getPages(),
+    enabled: betaEnabled,
+  });
+
+  const pages = useMemo(() => pagesQuery.data?.pages ?? [], [pagesQuery.data]);
+
   // Pick the first plugin once loaded so the page isn't empty.
   useEffect(() => {
     if (!selectedPluginId && plugins.length > 0) {
       setSelectedPluginId(plugins[0].id);
     }
   }, [plugins, selectedPluginId]);
+
+  // Default the from/to pickers to the first two pages once loaded.
+  useEffect(() => {
+    if (pages.length === 0) return;
+    if (!fromPageId) {
+      setFromPageId(pages[0].id);
+    }
+    if (!toPageId) {
+      setToPageId((pages[1] ?? pages[0]).id);
+    }
+  }, [pages, fromPageId, toPageId]);
 
   const selectedPlugin = useMemo(
     () => plugins.find((p) => p.id === selectedPluginId) ?? null,
@@ -90,6 +115,20 @@ export default function TransitionsLabPage() {
       setConfigJson(JSON.stringify(selectedPlugin.config ?? {}, null, 2));
     }
   }, [selectedPlugin]);
+
+  const toPage = useMemo(() => pages.find((p) => p.id === toPageId) ?? null, [pages, toPageId]);
+
+  // Match the preview canvas to the target page's geometry — a transition
+  // on a real board always runs at the dimensions of the page being shown.
+  // The device picker stays editable so authors can still experiment.
+  useEffect(() => {
+    if (!toPage) return;
+    setDeviceType(toPage.device_type);
+    if (toPage.device_type === "note_array") {
+      setNotesWide(toPage.notes_wide ?? 1);
+      setNotesTall(toPage.notes_tall ?? 1);
+    }
+  }, [toPage]);
 
   const stopPlayback = useCallback(() => {
     if (playTimerRef.current) {
@@ -130,7 +169,7 @@ export default function TransitionsLabPage() {
   }, [preview]);
 
   const runPreview = useCallback(async () => {
-    if (!selectedPluginId) return;
+    if (!selectedPluginId || !fromPageId || !toPageId) return;
     setPreviewError(null);
     setPreviewing(true);
     stopPlayback();
@@ -143,10 +182,23 @@ export default function TransitionsLabPage() {
         setPreviewing(false);
         return;
       }
+      // Render both pages through the normal preview pipeline so the
+      // transition runs against exactly what the board would show.
+      let fromMessage: string;
+      let toMessage: string;
+      try {
+        const [fromPreview, toPreview] = await Promise.all([api.previewPage(fromPageId), api.previewPage(toPageId)]);
+        fromMessage = fromPreview.message;
+        toMessage = toPreview.message;
+      } catch (err) {
+        setPreviewError(t("pageRenderFailed", { error: (err as Error).message }));
+        setPreviewing(false);
+        return;
+      }
       const result = await api.previewTransition({
         plugin_id: selectedPluginId,
-        from_text: fromText,
-        to_text: toText,
+        from_text: fromMessage,
+        to_text: toMessage,
         device_type: deviceType,
         ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
         config: parsedConfig,
@@ -157,7 +209,52 @@ export default function TransitionsLabPage() {
     } finally {
       setPreviewing(false);
     }
-  }, [configJson, deviceType, fromText, notesTall, notesWide, selectedPluginId, stopPlayback, t, toText]);
+  }, [configJson, deviceType, fromPageId, notesTall, notesWide, selectedPluginId, stopPlayback, t, toPageId]);
+
+  // Run the transition on the real board: the backend snaps the board to
+  // the from-page, drives the plugin toward the to-page, and leaves the
+  // board there until the user restores (or the display loop takes over).
+  const runLiveTest = useCallback(async () => {
+    if (!selectedPluginId || !toPageId) return;
+    setLiveError(null);
+    setLiveStatus(null);
+    setLiveTesting(true);
+    try {
+      let parsedConfig: Record<string, unknown> = {};
+      try {
+        parsedConfig = configJson.trim() ? JSON.parse(configJson) : {};
+      } catch (err) {
+        setLiveError(t("configInvalid", { error: (err as Error).message }));
+        return;
+      }
+      await api.testTransitionLive({
+        plugin_id: selectedPluginId,
+        to_page_id: toPageId,
+        ...(fromPageId ? { from_page_id: fromPageId } : {}),
+        config: parsedConfig,
+      });
+      setHasLiveTested(true);
+      setLiveStatus(t("liveSuccess"));
+    } catch (err) {
+      setLiveError((err as Error).message);
+    } finally {
+      setLiveTesting(false);
+    }
+  }, [configJson, fromPageId, selectedPluginId, t, toPageId]);
+
+  const restoreBoard = useCallback(async () => {
+    setLiveError(null);
+    setLiveStatus(null);
+    setRestoring(true);
+    try {
+      await api.restoreTransitionTest();
+      setLiveStatus(t("restoreSuccess"));
+    } catch (err) {
+      setLiveError((err as Error).message);
+    } finally {
+      setRestoring(false);
+    }
+  }, [t]);
 
   // Frame to display: current playback index, or the to-grid when the
   // plugin produced no frames (e.g. from == to).
@@ -278,23 +375,38 @@ export default function TransitionsLabPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="from-text">{t("fromLabel")}</Label>
-              <Input
-                id="from-text"
-                value={fromText}
-                onChange={(e) => setFromText(e.target.value)}
-                placeholder={t("fromPlaceholder")}
-              />
+              <Label htmlFor="from-page">{t("fromPageLabel")}</Label>
+              <Select value={fromPageId} onValueChange={(val: string) => setFromPageId(val)}>
+                <SelectTrigger id="from-page">
+                  <SelectValue placeholder={t("pagePlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="to-text">{t("toLabel")}</Label>
-              <Input
-                id="to-text"
-                value={toText}
-                onChange={(e) => setToText(e.target.value)}
-                placeholder={t("toPlaceholder")}
-              />
+              <Label htmlFor="to-page">{t("toPageLabel")}</Label>
+              <Select value={toPageId} onValueChange={(val: string) => setToPageId(val)}>
+                <SelectTrigger id="to-page">
+                  <SelectValue placeholder={t("pagePlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {pagesQuery.isSuccess && pages.length === 0 && (
+                <p className="text-xs text-muted-foreground">{t("noPages")}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -309,11 +421,43 @@ export default function TransitionsLabPage() {
               />
             </div>
 
-            <Button onClick={runPreview} disabled={!selectedPluginId || previewing} className="w-full">
+            <Button
+              onClick={runPreview}
+              disabled={!selectedPluginId || !fromPageId || !toPageId || previewing}
+              className="w-full"
+            >
               {previewing ? t("generating") : t("runPreview")}
             </Button>
 
             {previewError && <p className="text-sm text-destructive">{previewError}</p>}
+
+            <div className="space-y-2 border-t pt-4">
+              <p className="text-xs text-muted-foreground">{t("liveHint")}</p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={runLiveTest}
+                  disabled={!selectedPluginId || !toPageId || liveTesting || restoring}
+                >
+                  <Cast className="mr-2 h-4 w-4" />
+                  {liveTesting ? t("testingLive") : t("testLive")}
+                </Button>
+                {hasLiveTested && (
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={restoreBoard}
+                    disabled={liveTesting || restoring}
+                  >
+                    <Undo2 className="mr-2 h-4 w-4" />
+                    {restoring ? t("restoring") : t("restoreBoard")}
+                  </Button>
+                )}
+              </div>
+              {liveStatus && <p className="text-sm text-muted-foreground">{liveStatus}</p>}
+              {liveError && <p className="text-sm text-destructive">{liveError}</p>}
+            </div>
           </CardContent>
         </Card>
 
