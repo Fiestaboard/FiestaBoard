@@ -148,7 +148,7 @@ The **Transition Lab** at `/transitions` lets you preview any enabled transition
 
 ## Publishing an external transition plugin
 
-External plugins follow the same registry mechanism as data plugins (see [PLUGIN_DEVELOPMENT.md](./PLUGIN_DEVELOPMENT.md#publishing-an-external-plugin)). Transition plugins use the naming convention `fiestaboard-transition--<name>` (vs `fiestaboard-plugin--<name>` for data plugins). Add your repo to `plugin-registry.json` with `"plugin_type": "transition"` so the loader knows what to expect before cloning.
+External plugins follow the same registry mechanism as data plugins (see [PLUGIN_DEVELOPMENT.md](./PLUGIN_DEVELOPMENT.md#publishing-to-the-plugin-registry)). Transition plugins use the naming convention `fiestaboard-transition--<name>` (vs `fiestaboard-plugin--<name>` for data plugins). Add your repo to `plugin-registry.json` with `"plugin_type": "transition"` so the loader knows what to expect before cloning.
 
 ## Reference
 
