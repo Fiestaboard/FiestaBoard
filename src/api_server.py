@@ -5436,12 +5436,14 @@ def _reject_plugin_strategy_when_beta_off(strategy: str | None) -> None:
 
 @app.get("/transitions/plugins")
 async def list_transition_plugins():
-    """List enabled transition plugins available for selection.
+    """List installed transition plugins available for selection.
 
     Each entry includes the plugin id, display name, manifest metadata,
     its ``settings_schema`` (so the UI can render a config form), and the
-    plugin's ``transition_settings`` caps.  Only enabled transition
-    plugins are returned -- disabled ones can't be invoked.
+    plugin's ``transition_settings`` caps.  Every installed transition
+    plugin is listed -- unlike data plugins, transitions don't need to be
+    enabled in the Marketplace to be selectable; installing one is opting
+    in.
 
     Gated behind ``beta.transition_plugins_enabled``.
     """
@@ -5454,8 +5456,6 @@ async def list_transition_plugins():
     out = []
     for plugin_id, plugin in registry._plugins.items():  # noqa: SLF001 - registry is in-process
         if not isinstance(plugin, TransitionPluginBase):
-            continue
-        if not registry.is_enabled(plugin_id):
             continue
         manifest = registry.get_manifest(plugin_id)
         if manifest is None:
