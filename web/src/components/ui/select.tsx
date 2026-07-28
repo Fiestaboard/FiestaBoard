@@ -38,22 +38,51 @@ type SelectProps = Omit<
   onValueChange?: (value: string) => void;
 };
 
+const SelectItemsContext = React.createContext<Array<{ value: unknown; label: React.ReactNode }>>([]);
+
 function Select({ children, onValueChange, ...props }: SelectProps) {
   const items = collectSelectItems(children);
   return (
-    <SelectPrimitive.Root
-      items={items.length > 0 ? items : undefined}
-      onValueChange={onValueChange as ((value: unknown) => void) | undefined}
-      {...props}
-    >
-      {children}
-    </SelectPrimitive.Root>
+    <SelectItemsContext.Provider value={items}>
+      <SelectPrimitive.Root
+        items={items.length > 0 ? items : undefined}
+        // Radix never emitted null (e.g. when a controlled value like ""
+        // matches no item), so shield consumers from Base UI's null events.
+        onValueChange={
+          onValueChange
+            ? (value: unknown) => {
+                if (value != null) onValueChange(value as string);
+              }
+            : undefined
+        }
+        {...props}
+      >
+        {children}
+      </SelectPrimitive.Root>
+    </SelectItemsContext.Provider>
   );
 }
 
 const SelectGroup = SelectPrimitive.Group;
 
-const SelectValue = SelectPrimitive.Value;
+const SelectValue = React.forwardRef<
+  React.ComponentRef<typeof SelectPrimitive.Value>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Value> & { placeholder?: React.ReactNode }
+>(({ placeholder, ...props }, ref) => {
+  const items = React.useContext(SelectItemsContext);
+  return (
+    <SelectPrimitive.Value ref={ref} {...props}>
+      {(value: unknown) => {
+        // Radix showed the placeholder for empty values and nothing for a
+        // value with no matching item; Base UI would render the raw value.
+        if (value == null || value === "") return placeholder;
+        const match = items.find((item) => item.value === value);
+        return match ? match.label : placeholder;
+      }}
+    </SelectPrimitive.Value>
+  );
+});
+SelectValue.displayName = "SelectValue";
 
 const SelectTrigger = React.forwardRef<
   React.ComponentRef<typeof SelectPrimitive.Trigger>,

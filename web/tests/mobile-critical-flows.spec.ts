@@ -215,11 +215,11 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
 
-    // Radix Select sizes its content to the widest item; long page names
-    // used to blow the panel past the viewport (position is clamped by
-    // Radix, width is not — ui/select.tsx now caps it).
+    // The select popup sizes to the widest item; long page names used to
+    // blow the panel past the viewport (position is clamped, width is
+    // not — ui/select.tsx caps it).
     await dialog.getByRole("combobox").first().click();
-    const panel = page.locator("[data-radix-popper-content-wrapper]");
+    const panel = page.getByRole("listbox");
     await expect(panel).toBeVisible({ timeout: 5_000 });
     const panelBox = await panel.boundingBox();
     expect(panelBox).not.toBeNull();

@@ -67,10 +67,17 @@ const sheetVariants = cva("fixed z-[110] gap-4 bg-background p-6 shadow-modal", 
 });
 
 interface SheetContentProps
-  extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Popup>, VariantProps<typeof sheetVariants> {}
+  extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Popup>, VariantProps<typeof sheetVariants> {
+  /**
+   * Radix-compat: called on Escape while the sheet is open; call
+   * `event.preventDefault()` to keep the sheet open. Implemented by stopping
+   * the event before Base UI's document-level dismiss handler sees it.
+   */
+  onEscapeKeyDown?: (event: React.KeyboardEvent) => void;
+}
 
 const SheetContent = React.forwardRef<React.ComponentRef<typeof SheetPrimitive.Popup>, SheetContentProps>(
-  ({ side = "right", className, children, ...props }, ref) => {
+  ({ side = "right", className, children, onEscapeKeyDown, onKeyDown, ...props }, ref) => {
     const getAnimation = (side: string) => {
       switch (side) {
         case "right":
@@ -92,6 +99,15 @@ const SheetContent = React.forwardRef<React.ComponentRef<typeof SheetPrimitive.P
         <SheetPrimitive.Popup
           ref={ref}
           className={cn(sheetVariants({ side }), className)}
+          onKeyDown={(event) => {
+            onKeyDown?.(event);
+            if (event.key === "Escape" && onEscapeKeyDown) {
+              onEscapeKeyDown(event);
+              if (event.defaultPrevented) {
+                event.stopPropagation();
+              }
+            }
+          }}
           style={{
             animation: getAnimation(side || "right"),
             willChange: "transform",

@@ -141,11 +141,13 @@ function DropdownMenuLabel({
   className,
   inset,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.GroupLabel> & {
+}: React.ComponentProps<"div"> & {
   inset?: boolean;
 }) {
+  // Base UI's Menu.GroupLabel throws outside <Menu.Group>; Radix allowed a
+  // standalone label, so render a plain element to keep that usage working.
   return (
-    <DropdownMenuPrimitive.GroupLabel
+    <div
       data-slot="dropdown-menu-label"
       data-inset={inset}
       className={cn("px-2 py-1.5 text-sm font-medium data-[inset]:pl-8", className)}
