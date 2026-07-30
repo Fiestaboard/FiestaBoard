@@ -25,6 +25,7 @@
     "@docusaurus/preset-classic": "3.9.2",
     "@easyops-cn/docusaurus-search-local": "^0.55.1",
     "@mdx-js/react": "^3.0.0",
+    "@sablier/docusaurus-plugin-llms": "0.3.1",
     "clsx": "^2.0.0",
     "lucide-react": "^1.17.0",
     "prism-react-renderer": "^2.3.0",
