@@ -888,10 +888,11 @@ app.add_middleware(
 # Mount the MCP server at /mcp (accessible at /api/mcp via nginx).
 # Gracefully skipped if the mcp package is not installed.
 try:
-    from .mcp_server import mcp_server as _mcp_server_instance
+    from .mcp_server import build_streamable_http_app as _build_mcp_app
 
-    if _mcp_server_instance is not None:
-        app.mount("/mcp", _mcp_server_instance.streamable_http_app())
+    _mcp_app = _build_mcp_app()
+    if _mcp_app is not None:
+        app.mount("/mcp", _mcp_app)
         logger.info("FiestaBoard MCP server mounted at /mcp (public: /api/mcp)")
     else:
         logger.warning("MCP server disabled — mcp package not installed or failed to initialise")

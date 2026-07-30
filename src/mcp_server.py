@@ -106,42 +106,31 @@ def _serialize(obj: Any) -> Any:
 # ---------------------------------------------------------------------------
 
 try:
-    from mcp.server.fastmcp import FastMCP  # type: ignore[import-untyped]
+    from mcp.server import MCPServer  # type: ignore[import-untyped]
 
     _MCP_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _MCP_AVAILABLE = False
-    FastMCP = None  # type: ignore[assignment,misc]
+    MCPServer = None  # type: ignore[assignment,misc]
     logger.warning(
         "mcp package not installed — FiestaBoard MCP server is disabled. "
-        "Add `mcp>=1.8.0` to requirements.txt and rebuild the container."
+        "Add `mcp>=2.0.0` to requirements.txt and rebuild the container."
     )
 
 
 def _build_mcp_server() -> Any:
-    """Construct and return the FastMCP server instance.
+    """Construct and return the MCPServer instance.
 
-    Returns ``None`` if the ``mcp`` package is not installed.
+    Returns ``None`` if the ``mcp`` package is not installed.  Transport
+    configuration (stateless HTTP, JSON responses, security) lives in
+    :func:`build_streamable_http_app` — mcp 2.0 moved it off the server
+    constructor onto the app builders.
     """
     if not _MCP_AVAILABLE:
         return None
 
-    # FastMCP's default transport_security enables DNS-rebinding protection
-    # and only allows Host headers matching ``127.0.0.1:*``/``localhost:*``/
-    # ``[::1]:*``. FiestaBoard is reached over the LAN by IP, hostname, or
-    # ``fiestaboard.local`` — none of which match — so the default would
-    # 421 every legitimate request. We opt out and rely on the auth layer
-    # (``FIESTABOARD_AUTH_ENABLED``) for access control instead.
-    from mcp.server.transport_security import TransportSecuritySettings  # type: ignore[import-untyped]
-
-    mcp = FastMCP(
+    mcp = MCPServer(
         "FiestaBoard",
-        stateless_http=True,
-        json_response=True,
-        streamable_http_path="/",
-        transport_security=TransportSecuritySettings(
-            enable_dns_rebinding_protection=False,
-        ),
         instructions=(
             "FiestaBoard is a smart LED matrix display controller. You can:\n"
             "  • Manage plugins/integrations (weather, stocks, transit, etc.)\n"
@@ -1233,3 +1222,28 @@ def _build_mcp_server() -> Any:
 # ---------------------------------------------------------------------------
 
 mcp_server = _build_mcp_server()
+
+
+def build_streamable_http_app() -> Any:
+    """Return the ASGI app for the MCP server, or ``None`` if unavailable.
+
+    The default transport_security enables DNS-rebinding protection and only
+    allows Host headers matching ``127.0.0.1:*``/``localhost:*``/``[::1]:*``.
+    FiestaBoard is reached over the LAN by IP, hostname, or
+    ``fiestaboard.local`` — none of which match — so the default would 421
+    every legitimate request. We opt out and rely on the auth layer
+    (``FIESTABOARD_AUTH_ENABLED``) for access control instead.
+    """
+    if mcp_server is None:
+        return None
+
+    from mcp.server.transport_security import TransportSecuritySettings  # type: ignore[import-untyped]
+
+    return mcp_server.streamable_http_app(
+        stateless_http=True,
+        json_response=True,
+        streamable_http_path="/",
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=False,
+        ),
+    )
