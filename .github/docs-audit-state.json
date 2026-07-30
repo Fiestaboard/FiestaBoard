@@ -1,12 +1,24 @@
 {
   "schema_version": 1,
-  "round": 33,
-  "round_started_at": "2026-07-28T00:23:56Z",
-  "last_run_at": "2026-07-29T00:14:01Z",
-  "files_remaining": [],
+  "round": 34,
+  "round_started_at": "2026-07-30T00:22:36Z",
+  "last_run_at": "2026-07-30T00:22:36Z",
+  "files_remaining": [
+    "plugins/date_time/README.md",
+    "plugins/date_time/docs/SETUP.md",
+    "plugins/quiet_library/README.md",
+    "plugins/quiet_library/docs/SETUP.md",
+    "plugins/random/README.md",
+    "plugins/random/docs/SETUP.md",
+    "plugins/simple_dissolve/README.md",
+    "plugins/simple_dissolve/docs/SETUP.md",
+    "plugins/slot_machine/README.md",
+    "plugins/slot_machine/docs/SETUP.md",
+    "plugins/typewriter/README.md",
+    "plugins/typewriter/docs/SETUP.md"
+  ],
   "files_audited": [
     "README.md",
-    "docs/design.md",
     "docs/development/API_MIGRATION.md",
     "docs/development/PLUGIN_DEVELOPMENT.md",
     "docs/development/TECHNICAL_DEBT.md",
@@ -37,18 +49,6 @@
     "plugins/_template_transition/README.md",
     "plugins/_template_transition/docs/SETUP.md",
     "plugins/countdown/README.md",
-    "plugins/countdown/docs/SETUP.md",
-    "plugins/date_time/README.md",
-    "plugins/date_time/docs/SETUP.md",
-    "plugins/quiet_library/README.md",
-    "plugins/quiet_library/docs/SETUP.md",
-    "plugins/random/README.md",
-    "plugins/random/docs/SETUP.md",
-    "plugins/simple_dissolve/README.md",
-    "plugins/simple_dissolve/docs/SETUP.md",
-    "plugins/slot_machine/README.md",
-    "plugins/slot_machine/docs/SETUP.md",
-    "plugins/typewriter/README.md",
-    "plugins/typewriter/docs/SETUP.md"
+    "plugins/countdown/docs/SETUP.md"
   ]
 }
