@@ -214,11 +214,11 @@ def test_mcp_server_singleton_not_none():
     assert mcp_server is not None
 
 
-def test_build_mcp_server_returns_fastmcp(mcp):
-    """_build_mcp_server() returns a FastMCP instance."""
-    from mcp.server.fastmcp import FastMCP
+def test_build_mcp_server_returns_mcpserver(mcp):
+    """_build_mcp_server() returns an MCPServer instance."""
+    from mcp.server import MCPServer
 
-    assert isinstance(mcp, FastMCP)
+    assert isinstance(mcp, MCPServer)
 
 
 # ---------------------------------------------------------------------------

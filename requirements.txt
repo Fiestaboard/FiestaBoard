@@ -38,7 +38,7 @@ recurring-ical-events>=3.8.2
 pytz>=2026.3.post1
 
 # MCP (Model Context Protocol) server — exposes FiestaBoard as an MCP tool server
-mcp>=1.28.1
+mcp>=2.0.0
 
 # Optional: Board Python library (alternative to manual implementation)
 # fiesta>=0.1.0
