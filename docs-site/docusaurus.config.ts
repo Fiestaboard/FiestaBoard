@@ -19,6 +19,17 @@ const DEPLOY_VERSION_CAP = 12;
 const onlyIncludeVersions =
   versions.length > 0 ? (isPRMode ? [versions[0]] : versions.slice(0, DEPLOY_VERSION_CAP)) : undefined;
 
+// URL prefixes that used to serve docs but no longer exist, redirected to the
+// current docs at the same path. GitHub Pages can't emit HTTP 301s, so
+// plugin-client-redirects writes a stub page at each old URL (instant
+// meta-refresh + canonical link — treated as a permanent redirect by search
+// engines):
+// - version snapshots older than DEPLOY_VERSION_CAP are no longer built, but
+//   their URLs were indexed while they were live; slice(CAP) keeps this list
+//   in sync as future releases push versions off the cap
+// - the "Next" (unversioned) docs were served at /docs/next/ until v2.11
+const retiredDocsPrefixes = [...versions.slice(DEPLOY_VERSION_CAP), "next"];
+
 const config: Config = {
   clientModules: ["./src/clientModules/versionSession.ts"],
 
@@ -165,6 +176,32 @@ const config: Config = {
         ],
       }),
     },
+  ],
+
+  plugins: [
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        // Pages that were deleted outright (not just moved off the version
+        // cap), pointing at the page that absorbed their content.
+        redirects: [
+          {
+            from: ["/docs/setup/split-flap-display-software", "/docs/next/setup/split-flap-display-software"],
+            to: "/docs/intro",
+          },
+        ],
+        // Every page in a retired version snapshot has a same-path page in
+        // the current docs (verified against git history), so map each
+        // current docs route to its retired-prefix ancestors.
+        createRedirects(existingPath: string) {
+          const match = existingPath.match(/^\/docs\/(.+)$/);
+          if (!match) return undefined;
+          // Skip routes of still-served older versions (/docs/8.11/...)
+          if (/^\d+\.\d+\//.test(match[1])) return undefined;
+          return retiredDocsPrefixes.map((prefix) => `/docs/${prefix}/${match[1]}`);
+        },
+      },
+    ],
   ],
 
   themes: [
