@@ -451,13 +451,13 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
               <TabsList className="h-8 w-full bg-muted p-0.5">
                 <TabsTrigger
                   value="functions"
-                  className="flex-1 h-full text-xs px-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                  className="flex-1 h-full text-xs px-2 data-[active]:bg-background data-[active]:shadow-sm"
                 >
                   {t("functionsTab")}
                 </TabsTrigger>
                 <TabsTrigger
                   value="variables"
-                  className="flex-1 h-full text-xs px-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                  className="flex-1 h-full text-xs px-2 data-[active]:bg-background data-[active]:shadow-sm"
                 >
                   {t("variablesTab")}
                 </TabsTrigger>

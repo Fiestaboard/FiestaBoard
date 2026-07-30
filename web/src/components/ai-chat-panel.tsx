@@ -780,7 +780,7 @@ function PatchDetailDisclosure({ count, children }: { count: number; children: R
           type="button"
           className="group/disclose flex w-full items-center gap-1 rounded text-[10px] text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]/disclose:rotate-90" />
+          <ChevronRight className="h-3 w-3 transition-transform group-data-[panel-open]/disclose:rotate-90" />
           <span>{count === 1 ? "View change" : `View ${count} changes`}</span>
         </button>
       </CollapsibleTrigger>

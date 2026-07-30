@@ -371,7 +371,7 @@ test.describe("regression: picks.tabs", () => {
     await page.goto("/picks");
     const flagshipTab = page.getByRole("tab", { name: "Flagship" });
     await expect(flagshipTab).toBeVisible({ timeout: 10_000 });
-    await expect(flagshipTab).toHaveAttribute("data-state", "active");
+    await expect(flagshipTab).toHaveAttribute("aria-selected", "true");
 
     await expect(page.getByRole("heading", { name: "Flagship Only Pick" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Note Only Pick" })).toHaveCount(0);
@@ -394,7 +394,7 @@ test.describe("regression: picks.tabs", () => {
     const noteTab = page.getByRole("tab", { name: "Note" });
     await expect(noteTab).toBeVisible({ timeout: 10_000 });
     await noteTab.click();
-    await expect(noteTab).toHaveAttribute("data-state", "active");
+    await expect(noteTab).toHaveAttribute("aria-selected", "true");
 
     await expect(page.getByRole("heading", { name: "Note Only Pick" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Flagship Only Pick" })).toHaveCount(0);

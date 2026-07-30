@@ -1,30 +1,57 @@
 "use client";
 
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const TooltipProvider = TooltipPrimitive.Provider;
+function TooltipProvider({
+  delayDuration,
+  skipDelayDuration,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Provider> & {
+  delayDuration?: number;
+  skipDelayDuration?: number;
+}) {
+  return <TooltipPrimitive.Provider delay={delayDuration} timeout={skipDelayDuration} {...props} />;
+}
 
 const Tooltip = TooltipPrimitive.Root;
 
-const TooltipTrigger = TooltipPrimitive.Trigger;
+function TooltipTrigger({
+  asChild = false,
+  children,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Trigger> & { asChild?: boolean }) {
+  return (
+    <TooltipPrimitive.Trigger
+      {...(asChild ? { render: React.Children.only(children) as React.ReactElement } : { children })}
+      {...props}
+    />
+  );
+}
 
 const TooltipContent = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => (
-  <TooltipPrimitive.Content
-    ref={ref}
-    sideOffset={sideOffset}
-    className={cn(
-      "z-[60] overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md",
-      className,
-    )}
-    {...props}
-  />
+  React.ComponentRef<typeof TooltipPrimitive.Popup>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Popup> & {
+    side?: "top" | "right" | "bottom" | "left";
+    align?: "start" | "center" | "end";
+    sideOffset?: number;
+  }
+>(({ className, side = "top", align = "center", sideOffset = 4, ...props }, ref) => (
+  <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Positioner side={side} align={align} sideOffset={sideOffset} className="z-[140]">
+      <TooltipPrimitive.Popup
+        ref={ref}
+        className={cn(
+          "overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md",
+          className,
+        )}
+        {...props}
+      />
+    </TooltipPrimitive.Positioner>
+  </TooltipPrimitive.Portal>
 ));
-TooltipContent.displayName = TooltipPrimitive.Content.displayName;
+TooltipContent.displayName = "TooltipContent";
 
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };
