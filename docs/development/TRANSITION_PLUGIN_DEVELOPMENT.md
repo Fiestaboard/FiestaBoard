@@ -128,7 +128,7 @@ Choose conservatively. A transition with `max_frames: 5000` and `min_interval_ms
 
 ## Selecting a transition plugin
 
-Once your plugin is loaded and enabled, users select it from:
+Once your plugin is installed, users select it from (no Marketplace enable step is needed — installing a transition plugin is opting in):
 
 - A specific page's Transition picker in the page editor
 - The global default in Settings → Transitions
@@ -137,7 +137,7 @@ Pages store the choice as `transition_strategy = "plugin:my_transition"`. The ru
 
 ## Visual testing
 
-The **Transition Lab** at `/transitions` lets you preview any enabled transition plugin against arbitrary from/to text without a real board. It uses `POST /transitions/preview` under the hood, which calls your `generate_frames()` and returns the resulting grids as JSON. Use the timeline scrubber to step through frames and verify each intermediate state.
+The **Transition Lab** at `/transitions` lets you preview any installed transition plugin against arbitrary from/to text without a real board. It uses `POST /transitions/preview` under the hood, which calls your `generate_frames()` and returns the resulting grids as JSON. Use the timeline scrubber to step through frames and verify each intermediate state.
 
 ## Performance & rate limits
 

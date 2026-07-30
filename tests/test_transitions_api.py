@@ -149,7 +149,7 @@ def _run(coro):
 # ---------------------------------------------------------------------------
 
 
-def test_list_transition_plugins_returns_enabled(patched_registry):
+def test_list_transition_plugins_returns_installed(patched_registry):
     data = _run(list_transition_plugins())
     ids = {p["id"] for p in data["plugins"]}
     assert {"fake_typewriter", "fake_forever"} <= ids
@@ -164,11 +164,13 @@ def test_list_transition_plugins_includes_settings_schema(patched_registry):
     assert tw["strategy"] == "plugin:fake_typewriter"
 
 
-def test_list_transition_plugins_excludes_disabled(patched_registry):
+def test_list_transition_plugins_includes_disabled(patched_registry):
+    """Transitions don't need the Marketplace enable toggle: installed is
+    enough to be selectable."""
     patched_registry._enabled["fake_typewriter"] = False
     data = _run(list_transition_plugins())
     ids = {p["id"] for p in data["plugins"]}
-    assert "fake_typewriter" not in ids
+    assert "fake_typewriter" in ids
 
 
 def test_list_transition_plugins_omits_data_plugins(patched_registry):

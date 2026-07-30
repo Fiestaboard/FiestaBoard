@@ -602,15 +602,14 @@ class PluginRegistry:
         :class:`~src.plugins.base.TransitionPluginBase` and produce
         frame-by-frame board animations; data plugins are filtered out so
         ``board_client.render("plugin:typewriter")`` can never accidentally
-        invoke a data source.  Only plugins that are currently enabled are
-        returned to prevent disabled plugins from running on the board.
+        invoke a data source.  The Marketplace enabled toggle is not
+        consulted: transitions have no polling loop or background cost, so
+        any installed transition plugin may be selected and run.
         """
         from .base import TransitionPluginBase  # local import to avoid cycles
 
         plugin = self._plugins.get(plugin_id)
         if plugin is None or not isinstance(plugin, TransitionPluginBase):
-            return None
-        if not self._enabled.get(plugin_id, False):
             return None
         return plugin
 
