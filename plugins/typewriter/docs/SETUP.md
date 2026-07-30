@@ -32,4 +32,4 @@ No environment variables required.
 
 - **Transition is too slow** — Lower `frame_interval_ms` or raise `chars_per_frame`.
 - **Transition is too fast to see** — Raise `frame_interval_ms` (e.g. to 200-300).
-- **Transition not visible** — Confirm the plugin is enabled in Settings → Plugins and selected on the page (or as the global default).
+- **Transition not visible** — Confirm the plugin is enabled on the **Integrations** page and selected on the page (or as the global default).
