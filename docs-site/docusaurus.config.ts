@@ -28,7 +28,17 @@ const onlyIncludeVersions =
 //   their URLs were indexed while they were live; slice(CAP) keeps this list
 //   in sync as future releases push versions off the cap
 // - the "Next" (unversioned) docs were served at /docs/next/ until v2.11
-const retiredDocsPrefixes = [...versions.slice(DEPLOY_VERSION_CAP), "next"];
+// - "latest" is an evergreen alias: /docs/latest/<page> always forwards to
+//   the current docs at /docs/<page>
+const redirectedDocsPrefixes = [...versions.slice(DEPLOY_VERSION_CAP), "next", "latest"];
+
+// Latest version gets a "(latest)" dropdown label; every other built version
+// gets noIndex so search engines only index the current docs (noIndex pages
+// are also excluded from the sitemap).
+const builtVersions = onlyIncludeVersions ?? versions;
+const versionsConfig = Object.fromEntries(
+  builtVersions.map((v) => [v, v === versions[0] ? { label: `${v} (latest)` } : { noIndex: true }]),
+);
 
 const config: Config = {
   clientModules: ["./src/clientModules/versionSession.ts"],
@@ -189,6 +199,8 @@ const config: Config = {
             from: ["/docs/setup/split-flap-display-software", "/docs/next/setup/split-flap-display-software"],
             to: "/docs/intro",
           },
+          // Bare /docs/latest (no page path) lands on the docs home page.
+          { from: "/docs/latest", to: "/docs/intro" },
         ],
         // Every page in a retired version snapshot has a same-path page in
         // the current docs (verified against git history), so map each
@@ -198,7 +210,7 @@ const config: Config = {
           if (!match) return undefined;
           // Skip routes of still-served older versions (/docs/8.11/...)
           if (/^\d+\.\d+\//.test(match[1])) return undefined;
-          return retiredDocsPrefixes.map((prefix) => `/docs/${prefix}/${match[1]}`);
+          return redirectedDocsPrefixes.map((prefix) => `/docs/${prefix}/${match[1]}`);
         },
       },
     ],
@@ -223,6 +235,7 @@ const config: Config = {
           sidebarPath: "./sidebars.ts",
           editUrl: "https://github.com/Fiestaboard/FiestaBoard/tree/main/docs-site/",
           includeCurrentVersion: false,
+          versions: versionsConfig,
           ...(onlyIncludeVersions ? { onlyIncludeVersions } : {}),
         },
         blog: {
