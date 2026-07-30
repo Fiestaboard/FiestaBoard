@@ -18,7 +18,7 @@ None. Transition plugins do not expose template variables; they are selected as 
 
 ## Example Templates
 
-Not applicable — enable the **Transition Plugins** beta in Settings → Beta, then pick *Quiet Library* as a page's transition (or preview it on the Transition Lab page).
+Not applicable — enable the **Transition Plugins** beta in Settings → Advanced → Beta Features, then pick *Quiet Library* as a page's transition (or preview it on the Transition Lab page).
 
 ## Configuration
 
