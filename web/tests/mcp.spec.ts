@@ -96,11 +96,19 @@ async function initialize(request: APIRequestContext): Promise<{ sessionId?: str
 
 test.describe("MCP", () => {
   test("endpoint is mounted (not 404)", async ({ request }) => {
-    // A bare GET on the streamable endpoint won't be a valid MCP request,
-    // but the server should still respond with something — 405/400/406 —
-    // proving the mount is live. A 404 means the package failed to load
-    // and FastMCP silently disabled the mount (see api_server.py:776).
-    const res = await request.get(MCP_URL);
+    // An empty POST isn't a valid MCP request, but the server should still
+    // respond with something — a 400 JSON-RPC validation error — proving
+    // the mount is live. A 404 means the package failed to load and the
+    // mount was silently disabled (see api_server.py). Don't probe with
+    // GET: since mcp 2.0 that opens a never-ending SSE listen stream and
+    // the request would hang until the test timeout.
+    const res = await request.post(MCP_URL, {
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      data: {},
+    });
     expect(res.status()).not.toBe(404);
   });
 

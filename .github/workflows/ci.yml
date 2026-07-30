@@ -809,12 +809,18 @@ jobs:
           done
 
       - name: Sanity check — MCP mount is live
-        # If the mcp Python package failed to install, FastMCP silently
+        # If the mcp Python package failed to install, the server silently
         # disables the mount. Catching that here gives a clearer failure
-        # than ten flaky-looking mcp.spec.ts errors.
+        # than ten flaky-looking mcp.spec.ts errors. Probe with a POST:
+        # since mcp 2.0 a GET opens a never-ending SSE listen stream, so a
+        # plain curl GET hangs until the job timeout. An empty POST returns
+        # a JSON-RPC validation error (400) immediately.
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/mcp/" || echo "000")
-          echo "GET /api/mcp/ -> $STATUS"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 15 \
+            -X POST -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/event-stream" \
+            -d '{}' "$BASE_URL/api/mcp/" || echo "000")
+          echo "POST /api/mcp/ -> $STATUS"
           if [ "$STATUS" = "404" ]; then
             echo "❌ MCP endpoint returned 404 — mcp package likely missing or mount failed"
             docker logs fiestaboard-ai | grep -i mcp | tail -20
