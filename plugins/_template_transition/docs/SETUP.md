@@ -12,7 +12,7 @@ How to enable and use this transition plugin.
 
 1. **Enable** — Open the Integrations page, find this plugin under "Transition Plugins", and toggle it on.
 2. **Configure** — Adjust the settings to your taste.
-3. **Apply** — Set it as a page's transition (or as the global default in Settings → Transitions).
+3. **Apply** — Set it as a page's transition (or as the global default in Settings → Board Transitions).
 4. **View** — Watch the next page transition use your effect.
 
 ## Template Variables
