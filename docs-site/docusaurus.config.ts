@@ -190,6 +190,36 @@ const config: Config = {
 
   plugins: [
     [
+      "@sablier/docusaurus-plugin-llms",
+      {
+        // Generate from the snapshot that /docs/ actually serves — the
+        // working docs/ dir can describe unreleased features between
+        // releases. versions[0] keeps this on the latest snapshot as
+        // releases ship.
+        docsDir: `versioned_docs/version-${versions[0]}`,
+        pathTransformation: {
+          ignorePaths: ["versioned_docs", `version-${versions[0]}`],
+        },
+        title: "FiestaBoard",
+        description:
+          "Open-source software for split-flap displays (Vestaboard Flagship and Note). Plugins, scheduling, and a visual page editor for your board.",
+        version: versions[0],
+        generateLLMsTxt: true,
+        generateLLMsFullTxt: true,
+        includeOrder: [
+          "**/intro.md",
+          "**/setup/**",
+          "**/plugins/overview.md",
+          "**/plugins/configuration.md",
+          "**/plugins/**",
+          "**/features/**",
+          "**/deployment/**",
+          "**/reference/**",
+          "**/troubleshooting.md",
+        ],
+      },
+    ],
+    [
       "@docusaurus/plugin-client-redirects",
       {
         // Pages that were deleted outright (not just moved off the version
