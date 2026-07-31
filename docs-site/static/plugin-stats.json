@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-30T06:31:46Z",
+  "generated_at": "2026-07-31T06:48:08Z",
   "window_days": 14,
   "plugins": [
     {
@@ -23,8 +23,8 @@
       "version": "1.2.2",
       "created_at": "2026-03-22T01:21:49Z",
       "updated_at": "2026-05-17T06:24:22Z",
-      "clones_14d_count": 305,
-      "clones_14d_uniques": 228
+      "clones_14d_count": 235,
+      "clones_14d_uniques": 175
     },
     {
       "id": "aurora_forecast",
@@ -35,8 +35,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:44Z",
       "updated_at": "2026-05-17T06:24:28Z",
-      "clones_14d_count": 5,
-      "clones_14d_uniques": 5
+      "clones_14d_count": 6,
+      "clones_14d_uniques": 6
     },
     {
       "id": "lyft_bike_share",
@@ -47,8 +47,8 @@
       "version": "2.0.3",
       "created_at": "2026-03-22T01:21:56Z",
       "updated_at": "2026-06-06T18:23:02Z",
-      "clones_14d_count": 246,
-      "clones_14d_uniques": 200
+      "clones_14d_count": 238,
+      "clones_14d_uniques": 184
     },
     {
       "id": "calendar_sub",
@@ -71,7 +71,7 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:47Z",
       "updated_at": "2026-05-17T06:24:34Z",
-      "clones_14d_count": 6,
+      "clones_14d_count": 5,
       "clones_14d_uniques": 5
     },
     {
@@ -83,8 +83,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:02Z",
       "updated_at": "2026-05-17T06:24:37Z",
-      "clones_14d_count": 5870,
-      "clones_14d_uniques": 734
+      "clones_14d_count": 5491,
+      "clones_14d_uniques": 695
     },
     {
       "id": "disney_parks_times",
@@ -95,8 +95,8 @@
       "version": "1.2.1",
       "created_at": "2026-03-22T01:22:10Z",
       "updated_at": "2026-06-25T23:18:30Z",
-      "clones_14d_count": 8,
-      "clones_14d_uniques": 8
+      "clones_14d_count": 7,
+      "clones_14d_uniques": 7
     },
     {
       "id": "earthquake",
@@ -155,8 +155,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:22:24Z",
       "updated_at": "2026-06-07T01:59:31Z",
-      "clones_14d_count": 302,
-      "clones_14d_uniques": 241
+      "clones_14d_count": 230,
+      "clones_14d_uniques": 179
     },
     {
       "id": "hacker_news",
@@ -191,8 +191,8 @@
       "version": "1.2.2",
       "created_at": "2026-03-22T01:22:37Z",
       "updated_at": "2026-05-17T06:25:06Z",
-      "clones_14d_count": 250,
-      "clones_14d_uniques": 205
+      "clones_14d_count": 244,
+      "clones_14d_uniques": 193
     },
     {
       "id": "iss_tracker",
@@ -215,8 +215,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:43Z",
       "updated_at": "2026-05-17T06:25:13Z",
-      "clones_14d_count": 10,
-      "clones_14d_uniques": 8
+      "clones_14d_count": 7,
+      "clones_14d_uniques": 7
     },
     {
       "id": "lightning",
@@ -227,8 +227,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:05Z",
       "updated_at": "2026-06-06T18:23:05Z",
-      "clones_14d_count": 7,
-      "clones_14d_uniques": 7
+      "clones_14d_count": 6,
+      "clones_14d_uniques": 6
     },
     {
       "id": "moon_phase",
@@ -251,8 +251,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:49Z",
       "updated_at": "2026-06-06T18:22:49Z",
-      "clones_14d_count": 244,
-      "clones_14d_uniques": 201
+      "clones_14d_count": 306,
+      "clones_14d_uniques": 234
     },
     {
       "id": "national_day",
@@ -263,8 +263,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:13Z",
       "updated_at": "2026-06-06T18:22:09Z",
-      "clones_14d_count": 6,
-      "clones_14d_uniques": 6
+      "clones_14d_count": 5,
+      "clones_14d_uniques": 5
     },
     {
       "id": "nearby_aircraft",
@@ -275,8 +275,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:57Z",
       "updated_at": "2026-05-17T06:25:32Z",
-      "clones_14d_count": 13,
-      "clones_14d_uniques": 12
+      "clones_14d_count": 16,
+      "clones_14d_uniques": 13
     },
     {
       "id": "network_speed",
@@ -287,7 +287,7 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:17Z",
       "updated_at": "2026-05-17T06:25:34Z",
-      "clones_14d_count": 7,
+      "clones_14d_count": 6,
       "clones_14d_uniques": 6
     },
     {
@@ -311,8 +311,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:24Z",
       "updated_at": "2026-06-06T18:22:38Z",
-      "clones_14d_count": 8,
-      "clones_14d_uniques": 7
+      "clones_14d_count": 9,
+      "clones_14d_uniques": 8
     },
     {
       "id": "pihole",
@@ -323,8 +323,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:28Z",
       "updated_at": "2026-05-17T06:25:44Z",
-      "clones_14d_count": 3,
-      "clones_14d_uniques": 3
+      "clones_14d_count": 4,
+      "clones_14d_uniques": 4
     },
     {
       "id": "quote_of_day",
@@ -347,8 +347,8 @@
       "version": "0.2.2",
       "created_at": "2026-05-02T07:01:36Z",
       "updated_at": "2026-06-06T18:26:09Z",
-      "clones_14d_count": 5,
-      "clones_14d_uniques": 5
+      "clones_14d_count": 6,
+      "clones_14d_uniques": 6
     },
     {
       "id": "river_flow",
@@ -359,8 +359,8 @@
       "version": "1.0.0",
       "created_at": "2026-05-02T07:01:39Z",
       "updated_at": "2026-07-18T03:40:11Z",
-      "clones_14d_count": 67,
-      "clones_14d_uniques": 34
+      "clones_14d_count": 68,
+      "clones_14d_uniques": 35
     },
     {
       "id": "santa_tracker",
@@ -371,7 +371,7 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:23:03Z",
       "updated_at": "2026-06-07T01:57:33Z",
-      "clones_14d_count": 4,
+      "clones_14d_count": 7,
       "clones_14d_uniques": 4
     },
     {
@@ -419,8 +419,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:23:22Z",
       "updated_at": "2026-06-07T01:58:18Z",
-      "clones_14d_count": 2424,
-      "clones_14d_uniques": 646
+      "clones_14d_count": 2558,
+      "clones_14d_uniques": 656
     },
     {
       "id": "stardate",
@@ -443,8 +443,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:34Z",
       "updated_at": "2026-05-17T06:26:16Z",
-      "clones_14d_count": 244,
-      "clones_14d_uniques": 195
+      "clones_14d_count": 233,
+      "clones_14d_uniques": 170
     },
     {
       "id": "sun_art",
@@ -455,8 +455,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:41Z",
       "updated_at": "2026-05-17T06:26:19Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 8
+      "clones_14d_count": 16,
+      "clones_14d_uniques": 10
     },
     {
       "id": "surf",
@@ -491,8 +491,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:54Z",
       "updated_at": "2026-05-17T06:26:29Z",
-      "clones_14d_count": 239,
-      "clones_14d_uniques": 196
+      "clones_14d_count": 231,
+      "clones_14d_uniques": 177
     },
     {
       "id": "uv_index",
@@ -515,8 +515,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:24:01Z",
       "updated_at": "2026-06-07T01:58:22Z",
-      "clones_14d_count": 9,
-      "clones_14d_uniques": 9
+      "clones_14d_count": 10,
+      "clones_14d_uniques": 10
     },
     {
       "id": "volcano",
@@ -527,8 +527,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:53Z",
       "updated_at": "2026-06-06T18:25:06Z",
-      "clones_14d_count": 4,
-      "clones_14d_uniques": 3
+      "clones_14d_count": 5,
+      "clones_14d_uniques": 4
     },
     {
       "id": "weather",
@@ -551,8 +551,8 @@
       "version": "0.1.4",
       "created_at": "2026-05-02T07:01:57Z",
       "updated_at": "2026-06-06T18:24:59Z",
-      "clones_14d_count": 8,
-      "clones_14d_uniques": 8
+      "clones_14d_count": 6,
+      "clones_14d_uniques": 6
     },
     {
       "id": "white_noise",
@@ -563,7 +563,7 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:24:14Z",
       "updated_at": "2026-06-07T02:06:55Z",
-      "clones_14d_count": 10,
+      "clones_14d_count": 13,
       "clones_14d_uniques": 10
     },
     {
