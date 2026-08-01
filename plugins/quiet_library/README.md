@@ -10,7 +10,7 @@ Updates the board word by word in small batches with long pauses between sends, 
 
 Quiet Library is a **transition plugin** (beta): instead of providing data for templates, it controls *how* the board animates from one message to the next. It diffs the current and target grids, groups the changed tiles into word blocks, and flips at most a handful of tiles per step with a long pause between steps — so only a few split-flap modules are ever spinning at once. The effect is modeled on the split-flap board in the Qantas First Class lounge at Sydney airport, which updates one word at a time to keep the room quiet.
 
-Concept and algorithm by [@wonkybutt](https://github.com/wonkybutt) ([PR #711](https://github.com/Fiestaboard/FiestaBoard/pull/711)), reimplemented on the transition-plugin SDK.
+Concept and algorithm by [@wonkybutt](https://github.com/wonkybutt) ([PR #711](https://github.com/FiestaBoard/FiestaBoard/pull/711)), reimplemented on the transition-plugin SDK.
 
 ## Template Variables
 

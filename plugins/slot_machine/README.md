@@ -25,7 +25,7 @@ Select Slot Machine from a page's Transition picker or set it as the global defa
 | Setting               | Type    | Default | Description                                                                              |
 | --------------------- | ------- | ------- | ---------------------------------------------------------------------------------------- |
 | `spin_frames`         | integer | 6       | Random-character frames each column shows before locking (1-30).                          |
-| `column_stagger`      | integer | 1       | Frames between adjacent column locks. 0 = simultaneous, higher = more pronounced cascade. |
+| `column_stagger`      | integer | 1       | Frames between adjacent column locks (0-10). 0 = simultaneous, higher = more pronounced cascade. |
 | `frame_interval_ms`   | integer | 80      | Pause between frames in milliseconds (0-1000). Smaller = faster spin.                     |
 | `seed`                | integer | 0       | Fixed integer for deterministic playback (useful for previews). 0 = fresh random.        |
 
