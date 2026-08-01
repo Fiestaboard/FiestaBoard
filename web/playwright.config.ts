@@ -25,6 +25,12 @@ if (!process.env.RUN_AI_TESTS) {
 if (!process.env.RUN_AUTH_TESTS) {
   ciIgnore.push("**/auth.spec.ts");
 }
+// Ingress specs need the HA Ingress simulator sidecar in front of a
+// production-bundle container (see tests/ingress.spec.ts); the main e2e
+// matrix talks to the container directly.
+if (!process.env.RUN_INGRESS_TESTS) {
+  ciIgnore.push("**/ingress.spec.ts");
+}
 
 export default defineConfig({
   testDir: "./tests",

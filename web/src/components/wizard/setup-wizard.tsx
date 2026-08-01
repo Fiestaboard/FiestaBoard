@@ -8,6 +8,7 @@ import { Aurora } from "@/components/ui/aurora";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import { appUrl } from "@/lib/base-path";
 import type { WizardProgress } from "@/lib/setup-detection";
 import { clearWizardProgress, getWizardProgress, markWizardComplete, saveWizardProgress } from "@/lib/setup-detection";
 import { cn } from "@/lib/utils";
@@ -172,7 +173,13 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             <div className="flex items-center justify-between mb-4">
               <div />
               <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 overflow-hidden">
-                <img src="/icons/icon-96x96.png" alt="" width={48} height={48} className="w-10 h-10 sm:w-12 sm:h-12" />
+                <img
+                  src={appUrl("/icons/icon-96x96.png")}
+                  alt=""
+                  width={48}
+                  height={48}
+                  className="w-10 h-10 sm:w-12 sm:h-12"
+                />
               </div>
               <LanguageSelector />
             </div>

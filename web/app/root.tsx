@@ -36,6 +36,7 @@ import { ThemeColorMeta } from "@/components/theme-color-meta";
 import { Toaster } from "@/components/ui/sonner";
 import { WizardProvider } from "@/components/wizard-provider";
 import i18n from "@/i18n/i18next";
+import { appUrl } from "@/lib/base-path";
 import { readCookieString, shouldShowPride } from "@/lib/pride";
 
 import type { Route } from "./+types/root";
@@ -44,11 +45,29 @@ import type { Route } from "./+types/root";
 // `useTranslation` runs anywhere in the tree.
 void i18n;
 
+// Classic <script> injected into <head> so it executes during document
+// parsing, before the deferred module bundle. vite.config.ts's
+// `experimental.renderBuiltUrl` routes every JS-hosted asset URL through
+// this global, which prepends the React Router basename under HA Ingress
+// (nginx rewrites the inlined `"basename":"/"` hydration literal — see
+// web/src/lib/base-path.ts). The basename global is read lazily at call
+// time, so script ordering relative to the hydration context script
+// doesn't matter. Filenames arrive relative ("assets/chunk.js").
+const ASSET_URL_HELPER = `window.__fbAssetUrl=function(f){var c=window.__reactRouterContext,b=c&&c.basename;return((!b||b==="/")?"":b.replace(/\\/+$/,""))+"/"+f};`;
+
+// appUrl() wrapping matters for the CLIENT-side <Links /> re-render: at
+// prerender time `window` is undefined so these emit the plain absolute
+// paths into the HTML (which nginx sub_filter rewrites under Ingress),
+// but when React re-renders Links in the browser the hrefs are computed
+// fresh — without the runtime prefix they'd revert to the host root and
+// 404 inside Home Assistant. (There is deliberately no body-level
+// backtick sub_filter for /icons/ etc. — see entrypoint.sh — because it
+// would double-prefix these appUrl() literals.)
 export const links: Route.LinksFunction = () => [
-  { rel: "icon", href: "/favicon.ico", sizes: "any" },
-  { rel: "icon", href: "/icons/favicon-32x32.png", type: "image/png", sizes: "32x32" },
-  { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
-  { rel: "manifest", href: "/manifest.json" },
+  { rel: "icon", href: appUrl("/favicon.ico"), sizes: "any" },
+  { rel: "icon", href: appUrl("/icons/favicon-32x32.png"), type: "image/png", sizes: "32x32" },
+  { rel: "apple-touch-icon", href: appUrl("/icons/apple-touch-icon.png") },
+  { rel: "manifest", href: appUrl("/manifest.json") },
 ];
 
 export const meta: Route.MetaFunction = () => [
@@ -91,6 +110,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={initialIsPrideMonth ? "pride-month" : undefined} suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: ASSET_URL_HELPER }} />
         <Meta />
         <Links />
       </head>

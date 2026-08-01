@@ -35,7 +35,7 @@ import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { AuthStatusResponse } from "@/lib/api";
-import { apiUrl } from "@/lib/base-path";
+import { apiUrl, appUrl } from "@/lib/base-path";
 
 type AuthStatus = AuthStatusResponse;
 
@@ -468,7 +468,7 @@ function CenteredCard({
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="mb-6 flex items-center gap-3">
-        <img src="/icons/favicon-32x32.png" alt="" width={36} height={36} className="flex-shrink-0" />
+        <img src={appUrl("/icons/favicon-32x32.png")} alt="" width={36} height={36} className="flex-shrink-0" />
         <FiestaLogo className="text-2xl" />
       </div>
       <Card className="w-full max-w-md">

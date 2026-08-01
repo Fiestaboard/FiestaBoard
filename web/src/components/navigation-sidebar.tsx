@@ -38,6 +38,7 @@ import { usePrideActive } from "@/hooks/use-pride-active";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
+import { appUrl } from "@/lib/base-path";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 import { cn } from "@/lib/utils";
 
@@ -367,12 +368,12 @@ export function NavigationSidebar() {
               aria-label={t("prideCelebrationAriaLabel")}
               className="flex items-center gap-3 min-w-0 flex-1 ml-2 cursor-pointer text-left"
             >
-              <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+              <img src={appUrl("/icons/favicon-32x32.png")} alt="" width={32} height={32} className="flex-shrink-0" />
               <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
             </button>
           ) : (
             <div className="flex items-center gap-3 min-w-0 flex-1 ml-2">
-              <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+              <img src={appUrl("/icons/favicon-32x32.png")} alt="" width={32} height={32} className="flex-shrink-0" />
               <FiestaLogo size="sm" className="logo-on-gradient whitespace-nowrap" />
             </div>
           )}
@@ -485,7 +486,7 @@ export function NavigationSidebar() {
                 aria-label={t("prideCelebrationAriaLabel")}
                 className="flex items-center gap-2 overflow-hidden px-4 py-4 cursor-pointer text-left w-full"
               >
-                <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+                <img src={appUrl("/icons/favicon-32x32.png")} alt="" width={32} height={32} className="flex-shrink-0" />
                 <FiestaLogo
                   className={cn(
                     "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",
@@ -495,7 +496,7 @@ export function NavigationSidebar() {
               </button>
             ) : (
               <div className="flex items-center gap-2 overflow-hidden px-4 py-4">
-                <img src="/icons/favicon-32x32.png" alt="" width={32} height={32} className="flex-shrink-0" />
+                <img src={appUrl("/icons/favicon-32x32.png")} alt="" width={32} height={32} className="flex-shrink-0" />
                 <FiestaLogo
                   className={cn(
                     "logo-on-gradient whitespace-nowrap overflow-hidden transition-opacity duration-100",

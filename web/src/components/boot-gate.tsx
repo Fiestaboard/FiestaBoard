@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 import { FiestaLogo } from "@/components/fiesta-logo";
 import { useTranslations } from "@/i18n/translations";
-import { apiUrl } from "@/lib/base-path";
+import { apiUrl, appUrl } from "@/lib/base-path";
 
 /** How long to wait before showing the splash (avoids a flash for fast startups). */
 const SHOW_SPLASH_DELAY_MS = 600;
@@ -83,7 +83,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
       >
         {/* Branding */}
         <div className="flex items-center gap-3">
-          <img src="/icons/favicon-32x32.png" alt="" width={36} height={36} className="flex-shrink-0" />
+          <img src={appUrl("/icons/favicon-32x32.png")} alt="" width={36} height={36} className="flex-shrink-0" />
           <FiestaLogo className="text-2xl" />
         </div>
 

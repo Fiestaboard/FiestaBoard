@@ -247,6 +247,21 @@ sub_filter '"/manifest.json' '"$http_x_ingress_path/manifest.json';
 sub_filter "'/manifest.json" "'$http_x_ingress_path/manifest.json";
 sub_filter '"/favicon.ico' '"$http_x_ingress_path/favicon.ico';
 sub_filter "'/favicon.ico" "'$http_x_ingress_path/favicon.ico";
+# Backtick-quoted variants: the Vite 8 toolchain's oxc minifier emits
+# template-literal strings (`/assets/...`) where older builds used
+# double quotes. Defense-in-depth for third-party code — first-party
+# asset references go through the runtime base path instead
+# (renderBuiltUrl -> window.__fbAssetUrl, and appUrl() for JSX srcs).
+#
+# Deliberately NO backtick variants for /icons/, /manifest.json, or
+# /favicon.ico: every first-party reference to those is wrapped in
+# appUrl() (enforced by eslint no-restricted-syntax), so a body-level
+# rewrite would prefix the literal INSIDE the appUrl() call and the
+# runtime would prefix it again — double prefix, broken image.
+sub_filter '`/assets/' '`$http_x_ingress_path/assets/';
+sub_filter '`/sw.js' '`$http_x_ingress_path/sw.js';
+sub_filter '`/registerSW.js' '`$http_x_ingress_path/registerSW.js';
+sub_filter '`/api/' '`$http_x_ingress_path/api/';
 # React Router v7 SPA hydration context. The Vite build inlines
 #   window.__reactRouterContext = {"basename":"/", ...}
 # into the served HTML. HydratedRouter strips `basename` from
