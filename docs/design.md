@@ -97,7 +97,7 @@ Values are theme-aware: lighter in light mode, slightly stronger in dark mode.
 
 ## Empty states
 
-Use the shared `EmptyState` component (`web/src/components/ui/empty-state.tsx`) with an icon, title, optional description, and optional CTA for “no pages”, “no carousels”, and similar list-empty cases. Keeps copy and layout consistent and makes it easy to add illustrations later.
+Use the shared `EmptyState` component (from `@fiestaboard/ui`) with an icon, title, optional description, and optional CTA for “no pages”, “no carousels”, and similar list-empty cases. Keeps copy and layout consistent and makes it easy to add illustrations later.
 
 ## Animation
 
@@ -131,5 +131,5 @@ Hardcoded warm oklch values in `.card-interactive:hover` were replaced with achr
 ## Related files
 
 - Theme tokens: [`web/app/globals.css`](../web/app/globals.css)
-- Empty-state component: [`web/src/components/ui/empty-state.tsx`](../web/src/components/ui/empty-state.tsx)
+- Empty-state component: [`EmptyState` in FiestaUI](https://github.com/Fiestaboard/FiestaUI/blob/main/src/components/ui/empty-state.tsx)
 - Tailwind config is inline in `globals.css` under `@theme inline { ... }` (Tailwind v4 — no separate `tailwind.config.ts`).
