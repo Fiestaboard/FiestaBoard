@@ -6,6 +6,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  PageHeader,
+  PageLayout,
+  PageToolbar,
   Skeleton,
   Tabs,
   TabsContent,
@@ -18,9 +21,6 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { toast } from "sonner";
 
 import type { ViewMode } from "@/components/page-grid-selector";
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
-import { PageToolbar } from "@/components/page-toolbar";
 import { useBoardSettings, usePages } from "@/hooks/use-board";
 import { queryKeys } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";

@@ -28,8 +28,16 @@ vi.mock("@/hooks/use-router", () => ({
 // without colliding with the calendar. Defaults to false to match the
 // non-pride code path used by the existing suite.
 const mockPrideActive = vi.fn(() => false);
+const PRIDE_SEASON_MOCK = {
+  id: "pride",
+  label: "Pride",
+  months: [5],
+  htmlClass: "pride-month",
+  colors: ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"],
+};
 vi.mock("@/hooks/use-pride-active", () => ({
   usePrideActive: () => mockPrideActive(),
+  useActiveSeason: () => (mockPrideActive() ? PRIDE_SEASON_MOCK : null),
 }));
 
 // Must import after mocking

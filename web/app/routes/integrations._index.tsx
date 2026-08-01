@@ -31,6 +31,8 @@ import {
   DropdownMenuTrigger,
   Input,
   Label,
+  PageHeader,
+  PageLayout,
   Sheet,
   SheetClose,
   SheetContent,
@@ -250,8 +252,6 @@ import type { ReactNode } from "react";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
 import { SchemaForm } from "@/components/plugin-settings";
 import Link from "@/components/smart-link";
 import { useSearchParams } from "@/hooks/use-router";

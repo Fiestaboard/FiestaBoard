@@ -33,13 +33,13 @@ import {
   CardHeader,
   CardTitle,
   Checkbox,
+  FiestaLogo,
   Input,
   Label,
 } from "@fiestaboard/ui";
 import { Loader2, Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
-import { FiestaLogo } from "@/components/fiesta-logo";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { AuthStatusResponse } from "@/lib/api";

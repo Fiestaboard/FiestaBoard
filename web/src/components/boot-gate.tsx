@@ -1,10 +1,10 @@
 "use client";
 
+import { FiestaLogo } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { FiestaLogo } from "@/components/fiesta-logo";
 import { useTranslations } from "@/i18n/translations";
 import { apiUrl, appUrl } from "@/lib/base-path";
 

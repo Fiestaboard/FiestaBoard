@@ -96,6 +96,7 @@ export NPM_TOKEN=$(gh auth token)   # any GitHub token with read:packages
 - `cn` is re-exported from `@/lib/utils` for compatibility; both import paths are fine
 - Design tokens come from `@fiestaboard/ui/theme.css`, imported at the top of `web/app/globals.css` together with the mandatory `@source "../node_modules/@fiestaboard/ui/dist"` line (Tailwind v4 does not scan node_modules — removing that line silently drops all component styles)
 - Do NOT add `@base-ui/react`, `clsx`, `tailwind-merge`, `class-variance-authority`, or `ogl` back to `web/package.json` — they are transitive dependencies of `@fiestaboard/ui`
+- **App chrome is also in the package**: `Sidebar` (presentational shell), `BoardSelector`, `MainContent`, `PageHeader`/`PageLayout`/`PageToolbar`, `FiestaLogo`/`FiestaIcon` (embedded pixel-taco brand mark), `ThemeToggle`/`LanguageSelector`/`SkipToContent`, and the seasonal theming system (`SEASONS` registry, `useActiveSeason`, `fireSeasonBurst` — Pride is the first season). App files like `navigation-sidebar.tsx` are thin wiring wrappers (router, i18n, contexts, feature flags) — presentation changes go in FiestaUI, wiring changes here
 
 ### Changing the design system
 

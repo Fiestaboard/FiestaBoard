@@ -1,7 +1,7 @@
+import { PageLayout } from "@fiestaboard/ui";
 import { useEffect, useState } from "react";
 
 import { PageBuilder } from "@/components/page-builder";
-import { PageLayout } from "@/components/page-layout";
 import { useViewTransition } from "@/hooks/use-view-transition";
 
 export default function EditPage() {

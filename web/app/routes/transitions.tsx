@@ -23,6 +23,8 @@ import {
   CardHeader,
   CardTitle,
   Label,
+  PageHeader,
+  PageLayout,
   Select,
   SelectContent,
   SelectItem,
@@ -35,8 +37,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Cast, FlaskConical, Pause, Play, RotateCcw, SkipBack, SkipForward, Undo2, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
 import { TransitionGridDisplay } from "@/components/transitions/transition-grid-display";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
