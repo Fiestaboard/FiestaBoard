@@ -1,8 +1,8 @@
 "use client";
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
 
 interface PagePickerFieldProps {

@@ -1,9 +1,9 @@
+import { Badge } from "@fiestaboard/ui";
 import { format } from "date-fns";
 import { Moon } from "lucide-react";
 import { useMemo } from "react";
 import type { EventProps } from "react-big-calendar";
 
-import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "@/i18n/translations";
 import {
   type CalendarEvent,

@@ -1,6 +1,17 @@
 "use client";
 
 import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+} from "@fiestaboard/ui";
+import {
   ArrowDown,
   ArrowUp,
   Check,
@@ -18,11 +29,6 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { useTranslations } from "@/i18n/translations";
 import { api, type QueueTimesPark, type QueueTimesRide } from "@/lib/api";

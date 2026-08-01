@@ -1,11 +1,9 @@
 "use client";
 
+import { Badge, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@fiestaboard/ui";
 import { AlertCircle, Check, GripVertical, HelpCircle, Pencil, Sparkles, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { VariableRule } from "@/lib/api";
 import { cn } from "@/lib/utils";
 

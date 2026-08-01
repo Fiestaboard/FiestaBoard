@@ -2,6 +2,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import "@/styles/calendar.css";
 
+import { Button, Slider, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { addDays, format, getDay, parse, startOfWeek } from "date-fns";
 import { enUS } from "date-fns/locale/en-US";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
@@ -9,9 +10,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
 import withDragAndDropImport, { type EventInteractionArgs } from "react-big-calendar/lib/addons/dragAndDrop";
 
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Collection, Overlap, Page, ScheduleEntry } from "@/lib/api";
 import { api } from "@/lib/api";
 import {

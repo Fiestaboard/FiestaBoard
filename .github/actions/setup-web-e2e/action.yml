@@ -22,6 +22,9 @@ runs:
         # Next.js → RR7 migration; fall back to package.json for cache
         # keying until the regenerated lockfile is committed.
         cache-dependency-path: web/package.json
+        # @fiestaboard/ui lives on GitHub Packages; auth via NODE_AUTH_TOKEN.
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@fiestaboard'
 
     - name: Cache Playwright browsers
       uses: actions/cache@v5
@@ -33,6 +36,11 @@ runs:
 
     - name: Install deps (parallel npm + Playwright)
       shell: bash
+      env:
+        # Composite actions can't read the `secrets` context; github.token is
+        # the same GITHUB_TOKEN (calling job needs `packages: read`) and
+        # authorizes the @fiestaboard scope on npm.pkg.github.com.
+        NODE_AUTH_TOKEN: ${{ github.token }}
       run: |
         # `npm ci` once a fresh lockfile is committed post-migration;
         # `npm install` covers the gap when it isn't. Runs in the

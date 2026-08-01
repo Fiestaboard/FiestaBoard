@@ -1,12 +1,10 @@
 "use client";
 
+import { Badge, EmptyState, Tabs, TabsContent, TabsList, TabsTrigger } from "@fiestaboard/ui";
 import { Check, FileText, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
-import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslations } from "@/i18n/translations";
 import type { Collection } from "@/lib/api";
 import { isCollectionId } from "@/lib/api";

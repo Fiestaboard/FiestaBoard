@@ -1,21 +1,25 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpCircle, ExternalLink, RefreshCw } from "lucide-react";
-import { useState } from "react";
-
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@fiestaboard/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowUpCircle, ExternalLink, RefreshCw } from "lucide-react";
+import { useState } from "react";
+
 import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";

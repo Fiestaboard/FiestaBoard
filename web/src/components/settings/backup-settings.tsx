@@ -1,10 +1,5 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Database, Download, Loader2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
-import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,11 +9,20 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Label,
+  Switch,
+} from "@fiestaboard/ui";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, Database, Download, Loader2, Upload } from "lucide-react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+
 import { api } from "@/lib/api";
 
 interface PendingImport {

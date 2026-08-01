@@ -13,8 +13,6 @@
  * (web/src/lib/base-path.ts). No `<base href>` is involved.
  */
 import "./globals.css";
-import "@fontsource-variable/geist";
-import "@fontsource-variable/geist-mono";
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

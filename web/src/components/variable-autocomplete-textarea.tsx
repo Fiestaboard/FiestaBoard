@@ -1,9 +1,9 @@
 "use client";
 
+import { Textarea } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
-import { Textarea } from "@/components/ui/textarea";
 import { api, type TemplateVariables } from "@/lib/api";
 import { cn } from "@/lib/utils";
 

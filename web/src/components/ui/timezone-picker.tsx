@@ -1,12 +1,11 @@
 "use client";
 
+import { Button, Input } from "@fiestaboard/ui";
 import { Check, ChevronsUpDown } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useTranslations } from "@/i18n/translations";
 import { ALL_TIMEZONES } from "@/lib/timezone-utils";
 import { cn } from "@/lib/utils";

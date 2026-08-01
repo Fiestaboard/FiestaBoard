@@ -2,12 +2,19 @@
 
 This document describes the design tokens and usage conventions for the FiestaBoard web app (`web/`). It helps keep UI changes consistent and clarifies when to use which tokens.
 
+> **Canonical home:** the token layer and UI primitives now live in the
+> [FiestaUI](https://github.com/Fiestaboard/FiestaUI) design system, published
+> as `@fiestaboard/ui`. Token *values* are defined in FiestaUI's
+> `src/styles/theme.css`; changing them requires a FiestaUI release. The token
+> *names and conventions* documented below are unchanged.
+
 ## Where tokens live
 
-- **Theme and tokens:** [`web/app/globals.css`](../web/app/globals.css)  
+- **Theme and tokens:** `@fiestaboard/ui/theme.css` (imported at the top of [`web/app/globals.css`](../web/app/globals.css))
   - `@theme inline { ... }` – maps CSS variables into Tailwind v4 utilities.  
   - `:root` – light theme semantic and elevation variables.  
   - `.dark` – dark theme overrides.
+  - App-only styles (sidebar gradient, page transitions, view transitions) remain in `globals.css`.
 
 ## Contrast and accessibility
 
@@ -90,7 +97,7 @@ Values are theme-aware: lighter in light mode, slightly stronger in dark mode.
 
 ## Empty states
 
-Use the shared `EmptyState` component (`web/src/components/ui/empty-state.tsx`) with an icon, title, optional description, and optional CTA for “no pages”, “no carousels”, and similar list-empty cases. Keeps copy and layout consistent and makes it easy to add illustrations later.
+Use the shared `EmptyState` component (from `@fiestaboard/ui`) with an icon, title, optional description, and optional CTA for “no pages”, “no carousels”, and similar list-empty cases. Keeps copy and layout consistent and makes it easy to add illustrations later.
 
 ## Animation
 
@@ -124,5 +131,5 @@ Hardcoded warm oklch values in `.card-interactive:hover` were replaced with achr
 ## Related files
 
 - Theme tokens: [`web/app/globals.css`](../web/app/globals.css)
-- Empty-state component: [`web/src/components/ui/empty-state.tsx`](../web/src/components/ui/empty-state.tsx)
+- Empty-state component: [`EmptyState` in FiestaUI](https://github.com/Fiestaboard/FiestaUI/blob/main/src/components/ui/empty-state.tsx)
 - Tailwind config is inline in `globals.css` under `@theme inline { ... }` (Tailwind v4 — no separate `tailwind.config.ts`).

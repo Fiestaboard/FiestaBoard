@@ -1,7 +1,7 @@
+import { Card, CardContent } from "@fiestaboard/ui";
 import { Activity } from "lucide-react";
 
 import { PageLayout } from "@/components/page-layout";
-import { Card, CardContent } from "@/components/ui/card";
 import { useTranslations } from "@/i18n/translations";
 
 export default function DebugMonitorPage() {

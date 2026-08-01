@@ -1,23 +1,27 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ExternalLink, FlaskConical, Loader2, Lock, RefreshCw, ShieldCheck, Wand2 } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
+  Skeleton,
+  Switch,
+} from "@fiestaboard/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, ExternalLink, FlaskConical, Loader2, Lock, RefreshCw, ShieldCheck, Wand2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 

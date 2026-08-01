@@ -1,9 +1,9 @@
 "use client";
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@fiestaboard/ui";
 import { Globe } from "lucide-react";
 import { useTransition } from "react";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type Locale, localeNames, locales } from "@/i18n/config";
 import i18n from "@/i18n/i18next";
 import { useLocale, useTranslations } from "@/i18n/translations";

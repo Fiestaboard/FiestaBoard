@@ -1,19 +1,23 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowUpCircle, Cpu, Loader2, Power, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
-
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@fiestaboard/ui";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { ArrowUpCircle, Cpu, Loader2, Power, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
+
 import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";

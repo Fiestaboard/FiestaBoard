@@ -1,11 +1,9 @@
 "use client";
 
+import { Badge, Card, CardContent, CardHeader, CardTitle, Skeleton } from "@fiestaboard/ui";
 import { Calendar, Cloud, Home, RotateCw, Wifi } from "lucide-react";
 import type { ComponentType } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useConfig } from "@/hooks/use-board";
 import type { ServiceKey } from "@/hooks/use-config-overrides";
 import { useConfigOverrides } from "@/hooks/use-config-overrides";

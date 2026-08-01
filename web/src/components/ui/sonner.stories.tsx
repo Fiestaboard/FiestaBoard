@@ -1,7 +1,7 @@
+import { Button } from "@fiestaboard/ui";
 import type { Meta, StoryObj } from "@storybook/react";
 import { toast } from "sonner";
 
-import { Button } from "./button";
 import { Toaster } from "./sonner";
 
 const meta = {

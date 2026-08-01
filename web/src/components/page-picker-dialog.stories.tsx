@@ -1,6 +1,3 @@
-import type { Meta, StoryObj } from "@storybook/react";
-import { useState } from "react";
-
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -9,8 +6,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+  Button,
+} from "@fiestaboard/ui";
+import type { Meta, StoryObj } from "@storybook/react";
+import { useState } from "react";
+
 import type { Collection } from "@/lib/api";
 
 import { PagePickerDialog } from "./page-picker-dialog";

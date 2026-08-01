@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, Input, Label } from "@fiestaboard/ui";
 import {
   CheckCircle,
   Cloud,
@@ -16,9 +17,6 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, DiscoveredBoard } from "@/lib/api";
 import { api } from "@/lib/api";

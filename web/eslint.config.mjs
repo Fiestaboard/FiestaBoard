@@ -194,6 +194,34 @@ const eslintConfig = [
     },
   },
   {
+    // Design-system internals must be reached through @fiestaboard/ui.
+    // These packages were removed from web/package.json when the design
+    // system was extracted to FiestaUI — importing them directly would
+    // re-couple the app to them (and break, since they are no longer
+    // direct dependencies).
+    files: ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "clsx", message: "Use cn from @fiestaboard/ui (or @/lib/utils)." },
+            { name: "tailwind-merge", message: "Use cn from @fiestaboard/ui (or @/lib/utils)." },
+            { name: "class-variance-authority", message: "Variants belong in the FiestaUI design system." },
+            { name: "ogl", message: "WebGL visuals belong in the FiestaUI design system (Aurora)." },
+            { name: "react-resizable-panels", message: "No longer a direct dependency." },
+          ],
+          patterns: [
+            {
+              group: ["@base-ui/react", "@base-ui/react/*"],
+              message: "UI primitives live in @fiestaboard/ui — import the wrapper, not Base UI directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // Tests legitimately use `any` for mocks and may define fixtures (Playwright)
     // they don't always consume. Don't let strict src rules bleed in here.
     files: [

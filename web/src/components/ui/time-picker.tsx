@@ -1,11 +1,11 @@
 "use client";
 
+import { Button } from "@fiestaboard/ui";
 import { Clock } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 

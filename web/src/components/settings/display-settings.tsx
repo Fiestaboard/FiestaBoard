@@ -1,5 +1,27 @@
 "use client";
 
+import {
+  Badge as BadgeUI,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Label,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+  Switch,
+} from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -22,22 +44,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
-import { Badge as BadgeUI } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, DeviceType } from "@/lib/api";

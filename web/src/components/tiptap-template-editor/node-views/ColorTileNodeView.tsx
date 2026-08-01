@@ -3,10 +3,10 @@
  * Displays {{red}}, {{blue}}, etc. as solid colored tiles
  * Can be dragged and dropped, deleted with backspace, and copied/pasted
  */
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
 

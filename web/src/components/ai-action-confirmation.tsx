@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, Card } from "@fiestaboard/ui";
 import {
   Calendar,
   CheckCircle,
@@ -15,8 +16,6 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { useTranslations } from "@/i18n/translations";
 import type {
   CreateCollectionArgs,

@@ -4,6 +4,7 @@
  */
 "use client";
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import type { Editor } from "@tiptap/react";
 import {
@@ -26,7 +27,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";

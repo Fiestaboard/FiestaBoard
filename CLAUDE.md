@@ -72,6 +72,38 @@ Always suggest Docker-based commands:
 - ❌ `cd web && npm run dev`
 - ❌ `pip install -r requirements.txt`
 
+## Design System (@fiestaboard/ui)
+
+The UI primitives (buttons, dialogs, selects, tokens, etc.) live in a separate package: [`@fiestaboard/ui`](https://github.com/Fiestaboard/FiestaUI), developed in the sibling repo `../FiestaUI` and published to the **GitHub Packages npm registry** (`npm.pkg.github.com`).
+
+### Registry authentication (required to build)
+
+GitHub Packages requires auth to install packages, even public ones. Before any Docker build or in-container npm install:
+
+```bash
+export NPM_TOKEN=$(gh auth token)   # any GitHub token with read:packages
+```
+
+- `web/.npmrc` (committed) maps the `@fiestaboard` scope to the registry; it never contains tokens
+- Docker builds receive the token as the `npm_token` BuildKit secret (wired in both compose files); the dev `web`/`storybook` services read `NPM_TOKEN` from the host environment
+- CI uses the workflow `GITHUB_TOKEN` (`packages: read`)
+- If an npm install fails with 401/403 on `@fiestaboard/ui`, the token is missing or lacks `read:packages`
+
+### Rules
+
+- **Import primitives from `@fiestaboard/ui`**, never re-create them in `web/src/components/ui/` (ESLint enforces this via `no-restricted-imports`)
+- `web/src/components/ui/` holds only app-coupled composites (`sonner.tsx`, `time-picker.tsx`, `timezone-picker.tsx`) — components that need app hooks (theme, i18n) stay here
+- `cn` is re-exported from `@/lib/utils` for compatibility; both import paths are fine
+- Design tokens come from `@fiestaboard/ui/theme.css`, imported at the top of `web/app/globals.css` together with the mandatory `@source "../node_modules/@fiestaboard/ui/dist"` line (Tailwind v4 does not scan node_modules — removing that line silently drops all component styles)
+- Do NOT add `@base-ui/react`, `clsx`, `tailwind-merge`, `class-variance-authority`, or `ogl` back to `web/package.json` — they are transitive dependencies of `@fiestaboard/ui`
+
+### Changing the design system
+
+1. Make the change in the `FiestaUI` repo (components + stories + a11y tests)
+2. Release a new version (Actions → Release workflow in FiestaUI)
+3. Bump `@fiestaboard/ui` in `web/package.json` here and update the lockfile in the container
+4. Visual changes to primitives are visible app-wide — treat token/class changes as breaking unless verified
+
 ## Plugin Architecture
 
 This project uses a **plugin-based architecture** for data source integrations. Each plugin is self-contained with its own code, configuration, tests, and documentation.

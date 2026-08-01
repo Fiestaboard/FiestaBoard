@@ -1,11 +1,10 @@
 "use client";
 
+import { Aurora, Button } from "@fiestaboard/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { LanguageSelector } from "@/components/language-selector";
-import { Aurora } from "@/components/ui/aurora";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { appUrl } from "@/lib/base-path";

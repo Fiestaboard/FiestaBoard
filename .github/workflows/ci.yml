@@ -23,6 +23,8 @@ concurrency:
 permissions:
   contents: read
   pull-requests: read
+  # Needed to install @fiestaboard/ui from GitHub Packages (npm.pkg.github.com)
+  packages: read
 
 jobs:
   detect-changes:
@@ -320,11 +322,16 @@ jobs:
         # Next.js → RR7 migration; fall back to package.json for the
         # cache key until the regenerated lockfile is committed.
         cache-dependency-path: web/package.json
+        # @fiestaboard/ui lives on GitHub Packages; auth via NODE_AUTH_TOKEN.
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@fiestaboard'
 
     - name: Install UI dependencies
       working-directory: web
       # `npm ci` once a fresh lockfile is committed post-migration;
       # `npm install` covers the gap when it isn't.
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         if [ -f package-lock.json ]; then
           npm ci --legacy-peer-deps --no-audit
@@ -391,9 +398,14 @@ jobs:
         # Next.js → RR7 migration; fall back to package.json for the
         # cache key until the regenerated lockfile is committed.
         cache-dependency-path: web/package.json
+        # @fiestaboard/ui lives on GitHub Packages; auth via NODE_AUTH_TOKEN.
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@fiestaboard'
 
     - name: Install UI dependencies
       working-directory: web
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         if [ -f package-lock.json ]; then
           npm ci --legacy-peer-deps --no-audit
@@ -453,9 +465,14 @@ jobs:
         # Next.js → RR7 migration; fall back to package.json for the
         # cache key until the regenerated lockfile is committed.
         cache-dependency-path: web/package.json
+        # @fiestaboard/ui lives on GitHub Packages; auth via NODE_AUTH_TOKEN.
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@fiestaboard'
 
     - name: Install dependencies
       working-directory: web
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         if [ -f package-lock.json ]; then
           npm ci --legacy-peer-deps --no-audit
@@ -544,6 +561,8 @@ jobs:
             type=gha,scope=build-linux/amd64
             type=gha,scope=build-test
           cache-to: type=gha,mode=max,scope=build-test
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
 
   e2e-tests:
     name: E2E Tests
@@ -587,6 +606,8 @@ jobs:
           push: false
           load: true
           tags: fiestaboard:e2e
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
           build-args: |
             VERSION=dev
           # Cache is warmed by the `build-test-image` job; we only read.
@@ -743,6 +764,8 @@ jobs:
           push: false
           load: true
           tags: fiestaboard:ai-mcp-e2e
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
           build-args: |
             VERSION=dev
           # Reuse the cache the main e2e job warms up.
@@ -899,6 +922,8 @@ jobs:
           push: false
           load: true
           tags: fiestaboard:auth-e2e
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
           build-args: |
             VERSION=dev
           # Reuse the cache the main e2e job warms up.
@@ -1011,6 +1036,8 @@ jobs:
           push: false
           load: true
           tags: fiestaboard:ingress-e2e
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
           build-args: |
             VERSION=dev
           # Reuse the cache the main e2e job warms up.

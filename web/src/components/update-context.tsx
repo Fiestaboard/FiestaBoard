@@ -1,9 +1,9 @@
 "use client";
 
+import { Button } from "@fiestaboard/ui";
 import { RefreshCw } from "lucide-react";
 import { createContext, Fragment, useCallback, useContext, useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";

@@ -2,11 +2,9 @@
  * React NodeView for Variable nodes
  * Displays {{plugin.field}} as an interactive badge with filters
  */
+import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
-
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface VariableNodeViewProps {
   node: {

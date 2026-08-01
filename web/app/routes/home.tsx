@@ -1,3 +1,4 @@
+import { Alert, AlertDescription, AlertTitle, Button } from "@fiestaboard/ui";
 import { Home as HomeIcon, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -5,8 +6,6 @@ import { ActivePageDisplay } from "@/components/active-page-display";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
 import { SilenceImminentBanner } from "@/components/silence-imminent-banner";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { useWizard } from "@/components/wizard-provider";
 import { useTranslations } from "@/i18n/translations";
 import { getSetupStatus } from "@/lib/setup-detection";

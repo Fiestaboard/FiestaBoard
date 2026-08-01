@@ -1,3 +1,17 @@
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Skeleton,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, FileText, LayoutGrid, List, Plus } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -7,17 +21,6 @@ import type { ViewMode } from "@/components/page-grid-selector";
 import { PageHeader } from "@/components/page-header";
 import { PageLayout } from "@/components/page-layout";
 import { PageToolbar } from "@/components/page-toolbar";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBoardSettings, usePages } from "@/hooks/use-board";
 import { queryKeys } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";

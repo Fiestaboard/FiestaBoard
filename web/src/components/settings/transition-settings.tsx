@@ -1,14 +1,11 @@
 "use client";
 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Skeleton } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/i18n/translations";
 import type { TransitionSettings as TransitionSettingsType } from "@/lib/api";
 import { api } from "@/lib/api";
