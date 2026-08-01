@@ -971,6 +971,121 @@ jobs:
           path: web/playwright-test-results/
           retention-days: 7
 
+  ingress-e2e-tests:
+    name: HA Ingress E2E Tests
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build-test-image]
+    if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up web E2E environment
+        uses: ./.github/actions/setup-web-e2e
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        # Skip on fork PRs and Dependabot PRs (neither has access to the
+        # DOCKERHUB_* secrets — forks by policy, Dependabot because it uses
+        # a separate secret namespace). On internal PRs and main, fail
+        # loudly so we notice credential problems instead of silently
+        # falling back to anonymous pulls with their tiny rate limits.
+        if: >-
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+          && github.actor != 'dependabot[bot]'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build test image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          target: runtime
+          push: false
+          load: true
+          tags: fiestaboard:ingress-e2e
+          build-args: |
+            VERSION=dev
+          # Reuse the cache the main e2e job warms up.
+          cache-from: |
+            type=gha,scope=build-linux/amd64
+            type=gha,scope=build-test
+
+      - name: Start FiestaBoard behind the HA Ingress simulator
+        # The simulator conf (infra/ha-ingress-proxy.conf) proxies to
+        # `http://fiestaboard:3000`, so the app container must be named
+        # `fiestaboard` on a shared network. The prod bundle matters here:
+        # the ingress-escape bugs this job guards against (runtime-built
+        # chunk URLs, minifier quote styles) only exist in minified output.
+        run: |
+          docker network create ingress-net
+
+          docker run -d --name fiestaboard --network ingress-net \
+            -e PRODUCTION=false \
+            -e FIESTABOARD_AUTH_ENABLED=false \
+            -e FIESTABOARD_INGRESS_PATH_REWRITE=true \
+            -e FIESTABOARD_X_FRAME_OPTIONS=OFF \
+            fiestaboard:ingress-e2e
+
+          docker run -d --name ha-ingress-proxy --network ingress-net \
+            -v ${{ github.workspace }}/infra/ha-ingress-proxy.conf:/etc/nginx/conf.d/default.conf:ro \
+            -p 5050:80 \
+            nginx:alpine
+
+          echo "BASE_URL=http://localhost:5050" >> $GITHUB_ENV
+
+      - name: Wait for container ready (through the simulator)
+        timeout-minutes: 2
+        run: |
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s -m 5 -o /dev/null -w "%{http_code}" "$BASE_URL/api/hassio_ingress/test-token/api/health" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Ready (attempt $i)"
+              break
+            fi
+            if [ "$i" = "60" ]; then
+              echo "❌ Failed to become ready"
+              docker logs fiestaboard | tail -50
+              docker logs ha-ingress-proxy | tail -20
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Run ingress E2E tests
+        working-directory: web
+        timeout-minutes: 5
+        run: npx playwright test ingress.spec.ts --reporter=github --workers=1
+        env:
+          CI: true
+          RUN_INGRESS_TESTS: "1"
+          BASE_URL: ${{ env.BASE_URL }}
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          docker logs fiestaboard | tail -200
+          docker logs ha-ingress-proxy | tail -50
+
+      - name: Stop containers
+        if: always()
+        run: docker rm -f fiestaboard ha-ingress-proxy 2>/dev/null || true; docker network rm ingress-net 2>/dev/null || true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-ingress-results
+          path: web/playwright-test-results/
+          retention-days: 7
+
   build:
     name: Build Verification
     runs-on: ubuntu-latest
@@ -1129,7 +1244,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, lint-docs, test-ui, a11y-tests, build-test-image, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, build, build-docs, lint-markdown, link-check]
+    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, lint-docs, test-ui, a11y-tests, build-test-image, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, ingress-e2e-tests, build, build-docs, lint-markdown, link-check]
     if: always()
     steps:
       - name: Check all jobs passed or were skipped
@@ -1150,6 +1265,7 @@ jobs:
             e2e-tests
             ai-mcp-e2e-tests
             auth-e2e-tests
+            ingress-e2e-tests
             build
             build-docs
             lint-markdown

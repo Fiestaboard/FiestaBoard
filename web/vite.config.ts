@@ -19,19 +19,47 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * loaded from `/assets/index-X.js` would dynamic-import `./assets/foo.js`
  * which resolves to `/assets/assets/foo.js` (double prefix) → 404.
  *
- * For HA Ingress, the runtime prefix is injected by nginx's sub_filter
- * rewriting `/assets/`, `/sw.js`, `/icons/`, `/manifest.json` in both
- * HTML and JS response bodies (see entrypoint.sh::configure_ingress_path_rewrite).
- * Every asset URL Vite emits lives as a string literal in the build
- * output — nginx can rewrite them all at request time. API request URLs
- * are runtime-concatenated (not literals), so the SPA prefixes them
- * itself via src/lib/base-path.ts instead of relying on sub_filter.
+ * For HA Ingress, the runtime prefix is applied in two complementary ways:
  *
- * Direct deployments (`X-Ingress-Path` absent) get the snippet expanded
- * to no-op substitutions and incur only the gzip-pass-through overhead.
+ * 1. HTML and CSS bodies: nginx sub_filter rewrites `/assets/`, `/sw.js`,
+ *    `/icons/`, `/manifest.json` literals at request time
+ *    (see entrypoint.sh::configure_ingress_path_rewrite).
+ *
+ * 2. JS-hosted asset references: `experimental.renderBuiltUrl` below.
+ *    Since the Vite 8 (rolldown) toolchain, chunk URLs no longer exist as
+ *    `"/assets/..."` string literals in the JS output — `__vite__mapDeps`
+ *    stores RELATIVE `"assets/..."` strings and the preload helper
+ *    concatenates the base at runtime (`assetsURL = f => "/" + f`), and the
+ *    oxc minifier emits backtick-quoted strings sub_filter patterns don't
+ *    match. Both make body rewriting unreliable for JS, so JS-hosted URLs
+ *    are instead routed through `window.__fbAssetUrl`, a classic-script
+ *    global defined in app/root.tsx that prepends the React Router
+ *    basename (the same source of truth src/lib/base-path.ts uses for
+ *    API URLs).
+ *
+ * Direct deployments (`X-Ingress-Path` absent) keep basename "/" so the
+ * runtime helper degrades to the plain absolute path, and the sub_filter
+ * snippet expands to no-op substitutions.
  */
 export default defineConfig({
   base: "/",
+  experimental: {
+    renderBuiltUrl(filename, { hostType }) {
+      if (hostType === "js") {
+        // SSR/prerender never loads assets through this expression, but
+        // guard on `window` anyway so evaluating it outside a browser
+        // (e.g. jsdom without the root.tsx inline script) still yields a
+        // usable root-absolute URL.
+        const file = JSON.stringify(filename);
+        return {
+          runtime: `typeof window!=="undefined"&&window.__fbAssetUrl?window.__fbAssetUrl(${file}):"/"+${file}`,
+        };
+      }
+      // HTML and CSS keep the default absolute `base: "/"` emission,
+      // which nginx sub_filter rewrites under HA Ingress.
+      return undefined;
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

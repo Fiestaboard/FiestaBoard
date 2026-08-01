@@ -163,6 +163,33 @@ const eslintConfig = [
           message:
             'Root-relative hard navigations break HA Ingress (issue #48). Wrap the path with appUrl() from "@/lib/base-path".',
         },
+        // Static-asset literals in JSX `src` attributes land in the JS
+        // bundle, where the minifier's quote style (oxc emits backticks)
+        // makes nginx sub_filter rewriting unreliable — route them through
+        // appUrl() so the runtime basename is applied instead. (root.tsx's
+        // links()/meta() output is exempt by shape: those are object `href`
+        // properties rendered into the HTML document, which sub_filter
+        // rewrites reliably — not JSX `src` attributes.)
+        // Child (not descendant) combinators: a literal already wrapped in
+        // appUrl(...) sits inside a CallExpression and must not match.
+        {
+          selector:
+            "JSXAttribute[name.name='src'] > Literal[value=/^\\u002F(icons\\u002F|favicon\\.ico$|manifest\\.json$)/]",
+          message:
+            'Absolute asset URLs in JSX bypass the HA Ingress base path. Wrap the path with appUrl() from "@/lib/base-path".',
+        },
+        {
+          selector:
+            "JSXAttribute[name.name='src'] > JSXExpressionContainer > Literal[value=/^\\u002F(icons\\u002F|favicon\\.ico$|manifest\\.json$)/]",
+          message:
+            'Absolute asset URLs in JSX bypass the HA Ingress base path. Wrap the path with appUrl() from "@/lib/base-path".',
+        },
+        {
+          selector:
+            "JSXAttribute[name.name='src'] > JSXExpressionContainer > TemplateLiteral > TemplateElement[value.raw=/^\\u002F(icons\\u002F|favicon\\.ico$|manifest\\.json$)/]",
+          message:
+            'Absolute asset URLs in JSX bypass the HA Ingress base path. Wrap the path with appUrl() from "@/lib/base-path".',
+        },
       ],
     },
   },
