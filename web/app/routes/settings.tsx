@@ -5,6 +5,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  PageHeader,
+  PageLayout,
   Tabs,
   TabsContent,
   TabsList,
@@ -16,8 +18,6 @@ import { Cog, MonitorCog, Plug, Settings, ShieldCheck, User, Wand2, Waves, Wifi,
 import { useCallback, useEffect, useMemo } from "react";
 
 import { AccountSection } from "@/components/account-section";
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
 import { AboutCard } from "@/components/settings/about-card";
 import { AccessibilitySettings } from "@/components/settings/accessibility-settings";
 import { AiSettings } from "@/components/settings/ai-settings";

@@ -1,7 +1,6 @@
 "use client";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@fiestaboard/ui";
-import { Globe } from "lucide-react";
+import { LanguageSelector as UILanguageSelector } from "@fiestaboard/ui";
 import { useTransition } from "react";
 
 import { type Locale, localeNames, locales } from "@/i18n/config";
@@ -30,18 +29,12 @@ export function LanguageSelector() {
   }
 
   return (
-    <Select value={locale} onValueChange={handleChange} disabled={isPending}>
-      <SelectTrigger className="h-8 w-[130px] text-xs gap-1" aria-label={t("language")}>
-        <Globe className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {locales.map((loc) => (
-          <SelectItem key={loc} value={loc} className="text-xs">
-            {localeNames[loc]}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <UILanguageSelector
+      value={locale}
+      options={locales.map((loc) => ({ value: loc, label: localeNames[loc] }))}
+      onChange={handleChange}
+      label={t("language")}
+      disabled={isPending}
+    />
   );
 }

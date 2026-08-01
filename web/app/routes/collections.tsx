@@ -16,6 +16,9 @@ import {
   CardTitle,
   Input,
   Label,
+  PageHeader,
+  PageLayout,
+  PageToolbar,
   Select,
   SelectContent,
   SelectItem,
@@ -44,9 +47,6 @@ import {
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
-import { PageToolbar } from "@/components/page-toolbar";
 import { VariableRuleRow } from "@/components/variable-rule-row";
 import { queryKeys } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";

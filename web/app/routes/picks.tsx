@@ -1,6 +1,8 @@
 import {
   Badge,
   Button,
+  PageHeader,
+  PageLayout,
   Skeleton,
   Tabs,
   TabsContent,
@@ -16,8 +18,6 @@ import { CircleAlert, CircleCheck, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
 import Link from "@/components/smart-link";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 import { useViewTransition } from "@/hooks/use-view-transition";

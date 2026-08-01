@@ -7,6 +7,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  BoardIcon,
   Button,
   Card,
   CardContent,
@@ -18,6 +19,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  PageHeader,
+  PageLayout,
+  PageToolbar,
   Select,
   SelectContent,
   SelectItem,
@@ -48,11 +52,7 @@ import {
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { BoardIcon } from "@/components/board-icon";
 import { useCurrentBoard } from "@/components/current-board-context";
-import { PageHeader } from "@/components/page-header";
-import { PageLayout } from "@/components/page-layout";
-import { PageToolbar } from "@/components/page-toolbar";
 import { ScheduleListView } from "@/components/schedule";
 import { useScheduleEditorBridge } from "@/components/schedule-editor-bridge-context";
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";

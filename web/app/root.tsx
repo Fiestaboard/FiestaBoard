@@ -14,6 +14,7 @@
  */
 import "./globals.css";
 
+import { PageIconGradientDefs } from "@fiestaboard/ui";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
@@ -158,18 +159,7 @@ function RootBody() {
 
   return (
     <>
-      <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
-        <defs>
-          <linearGradient id="page-icon-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="24" y2="24">
-            <stop offset="0%" stopColor="var(--icon-g1)" />
-            <stop offset="20%" stopColor="var(--icon-g2)" />
-            <stop offset="40%" stopColor="var(--icon-g3)" />
-            <stop offset="60%" stopColor="var(--icon-g4)" />
-            <stop offset="80%" stopColor="var(--icon-g5)" />
-            <stop offset="100%" stopColor="var(--icon-g6)" />
-          </linearGradient>
-        </defs>
-      </svg>
+      <PageIconGradientDefs />
       <Providers>
         <ThemeColorMeta />
         <ReduceMotionApplier />

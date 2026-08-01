@@ -9,6 +9,7 @@ import {
   DialogTitle,
   Input,
   Label,
+  PageLayout,
   Skeleton,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +19,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
-import { PageLayout } from "@/components/page-layout";
 import Link from "@/components/smart-link";
 import { useParams, useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";

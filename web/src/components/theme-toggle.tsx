@@ -1,34 +1,19 @@
 "use client";
 
-import { Button } from "@fiestaboard/ui";
-import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ThemeToggle as UIThemeToggle } from "@fiestaboard/ui";
 
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const t = useTranslations("themeToggle");
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <Button variant="ghost" size="icon" className="w-9 h-9" aria-label={t("toggleTheme")} disabled />;
-  }
-
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="w-9 h-9"
-    >
-      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      <span className="sr-only">{t("toggleTheme")}</span>
-    </Button>
+    <UIThemeToggle
+      theme={theme === "dark" ? "dark" : "light"}
+      onToggle={() => setTheme(theme === "dark" ? "light" : "dark")}
+      label={t("toggleTheme")}
+    />
   );
 }
