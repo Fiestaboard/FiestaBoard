@@ -10,6 +10,11 @@ services:
       # stage and prod accidentally runs the dev supervisord (and tries to
       # spawn `rr7` forever). Pin the prod target so it always lands here.
       target: runtime
+      # @fiestaboard/ui installs from the GitHub Packages npm registry,
+      # which needs auth. Export NPM_TOKEN before building, e.g.:
+      #   export NPM_TOKEN=$(gh auth token)   # needs read:packages scope
+      secrets:
+        - npm_token
     container_name: fiestaboard
     env_file:
       - .env
@@ -121,3 +126,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+secrets:
+  npm_token:
+    environment: NPM_TOKEN

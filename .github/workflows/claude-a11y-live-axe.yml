@@ -49,6 +49,8 @@ jobs:
       contents: read
       issues: write
       id-token: write
+      # Needed to install @fiestaboard/ui from GitHub Packages (npm.pkg.github.com)
+      packages: read
     steps:
       - name: Gate on America/Los_Angeles local hour window
         id: gate
@@ -108,6 +110,8 @@ jobs:
           tags: fiestaboard:a11y
           build-args: |
             VERSION=dev
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
           # Read whatever the CI build jobs already warmed; cold cache just
           # means a full build.
           cache-from: |

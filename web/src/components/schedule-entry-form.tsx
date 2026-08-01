@@ -1,17 +1,24 @@
 "use client";
 
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+} from "@fiestaboard/ui";
 import { AlertCircle, AlertTriangle, GalleryHorizontalEnd, Loader2, Sunrise, Sunset, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { DaySelector } from "@/components/day-selector";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/i18n/translations";
 import type {
   Collection,

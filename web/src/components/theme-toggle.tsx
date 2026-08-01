@@ -1,9 +1,9 @@
 "use client";
 
+import { Button } from "@fiestaboard/ui";
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
 

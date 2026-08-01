@@ -14,11 +14,6 @@
  * signed in.
  */
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCircle2, UserCog } from "lucide-react";
-import { type FormEvent, type ReactNode, useState } from "react";
-import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogContent,
@@ -27,12 +22,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Skeleton,
+} from "@fiestaboard/ui";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { KeyRound, LogOut, ShieldAlert, ShieldCheck, ShieldOff, UserCircle2, UserCog } from "lucide-react";
+import { type FormEvent, type ReactNode, useState } from "react";
+import { toast } from "sonner";
+
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";

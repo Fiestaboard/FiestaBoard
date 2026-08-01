@@ -1,5 +1,17 @@
 "use client";
 
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
   Award,
@@ -28,9 +40,6 @@ import { SidebarAurora } from "@/components/sidebar-aurora";
 import { SidebarAuroraHorizontal } from "@/components/sidebar-aurora-horizontal";
 import { useSidebar } from "@/components/sidebar-context";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { VersionDisplay } from "@/components/version-display";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { usePrefetchPagesData } from "@/hooks/use-board";

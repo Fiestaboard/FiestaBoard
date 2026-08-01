@@ -1,12 +1,11 @@
 "use client";
 
+import { Alert, AlertDescription, AlertTitle, Button } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Moon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { useActivePage, usePages } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { ActiveScheduleResponse, SilenceStatus } from "@/lib/api";

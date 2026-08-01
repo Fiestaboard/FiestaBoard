@@ -1,20 +1,24 @@
 "use client";
 
-import { AlertCircle, Check, Key, KeyRound, Loader2, Plus, Radar, ScanSearch, Trash2, Wifi } from "lucide-react";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
-
-import { Badge as BadgeUI } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
+  Badge as BadgeUI,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@fiestaboard/ui";
+import { AlertCircle, Check, Key, KeyRound, Loader2, Plus, Radar, ScanSearch, Trash2, Wifi } from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+
 import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, DiscoveredBoard, NoteArrayTile } from "@/lib/api";
 import { api } from "@/lib/api";

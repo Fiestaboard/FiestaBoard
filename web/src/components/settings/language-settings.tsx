@@ -1,9 +1,9 @@
 "use client";
 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@fiestaboard/ui";
 import { Globe } from "lucide-react";
 
 import { LanguageSelector } from "@/components/language-selector";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslations } from "@/i18n/translations";
 
 export function LanguageSettingsCard() {

@@ -17,6 +17,8 @@ on:
 
 permissions:
   contents: read
+  # Needed to install @fiestaboard/ui from GitHub Packages (npm.pkg.github.com)
+  packages: read
 
 concurrency:
   group: integration-${{ github.ref }}
@@ -61,6 +63,8 @@ jobs:
             type=gha,scope=build-linux/amd64
             type=gha,scope=build-test
           cache-to: type=gha,mode=max,scope=build-test
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
 
       # mock-board/server.py uses only the Python stdlib (http.server,
       # urllib, json, threading), so no pip install is needed on the
@@ -78,6 +82,9 @@ jobs:
           # for cache keying until the regenerated lockfile is
           # committed in a follow-up.
           cache-dependency-path: web/package.json
+          # @fiestaboard/ui lives on GitHub Packages; auth via NODE_AUTH_TOKEN.
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@fiestaboard'
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6
@@ -90,6 +97,8 @@ jobs:
       - name: Install UI dependencies
         working-directory: web
         timeout-minutes: 5
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -f package-lock.json ]; then
             npm ci --legacy-peer-deps --no-audit

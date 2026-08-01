@@ -4,10 +4,10 @@
  */
 "use client";
 
+import { Badge } from "@fiestaboard/ui";
 import type { Editor } from "@tiptap/react";
 import { AlertCircle } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 

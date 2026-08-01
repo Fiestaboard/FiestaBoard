@@ -2,11 +2,9 @@
  * React NodeView for FillSpace nodes
  * Displays {{fill_space}} as an expandable ruler with estimated expansion
  */
+import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
-
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface FillSpaceNodeViewProps {
   node: {

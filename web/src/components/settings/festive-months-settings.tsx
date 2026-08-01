@@ -1,10 +1,9 @@
 "use client";
 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Switch } from "@fiestaboard/ui";
 import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/i18n/translations";
 import { HIDE_FESTIVE_COOKIE } from "@/lib/pride";
 

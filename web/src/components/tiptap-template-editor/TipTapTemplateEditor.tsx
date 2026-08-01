@@ -31,7 +31,8 @@ import { brushToCell } from "./utils/draw-mode";
 import { parseLineContent, parseTemplateSimple, serializeTemplateSimple } from "./utils/serialization";
 import { buildStrokeTransaction } from "./utils/stroke-transaction";
 export type LineAlignment = "left" | "center" | "right";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+
 import { useTranslations } from "@/i18n/translations";
 
 import { TemplateEditorToolbar } from "./components/TemplateEditorToolbar";

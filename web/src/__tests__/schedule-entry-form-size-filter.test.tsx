@@ -8,12 +8,12 @@
  * before boards load, and all existing tests) the behavior is unchanged.
  */
 
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@fiestaboard/ui";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { Collection } from "@/lib/api";
 
 const mockUseCurrentBoard = vi.fn();

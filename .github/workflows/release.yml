@@ -26,6 +26,8 @@ permissions:
   actions: write
   models: read
   id-token: write  # required by anthropics/claude-code-action@v1
+  # Needed to install @fiestaboard/ui from GitHub Packages (npm.pkg.github.com)
+  packages: read
 
 jobs:
   # Prevent loop: skip release when this run was triggered by our own version-bump push.
@@ -235,6 +237,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           build-args: |
             VERSION=${{ needs.prep.outputs.version }}
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
           cache-from: type=gha,scope=build-${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=build-${{ matrix.platform }}
           outputs: type=image,name=fiestaboard/fiestaboard,push-by-digest=true,name-canonical=true,push=true

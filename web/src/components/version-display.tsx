@@ -1,9 +1,9 @@
 "use client";
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpCircle, Package } from "lucide-react";
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 

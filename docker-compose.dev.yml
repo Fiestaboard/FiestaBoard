@@ -8,6 +8,11 @@ services:
       # boot Vite. Production targets the default `runtime` stage which
       # omits Node entirely (see Dockerfile for the prod/dev split).
       target: runtime-dev
+      # @fiestaboard/ui installs from the GitHub Packages npm registry,
+      # which needs auth. Export NPM_TOKEN before building, e.g.:
+      #   export NPM_TOKEN=$(gh auth token)   # needs read:packages scope
+      secrets:
+        - npm_token
     container_name: fiestaboard-dev
     env_file:
       - .env
@@ -62,6 +67,14 @@ services:
       - fiestaboard-web-node-modules:/app/node_modules
     environment:
       - CI=true
+      # GitHub Packages auth for @fiestaboard/ui installs — export
+      # NPM_TOKEN on the host first (e.g. `export NPM_TOKEN=$(gh auth token)`).
+      - NPM_TOKEN=${NPM_TOKEN:-}
+    # Materialize the registry token as a user-level npmrc before any
+    # command, so `docker compose run --rm web sh -c "npm ci && npm test"`
+    # keeps working unchanged.
+    entrypoint:
+      ["/bin/sh", "-c", 'echo "//npm.pkg.github.com/:_authToken=$${NPM_TOKEN}" > ~/.npmrc; exec "$$@"', "--"]
     networks:
       - fiestaboard-dev
     profiles:
@@ -124,7 +137,9 @@ services:
       - "6006:6006"
     environment:
       - WATCHPACK_POLLING=true
-    command: sh -c "rm -f package-lock.json && npm install --force && npm run storybook -- --host 0.0.0.0"
+      # GitHub Packages auth for @fiestaboard/ui installs (see `web` service).
+      - NPM_TOKEN=${NPM_TOKEN:-}
+    command: sh -c 'echo "//npm.pkg.github.com/:_authToken=$${NPM_TOKEN}" > ~/.npmrc && rm -f package-lock.json && npm install --force && npm run storybook -- --host 0.0.0.0'
     networks:
       - fiestaboard-dev
     profiles:
@@ -143,3 +158,7 @@ volumes:
   web-dev-node-modules:
   fiestaboard-web-node-modules:
   fiestaboard-storybook-node-modules:
+
+secrets:
+  npm_token:
+    environment: NPM_TOKEN

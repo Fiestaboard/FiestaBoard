@@ -12,17 +12,17 @@
  * persisting it to `localStorage["fiestaboard:ai-chaining-mode"]`.
  */
 
-import { Bot, Hand, Zap } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@fiestaboard/ui";
+import { Bot, Hand, Zap } from "lucide-react";
+
 import { useTranslations } from "@/i18n/translations";
 import type { ChainingMode } from "@/lib/ai-chat-types";
 

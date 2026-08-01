@@ -1,8 +1,7 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge, Card, CardContent, CardHeader, CardTitle, Skeleton } from "@fiestaboard/ui";
+
 import { useStatus } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 

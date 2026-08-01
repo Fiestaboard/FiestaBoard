@@ -9,13 +9,12 @@
  */
 "use client";
 
+import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { NodeViewWrapper } from "@tiptap/react";
 import { SquareFunction } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslations } from "@/i18n/translations";
 
 import { FormulaEditorPanel } from "../components/FormulaEditorPanel";

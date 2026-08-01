@@ -1,5 +1,23 @@
 "use client";
 
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Label,
+  ScrollArea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -23,15 +41,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChainingModePicker } from "@/components/chaining-mode-picker";
 import { ChatMarkdown } from "@/components/chat-markdown";
 import { InlineBoardPreview } from "@/components/inline-board-preview";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useTranslations } from "@/i18n/translations";
 import type {
   ChainingMode,

@@ -41,13 +41,26 @@ RUN apk add --no-cache python3 make g++
 # not it has been committed yet.
 COPY web/package.json ./
 COPY web/package-lock.json* ./
+COPY web/.npmrc ./
 
+# @fiestaboard/ui lives on the GitHub Packages npm registry, which
+# requires auth even for public packages. The token arrives as a
+# BuildKit secret (never a layer):
+#   docker build --secret id=npm_token,env=NPM_TOKEN ...
+# or via the `secrets:` key in docker-compose / build-push-action.
+# Any GitHub token with read:packages works (a PAT locally, the
+# workflow GITHUB_TOKEN in CI).
 RUN --mount=type=cache,target=/root/.npm \
+    --mount=type=secret,id=npm_token \
+    if [ -s /run/secrets/npm_token ]; then \
+        echo "//npm.pkg.github.com/:_authToken=$(cat /run/secrets/npm_token)" > /root/.npmrc; \
+    fi; \
     if [ -f package-lock.json ]; then \
         npm ci --legacy-peer-deps --no-audit; \
     else \
         npm install --legacy-peer-deps --no-audit; \
-    fi
+    fi; \
+    status=$?; rm -f /root/.npmrc; exit $status
 
 # Copy source files (everything Vite + RR7 needs to build)
 COPY web/ ./

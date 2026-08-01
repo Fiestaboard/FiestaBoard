@@ -1,8 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -11,10 +8,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+  Button,
+  Input,
+  ScrollArea,
+} from "@fiestaboard/ui";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+
 import { useTranslations } from "@/i18n/translations";
 import type { HomeAssistantEntity } from "@/lib/api";
 import { api } from "@/lib/api";

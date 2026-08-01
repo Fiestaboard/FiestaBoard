@@ -5,17 +5,25 @@
  */
 "use client";
 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+  Badge,
+  Input,
+  ScrollArea,
+  Skeleton,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@fiestaboard/ui";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { icons as lucideIcons, Search } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslations } from "@/i18n/translations";
 import type { PluginManifest } from "@/lib/api";
 import { api } from "@/lib/api";

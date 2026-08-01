@@ -1,12 +1,10 @@
 "use client";
 
+import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Monitor, Smartphone, Zap } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 

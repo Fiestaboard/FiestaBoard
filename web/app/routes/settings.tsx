@@ -1,3 +1,15 @@
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { Cog, MonitorCog, Plug, Settings, ShieldCheck, User, Wand2, Waves, Wifi, Wrench } from "lucide-react";
@@ -30,9 +42,6 @@ import { SystemUpdate } from "@/components/settings/system-update";
 import { TimeAndDateCard } from "@/components/settings/time-and-date";
 import { TransitionSettings } from "@/components/settings/transition-settings";
 import { UpdateIntervals } from "@/components/settings/update-intervals";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWizard } from "@/components/wizard-provider";
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
