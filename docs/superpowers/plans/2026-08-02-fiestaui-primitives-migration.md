@@ -43,6 +43,8 @@ Work file-by-file. For each raw element, pick the first matching row:
 | `<strong>` | `<Text as="span" weight="semibold">` |
 | `svg`, `canvas`, `iframe`, `img`, `br`, `em`, `small`, `kbd`, `pre`, `figure`, `dl`, `dt`, `dd` | **leave raw** (allowlisted) |
 
+**⚠️ Inline-span sharp edge (from FiestaUI's final review):** a raw `<span>` inherits size/color/weight from its context; `<Text as="span">` resets all three to its defaults (`text-sm text-foreground font-normal`). Do NOT mechanically swap spans inside colored/sized contexts (badges, alerts, buttons, headings) — either pass matching `size`/`tone`/`weight` props, or if the span exists purely for semantics/hooks with fully inherited styling, leave it raw only if allowlisted; otherwise carry the context explicitly. Same for bare `<ul>` → `List`: `gap` defaults to `"1"`, so pass `gap="0"` when the original had no spacing.
+
 **Normalization snapping (intentional visual diffs, reviewed via screenshots):**
 
 - Gap/spacing snaps to the enumerated scale `0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 12`: `gap-7`→`gap="6"`, `space-y-10`→`gap="8"` (nearest step; ties round down).
