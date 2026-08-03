@@ -383,14 +383,6 @@ const config: Config = {
           position: "right",
         },
         {
-          // Tucked on the right (not the primary left nav) so it stays discrete
-          // — we want visitors on the latest version. Only surfaces older
-          // versions for the rare user who lands on one.
-          type: "docsVersionDropdown",
-          position: "right",
-          dropdownActiveClassDisabled: true,
-        },
-        {
           href: "https://discord.gg/JvN8y6ahaf",
           label: "Discord",
           position: "right",
@@ -429,6 +421,10 @@ const config: Config = {
             {
               label: "Plugin Stats",
               to: "/stats",
+            },
+            {
+              label: "Versions",
+              to: "/versions",
             },
           ],
         },
