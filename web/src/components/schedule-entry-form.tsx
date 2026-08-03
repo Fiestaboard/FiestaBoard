@@ -698,7 +698,7 @@ export function ScheduleEntryForm({
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <List marker="disc" gap="1" className="list-inside">
+            <List marker="disc" gap="1" className="list-inside pl-0">
               {validationErrors.map((err, i) => (
                 <ListItem key={i}>{err}</ListItem>
               ))}

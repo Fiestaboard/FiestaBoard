@@ -67,7 +67,7 @@ export function SidebarAccount({ collapsed = false, variant = "desktop" }: Sideb
         weight="medium"
         size={variant === "mobile" ? "base" : "sm"}
         className={cn(
-          "whitespace-nowrap overflow-hidden transition-opacity duration-100",
+          "text-sidebar-foreground whitespace-nowrap overflow-hidden transition-opacity duration-100",
           collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
         )}
       >
