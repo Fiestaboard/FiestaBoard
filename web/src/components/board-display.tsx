@@ -286,7 +286,8 @@ const StaticTile = memo(function StaticTile({
       style={{ backgroundColor: tileBg }}
     >
       {!isBlank && (
-        <Text as="span"
+        <Text
+          as="span"
           className={`${textSizeClass} font-mono font-semibold select-none leading-none`}
           style={{ color: token.value === "♥" ? "#eb4034" : textColor }}
         >
@@ -905,7 +906,8 @@ const CharTile = memo(
                   }}
                 >
                   {!isColor && targetChar !== " " && (
-                    <Text as="span"
+                    <Text
+                      as="span"
                       className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none relative z-10`}
                       style={{ color: charColor }}
                     >
@@ -914,7 +916,8 @@ const CharTile = memo(
                   )}
                   {/* Blank/space character - render as empty but maintain layout */}
                   {!isColor && targetChar === " " && (
-                    <Text as="span"
+                    <Text
+                      as="span"
                       className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none relative z-10`}
                       style={{ color: textColor, visibility: "hidden" }}
                       aria-hidden="true"
@@ -973,7 +976,8 @@ const CharTile = memo(
                     }}
                   >
                     {!isColor && char !== " " && (
-                      <Text as="span"
+                      <Text
+                        as="span"
                         className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none`}
                         style={{ color: isHeart ? "#eb4034" : textColor }}
                       >

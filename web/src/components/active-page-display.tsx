@@ -435,13 +435,7 @@ export function ActivePageDisplay() {
             <Flex align="baseline" gap="2" className="min-w-0">
               <CardTitle className="text-lg">{t("title")}</CardTitle>
               {isMultiBoard && currentBoard && (
-                <Text
-                  as="span"
-                  size="xs"
-                  tone="muted"
-                  className="truncate"
-                  data-testid="active-display-board-name"
-                >
+                <Text as="span" size="xs" tone="muted" className="truncate" data-testid="active-display-board-name">
                   {t("boardIndicator", { boardName: currentBoard.name })}
                 </Text>
               )}
