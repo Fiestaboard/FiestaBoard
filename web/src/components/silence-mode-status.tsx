@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@fiestaboard/ui";
+import { Badge, Box, Text } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Clock, Loader2, Moon, Sun } from "lucide-react";
 
@@ -31,23 +31,23 @@ export function SilenceModeStatus({ className, showDetails = true }: SilenceMode
 
   if (isLoading || !silenceStatus || !generalConfig) {
     return (
-      <div className={className}>
+      <Box className={className}>
         <Badge variant="secondary" className="gap-1.5">
           <Loader2 className="h-3 w-3 animate-spin" />
           {t("loading")}
         </Badge>
-      </div>
+      </Box>
     );
   }
 
   if (!silenceStatus.enabled) {
     return (
-      <div className={className}>
+      <Box className={className}>
         <Badge variant="outline" className="gap-1.5">
           <Moon className="h-3 w-3" />
           {t("disabled")}
         </Badge>
-      </div>
+      </Box>
     );
   }
 
@@ -61,34 +61,34 @@ export function SilenceModeStatus({ className, showDetails = true }: SilenceMode
 
   if (silenceStatus.active) {
     return (
-      <div className={className}>
+      <Box className={className}>
         <Badge variant="destructive" className="gap-1.5">
           <Moon className="h-3 w-3" />
-          <span>{t("active")}</span>
+          {t("active")}
         </Badge>
         {showDetails && (
-          <p className="text-xs text-muted-foreground mt-1">
+          <Text tone="muted" size="xs" className="mt-1">
             <Clock className="h-3 w-3 inline mr-1" />
             {t("until", { time: nextChangeLocal, timezone: timezoneAbbr })}
-          </p>
+          </Text>
         )}
-      </div>
+      </Box>
     );
   }
 
   return (
-    <div className={className}>
+    <Box className={className}>
       <Badge variant="secondary" className="gap-1.5">
         <Sun className="h-3 w-3" />
-        <span>{t("inactive")}</span>
+        {t("inactive")}
       </Badge>
       {showDetails && (
-        <p className="text-xs text-muted-foreground mt-1">
+        <Text tone="muted" size="xs" className="mt-1">
           <Clock className="h-3 w-3 inline mr-1" />
           {t("startsAt", { time: nextChangeLocal, timezone: timezoneAbbr })}
-        </p>
+        </Text>
       )}
-    </div>
+    </Box>
   );
 }
 

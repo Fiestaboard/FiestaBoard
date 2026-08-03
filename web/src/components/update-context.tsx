@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@fiestaboard/ui";
+import { Box, Button, Code, Flex, Heading, Stack, Text } from "@fiestaboard/ui";
 import { RefreshCw } from "lucide-react";
 import { createContext, Fragment, useCallback, useContext, useEffect, useRef, useState } from "react";
 
@@ -187,14 +187,16 @@ function UpdateOverlay({ currentVersion, onDone }: { currentVersion?: string; on
 
   if (phase === "error") {
     return (
-      <div className="fixed inset-0 z-[200] bg-black text-white flex items-center justify-center">
-        <div className="text-center space-y-4 max-w-sm mx-auto px-4">
-          <h2 className="text-xl font-semibold">{t("takingLonger")}</h2>
-          <p className="text-sm text-white/70">
+      <Flex align="center" justify="center" className="fixed inset-0 z-[200] bg-black text-white">
+        <Stack gap="4" className="text-center max-w-sm mx-auto px-4">
+          <Heading level={2} className="text-xl">
+            {t("takingLonger")}
+          </Heading>
+          <Text className="text-white/70">
             {t.rich("takingLongerDescription", {
-              code: (chunks) => <code className="text-xs bg-white/10 px-1 rounded">{chunks}</code>,
+              code: (chunks) => <Code className="text-xs bg-white/10 px-1 rounded">{chunks}</Code>,
             })}
-          </p>
+          </Text>
           <Button
             variant="outline"
             className="border-white/30 text-white hover:bg-white/10 hover:text-white"
@@ -206,8 +208,8 @@ function UpdateOverlay({ currentVersion, onDone }: { currentVersion?: string; on
             <RefreshCw className="h-4 w-4 mr-2" />
             {t("dismissAndRefresh")}
           </Button>
-        </div>
-      </div>
+        </Stack>
+      </Flex>
     );
   }
 
@@ -226,43 +228,49 @@ function UpdateOverlay({ currentVersion, onDone }: { currentVersion?: string; on
         : t("phaseRestarting");
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black text-white flex items-center justify-center">
-      <div className="text-center space-y-6 max-w-xs mx-auto px-4">
+    <Flex align="center" justify="center" className="fixed inset-0 z-[200] bg-black text-white">
+      <Stack gap="6" className="text-center max-w-xs mx-auto px-4">
         {/* Spinner */}
-        <div className="h-12 w-12 mx-auto rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
+        <Box className="h-12 w-12 mx-auto rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
 
         {/* Title + current phase message */}
-        <div className="space-y-2">
-          <h2 className="text-2xl font-semibold tracking-tight">{t("updatingFiestaboard")}</h2>
-          <p className="text-base text-white/80">{phaseMessage}</p>
-        </div>
+        <Stack gap="2">
+          <Heading level={2} className="text-2xl">
+            {t("updatingFiestaboard")}
+          </Heading>
+          <Text size="base" className="text-white/80">
+            {phaseMessage}
+          </Text>
+        </Stack>
 
         {/* Step dots */}
-        <div className="flex items-start w-full">
+        <Flex align="start" className="w-full">
           {steps.map((step, i) => {
             const isCompleted = i < stepIndex;
             const isActive = i === stepIndex;
             return (
               <Fragment key={step.key}>
-                <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-                  <div
+                <Stack align="center" gap="1.5" className="flex-shrink-0">
+                  <Box
                     className={cn(
                       "h-2.5 w-2.5 rounded-full transition-all duration-500",
                       isCompleted || isActive ? "bg-white" : "bg-white/25",
                       isActive && "ring-2 ring-white/40 ring-offset-2 ring-offset-black",
                     )}
                   />
-                  <span
+                  <Text
+                    as="span"
+                    size="xs"
                     className={cn(
-                      "text-xs leading-none transition-colors duration-500",
+                      "leading-none transition-colors duration-500",
                       isActive ? "text-white" : isCompleted ? "text-white/50" : "text-white/25",
                     )}
                   >
                     {step.label}
-                  </span>
-                </div>
+                  </Text>
+                </Stack>
                 {i < steps.length - 1 && (
-                  <div
+                  <Box
                     className={cn(
                       "flex-1 h-px mt-[5px] mx-2 transition-all duration-500",
                       isCompleted ? "bg-white/50" : "bg-white/15",
@@ -274,8 +282,10 @@ function UpdateOverlay({ currentVersion, onDone }: { currentVersion?: string; on
           })}
         </div>
 
-        <p className="text-xs text-white/40">{t("dontCloseTab")}</p>
-      </div>
-    </div>
+        <Text size="xs" className="text-white/40">
+          {t("dontCloseTab")}
+        </Text>
+      </Stack>
+    </Flex>
   );
 }
