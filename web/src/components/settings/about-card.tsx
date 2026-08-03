@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from "@fiestaboard/ui";
+import { Badge, Box, Card, CardContent, CardDescription, CardHeader, CardTitle, Flex, Skeleton, Text, TextLink } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Cpu, ExternalLink, Info, Package } from "lucide-react";
 
@@ -40,14 +40,15 @@ export function AboutCard() {
       </CardHeader>
       <CardContent>
         <dl className="space-y-3 text-sm">
-          <div className="flex items-center justify-between gap-4">
+          <Flex align="center" justify="between" gap="4">
             <dt className="text-muted-foreground">{t("status")}</dt>
             <dd>
               {isLoadingStatus ? (
                 <Skeleton className="h-5 w-16" />
               ) : (
-                <div className="flex items-center gap-2">
-                  <span
+                <Flex align="center" gap="2">
+                  <Text
+                    as="span"
                     className={cn("h-2 w-2 rounded-full", isRunning ? "bg-board-green" : "bg-muted-foreground")}
                     style={
                       isRunning
@@ -63,20 +64,22 @@ export function AboutCard() {
                   >
                     {isRunning ? t("statusRunning") : t("statusStopped")}
                   </Badge>
-                </div>
+                </Flex>
               )}
             </dd>
-          </div>
+          </Flex>
 
-          <div className="flex items-center justify-between gap-4">
+          <Flex align="center" justify="between" gap="4">
             <dt className="text-muted-foreground">{t("version")}</dt>
             <dd>
               {isLoadingVersion ? (
                 <Skeleton className="h-5 w-16" />
               ) : versionData ? (
-                <div className="flex items-center gap-2">
+                <Flex align="center" gap="2">
                   <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="font-mono tabular-nums">v{versionData.package_version}</span>
+                  <Text as="span" className="font-mono tabular-nums">
+                    v{versionData.package_version}
+                  </Text>
                   {versionData.is_dev && (
                     <Badge variant="secondary" className="text-xs">
                       {t("devBuild")}
@@ -87,41 +90,45 @@ export function AboutCard() {
                       v{updateCheck.latest_version} available
                     </Badge>
                   )}
-                </div>
+                </Flex>
               ) : (
-                <span className="text-muted-foreground">—</span>
+                <Text as="span" tone="muted">
+                  —
+                </Text>
               )}
             </dd>
-          </div>
+          </Flex>
 
           {versionData?.build_version && (
-            <div className="flex items-center justify-between gap-4">
+            <Flex align="center" justify="between" gap="4">
               <dt className="text-muted-foreground">{t("buildVersion")}</dt>
               <dd className="font-mono text-xs text-muted-foreground tabular-nums">{versionData.build_version}</dd>
-            </div>
+            </Flex>
           )}
 
           {versionData?.hardware_model && (
-            <div className="flex items-center justify-between gap-4">
+            <Flex align="center" justify="between" gap="4">
               <dt className="text-muted-foreground">{t("hardware")}</dt>
               <dd className="flex items-center gap-2">
                 <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs">{versionData.hardware_model}</span>
+                <Text as="span" size="xs">
+                  {versionData.hardware_model}
+                </Text>
               </dd>
-            </div>
+            </Flex>
           )}
 
-          <div className="pt-2 border-t">
-            <a
+          <Box className="pt-2 border-t">
+            <TextLink
               href="https://fiestaboard.app/docs/intro"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 text-sm text-primary no-underline hover:underline"
             >
               {t("viewDocs")}
               <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </div>
+            </TextLink>
+          </Box>
         </dl>
       </CardContent>
     </Card>

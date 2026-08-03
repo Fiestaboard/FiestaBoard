@@ -11,10 +11,14 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  Flex,
+  Grid,
   Input,
   Label,
   Skeleton,
+  Stack,
   Switch,
+  Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ChevronDown, Eye, EyeOff, Loader2, Radio, XCircle } from "lucide-react";
@@ -95,12 +99,12 @@ export function MqttSettingsCard() {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <Flex align="center" justify="between">
+          <Flex align="center" gap="2">
             <Radio className="h-4 w-4" />
             <CardTitle className="text-base">{t("title")}</CardTitle>
-          </div>
-          <div className="flex items-center gap-3">
+          </Flex>
+          <Flex align="center" gap="3">
             {isEnabled &&
               (isConnected ? (
                 <Badge variant="default" className="text-[10px] h-5 bg-board-green flex items-center gap-1">
@@ -114,21 +118,23 @@ export function MqttSettingsCard() {
                 </Badge>
               ))}
             <Switch checked={isEnabled} onCheckedChange={handleToggleEnabled} disabled={saveMutation.isPending} />
-          </div>
-        </div>
+          </Flex>
+        </Flex>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
 
       <Collapsible open={expanded} onOpenChange={setExpanded}>
         <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
-          <span>{t("brokerConfiguration")}</span>
+          <Text as="span" size="xs" tone="muted">
+            {t("brokerConfiguration")}
+          </Text>
           <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
         </CollapsibleTrigger>
 
         <CollapsibleContent>
           <CardContent className="pt-2 space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2 space-y-1">
+            <Grid cols="3" gap="3">
+              <Stack gap="1" className="col-span-2">
                 <Label htmlFor="mqtt-broker-host" className="text-xs">
                   {t("brokerHost")}
                 </Label>
@@ -139,8 +145,8 @@ export function MqttSettingsCard() {
                   placeholder="localhost"
                   className="h-8 text-xs font-mono"
                 />
-              </div>
-              <div className="space-y-1">
+              </Stack>
+              <Stack gap="1">
                 <Label htmlFor="mqtt-broker-port" className="text-xs">
                   {t("port")}
                 </Label>
@@ -152,11 +158,11 @@ export function MqttSettingsCard() {
                   placeholder="1883"
                   className="h-8 text-xs font-mono"
                 />
-              </div>
-            </div>
+              </Stack>
+            </Grid>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
+            <Grid cols="2" gap="3">
+              <Stack gap="1">
                 <Label htmlFor="mqtt-username" className="text-xs">
                   {t("username")}
                 </Label>
@@ -167,12 +173,12 @@ export function MqttSettingsCard() {
                   placeholder={t("optional")}
                   className="h-8 text-xs"
                 />
-              </div>
-              <div className="space-y-1">
+              </Stack>
+              <Stack gap="1">
                 <Label htmlFor="mqtt-password" className="text-xs">
                   {t("password")}
                 </Label>
-                <div className="flex gap-1.5">
+                <Flex gap="1.5">
                   <Input
                     id="mqtt-password"
                     type={showPassword ? "text" : "password"}
@@ -191,11 +197,11 @@ export function MqttSettingsCard() {
                   >
                     {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </Button>
-                </div>
-              </div>
-            </div>
+                </Flex>
+              </Stack>
+            </Grid>
 
-            <div className="space-y-1">
+            <Stack gap="1">
               <Label htmlFor="mqtt-external-url" className="text-xs">
                 {t("externalUrl")}
               </Label>
@@ -206,11 +212,13 @@ export function MqttSettingsCard() {
                 placeholder={t("externalUrlPlaceholder")}
                 className="h-8 text-xs font-mono"
               />
-              <p className="text-[10px] text-muted-foreground">{t("externalUrlHint")}</p>
-            </div>
+              <Text tone="muted" className="text-[10px]">
+                {t("externalUrlHint")}
+              </Text>
+            </Stack>
 
             {hasDraft && (
-              <div className="flex justify-end pt-1">
+              <Flex justify="end" className="pt-1">
                 <Button
                   size="sm"
                   variant="brand"
@@ -221,7 +229,7 @@ export function MqttSettingsCard() {
                   {saveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {tCommon("save")}
                 </Button>
-              </div>
+              </Flex>
             )}
           </CardContent>
         </CollapsibleContent>

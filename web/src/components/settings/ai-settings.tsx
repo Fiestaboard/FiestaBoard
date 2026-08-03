@@ -13,6 +13,8 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  Box,
+  Flex,
   Input,
   Label,
   Select,
@@ -21,7 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Stack,
   Switch,
+  Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -159,14 +163,16 @@ function ProviderRow({
 
   return (
     <Collapsible open={expanded} onOpenChange={onToggleExpanded} className="rounded-md border">
-      <div className="flex items-center justify-between gap-2 p-2">
+      <Flex align="center" justify="between" gap="2" className="p-2">
         <CollapsibleTrigger className="flex flex-1 items-center gap-2 min-w-0 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <ChevronDown
             className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
               expanded ? "rotate-180" : ""
             }`}
           />
-          <span className="text-sm font-medium truncate">{summaryName}</span>
+          <Text as="span" size="sm" weight="medium" className="truncate">
+            {summaryName}
+          </Text>
           {isDefault && (
             <Badge variant="default" className="h-5 text-[10px] shrink-0">
               Default
@@ -177,11 +183,11 @@ function ProviderRow({
               Anthropic
             </Badge>
           )}
-          <span className="text-[11px] text-muted-foreground shrink-0">
+          <Text as="span" tone="muted" className="text-[11px] shrink-0">
             {modelCount === 0 ? "no models" : `${modelCount} model${modelCount === 1 ? "" : "s"}`}
-          </span>
+          </Text>
         </CollapsibleTrigger>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <Flex align="center" gap="1.5" className="shrink-0">
           {!isDefault && (
             <Button
               type="button"
@@ -205,12 +211,12 @@ function ProviderRow({
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
-        </div>
-      </div>
+        </Flex>
+      </Flex>
 
       <CollapsibleContent>
-        <div className="space-y-3 border-t p-3">
-          <div className="space-y-1.5">
+        <Stack gap="3" className="border-t p-3">
+          <Stack gap="1.5">
             <Label htmlFor={`name-${provider.id}`} className="text-xs">
               Name
             </Label>
@@ -221,9 +227,9 @@ function ProviderRow({
               placeholder="OpenRouter"
               className="h-8"
             />
-          </div>
+          </Stack>
 
-          <div className="space-y-1.5">
+          <Stack gap="1.5">
             <Label htmlFor={`protocol-${provider.id}`} className="text-xs">
               Protocol
             </Label>
@@ -247,9 +253,9 @@ function ProviderRow({
                 <SelectItem value="anthropic">Anthropic (Messages API)</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </Stack>
 
-          <div className="space-y-1.5">
+          <Stack gap="1.5">
             <Label htmlFor={`url-${provider.id}`} className="text-xs">
               Base URL
             </Label>
@@ -260,15 +266,17 @@ function ProviderRow({
               placeholder="https://openrouter.ai/api/v1"
               className="h-8 font-mono text-xs"
             />
-            <div className="rounded-md border border-dashed bg-muted/30 p-2 space-y-1">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Quick presets</div>
+            <Stack gap="1" className="rounded-md border border-dashed bg-muted/30 p-2">
+              <Text weight="medium" tone="muted" className="text-[10px] uppercase tracking-wide">
+                Quick presets
+              </Text>
               {(["cloud", "local"] as const).map((group) => {
                 const presets = PROVIDER_PRESETS.filter((p) => p.group === group);
                 return (
-                  <div key={group} className="flex flex-wrap items-center gap-1">
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground pr-1 w-10">
+                  <Flex key={group} wrap align="center" gap="1">
+                    <Text as="span" tone="muted" className="text-[10px] uppercase tracking-wide pr-1 w-10">
                       {group === "cloud" ? "Cloud" : "Local"}
-                    </span>
+                    </Text>
                     {presets.map((preset) => (
                       <Button
                         key={preset.label}
@@ -290,17 +298,17 @@ function ProviderRow({
                         {preset.label}
                       </Button>
                     ))}
-                  </div>
+                  </Flex>
                 );
               })}
-            </div>
-          </div>
+            </Stack>
+          </Stack>
 
-          <div className="space-y-1.5">
+          <Stack gap="1.5">
             <Label htmlFor={`key-${provider.id}`} className="text-xs">
               API Key
             </Label>
-            <div className="relative">
+            <Box className="relative">
               <KeyRound className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 id={`key-${provider.id}`}
@@ -320,12 +328,12 @@ function ProviderRow({
               >
                 {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               </Button>
-            </div>
-          </div>
+            </Box>
+          </Stack>
 
-          <div className="space-y-1.5">
+          <Stack gap="1.5">
             <Label className="text-xs">Models</Label>
-            <div className="flex gap-1.5">
+            <Flex gap="1.5">
               <Input
                 value={modelInput}
                 onChange={(e) => setModelInput(e.target.value)}
@@ -342,9 +350,9 @@ function ProviderRow({
               <Button type="button" size="sm" variant="outline" className="h-8" onClick={addModel}>
                 <Plus className="h-3.5 w-3.5" />
               </Button>
-            </div>
+            </Flex>
             {provider.models.length > 0 && (
-              <div className="flex flex-wrap gap-1 pt-1">
+              <Flex wrap gap="1" className="pt-1">
                 {provider.models.map((m) => (
                   <Badge key={m} variant="secondary" className="font-mono text-[11px] gap-1">
                     {m}
@@ -358,12 +366,12 @@ function ProviderRow({
                     </button>
                   </Badge>
                 ))}
-              </div>
+              </Flex>
             )}
-          </div>
+          </Stack>
 
           {provider.models.length > 0 && (
-            <div className="space-y-1.5">
+            <Stack gap="1.5">
               <Label htmlFor={`default-${provider.id}`} className="text-xs">
                 Default model
               </Label>
@@ -382,10 +390,10 @@ function ProviderRow({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Stack>
           )}
 
-          <div className="flex items-center justify-between gap-2 pt-1">
+          <Flex align="center" justify="between" gap="2" className="pt-1">
             <Button
               type="button"
               size="sm"
@@ -395,16 +403,24 @@ function ProviderRow({
               disabled={testing || provider.models.length === 0 || !provider.base_url}
             >
               {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              <span className="text-xs">Test connection</span>
+              <Text as="span" size="xs">
+                Test connection
+              </Text>
             </Button>
             {testResult && (
-              <div className={`flex items-center gap-1 text-xs ${testResult.ok ? "text-success" : "text-destructive"}`}>
+              <Flex
+                align="center"
+                gap="1"
+                className={`text-xs ${testResult.ok ? "text-success" : "text-destructive"}`}
+              >
                 {testResult.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                <span className="line-clamp-2">{testResult.message}</span>
-              </div>
+                <Text as="span" size="xs" tone={testResult.ok ? "success" : "destructive"} className="line-clamp-2">
+                  {testResult.message}
+                </Text>
+              </Flex>
             )}
-          </div>
-        </div>
+          </Flex>
+        </Stack>
       </CollapsibleContent>
     </Collapsible>
   );
@@ -501,8 +517,8 @@ export function AiSettings() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-start justify-between gap-2">
-          <div>
+        <Flex align="start" justify="between" gap="2">
+          <Box>
             <CardTitle className="text-base flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
               AI Providers
@@ -511,8 +527,8 @@ export function AiSettings() {
               Configure OpenAI-compatible LLMs for the &ldquo;Gen AI&rdquo; page generator. BYO-LLM: FiestaBoard never
               bundles a key.
             </CardDescription>
-          </div>
-          <div className="flex items-center gap-2 pt-1">
+          </Box>
+          <Flex align="center" gap="2" className="pt-1">
             <Label htmlFor="ai-enabled" className="text-xs">
               {current.enabled ? "Enabled" : "Disabled"}
             </Label>
@@ -522,8 +538,8 @@ export function AiSettings() {
               onCheckedChange={toggleEnabled}
               disabled={saveMutation.isPending}
             />
-          </div>
-        </div>
+          </Flex>
+        </Flex>
       </CardHeader>
       <CardContent className="space-y-3">
         <Alert>
@@ -534,11 +550,11 @@ export function AiSettings() {
         </Alert>
 
         {current.providers.length === 0 ? (
-          <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+          <Text tone="muted" className="rounded-md border border-dashed p-6 text-center">
             No providers configured yet.
-          </div>
+          </Text>
         ) : (
-          <div className="space-y-3">
+          <Stack gap="3">
             {current.providers.map((p, idx) => (
               <ProviderRow
                 key={p.id}
@@ -551,16 +567,16 @@ export function AiSettings() {
                 onMakeDefault={() => makeDefault(idx)}
               />
             ))}
-          </div>
+          </Stack>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+        <Flex wrap align="center" justify="between" gap="2" className="pt-1">
           <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addProvider}>
             <Plus className="h-3.5 w-3.5" />
             Add provider
           </Button>
           {hasDraft && (
-            <div className="flex gap-2">
+            <Flex gap="2">
               <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(null)}>
                 Discard
               </Button>
@@ -573,9 +589,9 @@ export function AiSettings() {
               >
                 {saveMutation.isPending ? "Saving..." : "Save changes"}
               </Button>
-            </div>
+            </Flex>
           )}
-        </div>
+        </Flex>
       </CardContent>
     </Card>
   );
