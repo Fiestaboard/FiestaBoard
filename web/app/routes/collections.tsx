@@ -841,7 +841,7 @@ export default function CollectionsPage() {
                           {i + 1}.
                         </Text>
                       )}
-                      <Text as="span" size="xs" className="truncate">
+                      <Text as="span" size="xs" className="truncate text-secondary-foreground">
                         {getPageName(pid)}
                       </Text>
                     </Badge>

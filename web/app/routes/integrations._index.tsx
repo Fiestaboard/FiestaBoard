@@ -2375,7 +2375,7 @@ export default function IntegrationsPage() {
               ) : (
                 <>
                   <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <Text weight="medium" className="mb-1">
+                  <Text size="base" weight="medium" className="mb-1">
                     {t("noPluginsInstalled")}
                   </Text>
                   <Text tone="muted" className="mb-4">
@@ -2480,7 +2480,7 @@ export default function IntegrationsPage() {
               ) : (
                 <>
                   <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <Text weight="medium" className="mb-1">
+                  <Text size="base" weight="medium" className="mb-1">
                     {t("noRegistryPluginsFound")}
                   </Text>
                   <Text tone="muted">{t("canInstallCustomGitDescription")}</Text>
