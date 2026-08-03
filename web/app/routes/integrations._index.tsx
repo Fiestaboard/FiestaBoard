@@ -11,12 +11,14 @@ import {
   AlertDialogTitle,
   AlertTitle,
   Badge,
+  Box,
   Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  Code as CodeChip,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -29,6 +31,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Flex,
+  Grid,
+  Heading,
   Input,
   Label,
   PageHeader,
@@ -42,11 +47,19 @@ import {
   SheetTitle,
   SheetTrigger,
   Skeleton,
+  Stack,
   Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  Text,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -77,7 +90,7 @@ import {
   Bookmark,
   BookOpen,
   Bot,
-  Box,
+  Box as BoxIcon,
   Bug,
   Building,
   Building2,
@@ -641,21 +654,23 @@ function ColorRulesEditor({
 
   return (
     <TooltipProvider>
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-medium text-muted-foreground">
+      <Stack gap="3">
+        <Flex align="center" justify="between">
+          <Heading level={4} size="sm" className="font-medium text-muted-foreground">
             {t("colorRules.title")}
-            <span className="ml-2 text-xs font-normal">({t("colorRules.firstMatchWins")})</span>
-          </h4>
+            <Text as="span" size="xs" tone="muted" className="ml-2">
+              ({t("colorRules.firstMatchWins")})
+            </Text>
+          </Heading>
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowAddField(!showAddField)}>
             <Plus className="h-3 w-3 mr-1" />
             {t("colorRules.addField")}
           </Button>
-        </div>
+        </Flex>
 
         {/* Add new field input */}
         {showAddField && (
-          <div className="flex gap-2 p-2 rounded-md border bg-muted/30">
+          <Flex gap="2" className="p-2 rounded-md border bg-muted/30">
             <input
               type="text"
               value={newFieldName}
@@ -669,28 +684,30 @@ function ColorRulesEditor({
             <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setShowAddField(false)}>
               {tCommon("cancel")}
             </Button>
-          </div>
+          </Flex>
         )}
 
         {fieldNames.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-2">
+          <Text size="xs" tone="muted" className="py-2">
             No color rules configured. Add a field to create dynamic colors.
-          </p>
+          </Text>
         ) : (
-          <div className="space-y-3">
+          <Stack gap="3">
             {fieldNames.map((fieldName) => {
               const rules = colorRules[fieldName];
               return (
-                <div key={fieldName} className="rounded-md border overflow-hidden">
+                <Box key={fieldName} className="rounded-md border overflow-hidden">
                   {/* Field header */}
-                  <div className="bg-muted/50 px-3 py-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                  <Flex align="center" justify="between" className="bg-muted/50 px-3 py-2">
+                    <Flex align="center" gap="2">
+                      <CodeChip className="text-primary bg-primary/10">
                         {pluginId}.{fieldName}
-                      </code>
-                      <span className="text-xs text-muted-foreground">→ color based on value</span>
-                    </div>
-                    <div className="flex items-center gap-1">
+                      </CodeChip>
+                      <Text as="span" size="xs" tone="muted">
+                        → color based on value
+                      </Text>
+                    </Flex>
+                    <Flex align="center" gap="1">
                       <button
                         onClick={() => onCopyVar(`${fieldName}_color`)}
                         className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-muted"
@@ -700,7 +717,7 @@ function ColorRulesEditor({
                         ) : (
                           <Copy className="h-3 w-3" />
                         )}
-                        <code className="font-mono text-[10px]">{fieldName}_color</code>
+                        <CodeChip className="bg-transparent px-0 py-0 rounded-none">{fieldName}_color</CodeChip>
                       </button>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -712,14 +729,14 @@ function ColorRulesEditor({
                           </button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{t("colorRules.deleteFieldTooltip")}</p>
+                          <Text>{t("colorRules.deleteFieldTooltip")}</Text>
                         </TooltipContent>
                       </Tooltip>
-                    </div>
-                  </div>
+                    </Flex>
+                  </Flex>
 
                   {/* Rules */}
-                  <div className="divide-y">
+                  <Box className="divide-y">
                     {rules.map((rule, idx) => {
                       const colorStyle = COLOR_DISPLAY[rule.color as FiestaboardColorName] || {
                         bg: "bg-muted",
@@ -727,9 +744,9 @@ function ColorRulesEditor({
                         hex: "#6b7280",
                       };
                       return (
-                        <div key={idx} className="px-3 py-2 flex items-center gap-2 text-xs">
+                        <Flex key={idx} align="center" gap="2" className="px-3 py-2 text-xs">
                           {/* Reorder buttons */}
-                          <div className="flex flex-col gap-0.5">
+                          <Flex direction="col" gap="0.5">
                             <button
                               onClick={() => handleMoveRule(fieldName, idx, "up")}
                               disabled={idx === 0}
@@ -744,7 +761,7 @@ function ColorRulesEditor({
                             >
                               <ArrowDown className="h-3 w-3" />
                             </button>
-                          </div>
+                          </Flex>
 
                           {/* Color picker */}
                           <select
@@ -763,7 +780,9 @@ function ColorRulesEditor({
                             ))}
                           </select>
 
-                          <span className="text-muted-foreground shrink-0">when</span>
+                          <Text as="span" size="xs" tone="muted" className="shrink-0">
+                            when
+                          </Text>
 
                           {/* Condition picker */}
                           <select
@@ -801,13 +820,13 @@ function ColorRulesEditor({
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
-                        </div>
+                        </Flex>
                       );
                     })}
-                  </div>
+                  </Box>
 
                   {/* Add rule button */}
-                  <div className="px-3 py-2 border-t bg-muted/20">
+                  <Box className="px-3 py-2 border-t bg-muted/20">
                     <button
                       onClick={() => handleAddRule(fieldName)}
                       className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
@@ -815,17 +834,17 @@ function ColorRulesEditor({
                       <Plus className="h-3 w-3" />
                       {t("colorRules.addRule")}
                     </button>
-                  </div>
-                </div>
+                  </Box>
+                </Box>
               );
             })}
-          </div>
+          </Stack>
         )}
 
-        <p className="text-xs text-muted-foreground">
+        <Text size="xs" tone="muted">
           {t("colorRules.ruleDescription", { example: `{{${pluginId}.field_color}}` })}
-        </p>
-      </div>
+        </Text>
+      </Stack>
     </TooltipProvider>
   );
 }
@@ -902,6 +921,9 @@ function renderValueWithColors(value: string): ReactNode[] {
   let textBuf = "";
   const flushText = () => {
     if (textBuf) {
+      // Rendered inline into caller-supplied text contexts with varying ambient
+      // size/color (font-mono chips, tooltip content, table cells) — Text's fixed
+      // defaults would override whichever context this lands in, so this stays raw.
       nodes.push(<span key={`t${key++}`}>{textBuf}</span>);
       textBuf = "";
     }
@@ -919,7 +941,7 @@ function renderValueWithColors(value: string): ReactNode[] {
         if (hex) {
           flushText();
           nodes.push(
-            <span
+            <Box
               key={`c${key++}`}
               aria-label={`color ${content}`}
               className="inline-block align-middle h-3 w-3 rounded-sm border border-border/40"
@@ -1081,55 +1103,63 @@ function PluginCard({
       rawDisplay?.available ? (rawDisplay.data as Record<string, unknown>) : undefined,
     );
     return (
-      <tr
+      <TableRow
         key={variable.name}
         className="hover:bg-muted/30 cursor-pointer transition-colors"
         onClick={() => handleCopyVar(variable.name)}
       >
-        <td className="px-3 py-2 align-top">
-          <div className="flex items-center gap-1.5">
-            <code className="text-primary font-mono bg-primary/10 px-1.5 py-0.5 rounded text-[11px]">
+        <TableCell className="px-3 py-2 align-top">
+          <Flex align="center" gap="1.5">
+            <CodeChip className="text-primary bg-primary/10">
               {plugin.id}.{variable.name}
-            </code>
+            </CodeChip>
             {copiedVar === variable.name ? (
               <Check className="h-3 w-3 text-success" />
             ) : (
               <Copy className="h-3 w-3 text-muted-foreground" />
             )}
-          </div>
-        </td>
-        <td className="px-3 py-2 text-muted-foreground capitalize align-top">{variable.description}</td>
-        <td className="px-3 py-2 align-top max-w-[200px]" onClick={(e) => e.stopPropagation()}>
+          </Flex>
+        </TableCell>
+        <TableCell className="px-3 py-2 text-muted-foreground capitalize align-top">{variable.description}</TableCell>
+        <TableCell className="px-3 py-2 align-top max-w-[200px]" onClick={(e) => e.stopPropagation()}>
           {!plugin.enabled ? (
-            <span className="text-muted-foreground">—</span>
+            <Text as="span" tone="muted">
+              —
+            </Text>
           ) : isLoadingRawDisplay ? (
             <Skeleton className="h-3 w-16" />
           ) : rawDisplay && rawDisplay.available === false ? (
-            <span className="text-muted-foreground italic">Unavailable</span>
+            <Text as="span" tone="muted" className="italic">
+              Unavailable
+            </Text>
           ) : resolved && resolved.short !== "" ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="flex items-center gap-1 truncate font-mono text-[11px]">
+                <Flex align="center" gap="1" className="truncate font-mono text-[11px]">
                   {renderValueWithColors(resolved.short)}
-                </span>
+                </Flex>
               </TooltipTrigger>
               <TooltipContent
                 side="top"
                 className="max-w-[360px] whitespace-pre-wrap break-words font-mono text-[11px]"
               >
-                <span className="inline-flex flex-wrap items-center gap-1">{renderValueWithColors(resolved.full)}</span>
+                <Flex inline wrap align="center" gap="1">
+                  {renderValueWithColors(resolved.full)}
+                </Flex>
               </TooltipContent>
             </Tooltip>
           ) : (
-            <span className="text-muted-foreground">—</span>
+            <Text as="span" tone="muted">
+              —
+            </Text>
           )}
-        </td>
-        <td className="px-3 py-2 text-center align-top">
+        </TableCell>
+        <TableCell className="px-3 py-2 text-center align-top">
           <Badge variant="outline" className="text-[10px]">
             {variable.maxChars}
           </Badge>
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
     );
   };
 
@@ -1192,27 +1222,29 @@ function PluginCard({
           </SheetTitle>
           <SheetDescription>Configure settings for this integration</SheetDescription>
         </SheetHeader>
-        <div className="py-6 space-y-6">
+        <Stack gap="6" className="py-6">
           {isLoadingDetails ? (
-            <div className="space-y-4">
+            <Stack gap="4">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
-            </div>
+            </Stack>
           ) : (
             <>
               {/* Demo Page Section */}
               {pluginDetails?.has_demo && (
-                <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium">Demo Page</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                <Stack gap="3" className="rounded-lg border bg-muted/30 p-4">
+                  <Flex align="center" justify="between">
+                    <Box>
+                      <Heading level={4} size="sm" className="font-medium">
+                        Demo Page
+                      </Heading>
+                      <Text size="xs" tone="muted" className="mt-0.5">
                         {pluginDetails.demo_page_id
                           ? "A demo page already exists for this plugin."
                           : "Create a ready-to-use page that showcases this plugin."}
-                      </p>
-                    </div>
+                      </Text>
+                    </Box>
                     {pluginDetails.demo_page_id ? (
                       <Dialog open={showDemoConfirm} onOpenChange={setShowDemoConfirm}>
                         <DialogTrigger asChild>
@@ -1250,113 +1282,119 @@ function PluginCard({
                         {isCreatingDemo ? "Creating..." : "Create Demo Page"}
                       </Button>
                     )}
-                  </div>
+                  </Flex>
                   {!areDemoRequirementsMet() && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                    <Text size="xs" tone="warning">
                       Configure the required settings below before creating a demo page.
-                    </p>
+                    </Text>
                   )}
-                </div>
+                </Stack>
               )}
 
               {/* Settings Section */}
               {pluginDetails?.settings_schema &&
                 Object.keys(pluginDetails.settings_schema.properties || {}).length > 0 && (
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-medium text-muted-foreground">Settings</h4>
+                  <Stack gap="4">
+                    <Heading level={4} size="sm" className="font-medium text-muted-foreground">
+                      Settings
+                    </Heading>
                     <SchemaForm
                       schema={pluginDetails.settings_schema}
                       values={configValues}
                       onChange={setConfigValues}
                       disabled={isSaving}
                     />
-                  </div>
+                  </Stack>
                 )}
 
               {/* Template Variables Section */}
               {variableRows.length > 0 && (
                 <TooltipProvider delayDuration={200}>
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium text-muted-foreground">
+                  <Stack gap="3">
+                    <Heading level={4} size="sm" className="font-medium text-muted-foreground">
                       Template Variables
-                      <span className="ml-2 text-xs font-normal">(click to copy)</span>
-                    </h4>
+                      <Text as="span" size="xs" tone="muted" className="ml-2">
+                        (click to copy)
+                      </Text>
+                    </Heading>
                     {!plugin.enabled && (
-                      <p className="text-xs text-muted-foreground italic">Enable the plugin to see live values.</p>
+                      <Text size="xs" tone="muted" className="italic">
+                        Enable the plugin to see live values.
+                      </Text>
                     )}
                     {plugin.enabled && rawDisplay && rawDisplay.available === false && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                      <Text size="xs" tone="warning">
                         Live values are unavailable
                         {rawDisplay.error ? `: ${rawDisplay.error}` : "."}
-                      </p>
+                      </Text>
                     )}
-                    <div className="rounded-md border overflow-hidden">
-                      <table className="w-full text-xs">
-                        <thead className="bg-muted/50">
-                          <tr>
-                            <th className="text-left px-3 py-2 font-medium">Variable</th>
-                            <th className="text-left px-3 py-2 font-medium">Description</th>
-                            <th className="text-left px-3 py-2 font-medium">
+                    <Box className="rounded-md border overflow-hidden">
+                      <Table className="text-xs">
+                        <TableHeader className="bg-muted/50">
+                          <TableRow>
+                            <TableHead className="text-left px-3 py-2 font-medium h-auto">Variable</TableHead>
+                            <TableHead className="text-left px-3 py-2 font-medium h-auto">Description</TableHead>
+                            <TableHead className="text-left px-3 py-2 font-medium h-auto">
                               Current Value
                               {plugin.enabled && isFetchingRawDisplay && !isLoadingRawDisplay && (
-                                <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">
+                                <Text as="span" size="xs" tone="muted" className="ml-1.5 text-[10px] font-normal">
                                   (refreshing…)
-                                </span>
+                                </Text>
                               )}
-                            </th>
-                            <th className="text-center px-3 py-2 font-medium">Max</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
+                            </TableHead>
+                            <TableHead className="text-center px-3 py-2 font-medium h-auto">Max</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody className="divide-y">
                           {hasVariableGroups
                             ? groupVariableRows(variableRows, variableGroups, "General").map((section) => (
                                 <Fragment key={section.groupId ?? "__general__"}>
-                                  <tr className="bg-muted/40">
-                                    <th
+                                  <TableRow className="bg-muted/40">
+                                    <TableHead
                                       scope="colgroup"
                                       colSpan={4}
-                                      className="text-left px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+                                      className="text-left px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground h-auto"
                                     >
                                       {section.label}
-                                    </th>
-                                  </tr>
+                                    </TableHead>
+                                  </TableRow>
                                   {section.rows.map(renderVariableRow)}
                                 </Fragment>
                               ))
                             : variableRows.map(renderVariableRow)}
-                        </tbody>
-                      </table>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Use in templates as <code className="bg-muted px-1 rounded">{`{{${plugin.id}.variable}}`}</code>
-                    </p>
-                  </div>
+                        </TableBody>
+                      </Table>
+                    </Box>
+                    <Text size="xs" tone="muted">
+                      Use in templates as <CodeChip className="bg-muted px-1 py-0 rounded">{`{{${plugin.id}.variable}}`}</CodeChip>
+                    </Text>
+                  </Stack>
                 </TooltipProvider>
               )}
 
               {/* Environment Variables Section */}
               {pluginDetails?.env_vars && pluginDetails.env_vars.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground">Environment Variables</h4>
-                  <div className="rounded-md border overflow-hidden">
-                    <table className="w-full text-xs">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="text-left px-3 py-2 font-medium">Variable</th>
-                          <th className="text-left px-3 py-2 font-medium">Description</th>
-                          <th className="text-center px-3 py-2 font-medium">Required</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
+                <Stack gap="3">
+                  <Heading level={4} size="sm" className="font-medium text-muted-foreground">
+                    Environment Variables
+                  </Heading>
+                  <Box className="rounded-md border overflow-hidden">
+                    <Table className="text-xs">
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          <TableHead className="text-left px-3 py-2 font-medium h-auto">Variable</TableHead>
+                          <TableHead className="text-left px-3 py-2 font-medium h-auto">Description</TableHead>
+                          <TableHead className="text-center px-3 py-2 font-medium h-auto">Required</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody className="divide-y">
                         {pluginDetails.env_vars.map((envVar) => (
-                          <tr key={envVar.name} className="hover:bg-muted/30">
-                            <td className="px-3 py-2">
-                              <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-[11px]">
-                                {envVar.name}
-                              </code>
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground">{envVar.description}</td>
-                            <td className="px-3 py-2 text-center">
+                          <TableRow key={envVar.name} className="hover:bg-muted/30">
+                            <TableCell className="px-3 py-2">
+                              <CodeChip>{envVar.name}</CodeChip>
+                            </TableCell>
+                            <TableCell className="px-3 py-2 text-muted-foreground">{envVar.description}</TableCell>
+                            <TableCell className="px-3 py-2 text-center">
                               {envVar.required ? (
                                 <Badge variant="destructive" className="text-[10px]">
                                   Required
@@ -1366,13 +1404,13 @@ function PluginCard({
                                   Optional
                                 </Badge>
                               )}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                      </TableBody>
+                    </Table>
+                  </Box>
+                </Stack>
               )}
 
               {/* Color Rules Section */}
@@ -1390,11 +1428,11 @@ function PluginCard({
               {(!pluginDetails?.settings_schema ||
                 Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
                 variableRows.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No configuration options available for this plugin.</p>
+                  <Text tone="muted">No configuration options available for this plugin.</Text>
                 )}
             </>
           )}
-        </div>
+        </Stack>
         <SheetFooter className="flex-col gap-2 sm:flex-row">
           {isExternal && onUninstall && (
             <Button
@@ -1426,25 +1464,27 @@ function PluginCard({
 
   const rows = (
     <>
-      <tr
+      <TableRow
         className={cn(
           "border-b last:border-b-0 transition-colors",
           plugin.enabled ? "hover:bg-muted/30" : "opacity-60 hover:opacity-80 hover:bg-muted/20",
         )}
       >
         {/* Name column: icon + name + version + source badges */}
-        <td className="px-4 py-2.5">
-          <div className="flex items-center gap-3">
-            <div
+        <TableCell className="px-4 py-2.5">
+          <Flex align="center" gap="3">
+            <Box
               className={cn(
                 "p-1.5 rounded-md shrink-0",
                 plugin.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
               )}
             >
               <Icon className="h-4 w-4" />
-            </div>
-            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-              <span className="font-medium text-sm whitespace-nowrap">{plugin.name}</span>
+            </Box>
+            <Flex align="center" gap="1.5" wrap className="min-w-0">
+              <Text as="span" weight="medium" className="whitespace-nowrap">
+                {plugin.name}
+              </Text>
               <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 h-4 shrink-0">
                 v{plugin.version}
               </Badge>
@@ -1453,7 +1493,7 @@ function PluginCard({
                   variant="outline"
                   className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-orange-300 text-orange-600 dark:text-orange-400 dark:border-orange-700"
                 >
-                  <Box className="h-2.5 w-2.5" />
+                  <BoxIcon className="h-2.5 w-2.5" />
                   Core
                 </Badge>
               )}
@@ -1484,17 +1524,17 @@ function PluginCard({
                   Update
                 </Badge>
               )}
-            </div>
-          </div>
-        </td>
+            </Flex>
+          </Flex>
+        </TableCell>
 
         {/* Category column */}
-        <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap hidden sm:table-cell">
+        <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap hidden sm:table-cell">
           {categoryLabel}
-        </td>
+        </TableCell>
 
         {/* Status column */}
-        <td className="px-4 py-2.5 whitespace-nowrap hidden md:table-cell">
+        <TableCell className="px-4 py-2.5 whitespace-nowrap hidden md:table-cell">
           {plugin.enabled ? (
             plugin.configured ? (
               <Badge variant="default" className="text-[10px] gap-1 px-1.5 py-0 h-5">
@@ -1513,11 +1553,11 @@ function PluginCard({
               Disabled
             </Badge>
           )}
-        </td>
+        </TableCell>
 
         {/* Actions column: toggle + configure + overflow */}
-        <td className="px-4 py-2.5">
-          <div className="flex items-center justify-end gap-0.5">
+        <TableCell className="px-4 py-2.5">
+          <Flex align="center" justify="end" gap="0.5">
             <Switch
               checked={plugin.enabled}
               onCheckedChange={(checked) => onToggle(plugin.id, checked)}
@@ -1586,13 +1626,13 @@ function PluginCard({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </td>
-      </tr>
+          </Flex>
+        </TableCell>
+      </TableRow>
       {showAddInstance && (
-        <tr className="border-b last:border-b-0">
-          <td colSpan={4} className="px-4 py-3">
-            <div className="flex items-center gap-3 max-w-md">
+        <TableRow className="border-b last:border-b-0">
+          <TableCell colSpan={4} className="px-4 py-3">
+            <Flex align="center" gap="3" className="max-w-md">
               <Label htmlFor={`instance-label-${plugin.id}`} className="text-sm whitespace-nowrap">
                 Instance name:
               </Label>
@@ -1632,13 +1672,13 @@ function PluginCard({
               >
                 Cancel
               </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1.5">
+            </Flex>
+            <Text size="xs" tone="muted" className="mt-1.5">
               Creates a new independent instance of this plugin with its own configuration. Use alphanumeric characters,
               hyphens, or underscores (1-40 chars).
-            </p>
-          </td>
-        </tr>
+            </Text>
+          </TableCell>
+        </TableRow>
       )}
     </>
   );
@@ -1702,20 +1742,20 @@ function RegistryPluginCard({
 }) {
   const Icon = getPluginIcon(entry.icon);
   return (
-    <div className="rounded-xl animate-card-fade-in h-full" style={{ animationDelay: `${index * 60}ms` }}>
+    <Box className="rounded-xl animate-card-fade-in h-full" style={{ animationDelay: `${index * 60}ms` }}>
       <Link href={`/integrations/${entry.id}`} className="block h-full group">
         <Card className="h-full flex flex-col group-hover:bg-muted/20 transition-colors">
           <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-muted text-muted-foreground shrink-0">
+            <Flex align="start" justify="between" gap="4">
+              <Flex align="center" gap="3">
+                <Box className="p-2 rounded-lg bg-muted text-muted-foreground shrink-0">
                   <Icon className="h-5 w-5" />
-                </div>
-                <div>
+                </Box>
+                <Box>
                   <CardTitle className="text-base">{entry.name}</CardTitle>
                   <CardDescription className="text-xs mt-0.5">by {entry.author}</CardDescription>
-                </div>
-              </div>
+                </Box>
+              </Flex>
               {isInstalled ? (
                 <Badge variant="secondary" className="text-xs gap-1 shrink-0 self-start mt-0.5">
                   <CheckCircle className="h-3 w-3" />
@@ -1737,17 +1777,19 @@ function RegistryPluginCard({
                   {isInstalling ? "Installing..." : "Install"}
                 </Button>
               )}
-            </div>
+            </Flex>
           </CardHeader>
           <CardContent className="pt-0 flex flex-col flex-1">
-            <p className="text-sm text-muted-foreground mb-3 line-clamp-2 flex-1">{entry.description}</p>
+            <Text tone="muted" className="mb-3 line-clamp-2 flex-1">
+              {entry.description}
+            </Text>
             <Badge variant="secondary" className="text-xs gap-1 self-start">
               {CATEGORY_LABELS[entry.category || "utility"] || entry.category || "Utility"}
             </Badge>
           </CardContent>
         </Card>
       </Link>
-    </div>
+    </Box>
   );
 }
 
@@ -1764,33 +1806,37 @@ function RegistryPluginRow({
 }) {
   const Icon = getPluginIcon(entry.icon);
   return (
-    <tr className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
-      <td className="px-4 py-2.5">
+    <TableRow className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
+      <TableCell className="px-4 py-2.5">
         <Link href={`/integrations/${entry.id}`} className="flex items-center gap-3 group">
-          <div className="p-1.5 rounded-md bg-muted text-muted-foreground shrink-0">
+          <Box className="p-1.5 rounded-md bg-muted text-muted-foreground shrink-0">
             <Icon className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-sm group-hover:underline underline-offset-2">{entry.name}</span>
+          </Box>
+          <Box>
+            <Flex align="center" gap="2">
+              <Text as="span" weight="medium" className="group-hover:underline underline-offset-2">
+                {entry.name}
+              </Text>
               {isInstalled && (
                 <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 h-5">
                   <CheckCircle className="h-2.5 w-2.5" />
                   Installed
                 </Badge>
               )}
-            </div>
+            </Flex>
             {entry.description && (
-              <p className="text-xs text-muted-foreground truncate max-w-xs">{entry.description}</p>
+              <Text size="xs" tone="muted" className="truncate max-w-xs">
+                {entry.description}
+              </Text>
             )}
-          </div>
+          </Box>
         </Link>
-      </td>
-      <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
+      </TableCell>
+      <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
         {CATEGORY_LABELS[entry.category || "utility"] || entry.category || "Utility"}
-      </td>
-      <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{entry.author}</td>
-      <td className="px-4 py-2.5 text-right">
+      </TableCell>
+      <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{entry.author}</TableCell>
+      <TableCell className="px-4 py-2.5 text-right">
         {!isInstalled && (
           <Button
             size="sm"
@@ -1803,8 +1849,8 @@ function RegistryPluginRow({
             {isInstalling ? "Installing..." : "Install"}
           </Button>
         )}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -2119,8 +2165,8 @@ export default function IntegrationsPage() {
           <AlertTitle>{t("securityWarningTitle")}</AlertTitle>
           <AlertDescription>{t("securityWarning")}</AlertDescription>
         </Alert>
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
+        <Stack gap="4" className="py-2">
+          <Stack gap="2">
             <Label htmlFor="git-url">{t("repoUrl")}</Label>
             <Input
               id="git-url"
@@ -2129,9 +2175,9 @@ export default function IntegrationsPage() {
               onChange={(e) => setGitUrl(e.target.value)}
               disabled={isInstallingGit}
             />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+          </Stack>
+          <Grid cols="2" gap="4">
+            <Stack gap="2">
               <Label htmlFor="git-plugin-id">{t("pluginIdOptional")}</Label>
               <Input
                 id="git-plugin-id"
@@ -2140,8 +2186,8 @@ export default function IntegrationsPage() {
                 onChange={(e) => setGitPluginId(e.target.value)}
                 disabled={isInstallingGit}
               />
-            </div>
-            <div className="space-y-2">
+            </Stack>
+            <Stack gap="2">
               <Label htmlFor="git-branch">{t("branchOptional")}</Label>
               <Input
                 id="git-branch"
@@ -2150,9 +2196,9 @@ export default function IntegrationsPage() {
                 onChange={(e) => setGitBranch(e.target.value)}
                 disabled={isInstallingGit}
               />
-            </div>
-          </div>
-        </div>
+            </Stack>
+          </Grid>
+        </Stack>
         <DialogFooter>
           <Button variant="outline" onClick={() => setGitDialogOpen(false)} disabled={isInstallingGit}>
             {tCommon("cancel")}
@@ -2178,7 +2224,7 @@ export default function IntegrationsPage() {
   return (
     <PageLayout>
       <PageHeader icon={Puzzle} title={t("title")} description={t("description")}>
-        <div className="mt-3 flex justify-start sm:justify-end">
+        <Flex className="mt-3 justify-start sm:justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -2189,12 +2235,12 @@ export default function IntegrationsPage() {
             <RefreshCw className={cn("h-3.5 w-3.5", isCheckingForUpdates && "animate-spin")} />
             {isCheckingForUpdates ? t("checking") : t("checkForUpdates")}
           </Button>
-        </div>
+        </Flex>
       </PageHeader>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div
+        <Box
           className={
             activeTab === "marketplace"
               ? "mb-4 grid grid-cols-1 gap-3 items-center md:grid-cols-[auto_minmax(12rem,1fr)_auto]"
@@ -2219,7 +2265,7 @@ export default function IntegrationsPage() {
               )}
             </TabsTrigger>
           </TabsList>
-          <div className="relative min-w-0 w-full">
+          <Box className="relative min-w-0 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               placeholder={
@@ -2229,10 +2275,10 @@ export default function IntegrationsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 w-full"
             />
-          </div>
+          </Box>
           {activeTab === "marketplace" && (
-            <div className="flex items-center gap-2 shrink-0 md:justify-self-end">
-              <div className="flex rounded-md border overflow-hidden">
+            <Flex align="center" gap="2" className="shrink-0 md:justify-self-end">
+              <Flex className="rounded-md border overflow-hidden">
                 <Button
                   variant={marketplaceView === "card" ? "secondary" : "ghost"}
                   size="icon"
@@ -2251,98 +2297,104 @@ export default function IntegrationsPage() {
                 >
                   <LayoutList className="h-4 w-4" />
                 </Button>
-              </div>
+              </Flex>
               <Button variant="outline" className="gap-2" onClick={() => setGitDialogOpen(true)}>
                 <GitBranch className="h-4 w-4" />
                 {t("addFromGit")}
               </Button>
-            </div>
+            </Flex>
           )}
-        </div>
+        </Box>
 
         {/* ── Installed Tab ── */}
         <TabsContent value="installed" className="mt-0">
           {isLoading ? (
             <Card className="overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40">
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-b bg-muted/40">
+                    <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs h-auto">
                       {t("nameColumn")}
-                    </th>
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden sm:table-cell">
+                    </TableHead>
+                    <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden sm:table-cell h-auto">
                       {t("categoryColumn")}
-                    </th>
-                    <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden md:table-cell">
+                    </TableHead>
+                    <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden md:table-cell h-auto">
                       {t("statusColumn")}
-                    </th>
-                    <th className="px-4 py-2.5 w-32" />
-                  </tr>
-                </thead>
-                <tbody>
+                    </TableHead>
+                    <TableHead className="px-4 py-2.5 w-32 h-auto" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {[...Array(5)].map((_, i) => (
-                    <tr key={i} className="border-b last:border-b-0">
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-3">
+                    <TableRow key={i} className="border-b last:border-b-0">
+                      <TableCell className="px-4 py-2.5">
+                        <Flex align="center" gap="3">
                           <Skeleton className="h-7 w-7 rounded-md shrink-0" />
-                          <div className="flex items-center gap-2">
+                          <Flex align="center" gap="2">
                             <Skeleton className="h-4 w-32" />
                             <Skeleton className="h-4 w-10" />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 hidden sm:table-cell">
+                          </Flex>
+                        </Flex>
+                      </TableCell>
+                      <TableCell className="px-4 py-2.5 hidden sm:table-cell">
                         <Skeleton className="h-4 w-20" />
-                      </td>
-                      <td className="px-4 py-2.5 hidden md:table-cell">
+                      </TableCell>
+                      <TableCell className="px-4 py-2.5 hidden md:table-cell">
                         <Skeleton className="h-5 w-24 rounded-full" />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
+                      </TableCell>
+                      <TableCell className="px-4 py-2.5">
+                        <Flex align="center" justify="end" gap="1">
                           <Skeleton className="h-5 w-9 rounded-full" />
                           <Skeleton className="h-7 w-7 rounded" />
                           <Skeleton className="h-7 w-7 rounded" />
-                        </div>
-                      </td>
-                    </tr>
+                        </Flex>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </Card>
           ) : error ? (
             <Card className="border-destructive">
               <CardContent className="flex items-center gap-3 py-6">
                 <AlertCircle className="h-5 w-5 text-destructive" />
-                <p className="text-sm text-destructive">
+                <Text tone="destructive">
                   {t("loadPluginsError", { error: error instanceof Error ? error.message : tCommon("error") })}
-                </p>
+                </Text>
               </CardContent>
             </Card>
           ) : filteredInstalled.length === 0 ? (
-            <div className="text-center py-16">
+            <Box className="text-center py-16">
               {query ? (
                 <>
                   <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">{t("noInstalledMatch", { query: searchQuery })}</p>
+                  <Text tone="muted">{t("noInstalledMatch", { query: searchQuery })}</Text>
                 </>
               ) : (
                 <>
                   <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="font-medium mb-1">{t("noPluginsInstalled")}</p>
-                  <p className="text-sm text-muted-foreground mb-4">{t("headToMarketplace")}</p>
+                  <Text weight="medium" className="mb-1">
+                    {t("noPluginsInstalled")}
+                  </Text>
+                  <Text tone="muted" className="mb-4">
+                    {t("headToMarketplace")}
+                  </Text>
                   <Button variant="outline" onClick={() => setActiveTab("marketplace")}>
                     {t("browseMarketplace")}
                   </Button>
                 </>
               )}
-            </div>
+            </Box>
           ) : (
-            <div className="space-y-3">
+            <Stack gap="3">
               {updatesAvailableCount > 0 && (
-                <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/40">
-                  <p className="text-sm text-amber-700 dark:text-amber-400">
-                    {t("pluginUpdatesAvailable", { count: updatesAvailableCount })}
-                  </p>
+                <Flex
+                  align="center"
+                  justify="between"
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/40"
+                >
+                  <Text tone="warning">{t("pluginUpdatesAvailable", { count: updatesAvailableCount })}</Text>
                   <Button
                     size="sm"
                     variant="outline"
@@ -2353,12 +2405,12 @@ export default function IntegrationsPage() {
                     <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", isUpdatingAll && "animate-spin")} />
                     {isUpdatingAll ? t("updating") : t("updateAllCount", { count: updatesAvailableCount })}
                   </Button>
-                </div>
+                </Flex>
               )}
               <Card className="overflow-hidden animate-card-fade-in">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/40">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b bg-muted/40">
                       {(["name", "category", "status"] as const).map((col) => {
                         const labels: Record<string, string> = {
                           name: t("nameColumn"),
@@ -2367,16 +2419,16 @@ export default function IntegrationsPage() {
                         };
                         const active = installedSort.key === col;
                         return (
-                          <th
+                          <TableHead
                             key={col}
                             className={cn(
-                              "px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors",
+                              "px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors h-auto",
                               col === "category" && "hidden sm:table-cell",
                               col === "status" && "hidden md:table-cell",
                             )}
                             onClick={() => handleInstalledSort(col)}
                           >
-                            <span className="flex items-center gap-1">
+                            <Flex align="center" gap="1">
                               {labels[col]}
                               {active ? (
                                 installedSort.dir === "asc" ? (
@@ -2387,14 +2439,14 @@ export default function IntegrationsPage() {
                               ) : (
                                 <ChevronsUp className="h-3 w-3 opacity-30" />
                               )}
-                            </span>
-                          </th>
+                            </Flex>
+                          </TableHead>
                         );
                       })}
-                      <th className="px-4 py-2.5 w-32" />
-                    </tr>
-                  </thead>
-                  <tbody>
+                      <TableHead className="px-4 py-2.5 w-32 h-auto" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {sortedInstalled.map((plugin) => (
                       <PluginCard
                         key={plugin.id}
@@ -2408,44 +2460,52 @@ export default function IntegrationsPage() {
                         isUpdating={updatingId === plugin.id}
                       />
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </Card>
-            </div>
+            </Stack>
           )}
         </TabsContent>
 
         {/* ── Marketplace Tab ── */}
         <TabsContent value="marketplace" className="mt-0">
           {filteredRegistry.length === 0 ? (
-            <div className="text-center py-16">
+            <Box className="text-center py-16">
               {query ? (
                 <>
                   <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">{t("noPluginsMatch", { query: searchQuery })}</p>
+                  <Text tone="muted">{t("noPluginsMatch", { query: searchQuery })}</Text>
                 </>
               ) : (
                 <>
                   <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="font-medium mb-1">{t("noRegistryPluginsFound")}</p>
-                  <p className="text-sm text-muted-foreground">{t("canInstallCustomGitDescription")}</p>
+                  <Text weight="medium" className="mb-1">
+                    {t("noRegistryPluginsFound")}
+                  </Text>
+                  <Text tone="muted">{t("canInstallCustomGitDescription")}</Text>
                 </>
               )}
-            </div>
+            </Box>
           ) : marketplaceView === "card" ? (
-            <div className="space-y-6 animate-card-fade-in">
+            <Stack gap="6" className="animate-card-fade-in">
               {(() => {
                 let globalIndex = 0;
                 return marketplaceCategories.map((category) => {
                   const entries = groupedRegistry[category] ?? [];
                   if (entries.length === 0) return null;
                   return (
-                    <section key={category}>
-                      <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                    <Box as="section" key={category}>
+                      <Heading
+                        level={2}
+                        size="sm"
+                        className="font-medium text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2"
+                      >
                         {CATEGORY_LABELS[category] || category}
-                        <span className="text-xs font-normal normal-case tracking-normal">({entries.length})</span>
-                      </h2>
-                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 items-stretch">
+                        <Text as="span" size="xs" tone="muted" className="normal-case tracking-normal">
+                          ({entries.length})
+                        </Text>
+                      </Heading>
+                      <Grid cols="1" md="2" gap="4" className="xl:grid-cols-3 items-stretch">
                         {entries.map((entry) => {
                           const cardIndex = globalIndex++;
                           return (
@@ -2459,18 +2519,18 @@ export default function IntegrationsPage() {
                             />
                           );
                         })}
-                      </div>
-                    </section>
+                      </Grid>
+                    </Box>
                   );
                 });
               })()}
-            </div>
+            </Stack>
           ) : (
             /* List view */
             <Card className="overflow-hidden animate-card-fade-in">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-b bg-muted/40">
                     {(["name", "category", "author"] as const).map((col) => {
                       const labels: Record<string, string> = {
                         name: t("nameColumn"),
@@ -2479,12 +2539,12 @@ export default function IntegrationsPage() {
                       };
                       const active = marketplaceSort.key === col;
                       return (
-                        <th
+                        <TableHead
                           key={col}
-                          className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors"
+                          className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors h-auto"
                           onClick={() => handleMarketplaceSort(col)}
                         >
-                          <span className="flex items-center gap-1">
+                          <Flex align="center" gap="1">
                             {labels[col]}
                             {active ? (
                               marketplaceSort.dir === "asc" ? (
@@ -2495,14 +2555,14 @@ export default function IntegrationsPage() {
                             ) : (
                               <ChevronsUp className="h-3 w-3 opacity-30" />
                             )}
-                          </span>
-                        </th>
+                          </Flex>
+                        </TableHead>
                       );
                     })}
-                    <th className="px-4 py-2.5 w-24" />
-                  </tr>
-                </thead>
-                <tbody>
+                    <TableHead className="px-4 py-2.5 w-24 h-auto" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {sortedRegistry.map((entry) => (
                     <RegistryPluginRow
                       key={entry.id}
@@ -2512,8 +2572,8 @@ export default function IntegrationsPage() {
                       isInstalled={installedIds.has(entry.id)}
                     />
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </Card>
           )}
         </TabsContent>
