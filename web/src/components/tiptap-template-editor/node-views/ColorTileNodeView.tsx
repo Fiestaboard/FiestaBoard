@@ -3,7 +3,7 @@
  * Displays {{red}}, {{blue}}, etc. as solid colored tiles
  * Can be dragged and dropped, deleted with backspace, and copied/pasted
  */
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Box, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
@@ -62,10 +62,10 @@ export function ColorTileNodeView({ node, deleteNode: _deleteNode }: ColorTileNo
             }}
           >
             {/* Subtle split flip effect - horizontal line in middle */}
-            <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
+            <Box className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
 
             {/* Subtle gradient for curvature */}
-            <div
+            <Box
               className="absolute inset-0 pointer-events-none rounded-[3px]"
               style={{
                 background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)",
@@ -74,7 +74,11 @@ export function ColorTileNodeView({ node, deleteNode: _deleteNode }: ColorTileNo
 
             {/* Block character gives the browser selectable text so the native
           selection highlight (blue overlay) is visible on the tile.
-          Transparent color keeps it invisible until selected. */}
+          Transparent color keeps it invisible until selected.
+          Kept as a raw <span>: this is a selection-anchor inside TipTap's
+          contentEditable and all styling is inline; wrapping it in <Text>
+          would inject text-foreground/text-sm classes that could disturb the
+          transparent-until-selected geometry. Correctness over coverage. */}
             <span
               aria-label={`${color} color tile`}
               style={{
@@ -92,9 +96,9 @@ export function ColorTileNodeView({ node, deleteNode: _deleteNode }: ColorTileNo
           </NodeViewWrapper>
         </TooltipTrigger>
         <TooltipContent>
-          <p>
+          <Text>
             {color} tile (code {code}) - drag to move, backspace to delete
-          </p>
+          </Text>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

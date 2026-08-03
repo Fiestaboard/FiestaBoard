@@ -2,7 +2,7 @@
  * React NodeView for Variable nodes
  * Displays {{plugin.field}} as an interactive badge with filters
  */
-import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Badge, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
@@ -36,6 +36,11 @@ export function VariableNodeView({ node, deleteNode: _deleteNode }: VariableNode
           variant="variable"
           className="inline-flex flex-nowrap items-center gap-1 px-1.5 py-0 border-dashed cursor-grab hover:bg-tag-variable/20 active:cursor-grabbing mr-0.5 transition-all duration-150"
         >
+          {/* Raw <span>s throughout this Badge: they render inside TipTap's
+              contentEditable where sub-xs sizes (text-[10px]/[11px]) and the
+              Badge's inherited "variable" tint are pixel/color load-bearing.
+              <Text as="span"> would reset color + size, so kept raw for
+              correctness (only the portal Tooltip copy below is primitived). */}
           <span className="font-mono text-[11px] leading-none">
             {pluginId}.{field}
           </span>
@@ -51,10 +56,10 @@ export function VariableNodeView({ node, deleteNode: _deleteNode }: VariableNode
                     </span>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>
+                    <Text>
                       Filter: {filter.name}
                       {filter.arg ? `:${filter.arg}` : ""}
-                    </p>
+                    </Text>
                   </TooltipContent>
                 </Tooltip>
               ))}
@@ -67,7 +72,7 @@ export function VariableNodeView({ node, deleteNode: _deleteNode }: VariableNode
                 <span className="hidden group-hover:inline text-[10px] leading-none">~{maxLength}</span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Max length: {maxLength} characters</p>
+                <Text>Max length: {maxLength} characters</Text>
               </TooltipContent>
             </Tooltip>
           )}

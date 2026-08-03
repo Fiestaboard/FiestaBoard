@@ -9,7 +9,7 @@
  */
 "use client";
 
-import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Badge, Box, Flex, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { NodeViewWrapper } from "@tiptap/react";
 import { SquareFunction } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -108,35 +108,44 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
               }}
             >
               <SquareFunction className="w-2.5 h-2.5 flex-shrink-0" />
+              {/* Raw <span>: colored Badge inside contentEditable; <Text as="span">
+                  would reset the inherited pill color and text-[11px] is sub-xs
+                  grid geometry. Kept raw for correctness. */}
               <span className="font-mono text-[11px] leading-none">{preview}</span>
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
-            <p className="font-mono text-xs">{"{{= " + expression + " }}"}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{t("clickToEditFormula")}</p>
+            <Text size="xs" className="font-mono">
+              {"{{= " + expression + " }}"}
+            </Text>
+            <Text size="xs" tone="muted" className="mt-0.5">
+              {t("clickToEditFormula")}
+            </Text>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
       {open &&
         createPortal(
-          <div
-            className="fixed inset-0 z-[999] flex items-center justify-center p-4"
+          <Flex
+            align="center"
+            justify="center"
+            className="fixed inset-0 z-[999] p-4"
             onMouseDown={(e) => e.stopPropagation()}
           >
             {/* Backdrop — intentionally has no click handler to prevent accidental close */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <Box className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
             {/* Modal panel */}
-            <div className="relative rounded-lg border border-border bg-popover shadow-2xl max-h-[90vh] overflow-y-auto w-full max-w-[min(660px,90vw)]">
+            <Box className="relative rounded-lg border border-border bg-popover shadow-2xl max-h-[90vh] overflow-y-auto w-full max-w-[min(660px,90vw)]">
               <FormulaEditorPanel
                 mode="edit"
                 initialExpr={expression}
                 onConfirm={handleConfirm}
                 onCancel={handleCancel}
               />
-            </div>
-          </div>,
+            </Box>
+          </Flex>,
           document.body,
         )}
     </NodeViewWrapper>
