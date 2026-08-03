@@ -92,8 +92,7 @@ export function NavigationSidebar() {
         >
           <Text
             as="span"
-            weight="bold"
-            className="text-[15px]"
+            className="text-[15px] font-bold"
             style={{
               background: "linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787)",
               WebkitBackgroundClip: "text",
