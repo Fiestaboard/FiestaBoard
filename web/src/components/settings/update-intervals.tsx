@@ -1,6 +1,18 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Skeleton } from "@fiestaboard/ui";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Flex,
+  Input,
+  Label,
+  Skeleton,
+  Stack,
+  Text,
+} from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Timer } from "lucide-react";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
@@ -101,29 +113,31 @@ export function UpdateIntervals() {
       </CardHeader>
       <CardContent className="space-y-6">
         {isLoading || !initialized ? (
-          <div className="space-y-6">
-            <div className="space-y-2">
+          <Stack gap="6">
+            <Stack gap="2">
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-10 w-32" />
               <Skeleton className="h-3 w-40" />
-            </div>
-            <div className="space-y-2">
+            </Stack>
+            <Stack gap="2">
               <Skeleton className="h-4 w-48" />
               <Skeleton className="h-10 w-32" />
-            </div>
-            <div className="space-y-2">
+            </Stack>
+            <Stack gap="2">
               <Skeleton className="h-4 w-48" />
               <Skeleton className="h-10 w-32" />
-            </div>
-          </div>
+            </Stack>
+          </Stack>
         ) : (
           <>
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label htmlFor="polling-interval" className="text-sm font-medium">
                 {t("boardUpdateIntervalLabel")}
               </Label>
-              <p className="text-xs text-muted-foreground">{t("boardUpdateIntervalDescription")}</p>
-              <div className="flex items-center gap-3">
+              <Text size="xs" tone="muted">
+                {t("boardUpdateIntervalDescription")}
+              </Text>
+              <Flex align="center" gap="3">
                 <Input
                   id="polling-interval"
                   type="number"
@@ -135,17 +149,23 @@ export function UpdateIntervals() {
                   disabled={isSaving}
                   className="w-32"
                 />
-                <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
-              </div>
-              <p className="text-xs text-muted-foreground">{t("requiresServiceRestart")}</p>
-            </div>
+                <Text as="span" tone="muted">
+                  {tc("seconds")}
+                </Text>
+              </Flex>
+              <Text size="xs" tone="muted">
+                {t("requiresServiceRestart")}
+              </Text>
+            </Stack>
 
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label htmlFor="board-read-local" className="text-sm font-medium">
                 {t("boardReadIntervalLocalLabel")}
               </Label>
-              <p className="text-xs text-muted-foreground">{t("boardReadIntervalLocalDescription")}</p>
-              <div className="flex items-center gap-3">
+              <Text size="xs" tone="muted">
+                {t("boardReadIntervalLocalDescription")}
+              </Text>
+              <Flex align="center" gap="3">
                 <Input
                   id="board-read-local"
                   type="number"
@@ -160,16 +180,20 @@ export function UpdateIntervals() {
                   disabled={updateBoardReadIntervalMutation.isPending}
                   className="w-32"
                 />
-                <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
-              </div>
-            </div>
+                <Text as="span" tone="muted">
+                  {tc("seconds")}
+                </Text>
+              </Flex>
+            </Stack>
 
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label htmlFor="board-read-cloud" className="text-sm font-medium">
                 {t("boardReadIntervalCloudLabel")}
               </Label>
-              <p className="text-xs text-muted-foreground">{t("boardReadIntervalCloudDescription")}</p>
-              <div className="flex items-center gap-3">
+              <Text size="xs" tone="muted">
+                {t("boardReadIntervalCloudDescription")}
+              </Text>
+              <Flex align="center" gap="3">
                 <Input
                   id="board-read-cloud"
                   type="number"
@@ -184,10 +208,16 @@ export function UpdateIntervals() {
                   disabled={updateBoardReadIntervalMutation.isPending}
                   className="w-32"
                 />
-                <span className="text-sm text-muted-foreground">{tc("seconds")}</span>
-              </div>
-              {boardReadIntervalCloud < 60 && <p className="text-xs text-warning">{t("boardReadIntervalWarning")}</p>}
-            </div>
+                <Text as="span" tone="muted">
+                  {tc("seconds")}
+                </Text>
+              </Flex>
+              {boardReadIntervalCloud < 60 && (
+                <Text size="xs" tone="warning">
+                  {t("boardReadIntervalWarning")}
+                </Text>
+              )}
+            </Stack>
           </>
         )}
       </CardContent>
