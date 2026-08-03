@@ -25,6 +25,7 @@
 import {
   Alert,
   AlertDescription,
+  Box,
   Button,
   Card,
   CardContent,
@@ -34,8 +35,12 @@ import {
   CardTitle,
   Checkbox,
   FiestaLogo,
+  Flex,
   Input,
   Label,
+  Stack,
+  Text,
+  TextLink,
 } from "@fiestaboard/ui";
 import { Loader2, Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -264,7 +269,7 @@ export default function LoginPage() {
   if (!status) {
     return (
       <CenteredCard tCommon={tCommon} icon={<Loader2 className="h-6 w-6 animate-spin" />} title={t("loadingTitle")}>
-        <p className="text-sm text-muted-foreground">{t("loadingDescription")}</p>
+        <Text tone="muted">{t("loadingDescription")}</Text>
       </CenteredCard>
     );
   }
@@ -273,7 +278,7 @@ export default function LoginPage() {
   if (!status.enabled || status.authenticated) {
     return (
       <CenteredCard tCommon={tCommon} icon={<Loader2 className="h-6 w-6 animate-spin" />} title={t("redirectingTitle")}>
-        <p className="text-sm text-muted-foreground">{t("redirectingDescription")}</p>
+        <Text tone="muted">{t("redirectingDescription")}</Text>
       </CenteredCard>
     );
   }
@@ -288,7 +293,7 @@ export default function LoginPage() {
         title={t("protectTitle")}
         description={t("protectDescription")}
       >
-        <div className="space-y-3">
+        <Stack gap="3">
           <Button
             type="button"
             variant="brand"
@@ -312,8 +317,10 @@ export default function LoginPage() {
               <AlertDescription>{formError}</AlertDescription>
             </Alert>
           )}
-          <p className="text-xs text-muted-foreground">{t("protectFootnote")}</p>
-        </div>
+          <Text size="xs" tone="muted">
+            {t("protectFootnote")}
+          </Text>
+        </Stack>
       </CenteredCard>
     );
   }
@@ -326,8 +333,8 @@ export default function LoginPage() {
         title={t("setupTitle")}
         description={t("setupDescription")}
       >
-        <form className="space-y-4" onSubmit={handleSetup}>
-          <div className="space-y-2">
+        <Box as="form" className="space-y-4" onSubmit={handleSetup}>
+          <Stack gap="2">
             <Label htmlFor="username">{t("usernameLabel")}</Label>
             <Input
               id="username"
@@ -340,8 +347,8 @@ export default function LoginPage() {
               onChange={(e) => setUsername(e.target.value)}
               disabled={submitting}
             />
-          </div>
-          <div className="space-y-2">
+          </Stack>
+          <Stack gap="2">
             <Label htmlFor="password">{t("passwordLabel")}</Label>
             <Input
               id="password"
@@ -355,9 +362,11 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={submitting}
             />
-            <p className="text-xs text-muted-foreground">{t("passwordMinHint")}</p>
-          </div>
-          <div className="space-y-2">
+            <Text size="xs" tone="muted">
+              {t("passwordMinHint")}
+            </Text>
+          </Stack>
+          <Stack gap="2">
             <Label htmlFor="confirm-password">{t("confirmPasswordLabel")}</Label>
             <Input
               id="confirm-password"
@@ -370,7 +379,7 @@ export default function LoginPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={submitting}
             />
-          </div>
+          </Stack>
           {formError && (
             <Alert variant="destructive">
               <AlertDescription>{formError}</AlertDescription>
@@ -385,7 +394,7 @@ export default function LoginPage() {
               t("createButton")
             )}
           </Button>
-        </form>
+        </Box>
       </CenteredCard>
     );
   }
@@ -397,8 +406,8 @@ export default function LoginPage() {
       title={t("signInTitle")}
       description={t("signInDescription")}
     >
-      <form className="space-y-4" onSubmit={handleLogin}>
-        <div className="space-y-2">
+      <Box as="form" className="space-y-4" onSubmit={handleLogin}>
+        <Stack gap="2">
           <Label htmlFor="username">{t("usernameLabel")}</Label>
           <Input
             id="username"
@@ -411,8 +420,8 @@ export default function LoginPage() {
             onChange={(e) => setUsername(e.target.value)}
             disabled={submitting}
           />
-        </div>
-        <div className="space-y-2">
+        </Stack>
+        <Stack gap="2">
           <Label htmlFor="password">{t("passwordLabel")}</Label>
           <Input
             id="password"
@@ -425,8 +434,8 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             disabled={submitting}
           />
-        </div>
-        <div className="flex items-center gap-2">
+        </Stack>
+        <Flex align="center" gap="2">
           <Checkbox
             id="remember-me"
             name="remember-me"
@@ -437,7 +446,7 @@ export default function LoginPage() {
           <Label htmlFor="remember-me" className="cursor-pointer">
             {t("rememberMeLabel")}
           </Label>
-        </div>
+        </Flex>
         {formError && (
           <Alert variant="destructive">
             <AlertDescription>{formError}</AlertDescription>
@@ -452,7 +461,7 @@ export default function LoginPage() {
             t("submitButton")
           )}
         </Button>
-      </form>
+      </Box>
     </CenteredCard>
   );
 }
@@ -474,38 +483,36 @@ function CenteredCard({
 }) {
   const t = useTranslations("login");
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-      <div className="mb-6 flex items-center gap-3">
+    <Flex direction="col" align="center" justify="center" className="min-h-screen bg-background p-4">
+      <Flex align="center" gap="3" className="mb-6">
         <img src={appUrl("/icons/favicon-32x32.png")} alt="" width={36} height={36} className="flex-shrink-0" />
         <FiestaLogo className="text-2xl" />
-      </div>
+      </Flex>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <div className="flex items-center gap-2">
+          <Flex align="center" gap="2">
             {icon}
             <CardTitle as="h1">{title}</CardTitle>
-          </div>
+          </Flex>
           {description && <CardDescription>{description}</CardDescription>}
         </CardHeader>
         <CardContent>{children}</CardContent>
         <CardFooter className="text-xs text-muted-foreground">
           {t.rich("changeLater", {
             link: (chunks) => (
-              <a
-                href="https://fiestaboard.app/docs/setup/authentication"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-foreground"
-              >
+              <TextLink href="https://fiestaboard.app/docs/setup/authentication" target="_blank" rel="noopener noreferrer">
                 {chunks}
                 {/* sr-only cue lets screen-reader users know this link
                     leaves the app (WCAG 2.4.4 / 3.2.5). */}
-                <span className="sr-only"> {tCommon("opensInNewTab")}</span>
-              </a>
+                <Text as="span" className="sr-only">
+                  {" "}
+                  {tCommon("opensInNewTab")}
+                </Text>
+              </TextLink>
             ),
           })}
         </CardFooter>
       </Card>
-    </div>
+    </Flex>
   );
 }

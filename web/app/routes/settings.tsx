@@ -1,4 +1,5 @@
 import {
+  Box,
   Button,
   Card,
   CardContent,
@@ -166,21 +167,23 @@ export default function SettingsPage() {
     <PageLayout>
       <PageHeader icon={Settings} title={t("title")} description={t("description")} />
 
-      <div className="mb-5">
+      <Box className="mb-5">
         <SystemUpdate />
-      </div>
+      </Box>
 
       <Tabs value={activeSection} onValueChange={handleSectionChange}>
-        <div className="mb-5 -mx-3 sm:-mx-4 md:mx-0 overflow-x-auto px-3 sm:px-4 md:px-0">
+        <Box className="mb-5 -mx-3 sm:-mx-4 md:mx-0 overflow-x-auto px-3 sm:px-4 md:px-0">
           <TabsList className="w-fit h-auto p-1">
             {sections.map(({ id, label, icon: Icon }) => (
               <TabsTrigger key={id} value={id} className="gap-1.5 px-3 py-1.5 data-[state=active]:shadow-sm">
                 <Icon className="h-4 w-4 flex-shrink-0" />
+                {/* Inherits size/weight/color from TabsTrigger's data-active state — Text's fixed
+                    tone/weight defaults would break the active/inactive styling, so this stays raw. */}
                 <span className="whitespace-nowrap">{label}</span>
               </TabsTrigger>
             ))}
           </TabsList>
-        </div>
+        </Box>
 
         <TabsContent value="general" className="mt-0 space-y-6">
           <InstanceNameCard />
