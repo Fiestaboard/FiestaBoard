@@ -1,4 +1,17 @@
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Label, Switch } from "@fiestaboard/ui";
+import {
+  Badge,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Flex,
+  Label,
+  Stack,
+  Switch,
+  Text,
+} from "@fiestaboard/ui";
 import { format } from "date-fns";
 import { Calendar, ChevronRight, Edit, GalleryHorizontalEnd, Moon, Trash2 } from "lucide-react";
 
@@ -142,15 +155,17 @@ export function ScheduleListView({
         className="w-full text-left flex items-center justify-between p-4 border rounded-lg bg-muted/30 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
         data-testid="schedule-list-silence-row"
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+        <Box className="flex-1 min-w-0">
+          <Flex align="center" gap="2" className="mb-1">
             <Moon className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
-            <span className="font-medium">{t("silenceScheduleListTitle")}</span>
-          </div>
-          <div className="text-sm text-muted-foreground truncate">
+            <Text as="span" weight="medium">
+              {t("silenceScheduleListTitle")}
+            </Text>
+          </Flex>
+          <Text tone="muted" className="truncate">
             {timeRange} • {subtitle}
-          </div>
-        </div>
+          </Text>
+        </Box>
         <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-2" aria-hidden="true" />
       </button>
     );
@@ -163,34 +178,38 @@ export function ScheduleListView({
       </CardHeader>
       <CardContent>
         {schedules.length === 0 && !showSilenceRow ? (
-          <div className="text-center py-12 text-muted-foreground">
+          <Box className="text-center py-12 text-muted-foreground">
             <Calendar className="h-12 w-12 mx-auto mb-4" />
-            <p>{t("noSchedulesCreated")}</p>
-            <p className="text-sm mt-1">{t("useToolbarToAdd")}</p>
-          </div>
+            <Text tone="muted">{t("noSchedulesCreated")}</Text>
+            <Text tone="muted" className="mt-1">
+              {t("useToolbarToAdd")}
+            </Text>
+          </Box>
         ) : (
-          <div className="space-y-3">
+          <Stack gap="3">
             {renderSilenceRow()}
             {schedules.map((schedule) => {
               const pageName = getPageName(schedule.page_id);
               const toggleId = `schedule-enabled-${schedule.id}`;
               return (
-                <div key={schedule.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                <Flex key={schedule.id} align="center" justify="between" className="p-4 border rounded-lg">
+                  <Box className="flex-1">
+                    <Flex align="center" gap="2" className="mb-1">
                       {isCollectionId(schedule.page_id) && (
                         <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       )}
-                      <span className="font-medium">{pageName}</span>
+                      <Text as="span" weight="medium">
+                        {pageName}
+                      </Text>
                       {!schedule.enabled && <Badge variant="secondary">{tCommon("disabled")}</Badge>}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
+                    </Flex>
+                    <Text tone="muted">
                       {formatTimeDisplay(schedule)} • {formatDays(schedule)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
+                    </Text>
+                  </Box>
+                  <Flex align="center" gap="2">
                     {onToggleEnabled && (
-                      <div className="flex items-center gap-2 pr-2 border-r mr-1">
+                      <Flex align="center" gap="2" className="pr-2 border-r mr-1">
                         <Label htmlFor={toggleId} className="text-xs text-muted-foreground cursor-pointer">
                           {t("scheduleEntryForm.enabledLabel")}
                         </Label>
@@ -200,7 +219,7 @@ export function ScheduleListView({
                           onCheckedChange={(checked) => onToggleEnabled(schedule, checked)}
                           aria-label={t("toggleEnabledAriaLabel", { pageName })}
                         />
-                      </div>
+                      </Flex>
                     )}
                     <Button
                       size="sm"
@@ -218,11 +237,11 @@ export function ScheduleListView({
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                  </div>
-                </div>
+                  </Flex>
+                </Flex>
               );
             })}
-          </div>
+          </Stack>
         )}
       </CardContent>
     </Card>

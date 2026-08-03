@@ -1,6 +1,19 @@
 "use client";
 
-import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Label, Switch } from "@fiestaboard/ui";
+import {
+  Badge,
+  Box,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Flex,
+  Label,
+  Stack,
+  Switch,
+  Text,
+} from "@fiestaboard/ui";
 import type { LucideIcon } from "lucide-react";
 import { Clock, Cloud, Laugh, Rocket, Star, Timer, TrendingUp, Trophy, Waves, Wifi } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -170,17 +183,19 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
   };
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground mb-1">{t("description")}</p>
-      <p className="text-xs text-muted-foreground mb-4">
+    <Stack gap="4">
+      <Text tone="muted" className="mb-1">
+        {t("description")}
+      </Text>
+      <Text size="xs" tone="muted" className="mb-4">
         You can add more from the{" "}
         <Link href="/integrations" className="underline hover:text-foreground">
           Integrations
         </Link>{" "}
         page at any time.
-      </p>
+      </Text>
 
-      <div className="space-y-3">
+      <Stack gap="3">
         {CURATED_PLUGINS.map((plugin) => {
           const Icon = plugin.icon;
           const selected = isSelected(plugin.id);
@@ -191,12 +206,12 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
               onClick={() => handleToggle(plugin, !selected)}
             >
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={cn("p-2 rounded-lg", selected ? "bg-primary/10" : "bg-muted")}>
+                <Flex align="center" justify="between">
+                  <Flex align="center" gap="3">
+                    <Box className={cn("p-2 rounded-lg", selected ? "bg-primary/10" : "bg-muted")}>
                       <Icon className={cn("h-5 w-5", selected ? "text-primary" : "text-muted-foreground")} />
-                    </div>
-                    <div>
+                    </Box>
+                    <Box>
                       <CardTitle className="text-base flex items-center gap-2">
                         {plugin.name}
                         {plugin.badge && (
@@ -211,21 +226,21 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
                         )}
                       </CardTitle>
                       <CardDescription className="text-xs">{plugin.description}</CardDescription>
-                    </div>
-                  </div>
+                    </Box>
+                  </Flex>
                   <Switch
                     checked={selected}
                     onCheckedChange={(checked) => handleToggle(plugin, checked)}
                     onClick={(e) => e.stopPropagation()}
                     aria-label={`Toggle ${plugin.name}`}
                   />
-                </div>
+                </Flex>
               </CardHeader>
 
               {/* Inline timezone picker for date_time */}
               {plugin.id === "date_time" && selected && (
                 <CardContent className="pt-2 space-y-3" onClick={(e) => e.stopPropagation()}>
-                  <div className="space-y-2">
+                  <Stack gap="2">
                     <Label htmlFor="wizard-timezone" className="text-sm">
                       {t("timezoneLabel")}
                     </Label>
@@ -239,16 +254,19 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
                         })
                       }
                     />
-                  </div>
-                  <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                    Preview: <span className="font-mono">{currentTime}</span>
-                  </div>
+                  </Stack>
+                  <Text tone="muted" className="bg-muted/50 p-2 rounded">
+                    Preview:{" "}
+                    <Text as="span" tone="muted" className="font-mono">
+                      {currentTime}
+                    </Text>
+                  </Text>
                 </CardContent>
               )}
             </Card>
           );
         })}
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 }

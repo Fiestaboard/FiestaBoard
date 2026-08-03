@@ -1,4 +1,4 @@
-import { Badge } from "@fiestaboard/ui";
+import { Badge, Box, Flex, Stack, Text } from "@fiestaboard/ui";
 import { format } from "date-fns";
 import { Moon } from "lucide-react";
 import { useMemo } from "react";
@@ -73,7 +73,7 @@ function RegularScheduleEvent({ event }: { event: ScheduleCalendarEvent }) {
   const activeColor = resource.enabled ? scheduleColor : "var(--muted-foreground)";
 
   return (
-    <div
+    <Box
       className="schedule-event-content h-full w-full overflow-hidden rounded px-1.5 py-1"
       data-testid={`calendar-event-${resource.scheduleId}`}
       data-schedule-id={resource.scheduleId}
@@ -87,22 +87,22 @@ function RegularScheduleEvent({ event }: { event: ScheduleCalendarEvent }) {
         ...(isEveningSplit ? { borderBottom: `1px dashed ${activeColor}` } : {}),
       }}
     >
-      <div className="flex flex-col gap-0">
+      <Stack gap="0">
         {isMorningSplit && continuationHint && (
-          <span className="text-[8px] leading-tight truncate opacity-85" style={{ color: activeColor }}>
+          <Text as="span" className="text-[8px] leading-tight truncate opacity-85" style={{ color: activeColor }}>
             {continuationHint}
-          </span>
+          </Text>
         )}
-        <div className="font-medium text-[10px] leading-tight truncate" style={{ color: activeColor }}>
+        <Text className="font-medium text-[10px] leading-tight truncate" style={{ color: activeColor }}>
           {event.title}
-        </div>
-        <span className="text-[9px] font-medium truncate" style={{ color: activeColor }}>
+        </Text>
+        <Text as="span" className="text-[9px] font-medium truncate" style={{ color: activeColor }}>
           {timeRange}
-        </span>
+        </Text>
         {isEveningSplit && continuationHint && (
-          <span className="text-[8px] leading-tight truncate opacity-85" style={{ color: activeColor }}>
+          <Text as="span" className="text-[8px] leading-tight truncate opacity-85" style={{ color: activeColor }}>
             {continuationHint}
-          </span>
+          </Text>
         )}
         {!resource.enabled && (
           <Badge variant="secondary" className="w-fit text-[10px] px-1 py-0 h-3.5">
@@ -110,10 +110,12 @@ function RegularScheduleEvent({ event }: { event: ScheduleCalendarEvent }) {
           </Badge>
         )}
         {resource.dayPattern !== "all" && (
-          <span className="text-[10px] text-muted-foreground truncate">{dayPatternDisplay}</span>
+          <Text as="span" tone="muted" className="text-[10px] truncate">
+            {dayPatternDisplay}
+          </Text>
         )}
-      </div>
-    </div>
+      </Stack>
+    </Box>
   );
 }
 
@@ -149,7 +151,7 @@ function SilenceEvent({ event }: { event: SilenceCalendarEvent }) {
   const isEveningSplit = resource.isMidnightSplit && resource.splitPart === "evening";
 
   return (
-    <div
+    <Box
       className="schedule-event-content h-full w-full overflow-hidden rounded px-1.5 py-1"
       data-testid="calendar-event-silence"
       data-split={resource.isMidnightSplit ? resource.splitPart : "none"}
@@ -157,20 +159,30 @@ function SilenceEvent({ event }: { event: SilenceCalendarEvent }) {
       tabIndex={0}
       aria-label={t("silenceEventAriaLabel", { range: timeRange })}
     >
-      <div className="flex flex-col gap-0">
+      <Stack gap="0">
         {isMorningSplit && continuationHint && (
-          <span className="text-[8px] leading-tight truncate opacity-85">{continuationHint}</span>
+          <Text as="span" tone="muted" className="text-[8px] leading-tight truncate opacity-85">
+            {continuationHint}
+          </Text>
         )}
-        <div className="flex items-center gap-1">
+        <Flex align="center" gap="1">
           <Moon className="h-2.5 w-2.5 flex-shrink-0" aria-hidden="true" />
-          <span className="font-medium text-[10px] leading-tight truncate">{t("silenceEventTitle")}</span>
-        </div>
-        <span className="text-[9px] font-medium truncate">{timeRange}</span>
+          <Text as="span" tone="muted" className="font-medium text-[10px] leading-tight truncate">
+            {t("silenceEventTitle")}
+          </Text>
+        </Flex>
+        <Text as="span" tone="muted" className="text-[9px] font-medium truncate">
+          {timeRange}
+        </Text>
         {isEveningSplit && continuationHint && (
-          <span className="text-[8px] leading-tight truncate opacity-85">{continuationHint}</span>
+          <Text as="span" tone="muted" className="text-[8px] leading-tight truncate opacity-85">
+            {continuationHint}
+          </Text>
         )}
-        <span className="text-[9px] truncate opacity-80">{subtitle}</span>
-      </div>
-    </div>
+        <Text as="span" tone="muted" className="text-[9px] truncate opacity-80">
+          {subtitle}
+        </Text>
+      </Stack>
+    </Box>
   );
 }

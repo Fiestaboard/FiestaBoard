@@ -1,6 +1,6 @@
 "use client";
 
-import { Aurora, Button } from "@fiestaboard/ui";
+import { Aurora, Box, Button, Flex, Heading, Text } from "@fiestaboard/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -158,20 +158,25 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+    <Box className="fixed inset-0 z-50 bg-background overflow-y-auto">
       {/* Aurora background - fixed so it stays in place while content scrolls */}
-      <div className="fixed inset-0 pointer-events-none">
+      <Box className="fixed inset-0 pointer-events-none">
         <Aurora colorStops={["#f8e71c", "#eb4034", "#AA00FF", "#9b59b6"]} blend={0.5} amplitude={1.0} speed={0.5} />
-      </div>
+      </Box>
 
       {/* Content container */}
-      <div className="relative min-h-full flex items-start justify-center py-6 sm:py-10 px-4 sm:px-6">
-        <div className="w-full max-w-lg bg-background/75 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-6 sm:p-8">
+      <Flex align="start" justify="center" className="relative min-h-full py-6 sm:py-10 px-4 sm:px-6">
+        <Box className="w-full max-w-lg bg-background/75 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-6 sm:p-8">
           {/* Header */}
-          <header className="text-center pb-4">
-            <div className="flex items-center justify-between mb-4">
-              <div />
-              <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 overflow-hidden">
+          <Box as="header" className="text-center pb-4">
+            <Flex align="center" justify="between" className="mb-4">
+              <Box />
+              <Flex
+                inline
+                align="center"
+                justify="center"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 overflow-hidden"
+              >
                 <img
                   src={appUrl("/icons/icon-96x96.png")}
                   alt=""
@@ -179,18 +184,21 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   height={48}
                   className="w-10 h-10 sm:w-12 sm:h-12"
                 />
-              </div>
+              </Flex>
               <LanguageSelector />
-            </div>
+            </Flex>
+            {/* eslint-disable-next-line react/forbid-elements -- wizard hero <h1>: Heading has no level=1 and PageHeader renders an icon+card layout unfit for this centered hero title */}
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("welcomeTitle")}</h1>
-            <p className="text-muted-foreground mt-2 text-sm sm:text-base">{t("welcomeSubtitle")}</p>
-          </header>
+            <Text tone="muted" className="mt-2 text-sm sm:text-base">
+              {t("welcomeSubtitle")}
+            </Text>
+          </Box>
 
           {/* Progress indicator */}
-          <div className="pb-4">
-            <div className="flex items-center gap-2">
+          <Box className="pb-4">
+            <Flex align="center" gap="2">
               {[1, 2, 3].map((step) => (
-                <div
+                <Box
                   key={step}
                   className={cn(
                     "flex-1 h-2 rounded-full transition-all duration-500",
@@ -198,38 +206,48 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   )}
                 />
               ))}
-            </div>
-            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-              <span>{t("progressConnect")}</span>
-              <span>{t("progressCustomize")}</span>
-              <span>{t("progressFinish")}</span>
-            </div>
-          </div>
+            </Flex>
+            <Flex justify="between" className="mt-2 text-xs text-muted-foreground">
+              <Text as="span" size="xs" tone="muted">
+                {t("progressConnect")}
+              </Text>
+              <Text as="span" size="xs" tone="muted">
+                {t("progressCustomize")}
+              </Text>
+              <Text as="span" size="xs" tone="muted">
+                {t("progressFinish")}
+              </Text>
+            </Flex>
+          </Box>
 
           {/* Step header */}
-          <div className="mb-6">
-            <h2 className="text-xl sm:text-2xl font-semibold">{stepTitles[currentStep - 1]}</h2>
-            <p className="text-muted-foreground mt-1">{stepDescriptions[currentStep - 1]}</p>
-          </div>
+          <Box className="mb-6">
+            <Heading level={2} className="text-xl sm:text-2xl">
+              {stepTitles[currentStep - 1]}
+            </Heading>
+            <Text tone="muted" className="mt-1">
+              {stepDescriptions[currentStep - 1]}
+            </Text>
+          </Box>
 
           {/* Step content */}
           {renderStep()}
 
           {/* Navigation */}
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
-            <div>
+          <Flex align="center" justify="between" className="mt-8 pt-6 border-t border-border">
+            <Box>
               {currentStep > 1 && (
                 <Button variant="ghost" onClick={handleBack} disabled={isLoading} size="lg">
                   <ChevronLeft className="h-4 w-4 mr-1" />
                   {tc("back")}
                 </Button>
               )}
-            </div>
+            </Box>
 
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">
+            <Flex align="center" gap="3">
+              <Text as="span" tone="muted">
                 {t("stepOf", { current: currentStep, total: TOTAL_STEPS })}
-              </span>
+              </Text>
 
               {currentStep === 1 && (
                 <Button variant="ghost" onClick={handleComplete} disabled={isLoading} size="lg">
@@ -243,10 +261,10 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            </Flex>
+          </Flex>
+        </Box>
+      </Flex>
+    </Box>
   );
 }
