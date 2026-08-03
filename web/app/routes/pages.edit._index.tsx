@@ -1,4 +1,4 @@
-import { PageLayout } from "@fiestaboard/ui";
+import { PageLayout, Text } from "@fiestaboard/ui";
 import { useEffect, useState } from "react";
 
 import { PageBuilder } from "@/components/page-builder";
@@ -33,7 +33,9 @@ export default function EditPage() {
   if (!pageId) {
     return (
       <PageLayout>
-        <div className="text-center text-muted-foreground">Loading...</div>
+        <Text tone="muted" className="text-center">
+          Loading...
+        </Text>
       </PageLayout>
     );
   }

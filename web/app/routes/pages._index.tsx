@@ -1,4 +1,5 @@
 import {
+  Box,
   Button,
   Dialog,
   DialogContent,
@@ -6,6 +7,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Flex,
+  Grid,
   PageHeader,
   PageLayout,
   PageToolbar,
@@ -38,11 +41,11 @@ function PageGridSelector(props: React.ComponentProps<typeof PageGridSelectorLaz
   return (
     <Suspense
       fallback={
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <Grid cols="2" sm="3" lg="4" gap="4" className="xl:grid-cols-5">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="aspect-[9/16] w-full rounded-lg" />
           ))}
-        </div>
+        </Grid>
       }
     >
       <PageGridSelectorLazy {...props} />
@@ -176,7 +179,7 @@ export default function PagesPage() {
       <PageHeader icon={FileText} title={t("title")} description={t("description")} />
       <PageToolbar
         left={
-          <div className="flex items-center border rounded-md" role="group" aria-label={t("viewModeLabel")}>
+          <Flex align="center" className="border rounded-md" role="group" aria-label={t("viewModeLabel")}>
             <Button
               size="sm"
               variant={viewMode === "grid" ? "secondary" : "ghost"}
@@ -197,10 +200,10 @@ export default function PagesPage() {
             >
               <List className="h-4 w-4" />
             </Button>
-          </div>
+          </Flex>
         }
         right={
-          <div className="flex items-center gap-2">
+          <Flex align="center" gap="2">
             <Button variant="brand" size="sm" onClick={handleCreateNew} className="h-9 sm:h-8 px-3 text-xs btn-lift">
               <Plus className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
               {t("newPage")}
@@ -214,11 +217,11 @@ export default function PagesPage() {
               <Download className="h-4 w-4 sm:h-3 sm:w-3 mr-1" />
               {t("importPage")}
             </Button>
-          </div>
+          </Flex>
         }
       />
 
-      <div className="animate-card-fade-in" style={{ animationDelay: "150ms" }}>
+      <Box className="animate-card-fade-in" style={{ animationDelay: "150ms" }}>
         {hasMultipleDevices ? (
           <Tabs value={activeTab ?? availableDevices[0]} onValueChange={(v) => setActiveTab(v as DeviceType)}>
             <TabsList className="mb-5">
@@ -271,7 +274,7 @@ export default function PagesPage() {
             viewMode={viewMode}
           />
         )}
-      </div>
+      </Box>
       <ImportPageDialog open={importOpen} onOpenChange={setImportOpen} />
     </PageLayout>
   );

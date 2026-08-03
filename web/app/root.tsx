@@ -14,7 +14,7 @@
  */
 import "./globals.css";
 
-import { PageIconGradientDefs } from "@fiestaboard/ui";
+import { Box, PageIconGradientDefs } from "@fiestaboard/ui";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
@@ -195,5 +195,5 @@ function RootBody() {
  * is just the visible body content.
  */
 export function HydrateFallback() {
-  return <div style={{ minHeight: "100vh" }} />;
+  return <Box style={{ minHeight: "100vh" }} />;
 }
