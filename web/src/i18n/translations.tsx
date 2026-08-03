@@ -4,7 +4,7 @@
  * Exposes the shape the codebase has been using for ~2 years:
  *   const t = useTranslations("namespace");
  *   t("key", {count: 3});            // ICU plural via inline regex
- *   t.rich("key", { strong: (c) => <strong>{c}</strong> });
+ *   t.rich("key", { strong: (c) => <Text as="span" weight="semibold">{c}</Text> });
  *   t.raw("key");                    // raw object / array / string
  *
  * react-i18next's `t` returns the resolved string for plain keys; we

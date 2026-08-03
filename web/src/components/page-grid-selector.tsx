@@ -2,15 +2,20 @@
 
 import {
   Badge,
+  Box,
   Button,
   Card,
   CardContent,
   EmptyState,
+  Flex,
+  Grid,
   Skeleton,
+  Stack,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  Text,
 } from "@fiestaboard/ui";
 import { Clock, FilePlus, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -129,14 +134,14 @@ const PageButtonPreview = memo(
 
     if (isLoading && !preview) {
       return (
-        <div ref={ref} className="w-full py-4" role="status" aria-label={t("loadingPreviewAriaLabel")}>
+        <Box ref={ref} className="w-full py-4" role="status" aria-label={t("loadingPreviewAriaLabel")}>
           <Skeleton className="h-20 w-full rounded-md" />
-        </div>
+        </Box>
       );
     }
 
     return (
-      <div
+      <Box
         ref={ref}
         className="w-full hover-stable overflow-hidden -mr-3"
         style={{
@@ -152,9 +157,9 @@ const PageButtonPreview = memo(
             deviceType={deviceType}
           />
         ) : (
-          <div className="w-full" style={{ height: deviceType === "note" ? 90 : 168 }} />
+          <Box className="w-full" style={{ height: deviceType === "note" ? 90 : 168 }} />
         )}
-      </div>
+      </Box>
     );
   },
   (prevProps, nextProps) => {
@@ -221,28 +226,30 @@ const PageButton = memo(
         type="button"
         aria-pressed={isActive}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <Flex align="center" gap="2.5" className="min-w-0">
           <TypeIcon className={iconClassName} aria-hidden="true" />
-          <span className={nameClassName}>{page.name}</span>
+          <Text as="span" className={nameClassName}>
+            {page.name}
+          </Text>
           <BoardSizeIndicator
             deviceType={page.device_type || "flagship"}
             notesWide={page.notes_wide}
             notesTall={page.notes_tall}
             className="ml-auto shrink-0"
           />
-        </div>
+        </Flex>
 
-        <div className="hover-stable">
+        <Box className="hover-stable">
           <PageButtonPreview
             preview={preview}
             isLoading={isLoadingPreview}
             boardType={boardType}
             deviceType={(page.device_type as DeviceType) || "flagship"}
           />
-        </div>
+        </Box>
 
         {showActiveIndicator && isActive && (
-          <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand rounded-full" />
+          <Box className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand rounded-full" />
         )}
       </button>
     );
@@ -318,7 +325,9 @@ const PageListItem = memo(
         aria-pressed={isActive}
       >
         <LayoutTemplate className={iconClassName} aria-hidden="true" />
-        <span className={nameClassName}>{page.name}</span>
+        <Text as="span" className={nameClassName}>
+          {page.name}
+        </Text>
         <BoardSizeIndicator
           deviceType={page.device_type || "flagship"}
           notesWide={page.notes_wide}
@@ -326,10 +335,10 @@ const PageListItem = memo(
           className="ml-auto shrink-0"
         />
         {formattedDate && (
-          <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+          <Text as="span" size="xs" tone="muted" className="ml-auto flex items-center gap-1 shrink-0">
             <Clock className="h-3 w-3" aria-hidden="true" />
             {formattedDate}
-          </span>
+          </Text>
         )}
       </button>
     );
@@ -407,28 +416,30 @@ const CollectionButton = memo(
         type="button"
         aria-pressed={isActive}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <Flex align="center" gap="2.5" className="min-w-0">
           <GalleryHorizontalEnd className={iconClassName} aria-hidden="true" />
-          <span className={nameClassName}>{collection.name}</span>
+          <Text as="span" className={nameClassName}>
+            {collection.name}
+          </Text>
           <Badge variant="secondary" className="text-[10px] ml-auto flex-shrink-0">
             {tCommon("pageCount", { count: collection.page_ids.length })}
           </Badge>
-        </div>
+        </Flex>
 
         {/* Cascading stack of board previews */}
-        <div className="relative h-[160px] w-full overflow-hidden hover-stable">
+        <Box className="relative h-[160px] w-full overflow-hidden hover-stable">
           {loadingPreviews && stackPages.every((sp) => !sp.preview) ? (
-            <div className="flex gap-2 items-end h-full p-2" role="status" aria-label={t("loadingPreviewsAriaLabel")}>
+            <Flex gap="2" align="end" className="h-full p-2" role="status" aria-label={t("loadingPreviewsAriaLabel")}>
               <Skeleton className="h-24 flex-1 max-w-[80px] rounded-md" />
               <Skeleton className="h-28 flex-1 max-w-[80px] rounded-md" />
               <Skeleton className="h-24 flex-1 max-w-[80px] rounded-md" />
-            </div>
+            </Flex>
           ) : (
-            <div className="absolute inset-0">
+            <Box className="absolute inset-0">
               {stackPages.map(({ pageId, page, preview }, idx) => {
                 const deviceType = (page?.device_type as DeviceType) || "flagship";
                 return (
-                  <div
+                  <Box
                     key={pageId}
                     className="absolute"
                     style={{
@@ -447,15 +458,15 @@ const CollectionButton = memo(
                       boardType={boardType ?? "black"}
                       deviceType={deviceType}
                     />
-                  </div>
+                  </Box>
                 );
               })}
-            </div>
+            </Box>
           )}
-        </div>
+        </Box>
 
         {showActiveIndicator && isActive && (
-          <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand rounded-full" />
+          <Box className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand rounded-full" />
         )}
       </button>
     );
@@ -626,26 +637,28 @@ export function PageGridSelector({
 
   if (isLoadingPages) {
     return (
-      <div aria-busy="true">
+      <Box aria-busy="true">
         {effectiveLabel && (
-          <span className="text-xs font-medium text-muted-foreground mb-3 block">{effectiveLabel}</span>
+          <Text as="span" size="xs" weight="medium" tone="muted" className="mb-3 block">
+            {effectiveLabel}
+          </Text>
         )}
         {viewMode === "list" ? (
-          <div className="flex flex-col gap-3">
+          <Stack gap="3">
             <Skeleton className="h-14 w-full rounded-lg" />
             <Skeleton className="h-14 w-full rounded-lg" />
             <Skeleton className="h-14 w-full rounded-lg" />
             <Skeleton className="h-14 w-full rounded-lg" />
-          </div>
+          </Stack>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Grid cols="1" gap="4" className="sm:grid-cols-2">
             <Skeleton className="h-40 w-full rounded-lg" />
             <Skeleton className="h-40 w-full rounded-lg" />
             <Skeleton className="h-40 w-full rounded-lg" />
             <Skeleton className="h-40 w-full rounded-lg" />
-          </div>
+          </Grid>
         )}
-      </div>
+      </Box>
     );
   }
 
@@ -716,7 +729,7 @@ export function PageGridSelector({
 
   const pagesContent =
     viewMode === "list" ? (
-      <div className="flex flex-col gap-3" role="group" aria-label={t("pagesAriaLabel")}>
+      <Stack gap="3" role="group" aria-label={t("pagesAriaLabel")}>
         {pages.map((page) => (
           <PageListItem
             key={page.id}
@@ -726,9 +739,9 @@ export function PageGridSelector({
             onSelect={onSelectPage}
           />
         ))}
-      </div>
+      </Stack>
     ) : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label={t("pagesAriaLabel")}>
+      <Grid cols="1" gap="4" className="sm:grid-cols-2" role="group" aria-label={t("pagesAriaLabel")}>
         {pages.map((page) => (
           <PageButton
             key={page.id}
@@ -742,11 +755,11 @@ export function PageGridSelector({
             boardType={getEffectiveBoardColor(boardSettings)}
           />
         ))}
-      </div>
+      </Grid>
     );
 
   const collectionsGrid = (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="group" aria-label={t("collectionsAriaLabel")}>
+    <Grid cols="1" gap="4" className="sm:grid-cols-2" role="group" aria-label={t("collectionsAriaLabel")}>
       {collections.map((collection) => (
         <CollectionButton
           key={collection.id}
@@ -761,20 +774,24 @@ export function PageGridSelector({
           boardType={getEffectiveBoardColor(boardSettings)}
         />
       ))}
-    </div>
+    </Grid>
   );
 
   if (!showCollectionItems) {
     return (
-      <div>
-        {effectiveLabel && <p className="text-xs font-medium text-muted-foreground mb-3">{effectiveLabel}</p>}
+      <Box>
+        {effectiveLabel && (
+          <Text size="xs" weight="medium" tone="muted" className="mb-3">
+            {effectiveLabel}
+          </Text>
+        )}
         {pagesContent}
-      </div>
+      </Box>
     );
   }
 
   return (
-    <div>
+    <Box>
       <Tabs defaultValue={defaultTab}>
         <TabsList className="w-full">
           <TabsTrigger value="pages" className="flex-1 gap-1.5">
@@ -789,6 +806,6 @@ export function PageGridSelector({
         <TabsContent value="pages">{pagesContent}</TabsContent>
         <TabsContent value="collections">{collectionsGrid}</TabsContent>
       </Tabs>
-    </div>
+    </Box>
   );
 }
