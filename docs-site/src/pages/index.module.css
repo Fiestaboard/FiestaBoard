@@ -82,5 +82,5 @@
    shift when the client-only <HeroBoard> mounts. */
 .heroBoardFallback {
   width: 100%;
-  min-height: 260px;
+  min-height: 332px;
 }

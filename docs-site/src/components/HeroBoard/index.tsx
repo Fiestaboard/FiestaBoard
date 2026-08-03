@@ -1,77 +1,82 @@
-import { StaticBoardDisplay } from "@fiestaboard/ui";
+import { ScaledBoardDisplay } from "@fiestaboard/ui";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import styles from "./styles.module.css";
+
 /**
- * Animated split-flap hero board.
+ * Animated multi-device hero board.
  *
- * Cycles through three messages every 7s. On each change every character
- * scrambles through random glyphs and locks to its final value on a staggered
- * per-cell frame, producing a left-to-right / top-to-bottom flap-in (~1.5s).
- * Ported from FiestaboardSite.dc.html. Respects `prefers-reduced-motion` by
- * swapping the message directly with no scramble.
+ * Cycles through the three Vestaboard hardware families FiestaBoard supports —
+ * Flagship (22×6), Note (15×3), and a Note Array (2×1) — cross-fading between
+ * them and flapping each message in with the design system's native board
+ * animation. `ScaledBoardDisplay` fit-scales each device uniformly, so nothing
+ * is distorted (the previous single Flagship was squished by the column width).
  *
- * Rendered inside <BrowserOnly> (see src/pages/index.tsx) — the split-flap
- * board and its timers are client-only.
+ * Rendered inside <BrowserOnly> (see src/pages/index.tsx). Respects
+ * `prefers-reduced-motion` by disabling the flap and cross-fade.
  */
-const HERO_MESSAGES = [
-  "FIESTABOARD\n\nTURN YOUR SPLIT-FLAP\nDISPLAY INTO A LIVING\nDASHBOARD",
-  "MUNI N JUDAH   4 MIN\nBART EMBARCADERO 9 M\n\nAAPL 232.10   +1.24%\nOCEAN BEACH 3-4FT AM",
-  "26 PLUGINS\nWEATHER STOCKS SPORT\nTRANSIT SURF DISNEY\n\nRUNS IN DOCKER OR PI",
+type BoardConfig = {
+  deviceType: "flagship" | "note" | "note_array";
+  label: string;
+  message: string;
+  notesWide?: number;
+  notesTall?: number;
+};
+
+const BOARDS: BoardConfig[] = [
+  {
+    deviceType: "flagship",
+    label: "Flagship · 22 × 6",
+    message:
+      "GOOD MORNING SF\n62F CLEAR   UV 4\nN JUDAH OB   4 MIN\nAAPL 232.10 {green}+1.24%{/green}\nOCEAN BEACH 3-4 FT\nHAVE A GREAT DAY",
+  },
+  {
+    deviceType: "note",
+    label: "Note · 15 × 3",
+    message: "N JUDAH  4 MIN\nAAPL 232 {green}+1.2%{/green}\n62F SUNNY   SF",
+  },
+  {
+    deviceType: "note_array",
+    label: "Note Array · 2 × 1",
+    notesWide: 2,
+    notesTall: 1,
+    message:
+      "MUNI N JUDAH 4MIN   BART  9 MIN\nAAPL 232 {green}+1.2%{/green}  NVDA 121 {red}-0.9%{/red}\nOCEAN BEACH 3-4FT   UV INDEX 4",
+  },
 ];
-const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .-:%";
+
+const ROTATE_MS = 5000;
 
 export default function HeroBoard(): ReactNode {
-  const [display, setDisplay] = useState(HERO_MESSAGES[0]);
-  const indexRef = useRef(0);
-  const flipRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const cycleRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const [index, setIndex] = useState(0);
+  const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const [animate, setAnimate] = useState(true);
 
   useEffect(() => {
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-
-    const flipTo = (target: string) => {
-      if (reduceMotion) {
-        setDisplay(target);
-        return;
-      }
-      clearInterval(flipRef.current);
-      const rows = target.split("\n");
-      const settleAt = rows.map((row, ri) =>
-        Array.from(row).map((_, ci) => 4 + ci * 0.8 + ri * 1.6 + Math.random() * 7),
-      );
-      let frame = 0;
-      flipRef.current = setInterval(() => {
-        frame += 1;
-        let done = true;
-        const out = rows
-          .map((row, ri) =>
-            Array.from(row)
-              .map((char, ci) => {
-                if (frame >= settleAt[ri][ci]) return char;
-                done = false;
-                return SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
-              })
-              .join(""),
-          )
-          .join("\n");
-        setDisplay(out);
-        if (done) {
-          clearInterval(flipRef.current);
-          setDisplay(target);
-        }
-      }, 45);
-    };
-
-    cycleRef.current = setInterval(() => {
-      indexRef.current = (indexRef.current + 1) % HERO_MESSAGES.length;
-      flipTo(HERO_MESSAGES[indexRef.current]);
-    }, 7000);
-
-    return () => {
-      clearInterval(flipRef.current);
-      clearInterval(cycleRef.current);
-    };
+    setAnimate(!reduceMotion);
+    timer.current = setInterval(() => {
+      setIndex((i) => (i + 1) % BOARDS.length);
+    }, ROTATE_MS);
+    return () => clearInterval(timer.current);
   }, []);
 
-  return <StaticBoardDisplay message={display} size="md" />;
+  const board = BOARDS[index];
+
+  return (
+    <div className={styles.stage}>
+      {/* key remounts on change so the flap + fade-in replay for each device */}
+      <div key={index} className={animate ? styles.frame : styles.frameStatic}>
+        <ScaledBoardDisplay
+          message={board.message}
+          deviceType={board.deviceType}
+          notesWide={board.notesWide}
+          notesTall={board.notesTall}
+          size="md"
+          animationsEnabled={animate}
+        />
+      </div>
+      <div className={styles.caption}>{board.label}</div>
+    </div>
+  );
 }

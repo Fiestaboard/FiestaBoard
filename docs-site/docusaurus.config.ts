@@ -378,13 +378,17 @@ const config: Config = {
           position: "left",
         },
         {
-          type: "docsVersionDropdown",
-          position: "left",
-        },
-        {
           href: "https://hub.docker.com/r/fiestaboard/fiestaboard",
           label: "Docker Hub",
           position: "right",
+        },
+        {
+          // Tucked on the right (not the primary left nav) so it stays discrete
+          // — we want visitors on the latest version. Only surfaces older
+          // versions for the rare user who lands on one.
+          type: "docsVersionDropdown",
+          position: "right",
+          dropdownActiveClassDisabled: true,
         },
         {
           href: "https://discord.gg/JvN8y6ahaf",
