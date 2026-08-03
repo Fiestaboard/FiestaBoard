@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  Box,
   Button,
   Card,
   CardContent,
@@ -22,6 +23,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  Flex,
   ScrollArea,
   Select,
   SelectContent,
@@ -29,7 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Stack,
   Switch,
+  Text,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -1407,12 +1411,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   return (
     <>
-      <div className="flex-1 min-h-0 w-full max-w-full overflow-x-hidden">
+      <Box className="flex-1 min-h-0 w-full max-w-full overflow-x-hidden">
         {/* Main Editor */}
         <Card className="flex flex-col min-h-0 w-full max-w-full overflow-x-hidden">
           <CardHeader className="pb-1 flex-shrink-0 px-4 sm:px-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
+            <Flex align="center" justify="between">
+              <Flex align="center" gap="2" className="min-w-0">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1425,7 +1429,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 <CardTitle className="text-base sm:text-lg truncate">
                   {pageId ? t("editPage") : t("createPage")}
                 </CardTitle>
-              </div>
+              </Flex>
               {/* `skipDelayDuration={0}` disables Radix's "skip the
                *  hover delay when moving between tooltips" behavior.
                *  Without it, clicking the AI toggle and triggering a
@@ -1435,7 +1439,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                *  time to settle on the new layout before any new
                *  tooltip pops. */}
               <TooltipProvider skipDelayDuration={0}>
-                <div className="flex items-center gap-1.5">
+                <Flex align="center" gap="1.5">
                   {/* Delete button - only show when editing */}
                   {pageId && (
                     <AlertDialog>
@@ -1453,7 +1457,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           </AlertDialogTrigger>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{t("deletePageTooltip")}</p>
+                          <Text>{t("deletePageTooltip")}</Text>
                         </TooltipContent>
                       </Tooltip>
                       <AlertDialogContent>
@@ -1483,7 +1487,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       <Button
                         variant="brand"
                         size="sm"
-                        className="h-8 gap-1.5 px-3"
+                        className="h-8 gap-1.5 px-3 text-xs"
                         onClick={() => {
                           // A shrinking retarget loses content — confirm first.
                           if (isShrinkingRetarget) {
@@ -1496,11 +1500,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         aria-label={t("savePageAriaLabel")}
                       >
                         <Save className="h-3.5 w-3.5" />
-                        <span className="text-xs">{saveMutation.isPending ? tCommon("saving") : t("savePage")}</span>
+                        {saveMutation.isPending ? tCommon("saving") : t("savePage")}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{t("savePageTooltip")}</p>
+                      <Text>{t("savePageTooltip")}</Text>
                     </TooltipContent>
                   </Tooltip>
                   {/* Export button — only on existing pages */}
@@ -1510,7 +1514,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         <Button
                           variant="secondary"
                           size="sm"
-                          className="h-8 gap-1.5 px-3"
+                          className="h-8 gap-1.5 px-3 text-xs"
                           disabled={hasUnsavedChanges}
                           onClick={async () => {
                             try {
@@ -1525,17 +1529,17 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           aria-label={t("exportPageAriaLabel")}
                         >
                           <Upload className="h-3.5 w-3.5" />
-                          <span className="text-xs">{t("exportPage")}</span>
+                          {t("exportPage")}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{hasUnsavedChanges ? t("exportDisabledTooltip") : t("exportPageTooltip")}</p>
+                        <Text>{hasUnsavedChanges ? t("exportDisabledTooltip") : t("exportPageTooltip")}</Text>
                       </TooltipContent>
                     </Tooltip>
                   )}
-                </div>
+                </Flex>
               </TooltipProvider>
-            </div>
+            </Flex>
           </CardHeader>
 
           <CardContent className="flex flex-col flex-1 min-h-0 px-3 sm:px-4 md:px-6 pt-2">
@@ -1548,7 +1552,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               )}
 
               {/* Page name */}
-              <div className="space-y-1.5">
+              <Stack gap="1.5">
                 <label htmlFor="page-name" className="text-xs sm:text-sm font-medium">
                   {t("pageNameLabel")}
                 </label>
@@ -1560,17 +1564,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                   placeholder={t("pageNamePlaceholder")}
                   className="w-full h-10 sm:h-9 px-3 text-sm rounded-md border bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
-              </div>
+              </Stack>
 
               {/* Template line editors */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
+              <Stack gap="3">
+                <Flex align="center" justify="between">
                   <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
-                  <div
-                    className="flex items-center border rounded-md overflow-hidden"
-                    role="group"
-                    aria-label={t("editorModeAriaLabel")}
-                  >
+                  <Flex align="center" role="group" aria-label={t("editorModeAriaLabel")} className="border rounded-md overflow-hidden">
                     <Button
                       size="sm"
                       variant="ghost"
@@ -1591,10 +1591,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                     >
                       {t("plainEditor")}
                     </Button>
-                  </div>
-                </div>
+                  </Flex>
+                </Flex>
                 {editorMode === "rich" ? (
-                  <div>
+                  <Box>
                     {/* Template editor with device-specific dimensions */}
                     <TipTapTemplateEditor
                       ref={tipTapRef}
@@ -1680,9 +1680,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       onDrawBrushChange={setDrawBrush}
                       onDrawHistoryEvent={handleDrawHistoryEvent}
                     />
-                  </div>
+                  </Box>
                 ) : (
-                  <div>
+                  <Box>
                     <PlainTextEditor
                       value={templateLines.join("\n")}
                       onChange={(newValue) => {
@@ -1692,32 +1692,46 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       boardLines={numLines}
                       boardWidth={dims.cols}
                     />
-                  </div>
+                  </Box>
                 )}
 
                 {/* Line count validation warning */}
                 {lineCount > numLines && (
-                  <div className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning">
-                    <span className="font-medium shrink-0">{t("warningLabel")}</span>
-                    <span>{t("lineCountWarning", { lineCount, maxLines: numLines })}</span>
-                  </div>
+                  <Flex
+                    align="start"
+                    gap="2"
+                    className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                  >
+                    <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
+                      {t("warningLabel")}
+                    </Text>
+                    <Text as="span" size="xs" tone="warning">
+                      {t("lineCountWarning", { lineCount, maxLines: numLines })}
+                    </Text>
+                  </Flex>
                 )}
 
                 {/* Wrap budget warnings */}
                 {wrapBudgetWarnings.map((lineNumber) => (
-                  <div
+                  <Flex
                     key={`wrap-budget-${lineNumber}`}
-                    className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
+                    align="start"
+                    gap="2"
+                    className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning"
                   >
-                    <span className="font-medium shrink-0">{t("warningLabel")}</span>
-                    <span>{t("wrapBudgetWarning", { lineNumber })}</span>
-                  </div>
+                    <Text as="span" size="xs" weight="medium" tone="warning" className="shrink-0">
+                      {t("warningLabel")}
+                    </Text>
+                    <Text as="span" size="xs" tone="warning">
+                      {t("wrapBudgetWarning", { lineNumber })}
+                    </Text>
+                  </Flex>
                 ))}
 
                 {/* Live preview */}
-                <div className="mt-4">
-                  <div className="flex flex-wrap items-center justify-between gap-y-1 mb-2">
-                    <div className="flex items-center gap-2">
+                <Box className="mt-4">
+                  <Flex align="center" justify="between" className="flex-wrap gap-y-1 mb-2">
+                    <Flex align="center" gap="2">
                       <label className="text-xs sm:text-sm font-medium">{t("previewLabel")}</label>
                       <BoardSizeIndicator
                         deviceType={deviceType}
@@ -1788,9 +1802,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           </Select>
                         </>
                       )}
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-[10px] text-muted-foreground mr-0.5">{t("boardColorLabel")}</span>
+                    </Flex>
+                    <Flex align="center" gap="1.5" className="shrink-0">
+                      <Text as="span" size="xs" tone="muted" className="mr-0.5">
+                        {t("boardColorLabel")}
+                      </Text>
                       <button
                         onClick={() => setPreviewBoardColor("black")}
                         aria-label={t("previewAsBlack")}
@@ -1811,9 +1827,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             : "border-border hover:border-muted-foreground"
                         }`}
                       />
-                    </div>
-                  </div>
-                  <div className="flex justify-center">
+                    </Flex>
+                  </Flex>
+                  <Flex justify="center">
                     <DrawableBoardPreview
                       active={drawMode}
                       onStrokePreview={setStrokePreviewCells}
@@ -1867,12 +1883,16 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         emitCellMetadata
                       />
                     </DrawableBoardPreview>
-                  </div>
-                  {drawMode && <p className="mt-1 text-center text-xs text-muted-foreground">{t("drawModeHint")}</p>}
+                  </Flex>
+                  {drawMode && (
+                    <Text tone="muted" size="xs" className="mt-1 text-center">
+                      {t("drawModeHint")}
+                    </Text>
+                  )}
 
                   {/* Live output controls */}
-                  <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
-                    <div className="flex items-center gap-2">
+                  <Flex align="center" justify="between" gap="3" className="mt-3 rounded-lg border px-3 py-2">
+                    <Flex align="center" gap="2">
                       <Switch
                         id="live-output-toggle"
                         checked={liveOutputEnabled}
@@ -1889,9 +1909,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         {t("liveOutput")}
                       </label>
                       {liveSendMutation.isPending && (
-                        <span className="text-[10px] text-muted-foreground">{tCommon("sending")}</span>
+                        <Text as="span" size="xs" tone="muted">
+                          {tCommon("sending")}
+                        </Text>
                       )}
-                    </div>
+                    </Flex>
 
                     {boardSettings?.boards && boardSettings.boards.length > 1 && (
                       <Select value={selectedBoardId} onValueChange={setSelectedBoardId}>
@@ -1907,13 +1929,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         </SelectContent>
                       </Select>
                     )}
-                  </div>
-                </div>
-              </div>
+                  </Flex>
+                </Box>
+              </Stack>
             </ScrollArea>
           </CardContent>
         </Card>
-      </div>
+      </Box>
 
       {/* Export dialog */}
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
@@ -1922,7 +1944,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             <DialogTitle>{t("exportDialogTitle")}</DialogTitle>
             <DialogDescription>{t("exportDialogDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="relative">
+          <Box className="relative">
             <textarea
               readOnly
               value={exportShareString}
@@ -1941,7 +1963,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             >
               {exportCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
             </button>
-          </div>
+          </Box>
         </DialogContent>
       </Dialog>
 

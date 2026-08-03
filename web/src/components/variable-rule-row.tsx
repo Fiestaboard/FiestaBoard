@@ -1,6 +1,18 @@
 "use client";
 
-import { Badge, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@fiestaboard/ui";
+import {
+  Badge,
+  Box,
+  Button,
+  Flex,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Stack,
+  Text,
+} from "@fiestaboard/ui";
 import { AlertCircle, Check, GripVertical, HelpCircle, Pencil, Sparkles, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -101,7 +113,7 @@ export function VariableRuleRow({
   };
 
   return (
-    <div
+    <Box
       draggable={!isEditing}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -115,11 +127,11 @@ export function VariableRuleRow({
     >
       {isEditing ? (
         <>
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-muted-foreground">
+          <Flex align="center" justify="between" gap="2">
+            <Flex align="center" gap="1">
+              <Text as="span" size="xs" tone="muted">
                 {t("variableRuleEditingLabel", { index: index + 1 })}
-              </span>
+              </Text>
               <Button
                 type="button"
                 variant="ghost"
@@ -131,8 +143,8 @@ export function VariableRuleRow({
               >
                 <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
               </Button>
-            </div>
-            <div className="flex items-center gap-1">
+            </Flex>
+            <Flex align="center" gap="1">
               <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onCancelEdit}>
                 <X className="h-3.5 w-3.5 mr-1" />
                 {t("variableRuleCancel")}
@@ -148,25 +160,31 @@ export function VariableRuleRow({
                 <Check className="h-3.5 w-3.5 mr-1" />
                 {t("variableRuleSave")}
               </Button>
-            </div>
-          </div>
+            </Flex>
+          </Flex>
           {helpOpen && (
-            <div className="rounded-md border border-dashed bg-muted/40 p-2.5 space-y-2 text-xs">
-              <div>
-                <div className="font-medium mb-1">{t("variableRuleHelpOperatorsTitle")}</div>
-                <div className="text-muted-foreground font-mono">
+            <Stack gap="2" className="rounded-md border border-dashed bg-muted/40 p-2.5 text-xs">
+              <Box>
+                <Text size="xs" weight="medium" className="mb-1">
+                  {t("variableRuleHelpOperatorsTitle")}
+                </Text>
+                <Text size="xs" tone="muted" className="font-mono">
                   ==, =, !=, &lt;&gt;, &lt;, &gt;, &lt;=, &gt;= · AND OR NOT (or &amp;&amp; || !) · + - * / %
-                </div>
-              </div>
-              <div>
-                <div className="font-medium mb-1">{t("variableRuleHelpFunctionsTitle")}</div>
-                <div className="text-muted-foreground font-mono">
+                </Text>
+              </Box>
+              <Box>
+                <Text size="xs" weight="medium" className="mb-1">
+                  {t("variableRuleHelpFunctionsTitle")}
+                </Text>
+                <Text size="xs" tone="muted" className="font-mono">
                   IF(cond, then, else) · AND(a, b) · OR(a, b) · CONTAINS(s, sub) · STARTSWITH · LEN · UPPER · LOWER
-                </div>
-              </div>
-              <div>
-                <div className="font-medium mb-1">{t("variableRuleHelpExamplesTitle")}</div>
-                <div className="flex flex-wrap gap-1.5">
+                </Text>
+              </Box>
+              <Box>
+                <Text size="xs" weight="medium" className="mb-1">
+                  {t("variableRuleHelpExamplesTitle")}
+                </Text>
+                <Flex gap="1.5" className="flex-wrap">
                   {EXAMPLE_EXPRESSIONS.map((ex) => (
                     <button
                       type="button"
@@ -177,9 +195,9 @@ export function VariableRuleRow({
                       {ex}
                     </button>
                   ))}
-                </div>
-              </div>
-            </div>
+                </Flex>
+              </Box>
+            </Stack>
           )}
           <VariableAutocompleteTextarea
             value={draft.expression}
@@ -189,9 +207,11 @@ export function VariableRuleRow({
             ariaLabel={t("variableExpressionAriaLabel", { index: index + 1 })}
           />
           {lintFindings.map((f) => (
-            <div key={f.kind} className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+            <Flex key={f.kind} align="start" gap="1.5" className="text-xs text-amber-600 dark:text-amber-400">
               <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-              <span className="flex-1">{f.message}</span>
+              <Text as="span" size="xs" className="flex-1 text-amber-600 dark:text-amber-400">
+                {f.message}
+              </Text>
               {f.autoFix && (
                 <Button
                   type="button"
@@ -204,13 +224,15 @@ export function VariableRuleRow({
                   {t("variableRuleApplyFix")}
                 </Button>
               )}
-            </div>
+            </Flex>
           ))}
           {hasUnknownVars && (
-            <div className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+            <Flex align="start" gap="1.5" className="text-xs text-amber-600 dark:text-amber-400">
               <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-              <span>{t("variableRuleUnknownVars", { vars: unknownVars.slice(0, 3).join(", ") })}</span>
-            </div>
+              <Text as="span" size="xs" className="text-amber-600 dark:text-amber-400">
+                {t("variableRuleUnknownVars", { vars: unknownVars.slice(0, 3).join(", ") })}
+              </Text>
+            </Flex>
           )}
           <Select value={draft.page_id} onValueChange={(v) => setDraft((d) => ({ ...d, page_id: v }))}>
             <SelectTrigger>
@@ -226,17 +248,19 @@ export function VariableRuleRow({
           </Select>
         </>
       ) : (
-        <div className="flex items-center gap-2">
+        <Flex align="center" gap="2">
           <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden />
           <Badge variant="outline" className="text-xs tabular-nums flex-shrink-0">
             {index + 1}
           </Badge>
-          <div className="flex-1 min-w-0">
-            <div className="font-mono text-xs truncate">{summaryExpression}</div>
-            <div className="text-xs text-muted-foreground truncate">
+          <Box className="flex-1 min-w-0">
+            <Text size="xs" className="font-mono truncate">
+              {summaryExpression}
+            </Text>
+            <Text size="xs" tone="muted" className="truncate">
               {t("variableRuleSummaryArrow", { target: summaryTarget })}
-            </div>
-          </div>
+            </Text>
+          </Box>
           <Button
             type="button"
             variant="ghost"
@@ -257,8 +281,8 @@ export function VariableRuleRow({
           >
             <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
-        </div>
+        </Flex>
       )}
-    </div>
+    </Box>
   );
 }
