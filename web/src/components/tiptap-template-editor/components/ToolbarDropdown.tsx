@@ -3,7 +3,7 @@
  */
 "use client";
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Box, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -32,8 +32,8 @@ export function ToolbarDropdown({
   "data-testid": dataTestId,
 }: ToolbarDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const [panelShift, setPanelShift] = useState(0);
 
   // The panel is plain `absolute top-full left-0` with no collision handling,
@@ -110,7 +110,7 @@ export function ToolbarDropdown({
 
   return (
     <TooltipProvider>
-      <div ref={dropdownRef} className="relative">
+      <Box ref={dropdownRef} className="relative">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -133,28 +133,36 @@ export function ToolbarDropdown({
               aria-haspopup="true"
               aria-label={label || "Menu"}
             >
-              {icon && <span className="w-4 h-4">{icon}</span>}
-              {label && <span className="sr-only">{label}</span>}
+              {icon && (
+                <Text as="span" className="w-4 h-4">
+                  {icon}
+                </Text>
+              )}
+              {label && (
+                <Text as="span" className="sr-only">
+                  {label}
+                </Text>
+              )}
             </button>
           </TooltipTrigger>
           {label && (
             <TooltipContent>
-              <p>{label}</p>
+              <Text>{label}</Text>
             </TooltipContent>
           )}
         </Tooltip>
 
         {isOpen && (
-          <div
+          <Box
             ref={panelRef}
             data-testid="toolbar-dropdown-panel"
             className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-md shadow-lg max-w-[calc(100vw-16px)] overflow-x-auto"
             style={{ transform: panelShift ? `translateX(${panelShift}px)` : undefined }}
           >
             {typeof children === "function" ? children(handleClose) : children}
-          </div>
+          </Box>
         )}
-      </div>
+      </Box>
     </TooltipProvider>
   );
 }

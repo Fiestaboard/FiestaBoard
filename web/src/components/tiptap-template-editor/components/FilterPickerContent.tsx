@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { Badge } from "@fiestaboard/ui";
+import { Badge, Box, Flex, Stack, Text } from "@fiestaboard/ui";
 import type { Editor } from "@tiptap/react";
 import { AlertCircle } from "lucide-react";
 
@@ -20,7 +20,11 @@ interface FilterPickerContentProps {
 export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerContentProps) {
   const t = useTranslations("filterPicker");
   if (filters.length === 0) {
-    return <div className="p-3 text-sm text-muted-foreground">{t("noFiltersAvailable")}</div>;
+    return (
+      <Text tone="muted" className="p-3">
+        {t("noFiltersAvailable")}
+      </Text>
+    );
   }
 
   const handleFilterClick = (filterName: string) => {
@@ -157,14 +161,16 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
     : false;
 
   return (
-    <div className="p-2 min-w-[250px]">
+    <Box className="p-2 min-w-[250px]">
       {!hasVariableSelected && editor && (
-        <div className="mb-2 p-2 bg-muted/50 rounded-md text-xs text-muted-foreground flex items-start gap-2">
+        <Flex align="start" gap="2" className="mb-2 p-2 bg-muted/50 rounded-md text-xs text-muted-foreground">
           <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-          <span>{t("selectVariableFirst")}</span>
-        </div>
+          <Text as="span" size="xs" tone="muted">
+            {t("selectVariableFirst")}
+          </Text>
+        </Flex>
       )}
-      <div className="space-y-2">
+      <Stack gap="2">
         {filters.map((filter) => {
           const filterName = filter.split(":")[0];
           return (
@@ -181,21 +187,26 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
               <Badge variant="secondary" className="font-mono text-xs">
                 |{filter}
               </Badge>
-              <span className="text-xs text-muted-foreground">
+              <Text as="span" size="xs" tone="muted">
                 {filterName === "wrap" && t("filterDescWrap")}
                 {filterName === "pad" && t("filterDescPad")}
                 {filterName === "truncate" && t("filterDescTruncate")}
-              </span>
+              </Text>
             </button>
           );
         })}
-      </div>
-      <div className="mt-3 pt-3 border-t text-xs text-muted-foreground space-y-1">
-        <p>Example: {"{{weather.temperature|pad:3}}"}</p>
-        <p className="text-[10px]">
-          <strong>|wrap</strong>: {t("wrapInstruction")}
-        </p>
-      </div>
-    </div>
+      </Stack>
+      <Stack gap="1" className="mt-3 pt-3 border-t text-xs text-muted-foreground">
+        <Text size="xs" tone="muted">
+          Example: {"{{weather.temperature|pad:3}}"}
+        </Text>
+        <Text tone="muted" className="text-[10px]">
+          <Text as="span" weight="semibold" tone="muted" className="text-[10px]">
+            |wrap
+          </Text>
+          : {t("wrapInstruction")}
+        </Text>
+      </Stack>
+    </Box>
   );
 }

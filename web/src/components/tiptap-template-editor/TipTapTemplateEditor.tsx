@@ -31,7 +31,7 @@ import { brushToCell } from "./utils/draw-mode";
 import { parseLineContent, parseTemplateSimple, serializeTemplateSimple } from "./utils/serialization";
 import { buildStrokeTransaction } from "./utils/stroke-transaction";
 export type LineAlignment = "left" | "center" | "right";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Box, Flex, Stack, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 
 import { useTranslations } from "@/i18n/translations";
 
@@ -1216,13 +1216,13 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
 
     if (!editor) {
       return (
-        <div className={cn("min-h-[9rem] border rounded-md p-2 bg-muted/30", className)}>
-          <div className="space-y-1">
+        <Box className={cn("min-h-[9rem] border rounded-md p-2 bg-muted/30", className)}>
+          <Stack gap="1">
             {Array.from({ length: boardLines }).map((_, i) => (
-              <div key={i} className="h-6 bg-background/50 rounded" />
+              <Box key={i} className="h-6 bg-background/50 rounded" />
             ))}
-          </div>
-        </div>
+          </Stack>
+        </Box>
       );
     }
     const currentWrapEnabled =
@@ -1233,7 +1233,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
     const isOverLineLimit = editorLineCount > boardLines;
 
     return (
-      <div className={cn("relative", className)}>
+      <Box className={cn("relative", className)}>
         {/* Toolbar */}
         {showToolbar && (
           <TemplateEditorToolbar
@@ -1260,8 +1260,8 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           mounted) while draw mode is active so applyStroke can keep
           operating on the live ProseMirror doc without the user seeing the
           rich-text view underneath the drawing canvas. */}
-        <div className={cn("flex-1", drawMode && "hidden")}>
-          <div
+        <Box className={cn("flex-1", drawMode && "hidden")}>
+          <Box
             className={cn(
               "border bg-background relative rounded-md",
               showToolbar ? "rounded-t-none" : "",
@@ -1272,9 +1272,9 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
               minHeight: `${boardLines * 1.5 + 1.5}rem`,
             }}
           >
-            <div className="flex gap-2" style={{ minHeight: `${boardLines * 1.5}rem` }}>
+            <Flex gap="2" style={{ minHeight: `${boardLines * 1.5}rem` }}>
               {/* Line numbers gutter */}
-              <div
+              <Box
                 className="select-none shrink-0 text-right"
                 style={{
                   fontSize: "0.75rem",
@@ -1284,7 +1284,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                 aria-hidden="true"
               >
                 {Array.from({ length: Math.max(editorLineCount, boardLines) }, (_, i) => (
-                  <div
+                  <Box
                     key={i}
                     style={{
                       height: `${lineHeights[i] ?? 24}px`,
@@ -1294,29 +1294,34 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                     }}
                   >
                     {i + 1}
-                  </div>
+                  </Box>
                 ))}
-              </div>
+              </Box>
 
               {/* Editor content */}
-              <div className="relative flex-1 min-w-0">
+              <Box className="relative flex-1 min-w-0">
                 <EditorContent editor={editor} />
-              </div>
-            </div>
-          </div>
+              </Box>
+            </Flex>
+          </Box>
 
           {/* Line counter */}
-          <div className={cn("mt-1 text-xs", isOverLineLimit ? "text-warning font-medium" : "text-muted-foreground")}>
+          <Text
+            size="xs"
+            className={cn("mt-1", isOverLineLimit ? "text-warning font-medium" : "text-muted-foreground")}
+          >
             {editorLineCount} / {boardLines} lines
             {isOverLineLimit && ` — exceeds the ${boardLines}-line board limit`}
-          </div>
+          </Text>
 
           {/* Alignment controls - only show if toolbar is hidden */}
           {!showToolbar && showAlignmentControls && (
             <TooltipProvider>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs text-muted-foreground">{t("alignment")}</span>
-                <div className="flex rounded-md border overflow-hidden">
+              <Flex align="center" gap="2" className="mt-2">
+                <Text as="span" size="xs" tone="muted">
+                  {t("alignment")}
+                </Text>
+                <Flex className="rounded-md border overflow-hidden">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
@@ -1368,14 +1373,16 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                     </TooltipTrigger>
                     <TooltipContent>{t("alignRight")}</TooltipContent>
                   </Tooltip>
-                </div>
+                </Flex>
                 {currentLineIndex !== null && (
-                  <span className="text-xs text-muted-foreground">(Line {currentLineIndex + 1})</span>
+                  <Text as="span" size="xs" tone="muted">
+                    (Line {currentLineIndex + 1})
+                  </Text>
                 )}
-              </div>
+              </Flex>
             </TooltipProvider>
           )}
-        </div>
+        </Box>
 
         {/* Placeholder styling */}
         <style jsx global>{`
@@ -1520,7 +1527,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             border-radius: 3px;
           }
         `}</style>
-      </div>
+      </Box>
     );
   },
 );

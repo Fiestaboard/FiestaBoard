@@ -42,7 +42,10 @@ export function WrappedTextView({ node, deleteNode }: WrappedTextViewProps) {
       {/* Wrap icon */}
       <WrapText className="w-3 h-3 inline-block align-middle" />
 
-      {/* Wrapped text display */}
+      {/* Wrapped text display.
+          Raw <span>: renders inside TipTap's contentEditable atom, inheriting
+          the wrapper's text-warning color, with sub-xs text-[11px] grid
+          geometry. <Text as="span"> would reset both. Kept raw for correctness. */}
       <span className="font-mono text-[11px] inline-block align-middle ml-1">{text}</span>
 
       {/* Delete button */}
