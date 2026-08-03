@@ -5,7 +5,9 @@
  */
 .stage {
   width: 100%;
-  min-height: 300px;
+  /* Tall enough for the tallest board (the narrow 1×2 note array renders at
+     natural height rather than being width-scaled down). */
+  min-height: 360px;
   display: flex;
   flex-direction: column;
   align-items: center;

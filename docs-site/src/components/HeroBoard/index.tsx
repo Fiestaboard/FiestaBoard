@@ -6,13 +6,16 @@ import styles from "./styles.module.css";
 /**
  * Animated multi-device hero board.
  *
- * Cycles through the three Vestaboard hardware families FiestaBoard supports —
- * Flagship (22×6), Note (15×3), and a Note Array (2×1) — and for each one:
+ * Cycles through a mix of the Vestaboard hardware families FiestaBoard supports
+ * — Flagship (22×6), Note (15×3), and Note Arrays in several sizes (wide 2×1,
+ * tall 1×2, big 2×2) — showing both data dashboards and colorful board art. For
+ * each one it:
  *   1. fades the previous board out,
  *   2. swaps to the new device (the grid-size change is hidden by the fade),
- *   3. fades the new board in while its message flaps in — every character
- *      scrambles through random glyphs and settles on a staggered per-cell
- *      frame, left-to-right / top-to-bottom, like a real split-flap board.
+ *   3. fades the new board in while its contents flap in — every cell cycles
+ *      through random values and settles on a staggered per-cell frame,
+ *      left-to-right / top-to-bottom, like a real split-flap board. Text boards
+ *      flap through glyphs; art boards flap through colors.
  *
  * The flap is driven here (not FiestaUI's native board animation, which is
  * wired to the loading state) so it fires reliably on load and every cycle.
@@ -23,6 +26,7 @@ import styles from "./styles.module.css";
  * `prefers-reduced-motion`: no scramble, no fade — the message is set directly.
  */
 type BoardConfig = {
+  kind: "text" | "art";
   deviceType: "flagship" | "note" | "note_array";
   label: string;
   message: string;
@@ -30,52 +34,105 @@ type BoardConfig = {
   notesTall?: number;
 };
 
+const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .-:%";
+const COLORS = ["{red}", "{orange}", "{yellow}", "{green}", "{blue}", "{violet}"];
+const SUNSET = ["{yellow}", "{orange}", "{red}", "{violet}", "{blue}"];
+const RAINBOW = ["{red}", "{orange}", "{yellow}", "{green}", "{blue}", "{violet}"];
+
+/** A block of `cols` color tiles per row, one row per entry in `rowColors`. */
+function verticalGradient(cols: number, rowColors: string[]): string {
+  return rowColors.map((color) => color.repeat(cols)).join("\n");
+}
+
+/** A diagonal gradient across `palette`, blended from top-left to bottom-right. */
+function diagonalGradient(rows: number, cols: number, palette: string[]): string {
+  const lines: string[] = [];
+  for (let r = 0; r < rows; r++) {
+    let line = "";
+    for (let c = 0; c < cols; c++) {
+      const t = (r / Math.max(1, rows - 1) + c / Math.max(1, cols - 1)) / 2;
+      line += palette[Math.min(palette.length - 1, Math.round(t * (palette.length - 1)))];
+    }
+    lines.push(line);
+  }
+  return lines.join("\n");
+}
+
 const BOARDS: BoardConfig[] = [
   {
+    kind: "text",
     deviceType: "flagship",
     label: "Flagship · 22 × 6",
     message:
       "GOOD MORNING SF\n62F CLEAR   UV 4\nN JUDAH OB   4 MIN\nAAPL 232.10  +1.24%\nOCEAN BEACH 3-4 FT\nHAVE A GREAT DAY",
   },
   {
+    kind: "art",
+    deviceType: "flagship",
+    label: "Sun Art · 22 × 6",
+    message: diagonalGradient(6, 22, SUNSET),
+  },
+  {
+    kind: "text",
     deviceType: "note",
     label: "Note · 15 × 3",
     message: "N JUDAH  4 MIN\nAAPL 232  +1.2%\n62F SUNNY   SF",
   },
   {
+    kind: "text",
     deviceType: "note_array",
-    label: "Note Array · 2 × 1",
     notesWide: 2,
     notesTall: 1,
+    label: "Note Array · 2 × 1",
     message: "MUNI N JUDAH 4MIN   BART  9 MIN\nAAPL 232 +1.2%   NVDA 121 -0.9%\nOCEAN BEACH 3-4FT   UV INDEX 4",
+  },
+  {
+    kind: "art",
+    deviceType: "note_array",
+    notesWide: 1,
+    notesTall: 2,
+    label: "Note Array · 1 × 2 (tall)",
+    message: verticalGradient(15, ["{yellow}", "{orange}", "{orange}", "{red}", "{violet}", "{blue}"]),
+  },
+  {
+    kind: "art",
+    deviceType: "note_array",
+    notesWide: 2,
+    notesTall: 2,
+    label: "Note Array · 2 × 2",
+    message: diagonalGradient(6, 30, RAINBOW),
   },
 ];
 
-const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .-:%";
-const ROTATE_MS = 5200; // time each board is shown
+const ROTATE_MS = 4800; // time each board is shown
 const FADE_MS = 380; // fade-out before swapping devices
 const FRAME_MS = 45; // scramble frame interval
 
 /**
- * Run the split-flap scramble for `target`, calling `onFrame` with each frame.
- * Character (row r, col c) locks to its final value at frame
- * 4 + c*0.8 + r*1.6 + rand(0..7); until then it shows a random glyph. Returns
- * the interval id so the caller can cancel it.
+ * Run the split-flap scramble for a board, calling `onFrame` with each frame.
+ * Cell (row r, col c) locks to its final value at frame
+ * 4 + c*0.8 + r*1.6 + rand(0..7); until then it shows a random value — a glyph
+ * for text boards, a color tile for art boards. Returns the interval id.
  */
-function runScramble(target: string, onFrame: (frame: string) => void): ReturnType<typeof setInterval> {
-  const rows = target.split("\n");
-  const settleAt = rows.map((row, ri) => Array.from(row).map((_, ci) => 4 + ci * 0.8 + ri * 1.6 + Math.random() * 7));
+function runScramble(board: BoardConfig, onFrame: (frame: string) => void): ReturnType<typeof setInterval> {
+  const art = board.kind === "art";
+  // Split each row into cells: color tokens (`{red}`) for art, characters for text.
+  const rows = board.message.split("\n").map((row) => (art ? (row.match(/\{[^}]+\}/g) ?? []) : Array.from(row)));
+  const settleAt = rows.map((cells, ri) => cells.map((_, ci) => 4 + ci * 0.8 + ri * 1.6 + Math.random() * 7));
+  const randomCell = () =>
+    art ? COLORS[Math.floor(Math.random() * COLORS.length)] : GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+
   let frame = 0;
   const render = () => {
     frame += 1;
     let done = true;
     const out = rows
-      .map((row, ri) =>
-        Array.from(row)
-          .map((char, ci) => {
-            if (frame >= settleAt[ri][ci]) return char;
+      .map((cells, ri) =>
+        cells
+          .map((cell, ci) => {
+            if (frame >= settleAt[ri][ci]) return cell;
             done = false;
-            return SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+            return randomCell();
           })
           .join(""),
       )
@@ -83,7 +140,7 @@ function runScramble(target: string, onFrame: (frame: string) => void): ReturnTy
     onFrame(out);
     if (done) {
       clearInterval(interval);
-      onFrame(target);
+      onFrame(board.message);
     }
   };
   render(); // first scrambled frame immediately, so nothing pops in
@@ -114,7 +171,7 @@ export default function HeroBoard(): ReactNode {
         setMessage(BOARDS[n].message);
         return;
       }
-      scrambleTimer.current = runScramble(BOARDS[n].message, setMessage);
+      scrambleTimer.current = runScramble(BOARDS[n], setMessage);
     };
 
     // First board flaps in on load.
@@ -132,7 +189,7 @@ export default function HeroBoard(): ReactNode {
       fadeTimer.current = setTimeout(() => {
         setShown(next); // swap device (hidden by the fade)
         setVisible(true); // fade the new one in
-        flapIn(next); // scramble the new message in
+        flapIn(next); // flap the new contents in
       }, FADE_MS);
     }, ROTATE_MS);
 
