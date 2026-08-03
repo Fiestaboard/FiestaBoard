@@ -16,10 +16,16 @@ import { HighlightStyle, StreamLanguage, syntaxHighlighting } from "@codemirror/
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import {
+  Box,
+  Flex,
+  List,
+  ListItem,
+  Stack,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  Text,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -232,7 +238,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
   // CodeMirror refs
-  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const editorContainerRef = useRef<HTMLElement>(null);
   const viewRef = useRef<EditorView | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -443,9 +449,9 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
   return (
     <TooltipProvider>
       {/* Root: stacked on mobile, side-by-side on desktop */}
-      <div className="flex flex-col sm:flex-row w-full sm:h-[560px]">
+      <Flex direction="col" className="sm:flex-row w-full sm:h-[560px]">
         {/* ── LEFT COLUMN (desktop) / BOTTOM (mobile): Functions + Variables selector ── */}
-        <div
+        <Box
           className={cn(
             "order-2 sm:order-1",
             "sm:w-[260px] sm:flex-shrink-0",
@@ -455,7 +461,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
         >
           <Tabs defaultValue="functions">
             {/* Tab switcher — sticky on desktop so it stays visible while scrolling the list */}
-            <div className="px-3 pt-2 pb-1 sm:sticky sm:top-0 sm:bg-popover sm:z-10 sm:border-b sm:border-border/50">
+            <Box className="px-3 pt-2 pb-1 sm:sticky sm:top-0 sm:bg-popover sm:z-10 sm:border-b sm:border-border/50">
               <TabsList className="h-8 w-full bg-muted p-0.5">
                 <TabsTrigger
                   value="functions"
@@ -470,20 +476,24 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
                   {t("variablesTab")}
                 </TabsTrigger>
               </TabsList>
-            </div>
+            </Box>
 
             {/* ── Functions tab ── */}
             <TabsContent value="functions" className="mt-0">
-              {loadingFns && <p className="text-xs text-muted-foreground px-3 py-2">{t("loading") ?? "Loading…"}</p>}
+              {loadingFns && (
+                <Text size="xs" tone="muted" className="px-3 py-2">
+                  {t("loading") ?? "Loading…"}
+                </Text>
+              )}
               {/* Parent column (desktop) or modal (mobile) scrolls — don't nest a scroll here. */}
-              <div className="px-2 pb-2 space-y-1">
+              <Stack gap="1" className="px-2 pb-2">
                 {CATEGORY_ORDER.filter((cat) => grouped[cat]?.length).map((cat) => {
                   const isCollapsed = collapsedCategories.has(cat);
                   const fns = grouped[cat] ?? [];
                   const meta = CATEGORY_META[cat];
                   const IconComp = meta?.icon;
                   return (
-                    <div key={cat} className={cn("overflow-hidden border-l-2", meta?.border ?? "border-border/0")}>
+                    <Box key={cat} className={cn("overflow-hidden border-l-2", meta?.border ?? "border-border/0")}>
                       <button
                         type="button"
                         onClick={() => toggleCategory(cat)}
@@ -493,10 +503,16 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
                           meta?.text ?? "text-muted-foreground",
                         )}
                       >
-                        <span className="flex items-center gap-1.5">
+                        {/* Carry the button's dynamic category color + sub-xs size
+                            so <Text as="span">'s default tone/size don't clobber them. */}
+                        <Text
+                          as="span"
+                          weight="semibold"
+                          className={cn("flex items-center gap-1.5 text-[11px]", meta?.text ?? "text-muted-foreground")}
+                        >
                           {IconComp && <IconComp className="w-3 h-3" />}
                           {categoryLabels[cat] ?? cat}
-                        </span>
+                        </Text>
                         {isCollapsed ? (
                           <ChevronRight className="w-3 h-3 text-muted-foreground" />
                         ) : (
@@ -505,7 +521,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
                       </button>
 
                       {!isCollapsed && (
-                        <div className="py-0.5">
+                        <Box className="py-0.5">
                           {fns.map((fn) => (
                             <Tooltip key={fn.name}>
                               <TooltipTrigger asChild>
@@ -514,24 +530,39 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
                                   onClick={() => handleFunctionClick(fn.name)}
                                   className="w-full text-left px-3 py-1 text-xs hover:bg-accent hover:text-accent-foreground transition-colors flex items-baseline gap-2 group"
                                 >
-                                  <span className="font-mono font-semibold flex-shrink-0">{fn.name}</span>
-                                  <span className="font-mono text-[10px] text-muted-foreground truncate group-hover:text-accent-foreground/70">
+                                  <Text
+                                    as="span"
+                                    size="xs"
+                                    weight="semibold"
+                                    className="font-mono flex-shrink-0 group-hover:text-accent-foreground"
+                                  >
+                                    {fn.name}
+                                  </Text>
+                                  <Text
+                                    as="span"
+                                    tone="muted"
+                                    className="font-mono text-[10px] truncate group-hover:text-accent-foreground/70"
+                                  >
                                     {fn.signature}
-                                  </span>
+                                  </Text>
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-[220px]">
-                                <p className="font-mono text-xs font-semibold">{fn.signature}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">{fn.summary}</p>
+                                <Text size="xs" weight="semibold" className="font-mono">
+                                  {fn.signature}
+                                </Text>
+                                <Text size="xs" tone="muted" className="mt-0.5">
+                                  {fn.summary}
+                                </Text>
                               </TooltipContent>
                             </Tooltip>
                           ))}
-                        </div>
+                        </Box>
                       )}
-                    </div>
+                    </Box>
                   );
                 })}
-              </div>
+              </Stack>
             </TabsContent>
 
             {/* ── Variables tab ── */}
@@ -545,18 +576,18 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
               />
             </TabsContent>
           </Tabs>
-        </div>
+        </Box>
 
         {/* ── RIGHT COLUMN (desktop) / TOP (mobile): Expression editor + action buttons ── */}
-        <div className="order-1 sm:order-2 flex flex-col flex-1 min-w-0 sm:overflow-hidden">
+        <Flex direction="col" className="order-1 sm:order-2 flex-1 min-w-0 sm:overflow-hidden">
           {/* Desktop: flex column fills, editor sizes within. Mobile: parent modal scrolls — no nested scroll. */}
-          <div className="px-3 pt-3 pb-2.5 space-y-1.5 sm:flex-1 sm:flex sm:flex-col sm:overflow-hidden">
+          <Stack gap="1.5" className="px-3 pt-3 pb-2.5 sm:flex-1 sm:flex sm:flex-col sm:overflow-hidden">
             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
               {t("formulaExpression")}
             </label>
 
             {/* Editor container — border changes colour with validation state */}
-            <div
+            <Box
               className={cn(
                 "rounded-md border overflow-hidden sm:flex-1 sm:flex sm:flex-col sm:min-h-0",
                 validationState === "invalid" && "border-destructive",
@@ -565,17 +596,21 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
               )}
             >
               {/* Top chrome: {{= prefix + validation icon */}
-              <div
+              <Flex
+                align="center"
+                justify="between"
                 className={cn(
-                  "flex items-center justify-between px-2.5 py-1 border-b sm:flex-shrink-0",
+                  "px-2.5 py-1 border-b sm:flex-shrink-0",
                   "bg-muted/20 select-none",
                   validationState === "invalid" && "border-destructive/40",
                   validationState === "valid" && "border-green-500/40",
                   validationState !== "invalid" && validationState !== "valid" && "border-border",
                 )}
               >
-                <span className="text-[10px] text-muted-foreground/50 font-mono">{"{{="}</span>
-                <span className="flex items-center">
+                <Text as="span" className="text-[10px] text-muted-foreground/50 font-mono">
+                  {"{{="}
+                </Text>
+                <Text as="span" className="flex items-center">
                   {validationState === "valid" && expr.trim() ? (
                     <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
                   ) : validationState === "invalid" ? (
@@ -583,14 +618,14 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
                   ) : validationState === "validating" ? (
                     <Loader2 className="w-3.5 h-3.5 text-muted-foreground/50 animate-spin" />
                   ) : null}
-                </span>
-              </div>
+                </Text>
+              </Flex>
 
               {/* CodeMirror mounts here */}
-              <div ref={editorContainerRef} className="sm:flex-1 sm:min-h-0 sm:overflow-hidden" />
+              <Box ref={editorContainerRef} className="sm:flex-1 sm:min-h-0 sm:overflow-hidden" />
 
               {/* Bottom chrome: }} */}
-              <div
+              <Box
                 className={cn(
                   "px-2.5 py-1 border-t bg-muted/20 select-none sm:flex-shrink-0",
                   validationState === "invalid" && "border-destructive/40",
@@ -598,25 +633,29 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
                   validationState !== "invalid" && validationState !== "valid" && "border-border",
                 )}
               >
-                <span className="text-[10px] text-muted-foreground/50 font-mono">{"}}"}</span>
-              </div>
-            </div>
+                <Text as="span" className="text-[10px] text-muted-foreground/50 font-mono">
+                  {"}}"}
+                </Text>
+              </Box>
+            </Box>
 
             {/* Error messages */}
             {validationState === "invalid" && errors.length > 0 && (
-              <ul className="space-y-0.5">
+              <List className="space-y-0.5">
                 {errors.map((msg, i) => (
-                  <li key={i} className="flex items-start gap-1 text-[10px] text-destructive">
+                  <ListItem key={i} className="flex items-start gap-1 text-[10px] text-destructive">
                     <XCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                    <span>{msg}</span>
-                  </li>
+                    <Text as="span" tone="destructive" className="text-[10px]">
+                      {msg}
+                    </Text>
+                  </ListItem>
                 ))}
-              </ul>
+              </List>
             )}
-          </div>
+          </Stack>
 
           {/* Action buttons — pinned to bottom of right column */}
-          <div className="flex-shrink-0 border-t border-border px-3 py-2 flex justify-end gap-2">
+          <Flex justify="end" gap="2" className="flex-shrink-0 border-t border-border px-3 py-2">
             {mode === "edit" && onCancel && (
               <button
                 type="button"
@@ -642,9 +681,9 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
                 ⌘↵
               </kbd>
             </button>
-          </div>
-        </div>
-      </div>
+          </Flex>
+        </Flex>
+      </Flex>
     </TooltipProvider>
   );
 }

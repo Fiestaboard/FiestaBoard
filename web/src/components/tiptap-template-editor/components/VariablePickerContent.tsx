@@ -11,9 +11,14 @@ import {
   AccordionItem,
   AccordionTrigger,
   Badge,
+  Box,
+  Code,
+  Flex,
   Input,
   ScrollArea,
   Skeleton,
+  Stack,
+  Text,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -62,9 +67,9 @@ function VariablePill({
       <button type="button" onClick={onInsert}>
         {label}
         {preview && (
-          <span className="ml-1.5 text-muted-foreground font-normal text-[10px] opacity-70">
+          <Text as="span" tone="muted" weight="normal" className="ml-1.5 text-[10px] opacity-70">
             {preview.length > 12 ? preview.slice(0, 12) + "…" : preview}
-          </span>
+          </Text>
         )}
       </button>
     </Badge>
@@ -155,11 +160,11 @@ function renderSubArraySection(
   if (filteredEntries.length === 0) return null;
 
   return (
-    <div>
-      <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+    <Box>
+      <Text size="xs" tone="muted" className="mb-1.5 flex items-center gap-1">
         {IconComp && <IconComp className="h-3 w-3" />}
         {subArrayName.charAt(0).toUpperCase() + subArrayName.slice(1)} ({filteredEntries.length})
-      </p>
+      </Text>
       <Accordion type="single" collapsible className="w-full">
         {filteredEntries.map(([key, itemData]) => {
           const displayKey = keyType === "dynamic" && keyField ? String(itemData[keyField] ?? key) : key;
@@ -177,37 +182,39 @@ function renderSubArraySection(
               className="border-b-0"
             >
               <AccordionTrigger className="py-1.5 hover:no-underline text-xs">
-                <div className="flex items-center gap-2">
+                <Flex align="center" gap="2">
                   {keyType === "dynamic" && (
                     <Badge variant="outline" className="text-[10px] font-mono px-1.5">
                       {displayKey}
                     </Badge>
                   )}
-                  <span className="text-left">{itemLabel}</span>
-                </div>
+                  <Text as="span" size="xs" className="text-left">
+                    {itemLabel}
+                  </Text>
+                </Flex>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="space-y-2 pt-2 pl-2">
-                  <div className="flex flex-wrap gap-1.5">
+                <Stack gap="2" className="pt-2 pl-2">
+                  <Flex wrap gap="1.5">
                     {filteredFields.map((field: string) => {
                       const varValue = `{{${pluginId}.${parentArrayName}.${parentIndex}.${subArrayName}.${key}.${field}}}`;
                       return (
                         <VariablePill key={field} label={field} value={varValue} onInsert={() => onInsert(varValue)} />
                       );
                     })}
-                  </div>
-                  <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                    <code className="text-xs">
+                  </Flex>
+                  <Box className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                    <Code className="text-xs bg-transparent px-0">
                       {parentArrayName}.{parentIndex}.{subArrayName}.{key}.*
-                    </code>
-                  </div>
-                </div>
+                    </Code>
+                  </Box>
+                </Stack>
               </AccordionContent>
             </AccordionItem>
           );
         })}
       </Accordion>
-    </div>
+    </Box>
   );
 }
 
@@ -224,14 +231,15 @@ function renderArraySection(
 ) {
   if (!arrayData || arrayData.length === 0) {
     return (
-      <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
-        <p className="mb-2">
+      <Box className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
+        <Text size="xs" tone="muted" className="mb-2">
           {t ? t("configureHint", { arrayName }) : `Configure ${arrayName} in Settings to see indexed variables here.`}
-        </p>
-        <p className="font-mono text-[10px]">
-          {t ? t("configureExample") : "Example:"} <code className="bg-background px-1 rounded">{arrayName}.0.*</code>
-        </p>
-      </div>
+        </Text>
+        <Text tone="muted" className="font-mono text-[10px]">
+          {t ? t("configureExample") : "Example:"}{" "}
+          <Code className="bg-background px-1 text-[10px]">{arrayName}.0.*</Code>
+        </Text>
+      </Box>
     );
   }
 
@@ -266,9 +274,11 @@ function renderArraySection(
 
   if (filteredArrayData.length === 0) {
     return (
-      <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
-        <p>No matching variables found.</p>
-      </div>
+      <Box className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
+        <Text size="xs" tone="muted">
+          No matching variables found.
+        </Text>
+      </Box>
     );
   }
 
@@ -300,22 +310,26 @@ function renderArraySection(
           return (
             <AccordionItem key={index} value={`${arrayName}-${index}`} className="border-b-0">
               <AccordionTrigger className="py-2 hover:no-underline">
-                <div className="flex items-center gap-2 text-xs">
+                <Flex align="center" gap="2" className="text-xs">
                   {IconComp && <IconComp className="h-3 w-3" />}
-                  <div className="text-left">
-                    <div className="font-medium">{itemLabel}</div>
-                    <div className="text-muted-foreground text-xs">
+                  <Box className="text-left">
+                    <Text size="xs" weight="medium">
+                      {itemLabel}
+                    </Text>
+                    <Text size="xs" tone="muted">
                       {t ? t("indexLabel", { index }) : `Index: ${index}`}
-                    </div>
-                  </div>
-                </div>
+                    </Text>
+                  </Box>
+                </Flex>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="space-y-3 pt-2 pl-2">
+                <Stack gap="3" className="pt-2 pl-2">
                   {filteredItemFields.length > 0 && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1.5">{t ? t("itemInfo") : "Item Info"}</p>
-                      <div className="flex flex-wrap gap-1.5">
+                    <Box>
+                      <Text size="xs" tone="muted" className="mb-1.5">
+                        {t ? t("itemInfo") : "Item Info"}
+                      </Text>
+                      <Flex wrap gap="1.5">
                         {filteredItemFields.map((field: string) => {
                           const varValue = `{{${pluginId}.${arrayName}.${index}.${field}}}`;
                           return (
@@ -327,15 +341,15 @@ function renderArraySection(
                             />
                           );
                         })}
-                      </div>
-                    </div>
+                      </Flex>
+                    </Box>
                   )}
 
                   {filteredSubArrays.map(([subArrayName]) => {
                     const subArrayData = item[subArrayName];
                     if (!subArrayData) return null;
                     return (
-                      <div key={subArrayName}>
+                      <Box key={subArrayName}>
                         {renderSubArraySection(
                           pluginId,
                           index,
@@ -348,10 +362,10 @@ function renderArraySection(
                           showAll,
                           IconComp,
                         )}
-                      </div>
+                      </Box>
                     );
                   })}
-                </div>
+                </Stack>
               </AccordionContent>
             </AccordionItem>
           );
@@ -433,16 +447,20 @@ export function VariablePickerContent({
 
   if (isLoadingVars || isLoadingManifests) {
     return (
-      <div className="p-3 min-w-[300px]">
+      <Box className="p-3 min-w-[300px]">
         <Skeleton className="h-4 w-full mb-2" />
         <Skeleton className="h-4 w-3/4 mb-2" />
         <Skeleton className="h-4 w-1/2" />
-      </div>
+      </Box>
     );
   }
 
   if (!templateVars?.variables) {
-    return <div className="p-3 text-sm text-muted-foreground min-w-[300px]">{t("noVariablesAvailable")}</div>;
+    return (
+      <Text tone="muted" className="p-3 min-w-[300px]">
+        {t("noVariablesAvailable")}
+      </Text>
+    );
   }
 
   const categories = Object.entries(templateVars.variables);
@@ -494,9 +512,9 @@ export function VariablePickerContent({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className={`w-full min-w-[min(340px,calc(100vw-24px))] flex flex-col${className ? ` ${className}` : ""}`}>
-        <div className="p-2 border-b">
-          <div className="relative">
+      <Flex direction="col" className={`w-full min-w-[min(340px,calc(100vw-24px))]${className ? ` ${className}` : ""}`}>
+        <Box className="p-2 border-b">
+          <Box className="relative">
             <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               autoFocus={autoFocusSearch}
@@ -507,15 +525,15 @@ export function VariablePickerContent({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 h-9"
             />
-          </div>
-        </div>
+          </Box>
+        </Box>
 
         <ScrollArea className="flex-1" style={{ height: maxHeight }}>
-          <div className="p-2 space-y-3">
+          <Stack gap="3" className="p-2">
             {filteredCategories.length === 0 ? (
-              <div className="p-3 text-sm text-muted-foreground text-center">
+              <Text tone="muted" className="p-3 text-center">
                 {t("noVariablesFound", { searchQuery })}
-              </div>
+              </Text>
             ) : (
               filteredCategories.map(([category, vars]) => {
                 const manifest = manifests[category];
@@ -591,13 +609,13 @@ export function VariablePickerContent({
                 };
 
                 return (
-                  <div key={category} className="space-y-1.5">
-                    <div className="flex items-center gap-2 bg-muted/30 rounded px-2 py-1.5 -mx-1">
+                  <Stack key={category} gap="1.5">
+                    <Flex align="center" gap="2" className="bg-muted/30 rounded px-2 py-1.5 -mx-1">
                       {IconComp && <IconComp className="h-3 w-3 text-muted-foreground" />}
-                      <span className="text-xs font-semibold text-foreground">
+                      <Text as="span" size="xs" weight="semibold">
                         {category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                      </span>
-                    </div>
+                      </Text>
+                    </Flex>
 
                     {/* Grouped variables */}
                     {hasGroups ? (
@@ -606,33 +624,37 @@ export function VariablePickerContent({
                           const groupVars = groupedVars[groupId];
                           if (!groupVars || groupVars.length === 0) return null;
                           return (
-                            <div key={groupId}>
-                              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
+                            <Box key={groupId}>
+                              <Text className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
                                 {groupDef.label}
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">{groupVars.map(renderVarPill)}</div>
-                            </div>
+                              </Text>
+                              <Flex wrap gap="1.5">
+                                {groupVars.map(renderVarPill)}
+                              </Flex>
+                            </Box>
                           );
                         })}
                         {groupedVars["__ungrouped__"] && groupedVars["__ungrouped__"].length > 0 && (
-                          <div>
-                            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
+                          <Box>
+                            <Text className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
                               {t("general")}
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
+                            </Text>
+                            <Flex wrap gap="1.5">
                               {groupedVars["__ungrouped__"].map(renderVarPill)}
-                            </div>
-                          </div>
+                            </Flex>
+                          </Box>
                         )}
                       </>
                     ) : (
                       filteredGeneralVars.length > 0 && (
-                        <div>
-                          <p className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
+                        <Box>
+                          <Text className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
                             {t("general")}
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">{filteredGeneralVars.map(renderVarPill)}</div>
-                        </div>
+                          </Text>
+                          <Flex wrap gap="1.5">
+                            {filteredGeneralVars.map(renderVarPill)}
+                          </Flex>
+                        </Box>
                       )
                     )}
 
@@ -647,12 +669,12 @@ export function VariablePickerContent({
                       if (!shouldShow) return null;
 
                       return (
-                        <div key={arrayName} className="space-y-1.5">
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Stack key={arrayName} gap="1.5">
+                          <Text size="xs" tone="muted" className="flex items-center gap-1">
                             {IconComp && <IconComp className="h-3 w-3" />}
                             {arrayName.charAt(0).toUpperCase() + arrayName.slice(1)}{" "}
                             {arrayData ? `(${arrayData.length})` : "(None configured)"}
-                          </p>
+                          </Text>
                           {renderArraySection(
                             category,
                             arrayName,
@@ -664,16 +686,16 @@ export function VariablePickerContent({
                             IconComp,
                             t,
                           )}
-                        </div>
+                        </Stack>
                       );
                     })}
-                  </div>
+                  </Stack>
                 );
               })
             )}
-          </div>
+          </Stack>
         </ScrollArea>
-      </div>
+      </Flex>
     </TooltipProvider>
   );
 }

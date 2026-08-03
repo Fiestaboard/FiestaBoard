@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Box, Flex, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import type { Editor } from "@tiptap/react";
 import {
@@ -253,11 +253,11 @@ export function TemplateEditorToolbar({
     // adjacent buttons (e.g. the editor card's AI toggle) shifts the
     // layout and the cursor briefly hovers a different button.
     <TooltipProvider skipDelayDuration={0}>
-      <div className={cn("flex items-center gap-1 p-2 border rounded-t-md bg-background", "flex-wrap", className)}>
+      <Flex align="center" gap="1" wrap className={cn("p-2 border rounded-t-md bg-background", className)}>
         {/* Draw Mode Toggle */}
         {onDrawModeToggle && (
           <>
-            <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
+            <Flex align="center" gap="0.5" className="rounded-md border border-border overflow-hidden bg-background">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -275,18 +275,18 @@ export function TemplateEditorToolbar({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{drawMode ? t("drawModeActive") : t("drawMode")}</p>
+                  <Text>{drawMode ? t("drawModeActive") : t("drawMode")}</Text>
                 </TooltipContent>
               </Tooltip>
-            </div>
+            </Flex>
 
             {/* Divider after draw toggle */}
-            <div className="h-6 w-px bg-border mx-1" />
+            <Box className="h-6 w-px bg-border mx-1" />
           </>
         )}
 
         {/* Undo/Redo Controls */}
-        <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
+        <Flex align="center" gap="0.5" className="rounded-md border border-border overflow-hidden bg-background">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -304,7 +304,7 @@ export function TemplateEditorToolbar({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{t("undo")}</p>
+              <Text>{t("undo")}</Text>
             </TooltipContent>
           </Tooltip>
 
@@ -324,20 +324,20 @@ export function TemplateEditorToolbar({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{t("redo")}</p>
+              <Text>{t("redo")}</Text>
             </TooltipContent>
           </Tooltip>
-        </div>
+        </Flex>
 
         {/* Divider after undo/redo */}
-        <div className="h-6 w-px bg-border mx-1" />
+        <Box className="h-6 w-px bg-border mx-1" />
 
         {/* Drawing controls — in draw mode the toolbar transforms: all
             content-editing controls are hidden and replaced by inline color
             swatches, an eraser, and a stamp-character dropdown. */}
         {drawMode && (
           <>
-            <div className="flex items-center gap-0.5">
+            <Flex align="center" gap="0.5">
               {AVAILABLE_COLORS.map((name) => {
                 const selected = effectiveBrush.kind === "color" && effectiveBrush.color === name;
                 return (
@@ -355,14 +355,15 @@ export function TemplateEditorToolbar({
                           selected ? "ring-2 ring-primary" : "hover:bg-muted/50",
                         )}
                       >
-                        <span
+                        <Text
+                          as="span"
                           className="block h-4 w-4 rounded border border-border/50"
                           style={{ backgroundColor: getBoardColor(name) }}
                         />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{t(`drawColors.${name}`)}</p>
+                      <Text>{t(`drawColors.${name}`)}</Text>
                     </TooltipContent>
                   </Tooltip>
                 );
@@ -386,10 +387,10 @@ export function TemplateEditorToolbar({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{t("drawEraser")}</p>
+                  <Text>{t("drawEraser")}</Text>
                 </TooltipContent>
               </Tooltip>
-            </div>
+            </Flex>
 
             <ToolbarDropdown
               label={t("drawCharacter")}
@@ -397,9 +398,13 @@ export function TemplateEditorToolbar({
               className={cn(effectiveBrush.kind === "char" && "ring-2 ring-primary")}
               icon={
                 effectiveBrush.kind === "char" ? (
-                  <span className="flex h-4 w-4 items-center justify-center rounded border border-border font-mono text-xs leading-none">
+                  <Text
+                    as="span"
+                    size="xs"
+                    className="flex h-4 w-4 items-center justify-center rounded border border-border font-mono leading-none"
+                  >
                     {effectiveBrush.char}
-                  </span>
+                  </Text>
                 ) : (
                   <Type className="w-4 h-4" />
                 )
@@ -421,7 +426,7 @@ export function TemplateEditorToolbar({
         {!drawMode && (
           <>
             {/* Cut/Copy/Paste Controls */}
-            <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
+            <Flex align="center" gap="0.5" className="rounded-md border border-border overflow-hidden bg-background">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -439,7 +444,7 @@ export function TemplateEditorToolbar({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{t("cut")}</p>
+                  <Text>{t("cut")}</Text>
                 </TooltipContent>
               </Tooltip>
 
@@ -460,7 +465,7 @@ export function TemplateEditorToolbar({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{t("copy")}</p>
+                  <Text>{t("copy")}</Text>
                 </TooltipContent>
               </Tooltip>
 
@@ -480,13 +485,13 @@ export function TemplateEditorToolbar({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{t("paste")}</p>
+                  <Text>{t("paste")}</Text>
                 </TooltipContent>
               </Tooltip>
-            </div>
+            </Flex>
 
             {/* Divider after clipboard controls */}
-            <div className="h-6 w-px bg-border mx-1" />
+            <Box className="h-6 w-px bg-border mx-1" />
 
             {/* Variables Dropdown */}
             {hasVariables ? (
@@ -517,7 +522,7 @@ export function TemplateEditorToolbar({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{t("noVariablesAvailable")}</p>
+                  <Text>{t("noVariablesAvailable")}</Text>
                 </TooltipContent>
               </Tooltip>
             )}
@@ -577,7 +582,7 @@ export function TemplateEditorToolbar({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{t("insertFormula")}</p>
+                <Text>{t("insertFormula")}</Text>
               </TooltipContent>
             </Tooltip>
 
@@ -598,15 +603,15 @@ export function TemplateEditorToolbar({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{currentWrapEnabled ? t("disableWrap") : t("enableWrap")}</p>
+                <Text>{currentWrapEnabled ? t("disableWrap") : t("enableWrap")}</Text>
               </TooltipContent>
             </Tooltip>
 
             {/* Divider */}
-            {(hasVariables || hasColors || hasFormatting) && <div className="h-6 w-px bg-border mx-1" />}
+            {(hasVariables || hasColors || hasFormatting) && <Box className="h-6 w-px bg-border mx-1" />}
 
             {/* Alignment Controls */}
-            <div className="flex items-center gap-0.5 rounded-md border border-border overflow-hidden bg-background">
+            <Flex align="center" gap="0.5" className="rounded-md border border-border overflow-hidden bg-background">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -657,7 +662,7 @@ export function TemplateEditorToolbar({
                 </TooltipTrigger>
                 <TooltipContent>{t("alignRight")}</TooltipContent>
               </Tooltip>
-            </div>
+            </Flex>
 
             {/* Sync from Board — icon-only button pushed to the far right */}
             {onSyncFromBoard && (
@@ -679,14 +684,14 @@ export function TemplateEditorToolbar({
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{t("syncFromBoardTooltip")}</p>
+                    <Text>{t("syncFromBoardTooltip")}</Text>
                   </TooltipContent>
                 </Tooltip>
               </>
             )}
           </>
         )}
-      </div>
+      </Flex>
     </TooltipProvider>
   );
 }
