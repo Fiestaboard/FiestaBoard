@@ -1,6 +1,6 @@
 "use client";
 
-import { FiestaLogo } from "@fiestaboard/ui";
+import { Box, FiestaLogo, Flex, Stack, Text } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -74,27 +74,32 @@ export function BootGate({ children }: { children: React.ReactNode }) {
   if (!showSplash) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background">
-      <div
-        className="flex flex-col items-center gap-6 text-center px-6 max-w-sm"
+    <Flex direction="col" align="center" justify="center" className="fixed inset-0 z-[200] bg-background">
+      <Flex
+        direction="col"
+        align="center"
+        gap="6"
+        className="text-center px-6 max-w-sm"
         role="status"
         aria-live="polite"
         aria-atomic="true"
       >
         {/* Branding */}
-        <div className="flex items-center gap-3">
+        <Flex align="center" gap="3">
           <img src={appUrl("/icons/favicon-32x32.png")} alt="" width={36} height={36} className="flex-shrink-0" />
           <FiestaLogo className="text-2xl" />
-        </div>
+        </Flex>
 
         {timedOut ? (
           /* ── Error state ── */
           <>
             <WifiOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
-            <div className="space-y-1.5">
-              <p className="text-base font-semibold">{t("errorHeading")}</p>
-              <p className="text-sm text-muted-foreground">{t("errorDescription")}</p>
-            </div>
+            <Stack gap="1.5">
+              <Text size="base" weight="semibold">
+                {t("errorHeading")}
+              </Text>
+              <Text tone="muted">{t("errorDescription")}</Text>
+            </Stack>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -105,14 +110,14 @@ export function BootGate({ children }: { children: React.ReactNode }) {
         ) : (
           /* ── Waiting state ── */
           <>
-            <div
+            <Box
               className="h-8 w-8 rounded-full border-[2.5px] border-muted-foreground/25 border-t-muted-foreground animate-spin"
               aria-hidden="true"
             />
-            <p className="text-sm text-muted-foreground">{t("waiting")}</p>
+            <Text tone="muted">{t("waiting")}</Text>
           </>
         )}
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   );
 }

@@ -13,6 +13,7 @@
  */
 
 import {
+  Box,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Text,
 } from "@fiestaboard/ui";
 import { Bot, Hand, Zap } from "lucide-react";
 
@@ -62,9 +64,9 @@ export function ChainingModePicker({ mode, onChange }: ChainingModePickerProps) 
           aria-label={t("triggerAriaLabel", { mode: label })}
         >
           <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline" aria-hidden="true">
+          <Text as="span" size="xs" tone="muted" className="hidden sm:inline" aria-hidden="true">
             {label}
-          </span>
+          </Text>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
@@ -79,13 +81,15 @@ export function ChainingModePicker({ mode, onChange }: ChainingModePickerProps) 
                 aria-hidden="true"
                 className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isActive ? "text-brand-emphasis" : "text-muted-foreground"}`}
               />
-              <div className="flex-1 min-w-0">
-                <div className={`font-medium ${isActive ? "text-brand-emphasis" : ""}`}>
+              <Box className="flex-1 min-w-0">
+                <Text size="xs" weight="medium" className={isActive ? "text-brand-emphasis" : undefined}>
                   {t(`modes.${MODE_KEY[key]}.label`)}
-                </div>
-                <div className="text-muted-foreground leading-tight">{t(`modes.${MODE_KEY[key]}.description`)}</div>
-              </div>
-              {isActive && <div className="ml-auto mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-emphasis" />}
+                </Text>
+                <Text size="xs" tone="muted" className="leading-tight">
+                  {t(`modes.${MODE_KEY[key]}.description`)}
+                </Text>
+              </Box>
+              {isActive && <Box className="ml-auto mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-emphasis" />}
             </DropdownMenuItem>
           );
         })}

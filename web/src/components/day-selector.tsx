@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@fiestaboard/ui";
+import { Badge, Box, Flex, Text } from "@fiestaboard/ui";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
@@ -21,7 +21,8 @@ const WEEKENDS = ["saturday", "sunday"];
 const ALL_DAYS = [...WEEKDAYS, ...WEEKENDS];
 
 // Chip rows wrap so trailing chips aren't clipped at phone widths.
-const CHIP_ROW_CLASS = "ml-auto flex flex-wrap justify-end gap-1 min-w-0";
+// (Flex layout via <Flex wrap justify="end" gap="1"> at each usage.)
+const CHIP_ROW_CLASS = "ml-auto min-w-0";
 
 export function DaySelector({ value, customDays = [], onChange, className }: DaySelectorProps) {
   const t = useTranslations("daySelector");
@@ -85,8 +86,9 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
       <legend className="text-sm font-medium leading-none">{t("daysLegend")}</legend>
 
       {/* Pattern Radio Buttons */}
-      <div
-        className="flex flex-col gap-2"
+      <Flex
+        direction="col"
+        gap="2"
         role="radiogroup"
         aria-label={t("dayPatternAriaLabel")}
         onKeyDown={handleRadioKeyDown}
@@ -105,22 +107,26 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
             value === "all" ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent",
           )}
         >
-          <div
+          <Flex
+            align="center"
+            justify="center"
             className={cn(
-              "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+              "h-4 w-4 rounded-full border-2",
               value === "all" ? "border-primary" : "border-muted-foreground",
             )}
           >
-            {value === "all" && <div className="h-2 w-2 rounded-full bg-primary" />}
-          </div>
-          <span className="text-sm font-medium">{t("allDays")}</span>
-          <div data-testid="day-pattern-chips" className={CHIP_ROW_CLASS}>
+            {value === "all" && <Box className="h-2 w-2 rounded-full bg-primary" />}
+          </Flex>
+          <Text as="span" size="sm" weight="medium" className={value === "all" ? "text-primary" : undefined}>
+            {t("allDays")}
+          </Text>
+          <Flex wrap justify="end" gap="1" data-testid="day-pattern-chips" className={CHIP_ROW_CLASS}>
             {ALL_DAYS.map((day) => (
               <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}
               </Badge>
             ))}
-          </div>
+          </Flex>
         </button>
 
         <button
@@ -137,22 +143,26 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
             value === "weekdays" ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent",
           )}
         >
-          <div
+          <Flex
+            align="center"
+            justify="center"
             className={cn(
-              "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+              "h-4 w-4 rounded-full border-2",
               value === "weekdays" ? "border-primary" : "border-muted-foreground",
             )}
           >
-            {value === "weekdays" && <div className="h-2 w-2 rounded-full bg-primary" />}
-          </div>
-          <span className="text-sm font-medium">{t("weekdays")}</span>
-          <div data-testid="day-pattern-chips" className={CHIP_ROW_CLASS}>
+            {value === "weekdays" && <Box className="h-2 w-2 rounded-full bg-primary" />}
+          </Flex>
+          <Text as="span" size="sm" weight="medium" className={value === "weekdays" ? "text-primary" : undefined}>
+            {t("weekdays")}
+          </Text>
+          <Flex wrap justify="end" gap="1" data-testid="day-pattern-chips" className={CHIP_ROW_CLASS}>
             {WEEKDAYS.map((day) => (
               <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}
               </Badge>
             ))}
-          </div>
+          </Flex>
         </button>
 
         <button
@@ -169,22 +179,26 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
             value === "weekends" ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent",
           )}
         >
-          <div
+          <Flex
+            align="center"
+            justify="center"
             className={cn(
-              "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+              "h-4 w-4 rounded-full border-2",
               value === "weekends" ? "border-primary" : "border-muted-foreground",
             )}
           >
-            {value === "weekends" && <div className="h-2 w-2 rounded-full bg-primary" />}
-          </div>
-          <span className="text-sm font-medium">{t("weekends")}</span>
-          <div data-testid="day-pattern-chips" className={CHIP_ROW_CLASS}>
+            {value === "weekends" && <Box className="h-2 w-2 rounded-full bg-primary" />}
+          </Flex>
+          <Text as="span" size="sm" weight="medium" className={value === "weekends" ? "text-primary" : undefined}>
+            {t("weekends")}
+          </Text>
+          <Flex wrap justify="end" gap="1" data-testid="day-pattern-chips" className={CHIP_ROW_CLASS}>
             {WEEKENDS.map((day) => (
               <Badge key={day} variant="secondary" className="text-xs">
                 {dayLabels[day]}
               </Badge>
             ))}
-          </div>
+          </Flex>
         </button>
 
         <button
@@ -202,20 +216,26 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
             value === "custom" && "rounded-b-none border-b-0",
           )}
         >
-          <div
+          <Flex
+            align="center"
+            justify="center"
             className={cn(
-              "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+              "h-4 w-4 rounded-full border-2",
               value === "custom" ? "border-primary" : "border-muted-foreground",
             )}
           >
-            {value === "custom" && <div className="h-2 w-2 rounded-full bg-primary" />}
-          </div>
-          <span className="text-sm font-medium">{t("customDays")}</span>
+            {value === "custom" && <Box className="h-2 w-2 rounded-full bg-primary" />}
+          </Flex>
+          <Text as="span" size="sm" weight="medium" className={value === "custom" ? "text-primary" : undefined}>
+            {t("customDays")}
+          </Text>
         </button>
 
         {value === "custom" && (
-          <div
-            className="ml-6 flex flex-wrap gap-2 px-4 pb-3 pt-2 border border-t-0 border-primary bg-primary/5 rounded-b-lg"
+          <Flex
+            wrap
+            gap="2"
+            className="ml-6 px-4 pb-3 pt-2 border border-t-0 border-primary bg-primary/5 rounded-b-lg"
             role="group"
             aria-label={t("selectCustomDaysAriaLabel")}
           >
@@ -239,9 +259,9 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
                 {dayLabels[day]}
               </label>
             ))}
-          </div>
+          </Flex>
         )}
-      </div>
+      </Flex>
     </fieldset>
   );
 }

@@ -7,6 +7,7 @@
  * ScaledBoardDisplay's CSS transform never enters coordinate math.
  */
 
+import { Box } from "@fiestaboard/ui";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef } from "react";
 
@@ -115,7 +116,7 @@ export function DrawableBoardPreview({ active, onStrokePreview, onStrokeCommit, 
   };
 
   return (
-    <div
+    <Box
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -127,6 +128,6 @@ export function DrawableBoardPreview({ active, onStrokePreview, onStrokeCommit, 
       data-draw-surface={active ? "true" : undefined}
     >
       {children}
-    </div>
+    </Box>
   );
 }

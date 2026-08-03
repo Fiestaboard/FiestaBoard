@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Card, CardContent, CardHeader, CardTitle, Skeleton } from "@fiestaboard/ui";
+import { Badge, Card, CardContent, CardHeader, CardTitle, Grid, Skeleton, Text } from "@fiestaboard/ui";
 import { Calendar, Cloud, Home, RotateCw, Wifi } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -23,7 +23,8 @@ const VulcanSalute = ({ className }: { className?: string }) => {
     : "grayscale(100%) brightness(0)"; // Black for primary/enabled state
 
   return (
-    <span
+    <Text
+      as="span"
       aria-hidden="true"
       className={className}
       style={{
@@ -42,7 +43,7 @@ const VulcanSalute = ({ className }: { className?: string }) => {
       }}
     >
       🖖
-    </span>
+    </Text>
   );
 };
 
@@ -87,11 +88,11 @@ export function ConfigDisplay() {
           <CardTitle className="text-lg">{t("title")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-2">
+          <Grid cols="2" gap="2">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-9 w-full" />
             ))}
-          </div>
+          </Grid>
         </CardContent>
       </Card>
     );
@@ -102,11 +103,13 @@ export function ConfigDisplay() {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           {t("title")}
-          <span className="text-xs font-normal text-muted-foreground">({t("clickToToggle")})</span>
+          <Text as="span" size="xs" tone="muted" className="font-normal">
+            ({t("clickToToggle")})
+          </Text>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-2">
+        <Grid cols="2" gap="2">
           {configItems.map(({ key, labelKey, icon: Icon }) => {
             const backendValue = (data?.[key] ?? false) as boolean;
             const enabled = getEffectiveValue(key, backendValue);
@@ -127,13 +130,13 @@ export function ConfigDisplay() {
                 <Icon
                   className={`h-4 w-4 shrink-0 transition-colors ${enabled ? "text-primary" : "text-muted-foreground"}`}
                 />
-                <span
-                  className={`text-xs truncate transition-colors ${
-                    enabled ? "text-foreground" : "text-muted-foreground"
-                  }`}
+                <Text
+                  as="span"
+                  size="xs"
+                  className={`truncate transition-colors ${enabled ? "text-foreground" : "text-muted-foreground"}`}
                 >
                   {label}
-                </span>
+                </Text>
                 <Badge
                   variant={enabled ? "default" : "secondary"}
                   className={`ml-auto shrink-0 text-[10px] px-1.5 py-0.5 transition-all ${
@@ -145,7 +148,7 @@ export function ConfigDisplay() {
               </button>
             );
           })}
-        </div>
+        </Grid>
       </CardContent>
     </Card>
   );
