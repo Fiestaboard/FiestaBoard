@@ -1,3 +1,4 @@
+import { Box, Flex, Text } from "@fiestaboard/ui";
 import { memo } from "react";
 
 import { COLOR_CODE_MAP } from "@/lib/board-colors";
@@ -81,12 +82,12 @@ export const TransitionGridDisplay = memo(function TransitionGridDisplay({
   }
 
   return (
-    <div className={`w-full flex justify-center ${className}`}>
-      <div
+    <Flex justify="center" className={`w-full ${className}`}>
+      <Box
         className="rounded-lg border-[3px] max-w-full overflow-x-auto"
         style={{ backgroundColor: bezelBg, borderColor, width: "fit-content" }}
       >
-        <div
+        <Box
           className={`${padding} relative`}
           style={{
             background: isWhiteBoard
@@ -94,39 +95,43 @@ export const TransitionGridDisplay = memo(function TransitionGridDisplay({
               : "linear-gradient(135deg, var(--color-board-surface-dark) 0%, var(--color-board-black) 100%)",
           }}
         >
-          <div className={`flex flex-col ${gap}`}>
+          <Box className={`flex flex-col ${gap}`}>
             {grid.map((row, r) => (
-              <div key={r} className={`flex ${gap} justify-center`}>
+              <Flex key={r} justify="center" className={gap}>
                 {row.map((code, c) => {
                   const colorBg = COLOR_CODE_MAP[String(code)];
                   if (colorBg !== undefined) {
                     return (
-                      <div key={c} className={`${sizeClass} rounded-[3px]`} style={{ backgroundColor: colorBg }} />
+                      <Box key={c} className={`${sizeClass} rounded-[3px]`} style={{ backgroundColor: colorBg }} />
                     );
                   }
                   const char = codeToChar(code);
                   return (
-                    <div
+                    <Flex
                       key={c}
-                      className={`${sizeClass} rounded-[3px] flex items-center justify-center`}
+                      align="center"
+                      justify="center"
+                      className={`${sizeClass} rounded-[3px]`}
                       style={{ backgroundColor: tileBg }}
                     >
                       {char !== " " && (
-                        <span
-                          className={`${textSize} font-mono font-semibold select-none leading-none`}
+                        <Text
+                          as="span"
+                          weight="semibold"
+                          className={`${textSize} font-mono select-none leading-none`}
                           style={{ color: textColor }}
                         >
                           {char}
-                        </span>
+                        </Text>
                       )}
-                    </div>
+                    </Flex>
                   );
                 })}
-              </div>
+              </Flex>
             ))}
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Box>
+    </Flex>
   );
 });
