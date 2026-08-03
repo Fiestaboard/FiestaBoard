@@ -3,6 +3,7 @@
  */
 "use client";
 
+import { Box, Grid } from "@fiestaboard/ui";
 import { useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -67,8 +68,8 @@ export function DrawCharPickerContent({ current, onSelect }: DrawCharPickerConte
     // trigger-sized wrapper, so without an explicit width the panel
     // shrink-fits to ~36px and the grid-cols-8 tracks (minmax(0,1fr))
     // collapse until the glyph buttons overlap.
-    <div className="w-64 p-2" data-testid="draw-char-picker">
-      <div className="grid grid-cols-8 gap-1">
+    <Box className="w-64 p-2" data-testid="draw-char-picker">
+      <Grid cols="8" gap="1">
         {DRAW_CHARS.map((char, index) => (
           <button
             key={char}
@@ -91,7 +92,7 @@ export function DrawCharPickerContent({ current, onSelect }: DrawCharPickerConte
             {char}
           </button>
         ))}
-      </div>
-    </div>
+      </Grid>
+    </Box>
   );
 }

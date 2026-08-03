@@ -3,7 +3,7 @@
  */
 "use client";
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Box, Grid, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { Heart } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -32,7 +32,7 @@ const COLOR_ORDER = ["red", "orange", "yellow", "green", "blue", "violet", "whit
 export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentProps) {
   const isNote = deviceType === "note";
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Handle keyboard navigation
@@ -150,14 +150,14 @@ export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentP
 
   return (
     <TooltipProvider>
-      <div
+      <Box
         ref={containerRef}
         className={cn("p-2", !isNote && "pb-1")}
         tabIndex={0}
         role="listbox"
         aria-label="Color picker"
       >
-        <div className="grid grid-cols-4 gap-2 w-64">
+        <Grid cols="4" gap="2" className="w-64">
           {COLOR_ORDER.map((colorName, index) => {
             const colorInfo = COLOR_MAP[colorName];
             if (!colorInfo) return null;
@@ -189,14 +189,14 @@ export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentP
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{colorName}</p>
+                  <Text>{colorName}</Text>
                 </TooltipContent>
               </Tooltip>
             );
           })}
-        </div>
+        </Grid>
         {isNote && (
-          <div className="mt-2 pt-2 border-t border-border">
+          <Box className="mt-2 pt-2 border-t border-border">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -212,16 +212,18 @@ export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentP
                   aria-selected={false}
                 >
                   <Heart className="w-4 h-4 fill-current" />
-                  <span>heart</span>
+                  <Text as="span" weight="medium" className="text-red-500">
+                    heart
+                  </Text>
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Insert heart character (Note only)</p>
+                <Text>Insert heart character (Note only)</Text>
               </TooltipContent>
             </Tooltip>
-          </div>
+          </Box>
         )}
-      </div>
+      </Box>
     </TooltipProvider>
   );
 }
