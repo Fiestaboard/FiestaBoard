@@ -13,17 +13,23 @@
   gap: 18px;
 }
 
+/* Cross-fade (with a hair of scale) between boards. The split-flap reveal of
+   the message itself is driven by FiestaUI's native board animation. */
 .frame {
   width: 100%;
   display: flex;
   justify-content: center;
-  animation: heroBoardFade 0.5s ease;
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 380ms ease,
+    transform 380ms ease;
+  will-change: opacity, transform;
 }
 
-.frameStatic {
-  width: 100%;
-  display: flex;
-  justify-content: center;
+.frame[data-visible="false"] {
+  opacity: 0;
+  transform: scale(0.985);
 }
 
 .caption {
@@ -32,22 +38,18 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted-foreground);
+  opacity: 1;
+  transition: opacity 380ms ease;
 }
 
-@keyframes heroBoardFade {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.caption[data-visible="false"] {
+  opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .frame {
-    animation: none;
+  .frame,
+  .caption {
+    transition: none;
   }
 }
 
