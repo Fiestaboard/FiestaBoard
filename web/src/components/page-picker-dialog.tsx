@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, EmptyState, Tabs, TabsContent, TabsList, TabsTrigger } from "@fiestaboard/ui";
+import { Badge, EmptyState, Flex, Stack, Tabs, TabsContent, TabsList, TabsTrigger, Text } from "@fiestaboard/ui";
 import { Check, FileText, GalleryHorizontalEnd, LayoutTemplate } from "lucide-react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
@@ -61,13 +61,15 @@ export function PagePickerDialog({
         selectedPageId === null ? "border-brand bg-muted/50" : ""
       }`}
     >
-      <span className="text-sm font-medium">{t("noneNoDefault")}</span>
+      <Text as="span" weight="medium">
+        {t("noneNoDefault")}
+      </Text>
       {selectedPageId === null && <Check className="h-4 w-4 text-brand" aria-hidden="true" />}
     </button>
   );
 
   const pagesList = (
-    <div className="space-y-2" role="listbox" aria-label={t("pagesAriaLabel")}>
+    <Stack gap="2" role="listbox" aria-label={t("pagesAriaLabel")}>
       {visiblePages.map((page) => (
         <button
           key={page.id}
@@ -78,8 +80,10 @@ export function PagePickerDialog({
             selectedPageId === page.id ? "border-brand bg-muted/50" : ""
           }`}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{page.name}</span>
+          <Flex align="center" gap="2">
+            <Text as="span" weight="medium">
+              {page.name}
+            </Text>
             {page.type && (
               <Badge variant="secondary" className="text-[10px]">
                 {page.type}
@@ -92,15 +96,15 @@ export function PagePickerDialog({
                 notesTall={page.notes_tall}
               />
             )}
-          </div>
+          </Flex>
           {selectedPageId === page.id && <Check className="h-4 w-4 text-brand" aria-hidden="true" />}
         </button>
       ))}
-    </div>
+    </Stack>
   );
 
   const collectionsList = (
-    <div className="space-y-2" role="listbox" aria-label={t("collectionsAriaLabel")}>
+    <Stack gap="2" role="listbox" aria-label={t("collectionsAriaLabel")}>
       {collections.map((collection) => (
         <button
           key={collection.id}
@@ -111,34 +115,36 @@ export function PagePickerDialog({
             selectedPageId === collection.id ? "border-brand bg-muted/50" : ""
           }`}
         >
-          <div className="flex items-center gap-2">
+          <Flex align="center" gap="2">
             <GalleryHorizontalEnd className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            <span className="text-sm font-medium">{collection.name}</span>
+            <Text as="span" weight="medium">
+              {collection.name}
+            </Text>
             <Badge variant="secondary" className="text-[10px]">
               {t("pageCount", { count: collection.page_ids.length })}
             </Badge>
-          </div>
+          </Flex>
           {selectedPageId === collection.id && <Check className="h-4 w-4 text-brand" aria-hidden="true" />}
         </button>
       ))}
-    </div>
+    </Stack>
   );
 
   if (!hasCollections) {
     return (
-      <div className="space-y-2">
+      <Stack gap="2">
         {noneOption}
         {visiblePages.length === 0 ? (
           <EmptyState icon={FileText} title={t("noPagesTitle")} description={t("noPagesDescription")} />
         ) : (
           pagesList
         )}
-      </div>
+      </Stack>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <Stack gap="2">
       {noneOption}
       <Tabs defaultValue={defaultTab}>
         <TabsList className="w-full">
@@ -160,6 +166,6 @@ export function PagePickerDialog({
         </TabsContent>
         <TabsContent value="collections">{collectionsList}</TabsContent>
       </Tabs>
-    </div>
+    </Stack>
   );
 }

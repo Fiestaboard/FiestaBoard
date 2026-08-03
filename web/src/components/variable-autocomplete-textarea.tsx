@@ -1,6 +1,6 @@
 "use client";
 
-import { Textarea } from "@fiestaboard/ui";
+import { Box, Text, Textarea } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
@@ -180,7 +180,7 @@ export const VariableAutocompleteTextarea = forwardRef<HTMLTextAreaElement, Vari
     );
 
     return (
-      <div className="relative">
+      <Box className="relative">
         <Textarea
           ref={innerRef}
           id={id}
@@ -204,7 +204,7 @@ export const VariableAutocompleteTextarea = forwardRef<HTMLTextAreaElement, Vari
           disabled={disabled}
         />
         {open && filtered.length > 0 && (
-          <div
+          <Box
             role="listbox"
             className="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-auto rounded-md border bg-popover p-1 shadow-md"
           >
@@ -224,17 +224,23 @@ export const VariableAutocompleteTextarea = forwardRef<HTMLTextAreaElement, Vari
                   idx === activeIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
                 )}
               >
-                <span className="font-mono text-xs">{s.token}</span>
+                <Text
+                  as="span"
+                  size="xs"
+                  className={cn("font-mono", idx === activeIndex && "text-accent-foreground")}
+                >
+                  {s.token}
+                </Text>
                 {s.preview && (
-                  <span className="truncate text-xs text-muted-foreground">
+                  <Text as="span" size="xs" tone="muted" className="truncate">
                     {s.preview.length > 20 ? `${s.preview.slice(0, 20)}…` : s.preview}
-                  </span>
+                  </Text>
                 )}
               </button>
             ))}
-          </div>
+          </Box>
         )}
-      </div>
+      </Box>
     );
   },
 );
