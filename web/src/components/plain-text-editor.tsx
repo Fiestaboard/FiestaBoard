@@ -188,10 +188,7 @@ export function PlainTextEditor({
       </Box>
 
       {/* Line counter */}
-      <Text
-        size="xs"
-        className={cn("mt-1", isOverLimit ? "text-warning font-medium" : "text-muted-foreground")}
-      >
+      <Text size="xs" className={cn("mt-1", isOverLimit ? "text-warning font-medium" : "text-muted-foreground")}>
         {t("lineCount", { current: lineCount, total: boardLines })}
         {isOverLimit && ` ${t("exceedsLimit", { limit: boardLines })}`}
       </Text>

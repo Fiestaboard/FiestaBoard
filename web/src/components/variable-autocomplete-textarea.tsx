@@ -224,11 +224,7 @@ export const VariableAutocompleteTextarea = forwardRef<HTMLTextAreaElement, Vari
                   idx === activeIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
                 )}
               >
-                <Text
-                  as="span"
-                  size="xs"
-                  className={cn("font-mono", idx === activeIndex && "text-accent-foreground")}
-                >
+                <Text as="span" size="xs" className={cn("font-mono", idx === activeIndex && "text-accent-foreground")}>
                   {s.token}
                 </Text>
                 {s.preview && (

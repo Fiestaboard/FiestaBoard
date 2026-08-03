@@ -280,7 +280,7 @@ function UpdateOverlay({ currentVersion, onDone }: { currentVersion?: string; on
               </Fragment>
             );
           })}
-        </div>
+        </Flex>
 
         <Text size="xs" className="text-white/40">
           {t("dontCloseTab")}

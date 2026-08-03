@@ -1570,7 +1570,12 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
               <Stack gap="3">
                 <Flex align="center" justify="between">
                   <label className="text-xs sm:text-sm font-medium">{t("templateLabel")}</label>
-                  <Flex align="center" role="group" aria-label={t("editorModeAriaLabel")} className="border rounded-md overflow-hidden">
+                  <Flex
+                    align="center"
+                    role="group"
+                    aria-label={t("editorModeAriaLabel")}
+                    className="border rounded-md overflow-hidden"
+                  >
                     <Button
                       size="sm"
                       variant="ghost"

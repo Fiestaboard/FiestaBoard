@@ -37,11 +37,7 @@ export function ServiceStatus() {
             className="relative h-6 w-6 flex items-center justify-center cursor-default rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={ariaLabel}
           >
-            <Text
-              as="span"
-              className={`h-3 w-3 rounded-full ${statusClass} transition-all`}
-              style={glowStyle}
-            />
+            <Text as="span" className={`h-3 w-3 rounded-full ${statusClass} transition-all`} style={glowStyle} />
           </button>
         </TooltipTrigger>
         <TooltipContent>
