@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Card, CardContent, CardHeader, CardTitle, Skeleton } from "@fiestaboard/ui";
+import { Badge, Card, CardContent, CardHeader, CardTitle, Flex, Skeleton, Text } from "@fiestaboard/ui";
 
 import { useStatus } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
@@ -28,7 +28,7 @@ export function ServiceControls() {
   return (
     <Card>
       <CardHeader className="px-4 sm:px-6">
-        <div className="flex items-center justify-between">
+        <Flex align="center" justify="between">
           <CardTitle className="text-base sm:text-lg">{t("title")}</CardTitle>
           <Badge
             variant={isRunning ? "default" : "secondary"}
@@ -36,10 +36,12 @@ export function ServiceControls() {
           >
             {isRunning ? tc("running") : tc("stopped")}
           </Badge>
-        </div>
+        </Flex>
       </CardHeader>
       <CardContent className="space-y-4 px-4 sm:px-6">
-        <p className="text-[10px] text-muted-foreground">{t("contentAutoSent")}</p>
+        <Text tone="muted" size="xs">
+          {t("contentAutoSent")}
+        </Text>
       </CardContent>
     </Card>
   );

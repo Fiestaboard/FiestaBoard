@@ -1,5 +1,6 @@
 "use client";
 
+import { Box, Text } from "@fiestaboard/ui";
 import { memo, useMemo } from "react";
 
 import { useTranslations } from "@/i18n/translations";
@@ -233,14 +234,14 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
     size === "sm" ? "rounded-lg border-[3px]" : "rounded-lg sm:rounded-xl border-[3px] sm:border-[4px] lg:border-[5px]";
 
   return (
-    <div className="w-full flex justify-center">
-      <div
+    <Box className="w-full flex justify-center">
+      <Box
         role="img"
         aria-label={message ? t("preview") : t("empty")}
         className={`${borderClasses} ${className} max-w-full`}
         style={{ backgroundColor: bezelBg, borderColor, boxShadow, width: "fit-content" }}
       >
-        <div
+        <Box
           className={`${paddingClasses[size]} relative`}
           aria-hidden="true"
           style={{
@@ -249,11 +250,11 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
               : "linear-gradient(135deg, var(--color-board-surface-dark) 0%, var(--color-board-black) 100%)",
           }}
         >
-          <div className={`flex flex-col ${gapClasses[size]}`}>
+          <Box className={`flex flex-col ${gapClasses[size]}`}>
             {grid.map((row, rowIdx) => {
               const isRowSeam = showSeams && rowIdx > 0 && rowIdx % NOTE_ROWS === 0;
               return (
-                <div
+                <Box
                   key={rowIdx}
                   data-note-row=""
                   {...(isRowSeam ? { "data-note-row-seam": "true" } : {})}
@@ -271,7 +272,7 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
                       // (inner shadow, separator line) are invisible at 14×18px.
                       if (size === "sm") {
                         return (
-                          <div
+                          <Box
                             key={colIdx}
                             data-note-tile=""
                             {...seamProps}
@@ -286,7 +287,7 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
                         );
                       }
                       return (
-                        <div
+                        <Box
                           key={colIdx}
                           data-note-tile=""
                           {...seamProps}
@@ -298,7 +299,7 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
                             ...tileSeamStyle,
                           }}
                         >
-                          <div
+                          <Box
                             className="absolute rounded-[3px] overflow-hidden"
                             style={{
                               top: "3px",
@@ -310,9 +311,9 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
                                 "0 2px 4px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.15), inset 0 -1px 1px rgba(0,0,0,0.25)",
                             }}
                           >
-                            <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
-                          </div>
-                        </div>
+                            <Box className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
+                          </Box>
+                        </Box>
                       );
                     }
 
@@ -325,7 +326,7 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
                     // per flagship board).
                     if (size === "sm") {
                       return (
-                        <div
+                        <Box
                           key={colIdx}
                           data-note-tile=""
                           {...seamProps}
@@ -338,19 +339,20 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
                           }}
                         >
                           {char !== " " && (
-                            <span
+                            <Text
+                              as="span"
                               className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none`}
                               style={{ color: isHeart ? "#eb4034" : textColor }}
                             >
                               {char}
-                            </span>
+                            </Text>
                           )}
-                        </div>
+                        </Box>
                       );
                     }
 
                     return (
-                      <div
+                      <Box
                         key={colIdx}
                         data-note-tile=""
                         {...seamProps}
@@ -362,21 +364,22 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
                           ...tileSeamStyle,
                         }}
                       >
-                        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 2 }}>
+                        <Box className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 2 }}>
                           {char !== " " && (
-                            <span
+                            <Text
+                              as="span"
                               className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none`}
                               style={{ color: isHeart ? "#eb4034" : textColor }}
                             >
                               {char}
-                            </span>
+                            </Text>
                           )}
-                        </div>
-                        <div
+                        </Box>
+                        <Box
                           className={`absolute top-1/2 left-0 right-0 h-[1px] ${isWhiteBoard ? "bg-black/10" : "bg-black/30"}`}
                           style={{ zIndex: 3 }}
                         />
-                        <div
+                        <Box
                           className="absolute inset-0 pointer-events-none"
                           style={{
                             zIndex: 1,
@@ -385,15 +388,15 @@ export const StaticBoardDisplay = memo(function StaticBoardDisplay({
                               : "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)",
                           }}
                         />
-                      </div>
+                      </Box>
                     );
                   })}
-                </div>
+                </Box>
               );
             })}
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 });

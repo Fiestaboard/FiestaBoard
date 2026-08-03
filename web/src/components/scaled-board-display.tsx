@@ -1,5 +1,6 @@
 "use client";
 
+import { Box, Flex } from "@fiestaboard/ui";
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { BoardDisplay } from "@/components/board-display";
@@ -158,8 +159,8 @@ export function ScaledBoardDisplay(props: BoardProps) {
   }, [props.message, props.size, props.deviceType, props.notesWide, props.notesTall, mode]);
 
   const toggle = showToggle ? (
-    <div className="mb-1 flex w-full justify-center" role="group" aria-label={t("previewSizeLabel")}>
-      <div className="flex gap-1">
+    <Flex justify="center" className="mb-1 w-full" role="group" aria-label={t("previewSizeLabel")}>
+      <Flex gap="1">
         <button
           type="button"
           onClick={() => setMode("fit")}
@@ -186,25 +187,25 @@ export function ScaledBoardDisplay(props: BoardProps) {
         >
           {t("actualMode")}
         </button>
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   ) : null;
 
   if (mode === "actual") {
     // Actual size: render at natural scale, scroll horizontally for wide
     // boards, and let tall boards flow without any vertical clipping.
     return (
-      <div className="w-full min-w-0">
+      <Box className="w-full min-w-0">
         {toggle}
-        <div data-testid="actual-size-scroll" className="w-full overflow-x-auto" style={{ overflowY: "visible" }}>
+        <Box data-testid="actual-size-scroll" className="w-full overflow-x-auto" style={{ overflowY: "visible" }}>
           <BoardDisplay {...props} />
-        </div>
-      </div>
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div className="w-full min-w-0">
+    <Box className="w-full min-w-0">
       {toggle}
       {/*
         Outer: full-width, centers the scaled board horizontally.
@@ -218,14 +219,14 @@ export function ScaledBoardDisplay(props: BoardProps) {
         Inner: the BoardDisplay itself, transformed from its top-left so
         the visible content lines up with the middle box from x=0.
       */}
-      <div ref={containerRef} className="flex w-full min-w-0 justify-center overflow-hidden">
-        <div
+      <Flex ref={containerRef} justify="center" className="w-full min-w-0 overflow-hidden">
+        <Box
           style={{
             width: scaledWidth ?? undefined,
             height: scaledHeight ?? undefined,
           }}
         >
-          <div
+          <Box
             ref={boardRef}
             style={{
               transform: `scale(${scale})`,
@@ -234,9 +235,9 @@ export function ScaledBoardDisplay(props: BoardProps) {
             }}
           >
             <BoardDisplay {...props} />
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Flex>
+    </Box>
   );
 }

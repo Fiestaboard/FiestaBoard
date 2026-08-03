@@ -1,5 +1,6 @@
 "use client";
 
+import { Box, Flex, Text } from "@fiestaboard/ui";
 import type { ReactNode } from "react";
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useState } from "react";
 
@@ -10,12 +11,14 @@ import { clearWizardCompletion, shouldShowWizard } from "@/lib/setup-detection";
 function WizardLoadingFallback() {
   const t = useTranslations("wizardProvider");
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-background">
-      <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <p className="mt-4 text-muted-foreground">{t("loadingSetupWizard")}</p>
-      </div>
-    </div>
+    <Flex align="center" justify="center" className="fixed inset-0 bg-background">
+      <Box className="text-center">
+        <Box className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <Text tone="muted" className="mt-4">
+          {t("loadingSetupWizard")}
+        </Text>
+      </Box>
+    </Flex>
   );
 }
 
@@ -108,12 +111,14 @@ export function WizardProvider({ children }: WizardProviderProps) {
   // Show loading state while checking
   if (!hasChecked) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="mt-4 text-muted-foreground">{t("loading")}</p>
-        </div>
-      </div>
+      <Flex align="center" justify="center" className="fixed inset-0 bg-background">
+        <Box className="text-center">
+          <Box className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          <Text tone="muted" className="mt-4">
+            {t("loading")}
+          </Text>
+        </Box>
+      </Flex>
     );
   }
 
