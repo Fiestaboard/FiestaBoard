@@ -1,6 +1,18 @@
 "use client";
 
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton, Switch } from "@fiestaboard/ui";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Flex,
+  Skeleton,
+  Stack,
+  Switch,
+  Text,
+} from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Puzzle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -73,23 +85,27 @@ export function PluginSettingsCard() {
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-start justify-between gap-4 rounded-md border p-4">
-          <div className="space-y-1">
-            <span className="font-medium">{t("autoUpdateLabel")}</span>
-            <p className="text-sm text-muted-foreground">{t("autoUpdateDescription")}</p>
-          </div>
+        <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
+          <Stack gap="1">
+            <Text as="span" weight="medium">
+              {t("autoUpdateLabel")}
+            </Text>
+            <Text tone="muted">{t("autoUpdateDescription")}</Text>
+          </Stack>
           <Switch
             checked={data.settings.auto_update}
             disabled={mutation.isPending}
             onCheckedChange={(checked) => mutation.mutate(checked)}
             aria-label={t("autoUpdateLabel")}
           />
-        </div>
-        <div className="flex items-start justify-between gap-4 rounded-md border p-4">
-          <div className="space-y-1">
-            <span className="font-medium">{t("checkForUpdates")}</span>
-            <p className="text-sm text-muted-foreground">{t("checkDescription")}</p>
-          </div>
+        </Flex>
+        <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
+          <Stack gap="1">
+            <Text as="span" weight="medium">
+              {t("checkForUpdates")}
+            </Text>
+            <Text tone="muted">{t("checkDescription")}</Text>
+          </Stack>
           <Button
             variant="outline"
             size="sm"
@@ -100,7 +116,7 @@ export function PluginSettingsCard() {
             <RefreshCw className={cn("h-3.5 w-3.5", checkMutation.isPending && "animate-spin")} />
             {checkMutation.isPending ? t("checking") : t("checkForUpdates")}
           </Button>
-        </div>
+        </Flex>
       </CardContent>
     </Card>
   );

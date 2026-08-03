@@ -13,6 +13,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Flex,
+  Heading,
+  Stack,
+  Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowUpCircle, Cpu, Loader2, Power, RefreshCw } from "lucide-react";
@@ -91,7 +95,7 @@ export function SystemControls() {
           <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
+          <Flex wrap gap="2">
             <Button
               variant={updateAvailable ? "default" : "outline"}
               size="sm"
@@ -129,7 +133,7 @@ export function SystemControls() {
               )}
               {t("shutdown")}
             </Button>
-          </div>
+          </Flex>
         </CardContent>
       </Card>
 
@@ -292,31 +296,31 @@ function RestartingOverlay({ currentVersion }: { currentVersion?: string }) {
 
   if (phase === "error") {
     return (
-      <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
-        <div className="text-center space-y-4 max-w-sm mx-auto px-4">
-          <h2 className="text-xl font-semibold">{t("takingLonger")}</h2>
-          <p className="text-sm text-muted-foreground">{t("takingLongerDescription")}</p>
+      <Flex align="center" justify="center" className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm">
+        <Stack gap="4" className="text-center max-w-sm mx-auto px-4">
+          <Heading level={2} size="xl">
+            {t("takingLonger")}
+          </Heading>
+          <Text tone="muted">{t("takingLongerDescription")}</Text>
           <Button variant="outline" onClick={() => window.location.reload()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             {t("refreshPage")}
           </Button>
-        </div>
-      </div>
+        </Stack>
+      </Flex>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
-      <div className="text-center space-y-4">
+    <Flex align="center" justify="center" className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm">
+      <Stack gap="4" className="text-center">
         <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary" />
-        <h2 className="text-xl font-semibold">
+        <Heading level={2} size="xl">
           {phase === "restarting" ? t("restartingFiestaboard") : t("backOnline")}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {phase === "restarting" ? t("restartingDuration") : t("almostThere")}
-        </p>
-      </div>
-    </div>
+        </Heading>
+        <Text tone="muted">{phase === "restarting" ? t("restartingDuration") : t("almostThere")}</Text>
+      </Stack>
+    </Flex>
   );
 }
 
@@ -327,12 +331,16 @@ function RestartingOverlay({ currentVersion }: { currentVersion?: string }) {
 function ShutdownOverlay() {
   const t = useTranslations("systemControls");
   return (
-    <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex items-center justify-center">
-      <div className="text-center space-y-4">
+    <Flex align="center" justify="center" className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm">
+      <Stack gap="4" className="text-center">
         <Power className="h-12 w-12 mx-auto text-muted-foreground" />
-        <h2 className="text-xl font-semibold">{t("shuttingDown")}</h2>
-        <p className="text-sm text-muted-foreground max-w-sm mx-auto">{t("shuttingDownDescription")}</p>
-      </div>
-    </div>
+        <Heading level={2} size="xl">
+          {t("shuttingDown")}
+        </Heading>
+        <Text tone="muted" className="max-w-sm mx-auto">
+          {t("shuttingDownDescription")}
+        </Text>
+      </Stack>
+    </Flex>
   );
 }

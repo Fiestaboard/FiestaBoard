@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Label, Skeleton } from "@fiestaboard/ui";
+import { Box, Card, CardContent, CardDescription, CardHeader, CardTitle, Flex, Label, Skeleton, Stack, Text } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -81,12 +81,14 @@ export function AnimationSettings() {
           <Skeleton className="h-20 w-full" />
         ) : (
           <>
-            <div className="space-y-2">
-              <div>
+            <Stack gap="2">
+              <Box>
                 <Label className="text-sm font-medium">{t("boardAnimationsLabel")}</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">{t("boardAnimationsHint")}</p>
-              </div>
-              <div role="radiogroup" aria-label={t("boardAnimationsLabel")} className="flex flex-wrap gap-2">
+                <Text size="xs" tone="muted" className="mt-0.5">
+                  {t("boardAnimationsHint")}
+                </Text>
+              </Box>
+              <Flex wrap gap="2" role="radiogroup" aria-label={t("boardAnimationsLabel")}>
                 {BOARD_OPTIONS.map((option) => {
                   const selected = boardMode === option;
                   return (
@@ -107,16 +109,20 @@ export function AnimationSettings() {
                     </button>
                   );
                 })}
-              </div>
-              <p className="text-xs text-muted-foreground">{t(BOARD_HINT_KEY[boardMode])}</p>
-            </div>
+              </Flex>
+              <Text size="xs" tone="muted">
+                {t(BOARD_HINT_KEY[boardMode])}
+              </Text>
+            </Stack>
 
-            <div className="space-y-2 pt-2 border-t">
-              <div>
+            <Stack gap="2" className="pt-2 border-t">
+              <Box>
                 <Label className="text-sm font-medium">{t("siteAnimationsLabel")}</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">{t("siteAnimationsHint")}</p>
-              </div>
-              <div role="radiogroup" aria-label={t("siteAnimationsLabel")} className="flex flex-wrap gap-2">
+                <Text size="xs" tone="muted" className="mt-0.5">
+                  {t("siteAnimationsHint")}
+                </Text>
+              </Box>
+              <Flex wrap gap="2" role="radiogroup" aria-label={t("siteAnimationsLabel")}>
                 {SITE_OPTIONS.map((option) => {
                   const selected = siteMode === option;
                   return (
@@ -137,11 +143,13 @@ export function AnimationSettings() {
                     </button>
                   );
                 })}
-              </div>
-            </div>
+              </Flex>
+            </Stack>
 
             {reduceMotion && (
-              <p className="text-xs text-muted-foreground italic">{t("animationsReduceMotionOverride")}</p>
+              <Text size="xs" tone="muted" className="italic">
+                {t("animationsReduceMotionOverride")}
+              </Text>
             )}
           </>
         )}

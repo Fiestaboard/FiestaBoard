@@ -5,12 +5,15 @@ import {
   AlertDescription,
   Badge,
   Button,
+  Code,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Flex,
+  Text,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -78,17 +81,22 @@ export function SystemUpdate() {
       <Alert className="border-warning/50 bg-warning/10">
         <ArrowUpCircle className="h-4 w-4 text-warning" />
         <AlertDescription className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium">{t("updateAvailable")}</span>
+          <Flex align="center" gap="2" wrap>
+            <Text as="span" weight="medium">
+              {t("updateAvailable")}
+            </Text>
             <Badge variant="secondary" className="text-xs">
               v{updateCheck.latest_version}
             </Badge>
-            <span className="text-sm text-muted-foreground">
+            <Text as="span" tone="muted">
               {t("youAreRunning", { currentVersion: updateCheck.current_version })}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
+            </Text>
+          </Flex>
+          <Flex align="center" gap="2">
             <Button variant="outline" size="sm" asChild>
+              {/* Plain <a> stays raw: it is the single Slot child of Button asChild,
+                  which merges button styling onto it; TextLink would layer conflicting
+                  link/underline treatment on top. */}
               <a href={updateCheck.package_url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-4 w-4 mr-2" />
                 {t("viewRelease")}
@@ -116,21 +124,25 @@ export function SystemUpdate() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{t("checkForUpdates")}</p>
+                <Text>{t("checkForUpdates")}</Text>
               </TooltipContent>
             </Tooltip>
-          </div>
+          </Flex>
         </AlertDescription>
       </Alert>
 
       {!sidecarReady && (
-        <p className="text-xs text-muted-foreground mt-2 ml-1">
+        <Text size="xs" tone="muted" className="mt-2 ml-1">
           {t.rich("oneClickHint", {
-            profile: () => <span className="font-mono">COMPOSE_PROFILES=fiestaupdater</span>,
-            envFile: () => <code>.env</code>,
-            command: () => <code>docker compose up -d</code>,
+            profile: () => (
+              <Text as="span" size="xs" tone="muted" className="font-mono">
+                COMPOSE_PROFILES=fiestaupdater
+              </Text>
+            ),
+            envFile: () => <Code>.env</Code>,
+            command: () => <Code>docker compose up -d</Code>,
           })}
-        </p>
+        </Text>
       )}
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -139,7 +151,11 @@ export function SystemUpdate() {
             <DialogTitle>{t("dialogTitle")}</DialogTitle>
             <DialogDescription>
               {t.rich("dialogDescription", {
-                version: () => <strong>v{updateCheck.latest_version}</strong>,
+                version: () => (
+                  <Text as="span" weight="semibold" tone="muted">
+                    v{updateCheck.latest_version}
+                  </Text>
+                ),
               })}
             </DialogDescription>
           </DialogHeader>
