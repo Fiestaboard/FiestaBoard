@@ -1,6 +1,20 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Skeleton } from "@fiestaboard/ui";
+import {
+  Box,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Flex,
+  Grid,
+  Input,
+  Label,
+  Skeleton,
+  Stack,
+  Text,
+} from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -128,9 +142,9 @@ export function TransitionSettings() {
       </CardHeader>
       <CardContent className="space-y-5">
         {/* Strategy Selector */}
-        <div className="space-y-2">
+        <Stack gap="2">
           <Label className="text-sm font-medium">{t("transitionStyle")}</Label>
-          <div className="flex flex-wrap gap-2">
+          <Flex wrap gap="2">
             {STRATEGY_VALUES.map((option) => {
               const isSelected = strategy === option.value;
               return (
@@ -147,24 +161,26 @@ export function TransitionSettings() {
                 </button>
               );
             })}
-          </div>
+          </Flex>
           {/* Description of selected strategy */}
           {(() => {
             const selected = STRATEGY_VALUES.find((o) => o.value === strategy);
             return selected ? (
-              <p className="text-xs text-muted-foreground">{t(`strategies.${selected.key}.description`)}</p>
+              <Text size="xs" tone="muted">
+                {t(`strategies.${selected.key}.description`)}
+              </Text>
             ) : null;
           })()}
-        </div>
+        </Stack>
 
         {/* Advanced options — only shown when a strategy is selected */}
         {strategy && (
-          <div className="space-y-4 pt-2 border-t">
+          <Stack gap="4" className="pt-2 border-t">
             <Label className="text-sm font-medium">{t("advancedOptions")}</Label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Grid cols="1" sm="2" gap="4">
               {/* Step Interval */}
-              <div className="space-y-1.5">
+              <Stack gap="1.5">
                 <Label htmlFor="step-interval" className="text-xs">
                   {t("stepIntervalLabel")}
                 </Label>
@@ -177,11 +193,13 @@ export function TransitionSettings() {
                   onChange={(e) => handleStepIntervalChange(e.target.value)}
                   className="w-full"
                 />
-                <p className="text-[11px] text-muted-foreground">{t("stepIntervalDescription")}</p>
-              </div>
+                <Text size="xs" tone="muted">
+                  {t("stepIntervalDescription")}
+                </Text>
+              </Stack>
 
               {/* Step Size */}
-              <div className="space-y-1.5">
+              <Stack gap="1.5">
                 <Label htmlFor="step-size" className="text-xs">
                   {t("stepSizeLabel")}
                 </Label>
@@ -194,24 +212,30 @@ export function TransitionSettings() {
                   onChange={(e) => handleStepSizeChange(e.target.value)}
                   className="w-full"
                 />
-                <p className="text-[11px] text-muted-foreground">{t("stepSizeDescription")}</p>
-              </div>
-            </div>
-          </div>
+                <Text size="xs" tone="muted">
+                  {t("stepSizeDescription")}
+                </Text>
+              </Stack>
+            </Grid>
+          </Stack>
         )}
 
         {/* Info note */}
-        <div className="flex items-start gap-2 p-2.5 rounded-md bg-muted/50 text-xs text-muted-foreground">
+        <Flex align="start" gap="2" className="p-2.5 rounded-md bg-muted/50 text-xs text-muted-foreground">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>{t("localApiNote")}</span>
-        </div>
+          <Text as="span" size="xs" tone="muted">
+            {t("localApiNote")}
+          </Text>
+        </Flex>
 
         {/* Saving indicator */}
         {updateMutation.isPending && (
-          <div className="flex items-center justify-center gap-2 pt-2 text-xs text-muted-foreground">
-            <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <span>{tCommon("saving")}</span>
-          </div>
+          <Flex align="center" justify="center" gap="2" className="pt-2 text-xs text-muted-foreground">
+            <Box className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <Text as="span" size="xs" tone="muted">
+              {tCommon("saving")}
+            </Text>
+          </Flex>
         )}
       </CardContent>
     </Card>

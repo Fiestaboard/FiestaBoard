@@ -2,6 +2,7 @@
 
 import {
   Badge as BadgeUI,
+  Box,
   Button,
   Card,
   CardContent,
@@ -11,6 +12,8 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  Flex,
+  Grid,
   Label,
   Select,
   SelectContent,
@@ -20,7 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Stack,
   Switch,
+  Text,
+  TextLink,
 } from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -142,8 +148,8 @@ function BoardConnectionForm({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
+    <Stack gap="3">
+      <Flex align="center" justify="between">
         <Label className="text-xs font-medium">{t("connectionLabel")}</Label>
         {isConfigured ? (
           <BadgeUI variant="default" className="text-[10px] h-5 bg-board-green">
@@ -156,10 +162,10 @@ function BoardConnectionForm({
             {t("notConfigured")}
           </BadgeUI>
         )}
-      </div>
+      </Flex>
 
       {/* API Mode */}
-      <div className="grid grid-cols-2 gap-2">
+      <Grid cols="2" gap="2">
         <button
           onClick={() => onUpdate(board.id, { api_mode: "local" })}
           aria-pressed={apiMode === "local"}
@@ -167,8 +173,12 @@ function BoardConnectionForm({
             apiMode === "local" ? "border-primary bg-primary/10" : "border-muted hover:border-primary/50"
           }`}
         >
-          <div className="text-xs font-medium">{t("localApiLabel")}</div>
-          <div className="text-[10px] text-muted-foreground">{t("localApiDescription")}</div>
+          <Text size="xs" weight="medium">
+            {t("localApiLabel")}
+          </Text>
+          <Text tone="muted" className="text-[10px]">
+            {t("localApiDescription")}
+          </Text>
         </button>
         <button
           onClick={() => onUpdate(board.id, { api_mode: "cloud" })}
@@ -177,10 +187,14 @@ function BoardConnectionForm({
             apiMode === "cloud" ? "border-primary bg-primary/10" : "border-muted hover:border-primary/50"
           }`}
         >
-          <div className="text-xs font-medium">{t("cloudApiLabel")}</div>
-          <div className="text-[10px] text-muted-foreground">{t("cloudApiDescription")}</div>
+          <Text size="xs" weight="medium">
+            {t("cloudApiLabel")}
+          </Text>
+          <Text tone="muted" className="text-[10px]">
+            {t("cloudApiDescription")}
+          </Text>
         </button>
-      </div>
+      </Grid>
 
       {/* Local array mode: per-tile assignment grid instead of host/key fields */}
       {isArray && apiMode === "local" && <TileGridAssignment board={board} onUpdate={onUpdate} />}
@@ -188,9 +202,12 @@ function BoardConnectionForm({
       {/* Local API Fields (single boards) */}
       {apiMode === "local" && !isArray && (
         <>
-          <div className="space-y-1">
+          <Stack gap="1">
             <label className="text-xs font-medium">
-              {t("boardHostLabel")} <span className="text-destructive">*</span>
+              {t("boardHostLabel")}{" "}
+              <Text as="span" size="xs" tone="destructive">
+                *
+              </Text>
             </label>
             <input
               type="text"
@@ -203,10 +220,10 @@ function BoardConnectionForm({
               placeholder={t("boardHostPlaceholder")}
               className="w-full h-8 px-2 text-xs rounded-md border bg-background font-mono"
             />
-          </div>
+          </Stack>
 
           {/* Auth method toggle */}
-          <div className="grid grid-cols-2 gap-2">
+          <Grid cols="2" gap="2">
             <button
               type="button"
               onClick={() => setLocalKeyMode("api_key")}
@@ -231,14 +248,17 @@ function BoardConnectionForm({
               <KeyRound className="h-3 w-3" />
               {t("enablementTokenLabel")}
             </button>
-          </div>
+          </Grid>
 
           {localKeyMode === "api_key" ? (
-            <div className="space-y-1">
+            <Stack gap="1">
               <label className="text-xs font-medium">
-                {t("localApiKeyLabel")} <span className="text-destructive">*</span>
+                {t("localApiKeyLabel")}{" "}
+                <Text as="span" size="xs" tone="destructive">
+                  *
+                </Text>
               </label>
-              <div className="flex gap-1.5">
+              <Flex gap="1.5">
                 <input
                   type={showSecrets.local_api_key ? "text" : "password"}
                   defaultValue={board.local_api_key === "***" ? "" : (board.local_api_key ?? "")}
@@ -262,26 +282,26 @@ function BoardConnectionForm({
                 >
                   {showSecrets.local_api_key ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground">
+              </Flex>
+              <Text tone="muted" className="text-[10px]">
                 {t.rich("localApiKeyHelp", {
                   link: (chunks) => (
-                    <a
+                    <TextLink
                       href="https://fiestaboard.app/docs/setup/api-keys"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="underline"
                     >
                       {chunks}
-                    </a>
+                    </TextLink>
                   ),
                 })}
-              </p>
-            </div>
+              </Text>
+            </Stack>
           ) : (
-            <div className="space-y-1.5">
+            <Stack gap="1.5">
               <label className="text-xs font-medium">{t("enablementTokenLabel")}</label>
-              <div className="flex gap-1.5">
+              <Flex gap="1.5">
                 <input
                   type={showSecrets.enablement_token ? "text" : "password"}
                   value={enablementToken}
@@ -299,7 +319,7 @@ function BoardConnectionForm({
                 >
                   {showSecrets.enablement_token ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </Button>
-              </div>
+              </Flex>
               <Button
                 type="button"
                 variant="secondary"
@@ -317,18 +337,21 @@ function BoardConnectionForm({
                   t("getApiKeyFromBoard")
                 )}
               </Button>
-            </div>
+            </Stack>
           )}
         </>
       )}
 
       {/* Cloud API Fields (single boards — arrays use the token below) */}
       {apiMode === "cloud" && !isArray && (
-        <div className="space-y-1">
+        <Stack gap="1">
           <label className="text-xs font-medium">
-            {t("cloudKeyLabel")} <span className="text-destructive">*</span>
+            {t("cloudKeyLabel")}{" "}
+            <Text as="span" size="xs" tone="destructive">
+              *
+            </Text>
           </label>
-          <div className="flex gap-1.5">
+          <Flex gap="1.5">
             <input
               type={showSecrets.cloud_key ? "text" : "password"}
               defaultValue={board.cloud_key === "***" ? "" : (board.cloud_key ?? "")}
@@ -352,18 +375,20 @@ function BoardConnectionForm({
             >
               {showSecrets.cloud_key ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </Button>
-          </div>
-          <p className="text-[10px] text-muted-foreground">{t("cloudKeyHelp")}</p>
-        </div>
+          </Flex>
+          <Text tone="muted" className="text-[10px]">
+            {t("cloudKeyHelp")}
+          </Text>
+        </Stack>
       )}
 
       {/* Note-array Cloud API token (X-Vestaboard-Token) */}
       {isArray && apiMode === "cloud" && (
-        <div className="space-y-1">
+        <Stack gap="1">
           <label className="text-xs font-medium" htmlFor={`note-array-token-${board.id}`}>
             {t("noteArrayTokenLabel")}
           </label>
-          <div className="flex gap-1.5">
+          <Flex gap="1.5">
             <input
               id={`note-array-token-${board.id}`}
               type={showSecrets.note_array_token ? "text" : "password"}
@@ -388,16 +413,18 @@ function BoardConnectionForm({
             >
               {showSecrets.note_array_token ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </Button>
-          </div>
-          <p className="text-[10px] text-muted-foreground">{t("noteArrayTokenHelp")}</p>
-        </div>
+          </Flex>
+          <Text tone="muted" className="text-[10px]">
+            {t("noteArrayTokenHelp")}
+          </Text>
+        </Stack>
       )}
 
       {/* Validation message */}
       {!isConfigured && (
-        <div className="flex items-center gap-1.5 p-1.5 rounded-md bg-destructive/10 text-foreground text-[10px]">
+        <Flex align="center" gap="1.5" className="p-1.5 rounded-md bg-destructive/10 text-foreground text-[10px]">
           <AlertCircle className="h-3 w-3 flex-shrink-0" />
-          <span>
+          <Text as="span" className="text-[10px]">
             {isArray
               ? apiMode === "local"
                 ? t("tileGrid.assignRequired")
@@ -405,10 +432,10 @@ function BoardConnectionForm({
               : apiMode === "local"
                 ? t("localApiRequired")
                 : t("cloudApiRequired")}
-          </span>
-        </div>
+          </Text>
+        </Flex>
       )}
-    </div>
+    </Stack>
   );
 }
 
@@ -610,7 +637,7 @@ export function DisplaySettings() {
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-3">
+        <Stack gap="3">
           {boards.map((board) => {
             const isPaused = board.paused === true;
             const apiMode = board.api_mode ?? "local";
@@ -633,22 +660,30 @@ export function DisplaySettings() {
                 className={`rounded-lg border overflow-hidden ${isPaused ? "border-amber-500/60 bg-amber-500/5" : ""}`}
               >
                 <CollapsibleTrigger className="flex items-center gap-3 p-3 w-full text-left hover:bg-muted/40 transition-colors [&[data-state=open]>div:first-child>svg:first-child]:hidden [&[data-state=closed]>div:first-child>svg:last-child]:hidden">
-                  <div className="flex-shrink-0 text-muted-foreground">
+                  <Box className="flex-shrink-0 text-muted-foreground">
                     <ChevronRight className="h-4 w-4" />
                     <ChevronDown className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{board.name || t("unnamedBoard")}</div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="capitalize">{board.device_type}</span>
-                      <span>•</span>
+                  </Box>
+                  <Box className="flex-1 min-w-0">
+                    <Text weight="medium" className="truncate">
+                      {board.name || t("unnamedBoard")}
+                    </Text>
+                    <Flex align="center" gap="2" className="text-xs text-muted-foreground">
+                      <Text as="span" size="xs" className="capitalize">
+                        {board.device_type}
+                      </Text>
+                      <Text as="span" size="xs" tone="muted">
+                        •
+                      </Text>
                       <BoardSizeIndicator
                         deviceType={board.device_type}
                         notesWide={board.notes_wide}
                         notesTall={board.notes_tall}
                       />
-                      <span>•</span>
-                      <div
+                      <Text as="span" size="xs" tone="muted">
+                        •
+                      </Text>
+                      <Box
                         className="h-3 w-3 rounded border"
                         style={{
                           backgroundColor:
@@ -657,9 +692,9 @@ export function DisplaySettings() {
                               : "var(--color-board-surface-dark)",
                         }}
                       />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    </Flex>
+                  </Box>
+                  <Flex align="center" gap="1.5" className="flex-shrink-0">
                     {isPaused && (
                       <BadgeUI
                         variant="default"
@@ -682,43 +717,49 @@ export function DisplaySettings() {
                         {t("notConfigured")}
                       </BadgeUI>
                     )}
-                  </div>
+                  </Flex>
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
-                  <div className="border-t px-4 pb-4 pt-3 space-y-3">
+                  <Stack gap="3" className="border-t px-4 pb-4 pt-3">
                     {/* Pause / Resume row (issue #970) */}
-                    <div
-                      className={`flex items-center justify-between rounded-md border px-3 py-2 ${
+                    <Flex
+                      align="center"
+                      justify="between"
+                      className={`rounded-md border px-3 py-2 ${
                         isPaused ? "border-amber-500/60 bg-amber-500/10" : "border-transparent bg-muted/30"
                       }`}
                     >
-                      <div className="flex items-start gap-2 min-w-0">
+                      <Flex align="start" gap="2" className="min-w-0">
                         <Pause
                           className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${
                             isPaused ? "text-amber-600" : "text-muted-foreground"
                           }`}
                         />
-                        <div className="min-w-0">
-                          <div className="text-xs font-medium">
+                        <Box className="min-w-0">
+                          <Text size="xs" weight="medium">
                             {isPaused ? t("pause.resumeToggle") : t("pause.toggle")}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground">{t("pause.tooltip")}</div>
-                        </div>
-                      </div>
+                          </Text>
+                          <Text tone="muted" className="text-[11px]">
+                            {t("pause.tooltip")}
+                          </Text>
+                        </Box>
+                      </Flex>
                       <Switch
                         checked={isPaused}
                         onCheckedChange={(checked) => handleTogglePaused(board.id, checked)}
                         aria-label={isPaused ? t("pause.resumeToggle") : t("pause.toggle")}
                         data-testid="board-pause-switch"
                       />
-                    </div>
+                    </Flex>
 
                     {/* Type + Color row */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-4 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-muted-foreground">{t("typeLabel")}</span>
+                    <Stack gap="2">
+                      <Flex align="center" gap="4" wrap>
+                        <Flex align="center" gap="2">
+                          <Text as="span" tone="muted" className="text-[11px]">
+                            {t("typeLabel")}
+                          </Text>
                           <Select value={currentConfigValue(board)} onValueChange={(v) => handleConfigChange(board, v)}>
                             <SelectTrigger className="h-7 w-[200px] text-xs" aria-label={t("deviceTypeAriaLabel")}>
                               <SelectValue />
@@ -740,10 +781,12 @@ export function DisplaySettings() {
                               </SelectGroup>
                             </SelectContent>
                           </Select>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-muted-foreground">{t("colorLabel")}</span>
-                          <div className="flex gap-2">
+                        </Flex>
+                        <Flex align="center" gap="2">
+                          <Text as="span" tone="muted" className="text-[11px]">
+                            {t("colorLabel")}
+                          </Text>
+                          <Flex gap="2">
                             <button
                               onClick={() => handleUpdateBoard(board.id, { board_color: "black" })}
                               aria-label={t("blackAriaLabel")}
@@ -764,14 +807,14 @@ export function DisplaySettings() {
                                   : "border-border hover:border-muted-foreground"
                               }`}
                             />
-                          </div>
-                        </div>
-                      </div>
+                          </Flex>
+                        </Flex>
+                      </Flex>
 
                       {/* Custom W×H inputs (note arrays only) */}
                       {(customOpen[board.id] || currentConfigValue(board) === "custom") && (
-                        <div className="space-y-1">
-                          <div className="flex items-end gap-2">
+                        <Stack gap="1">
+                          <Flex align="end" gap="2">
                             <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
                               {t("notesWideLabel")}
                               <input
@@ -783,7 +826,9 @@ export function DisplaySettings() {
                                 className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
                               />
                             </label>
-                            <span className="pb-1.5 text-xs text-muted-foreground">×</span>
+                            <Text as="span" size="xs" tone="muted" className="pb-1.5">
+                              ×
+                            </Text>
                             <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
                               {t("notesTallLabel")}
                               <input
@@ -795,13 +840,13 @@ export function DisplaySettings() {
                                 className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
                               />
                             </label>
-                          </div>
+                          </Flex>
                           {dimError[board.id] && (
-                            <p role="alert" className="text-[10px] text-destructive">
+                            <Text role="alert" tone="destructive" className="text-[10px]">
                               {dimError[board.id]}
-                            </p>
+                            </Text>
                           )}
-                        </div>
+                        </Stack>
                       )}
 
                       {/* Auto-detect from board — not offered for local-mode
@@ -810,7 +855,7 @@ export function DisplaySettings() {
                           Detection is meaningful via the Cloud API (which
                           knows the array's real shape) and for single boards. */}
                       {!(isNoteArray(board.device_type) && (board.api_mode ?? "cloud") === "local") && (
-                        <div className="space-y-1">
+                        <Stack gap="1">
                           <Button
                             type="button"
                             variant="secondary"
@@ -829,22 +874,24 @@ export function DisplaySettings() {
                             )}
                           </Button>
                           {detectError[board.id] && (
-                            <div role="alert" className="flex items-center gap-1.5 text-destructive text-[10px]">
+                            <Flex role="alert" align="center" gap="1.5" className="text-destructive text-[10px]">
                               <AlertCircle className="h-3 w-3 flex-shrink-0" />
-                              <span>{detectError[board.id]}</span>
-                            </div>
+                              <Text as="span" tone="destructive" className="text-[10px]">
+                                {detectError[board.id]}
+                              </Text>
+                            </Flex>
                           )}
-                        </div>
+                        </Stack>
                       )}
-                    </div>
+                    </Stack>
 
                     {/* Connection section */}
-                    <div className="border-t pt-3">
+                    <Box className="border-t pt-3">
                       <BoardConnectionForm board={board} onUpdate={handleUpdateBoard} />
-                    </div>
+                    </Box>
 
                     {/* Remove board - bottom */}
-                    <div className="border-t pt-2">
+                    <Box className="border-t pt-2">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -855,24 +902,26 @@ export function DisplaySettings() {
                         <Trash2 className="h-3 w-3 mr-1" />
                         {t("removeBoard")}
                       </Button>
-                    </div>
-                  </div>
+                    </Box>
+                  </Stack>
                 </CollapsibleContent>
               </Collapsible>
             );
           })}
-        </div>
+        </Stack>
 
         {/* Add Board */}
-        <div className="pt-2">
+        <Box className="pt-2">
           {!showTypePicker ? (
             <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowTypePicker(true)}>
               <Plus className="h-3 w-3 mr-1" />
               {t("addBoard")}
             </Button>
           ) : (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">{t("selectType")}</span>
+            <Flex align="center" gap="2">
+              <Text as="span" size="xs" tone="muted">
+                {t("selectType")}
+              </Text>
               <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("flagship")}>
                 <Monitor className="h-3 w-3 mr-1" />
                 {t("flagshipLabel")}
@@ -893,9 +942,9 @@ export function DisplaySettings() {
               >
                 {tCommon("cancel")}
               </Button>
-            </div>
+            </Flex>
           )}
-        </div>
+        </Box>
       </CardContent>
     </Card>
   );

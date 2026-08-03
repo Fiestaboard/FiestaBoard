@@ -10,19 +10,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Badge,
+  Box,
   Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  Code,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Flex,
   Skeleton,
+  Stack,
+  Text,
+  TextLink,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Bot, Check, Copy, KeyRound, Loader2, RefreshCw, Trash2 } from "lucide-react";
@@ -143,23 +149,25 @@ export function McpSettings() {
           <CardDescription>
             A pre-shared token that lets Claude Desktop, Claude Code, and other MCP clients talk to this FiestaBoard.
             The token authenticates as a single principal — scoped to the{" "}
-            <code className="font-mono text-xs">/api/mcp</code> endpoint only — so it can&apos;t edit pages or other
+            <Code className="font-mono text-xs">/api/mcp</Code> endpoint only — so it can&apos;t edit pages or other
             settings. See{" "}
-            <a
+            <TextLink
               href="https://github.com/Fiestaboard/FiestaBoard/blob/main/docs/setup/MCP_CLIENTS.md"
               target="_blank"
               rel="noreferrer"
               className="underline underline-offset-2"
             >
               MCP client setup
-            </a>{" "}
+            </TextLink>{" "}
             for client-specific quirks (Desktop needs an stdio proxy; claude.ai web Connectors require public HTTPS and
             OAuth, so they won&apos;t reach a LAN host).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Status:</span>
+          <Flex align="center" gap="2">
+            <Text as="span" size="sm" weight="medium">
+              Status:
+            </Text>
             {isPinnedByEnv ? (
               <Badge variant="secondary" className="gap-1.5">
                 <KeyRound className="h-3 w-3" />
@@ -173,33 +181,33 @@ export function McpSettings() {
             ) : (
               <Badge variant="outline">Not configured</Badge>
             )}
-          </div>
+          </Flex>
 
           {isPinnedByEnv && (
-            <p className="text-sm text-muted-foreground">
-              The active token is set by the <code className="font-mono text-xs">FIESTABOARD_MCP_TOKEN</code>{" "}
-              environment variable. Unset it in your <code className="font-mono text-xs">.env</code> and restart the
+            <Text tone="muted">
+              The active token is set by the <Code className="font-mono text-xs">FIESTABOARD_MCP_TOKEN</Code>{" "}
+              environment variable. Unset it in your <Code className="font-mono text-xs">.env</Code> and restart the
               container before managing the token from this UI.
-            </p>
+            </Text>
           )}
 
           {!isPinnedByEnv && !hasToken && (
-            <p className="text-sm text-muted-foreground">
+            <Text tone="muted">
               No token is configured. External MCP clients will fall back to cookie auth, which Claude Desktop / Claude
               Code don&apos;t support — they&apos;ll fail registration with an opaque error. Generate a token to unblock
               them.
-            </p>
+            </Text>
           )}
 
           {!isPinnedByEnv && hasToken && (
-            <p className="text-sm text-muted-foreground">
+            <Text tone="muted">
               A token is configured and active. Rotate it to invalidate the previous one (any client still using the old
               token will start receiving 401), or revoke it entirely to fall back to cookie-only auth.
-            </p>
+            </Text>
           )}
 
           {!isPinnedByEnv && (
-            <div className="flex flex-wrap gap-2">
+            <Flex wrap gap="2">
               <Button
                 onClick={() => setConfirmingRotate(true)}
                 disabled={rotateMutation.isPending}
@@ -228,7 +236,7 @@ export function McpSettings() {
                   Revoke token
                 </Button>
               )}
-            </div>
+            </Flex>
           )}
         </CardContent>
       </Card>
@@ -291,17 +299,19 @@ export function McpSettings() {
             <DialogTitle>Save this token</DialogTitle>
             <DialogDescription className="flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" />
-              <span>
+              <Text as="span" size="sm" tone="muted">
                 FiestaBoard stores only what&apos;s needed to verify future requests — this is the only time the
                 plaintext value is shown. Copy it into your MCP client now.
-              </span>
+              </Text>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-sm font-medium">Token</span>
+          <Stack gap="4">
+            <Box>
+              <Flex align="center" justify="between" className="mb-1.5">
+                <Text as="span" size="sm" weight="medium">
+                  Token
+                </Text>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -311,15 +321,17 @@ export function McpSettings() {
                   {copied === "token" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   {copied === "token" ? "Copied" : "Copy"}
                 </Button>
-              </div>
-              <code className="block w-full break-all rounded bg-muted px-3 py-2 font-mono text-xs">
+              </Flex>
+              <Code className="block w-full break-all rounded bg-muted px-3 py-2 font-mono text-xs">
                 {revealedToken}
-              </code>
-            </div>
+              </Code>
+            </Box>
 
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-sm font-medium">Claude Desktop config snippet</span>
+            <Box>
+              <Flex align="center" justify="between" className="mb-1.5">
+                <Text as="span" size="sm" weight="medium">
+                  Claude Desktop config snippet
+                </Text>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -329,47 +341,52 @@ export function McpSettings() {
                   {copied === "config" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   {copied === "config" ? "Copied" : "Copy"}
                 </Button>
-              </div>
-              <p className="mb-2 text-xs text-muted-foreground">
+              </Flex>
+              <Text size="xs" tone="muted" className="mb-2">
                 Paste this into{" "}
-                <code className="font-mono">~/Library/Application Support/Claude/claude_desktop_config.json</code>,
+                <Code className="font-mono">~/Library/Application Support/Claude/claude_desktop_config.json</Code>,
                 merging with anything that&apos;s already there, then fully quit and relaunch Claude Desktop (⌘Q —
                 closing the window isn&apos;t enough). Claude Desktop only supports stdio MCP servers, so this snippet
                 shells out to{" "}
-                <a
+                <TextLink
                   href="https://www.npmjs.com/package/mcp-remote"
                   target="_blank"
                   rel="noreferrer"
                   className="underline underline-offset-2"
                 >
                   mcp-remote
-                </a>{" "}
-                via <code className="font-mono">npx</code> as a proxy — Node 18+ must be installed and{" "}
-                <code className="font-mono">npx</code> reachable from Claude Desktop&apos;s PATH. If it errors with{" "}
-                <code className="font-mono">command not found</code>, replace{" "}
-                <code className="font-mono">&quot;npx&quot;</code> with the absolute path from{" "}
-                <code className="font-mono">which npx</code>.
-              </p>
+                </TextLink>{" "}
+                via <Code className="font-mono">npx</Code> as a proxy — Node 18+ must be installed and{" "}
+                <Code className="font-mono">npx</Code> reachable from Claude Desktop&apos;s PATH. If it errors with{" "}
+                <Code className="font-mono">command not found</Code>, replace{" "}
+                <Code className="font-mono">&quot;npx&quot;</Code> with the absolute path from{" "}
+                <Code className="font-mono">which npx</Code>.
+              </Text>
               <pre className="max-h-64 overflow-auto rounded bg-muted px-3 py-2 font-mono text-xs">{configSnippet}</pre>
-            </div>
+            </Box>
 
-            <p className="text-xs text-muted-foreground">
-              <strong>Claude Code (CLI):</strong> talks HTTP directly — no proxy needed.
+            <Text size="xs" tone="muted">
+              <Text as="span" size="xs" weight="semibold" tone="muted">
+                Claude Code (CLI):
+              </Text>{" "}
+              talks HTTP directly — no proxy needed.
               <br />
-              <code className="font-mono">
+              <Code className="font-mono">
                 claude mcp add fiestaboard --transport http --url{" "}
                 {typeof window !== "undefined"
                   ? `${window.location.protocol}//${window.location.host}`
                   : "http://fiestaboard.local:4420"}
                 /api/mcp/ --header &quot;Authorization: Bearer &lt;token&gt;&quot;
-              </code>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              <strong>claude.ai web (Connectors):</strong> not supported for self-hosted FiestaBoard. The Connectors
-              flow requires a public HTTPS URL and OAuth 2.1 dynamic client registration, neither of which a LAN host
-              can provide. Use Desktop or Code instead.
-            </p>
-          </div>
+              </Code>
+            </Text>
+            <Text size="xs" tone="muted">
+              <Text as="span" size="xs" weight="semibold" tone="muted">
+                claude.ai web (Connectors):
+              </Text>{" "}
+              not supported for self-hosted FiestaBoard. The Connectors flow requires a public HTTPS URL and OAuth 2.1
+              dynamic client registration, neither of which a LAN host can provide. Use Desktop or Code instead.
+            </Text>
+          </Stack>
 
           <DialogFooter>
             <Button onClick={() => setRevealedToken(null)}>I&apos;ve saved it</Button>

@@ -7,11 +7,13 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Flex,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, RefreshCw } from "lucide-react";
@@ -121,7 +123,7 @@ export function AutoUpdateIntervalCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
+        <Flex wrap align="center" gap="3">
           <Select
             value={current}
             onValueChange={(v) => mutation.mutate(v as AutoUpdateInterval)}
@@ -138,7 +140,9 @@ export function AutoUpdateIntervalCard() {
               ))}
             </SelectContent>
           </Select>
-          <span className="text-xs text-muted-foreground">Last checked: {formatLastCheck(status.last_check)}</span>
+          <Text as="span" size="xs" tone="muted">
+            Last checked: {formatLastCheck(status.last_check)}
+          </Text>
           <Button
             variant="outline"
             size="sm"
@@ -149,8 +153,8 @@ export function AutoUpdateIntervalCard() {
             <RefreshCw className={`h-4 w-4 mr-2 ${checkNowMutation.isPending ? "animate-spin" : ""}`} />
             {checkNowMutation.isPending ? t("checkingForUpdates") : t("checkNow")}
           </Button>
-        </div>
-        <p className="text-sm text-muted-foreground">{INTERVAL_DESCRIPTIONS[current]}</p>
+        </Flex>
+        <Text tone="muted">{INTERVAL_DESCRIPTIONS[current]}</Text>
       </CardContent>
     </Card>
   );

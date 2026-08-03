@@ -14,8 +14,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Flex,
   Skeleton,
+  Stack,
   Switch,
+  Text,
+  TextLink,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ExternalLink, FlaskConical, Loader2, Lock, RefreshCw, ShieldCheck, Wand2 } from "lucide-react";
@@ -138,60 +142,68 @@ export function BetaSettings() {
           <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-start justify-between gap-4 rounded-md border p-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
+          <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
+            <Stack gap="1">
+              <Flex align="center" gap="2">
                 <Lock className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{t("httpsLabel")}</span>
+                <Text as="span" weight="medium">
+                  {t("httpsLabel")}
+                </Text>
                 {httpsEnabled && certPresent && (
                   <Badge variant="default" className="text-[10px] bg-board-green">
                     <ShieldCheck className="h-3 w-3 mr-1" />
                     {t("httpsActive")}
                   </Badge>
                 )}
-              </div>
-              <p className="text-sm text-muted-foreground">{t("httpsDescription")}</p>
-              <p className="text-xs text-muted-foreground flex items-start gap-1.5 pt-1">
+              </Flex>
+              <Text tone="muted">{t("httpsDescription")}</Text>
+              <Flex align="start" gap="1.5" className="text-xs text-muted-foreground pt-1">
                 <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>{t("httpsWarning")}</span>
-              </p>
-            </div>
+                <Text as="span" size="xs" tone="muted">
+                  {t("httpsWarning")}
+                </Text>
+              </Flex>
+            </Stack>
             <Switch
               checked={httpsEnabled}
               disabled={mutation.isPending}
               onCheckedChange={(checked) => mutation.mutate(checked)}
               aria-label={t("httpsLabel")}
             />
-          </div>
+          </Flex>
 
-          <div className="flex items-start justify-between gap-4 rounded-md border p-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
+          <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
+            <Stack gap="1">
+              <Flex align="center" gap="2">
                 <Wand2 className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{t("transitionsLabel")}</span>
-              </div>
-              <p className="text-sm text-muted-foreground">{t("transitionsDescription")}</p>
-              <p className="text-xs text-muted-foreground flex items-start gap-1.5 pt-1">
+                <Text as="span" weight="medium">
+                  {t("transitionsLabel")}
+                </Text>
+              </Flex>
+              <Text tone="muted">{t("transitionsDescription")}</Text>
+              <Flex align="start" gap="1.5" className="text-xs text-muted-foreground pt-1">
                 <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>{t("transitionsWarning")}</span>
-              </p>
+                <Text as="span" size="xs" tone="muted">
+                  {t("transitionsWarning")}
+                </Text>
+              </Flex>
               {transitionsEnabled && (
-                <a
+                <TextLink
                   href="/transitions"
-                  className="text-xs text-primary inline-flex items-center gap-1 pt-1 hover:underline"
+                  className="text-xs text-primary inline-flex items-center gap-1 pt-1 no-underline hover:underline"
                 >
                   <ExternalLink className="h-3 w-3" />
                   {t("transitionsLabLink")}
-                </a>
+                </TextLink>
               )}
-            </div>
+            </Stack>
             <Switch
               checked={transitionsEnabled}
               disabled={transitionsMutation.isPending}
               onCheckedChange={(checked) => transitionsMutation.mutate(checked)}
               aria-label={t("transitionsLabel")}
             />
-          </div>
+          </Flex>
         </CardContent>
       </Card>
 
@@ -209,7 +221,9 @@ export function BetaSettings() {
                 <>
                   <br />
                   <br />
-                  <span className="text-muted-foreground">{t("restartManualHint")}</span>
+                  <Text as="span" tone="muted">
+                    {t("restartManualHint")}
+                  </Text>
                 </>
               )}
             </DialogDescription>

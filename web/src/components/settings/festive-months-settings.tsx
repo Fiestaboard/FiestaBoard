@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Switch } from "@fiestaboard/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Flex, Stack, Switch, Text } from "@fiestaboard/ui";
 import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -57,13 +57,15 @@ export function FestiveMonthsSettings() {
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex items-start justify-between gap-4 rounded-md border p-4">
-          <div className="space-y-1">
-            <span className="font-medium">{t("hideLabel")}</span>
-            <p className="text-sm text-muted-foreground">{t("hideHint")}</p>
-          </div>
+        <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
+          <Stack gap="1">
+            <Text as="span" weight="medium">
+              {t("hideLabel")}
+            </Text>
+            <Text tone="muted">{t("hideHint")}</Text>
+          </Stack>
           <Switch checked={hide} onCheckedChange={onToggle} aria-label={t("hideLabel")} />
-        </div>
+        </Flex>
       </CardContent>
     </Card>
   );

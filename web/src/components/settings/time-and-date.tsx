@@ -6,6 +6,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Grid,
   Label,
   Select,
   SelectContent,
@@ -13,6 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Stack,
+  Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatInTimeZone } from "date-fns-tz";
@@ -95,22 +98,22 @@ export function TimeAndDateCard() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="space-y-4">
+          <Stack gap="4">
             <Skeleton className="h-10 w-full max-w-sm" />
             <Skeleton className="h-10 w-48" />
             <Skeleton className="h-10 w-48" />
-          </div>
+          </Stack>
         ) : (
-          <div className="space-y-4">
-            <div className="space-y-2 max-w-sm">
+          <Stack gap="4">
+            <Stack gap="2" className="max-w-sm">
               <Label id="timezone-label" htmlFor="timezone-picker" className="text-sm font-medium">
                 {t("timezoneLabel")}
               </Label>
               <TimezonePicker id="timezone-picker" value={timezone} onChange={handleTimezoneChange} />
-            </div>
+            </Stack>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
-              <div className="space-y-2">
+            <Grid cols="1" sm="2" gap="4" className="max-w-md">
+              <Stack gap="2">
                 <Label htmlFor="time-format" className="text-sm font-medium">
                   {t("timeFormat")}
                 </Label>
@@ -127,9 +130,9 @@ export function TimeAndDateCard() {
                     <SelectItem value="24h">{t("timeFormat24h")}</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </Stack>
 
-              <div className="space-y-2">
+              <Stack gap="2">
                 <Label htmlFor="date-format" className="text-sm font-medium">
                   {t("dateFormat")}
                 </Label>
@@ -147,14 +150,18 @@ export function TimeAndDateCard() {
                     <SelectItem value="YYYY-MM-DD">{t("dateFormatISO")}</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
+              </Stack>
+            </Grid>
 
             {(() => {
               const preview = getFormatPreview();
-              return preview ? <p className="text-xs text-muted-foreground">{preview}</p> : null;
+              return preview ? (
+                <Text size="xs" tone="muted">
+                  {preview}
+                </Text>
+              ) : null;
             })()}
-          </div>
+          </Stack>
         )}
       </CardContent>
     </Card>

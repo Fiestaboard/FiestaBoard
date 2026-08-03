@@ -1,6 +1,20 @@
 "use client";
 
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label } from "@fiestaboard/ui";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Flex,
+  Grid,
+  Input,
+  Label,
+  Stack,
+  Text,
+} from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, LocateFixed, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -120,14 +134,14 @@ export function LocationSettingsCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         {isLoading ? (
-          <div className="space-y-3">
-            <div className="h-10 bg-muted animate-pulse rounded" />
-            <div className="h-10 bg-muted animate-pulse rounded" />
-          </div>
+          <Stack gap="3">
+            <Box className="h-10 bg-muted animate-pulse rounded" />
+            <Box className="h-10 bg-muted animate-pulse rounded" />
+          </Stack>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <Grid cols="2" gap="4">
+              <Stack gap="2">
                 <Label htmlFor="latitude">{t("latitudeLabel")}</Label>
                 <Input
                   id="latitude"
@@ -139,8 +153,8 @@ export function LocationSettingsCard() {
                   value={latitude}
                   onChange={(e) => handleLatChange(e.target.value)}
                 />
-              </div>
-              <div className="space-y-2">
+              </Stack>
+              <Stack gap="2">
                 <Label htmlFor="longitude">{t("longitudeLabel")}</Label>
                 <Input
                   id="longitude"
@@ -152,10 +166,12 @@ export function LocationSettingsCard() {
                   value={longitude}
                   onChange={(e) => handleLonChange(e.target.value)}
                 />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">{t("tip")}</p>
-            <div className="flex gap-2">
+              </Stack>
+            </Grid>
+            <Text size="xs" tone="muted">
+              {t("tip")}
+            </Text>
+            <Flex gap="2">
               <Button
                 variant="outline"
                 onClick={handleUseMyLocation}
@@ -178,7 +194,7 @@ export function LocationSettingsCard() {
                   {t("clear")}
                 </Button>
               )}
-            </div>
+            </Flex>
           </>
         )}
       </CardContent>

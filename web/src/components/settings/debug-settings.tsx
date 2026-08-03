@@ -2,18 +2,25 @@
 
 import {
   Badge,
+  Box,
   Button,
   Card,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  Flex,
+  Grid,
   Label,
+  List,
+  ListItem,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Stack,
+  Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -196,28 +203,32 @@ export function DebugSettings() {
     <Collapsible open={open} onOpenChange={setOpen}>
       <Card>
         <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
-          <div className="flex items-center gap-2">
+          <Flex align="center" gap="2">
             <Bug className="h-4 w-4 text-muted-foreground" />
-            <span className="text-base font-semibold">{t("title")}</span>
+            <Text as="span" size="base" weight="semibold">
+              {t("title")}
+            </Text>
             {!isBoardConfigured && (
               <Badge variant="destructive" className="text-xs">
                 <AlertCircle className="h-3 w-3 mr-1" />
                 {t("boardNotConfiguredTitle")}
               </Badge>
             )}
-          </div>
+          </Flex>
           <ChevronDown
             className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           />
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <div className="px-6 pb-4 pt-1 space-y-4">
-            <p className="text-sm text-muted-foreground">{t("description")}</p>
-            <div className="space-y-4">
+          <Stack gap="4" className="px-6 pb-4 pt-1">
+            <Text tone="muted">{t("description")}</Text>
+            <Stack gap="4">
               {/* Network Diagnostics */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium">{t("networkDiagnosticsLabel")}</p>
+              <Stack gap="2">
+                <Text size="xs" weight="medium">
+                  {t("networkDiagnosticsLabel")}
+                </Text>
                 <Button
                   onClick={() => networkDiagnosticsMutation.mutate()}
                   disabled={isAnyMutationLoading}
@@ -232,14 +243,18 @@ export function DebugSettings() {
                   )}
                   {networkDiagnosticsMutation.isPending ? t("runningDiagnostics") : t("runNetworkDiagnostics")}
                 </Button>
-                <p className="text-xs text-muted-foreground">{t("diagnosticsDescription")}</p>
+                <Text size="xs" tone="muted">
+                  {t("diagnosticsDescription")}
+                </Text>
 
                 {/* Diagnostics Results */}
                 {networkDiagnosticsMutation.data && (
-                  <div className="space-y-2 mt-2">
+                  <Stack gap="2" className="mt-2">
                     {/* Overall Status Banner */}
-                    <div
-                      className={`flex items-center gap-2 text-sm font-medium p-2.5 rounded-md ${
+                    <Flex
+                      align="center"
+                      gap="2"
+                      className={`text-sm font-medium p-2.5 rounded-md ${
                         networkDiagnosticsMutation.data.overall_ok
                           ? "bg-success/10 text-success"
                           : "bg-destructive/10 text-foreground"
@@ -251,10 +266,10 @@ export function DebugSettings() {
                         <AlertCircle className="h-4 w-4 flex-shrink-0" />
                       )}
                       {networkDiagnosticsMutation.data.overall_ok ? t("allChecksPassed") : t("someChecksFailed")}
-                    </div>
+                    </Flex>
 
                     {/* Step-by-step results */}
-                    <div className="rounded-md border divide-y">
+                    <Box className="rounded-md border divide-y">
                       {/* DNS Check */}
                       <DiagnosticRow
                         icon={<Globe className="h-3.5 w-3.5" />}
@@ -287,37 +302,46 @@ export function DebugSettings() {
 
                       {/* Vestaboard Check */}
                       <VestaboardDiagnosticRow vestaboard={networkDiagnosticsMutation.data.vestaboard} />
-                    </div>
+                    </Box>
 
                     {/* Troubleshooting Recommendations */}
                     {networkDiagnosticsMutation.data.recommendations.length > 0 &&
                       !networkDiagnosticsMutation.data.overall_ok && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <Stack gap="2">
+                          <Flex align="center" gap="1.5" className="text-xs font-medium text-muted-foreground">
                             <Lightbulb className="h-3.5 w-3.5" />
                             {t("troubleshooting")}
-                          </div>
+                          </Flex>
                           {networkDiagnosticsMutation.data.recommendations.map((rec, i) => (
-                            <div key={i} className="rounded-md border p-3 space-y-1.5 bg-muted/30">
-                              <div className="text-xs font-medium">{rec.summary}</div>
+                            <Stack key={i} gap="1.5" className="rounded-md border p-3 bg-muted/30">
+                              <Text size="xs" weight="medium">
+                                {rec.summary}
+                              </Text>
                               {rec.steps.length > 0 && (
-                                <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                                <List
+                                  as="ol"
+                                  marker="decimal"
+                                  gap="1"
+                                  className="text-xs text-muted-foreground list-inside"
+                                >
                                   {rec.steps.map((step, j) => (
-                                    <li key={j}>{step}</li>
+                                    <ListItem key={j}>{step}</ListItem>
                                   ))}
-                                </ol>
+                                </List>
                               )}
-                            </div>
+                            </Stack>
                           ))}
-                        </div>
+                        </Stack>
                       )}
-                  </div>
+                  </Stack>
                 )}
-              </div>
+              </Stack>
 
               {/* Blank Board */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium">{t("clearBoardLabel")}</p>
+              <Stack gap="2">
+                <Text size="xs" weight="medium">
+                  {t("clearBoardLabel")}
+                </Text>
                 <Button
                   onClick={() => blankMutation.mutate()}
                   disabled={!isBoardConfigured || isAnyMutationLoading}
@@ -332,15 +356,17 @@ export function DebugSettings() {
                   )}
                   {t("blankBoard")}
                 </Button>
-                <p className="text-xs text-muted-foreground">{t("blankBoardDescription")}</p>
-              </div>
+                <Text size="xs" tone="muted">
+                  {t("blankBoardDescription")}
+                </Text>
+              </Stack>
 
               {/* Fill Board with Character */}
-              <div className="space-y-2">
+              <Stack gap="2">
                 <Label htmlFor="fill-character" className="text-xs font-medium">
                   {t("fillWithCharacterLabel")}
                 </Label>
-                <div className="flex gap-2">
+                <Flex gap="2">
                   <Select
                     value={selectedCharacter.toString()}
                     onValueChange={(value) => setSelectedCharacter(parseInt(value))}
@@ -350,16 +376,16 @@ export function DebugSettings() {
                     </SelectTrigger>
                     <SelectContent className="max-h-80">
                       {Object.entries(CHARACTER_GROUPS).map(([group, chars]) => (
-                        <div key={group}>
-                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                        <Box key={group}>
+                          <Text weight="semibold" tone="muted" className="px-2 py-1.5 text-xs">
                             {t(`groups.${group}` as "groups.Letters")}
-                          </div>
+                          </Text>
                           {chars.map((char) => (
                             <SelectItem key={char.code} value={char.code.toString()} className="text-xs font-mono">
                               {char.display}
                             </SelectItem>
                           ))}
-                        </div>
+                        </Box>
                       ))}
                     </SelectContent>
                   </Select>
@@ -377,13 +403,17 @@ export function DebugSettings() {
                     )}
                     {t("fillButton")}
                   </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">{t("fillBoardDescription")}</p>
-              </div>
+                </Flex>
+                <Text size="xs" tone="muted">
+                  {t("fillBoardDescription")}
+                </Text>
+              </Stack>
 
               {/* Show Debug Info */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium">{t("displaySystemInfoLabel")}</p>
+              <Stack gap="2">
+                <Text size="xs" weight="medium">
+                  {t("displaySystemInfoLabel")}
+                </Text>
                 <Button
                   onClick={() => debugInfoMutation.mutate()}
                   disabled={!isBoardConfigured || isAnyMutationLoading}
@@ -398,12 +428,16 @@ export function DebugSettings() {
                   )}
                   Show Debug Info on Board
                 </Button>
-                <p className="text-xs text-muted-foreground">{t("showDebugInfoDescription")}</p>
-              </div>
+                <Text size="xs" tone="muted">
+                  {t("showDebugInfoDescription")}
+                </Text>
+              </Stack>
 
               {/* Clear Cache */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium">{t("cacheManagementLabel")}</p>
+              <Stack gap="2">
+                <Text size="xs" weight="medium">
+                  {t("cacheManagementLabel")}
+                </Text>
                 <Button
                   onClick={() => clearCacheMutation.mutate()}
                   disabled={!isBoardConfigured || isAnyMutationLoading}
@@ -418,68 +452,98 @@ export function DebugSettings() {
                   )}
                   Clear Message Cache
                 </Button>
-                <p className="text-xs text-muted-foreground">{t("clearCacheDescription")}</p>
-              </div>
+                <Text size="xs" tone="muted">
+                  {t("clearCacheDescription")}
+                </Text>
+              </Stack>
 
               {/* System Info Collapsible */}
-              <div className="pt-2 border-t">
+              <Box className="pt-2 border-t">
                 <Collapsible open={showSystemInfo} onOpenChange={setShowSystemInfo}>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="sm" className="w-full justify-between text-xs font-medium">
-                      <span>{t("systemInformation")}</span>
+                      <Text as="span" size="xs" weight="medium">
+                        {t("systemInformation")}
+                      </Text>
                       {showSystemInfo ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-3 space-y-3">
                     {isLoadingSystemInfo ? (
-                      <div className="space-y-2">
+                      <Stack gap="2">
                         <Skeleton className="h-4 w-full" />
                         <Skeleton className="h-4 w-full" />
                         <Skeleton className="h-4 w-full" />
-                      </div>
+                      </Stack>
                     ) : systemInfo ? (
-                      <div className="space-y-2 text-xs">
-                        <div className="grid grid-cols-2 gap-2 p-2 rounded bg-muted/50">
-                          <div className="font-medium text-muted-foreground">{t("boardIpLabel")}</div>
-                          <div className="font-mono">{systemInfo.board_ip || t("notSet")}</div>
+                      <Stack gap="2" className="text-xs">
+                        <Grid cols="2" gap="2" className="p-2 rounded bg-muted/50">
+                          <Text size="xs" weight="medium" tone="muted">
+                            {t("boardIpLabel")}
+                          </Text>
+                          <Text size="xs" className="font-mono">
+                            {systemInfo.board_ip || t("notSet")}
+                          </Text>
 
-                          <div className="font-medium text-muted-foreground">{t("serverIpLabel")}</div>
-                          <div className="font-mono">{systemInfo.server_ip}</div>
+                          <Text size="xs" weight="medium" tone="muted">
+                            {t("serverIpLabel")}
+                          </Text>
+                          <Text size="xs" className="font-mono">
+                            {systemInfo.server_ip}
+                          </Text>
 
-                          <div className="font-medium text-muted-foreground">{t("connectionLabel")}</div>
-                          <div className="font-mono">
+                          <Text size="xs" weight="medium" tone="muted">
+                            {t("connectionLabel")}
+                          </Text>
+                          <Text size="xs" className="font-mono">
                             {systemInfo.connection_mode.toUpperCase()} {t("apiSuffix")}
-                          </div>
+                          </Text>
 
-                          <div className="font-medium text-muted-foreground">{t("uptimeLabel")}</div>
-                          <div className="font-mono">{systemInfo.uptime_formatted}</div>
+                          <Text size="xs" weight="medium" tone="muted">
+                            {t("uptimeLabel")}
+                          </Text>
+                          <Text size="xs" className="font-mono">
+                            {systemInfo.uptime_formatted}
+                          </Text>
 
-                          <div className="font-medium text-muted-foreground">{t("versionLabel")}</div>
-                          <div className="font-mono">v{systemInfo.version}</div>
+                          <Text size="xs" weight="medium" tone="muted">
+                            {t("versionLabel")}
+                          </Text>
+                          <Text size="xs" className="font-mono">
+                            v{systemInfo.version}
+                          </Text>
 
-                          <div className="font-medium text-muted-foreground">{t("serviceLabel")}</div>
-                          <div className="flex items-center gap-1">
+                          <Text size="xs" weight="medium" tone="muted">
+                            {t("serviceLabel")}
+                          </Text>
+                          <Flex align="center" gap="1">
                             {systemInfo.service_running ? (
                               <>
-                                <div className="h-2 w-2 rounded-full bg-success" />
-                                <span>{t("serviceRunning")}</span>
+                                <Box className="h-2 w-2 rounded-full bg-success" />
+                                <Text as="span" size="xs">
+                                  {t("serviceRunning")}
+                                </Text>
                               </>
                             ) : (
                               <>
-                                <div className="h-2 w-2 rounded-full bg-destructive" />
-                                <span>{t("serviceStopped")}</span>
+                                <Box className="h-2 w-2 rounded-full bg-destructive" />
+                                <Text as="span" size="xs">
+                                  {t("serviceStopped")}
+                                </Text>
                               </>
                             )}
-                          </div>
-                        </div>
+                          </Flex>
+                        </Grid>
 
                         {/* Cache Status */}
                         {systemInfo.cache_status && (
-                          <div className="p-2 rounded bg-muted/50">
-                            <div className="font-medium text-muted-foreground mb-2">{t("cacheStatusLabel")}</div>
-                            <div className="space-y-1 ml-2">
-                              <div className="flex items-center gap-2">
-                                <div
+                          <Box className="p-2 rounded bg-muted/50">
+                            <Text size="xs" weight="medium" tone="muted" className="mb-2">
+                              {t("cacheStatusLabel")}
+                            </Text>
+                            <Stack gap="1" className="ml-2">
+                              <Flex align="center" gap="2">
+                                <Box
                                   className={`h-2 w-2 rounded-full ${
                                     systemInfo.cache_status.has_cached_text ||
                                     systemInfo.cache_status.has_cached_characters
@@ -487,53 +551,65 @@ export function DebugSettings() {
                                       : "bg-muted-foreground"
                                   }`}
                                 />
-                                <span>
+                                <Text as="span" size="xs">
                                   {systemInfo.cache_status.has_cached_text
                                     ? t("textCached")
                                     : systemInfo.cache_status.has_cached_characters
                                       ? "Characters cached"
                                       : t("noCache")}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground">{t("skipUnchanged")}</span>
-                                <span>
+                                </Text>
+                              </Flex>
+                              <Flex align="center" gap="2">
+                                <Text as="span" size="xs" tone="muted">
+                                  {t("skipUnchanged")}
+                                </Text>
+                                <Text as="span" size="xs">
                                   {systemInfo.cache_status.skip_unchanged_enabled ? tCommon("yes") : tCommon("no")}
-                                </span>
-                              </div>
+                                </Text>
+                              </Flex>
                               {systemInfo.cache_status.cached_text_preview && (
-                                <div className="mt-2">
-                                  <div className="text-muted-foreground">{t("cachePreviewLabel")}</div>
-                                  <div className="font-mono text-xs mt-1 p-1 bg-background rounded">
+                                <Box className="mt-2">
+                                  <Text size="xs" tone="muted">
+                                    {t("cachePreviewLabel")}
+                                  </Text>
+                                  <Text size="xs" className="font-mono mt-1 p-1 bg-background rounded">
                                     {systemInfo.cache_status.cached_text_preview}
-                                  </div>
-                                </div>
+                                  </Text>
+                                </Box>
                               )}
-                            </div>
-                          </div>
+                            </Stack>
+                          </Box>
                         )}
 
-                        <div className="text-xs text-muted-foreground text-center pt-1">{t("autoRefreshNote")}</div>
-                      </div>
+                        <Text size="xs" tone="muted" className="text-center pt-1">
+                          {t("autoRefreshNote")}
+                        </Text>
+                      </Stack>
                     ) : (
-                      <div className="text-xs text-center text-muted-foreground">{t("noSystemInfo")}</div>
+                      <Text size="xs" tone="muted" className="text-center">
+                        {t("noSystemInfo")}
+                      </Text>
                     )}
                   </CollapsibleContent>
                 </Collapsible>
-              </div>
+              </Box>
 
               {/* Warning message if not configured */}
               {!isBoardConfigured && (
-                <div className="flex items-start gap-2 p-2 rounded-md bg-muted text-foreground text-xs">
+                <Flex align="start" gap="2" className="p-2 rounded-md bg-muted text-foreground text-xs">
                   <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium">{t("boardNotConfiguredTitle")}</div>
-                    <div className="text-xs mt-0.5">{t("boardNotConfiguredDescription")}</div>
-                  </div>
-                </div>
+                  <Box>
+                    <Text size="xs" weight="medium">
+                      {t("boardNotConfiguredTitle")}
+                    </Text>
+                    <Text size="xs" className="mt-0.5">
+                      {t("boardNotConfiguredDescription")}
+                    </Text>
+                  </Box>
+                </Flex>
               )}
-            </div>
-          </div>
+            </Stack>
+          </Stack>
         </CollapsibleContent>
       </Card>
     </Collapsible>
@@ -564,10 +640,10 @@ function DiagnosticRow({
   detail: string;
 }) {
   return (
-    <div className="flex items-start gap-2 p-2.5 text-xs">
+    <Flex align="start" gap="2" className="p-2.5 text-xs">
       <DiagnosticStatusIcon ok={result.ok} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5 font-medium">
+      <Box className="min-w-0 flex-1">
+        <Flex align="center" gap="1.5" className="font-medium">
           {icon}
           {label}
           {result.latency_ms != null && (
@@ -575,10 +651,12 @@ function DiagnosticRow({
               {result.latency_ms}ms
             </Badge>
           )}
-        </div>
-        <div className={`mt-0.5 ${result.ok ? "text-muted-foreground" : "text-destructive"}`}>{detail}</div>
-      </div>
-    </div>
+        </Flex>
+        <Text size="xs" tone={result.ok ? "muted" : "destructive"} className="mt-0.5">
+          {detail}
+        </Text>
+      </Box>
+    </Flex>
   );
 }
 
@@ -605,26 +683,28 @@ function VestaboardDiagnosticRow({
   const t = useTranslations("debugSettings");
   if (vestaboard.mode === null) {
     return (
-      <div className="flex items-start gap-2 p-2.5 text-xs">
+      <Flex align="start" gap="2" className="p-2.5 text-xs">
         <AlertCircle className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 font-medium">
+        <Box className="min-w-0 flex-1">
+          <Flex align="center" gap="1.5" className="font-medium">
             <Server className="h-3.5 w-3.5" />
             {t("vestaboardLabel")}
-          </div>
-          <div className="mt-0.5 text-muted-foreground">{vestaboard.error ?? t("noBoardConfigured")}</div>
-        </div>
-      </div>
+          </Flex>
+          <Text size="xs" tone="muted" className="mt-0.5">
+            {vestaboard.error ?? t("noBoardConfigured")}
+          </Text>
+        </Box>
+      </Flex>
     );
   }
 
   if (vestaboard.mode === "cloud") {
     const cloud = vestaboard.steps.cloud_api;
     return (
-      <div className="flex items-start gap-2 p-2.5 text-xs">
+      <Flex align="start" gap="2" className="p-2.5 text-xs">
         <DiagnosticStatusIcon ok={vestaboard.ok} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 font-medium">
+        <Box className="min-w-0 flex-1">
+          <Flex align="center" gap="1.5" className="font-medium">
             <Server className="h-3.5 w-3.5" />
             {t("vestaboardCloudApiLabel")}
             {cloud?.latency_ms != null && (
@@ -632,14 +712,14 @@ function VestaboardDiagnosticRow({
                 {cloud.latency_ms}ms
               </Badge>
             )}
-          </div>
-          <div className={`mt-0.5 ${vestaboard.ok ? "text-muted-foreground" : "text-destructive"}`}>
+          </Flex>
+          <Text size="xs" tone={vestaboard.ok ? "muted" : "destructive"} className="mt-0.5">
             {vestaboard.ok
               ? t("cloudApiReachable") + (cloud?.status_code ? ` (HTTP ${cloud.status_code})` : "")
               : (cloud?.error ?? (cloud?.status_code ? `HTTP ${cloud.status_code}` : t("cloudApiUnreachable")))}
-          </div>
-        </div>
-      </div>
+          </Text>
+        </Box>
+      </Flex>
     );
   }
 
@@ -652,55 +732,61 @@ function VestaboardDiagnosticRow({
   ];
 
   return (
-    <div className="p-2.5 text-xs space-y-1.5">
-      <div className="flex items-center gap-2">
+    <Stack gap="1.5" className="p-2.5 text-xs">
+      <Flex align="center" gap="2">
         <DiagnosticStatusIcon ok={vestaboard.ok} />
-        <div className="flex items-center gap-1.5 font-medium">
+        <Flex align="center" gap="1.5" className="font-medium">
           <Server className="h-3.5 w-3.5" />
           {t("vestaboardLocalApiLabel")}
-        </div>
-      </div>
-      <div className="space-y-1 pl-1 border-l-2 border-muted ml-[11px]">
+        </Flex>
+      </Flex>
+      <Stack gap="1" className="pl-1 border-l-2 border-muted ml-[11px]">
         {stepEntries.map(({ key, label, icon }) => {
           const step = steps[key];
           if (!step) {
             // Step wasn't reached (short-circuited)
             return (
-              <div key={key} className="flex items-center gap-1.5 pl-2 py-0.5 text-muted-foreground">
-                <div className="h-3 w-3 rounded-full border border-muted-foreground/30 flex-shrink-0" />
+              <Flex key={key} align="center" gap="1.5" className="pl-2 py-0.5 text-muted-foreground">
+                <Box className="h-3 w-3 rounded-full border border-muted-foreground/30 flex-shrink-0" />
                 {icon}
-                <span>{label}</span>
-                <span className="text-muted-foreground">— {t("skipped")}</span>
-              </div>
+                <Text as="span" size="xs" tone="muted">
+                  {label}
+                </Text>
+                <Text as="span" size="xs" tone="muted">
+                  — {t("skipped")}
+                </Text>
+              </Flex>
             );
           }
           return (
-            <div key={key} className="flex items-start gap-1.5 pl-2 py-0.5">
+            <Flex key={key} align="start" gap="1.5" className="pl-2 py-0.5">
               <DiagnosticStatusIcon ok={step.ok} />
               {icon}
-              <div className="min-w-0">
-                <span className="font-medium">{label}</span>
+              <Box className="min-w-0">
+                <Text as="span" size="xs" weight="medium">
+                  {label}
+                </Text>
                 {step.latency_ms != null && (
                   <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0 h-3.5 font-mono">
                     {step.latency_ms}ms
                   </Badge>
                 )}
                 {step.ok ? (
-                  <span className="text-muted-foreground ml-1">
+                  <Text as="span" size="xs" tone="muted" className="ml-1">
                     {key === "dns" && step.hostname ? t("hostnameResolved", { hostname: step.hostname }) : ""}
                     {key === "port" && step.port ? t("portOpen", { port: step.port }) : ""}
                     {key === "api" && step.status_code ? `HTTP ${step.status_code}` : ""}
-                  </span>
+                  </Text>
                 ) : (
-                  <span className="text-destructive ml-1">
+                  <Text as="span" size="xs" tone="destructive" className="ml-1">
                     {step.error ?? (step.status_code ? `HTTP ${step.status_code}` : t("failed"))}
-                  </span>
+                  </Text>
                 )}
-              </div>
-            </div>
+              </Box>
+            </Flex>
           );
         })}
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 }

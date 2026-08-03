@@ -1,11 +1,14 @@
 "use client";
 
 import {
+  Box,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  Flex,
+  Grid,
   Input,
   Label,
   Select,
@@ -14,7 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Stack,
   Switch,
+  Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Moon } from "lucide-react";
@@ -179,14 +184,14 @@ export function SilenceSchedule() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="space-y-3">
+          <Stack gap="3">
             <Skeleton className="h-5 w-11 rounded-full" />
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-3 w-48" />
-          </div>
+          </Stack>
         ) : (
           <>
-            <div className="flex items-center justify-between gap-3">
+            <Flex align="center" justify="between" gap="3">
               <label htmlFor="silence-enabled" className="text-sm font-medium cursor-pointer">
                 {t("silenceScheduleLabel")}
               </label>
@@ -196,12 +201,12 @@ export function SilenceSchedule() {
                 disabled={isSaving}
                 id="silence-enabled"
               />
-            </div>
+            </Flex>
 
             {silenceEnabled && (
-              <div className="mt-6 space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+              <Stack gap="6" className="mt-6">
+                <Grid cols="2" gap="4">
+                  <Stack gap="2">
                     <Label htmlFor="silence-start" className="text-sm font-medium">
                       {t("startTimeLabel")}
                     </Label>
@@ -211,9 +216,11 @@ export function SilenceSchedule() {
                       onChange={(val) => handleSilenceTimeChange("start", val)}
                       disabled={isSaving}
                     />
-                    <p className="text-xs text-muted-foreground">{t("whenSilenceBegins")}</p>
-                  </div>
-                  <div className="space-y-2">
+                    <Text size="xs" tone="muted">
+                      {t("whenSilenceBegins")}
+                    </Text>
+                  </Stack>
+                  <Stack gap="2">
                     <Label htmlFor="silence-end" className="text-sm font-medium">
                       {t("endTimeLabel")}
                     </Label>
@@ -223,11 +230,13 @@ export function SilenceSchedule() {
                       onChange={(val) => handleSilenceTimeChange("end", val)}
                       disabled={isSaving}
                     />
-                    <p className="text-xs text-muted-foreground">{t("whenSilenceEnds")}</p>
-                  </div>
-                </div>
+                    <Text size="xs" tone="muted">
+                      {t("whenSilenceEnds")}
+                    </Text>
+                  </Stack>
+                </Grid>
 
-                <div className="space-y-2">
+                <Stack gap="2">
                   <Label htmlFor="silence-mode" className="text-sm font-medium">
                     {t("silenceModeLabel")}
                   </Label>
@@ -245,16 +254,16 @@ export function SilenceSchedule() {
                       <SelectItem value="page">{t("silenceModePage")}</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">
+                  <Text size="xs" tone="muted">
                     {silenceMode === "indicator" && t("silenceModeIndicatorHelp")}
                     {silenceMode === "freeze" && t("silenceModeFreezeHelp")}
                     {silenceMode === "page" && t("silenceModePageHelp")}
-                  </p>
-                </div>
+                  </Text>
+                </Stack>
 
                 {silenceMode === "indicator" && (
                   <>
-                    <div className="space-y-2">
+                    <Stack gap="2">
                       <Label htmlFor="silence-indicator-text" className="text-sm font-medium">
                         {t("silenceIndicatorTextLabel")}
                       </Label>
@@ -267,9 +276,11 @@ export function SilenceSchedule() {
                         placeholder="SNOOZING"
                         className="uppercase"
                       />
-                      <p className="text-xs text-muted-foreground">{t("silenceIndicatorTextHelp")}</p>
-                    </div>
-                    <div className="space-y-2">
+                      <Text size="xs" tone="muted">
+                        {t("silenceIndicatorTextHelp")}
+                      </Text>
+                    </Stack>
+                    <Stack gap="2">
                       <Label htmlFor="silence-indicator-position" className="text-sm font-medium">
                         {t("silenceIndicatorPositionLabel")}
                       </Label>
@@ -289,12 +300,12 @@ export function SilenceSchedule() {
                           <SelectItem value="bottom-right">{t("positionBottomRight")}</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                    </Stack>
                   </>
                 )}
 
                 {silenceMode === "page" && (
-                  <div className="space-y-2">
+                  <Stack gap="2">
                     <Label htmlFor="silence-page" className="text-sm font-medium">
                       {t("silencePageLabel")}
                     </Label>
@@ -314,17 +325,26 @@ export function SilenceSchedule() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">{t("silencePageHelp")}</p>
-                  </div>
+                    <Text size="xs" tone="muted">
+                      {t("silencePageHelp")}
+                    </Text>
+                  </Stack>
                 )}
-              </div>
+              </Stack>
             )}
 
             {isSaving && (
-              <div className="flex items-center justify-center gap-2 pt-4 mt-4 border-t text-xs text-muted-foreground">
-                <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span>{tc("savingIndicator")}</span>
-              </div>
+              <Flex
+                align="center"
+                justify="center"
+                gap="2"
+                className="pt-4 mt-4 border-t text-xs text-muted-foreground"
+              >
+                <Box className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <Text as="span" size="xs" tone="muted">
+                  {tc("savingIndicator")}
+                </Text>
+              </Flex>
             )}
           </>
         )}
