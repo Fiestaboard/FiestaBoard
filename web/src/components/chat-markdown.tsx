@@ -1,5 +1,6 @@
 "use client";
 
+import { Box } from "@fiestaboard/ui";
 import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -41,6 +42,10 @@ const COLOR_SWATCHES: Record<string, string> = {
   black: "#1a1a1a",
 };
 
+// NOTE (FiestaUI primitives migration): VarChip/ColorChip intentionally render
+// raw <code>/<span>. These are bespoke inline token chips (brand-tinted variable
+// pills, color swatch labels), not semantic code — the <Code> primitive's own
+// recipe (padding/bg/size) would fight this hand-tuned styling. Kept raw.
 function VarChip({ plugin, field }: { plugin: string; field: string }) {
   return (
     <code
@@ -149,6 +154,12 @@ function splitWithTokens(text: string): React.ReactNode[] {
 export function ChatMarkdown({ children, className }: ChatMarkdownProps) {
   // The components map is stable per render; memoize to avoid React's
   // markdown reconciler re-creating component identities mid-stream.
+  // NOTE (FiestaUI primitives migration): every entry below is a react-markdown
+  // element override — react-markdown maps each markdown AST node type to these
+  // renderers, which MUST return the corresponding native HTML tag (p, strong,
+  // em, headings, ul/ol/li, a, code, pre, blockquote, table parts). Swapping in
+  // @fiestaboard/ui primitives here would break that AST-to-DOM contract, so
+  // these stay raw by design (documented exception).
   const components = useMemo(
     () =>
       ({
@@ -275,10 +286,10 @@ export function ChatMarkdown({ children, className }: ChatMarkdownProps) {
   );
 
   return (
-    <div className={cn("space-y-0", className)}>
+    <Box className={cn("space-y-0", className)}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {children}
       </ReactMarkdown>
-    </div>
+    </Box>
   );
 }

@@ -8,9 +8,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  Box,
   Button,
+  Code,
+  Flex,
   Input,
   ScrollArea,
+  Stack,
+  Text,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -80,13 +85,13 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
         </AlertDialogHeader>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="text-sm text-muted-foreground">{t("loadingEntities")}</div>
-          </div>
+          <Flex align="center" justify="center" className="py-8">
+            <Text tone="muted">{t("loadingEntities")}</Text>
+          </Flex>
         ) : (
-          <div className="space-y-3 flex-1 min-h-0 flex flex-col">
+          <Flex direction="col" gap="3" className="flex-1 min-h-0">
             {!selectedEntity ? (
-              <div className="space-y-2 flex-1 min-h-0 flex flex-col">
+              <Flex direction="col" gap="2" className="flex-1 min-h-0">
                 <Input
                   placeholder={t("searchPlaceholder")}
                   aria-label={t("searchAriaLabel")}
@@ -96,9 +101,11 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
                   className="h-9"
                 />
                 <ScrollArea className="flex-1 min-h-[200px] border rounded-md">
-                  <div className="p-1">
+                  <Box className="p-1">
                     {filteredEntities.length === 0 ? (
-                      <div className="text-sm text-muted-foreground text-center py-3">{t("noEntities")}</div>
+                      <Text tone="muted" className="text-center py-3">
+                        {t("noEntities")}
+                      </Text>
                     ) : (
                       filteredEntities.map((entity) => (
                         <button
@@ -109,21 +116,25 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
                           }}
                           className="w-full text-left px-3 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
                         >
-                          <span className="font-mono text-sm flex-1">{entity.entity_id}</span>
-                          <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          <Text as="span" size="sm" className="font-mono flex-1">
+                            {entity.entity_id}
+                          </Text>
+                          <Text as="span" size="xs" tone="muted" className="truncate max-w-[200px]">
                             {entity.friendly_name !== entity.entity_id ? entity.friendly_name : ""}
-                          </span>
+                          </Text>
                         </button>
                       ))
                     )}
-                  </div>
+                  </Box>
                 </ScrollArea>
-              </div>
+              </Flex>
             ) : (
               <>
-                <div className="space-y-1.5">
-                  <div className="px-2 py-1.5 bg-muted rounded flex items-center justify-between gap-2">
-                    <span className="font-mono text-sm flex-1 truncate">{selectedEntity.entity_id}</span>
+                <Stack gap="1.5">
+                  <Flex align="center" justify="between" gap="2" className="px-2 py-1.5 bg-muted rounded">
+                    <Text as="span" size="sm" className="font-mono flex-1 truncate">
+                      {selectedEntity.entity_id}
+                    </Text>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -136,13 +147,15 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
                     >
                       {t("change")}
                     </Button>
-                  </div>
-                </div>
+                  </Flex>
+                </Stack>
 
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground px-1">{t("selectAttribute")}</p>
+                <Stack gap="1.5">
+                  <Text size="xs" weight="medium" tone="muted" className="px-1">
+                    {t("selectAttribute")}
+                  </Text>
                   <ScrollArea className="h-[250px] border rounded-md">
-                    <div className="p-1">
+                    <Box className="p-1">
                       {availableAttributes.map((attr) => {
                         const value = attr === "state" ? selectedEntity.state : selectedEntity.attributes[attr];
                         const displayValue =
@@ -157,37 +170,39 @@ export function HomeAssistantEntityPicker({ open, onClose, onSelect }: Props) {
                               selectedAttribute === attr && "bg-primary/10 border border-primary",
                             )}
                           >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-mono text-xs font-medium">{attr}</span>
+                            <Flex align="center" justify="between" gap="2">
+                              <Text as="span" size="xs" weight="medium" className="font-mono">
+                                {attr}
+                              </Text>
                               {displayValue && (
-                                <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                                <Text as="span" size="xs" tone="muted" className="truncate max-w-[150px]">
                                   {displayValue}
-                                </span>
+                                </Text>
                               )}
-                            </div>
+                            </Flex>
                           </button>
                         );
                       })}
-                    </div>
+                    </Box>
                   </ScrollArea>
-                </div>
+                </Stack>
               </>
             )}
 
             {selectedEntity && selectedAttribute && (
-              <div className="px-2 py-1.5 bg-muted rounded space-y-1">
-                <code className="text-xs font-mono block">
+              <Stack gap="1" className="px-2 py-1.5 bg-muted rounded">
+                <Code className="text-xs font-mono block">
                   {`{{home_assistant.${selectedEntity.entity_id.replace(/\./g, "_")}.${selectedAttribute}}}`}
-                </code>
-                <div className="text-xs text-muted-foreground">
+                </Code>
+                <Text size="xs" tone="muted">
                   {t("valueLabel")}:{" "}
                   {selectedAttribute === "state"
                     ? selectedEntity.state
                     : String(selectedEntity.attributes[selectedAttribute] || "N/A")}
-                </div>
-              </div>
+                </Text>
+              </Stack>
             )}
-          </div>
+          </Flex>
         )}
 
         <AlertDialogFooter>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Box, Text } from "@fiestaboard/ui";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";
@@ -262,17 +263,17 @@ const StaticTile = memo(function StaticTile({
         : "text-[10px] sm:text-[13px] md:text-[16px] lg:text-[20px]";
 
   const splitLine = (
-    <div className={`absolute top-1/2 left-0 right-0 h-[1px] ${isWhiteBoard ? "bg-black/10" : "bg-black/30"}`} />
+    <Box className={`absolute top-1/2 left-0 right-0 h-[1px] ${isWhiteBoard ? "bg-black/10" : "bg-black/30"}`} />
   );
 
   if (token.type === "color") {
     const bgColor = resolveColorCode(token.code, isWhiteBoard);
     const inset = size === "sm" ? "3px 1px 4px" : size === "md" ? "4px 2px 5px" : "5px 2px 6px";
     return (
-      <div className={`${sizeClass} relative rounded-[3px] overflow-hidden`} style={{ backgroundColor: tileBg }}>
-        <div className="absolute rounded-[2px]" style={{ inset, backgroundColor: bgColor }} />
+      <Box className={`${sizeClass} relative rounded-[3px] overflow-hidden`} style={{ backgroundColor: tileBg }}>
+        <Box className="absolute rounded-[2px]" style={{ inset, backgroundColor: bgColor }} />
         {splitLine}
-      </div>
+      </Box>
     );
   }
 
@@ -280,20 +281,20 @@ const StaticTile = memo(function StaticTile({
   const isBlank = displayChar === " ";
 
   return (
-    <div
+    <Box
       className={`${sizeClass} relative rounded-[3px] overflow-hidden flex items-center justify-center`}
       style={{ backgroundColor: tileBg }}
     >
       {!isBlank && (
-        <span
+        <Text as="span"
           className={`${textSizeClass} font-mono font-semibold select-none leading-none`}
           style={{ color: token.value === "♥" ? "#eb4034" : textColor }}
         >
           {displayChar}
-        </span>
+        </Text>
       )}
       {splitLine}
-    </div>
+    </Box>
   );
 });
 
@@ -319,7 +320,7 @@ const StaticGridRow = memo(function StaticGridRow({
   emitCellMetadata?: boolean;
 }) {
   return (
-    <div
+    <Box
       data-note-row=""
       {...(isRowSeam ? { "data-note-row-seam": "true" } : {})}
       className={`flex ${gapClass} justify-center`}
@@ -332,7 +333,7 @@ const StaticGridRow = memo(function StaticGridRow({
         // metadata (coordinates + cell value) is opt-in — see
         // BoardDisplayProps.emitCellMetadata.
         return (
-          <div
+          <Box
             key={`col-${rowIdx}-${colIdx}`}
             data-note-tile=""
             {...(emitCellMetadata
@@ -342,10 +343,10 @@ const StaticGridRow = memo(function StaticGridRow({
             style={isColSeam ? { marginLeft: seamGap } : undefined}
           >
             <StaticTile token={token} size={size} boardType={boardType} />
-          </div>
+          </Box>
         );
       })}
-    </div>
+    </Box>
   );
 });
 
@@ -381,7 +382,7 @@ const GridRow = memo(
     emitCellMetadata?: boolean;
   }) {
     return (
-      <div
+      <Box
         data-note-row=""
         {...(isRowSeam ? { "data-note-row-seam": "true" } : {})}
         className={`flex ${gapClass} justify-center`}
@@ -395,7 +396,7 @@ const GridRow = memo(
           // Draw-mode cell coordinates are opt-in — see
           // BoardDisplayProps.emitCellMetadata.
           return (
-            <div
+            <Box
               key={`col-${rowIdx}-${colIdx}`}
               data-note-tile=""
               {...(emitCellMetadata ? { "data-row": rowIdx, "data-col": colIdx } : {})}
@@ -411,10 +412,10 @@ const GridRow = memo(
                 rowIdx={rowIdx}
                 colIdx={colIdx}
               />
-            </div>
+            </Box>
           );
         })}
-      </div>
+      </Box>
     );
   },
   (prevProps, nextProps) => {
@@ -823,7 +824,7 @@ const CharTile = memo(
 
     return (
       <>
-        <div
+        <Box
           className={`relative ${sizeClasses[size]} rounded-[3px] overflow-hidden`}
           data-testid={`char-tile-${rowIdx}-${colIdx}`}
           data-current-char={currentChar}
@@ -852,12 +853,12 @@ const CharTile = memo(
                       : "[--color-margin-top:4px] sm:[--color-margin-top:5px] md:[--color-margin-top:6px] lg:[--color-margin-top:8px] [--color-margin-bottom:5px] sm:[--color-margin-bottom:7px] md:[--color-margin-bottom:8px] lg:[--color-margin-bottom:10px] [--color-margin-h:2px] md:[--color-margin-h:3px]";
 
                 return (
-                  <div
+                  <Box
                     key={`static-color-${token.code}`}
                     className={`absolute inset-0 ${marginClasses} flex items-center justify-center`}
                     style={{ zIndex: 2 }}
                   >
-                    <div
+                    <Box
                       className="relative rounded-[3px] overflow-hidden"
                       style={{
                         marginTop: "var(--color-margin-top)",
@@ -876,9 +877,9 @@ const CharTile = memo(
                     `,
                       }}
                     >
-                      <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
-                    </div>
-                  </div>
+                      <Box className="absolute top-1/2 left-0 right-0 h-[1px] bg-black/10" />
+                    </Box>
+                  </Box>
                 );
               }
 
@@ -893,7 +894,7 @@ const CharTile = memo(
               const charColor = isHeart ? "#eb4034" : textColor;
 
               return (
-                <div
+                <Box
                   key={`static-char-${targetCharIndex}`}
                   className="absolute inset-0 flex items-center justify-center overflow-hidden"
                   style={{
@@ -904,25 +905,25 @@ const CharTile = memo(
                   }}
                 >
                   {!isColor && targetChar !== " " && (
-                    <span
+                    <Text as="span"
                       className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none relative z-10`}
                       style={{ color: charColor }}
                     >
                       {targetChar}
-                    </span>
+                    </Text>
                   )}
                   {/* Blank/space character - render as empty but maintain layout */}
                   {!isColor && targetChar === " " && (
-                    <span
+                    <Text as="span"
                       className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none relative z-10`}
                       style={{ color: textColor, visibility: "hidden" }}
                       aria-hidden="true"
                     >
                       {" "}
-                    </span>
+                    </Text>
                   )}
                   {isColor && (
-                    <div
+                    <Box
                       className="absolute inset-0 rounded-[3px]"
                       style={{
                         backgroundColor: charBg,
@@ -936,7 +937,7 @@ const CharTile = memo(
                       }}
                     />
                   )}
-                </div>
+                </Box>
               );
             })()}
 
@@ -958,7 +959,7 @@ const CharTile = memo(
                 const bg = isColor ? resolveColorCode(char, isWhiteBoard) : tileBg;
                 const isHeart = char === "♥";
                 return (
-                  <div
+                  <Box
                     style={{
                       position: "absolute" as const,
                       ...(isTop ? { top: 0 } : { bottom: 0 }),
@@ -972,21 +973,21 @@ const CharTile = memo(
                     }}
                   >
                     {!isColor && char !== " " && (
-                      <span
+                      <Text as="span"
                         className={`${textSizeClasses[size]} font-mono font-semibold select-none leading-none`}
                         style={{ color: isHeart ? "#eb4034" : textColor }}
                       >
                         {char}
-                      </span>
+                      </Text>
                     )}
-                  </div>
+                  </Box>
                 );
               };
 
               return (
                 <>
                   {/* Layer 1: new char top half — sits behind falling top flap */}
-                  <div
+                  <Box
                     style={{
                       position: "absolute",
                       top: 0,
@@ -998,10 +999,10 @@ const CharTile = memo(
                     }}
                   >
                     {renderHalf(newChar, true)}
-                  </div>
+                  </Box>
 
                   {/* Layer 2: old char bottom half — sits behind unfolding bottom flap */}
-                  <div
+                  <Box
                     style={{
                       position: "absolute",
                       top: "50%",
@@ -1013,10 +1014,10 @@ const CharTile = memo(
                     }}
                   >
                     {renderHalf(prevChar, false)}
-                  </div>
+                  </Box>
 
                   {/* Layer 3: top flap — old char top half, folds DOWN (hinged at midpoint) */}
-                  <div
+                  <Box
                     key={`ft-${currentCharIndex}`}
                     style={{
                       position: "absolute",
@@ -1034,7 +1035,7 @@ const CharTile = memo(
                   >
                     {renderHalf(prevChar, true)}
                     {/* Hinge shadow at bottom edge of flap */}
-                    <div
+                    <Box
                       style={{
                         position: "absolute",
                         bottom: 0,
@@ -1045,10 +1046,10 @@ const CharTile = memo(
                         pointerEvents: "none",
                       }}
                     />
-                  </div>
+                  </Box>
 
                   {/* Layer 4: bottom flap — new char bottom half, UNFOLDS into place */}
-                  <div
+                  <Box
                     key={`fb-${currentCharIndex}`}
                     style={{
                       position: "absolute",
@@ -1067,7 +1068,7 @@ const CharTile = memo(
                   >
                     {renderHalf(newChar, false)}
                     {/* Hinge highlight at top edge of flap */}
-                    <div
+                    <Box
                       style={{
                         position: "absolute",
                         top: 0,
@@ -1080,10 +1081,10 @@ const CharTile = memo(
                         pointerEvents: "none",
                       }}
                     />
-                  </div>
+                  </Box>
 
                   {/* Shadow cast by falling flap onto bottom half */}
-                  <div
+                  <Box
                     key={`fs-${currentCharIndex}`}
                     style={{
                       position: "absolute",
@@ -1102,7 +1103,7 @@ const CharTile = memo(
                   />
 
                   {/* Split line at midpoint */}
-                  <div
+                  <Box
                     className={`absolute top-1/2 left-0 right-0 h-[1px] ${isWhiteBoard ? "bg-black/10" : "bg-black/30"}`}
                     style={{ zIndex: 5 }}
                   />
@@ -1114,11 +1115,11 @@ const CharTile = memo(
           {/* Character is shown via pre-rendered layer above, just add styling */}
           {!isAnimating && !isTransitioning && currentCharIndex === targetCharIndex && (
             <>
-              <div
+              <Box
                 className={`absolute top-1/2 left-0 right-0 h-[1px] ${isWhiteBoard ? "bg-black/10" : "bg-black/30"}`}
                 style={{ zIndex: 3 }}
               />
-              <div
+              <Box
                 className="absolute inset-0 pointer-events-none"
                 style={{
                   zIndex: 1,
@@ -1129,7 +1130,7 @@ const CharTile = memo(
               />
             </>
           )}
-        </div>
+        </Box>
       </>
     );
   },
@@ -1252,8 +1253,8 @@ export const BoardDisplay = memo(
     }, [message, isLoading, t]);
 
     return (
-      <div className={`w-full flex justify-center`}>
-        <div
+      <Box className={`w-full flex justify-center`}>
+        <Box
           role="img"
           aria-label={boardText}
           data-board-preview=""
@@ -1266,7 +1267,7 @@ export const BoardDisplay = memo(
           }}
         >
           {/* Inner bezel border */}
-          <div
+          <Box
             className={`${paddingClasses[size]} relative`}
             aria-hidden="true"
             style={{
@@ -1275,7 +1276,7 @@ export const BoardDisplay = memo(
                 : "linear-gradient(135deg, var(--color-board-surface-dark) 0%, var(--color-board-black) 100%)",
             }}
           >
-            <div className={`flex flex-col ${gapClasses[size]}`}>
+            <Box className={`flex flex-col ${gapClasses[size]}`}>
               {grid.map((row, rowIdx) => {
                 const isRowSeam = showSeams && rowIdx > 0 && rowIdx % NOTE_ROWS === 0;
                 return isStatic ? (
@@ -1308,10 +1309,10 @@ export const BoardDisplay = memo(
                   />
                 );
               })}
-            </div>
-          </div>
-        </div>
-      </div>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
     );
   },
   (prevProps, nextProps) => {
