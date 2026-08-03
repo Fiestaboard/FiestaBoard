@@ -35,7 +35,7 @@ function PluginIcon({ name, size = 24 }: { name: string; size?: number }) {
     .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join("");
-  const Icon = (Icons as Record<string, React.ComponentType<{ size?: number }>>)[key];
+  const Icon = (Icons as unknown as Record<string, React.ComponentType<{ size?: number }>>)[key];
   if (!Icon) return null;
   return <Icon size={size} />;
 }

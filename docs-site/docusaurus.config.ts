@@ -302,7 +302,10 @@ const config: Config = {
           },
         },
         theme: {
-          customCss: "./src/css/custom.css",
+          // fiestaui.generated.css (precompiled DS tokens + Tailwind utilities,
+          // built by `npm run build:css`) loads first so custom.css can bridge
+          // Infima variables onto the DS tokens.
+          customCss: ["./src/css/fiestaui.generated.css", "./src/css/custom.css"],
         },
         gtag: {
           trackingID: "G-5D2S6D6PNC",
@@ -396,7 +399,9 @@ const config: Config = {
       ],
     },
     footer: {
-      style: "dark",
+      // "light" so the footer follows the FiestaUI token bridge (page
+      // background + muted links) instead of Infima's fixed dark palette.
+      style: "light",
       links: [
         {
           title: "Documentation",

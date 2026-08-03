@@ -6,3 +6,5 @@ package-lock.json
 versioned_docs/
 versioned_sidebars/
 docs/
+src/css/fiestaui.generated.css
+vendor/

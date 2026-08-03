@@ -1,0 +1,27 @@
+/**
+ * Tailwind v4 + FiestaUI source stylesheet (compiled ahead of Docusaurus).
+ *
+ * This file is NOT loaded by Docusaurus directly. `scripts/build-fiestaui-css.mjs`
+ * compiles it with `@tailwindcss/postcss` into `fiestaui.generated.css`, which is
+ * what `docusaurus.config.ts` loads. We precompile instead of running Tailwind
+ * inside Docusaurus's webpack PostCSS pipeline because that pipeline silently
+ * skips `@source` scans into `node_modules` (where FiestaUI's component class
+ * strings live), so the DS utilities never got generated. Compiling with an
+ * explicit input path resolves `@source` correctly and deterministically.
+ *
+ * Preflight is deliberately OMITTED (only the `theme` + `utilities` layers are
+ * imported) so Tailwind's base reset does not clobber Infima's docs typography.
+ * FiestaUI components style themselves via utilities + tokens and need no reset.
+ */
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* FiestaUI design tokens, `.dark` variant, fonts, and seasonal palettes. */
+@import "@fiestaboard/ui/theme.css";
+
+/* Generate utilities for the class strings inside the FiestaUI package... */
+@source "../../node_modules/@fiestaboard/ui/dist";
+/* ...and for any Tailwind utilities used directly in the site's own source. */
+@source "../";
