@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton, Switch } from "@fiestaboard/ui";
+import { Box, Card, CardContent, CardDescription, CardHeader, CardTitle, Flex, Skeleton, Switch, Text } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Accessibility } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -49,20 +49,22 @@ export function AccessibilitySettings() {
         {isLoading ? (
           <Skeleton className="h-6 w-48" />
         ) : (
-          <div className="flex items-center gap-3">
+          <Flex align="center" gap="3">
             <Switch
               id="reduce-motion"
               checked={reduceMotion}
               onCheckedChange={handleReduceMotionToggle}
               disabled={updateDisplayMutation.isPending}
             />
-            <div>
+            <Box>
               <label htmlFor="reduce-motion" className="text-sm font-medium cursor-pointer">
                 {t("reduceMotion")}
               </label>
-              <p className="text-xs text-muted-foreground mt-0.5">{t("reduceMotionHint")}</p>
-            </div>
-          </div>
+              <Text size="xs" tone="muted" className="mt-0.5">
+                {t("reduceMotionHint")}
+              </Text>
+            </Box>
+          </Flex>
         )}
       </CardContent>
     </Card>

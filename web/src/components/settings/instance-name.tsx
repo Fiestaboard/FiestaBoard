@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Skeleton } from "@fiestaboard/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Skeleton, Stack } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tag } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -51,7 +51,7 @@ export function InstanceNameCard() {
         {isLoading ? (
           <Skeleton className="h-10 w-full max-w-sm" />
         ) : (
-          <div className="space-y-2 max-w-sm">
+          <Stack gap="2" className="max-w-sm">
             <Label htmlFor="instance-name">{t("instanceNameTitle")}</Label>
             <Input
               id="instance-name"
@@ -61,7 +61,7 @@ export function InstanceNameCard() {
               placeholder={t("instanceNamePlaceholder")}
               maxLength={50}
             />
-          </div>
+          </Stack>
         )}
       </CardContent>
     </Card>

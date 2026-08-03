@@ -15,8 +15,11 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Flex,
   Label,
+  Stack,
   Switch,
+  Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Database, Download, Loader2, Upload } from "lucide-react";
@@ -137,7 +140,7 @@ export function BackupSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex flex-col sm:flex-row gap-3">
+          <Flex direction="col" gap="3" className="sm:flex-row">
             <Button variant="default" className="gap-2" onClick={handleExport} disabled={importMutation.isPending}>
               <Download className="h-4 w-4" />
               Export backup
@@ -158,25 +161,25 @@ export function BackupSettings() {
               className="hidden"
               onChange={handleFileSelected}
             />
-          </div>
+          </Flex>
 
-          <div className="flex items-start gap-3 rounded-md border border-border/60 bg-muted/40 p-3">
+          <Flex align="start" gap="3" className="rounded-md border border-border/60 bg-muted/40 p-3">
             <Switch id="backup-reinstall-plugins" checked={reinstallPlugins} onCheckedChange={setReinstallPlugins} />
-            <div className="space-y-1">
+            <Stack gap="1">
               <Label htmlFor="backup-reinstall-plugins" className="cursor-pointer">
                 Reinstall external plugins after import
               </Label>
-              <p className="text-xs text-muted-foreground">
+              <Text size="xs" tone="muted">
                 When enabled, FiestaBoard will attempt to clone any external plugins recorded in the backup that are not
                 yet installed on this instance. Their configuration is restored from the backup either way.
-              </p>
-            </div>
-          </div>
+              </Text>
+            </Stack>
+          </Flex>
 
-          <p className="text-xs text-muted-foreground">
+          <Text size="xs" tone="muted">
             Note: backups contain sensitive values such as API keys and board credentials in plain text. Store the file
             securely and do not share it publicly.
-          </p>
+          </Text>
         </CardContent>
       </Card>
 
@@ -193,7 +196,11 @@ export function BackupSettings() {
               Replace current configuration?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to restore <span className="font-medium">{pending?.fileName}</span>. Your existing pages,
+              You are about to restore{" "}
+              <Text as="span" weight="medium" tone="muted">
+                {pending?.fileName}
+              </Text>
+              . Your existing pages,
               collections, schedules and configuration will be overwritten. A timestamped copy of each existing file is
               kept alongside the new one so you can roll back manually if needed.
             </AlertDialogDescription>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@fiestaboard/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Grid, Text } from "@fiestaboard/ui";
 import { Check, Monitor, Moon, Sun } from "lucide-react";
 
 import { useTheme } from "@/hooks/use-theme";
@@ -21,7 +21,7 @@ export function AppearanceSettings() {
         <CardDescription>{t("appearanceDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-3 max-w-sm">
+        <Grid cols="3" gap="3" className="max-w-sm">
           {(
             [
               { value: "light", label: t("lightMode"), Icon: Sun },
@@ -44,16 +44,16 @@ export function AppearanceSettings() {
                 )}
               >
                 {isActive && (
-                  <span className="absolute right-1.5 top-1.5">
+                  <Text as="span" className="absolute right-1.5 top-1.5">
                     <Check className="h-3 w-3 text-primary" />
-                  </span>
+                  </Text>
                 )}
                 <Icon className="h-5 w-5" />
                 {label}
               </button>
             );
           })}
-        </div>
+        </Grid>
       </CardContent>
     </Card>
   );
