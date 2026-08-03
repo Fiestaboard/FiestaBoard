@@ -2,6 +2,7 @@
 
 import {
   Badge as BadgeUI,
+  Box,
   Button,
   Dialog,
   DialogContent,
@@ -9,11 +10,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Flex,
+  Grid,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Stack,
+  Text,
 } from "@fiestaboard/ui";
 import { AlertCircle, Check, Key, KeyRound, Loader2, Plus, Radar, ScanSearch, Trash2, Wifi } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -322,10 +327,12 @@ export function TileGridAssignment({
   const canIdentify = canIdentifySaved || keyIsPlaintext;
 
   return (
-    <div className="space-y-2" data-testid="tile-grid-assignment">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium">{t("tileGrid.title")}</span>
+    <Stack gap="2" data-testid="tile-grid-assignment">
+      <Flex align="center" justify="between" gap="2" wrap>
+        <Flex align="center" gap="2">
+          <Text as="span" size="xs" weight="medium">
+            {t("tileGrid.title")}
+          </Text>
           {assignedCount === totalSlots ? (
             <BadgeUI variant="default" className="text-[10px] h-5 bg-board-green">
               <Check className="h-2.5 w-2.5 mr-0.5" />
@@ -336,7 +343,7 @@ export function TileGridAssignment({
               {t("tileGrid.partialBadge", { assigned: assignedCount, total: totalSlots })}
             </BadgeUI>
           )}
-        </div>
+        </Flex>
         <Button
           type="button"
           variant="secondary"
@@ -352,22 +359,28 @@ export function TileGridAssignment({
           )}
           {t("tileGrid.identifyAll")}
         </Button>
-      </div>
+      </Flex>
 
-      <p className="text-[10px] text-muted-foreground">{t("tileGrid.help")}</p>
+      <Text tone="muted" className="text-[10px]">
+        {t("tileGrid.help")}
+      </Text>
 
       {duplicateHosts.length > 0 && (
-        <div
+        <Flex
           role="alert"
-          className="flex items-center gap-1.5 p-1.5 rounded-md bg-amber-500/10 text-foreground text-[10px]"
+          align="center"
+          gap="1.5"
+          className="p-1.5 rounded-md bg-amber-500/10 text-foreground text-[10px]"
         >
           <AlertCircle className="h-3 w-3 flex-shrink-0 text-amber-600" />
-          <span>{t("tileGrid.duplicateHostWarning", { hosts: duplicateHosts.join(", ") })}</span>
-        </div>
+          <Text as="span" className="text-[10px]">
+            {t("tileGrid.duplicateHostWarning", { hosts: duplicateHosts.join(", ") })}
+          </Text>
+        </Flex>
       )}
 
-      <div
-        className="grid gap-1.5"
+      <Grid
+        gap="1.5"
         style={{ gridTemplateColumns: `repeat(${notesWide}, minmax(0, 1fr))` }}
         data-testid="tile-grid"
       >
@@ -395,23 +408,25 @@ export function TileGridAssignment({
                     : "border-dashed border-muted hover:border-primary/60"
                 }`}
               >
-                <span className="text-[10px] font-semibold text-muted-foreground">{position}</span>
+                <Text as="span" weight="semibold" tone="muted" className="text-[10px]">
+                  {position}
+                </Text>
                 {isAssigned ? (
-                  <span className="flex items-center gap-1 text-[10px] font-mono truncate max-w-full text-foreground">
+                  <Text as="span" className="flex items-center gap-1 text-[10px] font-mono truncate max-w-full text-foreground">
                     <Wifi className="h-2.5 w-2.5 flex-shrink-0 text-board-green" />
                     {tile?.host}
-                  </span>
+                  </Text>
                 ) : (
-                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Text as="span" tone="muted" className="flex items-center gap-1 text-[10px]">
                     <Plus className="h-2.5 w-2.5" />
                     {t("tileGrid.assign")}
-                  </span>
+                  </Text>
                 )}
               </button>
             );
           }),
         )}
-      </div>
+      </Grid>
 
       <Dialog open={editingSlot !== null} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="max-w-md">
@@ -427,9 +442,9 @@ export function TileGridAssignment({
             <DialogDescription>{t("tileGrid.dialogDescription")}</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3">
+          <Stack gap="3">
             {/* Network scan */}
-            <div className="space-y-1.5">
+            <Stack gap="1.5">
               <Button
                 type="button"
                 variant="outline"
@@ -442,12 +457,12 @@ export function TileGridAssignment({
                 {isScanning ? t("tileGrid.scanning") : t("tileGrid.scanNetwork")}
               </Button>
               {discovered && discovered.length > 0 && (
-                <p role="status" className="text-[10px] text-muted-foreground">
+                <Text role="status" tone="muted" className="text-[10px]">
                   {t("tileGrid.scanFound", { count: discovered.length })}
-                </p>
+                </Text>
               )}
               {discovered && discovered.length > 0 && (
-                <div className="max-h-28 overflow-y-auto rounded-md border divide-y">
+                <Box className="max-h-28 overflow-y-auto rounded-md border divide-y">
                   {discovered.map((found) => {
                     const usedBy = assignedHosts.get(found.ip);
                     return (
@@ -459,24 +474,29 @@ export function TileGridAssignment({
                           form.host === found.ip ? "bg-primary/10" : ""
                         }`}
                       >
-                        <span className="font-mono">{found.ip}</span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <Text as="span" size="xs" className="font-mono">
+                          {found.ip}
+                        </Text>
+                        <Text as="span" tone="muted" className="text-[10px]">
                           {usedBy !== undefined
                             ? t("tileGrid.alreadyAssigned", { position: usedBy })
                             : found.hostname || found.source}
-                        </span>
+                        </Text>
                       </button>
                     );
                   })}
-                </div>
+                </Box>
               )}
-            </div>
+            </Stack>
 
             {/* Host + port */}
-            <div className="flex gap-2">
-              <div className="flex-1 space-y-1">
+            <Flex gap="2">
+              <Stack gap="1" className="flex-1">
                 <label className="text-xs font-medium" htmlFor={`tile-host-${board.id}`}>
-                  {t("boardHostLabel")} <span className="text-destructive">*</span>
+                  {t("boardHostLabel")}{" "}
+                  <Text as="span" size="xs" tone="destructive">
+                    *
+                  </Text>
                 </label>
                 <input
                   id={`tile-host-${board.id}`}
@@ -486,8 +506,8 @@ export function TileGridAssignment({
                   placeholder={t("boardHostPlaceholder")}
                   className="w-full h-8 px-2 text-xs rounded-md border bg-background font-mono"
                 />
-              </div>
-              <div className="w-20 space-y-1">
+              </Stack>
+              <Stack gap="1" className="w-20">
                 <label className="text-xs font-medium" htmlFor={`tile-port-${board.id}`}>
                   {t("tileGrid.portLabel")}
                 </label>
@@ -502,11 +522,11 @@ export function TileGridAssignment({
                   }
                   className="w-full h-8 px-2 text-xs rounded-md border bg-background font-mono"
                 />
-              </div>
-            </div>
+              </Stack>
+            </Flex>
 
             {/* Auth method toggle */}
-            <div className="grid grid-cols-2 gap-2">
+            <Grid cols="2" gap="2">
               <button
                 type="button"
                 aria-pressed={form.keyMode === "api_key"}
@@ -533,12 +553,15 @@ export function TileGridAssignment({
                 <KeyRound className="h-3 w-3" />
                 {t("enablementTokenLabel")}
               </button>
-            </div>
+            </Grid>
 
             {form.keyMode === "api_key" ? (
-              <div className="space-y-1">
+              <Stack gap="1">
                 <label className="text-xs font-medium" htmlFor={`tile-key-${board.id}`}>
-                  {t("localApiKeyLabel")} <span className="text-destructive">*</span>
+                  {t("localApiKeyLabel")}{" "}
+                  <Text as="span" size="xs" tone="destructive">
+                    *
+                  </Text>
                 </label>
                 <input
                   id={`tile-key-${board.id}`}
@@ -552,9 +575,9 @@ export function TileGridAssignment({
                   }
                   className="w-full h-8 px-2 text-xs rounded-md border bg-background font-mono"
                 />
-              </div>
+              </Stack>
             ) : (
-              <div className="space-y-1.5">
+              <Stack gap="1.5">
                 <label className="text-xs font-medium" htmlFor={`tile-token-${board.id}`}>
                   {t("enablementTokenLabel")}
                 </label>
@@ -583,11 +606,11 @@ export function TileGridAssignment({
                     t("getApiKeyFromBoard")
                   )}
                 </Button>
-              </div>
+              </Stack>
             )}
 
             {/* Test + Identify */}
-            <div className="flex gap-2">
+            <Flex gap="2">
               <Button
                 type="button"
                 variant="outline"
@@ -600,13 +623,13 @@ export function TileGridAssignment({
                 {t("tileGrid.testTile")}
                 {testResult === "ok" && <Check className="h-3 w-3 ml-1 text-board-green" />}
                 {testResult === "fail" && <AlertCircle className="h-3 w-3 ml-1 text-destructive" />}
-                <span role="status" className="sr-only">
+                <Text as="span" role="status" className="sr-only">
                   {testResult === "ok"
                     ? t("tileGrid.testSuccess")
                     : testResult === "fail"
                       ? t("tileGrid.testFailed")
                       : ""}
-                </span>
+                </Text>
               </Button>
               <Button
                 type="button"
@@ -623,12 +646,12 @@ export function TileGridAssignment({
                 )}
                 {t("tileGrid.identify")}
               </Button>
-            </div>
+            </Flex>
 
             {/* Move / swap — rearrange without retyping credentials. A plain
                 Select, so it is fully keyboard- and screen-reader-accessible. */}
             {editingSaved && totalSlots > 1 && (
-              <div className="space-y-1">
+              <Stack gap="1">
                 <label className="text-xs font-medium" htmlFor={`tile-move-${board.id}`}>
                   {t("tileGrid.moveTile")}
                 </label>
@@ -655,9 +678,9 @@ export function TileGridAssignment({
                     )}
                   </SelectContent>
                 </Select>
-              </div>
+              </Stack>
             )}
-          </div>
+          </Stack>
 
           <DialogFooter className="flex-row justify-between sm:justify-between gap-2">
             {editingSaved ? (
@@ -672,7 +695,7 @@ export function TileGridAssignment({
                 {t("tileGrid.clearTile")}
               </Button>
             ) : (
-              <span />
+              <Text as="span" />
             )}
             <Button type="button" size="sm" className="text-xs" disabled={!keyReady} onClick={handleSave}>
               {t("tileGrid.saveTile")}
@@ -680,6 +703,6 @@ export function TileGridAssignment({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Stack>
   );
 }
