@@ -1366,7 +1366,8 @@ function PluginCard({
                       </Table>
                     </Box>
                     <Text size="xs" tone="muted">
-                      Use in templates as <CodeChip className="bg-muted px-1 py-0 rounded">{`{{${plugin.id}.variable}}`}</CodeChip>
+                      Use in templates as{" "}
+                      <CodeChip className="bg-muted px-1 py-0 rounded">{`{{${plugin.id}.variable}}`}</CodeChip>
                     </Text>
                   </Stack>
                 </TooltipProvider>

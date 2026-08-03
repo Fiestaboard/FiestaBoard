@@ -153,7 +153,9 @@ function PickCard({ pick, enabledPluginIds }: { pick: StaffPick; enabledPluginId
               </TooltipTrigger>
               {hasMissingPlugins && (
                 <TooltipContent side="top" className="max-w-xs">
-                  <Text>{t("importWithMissingPlugins", { plugins: missingPlugins.map((p) => p.name).join(", ") })}</Text>
+                  <Text>
+                    {t("importWithMissingPlugins", { plugins: missingPlugins.map((p) => p.name).join(", ") })}
+                  </Text>
                 </TooltipContent>
               )}
             </Tooltip>

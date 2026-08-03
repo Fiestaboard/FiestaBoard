@@ -500,7 +500,11 @@ function CenteredCard({
         <CardFooter className="text-xs text-muted-foreground">
           {t.rich("changeLater", {
             link: (chunks) => (
-              <TextLink href="https://fiestaboard.app/docs/setup/authentication" target="_blank" rel="noopener noreferrer">
+              <TextLink
+                href="https://fiestaboard.app/docs/setup/authentication"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {chunks}
                 {/* sr-only cue lets screen-reader users know this link
                     leaves the app (WCAG 2.4.4 / 3.2.5). */}
