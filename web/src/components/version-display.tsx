@@ -1,6 +1,6 @@
 "use client";
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Flex, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpCircle, Package } from "lucide-react";
 
@@ -26,12 +26,12 @@ export function VersionDisplay() {
   if (!version) return null;
 
   return (
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+    <Flex align="center" gap="2" className="text-xs text-muted-foreground">
       <Package className="h-3 w-3" />
-      <span suppressHydrationWarning>
+      <Text as="span" size="xs" tone="muted" suppressHydrationWarning>
         v{version.package_version}
         {version.is_dev && ` ${t("devSuffix")}`}
-      </span>
+      </Text>
       {updateCheck?.update_available && (
         <TooltipProvider>
           <Tooltip>
@@ -45,11 +45,11 @@ export function VersionDisplay() {
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{t("updateAvailableTooltip", { version: updateCheck.latest_version ?? "" })}</p>
+              <Text>{t("updateAvailableTooltip", { version: updateCheck.latest_version ?? "" })}</Text>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       )}
-    </div>
+    </Flex>
   );
 }

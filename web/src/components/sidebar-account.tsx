@@ -9,7 +9,7 @@
  * Account — this is just the always-visible escape hatch.
  */
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@fiestaboard/ui";
+import { Text, Tooltip, TooltipContent, TooltipTrigger } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 
@@ -62,14 +62,17 @@ export function SidebarAccount({ collapsed = false, variant = "desktop" }: Sideb
   const button = (
     <button type="button" onClick={handleSignOut} aria-label="Sign out" className={className}>
       <LogOut className="h-5 w-5 flex-shrink-0" />
-      <span
+      <Text
+        as="span"
+        weight="medium"
+        size={variant === "mobile" ? "base" : "sm"}
         className={cn(
           "whitespace-nowrap overflow-hidden transition-opacity duration-100",
           collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
         )}
       >
         Sign out
-      </span>
+      </Text>
     </button>
   );
 
