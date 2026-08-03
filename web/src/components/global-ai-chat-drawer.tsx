@@ -1,5 +1,6 @@
 "use client";
 
+import { Box } from "@fiestaboard/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -816,7 +817,7 @@ export function GlobalAiChatDrawer() {
   if (!hasProviders) return null;
 
   return (
-    <div
+    <Box
       ref={panelRef}
       role="dialog"
       aria-modal="true"
@@ -842,6 +843,6 @@ export function GlobalAiChatDrawer() {
         taskList={taskList}
         onConversationReset={() => setTaskList([])}
       />
-    </div>
+    </Box>
   );
 }

@@ -1,6 +1,17 @@
 "use client";
 
-import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from "@fiestaboard/ui";
+import {
+  Badge,
+  Box,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Flex,
+  Skeleton,
+  Text,
+} from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Monitor, Smartphone, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -100,17 +111,19 @@ export function OutputTargetSelector() {
                 isActive ? "border-brand bg-brand/5" : "border-muted hover:border-brand/50 active:bg-muted/50"
               }`}
             >
-              <div className="flex items-start gap-3">
-                <div
+              <Flex align="start" gap="3">
+                <Box
                   className={`p-2 rounded-md shrink-0 ${
                     isActive ? "bg-brand-emphasis text-brand-foreground" : "bg-muted"
                   }`}
                 >
                   <Icon className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-sm sm:text-base">{getOptionLabel(option.value)}</span>
+                </Box>
+                <Box className="flex-1 min-w-0">
+                  <Flex align="center" gap="2" wrap>
+                    <Text as="span" size="sm" weight="medium" className="sm:text-base">
+                      {getOptionLabel(option.value)}
+                    </Text>
                     {isActive && (
                       <Badge variant="default" className="text-[10px] sm:text-xs">
                         {tc("active")}
@@ -121,10 +134,12 @@ export function OutputTargetSelector() {
                         {tc("effective")}
                       </Badge>
                     )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">{getOptionDescription(option.value)}</p>
-                </div>
-              </div>
+                  </Flex>
+                  <Text size="xs" tone="muted" className="mt-1">
+                    {getOptionDescription(option.value)}
+                  </Text>
+                </Box>
+              </Flex>
             </button>
           );
         })}

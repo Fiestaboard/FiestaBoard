@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Box,
   Button,
   Dialog,
   DialogContent,
@@ -8,8 +9,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Flex,
   Input,
   Label,
+  Stack,
+  Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Timer } from "lucide-react";
@@ -93,10 +97,10 @@ export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSe
           <DialogDescription>{t("description", { pageName })}</DialogDescription>
         </DialogHeader>
 
-        <div className="py-2">
-          <div className="space-y-2">
+        <Box className="py-2">
+          <Stack gap="2">
             <Label className="text-sm font-medium">{t("showFor")}</Label>
-            <div className="flex flex-wrap gap-2">
+            <Flex wrap gap="2">
               {DURATION_PRESETS.map((preset) => (
                 <button
                   key={preset.minutes}
@@ -125,9 +129,9 @@ export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSe
               >
                 {t("custom")}
               </button>
-            </div>
+            </Flex>
             {isCustom && (
-              <div className="flex items-center gap-2">
+              <Flex align="center" gap="2">
                 <Input
                   type="number"
                   min={1}
@@ -138,11 +142,13 @@ export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSe
                   className="w-24"
                   autoFocus
                 />
-                <span className="text-sm text-muted-foreground">{t("minutes")}</span>
-              </div>
+                <Text as="span" size="sm" tone="muted">
+                  {t("minutes")}
+                </Text>
+              </Flex>
             )}
-          </div>
-        </div>
+          </Stack>
+        </Box>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={setOverrideMutation.isPending}>

@@ -1,6 +1,14 @@
 "use client";
 
-import { BoardSelector, fireSeasonBurst, Sidebar, type SidebarLinkProps, type SidebarNavItem } from "@fiestaboard/ui";
+import {
+  BoardSelector,
+  fireSeasonBurst,
+  Flex,
+  Sidebar,
+  type SidebarLinkProps,
+  type SidebarNavItem,
+  Text,
+} from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
   Award,
@@ -77,8 +85,15 @@ export function NavigationSidebar() {
       if (!season) return;
       fireSeasonBurst(e, season.colors);
       toast.custom(() => (
-        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#111] px-5 py-2.5 text-[15px] font-bold shadow-xl">
-          <span
+        <Flex
+          align="center"
+          gap="2"
+          className="rounded-full border border-white/10 bg-[#111] px-5 py-2.5 text-[15px] font-bold shadow-xl"
+        >
+          <Text
+            as="span"
+            weight="bold"
+            className="text-[15px]"
             style={{
               background: "linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787)",
               WebkitBackgroundClip: "text",
@@ -87,9 +102,9 @@ export function NavigationSidebar() {
             }}
           >
             Happy Pride!
-          </span>{" "}
+          </Text>{" "}
           🏳️‍🌈
-        </div>
+        </Flex>
       ));
     },
     [season],
