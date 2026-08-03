@@ -4,6 +4,7 @@ import {
   Alert,
   AlertDescription,
   Badge,
+  Box,
   Button,
   Card,
   CardContent,
@@ -15,12 +16,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Flex,
+  Grid,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
   Skeleton,
+  Stack,
+  Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -426,16 +431,22 @@ export function ActivePageDisplay() {
     <>
       <Card className="card-interactive">
         <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-baseline gap-2 min-w-0">
+          <Flex align="center" justify="between">
+            <Flex align="baseline" gap="2" className="min-w-0">
               <CardTitle className="text-lg">{t("title")}</CardTitle>
               {isMultiBoard && currentBoard && (
-                <span className="text-xs text-muted-foreground truncate" data-testid="active-display-board-name">
+                <Text
+                  as="span"
+                  size="xs"
+                  tone="muted"
+                  className="truncate"
+                  data-testid="active-display-board-name"
+                >
                   {t("boardIndicator", { boardName: currentBoard.name })}
-                </span>
+                </Text>
               )}
-            </div>
-            <div className="flex items-center gap-2">
+            </Flex>
+            <Flex align="center" gap="2">
               {scheduleEnabled && (
                 <Link
                   href="/schedule"
@@ -453,14 +464,16 @@ export function ActivePageDisplay() {
                 <ArrowLeftRight className="h-4 w-4" />
                 {t("changePage")}
               </Button>
-            </div>
-          </div>
+            </Flex>
+          </Flex>
 
           {/* Active page name and status */}
-          <div className="flex items-center gap-4 text-xs text-muted-foreground mt-3 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <span className="font-medium text-foreground">{activePageName}</span>
-            </div>
+          <Flex align="center" gap="4" wrap className="text-xs text-muted-foreground mt-3">
+            <Flex align="center" gap="1.5">
+              <Text as="span" size="xs" weight="medium">
+                {activePageName}
+              </Text>
+            </Flex>
             {liveMessageForBoard ? (
               <Badge
                 variant="destructive"
@@ -514,10 +527,12 @@ export function ActivePageDisplay() {
               </Badge>
             )}
             {silenceStatus?.active && (
-              <div className="flex items-center gap-1.5">
+              <Flex align="center" gap="1.5">
                 <Moon className="h-3 w-3 text-info" aria-hidden="true" />
-                <span className="text-info">{t("silenceModeActive")}</span>
-              </div>
+                <Text as="span" size="xs" tone="info">
+                  {t("silenceModeActive")}
+                </Text>
+              </Flex>
             )}
             {pausedBoards.map((board) => (
               <Badge
@@ -531,7 +546,7 @@ export function ActivePageDisplay() {
                 {showBoardNameOnPauseBadge ? `${tPause("badge")}: ${board.name}` : tPause("badge")}
               </Badge>
             ))}
-          </div>
+          </Flex>
         </CardHeader>
 
         <CardContent className="space-y-4">
@@ -557,7 +572,9 @@ export function ActivePageDisplay() {
             <Alert variant="default" className="border-warning/50 bg-warning/10">
               <AlertTriangle className="h-4 w-4 text-warning" />
               <AlertDescription className="flex items-center justify-between gap-3">
-                <span className="text-sm">{t("updatedExternally")}</span>
+                <Text as="span" size="sm">
+                  {t("updatedExternally")}
+                </Text>
                 <Button
                   size="sm"
                   variant="outline"
@@ -576,7 +593,7 @@ export function ActivePageDisplay() {
               any layout changes in ancestor elements (e.g. sidebar padding snap).
               ScaledBoardDisplay shrinks the board to fit narrow (mobile) cards —
               BoardDisplay's breakpoint tile sizes alone overflow phone widths. */}
-          <div className="flex justify-center overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
+          <Flex justify="center" className="overflow-x-hidden px-2" style={{ contain: "layout style paint" }}>
             <ScaledBoardDisplay
               message={displayMessage}
               isLoading={!boardState && !liveMessageForBoard}
@@ -584,13 +601,13 @@ export function ActivePageDisplay() {
               boardType={currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
               deviceType={activeDeviceType}
             />
-          </div>
+          </Flex>
         </CardContent>
       </Card>
 
       {/* Pre-render grid in background (hidden) to warm up cache */}
       {shouldPreRender && !isSheetOpen && (
-        <div className="hidden">
+        <Box className="hidden">
           <PageGridSelector
             activePageId={deferredActivePageId}
             onSelectPage={handleSelectPage}
@@ -599,7 +616,7 @@ export function ActivePageDisplay() {
             label=""
             filterByCurrentBoardSize
           />
-        </div>
+        </Box>
       )}
 
       {/* Page Selector Sheet - grid is already cached so opens instantly */}
@@ -616,15 +633,15 @@ export function ActivePageDisplay() {
             <SheetDescription>{t("selectPageDescription")}</SheetDescription>
           </SheetHeader>
 
-          <div className="mt-6">
+          <Box className="mt-6">
             {!showSheetContent ? (
               // Show lightweight skeleton during animation for smooth 60fps
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Grid cols="1" sm="2" gap="3">
                 <Skeleton className="h-32 w-full" />
                 <Skeleton className="h-32 w-full" />
                 <Skeleton className="h-32 w-full" />
                 <Skeleton className="h-32 w-full" />
-              </div>
+              </Grid>
             ) : shouldPreRender ? (
               <PageGridSelector
                 activePageId={deferredActivePageId}
@@ -635,9 +652,11 @@ export function ActivePageDisplay() {
                 filterByCurrentBoardSize
               />
             ) : (
-              <div className="text-center text-sm text-muted-foreground py-8">{t("loadingPages")}</div>
+              <Text tone="muted" className="text-center py-8">
+                {t("loadingPages")}
+              </Text>
             )}
-          </div>
+          </Box>
         </SheetContent>
       </Sheet>
 
@@ -657,7 +676,7 @@ export function ActivePageDisplay() {
             <DialogDescription>{t("changeModeDescription")}</DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-3 py-2">
+          <Stack gap="3" className="py-2">
             {/* Override temporarily */}
             <button
               type="button"
@@ -667,15 +686,21 @@ export function ActivePageDisplay() {
               }}
               className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+              <Flex
+                align="center"
+                justify="center"
+                className="h-10 w-10 rounded-full bg-primary/10 flex-shrink-0 group-hover:bg-primary/20 transition-colors"
+              >
                 <Timer className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <div className="font-semibold text-sm text-foreground">{t("changeModeOverrideTitle")}</div>
-                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              </Flex>
+              <Box className="min-w-0">
+                <Text size="sm" weight="semibold">
+                  {t("changeModeOverrideTitle")}
+                </Text>
+                <Text size="xs" tone="muted" className="mt-0.5 leading-relaxed">
                   {t("changeModeOverrideDescription")}
-                </div>
-              </div>
+                </Text>
+              </Box>
             </button>
 
             {/* Turn off schedule */}
@@ -685,21 +710,27 @@ export function ActivePageDisplay() {
               disabled={disableScheduleMutation.isPending}
               className="flex items-start gap-4 p-4 rounded-xl border border-border hover:border-muted-foreground/40 hover:bg-muted/40 text-left transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0 group-hover:bg-muted/80 transition-colors">
+              <Flex
+                align="center"
+                justify="center"
+                className="h-10 w-10 rounded-full bg-muted flex-shrink-0 group-hover:bg-muted/80 transition-colors"
+              >
                 {disableScheduleMutation.isPending ? (
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 ) : (
                   <CalendarOff className="h-5 w-5 text-muted-foreground" />
                 )}
-              </div>
-              <div className="min-w-0">
-                <div className="font-semibold text-sm text-foreground">{t("changeModeDisableTitle")}</div>
-                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              </Flex>
+              <Box className="min-w-0">
+                <Text size="sm" weight="semibold">
+                  {t("changeModeDisableTitle")}
+                </Text>
+                <Text size="xs" tone="muted" className="mt-0.5 leading-relaxed">
                   {t("changeModeDisableDescription")}
-                </div>
-              </div>
+                </Text>
+              </Box>
             </button>
-          </div>
+          </Stack>
 
           <DialogFooter>
             <Button variant="ghost" size="sm" onClick={() => setChangeModeOpen(false)}>

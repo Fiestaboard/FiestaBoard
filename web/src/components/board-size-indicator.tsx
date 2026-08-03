@@ -1,3 +1,5 @@
+import { Text } from "@fiestaboard/ui";
+
 import { useTranslations } from "@/i18n/translations";
 import { isNoteArray, NOTE_ARRAY_PRESETS, resolveDimensions } from "@/lib/board-dimensions";
 
@@ -37,20 +39,27 @@ export function BoardSizeIndicator({ deviceType, notesWide = 1, notesTall = 1, c
     : t("ariaLabel", { rows, cols });
 
   return (
-    <span
+    <Text
+      as="span"
+      size="xs"
+      tone="muted"
       role="img"
       aria-label={ariaLabel}
-      className={`inline-flex items-center gap-1 text-xs text-muted-foreground font-mono tabular-nums${className ? ` ${className}` : ""}`}
+      className={`inline-flex items-center gap-1 font-mono tabular-nums${className ? ` ${className}` : ""}`}
     >
       {/* Rows × cols (height × width) per the note-array epic convention; the
           wizard "characters" strings and tests use the same rows × cols order. */}
       {rows} × {cols}
       {noteArray && (
         <>
-          <span className="text-muted-foreground/50 mx-0.5">·</span>
-          <span>{presetLabel}</span>
+          <Text as="span" size="xs" className="text-muted-foreground/50 mx-0.5">
+            ·
+          </Text>
+          <Text as="span" size="xs" tone="muted">
+            {presetLabel}
+          </Text>
         </>
       )}
-    </span>
+    </Text>
   );
 }
