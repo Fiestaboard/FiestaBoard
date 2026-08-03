@@ -1,6 +1,6 @@
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import Link from "@docusaurus/Link";
-import { Badge, Button } from "@fiestaboard/ui";
+import { Button } from "@fiestaboard/ui";
 import HeroBoard from "@site/src/components/HeroBoard";
 import HomepageFeatures from "@site/src/components/HomepageFeatures";
 import Layout from "@theme/Layout";
@@ -13,10 +13,6 @@ function Hero() {
     <section className={styles.section}>
       <div className={styles.heroInner}>
         <div className={styles.heroCopy}>
-          <div className={styles.eyebrow}>
-            <Badge variant="brand">Open source</Badge>
-            <span className={styles.eyebrowMeta}>MIT · v8.17</span>
-          </div>
           <h1 className={styles.heroTitle}>Turn your split-flap display into a living dashboard</h1>
           <p className={styles.heroBody}>
             Transform your Vestaboard into a real-time information hub—track your morning commute, monitor the markets,

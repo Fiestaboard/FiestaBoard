@@ -22,20 +22,6 @@
   min-width: 300px;
 }
 
-.eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.eyebrowMeta {
-  font-family: var(--font-geist-mono);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-
 .heroTitle {
   margin: 22px 0 0;
   font-size: clamp(38px, 4.6vw, 58px);

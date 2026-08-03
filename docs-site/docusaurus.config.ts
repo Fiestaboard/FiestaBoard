@@ -476,6 +476,10 @@ const config: Config = {
               label: "Contributing",
               to: "/docs/development/contributing",
             },
+            {
+              label: "MIT License",
+              href: "https://github.com/Fiestaboard/FiestaBoard/blob/main/LICENSE",
+            },
           ],
         },
         {
