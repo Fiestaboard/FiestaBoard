@@ -16,12 +16,15 @@
 
 import {
   Badge,
+  Box,
   Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  Flex,
+  Grid,
   Label,
   PageHeader,
   PageLayout,
@@ -31,6 +34,8 @@ import {
   SelectTrigger,
   SelectValue,
   Slider,
+  Stack,
+  Text,
   Textarea,
 } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -305,14 +310,14 @@ export default function TransitionsLabPage() {
     <PageLayout>
       <PageHeader icon={FlaskConical} title={t("title")} description={t("description")} />
 
-      <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
+      <Box className="grid gap-6 lg:grid-cols-[400px_1fr]">
         <Card>
           <CardHeader>
             <CardTitle>{t("setupTitle")}</CardTitle>
             <CardDescription>{t("setupDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label htmlFor="plugin-picker">{t("pluginLabel")}</Label>
               <Select value={selectedPluginId} onValueChange={(val: string) => setSelectedPluginId(val)}>
                 <SelectTrigger id="plugin-picker">
@@ -326,16 +331,20 @@ export default function TransitionsLabPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {selectedPlugin && <p className="text-xs text-muted-foreground">{selectedPlugin.description}</p>}
+              {selectedPlugin && (
+                <Text size="xs" tone="muted">
+                  {selectedPlugin.description}
+                </Text>
+              )}
               {pluginsQuery.isSuccess && plugins.length === 0 && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Text size="xs" tone="muted" className="flex items-center gap-1">
                   <Wand2 className="h-3 w-3" />
                   {t("noPlugins")}
-                </p>
+                </Text>
               )}
-            </div>
+            </Stack>
 
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label htmlFor="device-picker">{t("deviceLabel")}</Label>
               <Select value={deviceType} onValueChange={(val: string) => setDeviceType(val as DeviceType)}>
                 <SelectTrigger id="device-picker">
@@ -347,11 +356,11 @@ export default function TransitionsLabPage() {
                   <SelectItem value="note_array">{t("deviceNoteArray")}</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </Stack>
 
             {deviceType === "note_array" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
+              <Grid cols="2" gap="3">
+                <Stack gap="2">
                   <Label htmlFor="notes-wide">{t("notesWideLabel")}</Label>
                   <Select value={String(notesWide)} onValueChange={(val: string) => setNotesWide(Number(val))}>
                     <SelectTrigger id="notes-wide">
@@ -365,8 +374,8 @@ export default function TransitionsLabPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
+                </Stack>
+                <Stack gap="2">
                   <Label htmlFor="notes-tall">{t("notesTallLabel")}</Label>
                   <Select value={String(notesTall)} onValueChange={(val: string) => setNotesTall(Number(val))}>
                     <SelectTrigger id="notes-tall">
@@ -380,11 +389,11 @@ export default function TransitionsLabPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
+                </Stack>
+              </Grid>
             )}
 
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label htmlFor="from-page">{t("fromPageLabel")}</Label>
               <Select value={fromPageId} onValueChange={(val: string) => setFromPageId(val)}>
                 <SelectTrigger id="from-page">
@@ -398,9 +407,9 @@ export default function TransitionsLabPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Stack>
 
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label htmlFor="to-page">{t("toPageLabel")}</Label>
               <Select value={toPageId} onValueChange={(val: string) => setToPageId(val)}>
                 <SelectTrigger id="to-page">
@@ -415,11 +424,13 @@ export default function TransitionsLabPage() {
                 </SelectContent>
               </Select>
               {pagesQuery.isSuccess && pages.length === 0 && (
-                <p className="text-xs text-muted-foreground">{t("noPages")}</p>
+                <Text size="xs" tone="muted">
+                  {t("noPages")}
+                </Text>
               )}
-            </div>
+            </Stack>
 
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label htmlFor="config-json">{t("configLabel")}</Label>
               <Textarea
                 id="config-json"
@@ -429,7 +440,7 @@ export default function TransitionsLabPage() {
                 className="font-mono text-xs"
                 spellCheck={false}
               />
-            </div>
+            </Stack>
 
             <Button
               onClick={runPreview}
@@ -439,11 +450,13 @@ export default function TransitionsLabPage() {
               {previewing ? t("generating") : t("runPreview")}
             </Button>
 
-            {previewError && <p className="text-sm text-destructive">{previewError}</p>}
+            {previewError && <Text tone="destructive">{previewError}</Text>}
 
-            <div className="space-y-2 border-t pt-4">
-              <p className="text-xs text-muted-foreground">{t("liveHint")}</p>
-              <div className="flex gap-2">
+            <Stack gap="2" className="border-t pt-4">
+              <Text size="xs" tone="muted">
+                {t("liveHint")}
+              </Text>
+              <Flex gap="2">
                 <Button
                   variant="outline"
                   className="flex-1"
@@ -464,10 +477,10 @@ export default function TransitionsLabPage() {
                     {restoring ? t("restoring") : t("restoreBoard")}
                   </Button>
                 )}
-              </div>
-              {liveStatus && <p className="text-sm text-muted-foreground">{liveStatus}</p>}
-              {liveError && <p className="text-sm text-destructive">{liveError}</p>}
-            </div>
+              </Flex>
+              {liveStatus && <Text tone="muted">{liveStatus}</Text>}
+              {liveError && <Text tone="destructive">{liveError}</Text>}
+            </Stack>
           </CardContent>
         </Card>
 
@@ -487,14 +500,14 @@ export default function TransitionsLabPage() {
             {displayGrid ? (
               <TransitionGridDisplay grid={displayGrid} size={gridSize} />
             ) : (
-              <div className="rounded-lg border-2 border-dashed p-12 text-center text-muted-foreground">
+              <Box className="rounded-lg border-2 border-dashed p-12 text-center text-muted-foreground">
                 {t("previewEmpty")}
-              </div>
+              </Box>
             )}
 
             {preview && preview.frames.length > 0 && (
               <>
-                <div className="flex items-center gap-2">
+                <Flex align="center" gap="2">
                   <Button
                     size="icon"
                     variant="outline"
@@ -536,12 +549,12 @@ export default function TransitionsLabPage() {
                   >
                     <SkipForward className="h-4 w-4" />
                   </Button>
-                  <span className="text-sm text-muted-foreground tabular-nums">
+                  <Text as="span" tone="muted" className="tabular-nums">
                     {t("frameCounter", { current: frameIdx + 1, total: preview.frames.length })}
-                  </span>
-                </div>
+                  </Text>
+                </Flex>
 
-                <div className="space-y-2">
+                <Stack gap="2">
                   <Label>{t("scrubLabel")}</Label>
                   <Slider
                     value={[frameIdx]}
@@ -553,18 +566,18 @@ export default function TransitionsLabPage() {
                     max={Math.max(0, preview.frames.length - 1)}
                     step={1}
                   />
-                </div>
+                </Stack>
 
                 {preview.frames[frameIdx] && (
-                  <p className="text-xs text-muted-foreground">
+                  <Text size="xs" tone="muted">
                     {t("frameDelay", { ms: preview.frames[frameIdx].delay_ms })}
-                  </p>
+                  </Text>
                 )}
               </>
             )}
           </CardContent>
         </Card>
-      </div>
+      </Box>
     </PageLayout>
   );
 }
