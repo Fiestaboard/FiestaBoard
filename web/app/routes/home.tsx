@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, AlertTitle, Button, PageHeader, PageLayout } from "@fiestaboard/ui";
+import { Alert, AlertDescription, AlertTitle, Box, Button, PageHeader, PageLayout } from "@fiestaboard/ui";
 import { Home as HomeIcon, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -30,13 +30,13 @@ export default function Home() {
       <PageHeader icon={HomeIcon} title={t("title")} description={t("description")} />
 
       {boardNotConfigured && (
-        <div className="mb-6">
+        <Box className="mb-6">
           <Alert className="border-info/50 bg-info/10 flex flex-col sm:flex-row sm:items-center sm:gap-4 [&>svg]:static [&>svg]:shrink-0 [&>svg+div]:translate-y-0 [&>svg~*]:pl-3">
             <Info className="h-4 w-4 text-info" />
-            <div className="flex-1 min-w-0">
+            <Box className="flex-1 min-w-0">
               <AlertTitle>{t("noBoardConfigured")}</AlertTitle>
               <AlertDescription>{t("noBoardDescription")}</AlertDescription>
-            </div>
+            </Box>
             <Button
               variant="brand"
               size="sm"
@@ -46,14 +46,14 @@ export default function Home() {
               {t("runSetupWizard")}
             </Button>
           </Alert>
-        </div>
+        </Box>
       )}
 
       <SilenceImminentBanner />
 
-      <div className="animate-card-fade-in">
+      <Box className="animate-card-fade-in">
         <ActivePageDisplay />
-      </div>
+      </Box>
     </PageLayout>
   );
 }

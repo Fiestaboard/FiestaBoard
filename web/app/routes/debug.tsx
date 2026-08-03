@@ -1,4 +1,4 @@
-import { Card, CardContent, PageLayout } from "@fiestaboard/ui";
+import { Card, CardContent, Code, Heading, PageLayout, Text } from "@fiestaboard/ui";
 import { Activity } from "lucide-react";
 
 import { useTranslations } from "@/i18n/translations";
@@ -10,11 +10,12 @@ export default function DebugMonitorPage() {
       <Card>
         <CardContent className="py-12 text-center">
           <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-lg font-semibold mb-2">{t("monitoringRemovedTitle")}</h2>
-          <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-            {t("monitoringRemovedDescription")}{" "}
-            <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs">docker logs fiestaboard</code>
-          </p>
+          <Heading level={2} size="lg" className="mb-2">
+            {t("monitoringRemovedTitle")}
+          </Heading>
+          <Text tone="muted" className="max-w-lg mx-auto">
+            {t("monitoringRemovedDescription")} <Code>docker logs fiestaboard</Code>
+          </Text>
         </CardContent>
       </Card>
     </PageLayout>
