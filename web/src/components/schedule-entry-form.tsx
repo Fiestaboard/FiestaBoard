@@ -3,15 +3,21 @@
 import {
   Alert,
   AlertDescription,
+  Box,
   Button,
+  Flex,
   Input,
   Label,
+  List,
+  ListItem,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Stack,
   Switch,
+  Text,
 } from "@fiestaboard/ui";
 import { AlertCircle, AlertTriangle, GalleryHorizontalEnd, Loader2, Sunrise, Sunset, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -342,7 +348,7 @@ export function ScheduleEntryForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <Box as="form" onSubmit={handleSubmit} className="space-y-6">
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -351,7 +357,7 @@ export function ScheduleEntryForm({
       )}
 
       {/* Page / Collection Selection */}
-      <div className="space-y-2">
+      <Stack gap="2">
         <Label htmlFor="page">{t("scheduleEntryForm.pageOrCollection")}</Label>
         <Select value={pageId} onValueChange={setPageId} modal={false}>
           <SelectTrigger id="page">
@@ -360,25 +366,25 @@ export function ScheduleEntryForm({
           <SelectContent>
             {collections.length > 0 && (
               <>
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                <Box className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
                   {t("scheduleEntryForm.collectionsGroup")}
-                </div>
+                </Box>
                 {collections.map((collection) => (
                   <SelectItem key={collection.id} value={collection.id}>
-                    <span className="flex items-center gap-2">
+                    <Flex align="center" gap="2">
                       <GalleryHorizontalEnd className="h-3.5 w-3.5" />
                       {collection.name}
-                    </span>
+                    </Flex>
                   </SelectItem>
                 ))}
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                <Box className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
                   {t("scheduleEntryForm.pagesGroup")}
-                </div>
+                </Box>
               </>
             )}
             {visiblePages.map((page) => (
               <SelectItem key={page.id} value={page.id}>
-                <span className="flex items-center gap-2">
+                <Flex align="center" gap="2">
                   {page.name}
                   {page.device_type && (
                     <BoardSizeIndicator
@@ -387,7 +393,7 @@ export function ScheduleEntryForm({
                       notesTall={page.notes_tall}
                     />
                   )}
-                </span>
+                </Flex>
               </SelectItem>
             ))}
           </SelectContent>
@@ -398,14 +404,14 @@ export function ScheduleEntryForm({
             <AlertDescription className="text-sm">{sizeWarning}</AlertDescription>
           </Alert>
         )}
-      </div>
+      </Stack>
 
       {/* Time Selection */}
-      <div className="space-y-4">
+      <Stack gap="4">
         {/* Start Time */}
-        <div className="space-y-2">
+        <Stack gap="2">
           <Label htmlFor="start-time">{t("scheduleEntryForm.startTime")}</Label>
-          <div className="flex gap-2">
+          <Flex gap="2">
             <Select value={startType} onValueChange={(v) => setStartType(v as TimeType)}>
               <SelectTrigger className="w-[140px]" aria-label={t("scheduleEntryForm.startTimeType")}>
                 <SelectValue />
@@ -413,11 +419,11 @@ export function ScheduleEntryForm({
               <SelectContent>
                 {TIME_TYPE_OPTIONS.map((type) => (
                   <SelectItem key={`start-type-${type}`} value={type}>
-                    <span className="flex items-center gap-1.5">
+                    <Flex align="center" gap="1.5">
                       {type === "sunrise" && <Sunrise className="h-3.5 w-3.5" />}
                       {type === "sunset" && <Sunset className="h-3.5 w-3.5" />}
                       {getTimeTypeLabel(type)}
-                    </span>
+                    </Flex>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -436,7 +442,7 @@ export function ScheduleEntryForm({
                 </SelectContent>
               </Select>
             ) : (
-              <div className="flex items-center gap-2 flex-1">
+              <Flex align="center" gap="2" className="flex-1">
                 <Input
                   type="number"
                   value={startSunOffset}
@@ -447,25 +453,25 @@ export function ScheduleEntryForm({
                   className="w-20"
                   aria-label={t("scheduleEntryForm.sunOffset")}
                 />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                <Text as="span" size="xs" tone="muted" className="whitespace-nowrap">
                   {t("scheduleEntryForm.sunOffsetHint")}
-                </span>
-              </div>
+                </Text>
+              </Flex>
             )}
-          </div>
+          </Flex>
           {startType !== "fixed" && schedule?.resolved_start_time && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Text tone="muted" size="xs" className="flex items-center gap-1">
               {startType === "sunrise" ? <Sunrise className="h-3 w-3" /> : <Sunset className="h-3 w-3" />}
               {t("scheduleEntryForm.resolvedTime", { time: schedule.resolved_start_time })}
-            </p>
+            </Text>
           )}
-        </div>
+        </Stack>
 
         {/* End Time */}
         {hasEndTime && (
-          <div className="space-y-2">
+          <Stack gap="2">
             <Label htmlFor="end-time">{t("scheduleEntryForm.endTime")}</Label>
-            <div className="flex gap-2">
+            <Flex gap="2">
               <Select value={endType} onValueChange={(v) => setEndType(v as TimeType)}>
                 <SelectTrigger className="w-[140px]" aria-label={t("scheduleEntryForm.endTimeType")}>
                   <SelectValue />
@@ -473,11 +479,11 @@ export function ScheduleEntryForm({
                 <SelectContent>
                   {TIME_TYPE_OPTIONS.map((type) => (
                     <SelectItem key={`end-type-${type}`} value={type}>
-                      <span className="flex items-center gap-1.5">
+                      <Flex align="center" gap="1.5">
                         {type === "sunrise" && <Sunrise className="h-3.5 w-3.5" />}
                         {type === "sunset" && <Sunset className="h-3.5 w-3.5" />}
                         {getTimeTypeLabel(type)}
-                      </span>
+                      </Flex>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -496,7 +502,7 @@ export function ScheduleEntryForm({
                   </SelectContent>
                 </Select>
               ) : (
-                <div className="flex items-center gap-2 flex-1">
+                <Flex align="center" gap="2" className="flex-1">
                   <Input
                     type="number"
                     value={endSunOffset}
@@ -507,35 +513,37 @@ export function ScheduleEntryForm({
                     className="w-20"
                     aria-label={t("scheduleEntryForm.sunOffset")}
                   />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  <Text as="span" size="xs" tone="muted" className="whitespace-nowrap">
                     {t("scheduleEntryForm.sunOffsetHint")}
-                  </span>
-                </div>
+                  </Text>
+                </Flex>
               )}
-            </div>
+            </Flex>
             {endType !== "fixed" && schedule?.resolved_end_time && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Text tone="muted" size="xs" className="flex items-center gap-1">
                 {endType === "sunrise" ? <Sunrise className="h-3 w-3" /> : <Sunset className="h-3 w-3" />}
                 {t("scheduleEntryForm.resolvedTime", { time: schedule.resolved_end_time })}
-              </p>
+              </Text>
             )}
-          </div>
+          </Stack>
         )}
 
         {/* End time toggle */}
-        <div className="flex items-center gap-2">
+        <Flex align="center" gap="2">
           <Switch id="has-end-time" checked={hasEndTime} onCheckedChange={setHasEndTime} />
           <Label htmlFor="has-end-time" className="text-sm text-muted-foreground">
             {t("scheduleEntryForm.setEndTime")}
           </Label>
           {!hasEndTime && (
-            <span className="text-xs text-muted-foreground">({t("scheduleEntryForm.openEndedHint")})</span>
+            <Text as="span" size="xs" tone="muted">
+              ({t("scheduleEntryForm.openEndedHint")})
+            </Text>
           )}
-        </div>
-      </div>
+        </Flex>
+      </Stack>
 
       {/* Recurrence Selection */}
-      <div className="space-y-2">
+      <Stack gap="2">
         <Label htmlFor="recurrence">{t("scheduleEntryForm.recurrenceLabel")}</Label>
         <Select value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as RecurrenceType)}>
           <SelectTrigger id="recurrence">
@@ -547,24 +555,24 @@ export function ScheduleEntryForm({
             <SelectItem value="one_off_date">{t("scheduleEntryForm.recurrenceOneOff")}</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">
+        <Text size="xs" tone="muted">
           {recurrenceType === "weekly"
             ? t("scheduleEntryForm.recurrenceWeeklyDescription")
             : recurrenceType === "annual_date"
               ? t("scheduleEntryForm.recurrenceAnnualDescription")
               : t("scheduleEntryForm.recurrenceOneOffDescription")}
-        </p>
-      </div>
+        </Text>
+      </Stack>
 
       {recurrenceType === "weekly" && (
         <DaySelector value={dayPattern} customDays={customDays} onChange={handleDayChange} />
       )}
 
       {recurrenceType === "annual_date" && (
-        <div className="space-y-3 rounded-lg border p-4">
-          <div className="space-y-2">
+        <Stack gap="3" className="rounded-lg border p-4">
+          <Stack gap="2">
             <Label>{t("scheduleEntryForm.annualDateLabel")}</Label>
-            <div className="flex gap-2">
+            <Flex gap="2">
               <Select value={annualMonth} onValueChange={setAnnualMonth}>
                 <SelectTrigger className="flex-1" aria-label="Month">
                   <SelectValue placeholder="MM" />
@@ -591,18 +599,18 @@ export function ScheduleEntryForm({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+            </Flex>
+          </Stack>
+          <Flex align="center" gap="2">
             <Switch id="annual-has-range" checked={annualHasRange} onCheckedChange={setAnnualHasRange} />
             <Label htmlFor="annual-has-range" className="text-sm text-muted-foreground">
               {t("scheduleEntryForm.useDateRange")}
             </Label>
-          </div>
+          </Flex>
           {annualHasRange && (
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label>{t("scheduleEntryForm.annualEndDateLabel")}</Label>
-              <div className="flex gap-2">
+              <Flex gap="2">
                 <Select value={annualEndMonth} onValueChange={setAnnualEndMonth}>
                   <SelectTrigger className="flex-1" aria-label="End month">
                     <SelectValue placeholder="MM" />
@@ -629,16 +637,18 @@ export function ScheduleEntryForm({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
+              </Flex>
+            </Stack>
           )}
-          <p className="text-xs text-muted-foreground">{t("scheduleEntryForm.dateOverrideHint")}</p>
-        </div>
+          <Text size="xs" tone="muted">
+            {t("scheduleEntryForm.dateOverrideHint")}
+          </Text>
+        </Stack>
       )}
 
       {recurrenceType === "one_off_date" && (
-        <div className="space-y-3 rounded-lg border p-4">
-          <div className="space-y-2">
+        <Stack gap="3" className="rounded-lg border p-4">
+          <Stack gap="2">
             <Label htmlFor="one-off-date">{t("scheduleEntryForm.oneOffDateLabel")}</Label>
             <Input
               id="one-off-date"
@@ -647,15 +657,15 @@ export function ScheduleEntryForm({
               min={todayISO()}
               onChange={(e) => setOneOffDate(e.target.value)}
             />
-          </div>
-          <div className="flex items-center gap-2">
+          </Stack>
+          <Flex align="center" gap="2">
             <Switch id="one-off-has-range" checked={oneOffHasRange} onCheckedChange={setOneOffHasRange} />
             <Label htmlFor="one-off-has-range" className="text-sm text-muted-foreground">
               {t("scheduleEntryForm.useDateRange")}
             </Label>
-          </div>
+          </Flex>
           {oneOffHasRange && (
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label htmlFor="one-off-end-date">{t("scheduleEntryForm.oneOffEndDateLabel")}</Label>
               <Input
                 id="one-off-end-date"
@@ -664,48 +674,50 @@ export function ScheduleEntryForm({
                 min={oneOffDate || undefined}
                 onChange={(e) => setOneOffEndDate(e.target.value)}
               />
-            </div>
+            </Stack>
           )}
-          <p className="text-xs text-muted-foreground">{t("scheduleEntryForm.dateOverrideHint")}</p>
-        </div>
+          <Text size="xs" tone="muted">
+            {t("scheduleEntryForm.dateOverrideHint")}
+          </Text>
+        </Stack>
       )}
 
       {/* Enabled Toggle */}
-      <div className="flex items-center justify-between rounded-lg border p-4">
-        <div className="space-y-0.5">
+      <Flex align="center" justify="between" className="rounded-lg border p-4">
+        <Stack gap="0.5">
           <Label htmlFor="enabled" className="text-base">
             Enabled
           </Label>
-          <div className="text-sm text-muted-foreground">Schedule will be active when enabled</div>
-        </div>
+          <Text tone="muted">Schedule will be active when enabled</Text>
+        </Stack>
         <Switch id="enabled" checked={enabled} onCheckedChange={setEnabled} />
-      </div>
+      </Flex>
 
       {/* Validation Errors */}
       {validationErrors.length > 0 && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <ul className="list-disc list-inside space-y-1">
+            <List marker="disc" gap="1" className="list-inside">
               {validationErrors.map((err, i) => (
-                <li key={i}>{err}</li>
+                <ListItem key={i}>{err}</ListItem>
               ))}
-            </ul>
+            </List>
           </AlertDescription>
         </Alert>
       )}
 
       {/* Actions */}
-      <div className="flex justify-between gap-2">
-        <div>
+      <Flex justify="between" gap="2">
+        <Box>
           {isEdit && onDelete && (
             <Button type="button" variant="destructive" onClick={onDelete} disabled={isSubmitting}>
               <Trash2 className="mr-2 h-4 w-4" />
               {tc("delete")}
             </Button>
           )}
-        </div>
-        <div className="flex gap-2">
+        </Box>
+        <Flex gap="2">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             {tc("cancel")}
           </Button>
@@ -713,8 +725,8 @@ export function ScheduleEntryForm({
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isEdit ? t("scheduleEntryForm.updateSchedule") : t("scheduleEntryForm.createSchedule")}
           </Button>
-        </div>
-      </div>
-    </form>
+        </Flex>
+      </Flex>
+    </Box>
   );
 }
