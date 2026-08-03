@@ -200,9 +200,8 @@ export function BackupSettings() {
               <Text as="span" weight="medium" tone="muted">
                 {pending?.fileName}
               </Text>
-              . Your existing pages,
-              collections, schedules and configuration will be overwritten. A timestamped copy of each existing file is
-              kept alongside the new one so you can roll back manually if needed.
+              . Your existing pages, collections, schedules and configuration will be overwritten. A timestamped copy of
+              each existing file is kept alongside the new one so you can roll back manually if needed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

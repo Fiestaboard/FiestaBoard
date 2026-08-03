@@ -379,11 +379,7 @@ export function TileGridAssignment({
         </Flex>
       )}
 
-      <Grid
-        gap="1.5"
-        style={{ gridTemplateColumns: `repeat(${notesWide}, minmax(0, 1fr))` }}
-        data-testid="tile-grid"
-      >
+      <Grid gap="1.5" style={{ gridTemplateColumns: `repeat(${notesWide}, minmax(0, 1fr))` }} data-testid="tile-grid">
         {Array.from({ length: notesTall }, (_, row) =>
           Array.from({ length: notesWide }, (_, col) => {
             const tile = tilesByPos.get(tileKey(row, col));
@@ -412,7 +408,10 @@ export function TileGridAssignment({
                   {position}
                 </Text>
                 {isAssigned ? (
-                  <Text as="span" className="flex items-center gap-1 text-[10px] font-mono truncate max-w-full text-foreground">
+                  <Text
+                    as="span"
+                    className="flex items-center gap-1 text-[10px] font-mono truncate max-w-full text-foreground"
+                  >
                     <Wifi className="h-2.5 w-2.5 flex-shrink-0 text-board-green" />
                     {tile?.host}
                   </Text>

@@ -1,6 +1,18 @@
 "use client";
 
-import { Badge, Box, Card, CardContent, CardDescription, CardHeader, CardTitle, Flex, Skeleton, Text, TextLink } from "@fiestaboard/ui";
+import {
+  Badge,
+  Box,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Flex,
+  Skeleton,
+  Text,
+  TextLink,
+} from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Cpu, ExternalLink, Info, Package } from "lucide-react";
 

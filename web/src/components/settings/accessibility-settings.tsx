@@ -1,6 +1,17 @@
 "use client";
 
-import { Box, Card, CardContent, CardDescription, CardHeader, CardTitle, Flex, Skeleton, Switch, Text } from "@fiestaboard/ui";
+import {
+  Box,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Flex,
+  Skeleton,
+  Switch,
+  Text,
+} from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Accessibility } from "lucide-react";
 import { useEffect, useState } from "react";
