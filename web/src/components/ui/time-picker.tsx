@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@fiestaboard/ui";
+import { Box, Button, Flex, Text } from "@fiestaboard/ui";
 import { Clock } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -33,8 +33,9 @@ export function TimePicker({
   const [hours, setHours] = useState("00");
   const [minutes, setMinutes] = useState("00");
   const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
-  const containerRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  // Typed as HTMLElement to satisfy Box's ref contract (only DOM methods common to HTMLElement are used).
+  const containerRef = useRef<HTMLElement>(null);
+  const dropdownRef = useRef<HTMLElement>(null);
 
   // Parse value on mount and when value changes
   useEffect(() => {
@@ -121,12 +122,12 @@ export function TimePicker({
   };
 
   const dropdown = isOpen ? (
-    <div ref={dropdownRef} style={dropdownStyle} className="rounded-md border bg-background p-4 shadow-md">
-      <div className="flex gap-4">
+    <Box ref={dropdownRef} style={dropdownStyle} className="rounded-md border bg-background p-4 shadow-md">
+      <Flex gap="4">
         {/* Hours */}
-        <div className="flex-1">
+        <Box className="flex-1">
           <label className="text-xs font-medium text-muted-foreground mb-2 block">{t("hour")}</label>
-          <div className="max-h-48 overflow-y-auto rounded-md border bg-background">
+          <Box className="max-h-48 overflow-y-auto rounded-md border bg-background">
             {hourOptions.map((option) => (
               <button
                 key={option.value}
@@ -140,13 +141,13 @@ export function TimePicker({
                 {option.label}
               </button>
             ))}
-          </div>
-        </div>
+          </Box>
+        </Box>
 
         {/* Minutes */}
-        <div className="flex-1">
+        <Box className="flex-1">
           <label className="text-xs font-medium text-muted-foreground mb-2 block">{t("minute")}</label>
-          <div className="max-h-48 overflow-y-auto rounded-md border bg-background">
+          <Box className="max-h-48 overflow-y-auto rounded-md border bg-background">
             {minuteOptions.map((option) => (
               <button
                 key={option.value}
@@ -160,14 +161,16 @@ export function TimePicker({
                 {option.label}
               </button>
             ))}
-          </div>
-        </div>
-      </div>
+          </Box>
+        </Box>
+      </Flex>
 
       {/* Quick presets */}
-      <div className="mt-4 pt-4 border-t">
-        <div className="text-xs font-medium text-muted-foreground mb-2">{t("quickPresets")}</div>
-        <div className="flex gap-2 flex-wrap">
+      <Box className="mt-4 pt-4 border-t">
+        <Text size="xs" weight="medium" tone="muted" className="mb-2">
+          {t("quickPresets")}
+        </Text>
+        <Flex gap="2" wrap>
           {[
             { label: "8 AM", value: "08:00" },
             { label: "12 PM", value: "12:00" },
@@ -189,13 +192,13 @@ export function TimePicker({
               {preset.label}
             </button>
           ))}
-        </div>
-      </div>
-    </div>
+        </Flex>
+      </Box>
+    </Box>
   ) : null;
 
   return (
-    <div ref={containerRef} className={cn("relative", className)}>
+    <Box ref={containerRef} className={cn("relative", className)}>
       <Button
         id={id}
         type="button"
@@ -208,10 +211,10 @@ export function TimePicker({
         className={cn("w-full h-9 px-3 text-sm justify-start font-normal", !value && "text-muted-foreground")}
       >
         <Clock className="mr-2 h-4 w-4" />
-        <span>{value ? formatDisplayValue() : placeholder}</span>
+        {value ? formatDisplayValue() : placeholder}
       </Button>
 
       {typeof window !== "undefined" && dropdown ? createPortal(dropdown, document.body) : null}
-    </div>
+    </Box>
   );
 }

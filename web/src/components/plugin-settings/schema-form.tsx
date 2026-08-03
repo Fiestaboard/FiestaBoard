@@ -1,7 +1,11 @@
 "use client";
 
 import {
+  Box,
   Button,
+  Code,
+  Flex,
+  Grid,
   Input,
   Label,
   Select,
@@ -9,7 +13,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Stack,
   Switch,
+  Text,
 } from "@fiestaboard/ui";
 import {
   ArrowDown,
@@ -255,7 +261,7 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
   }
 
   return (
-    <div className="relative">
+    <Box className="relative">
       <Input
         id={name}
         type={isPassword && !showPassword ? "password" : "text"}
@@ -282,7 +288,7 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
           )}
         </Button>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -476,7 +482,7 @@ function NumberField(props: NumberFieldProps) {
   };
 
   return (
-    <div className="relative">
+    <Box className="relative">
       <Input
         id={name}
         type="number"
@@ -541,7 +547,7 @@ function NumberField(props: NumberFieldProps) {
           )}
         </Button>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -600,9 +606,9 @@ function WsdotRoutePicker({
   const canRemove = routeEntries.length > 0;
 
   return (
-    <div className="space-y-3">
+    <Stack gap="3">
       {routeEntries.map((routeId, index) => (
-        <div key={index} className="flex gap-2 items-center">
+        <Flex key={index} gap="2" align="center">
           <Select
             value={
               routeId && WSDOT_FERRY_ROUTES.some((r) => r.id === routeId)
@@ -636,7 +642,7 @@ function WsdotRoutePicker({
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
-        </div>
+        </Flex>
       ))}
       {canAdd && (
         <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={disabled} className="w-full">
@@ -644,7 +650,7 @@ function WsdotRoutePicker({
           {t("addFerryRoute")}
         </Button>
       )}
-    </div>
+    </Stack>
   );
 }
 
@@ -781,18 +787,18 @@ function DisneyParksTimesPicker({ name, property, value, onChange, disabled }: D
 
   if (parksLoading) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <Flex align="center" gap="2" className="text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
         {t("loadingParks")}
-      </div>
+      </Flex>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <Stack gap="4">
       {items.map((entry, index) => (
-        <div key={index} className="rounded-lg border p-3 space-y-2">
-          <div className="flex gap-2 items-center">
+        <Stack key={index} gap="2" className="rounded-lg border p-3">
+          <Flex gap="2" align="center">
             <Select
               value={entry.park_id ? String(entry.park_id) : ""}
               onValueChange={(val) => setParkAt(index, parseInt(val, 10))}
@@ -820,20 +826,26 @@ function DisneyParksTimesPicker({ name, property, value, onChange, disabled }: D
             >
               <Trash2 className="h-4 w-4" />
             </Button>
-          </div>
+          </Flex>
           {entry.park_id > 0 && (
-            <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">{t("rides")}</div>
-              <div className="rounded-md border p-2 space-y-2">
+            <Stack gap="2">
+              <Text size="xs" tone="muted">
+                {t("rides")}
+              </Text>
+              <Stack gap="2" className="rounded-md border p-2">
                 {(entry.ride_ids || []).map((rid, rideIndex) => (
-                  <div key={rid} className="rounded-sm border overflow-hidden">
-                    <div
-                      className={cn("flex items-center gap-1 bg-muted/50 px-2 py-1.5", allowCustomNames && "border-b")}
+                  <Box key={rid} className="rounded-sm border overflow-hidden">
+                    <Flex
+                      align="center"
+                      gap="1"
+                      className={cn("bg-muted/50 px-2 py-1.5", allowCustomNames && "border-b")}
                     >
-                      <span className="flex-1 text-sm font-medium">{rideName(entry.park_id, rid)}</span>
+                      <Text as="span" weight="medium" className="flex-1">
+                        {rideName(entry.park_id, rid)}
+                      </Text>
                       {allowReorder && (
                         <>
-                          <div className="flex items-center shrink-0">
+                          <Flex align="center" className="shrink-0">
                             <Button
                               type="button"
                               variant="ghost"
@@ -856,8 +868,8 @@ function DisneyParksTimesPicker({ name, property, value, onChange, disabled }: D
                             >
                               <ArrowDown className="h-4 w-4" />
                             </Button>
-                          </div>
-                          <div className="mx-1 h-5 w-px shrink-0 bg-border" />
+                          </Flex>
+                          <Box className="mx-1 h-5 w-px shrink-0 bg-border" />
                         </>
                       )}
                       <Button
@@ -871,9 +883,9 @@ function DisneyParksTimesPicker({ name, property, value, onChange, disabled }: D
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </div>
+                    </Flex>
                     {allowCustomNames && (
-                      <div className="p-2">
+                      <Box className="p-2">
                         <Input
                           value={entry.custom_names?.[rid] ?? ""}
                           onChange={(e) => setCustomNameAt(index, rid, e.target.value)}
@@ -882,9 +894,9 @@ function DisneyParksTimesPicker({ name, property, value, onChange, disabled }: D
                           aria-label={t("customRideNameLabel", { ride: rideName(entry.park_id, rid) })}
                           className="h-8 text-sm"
                         />
-                      </div>
+                      </Box>
                     )}
-                  </div>
+                  </Box>
                 ))}
                 <Select value="" onValueChange={(val) => addRideAt(index, parseInt(val, 10))} disabled={disabled}>
                   <SelectTrigger className="w-full border-dashed text-muted-foreground">
@@ -900,16 +912,16 @@ function DisneyParksTimesPicker({ name, property, value, onChange, disabled }: D
                       ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
+              </Stack>
+            </Stack>
           )}
-        </div>
+        </Stack>
       ))}
       <Button type="button" variant="outline" size="sm" onClick={handleAddPark} disabled={disabled} className="w-full">
         <Plus className="h-4 w-4 mr-2" />
         {t("addPark")}
       </Button>
-    </div>
+    </Stack>
   );
 }
 
@@ -936,32 +948,45 @@ function JsonTreeNode({ data, path, onSelect, defaultExpanded = false }: JsonTre
   };
 
   if (data === null || data === undefined) {
-    return <span className="text-muted-foreground italic text-xs">null</span>;
+    return (
+      <Text as="span" size="xs" tone="muted" className="italic">
+        null
+      </Text>
+    );
   }
 
   if (typeof data === "object" && !Array.isArray(data)) {
     const entries = Object.entries(data as Record<string, unknown>);
     return (
-      <div className="ml-1">
+      <Box className="ml-1">
         <button
           type="button"
           className="flex items-center gap-1 text-xs hover:bg-muted/60 rounded px-1 py-0.5 -ml-1 w-full text-left"
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
-          <span className="text-muted-foreground">{`{${entries.length}}`}</span>
+          <Text as="span" size="xs" tone="muted">{`{${entries.length}}`}</Text>
         </button>
         {expanded && (
-          <div className="ml-3 border-l border-border pl-2 space-y-0.5">
+          <Stack gap="0.5" className="ml-3 border-l border-border pl-2">
             {entries.map(([key, val]) => {
               const childPath = path ? `${path}.${key}` : key;
               const isLeaf = val === null || val === undefined || typeof val !== "object";
               return (
-                <div key={key} className="flex items-start gap-1">
-                  <span className="text-xs font-medium text-blue-600 dark:text-blue-400 shrink-0 pt-0.5">{key}:</span>
+                <Flex key={key} align="start" gap="1">
+                  <Text
+                    as="span"
+                    size="xs"
+                    weight="medium"
+                    className="text-blue-600 dark:text-blue-400 shrink-0 pt-0.5"
+                  >
+                    {key}:
+                  </Text>
                   {isLeaf ? (
-                    <div className="flex items-center gap-1 group min-w-0">
-                      <span className="text-xs truncate">{String(val ?? "null")}</span>
+                    <Flex align="center" gap="1" className="group min-w-0">
+                      <Text as="span" size="xs" className="truncate">
+                        {String(val ?? "null")}
+                      </Text>
                       <button
                         type="button"
                         onClick={handleCopy.bind(null, { stopPropagation: () => {} } as React.MouseEvent)}
@@ -980,43 +1005,50 @@ function JsonTreeNode({ data, path, onSelect, defaultExpanded = false }: JsonTre
                           <Copy className="h-3 w-3 text-muted-foreground" />
                         )}
                       </button>
-                    </div>
+                    </Flex>
                   ) : (
                     <JsonTreeNode data={val} path={childPath} onSelect={onSelect} />
                   )}
-                </div>
+                </Flex>
               );
             })}
-          </div>
+          </Stack>
         )}
-      </div>
+      </Box>
     );
   }
 
   if (Array.isArray(data)) {
     return (
-      <div className="ml-1">
+      <Box className="ml-1">
         <button
           type="button"
           className="flex items-center gap-1 text-xs hover:bg-muted/60 rounded px-1 py-0.5 -ml-1 w-full text-left"
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
-          <span className="text-muted-foreground">{`[${data.length}]`}</span>
+          <Text as="span" size="xs" tone="muted">{`[${data.length}]`}</Text>
         </button>
         {expanded && (
-          <div className="ml-3 border-l border-border pl-2 space-y-0.5">
+          <Stack gap="0.5" className="ml-3 border-l border-border pl-2">
             {data.map((item, idx) => {
               const childPath = path ? `${path}[${idx}]` : `[${idx}]`;
               const isLeaf = item === null || item === undefined || typeof item !== "object";
               return (
-                <div key={idx} className="flex items-start gap-1">
-                  <span className="text-xs font-medium text-purple-600 dark:text-purple-400 shrink-0 pt-0.5">
+                <Flex key={idx} align="start" gap="1">
+                  <Text
+                    as="span"
+                    size="xs"
+                    weight="medium"
+                    className="text-purple-600 dark:text-purple-400 shrink-0 pt-0.5"
+                  >
                     [{idx}]:
-                  </span>
+                  </Text>
                   {isLeaf ? (
-                    <div className="flex items-center gap-1 group min-w-0">
-                      <span className="text-xs truncate">{String(item ?? "null")}</span>
+                    <Flex align="center" gap="1" className="group min-w-0">
+                      <Text as="span" size="xs" className="truncate">
+                        {String(item ?? "null")}
+                      </Text>
                       <button
                         type="button"
                         onClickCapture={(e) => {
@@ -1028,20 +1060,24 @@ function JsonTreeNode({ data, path, onSelect, defaultExpanded = false }: JsonTre
                       >
                         <Copy className="h-3 w-3 text-muted-foreground" />
                       </button>
-                    </div>
+                    </Flex>
                   ) : (
                     <JsonTreeNode data={item} path={childPath} onSelect={onSelect} />
                   )}
-                </div>
+                </Flex>
               );
             })}
-          </div>
+          </Stack>
         )}
-      </div>
+      </Box>
     );
   }
 
-  return <span className="text-xs">{String(data)}</span>;
+  return (
+    <Text as="span" size="xs">
+      {String(data)}
+    </Text>
+  );
 }
 
 interface MappingEntry {
@@ -1167,9 +1203,9 @@ function GenericDataMappingHelper({
   };
 
   return (
-    <div className="space-y-4">
+    <Stack gap="4">
       {/* Test & Preview button */}
-      <div className="flex gap-2">
+      <Flex gap="2">
         <Button
           type="button"
           variant="outline"
@@ -1181,28 +1217,36 @@ function GenericDataMappingHelper({
           {previewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
           {t("testAndPreview")}
         </Button>
-        <p className="text-xs text-muted-foreground self-center">{t("testAndPreviewHelp")}</p>
-      </div>
+        <Text size="xs" tone="muted" className="self-center">
+          {t("testAndPreviewHelp")}
+        </Text>
+      </Flex>
 
       {/* Preview error */}
-      {previewError && <div className="text-xs text-destructive bg-destructive/10 rounded-md p-2">{previewError}</div>}
+      {previewError && (
+        <Text size="xs" tone="destructive" className="bg-destructive/10 rounded-md p-2">
+          {previewError}
+        </Text>
+      )}
 
       {/* Response tree browser */}
       {previewData && (
-        <div className="border rounded-lg p-3 bg-muted/20 sm:max-h-64 sm:overflow-auto">
-          <div className="text-xs font-medium text-muted-foreground mb-2">{t("responseClickToAdd")}</div>
+        <Box className="border rounded-lg p-3 bg-muted/20 sm:max-h-64 sm:overflow-auto">
+          <Text size="xs" weight="medium" tone="muted" className="mb-2">
+            {t("responseClickToAdd")}
+          </Text>
           <JsonTreeNode data={previewData} path="" onSelect={handlePathSelect} defaultExpanded={true} />
-        </div>
+        </Box>
       )}
 
       {/* Mapping rows */}
       {mappings.map((mapping, index) => {
         const preview = resolvePreview(mapping.path || "");
         return (
-          <div key={index} className="flex gap-2">
-            <div className="flex-1 grid gap-2 p-3 border rounded-lg bg-muted/30">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-1">
+          <Flex key={index} gap="2">
+            <Grid gap="2" className="flex-1 p-3 border rounded-lg bg-muted/30">
+              <Grid cols="2" gap="2">
+                <Grid gap="1">
                   <Label htmlFor={`mapping-${index}-variable`} className="text-xs">
                     {t("variableName")}
                   </Label>
@@ -1214,8 +1258,8 @@ function GenericDataMappingHelper({
                     disabled={disabled}
                     className="h-8 text-sm"
                   />
-                </div>
-                <div className="grid gap-1">
+                </Grid>
+                <Grid gap="1">
                   <Label htmlFor={`mapping-${index}-path`} className="text-xs">
                     {t("dataPath")}
                   </Label>
@@ -1227,10 +1271,10 @@ function GenericDataMappingHelper({
                     disabled={disabled}
                     className="h-8 text-sm"
                   />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-1">
+                </Grid>
+              </Grid>
+              <Grid cols="2" gap="2">
+                <Grid gap="1">
                   <Label htmlFor={`mapping-${index}-default`} className="text-xs">
                     {t("defaultValue")}
                   </Label>
@@ -1242,24 +1286,27 @@ function GenericDataMappingHelper({
                     disabled={disabled}
                     className="h-8 text-sm"
                   />
-                </div>
+                </Grid>
                 {preview !== null && (
-                  <div className="grid gap-1">
+                  <Grid gap="1">
                     <Label className="text-xs text-green-700 dark:text-green-400">{t("preview")}</Label>
-                    <div className="h-8 flex items-center text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/30 rounded-md px-2 truncate border border-green-200 dark:border-green-800">
+                    <Flex
+                      align="center"
+                      className="h-8 text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/30 rounded-md px-2 truncate border border-green-200 dark:border-green-800"
+                    >
                       {preview}
-                    </div>
-                  </div>
+                    </Flex>
+                  </Grid>
                 )}
-              </div>
-              <p className="text-xs text-muted-foreground">
+              </Grid>
+              <Text size="xs" tone="muted">
                 {t("useInTemplates")}{" "}
-                <code className="bg-muted px-1 rounded">
+                <Code className="bg-muted px-1 rounded">
                   {"{{"}generic_data.{mapping.variable || "..."}
                   {"}}"}
-                </code>
-              </p>
-            </div>
+                </Code>
+              </Text>
+            </Grid>
             <Button
               type="button"
               variant="ghost"
@@ -1271,7 +1318,7 @@ function GenericDataMappingHelper({
             >
               <Trash2 className="h-4 w-4" />
             </Button>
-          </div>
+          </Flex>
         );
       })}
 
@@ -1279,7 +1326,7 @@ function GenericDataMappingHelper({
         <Plus className="h-4 w-4 mr-2" />
         {t("addMapping")}
       </Button>
-    </div>
+    </Stack>
   );
 }
 
@@ -1344,14 +1391,14 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
   const canRemove = !property.minItems || keyed.length > property.minItems;
 
   return (
-    <div className="space-y-3">
+    <Stack gap="3">
       {keyed.map(({ id, value: item }, index) => (
-        <div key={id} className="flex gap-2">
-          <div className="flex-1">
+        <Flex key={id} gap="2">
+          <Box className="flex-1">
             {itemSchema.type === "object" && itemSchema.properties ? (
-              <div className="grid gap-3 p-3 border rounded-lg bg-muted/30">
+              <Grid gap="3" className="p-3 border rounded-lg bg-muted/30">
                 {Object.entries(itemSchema.properties).map(([key, propSchema]) => (
-                  <div key={key} className="grid gap-1.5">
+                  <Grid key={key} gap="1.5">
                     <Label htmlFor={`${name}-${index}-${key}`} className="text-xs">
                       {propSchema.title || key}
                     </Label>
@@ -1368,9 +1415,9 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
                       showLocationButton={false}
                       isLocationLoading={false}
                     />
-                  </div>
+                  </Grid>
                 ))}
-              </div>
+              </Grid>
             ) : (
               <FormField
                 name={`${name}-${index}`}
@@ -1380,7 +1427,7 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
                 disabled={disabled}
               />
             )}
-          </div>
+          </Box>
           {canRemove && (
             <Button
               type="button"
@@ -1394,7 +1441,7 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
-        </div>
+        </Flex>
       ))}
 
       {canAdd && (
@@ -1403,7 +1450,7 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
           Add {property.title || name}
         </Button>
       )}
-    </div>
+    </Stack>
   );
 }
 
@@ -1517,16 +1564,20 @@ function FormField({
           />
         );
       }
-      return <div className="text-sm text-muted-foreground">{t("arrayTypeNoItems")}</div>;
+      return <Text tone="muted">{t("arrayTypeNoItems")}</Text>;
     case "object":
       if (property.properties) {
         return (
-          <div className="grid gap-4 p-4 border rounded-lg">
+          <Grid gap="4" className="p-4 border rounded-lg">
             {Object.entries(property.properties).map(([key, propSchema]) => (
-              <div key={key} className="grid gap-1.5">
+              <Grid key={key} gap="1.5">
                 <Label htmlFor={`${name}-${key}`}>
                   {propSchema.title || key}
-                  {property.required?.includes(key) && <span className="text-destructive ml-1">*</span>}
+                  {property.required?.includes(key) && (
+                    <Text as="span" tone="destructive" className="ml-1">
+                      *
+                    </Text>
+                  )}
                 </Label>
                 <FormField
                   name={`${name}-${key}`}
@@ -1542,15 +1593,19 @@ function FormField({
                   showLocationButton={false}
                   isLocationLoading={false}
                 />
-                {propSchema.description && <p className="text-xs text-muted-foreground">{propSchema.description}</p>}
-              </div>
+                {propSchema.description && (
+                  <Text size="xs" tone="muted">
+                    {propSchema.description}
+                  </Text>
+                )}
+              </Grid>
             ))}
-          </div>
+          </Grid>
         );
       }
-      return <div className="text-sm text-muted-foreground">{t("objectTypeNoProperties")}</div>;
+      return <Text tone="muted">{t("objectTypeNoProperties")}</Text>;
     default:
-      return <div className="text-sm text-muted-foreground">Unknown type: {property.type}</div>;
+      return <Text tone="muted">Unknown type: {property.type}</Text>;
   }
 }
 
@@ -1591,11 +1646,11 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
   );
 
   if (!schema.properties) {
-    return <div className="text-sm text-muted-foreground">{t("noSchemaProperties")}</div>;
+    return <Text tone="muted">{t("noSchemaProperties")}</Text>;
   }
 
   return (
-    <div className={cn("grid gap-4", className)}>
+    <Grid gap="4" className={className}>
       {Object.entries(schema.properties).map(([name, property]) => {
         // Skip the 'enabled' field as it's handled separately
         if (name === "enabled") return null;
@@ -1611,10 +1666,14 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
         const fieldDisabled = disabled || shouldDisableDigitColor;
 
         return (
-          <div key={name} className="grid gap-1.5">
+          <Grid key={name} gap="1.5">
             <Label htmlFor={name} className="flex items-center gap-1">
               {property.title || name}
-              {isRequired && <span className="text-destructive">*</span>}
+              {isRequired && (
+                <Text as="span" tone="destructive">
+                  *
+                </Text>
+              )}
             </Label>
             <FormField
               name={name}
@@ -1628,13 +1687,25 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
               isLocationLoading={false}
               allValues={values}
             />
-            {property.description && <p className="text-xs text-muted-foreground">{property.description}</p>}
-            {showLocationButton && <p className="text-xs text-muted-foreground">{t("clickLocationIcon")}</p>}
-            {shouldDisableDigitColor && <p className="text-xs text-muted-foreground">{t("digitColorNotUsed")}</p>}
-          </div>
+            {property.description && (
+              <Text size="xs" tone="muted">
+                {property.description}
+              </Text>
+            )}
+            {showLocationButton && (
+              <Text size="xs" tone="muted">
+                {t("clickLocationIcon")}
+              </Text>
+            )}
+            {shouldDisableDigitColor && (
+              <Text size="xs" tone="muted">
+                {t("digitColorNotUsed")}
+              </Text>
+            )}
+          </Grid>
         );
       })}
-    </div>
+    </Grid>
   );
 }
 

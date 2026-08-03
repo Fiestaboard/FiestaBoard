@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Input } from "@fiestaboard/ui";
+import { Box, Button, Input, Text } from "@fiestaboard/ui";
 import { Check, ChevronsUpDown } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -26,8 +26,9 @@ export function TimezonePicker({ value, onChange, className, disabled, onValidat
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  // Typed as HTMLElement to satisfy Box's ref contract (only DOM methods common to HTMLElement are used).
+  const containerRef = useRef<HTMLElement>(null);
+  const listRef = useRef<HTMLElement>(null);
 
   // Find the display label for the current value
   const _currentLabel = useMemo(() => {
@@ -242,8 +243,8 @@ export function TimezonePicker({ value, onChange, className, disabled, onValidat
   };
 
   return (
-    <div className={cn("relative", className)} ref={containerRef}>
-      <div className="relative">
+    <Box className={cn("relative", className)} ref={containerRef}>
+      <Box className="relative">
         <Input
           ref={inputRef}
           id={id}
@@ -275,11 +276,11 @@ export function TimezonePicker({ value, onChange, className, disabled, onValidat
         >
           <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
         </Button>
-      </div>
+      </Box>
 
       {typeof window !== "undefined" && isOpen && filteredTimezones.length > 0
         ? createPortal(
-            <div
+            <Box
               ref={listRef}
               role="listbox"
               aria-label={t("optionsAriaLabel")}
@@ -305,21 +306,26 @@ export function TimezonePicker({ value, onChange, className, disabled, onValidat
                     onMouseEnter={() => setHighlightedIndex(index)}
                   >
                     {isSelected && <Check className="mr-2 h-4 w-4" />}
+                    {/* eslint-disable-next-line react/forbid-elements -- inline label span inherits the option button's dynamic hover/highlight text color; Text as="span" would pin an explicit tone and break the hover/highlight color change */}
                     <span className={isSelected ? "" : "ml-6"}>{timezone.label}</span>
                   </button>
                 );
               })}
               {filteredTimezones.length > 50 && (
-                <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                <Text size="xs" tone="muted" className="px-2 py-1.5">
                   {t("showingFirst", { total: filteredTimezones.length })}
-                </div>
+                </Text>
               )}
-            </div>,
+            </Box>,
             document.body,
           )
         : null}
 
-      {!isValid && value && <p className="mt-1 text-xs text-destructive">{t("invalidTimezone")}</p>}
-    </div>
+      {!isValid && value && (
+        <Text size="xs" tone="destructive" className="mt-1">
+          {t("invalidTimezone")}
+        </Text>
+      )}
+    </Box>
   );
 }

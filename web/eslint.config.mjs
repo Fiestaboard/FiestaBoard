@@ -221,6 +221,49 @@ const eslintConfig = [
       ],
     },
   },
+  // Design-system enforcement: app code renders @fiestaboard/ui components,
+  // not raw HTML. Allowlisted leaves (svg, canvas, iframe, img, br, em,
+  // small, kbd, pre, figure, dl, dt, dd) are simply not listed here.
+  {
+    files: ["app/**/*.tsx", "src/**/*.tsx"],
+    ignores: ["src/**/__tests__/**", "**/*.stories.tsx"],
+    rules: {
+      "react/forbid-elements": [
+        "error",
+        {
+          forbid: [
+            { element: "div", message: "Use Flex/Stack/Grid for layout, or Box (@fiestaboard/ui)" },
+            { element: "span", message: 'Use Text as="span" (@fiestaboard/ui)' },
+            { element: "p", message: "Use Text (@fiestaboard/ui)" },
+            { element: "h1", message: "Use PageHeader (@fiestaboard/ui)" },
+            { element: "h2", message: "Use Heading level={2} (@fiestaboard/ui)" },
+            { element: "h3", message: "Use Heading level={3} (@fiestaboard/ui)" },
+            { element: "h4", message: "Use Heading level={4} (@fiestaboard/ui)" },
+            { element: "h5", message: "Use Heading (@fiestaboard/ui)" },
+            { element: "h6", message: "Use Heading (@fiestaboard/ui)" },
+            { element: "ul", message: "Use List (@fiestaboard/ui)" },
+            { element: "ol", message: 'Use List as="ol" (@fiestaboard/ui)' },
+            { element: "li", message: "Use ListItem (@fiestaboard/ui)" },
+            { element: "section", message: 'Use Box as="section" (@fiestaboard/ui)' },
+            { element: "main", message: 'Use MainContent or Box as="main" (@fiestaboard/ui)' },
+            { element: "header", message: 'Use Box as="header" (@fiestaboard/ui)' },
+            { element: "footer", message: 'Use Box as="footer" (@fiestaboard/ui)' },
+            { element: "nav", message: 'Use Box as="nav" (@fiestaboard/ui)' },
+            { element: "form", message: 'Use Box as="form" (@fiestaboard/ui)' },
+            { element: "table", message: "Use Table (@fiestaboard/ui)" },
+            { element: "thead", message: "Use TableHeader (@fiestaboard/ui)" },
+            { element: "tbody", message: "Use TableBody (@fiestaboard/ui)" },
+            { element: "tr", message: "Use TableRow (@fiestaboard/ui)" },
+            { element: "th", message: "Use TableHead (@fiestaboard/ui)" },
+            { element: "td", message: "Use TableCell (@fiestaboard/ui)" },
+            { element: "a", message: "Use TextLink, or the router Link for navigation (@fiestaboard/ui)" },
+            { element: "code", message: "Use Code (@fiestaboard/ui)" },
+            { element: "strong", message: 'Use Text as="span" weight="semibold" (@fiestaboard/ui)' },
+          ],
+        },
+      ],
+    },
+  },
   {
     // Tests legitimately use `any` for mocks and may define fixtures (Playwright)
     // they don't always consume. Don't let strict src rules bleed in here.

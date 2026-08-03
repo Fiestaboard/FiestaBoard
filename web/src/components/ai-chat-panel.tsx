@@ -550,6 +550,7 @@ function ModelPill({
           <SelectValue>
             {/* Inherit-only span: relies on SelectTrigger's font-mono text-[11px];
                 Text as="span" would reset size/family, so this stays raw. */}
+            {/* eslint-disable-next-line react/forbid-elements -- inherit-only span relying on SelectTrigger's font-mono text-[11px]; Text as="span" would reset size/family */}
             <span className="truncate">{shortModel}</span>
           </SelectValue>
         </SelectTrigger>
@@ -827,6 +828,7 @@ function PatchDetailDisclosure({ count, children }: { count: number; children: R
           {/* Inherit-only span: the button's color flips on hover
               (text-muted-foreground → text-foreground); a Text tone would pin
               the color and defeat that transition, so this stays raw. */}
+          {/* eslint-disable-next-line react/forbid-elements -- inherit-only span; the button's text color flips on hover and a Text tone would pin the color and defeat that transition */}
           <span>{count === 1 ? "View change" : `View ${count} changes`}</span>
         </button>
       </CollapsibleTrigger>

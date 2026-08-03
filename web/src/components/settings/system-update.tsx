@@ -97,6 +97,7 @@ export function SystemUpdate() {
               {/* Plain <a> stays raw: it is the single Slot child of Button asChild,
                   which merges button styling onto it; TextLink would layer conflicting
                   link/underline treatment on top. */}
+              {/* eslint-disable-next-line react/forbid-elements -- single Slot child of Button asChild; the Button merges its chrome onto this anchor and TextLink would layer conflicting link styling */}
               <a href={updateCheck.package_url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-4 w-4 mr-2" />
                 {t("viewRelease")}

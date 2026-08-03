@@ -79,6 +79,7 @@ export function ColorTileNodeView({ node, deleteNode: _deleteNode }: ColorTileNo
           contentEditable and all styling is inline; wrapping it in <Text>
           would inject text-foreground/text-sm classes that could disturb the
           transparent-until-selected geometry. Correctness over coverage. */}
+            {/* eslint-disable-next-line react/forbid-elements -- selection-anchor span in TipTap contentEditable with all-inline styling; Text would inject classes that disturb the transparent-until-selected geometry */}
             <span
               aria-label={`${color} color tile`}
               style={{

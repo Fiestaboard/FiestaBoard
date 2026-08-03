@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Input, Label } from "@fiestaboard/ui";
+import { Box, Button, Flex, Grid, Input, Label, List, ListItem, Stack, Text } from "@fiestaboard/ui";
 import {
   CheckCircle,
   Cloud,
@@ -222,11 +222,13 @@ export function StepBoardSetup({
   }, [config.device_type]);
 
   return (
-    <div className="space-y-6">
+    <Stack gap="6">
       {/* API Mode Selection */}
-      <div className="space-y-3">
-        <p className="text-base font-medium">{t("connectionType")}</p>
-        <div className="grid grid-cols-2 gap-3">
+      <Stack gap="3">
+        <Text size="base" weight="medium">
+          {t("connectionType")}
+        </Text>
+        <Grid cols="2" gap="3">
           <button
             type="button"
             onClick={() => handleModeChange("cloud")}
@@ -236,8 +238,12 @@ export function StepBoardSetup({
             )}
           >
             <Cloud className={cn("h-8 w-8", config.api_mode === "cloud" ? "text-primary" : "text-muted-foreground")} />
-            <span className="font-medium">{t("cloudApi")}</span>
-            <span className="text-xs text-muted-foreground text-center">{t("cloudApiEasiest")}</span>
+            <Text as="span" weight="medium">
+              {t("cloudApi")}
+            </Text>
+            <Text as="span" size="xs" tone="muted" className="text-center">
+              {t("cloudApiEasiest")}
+            </Text>
           </button>
 
           <button
@@ -249,18 +255,22 @@ export function StepBoardSetup({
             )}
           >
             <Wifi className={cn("h-8 w-8", config.api_mode === "local" ? "text-primary" : "text-muted-foreground")} />
-            <span className="font-medium">{t("localApi")}</span>
-            <span className="text-xs text-muted-foreground text-center">{t("localApiFaster")}</span>
+            <Text as="span" weight="medium">
+              {t("localApi")}
+            </Text>
+            <Text as="span" size="xs" tone="muted" className="text-center">
+              {t("localApiFaster")}
+            </Text>
           </button>
-        </div>
-      </div>
+        </Grid>
+      </Stack>
 
       {/* Fields based on mode */}
       {config.api_mode === "cloud" ? (
-        <div className="space-y-4">
-          <div className="space-y-2">
+        <Stack gap="4">
+          <Stack gap="2">
             <Label htmlFor="cloud_key">{t("readWriteApiKey")}</Label>
-            <div className="relative">
+            <Box className="relative">
               <Input
                 id="cloud_key"
                 type={showApiKey ? "text" : "password"}
@@ -284,19 +294,19 @@ export function StepBoardSetup({
               >
                 {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-            </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
+            </Box>
+            <Text size="xs" tone="muted" className="flex items-center gap-1">
               <HelpCircle className="h-3 w-3" />
               {t("cloudKeyHelp")}
-            </p>
-          </div>
-        </div>
+            </Text>
+          </Stack>
+        </Stack>
       ) : (
-        <div className="space-y-4">
+        <Stack gap="4">
           {/* Board IP Address - always needed for local */}
-          <div className="space-y-2">
+          <Stack gap="2">
             <Label htmlFor="host">{t("boardIpAddress")}</Label>
-            <div className="flex gap-2">
+            <Flex gap="2">
               <Input
                 id="host"
                 placeholder={t("boardIpPlaceholder")}
@@ -326,30 +336,34 @@ export function StepBoardSetup({
                   <Search className="h-4 w-4" />
                 )}
               </Button>
-            </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
+            </Flex>
+            <Text size="xs" tone="muted" className="flex items-center gap-1">
               <HelpCircle className="h-3 w-3" />
               {t("boardIpHelp")}
-            </p>
-          </div>
+            </Text>
+          </Stack>
 
           {/* Scan results */}
           {scanStatus === "scanning" && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
+            <Flex align="center" gap="2" className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>{t("scanningNetwork")}</span>
-            </div>
+              <Text as="span" tone="muted">
+                {t("scanningNetwork")}
+              </Text>
+            </Flex>
           )}
           {scanStatus === "done" && discoveredBoards.length === 0 && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
+            <Flex align="center" gap="2" className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
               <HelpCircle className="h-4 w-4" />
-              <span>{t("noBoardsFound")}</span>
-            </div>
+              <Text as="span" tone="muted">
+                {t("noBoardsFound")}
+              </Text>
+            </Flex>
           )}
           {scanStatus === "done" && discoveredBoards.length >= 1 && (
-            <div className="space-y-2">
-              <p className="text-sm">{t("foundBoards", { count: discoveredBoards.length })}</p>
-              <div className="space-y-1.5">
+            <Stack gap="2">
+              <Text>{t("foundBoards", { count: discoveredBoards.length })}</Text>
+              <Stack gap="1.5">
                 {discoveredBoards.map((board) => (
                   <button
                     key={board.ip}
@@ -362,24 +376,32 @@ export function StepBoardSetup({
                         : "border-muted hover:border-muted-foreground/30",
                     )}
                   >
-                    <span className="font-mono">{board.ip}</span>
-                    {board.hostname && <span className="text-xs text-muted-foreground">{board.hostname}</span>}
+                    <Text as="span" className="font-mono">
+                      {board.ip}
+                    </Text>
+                    {board.hostname && (
+                      <Text as="span" size="xs" tone="muted">
+                        {board.hostname}
+                      </Text>
+                    )}
                   </button>
                 ))}
-              </div>
-            </div>
+              </Stack>
+            </Stack>
           )}
           {scanStatus === "error" && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+            <Flex align="center" gap="2" className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
               <XCircle className="h-4 w-4" />
-              <span>{t("scanFailed")}</span>
-            </div>
+              <Text as="span" tone="destructive">
+                {t("scanFailed")}
+              </Text>
+            </Flex>
           )}
 
           {/* Local Key Mode Toggle */}
-          <div className="space-y-3">
-            <p className="text-sm font-medium">{t("authenticationMethod")}</p>
-            <div className="grid grid-cols-2 gap-2">
+          <Stack gap="3">
+            <Text weight="medium">{t("authenticationMethod")}</Text>
+            <Grid cols="2" gap="2">
               <button
                 type="button"
                 onClick={() => setLocalKeyMode("api_key")}
@@ -391,7 +413,7 @@ export function StepBoardSetup({
                 )}
               >
                 <Key className="h-4 w-4" />
-                <span>{t("apiKey")}</span>
+                {t("apiKey")}
               </button>
               <button
                 type="button"
@@ -404,15 +426,15 @@ export function StepBoardSetup({
                 )}
               >
                 <KeyRound className="h-4 w-4" />
-                <span>{t("enablementToken")}</span>
+                {t("enablementToken")}
               </button>
-            </div>
-          </div>
+            </Grid>
+          </Stack>
 
           {localKeyMode === "api_key" ? (
-            <div className="space-y-2">
+            <Stack gap="2">
               <Label htmlFor="local_api_key">{t("localApiKey")}</Label>
-              <div className="relative">
+              <Box className="relative">
                 <Input
                   id="local_api_key"
                   type={showApiKey ? "text" : "password"}
@@ -436,17 +458,17 @@ export function StepBoardSetup({
                 >
                   {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
-              </div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
+              </Box>
+              <Text size="xs" tone="muted" className="flex items-center gap-1">
                 <HelpCircle className="h-3 w-3" />
                 {t("localApiKeyHelp")}
-              </p>
-            </div>
+              </Text>
+            </Stack>
           ) : (
-            <div className="space-y-3">
-              <div className="space-y-2">
+            <Stack gap="3">
+              <Stack gap="2">
                 <Label htmlFor="enablement_token">{t("enablementToken")}</Label>
-                <div className="relative">
+                <Box className="relative">
                   <Input
                     id="enablement_token"
                     type={showApiKey ? "text" : "password"}
@@ -466,12 +488,12 @@ export function StepBoardSetup({
                   >
                     {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
-                </div>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                </Box>
+                <Text size="xs" tone="muted" className="flex items-center gap-1">
                   <HelpCircle className="h-3 w-3" />
                   {t("enablementTokenHelp")}
-                </p>
-              </div>
+                </Text>
+              </Stack>
 
               <Button
                 onClick={handleEnableLocalApi}
@@ -496,9 +518,11 @@ export function StepBoardSetup({
 
               {/* Enablement status message */}
               {enablementMessage && (
-                <div
+                <Flex
+                  align="start"
+                  gap="2"
                   className={cn(
-                    "flex items-start gap-2 p-3 rounded-lg text-sm",
+                    "p-3 rounded-lg text-sm",
                     enablementStatus === "success"
                       ? "bg-success/10 text-success"
                       : "bg-destructive/10 text-destructive",
@@ -509,16 +533,16 @@ export function StepBoardSetup({
                   ) : (
                     <XCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                   )}
-                  <span>{enablementMessage}</span>
-                </div>
+                  {enablementMessage}
+                </Flex>
               )}
-            </div>
+            </Stack>
           )}
-        </div>
+        </Stack>
       )}
 
       {/* Test Connection */}
-      <div className="space-y-3">
+      <Stack gap="3">
         <Button
           onClick={handleTestConnection}
           disabled={!canTest || isLoading}
@@ -542,9 +566,11 @@ export function StepBoardSetup({
 
         {/* Status message */}
         {testMessage && (
-          <div
+          <Flex
+            align="start"
+            gap="2"
             className={cn(
-              "flex items-start gap-2 p-3 rounded-lg text-sm",
+              "p-3 rounded-lg text-sm",
               testStatus === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
             )}
           >
@@ -553,28 +579,30 @@ export function StepBoardSetup({
             ) : (
               <XCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
             )}
-            <div className="flex-1 space-y-2">
-              <span>{testMessage}</span>
+            <Stack gap="2" className="flex-1">
+              {testMessage}
               {testStatus === "error" && troubleshootingSteps.length > 0 && (
-                <div className="mt-2 space-y-1.5">
-                  <p className="font-medium text-foreground/80 text-xs uppercase tracking-wide">{t("thingsToTry")}</p>
-                  <ol className="list-decimal list-inside space-y-1 text-foreground/70">
+                <Stack gap="1.5" className="mt-2">
+                  <Text size="xs" weight="medium" className="text-foreground/80 uppercase tracking-wide">
+                    {t("thingsToTry")}
+                  </Text>
+                  <List as="ol" marker="decimal" gap="1" className="text-foreground/70">
                     {troubleshootingSteps.map((step, i) => (
-                      <li key={i}>{step}</li>
+                      <ListItem key={i}>{step}</ListItem>
                     ))}
-                  </ol>
-                </div>
+                  </List>
+                </Stack>
               )}
-            </div>
-          </div>
+            </Stack>
+          </Flex>
         )}
-      </div>
+      </Stack>
 
       {/* Device Type & Board Color */}
-      <div className="space-y-4 pt-4 border-t">
-        <div className="space-y-3">
-          <p className="text-sm font-medium">{t("boardType")}</p>
-          <div className="grid grid-cols-2 gap-3">
+      <Stack gap="4" className="pt-4 border-t">
+        <Stack gap="3">
+          <Text weight="medium">{t("boardType")}</Text>
+          <Grid cols="2" gap="3">
             <button
               type="button"
               onClick={() => onConfigChange({ ...config, device_type: "flagship" })}
@@ -584,8 +612,12 @@ export function StepBoardSetup({
                 config.device_type === "flagship" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
               )}
             >
-              <span className="font-medium text-sm">{tc("flagship")}</span>
-              <span className="text-xs text-muted-foreground">{t("flagshipDimensions")}</span>
+              <Text as="span" weight="medium">
+                {tc("flagship")}
+              </Text>
+              <Text as="span" size="xs" tone="muted">
+                {t("flagshipDimensions")}
+              </Text>
             </button>
             <button
               type="button"
@@ -596,15 +628,19 @@ export function StepBoardSetup({
                 config.device_type === "note" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
               )}
             >
-              <span className="font-medium text-sm">{tc("note")}</span>
-              <span className="text-xs text-muted-foreground">{t("noteDimensions")}</span>
+              <Text as="span" weight="medium">
+                {tc("note")}
+              </Text>
+              <Text as="span" size="xs" tone="muted">
+                {t("noteDimensions")}
+              </Text>
             </button>
-          </div>
-        </div>
+          </Grid>
+        </Stack>
 
-        <div className="space-y-3">
-          <p className="text-sm font-medium">{t("boardColor")}</p>
-          <div className="flex items-center gap-3">
+        <Stack gap="3">
+          <Text weight="medium">{t("boardColor")}</Text>
+          <Flex align="center" gap="3">
             <button
               type="button"
               onClick={() => onConfigChange({ ...config, board_color: "black" })}
@@ -629,20 +665,22 @@ export function StepBoardSetup({
                   : "border-border hover:border-muted-foreground",
               )}
             />
-          </div>
-        </div>
+          </Flex>
+        </Stack>
 
         {/* Live board preview */}
-        <div className="space-y-2 pt-3">
-          <p className="text-sm font-medium text-muted-foreground">{tc("preview")}</p>
+        <Stack gap="2" className="pt-3">
+          <Text weight="medium" tone="muted">
+            {tc("preview")}
+          </Text>
           <ScaledBoardDisplay
             message={previewMessage}
             size="sm"
             boardType={config.board_color}
             deviceType={config.device_type}
           />
-        </div>
-      </div>
-    </div>
+        </Stack>
+      </Stack>
+    </Stack>
   );
 }

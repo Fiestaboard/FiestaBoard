@@ -924,6 +924,7 @@ function renderValueWithColors(value: string): ReactNode[] {
       // Rendered inline into caller-supplied text contexts with varying ambient
       // size/color (font-mono chips, tooltip content, table cells) — Text's fixed
       // defaults would override whichever context this lands in, so this stays raw.
+      // eslint-disable-next-line react/forbid-elements -- inherit-only span rendered into varied ambient text contexts; Text's fixed size/tone defaults would override the caller's context
       nodes.push(<span key={`t${key++}`}>{textBuf}</span>);
       textBuf = "";
     }
