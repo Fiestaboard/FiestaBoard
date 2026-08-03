@@ -8,6 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   BoardIcon,
+  Box,
   Button,
   Card,
   CardContent,
@@ -19,6 +20,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Flex,
   PageHeader,
   PageLayout,
   PageToolbar,
@@ -33,6 +35,8 @@ import {
   SheetHeader,
   SheetTitle,
   Skeleton,
+  Stack,
+  Text,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -82,9 +86,9 @@ function ScheduleCalendarView(props: React.ComponentProps<typeof ScheduleCalenda
   return (
     <Suspense
       fallback={
-        <div className="space-y-4">
+        <Stack gap="4">
           <Skeleton className="h-96 w-full" />
-        </div>
+        </Stack>
       }
     >
       <ScheduleCalendarViewLazy {...props} />
@@ -490,7 +494,7 @@ export default function SchedulePage() {
           className="flex-shrink-0"
           left={
             /* View toggle */
-            <div className="flex items-center gap-1 bg-muted p-1 rounded-md">
+            <Flex align="center" gap="1" className="bg-muted p-1 rounded-md">
               <Button
                 variant={viewMode === "list" ? "secondary" : "ghost"}
                 size="sm"
@@ -509,22 +513,24 @@ export default function SchedulePage() {
                 <CalendarDays className="h-4 w-4 mr-1.5" />
                 {t("calendarView")}
               </Button>
-            </div>
+            </Flex>
           }
           right={
-            <div className="flex items-center gap-2 flex-wrap justify-end">
+            <Flex align="center" justify="end" gap="2" wrap>
               {/* Active board indicator (multi-board only). Read-only: switching
                   boards happens via the shared sidebar selector (#1248). */}
               {boards.length > 1 && (
-                <span
+                <Flex
                   data-testid="active-board-indicator"
-                  className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border bg-muted/40 text-xs text-muted-foreground max-w-[150px]"
+                  align="center"
+                  gap="1.5"
+                  className="h-8 px-2.5 rounded-md border bg-muted/40 text-xs text-muted-foreground max-w-[150px]"
                 >
                   <BoardIcon className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">
+                  <Text as="span" size="xs" tone="muted" className="truncate">
                     {currentBoard?.name || t("boardFallback", { id: currentBoardId.slice(0, 8) })}
-                  </span>
-                </span>
+                  </Text>
+                </Flex>
               )}
 
               {/* Schedule on/off toggle */}
@@ -541,22 +547,26 @@ export default function SchedulePage() {
                     className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer bg-transparent text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Power className={`h-3.5 w-3.5 ${scheduleEnabled ? "text-green-500" : "text-muted-foreground"}`} />
-                    <span className="text-xs font-medium">{scheduleEnabled ? tCommon("on") : tCommon("off")}</span>
-                    <span
+                    <Text as="span" size="xs" weight="medium">
+                      {scheduleEnabled ? tCommon("on") : tCommon("off")}
+                    </Text>
+                    <Flex
                       aria-hidden="true"
+                      align="center"
+                      inline
                       className={cn(
-                        "inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent transition-all",
+                        "h-[1.15rem] w-8 shrink-0 rounded-full border border-transparent transition-all",
                         scheduleEnabled ? "bg-primary" : "bg-input/80 dark:bg-input/80",
                         "scale-75",
                       )}
                     >
-                      <span
+                      <Box
                         className={cn(
                           "pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform",
                           scheduleEnabled ? "translate-x-[calc(100%-3px)]" : "translate-x-px",
                         )}
                       />
-                    </span>
+                    </Flex>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
@@ -608,11 +618,17 @@ export default function SchedulePage() {
                           className={`relative h-8 w-8 p-0 ${hasOverlaps ? "text-destructive hover:text-destructive" : "text-yellow-500 hover:text-yellow-500"}`}
                         >
                           {hasOverlaps ? <AlertCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                          <span
-                            className={`absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-[9px] font-bold rounded-full flex items-center justify-center text-white ${hasOverlaps ? "bg-destructive" : "bg-yellow-500"}`}
+                          <Flex
+                            align="center"
+                            justify="center"
+                            inline
+                            className={cn(
+                              "absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-xs font-bold rounded-full text-white",
+                              hasOverlaps ? "bg-destructive" : "bg-yellow-500",
+                            )}
                           >
                             {issueCount}
-                          </span>
+                          </Flex>
                         </Button>
                       </DropdownMenuTrigger>
                     </TooltipTrigger>
@@ -645,10 +661,15 @@ export default function SchedulePage() {
                           {t("gapsInSchedule", { count: issueCount })}{" "}
                           {defaultPageId ? (
                             <>
-                              {t("defaultLabel")} <span className="font-medium">{getPageName(defaultPageId)}</span>
+                              {t("defaultLabel")}{" "}
+                              <Text as="span" size="xs" weight="medium">
+                                {getPageName(defaultPageId)}
+                              </Text>
                             </>
                           ) : (
-                            <span className="text-muted-foreground">{t("noDefaultPageSet")}</span>
+                            <Text as="span" size="xs" tone="muted">
+                              {t("noDefaultPageSet")}
+                            </Text>
                           )}
                         </DropdownMenuItem>
                         {validation?.gaps && validation.gaps.length > 0 && (
@@ -658,7 +679,9 @@ export default function SchedulePage() {
                               if (!gap?.days || !gap?.start_time || !gap?.end_time) return null;
                               return (
                                 <DropdownMenuItem key={i} className="text-xs cursor-default focus:bg-transparent">
-                                  <span className="text-muted-foreground mr-2">{formatDaysCompact(gap.days)}</span>
+                                  <Text as="span" size="xs" tone="muted" className="mr-2">
+                                    {formatDaysCompact(gap.days)}
+                                  </Text>
                                   {gap.start_time} – {gap.end_time}
                                 </DropdownMenuItem>
                               );
@@ -682,16 +705,20 @@ export default function SchedulePage() {
 
       {/* ── Location warning (sun schedules without location configured) ── */}
       {hasSunSchedules && !locationConfigured && (
-        <div className="flex items-start gap-2.5 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3.5 py-2.5 text-sm text-amber-800 dark:text-amber-300 flex-shrink-0">
+        <Flex
+          align="start"
+          gap="2.5"
+          className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3.5 py-2.5 text-sm text-amber-800 dark:text-amber-300 flex-shrink-0"
+        >
           <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>
+          <Text as="span" tone="warning">
             {t("locationWarning")}{" "}
             <Link href="/settings" className="font-medium underline underline-offset-2 hover:no-underline">
               {t("configureLocationLink")}
             </Link>
             .
-          </span>
-        </div>
+          </Text>
+        </Flex>
       )}
 
       {/* ── Schedule View ── */}
