@@ -41,6 +41,7 @@ export function FillSpaceNodeView({ node, deleteNode: _deleteNode }: FillSpaceNo
                   contentEditable. <Text as="span"> would emit text-foreground,
                   overriding the Badge's inherited success tint, and text-[11px]
                   is sub-xs grid geometry. Kept raw for correctness. */}
+              {/* eslint-disable-next-line react/forbid-elements -- span inside a colored Badge in TipTap contentEditable; Text as="span" would override the Badge's inherited tint and text-[11px] is sub-xs grid geometry */}
               <span className="font-mono text-[11px] leading-none">
                 fill_space{hasRepeatChar && `_repeat:${repeatChar}`}
               </span>

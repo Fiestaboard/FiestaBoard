@@ -46,6 +46,7 @@ export function WrappedTextView({ node, deleteNode }: WrappedTextViewProps) {
           Raw <span>: renders inside TipTap's contentEditable atom, inheriting
           the wrapper's text-warning color, with sub-xs text-[11px] grid
           geometry. <Text as="span"> would reset both. Kept raw for correctness. */}
+      {/* eslint-disable-next-line react/forbid-elements -- atom span in TipTap contentEditable inheriting the wrapper's text-warning color, with sub-xs text-[11px] grid geometry; Text would reset both */}
       <span className="font-mono text-[11px] inline-block align-middle ml-1">{text}</span>
 
       {/* Delete button */}

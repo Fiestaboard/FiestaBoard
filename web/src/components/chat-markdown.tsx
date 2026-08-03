@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react/forbid-elements -- react-markdown component overrides must return the native HTML tag for each markdown AST node, and the bespoke VarChip/ColorChip inline token pills render hand-tuned raw code/span; see the file NOTEs. Whole-file exception. */
+
 import { Box } from "@fiestaboard/ui";
 import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";

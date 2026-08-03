@@ -111,6 +111,7 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
               {/* Raw <span>: colored Badge inside contentEditable; <Text as="span">
                   would reset the inherited pill color and text-[11px] is sub-xs
                   grid geometry. Kept raw for correctness. */}
+              {/* eslint-disable-next-line react/forbid-elements -- span inside a colored Badge in TipTap contentEditable; Text as="span" would reset the inherited pill color and text-[11px] is sub-xs grid geometry */}
               <span className="font-mono text-[11px] leading-none">{preview}</span>
             </Badge>
           </TooltipTrigger>

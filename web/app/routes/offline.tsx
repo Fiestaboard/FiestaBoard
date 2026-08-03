@@ -52,6 +52,7 @@ export default function OfflinePage() {
         <Stack gap="2">
           {/* Reserved for PageHeader elsewhere; this standalone offline splash has no icon/description
               card to match, so the h1 stays raw here (couldn't snap — see wave 1 report). */}
+          {/* eslint-disable-next-line react/forbid-elements -- standalone offline-splash hero title; PageHeader's icon+card shape doesn't fit and Heading has no level=1 */}
           <h1 className="text-3xl font-bold tracking-tight">{isOnline ? t("reconnecting") : t("youreOffline")}</h1>
           <Text tone="muted">{isOnline ? t("connectionRestored") : t("offlineDescription")}</Text>
         </Stack>

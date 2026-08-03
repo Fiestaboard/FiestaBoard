@@ -163,6 +163,7 @@ export default function PluginDetailPage() {
                       {/* Custom card header (icon + badge + trailing actions) doesn't
                           match PageHeader's shape, so the page h1 stays raw here
                           (couldn't snap — see wave 1 report). */}
+                      {/* eslint-disable-next-line react/forbid-elements -- custom card-header hero title; PageHeader's icon+card shape doesn't fit and Heading has no level=1 */}
                       <h1 className="text-xl font-semibold">{entry?.name ?? pluginId}</h1>
                       <Badge variant="secondary" className="text-xs">
                         {categoryLabel}
@@ -192,6 +193,7 @@ export default function PluginDetailPage() {
                   {/* asChild hands this anchor Button's own chrome (border/bg/text) — TextLink's
                       underline+text-primary styling would clash with that, so it stays raw
                       (couldn't snap — see wave 1 report). */}
+                  {/* eslint-disable-next-line react/forbid-elements -- single Slot child of Button asChild; the Button merges its chrome onto this anchor and TextLink would layer conflicting link styling */}
                   <a href={entry.repository} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
                     GitHub
@@ -257,6 +259,7 @@ export default function PluginDetailPage() {
                   code: ({ children, className, ...props }) => {
                     const isBlock = className?.startsWith("language-");
                     return isBlock ? (
+                      // eslint-disable-next-line react/forbid-elements -- react-markdown code-block override must render a native <code> inside <pre>; the Code primitive is used for inline code below
                       <code className={className} {...props}>
                         {children}
                       </code>
@@ -289,6 +292,7 @@ export default function PluginDetailPage() {
                   h1: ({ children, ...props }) => (
                     // Markdown README content — h1 here is document structure, not the app
                     // page's own title, so PageHeader doesn't fit; stays raw (couldn't snap).
+                    // eslint-disable-next-line react/forbid-elements -- react-markdown h1 override renders README document structure, not the app page title
                     <h1 className="text-xl font-bold mt-0 mb-4 pb-2 border-b" {...props}>
                       {children}
                     </h1>

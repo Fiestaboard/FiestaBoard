@@ -179,6 +179,7 @@ export default function SettingsPage() {
                 <Icon className="h-4 w-4 flex-shrink-0" />
                 {/* Inherits size/weight/color from TabsTrigger's data-active state — Text's fixed
                     tone/weight defaults would break the active/inactive styling, so this stays raw. */}
+                {/* eslint-disable-next-line react/forbid-elements -- inherit-only span; TabsTrigger drives its active/inactive size/weight/color and Text's fixed defaults would break that */}
                 <span className="whitespace-nowrap">{label}</span>
               </TabsTrigger>
             ))}
