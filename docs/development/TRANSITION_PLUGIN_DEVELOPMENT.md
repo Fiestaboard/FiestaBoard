@@ -128,7 +128,7 @@ Choose conservatively. A transition with `max_frames: 5000` and `min_interval_ms
 
 ## Selecting a transition plugin
 
-Once your plugin is installed, users select it from (no Marketplace enable step is needed — installing a transition plugin is opting in):
+Once your plugin is installed it is opt-in automatically — there is no separate enable step. Users select it from:
 
 - A specific page's Transition picker in the page editor
 - The global default in Settings → Transitions
