@@ -105,7 +105,9 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 > **Use `http://`, not `https://`.** FiestaBoard runs on your local network and is served over plain HTTP — it has no SSL certificate. Type the address with `http://` (for example `http://localhost:4420`). If your browser shows a "connection is not secure" or `ERR_SSL_PROTOCOL_ERROR` page, it upgraded the address to `https://`; delete the `s` and reload. See [Can't reach the web UI](#cant-reach-the-web-ui) if it keeps happening.
 
-> **Accessing from other devices:** FiestaBoard advertises itself on your local network via mDNS/Bonjour, so you can open **http://fiestaboard.local:4420** from any device on the same network. If `.local` addresses don't work on your network, use your server's IP address instead (e.g. `http://192.168.1.50:4420`).
+> **Accessing from other devices:** From another device on the same network, open FiestaBoard at your server's IP address — for example `http://192.168.1.50:4420`. This works on a default Docker install.
+>
+> The shorter `http://fiestaboard.local:4420` only resolves when you run with host networking (`network_mode: host`, commented out in `docker-compose.yml`) *and* your host has an mDNS/Bonjour resolver — the default `docker-compose.yml` uses bridge networking (`4420:3000`) and does **not** advertise `fiestaboard.local`. The FiestaPi image ships avahi and advertises as `fiestapi.local` out of the box. See [MCP clients — Hostname tip](docs/setup/MCP_CLIENTS.md) for details.
 
 ---
 
