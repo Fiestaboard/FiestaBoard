@@ -1,6 +1,6 @@
 /* Documentation versions index - colors/fonts from FiestaUI tokens. */
 .section {
-  margin-top: 44px;
+  margin-top: clamp(28px, 3.9vw, 44px);
 }
 
 .note {

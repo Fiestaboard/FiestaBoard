@@ -1,22 +1,25 @@
 /* Plugin Directory page styles */
 
+/* Vertical rhythm interpolates from a phone floor up to the original desktop
+   values at 1140px, so the page doesn't carry desktop-scale gaps on a 390px
+   screen. Same approach as the --fb-* tokens in custom.css. */
 .directoryPage {
-  padding: 2rem 0 4rem;
+  padding: clamp(1.5rem, 2.8vw, 2rem) 0 clamp(2.5rem, 5.6vw, 4rem);
 }
 
 /* Header */
 .header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: clamp(1.5rem, 2.8vw, 2rem);
 }
 
 .title {
-  font-size: 2.4rem;
+  font-size: clamp(1.75rem, 3.4vw, 2.4rem);
   margin-bottom: 0.5rem;
 }
 
 .subtitle {
-  font-size: 1.15rem;
+  font-size: clamp(1rem, 1.6vw, 1.15rem);
   color: var(--ifm-color-emphasis-600);
   max-width: 640px;
   margin: 0 auto;
@@ -24,7 +27,7 @@
 
 /* Search & filter controls */
 .controls {
-  margin-bottom: 2rem;
+  margin-bottom: clamp(1.5rem, 2.8vw, 2rem);
 }
 
 .searchInput {
@@ -269,8 +272,8 @@
 /* CTA */
 .cta {
   text-align: center;
-  margin-top: 3rem;
-  padding-top: 2rem;
+  margin-top: clamp(2rem, 4.2vw, 3rem);
+  padding-top: clamp(1.5rem, 2.8vw, 2rem);
   border-top: 1px solid var(--ifm-color-emphasis-200);
   color: var(--ifm-color-emphasis-600);
   font-size: 1rem;

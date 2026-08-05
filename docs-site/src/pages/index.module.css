@@ -10,16 +10,20 @@
 .heroInner {
   max-width: 1140px;
   margin: 0 auto;
-  padding: 80px 24px 88px;
+  padding: var(--fb-section-py) var(--fb-gutter) var(--fb-section-py-lg);
   display: flex;
   flex-wrap: wrap;
-  gap: 56px;
+  gap: var(--fb-stack-gap);
   align-items: center;
 }
 
+/* `min(300px, 100%)` rather than a flat 300px: at a 320px viewport the content
+   box is only ~280px, so a hard floor pushed the column past the viewport and
+   put the whole homepage into horizontal scroll (WCAG 2.2 SC 1.4.10 Reflow
+   fails at 320px). Identical above ~340px. */
 .heroCopy {
   flex: 1 1 430px;
-  min-width: 300px;
+  min-width: min(300px, 100%);
 }
 
 .heroTitle {
@@ -34,7 +38,7 @@
 
 .heroBody {
   margin: 22px 0 0;
-  font-size: 18px;
+  font-size: clamp(16px, 1.6vw, 18px);
   line-height: 1.6;
   color: var(--muted-foreground);
   max-width: 580px;
@@ -57,13 +61,13 @@
 .heroButtons {
   display: flex;
   gap: 12px;
-  margin-top: 32px;
+  margin-top: clamp(24px, 2.7vw, 32px);
   flex-wrap: wrap;
 }
 
 .heroBoard {
   flex: 1 1 420px;
-  min-width: 300px;
+  min-width: min(300px, 100%);
   display: flex;
   justify-content: center;
 }

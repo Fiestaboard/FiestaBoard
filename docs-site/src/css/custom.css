@@ -61,6 +61,35 @@
   --ifm-menu-color-background-hover: var(--accent);
 }
 
+/**
+ * Fluid spacing scale for the marketing pages (home, plugins, stats, versions).
+ *
+ * Those layouts were authored at desktop width with fixed pixel padding, so an
+ * 80px section pad that reads as generous against a 1140px column turned into
+ * roughly a third of a phone screen of dead space - and a boundary between two
+ * sections cost 160px of it. Each token holds a phone-appropriate floor, then
+ * grows to the original desktop value, reaching it at ~1140px (the content
+ * max-width) so nothing at or above that width shifts by a pixel.
+ *
+ * Tokens rather than per-file clamps: the sections have to stay in rhythm with
+ * each other, and a section boundary is the sum of two paddings, so they need
+ * to shrink together.
+ */
+:root {
+  /* Section vertical padding: 44px phone -> 80px desktop */
+  --fb-section-py: clamp(44px, 7vw, 80px);
+  /* Taller CTA variant: 52px -> 88px */
+  --fb-section-py-lg: clamp(52px, 7.7vw, 88px);
+  /* Page gutter: 20px -> 24px (near the docs container's 16px on phones) */
+  --fb-gutter: clamp(20px, 4vw, 24px);
+  /* Gap between stacked showcase blocks: 36px -> 56px */
+  --fb-stack-gap: clamp(36px, 4.9vw, 56px);
+  /* Gap between paired row items / heading-to-grid rhythm: 24px -> 36px */
+  --fb-row-gap: clamp(24px, 3.2vw, 36px);
+  /* Card interior padding: 18px -> 24px */
+  --fb-card-padding: clamp(18px, 2.1vw, 24px);
+}
+
 /* Navbar/footer sit flush on the page background with a hairline divider,
    matching FiestaboardSite.dc.html / FiestaboardDocs.dc.html. */
 .navbar {
@@ -114,4 +143,30 @@ div[class*="codeBlockContainer"] {
 /* Hide the per-page version badge - the navbar version dropdown is sufficient. */
 .theme-doc-version-badge {
   display: none;
+}
+
+/**
+ * Docs body rhythm on phones.
+ *
+ * Infima scales heading *type* down below 996px but leaves the vertical rhythm
+ * at its desktop values, so an h2 keeps a 40px top margin while dropping from
+ * 32px to 24px - the gap goes from 1.25x the type size to 1.67x, which is what
+ * makes docs pages feel airier on a phone than on a desktop. These pull the
+ * rhythm back to roughly the desktop ratio. Type sizes are untouched.
+ */
+@media (max-width: 996px) {
+  .markdown > h2 {
+    margin-top: 30px;
+  }
+
+  .markdown > h3 {
+    margin-top: 24px;
+  }
+
+  /* The footer (tags/edit link/last-updated) and the prev/next cards each carry
+     48px above them, stacking into ~96px of trailing space on a phone. */
+  .theme-doc-footer,
+  .pagination-nav {
+    margin-top: 32px;
+  }
 }

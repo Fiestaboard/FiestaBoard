@@ -1,12 +1,14 @@
 /* Plugin detail page styles */
 
+/* Vertical rhythm interpolates from a phone floor up to the original desktop
+   values at 1140px (see the --fb-* tokens in custom.css). */
 .detailPage {
-  padding: 2rem 0 4rem;
+  padding: clamp(1.5rem, 2.8vw, 2rem) 0 clamp(2.5rem, 5.6vw, 4rem);
 }
 
 /* Back link */
 .backRow {
-  margin-bottom: 1.5rem;
+  margin-bottom: clamp(1rem, 2.1vw, 1.5rem);
 }
 
 .backLink {
@@ -24,7 +26,7 @@
 /* Hero image */
 .heroImage {
   max-width: 720px;
-  margin: 0 auto 2rem;
+  margin: 0 auto clamp(1.5rem, 2.8vw, 2rem);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -45,7 +47,7 @@
   justify-content: center;
   gap: 0;
   max-width: 720px;
-  margin: 0 auto 2rem;
+  margin: 0 auto clamp(1.5rem, 2.8vw, 2rem);
 }
 
 .boardColorOption {
@@ -88,12 +90,12 @@
 /* Plugin header */
 .pluginHeader {
   max-width: 720px;
-  margin: 0 auto 2rem;
+  margin: 0 auto clamp(1.5rem, 2.8vw, 2rem);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1.5rem;
-  padding-bottom: 1.5rem;
+  gap: clamp(1rem, 2.1vw, 1.5rem);
+  padding-bottom: clamp(1rem, 2.1vw, 1.5rem);
   border-bottom: 1px solid var(--ifm-color-emphasis-200);
 }
 
@@ -117,12 +119,12 @@
 }
 
 .pluginName {
-  font-size: 1.8rem;
+  font-size: clamp(1.5rem, 2.6vw, 1.8rem);
   margin: 0;
 }
 
 .pluginDescription {
-  font-size: 1.05rem;
+  font-size: clamp(1rem, 1.5vw, 1.05rem);
   color: var(--ifm-color-emphasis-700);
   margin-bottom: 0.5rem;
   line-height: 1.5;

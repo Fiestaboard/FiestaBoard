@@ -17,20 +17,20 @@
 .inner {
   max-width: 1140px;
   margin: 0 auto;
-  padding: 80px 24px;
+  padding: var(--fb-section-py) var(--fb-gutter);
 }
 
 .sectionTitle {
   margin: 0;
-  font-size: 34px;
+  font-size: clamp(26px, 3vw, 34px);
   letter-spacing: -0.025em;
   font-weight: 600;
   color: var(--foreground);
 }
 
 .sectionSubtitle {
-  margin: 10px 0 36px;
-  font-size: 17px;
+  margin: 10px 0 var(--fb-row-gap);
+  font-size: clamp(15px, 1.5vw, 17px);
   color: var(--muted-foreground);
 }
 
@@ -38,14 +38,19 @@
   display: flex;
   justify-content: center;
   gap: 12px;
-  margin-top: 36px;
+  margin-top: var(--fb-row-gap);
   flex-wrap: wrap;
 }
 
-/* Feature grid */
+/* Feature grid.
+   `minmax(min(300px, 100%), …)` rather than `minmax(300px, …)`: at a 320px
+   viewport the content box is only ~280px, and a hard 300px track floor
+   overflows it, putting the page into horizontal scroll (WCAG 2.2 SC 1.4.10
+   Reflow fails at 320px). The min() caps the floor at the available width.
+   Same idiom on the other auto-fit grids and flex min-widths below. */
 .featureGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 20px;
 }
 
@@ -90,7 +95,7 @@
 /* What's New highlights */
 .highlightGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 20px;
 }
 
@@ -98,7 +103,7 @@
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 24px;
+  padding: var(--fb-card-padding);
 }
 
 /* The DS success badge (translucent tint + tint-colored text) collapses to
@@ -143,13 +148,13 @@
 .showcaseStack {
   display: flex;
   flex-direction: column;
-  gap: 56px;
+  gap: var(--fb-stack-gap);
 }
 
 .showcaseRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 36px;
+  gap: var(--fb-row-gap);
   align-items: center;
 }
 
@@ -161,7 +166,7 @@
 .showcaseRowReverse {
   display: flex;
   flex-wrap: wrap;
-  gap: 36px;
+  gap: var(--fb-row-gap);
   align-items: center;
 }
 
@@ -173,7 +178,7 @@
 
 .showcaseImage {
   flex: 2 1 460px;
-  min-width: 300px;
+  min-width: min(300px, 100%);
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
@@ -187,7 +192,7 @@
 
 .showcaseContent {
   flex: 1 1 260px;
-  min-width: 240px;
+  min-width: min(240px, 100%);
 }
 
 .showcaseTitle {
@@ -207,7 +212,7 @@
 /* Plugin grid */
 .pluginGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 16px;
 }
 
@@ -255,13 +260,13 @@
 .ctaInner {
   max-width: 760px;
   margin: 0 auto;
-  padding: 88px 24px;
+  padding: var(--fb-section-py-lg) var(--fb-gutter);
   text-align: center;
 }
 
 .ctaSubtitle {
   margin: 12px 0 0;
-  font-size: 17px;
+  font-size: clamp(15px, 1.5vw, 17px);
   line-height: 1.6;
   color: var(--muted-foreground);
 }
