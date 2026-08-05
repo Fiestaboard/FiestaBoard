@@ -37,6 +37,7 @@ import {
   Loader2,
   Moon,
   Pause,
+  Pencil,
   Radio,
   Timer,
   UploadCloud,
@@ -464,9 +465,27 @@ export function ActivePageDisplay() {
           {/* Active page name and status */}
           <Flex align="center" gap="4" wrap className="text-xs text-muted-foreground mt-3">
             <Flex align="center" gap="1.5">
-              <Text as="span" size="xs" weight="medium">
-                {activePageName}
-              </Text>
+              {activePage && !activeCollection ? (
+                // When a saved Page is generating the display, link straight to
+                // its editor so the user can jump to the design they're seeing
+                // (issue #1473). Collections and schedule gaps stay plain text.
+                <Link
+                  href={`/pages/edit/${activePage.id}`}
+                  className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                  aria-label={t("editActivePage", { pageName: activePage.name })}
+                  title={t("editActivePage", { pageName: activePage.name })}
+                  data-testid="active-page-edit-link"
+                >
+                  <Text as="span" size="xs" weight="medium">
+                    {activePageName}
+                  </Text>
+                  <Pencil className="h-3 w-3" aria-hidden="true" />
+                </Link>
+              ) : (
+                <Text as="span" size="xs" weight="medium">
+                  {activePageName}
+                </Text>
+              )}
             </Flex>
             {liveMessageForBoard ? (
               <Badge

@@ -614,6 +614,7 @@
     "noPageScheduled": "Bu saat için zamanlanmış sayfa yok. Varsayılan bir sayfa belirleyin:",
     "scheduleSettingsLink": "Zamanlama ayarları",
     "scheduleGapNoDefault": "Zamanlama boşluğu (varsayılan sayfa belirlenmemiş)",
+    "editActivePage": "\"{pageName}\" sayfasını düzenle",
     "toastSetActivePage": "\"{pageName}\" aktif sayfa olarak ayarlandı",
     "toastSetDefaultFailed": "Varsayılan sayfa ayarlanamadı",
     "toastSwitchSuccess": "Aktif sayfaya geçildi",

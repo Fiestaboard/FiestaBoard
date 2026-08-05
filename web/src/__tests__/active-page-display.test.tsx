@@ -70,6 +70,53 @@ describe("ActivePageDisplay", () => {
     });
   });
 
+  it("links the active page name to its editor when a saved page is displayed", async () => {
+    // Issue #1473: when a Page generates the current display, the Dashboard
+    // should link straight to that page's editor so the user can edit it.
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Weather Page")).toBeInTheDocument();
+    });
+
+    const editLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
+    expect(editLink).toHaveAttribute("href", "/pages/edit/page-1");
+  });
+
+  it("does not render a page edit link when a collection is active", async () => {
+    // Collections aren't a single editable page, so no editor link.
+    server.use(
+      http.get(`${API_BASE}/settings/active-page`, () =>
+        HttpResponse.json({ page_id: "collection:test-collection-id" }),
+      ),
+      http.get(`${API_BASE}/collections`, () =>
+        HttpResponse.json({
+          collections: [
+            {
+              id: "collection:test-collection-id",
+              name: "Test Collection",
+              page_ids: ["page-1"],
+              selection_mode: "time",
+              time: { interval_seconds: 30 },
+              variable: null,
+              random: null,
+              created_at: "2025-01-01T00:00:00Z",
+            },
+          ],
+          total: 1,
+        }),
+      ),
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Collection")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("link", { name: /Edit page/i })).not.toBeInTheDocument();
+  });
+
   it("shows Change Page button in manual mode", async () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 

@@ -614,6 +614,7 @@
     "noPageScheduled": "当前时间段没有已排定的页面。请在以下位置设置默认页面",
     "scheduleSettingsLink": "日程设置",
     "scheduleGapNoDefault": "日程空档（未设置默认页面）",
+    "editActivePage": "编辑页面“{pageName}”",
     "toastSetActivePage": "已将\"{pageName}\"设为活跃页面",
     "toastSetDefaultFailed": "设置默认页面失败",
     "toastSwitchSuccess": "已切换到活跃页面",
