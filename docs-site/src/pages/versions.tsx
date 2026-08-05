@@ -1,5 +1,5 @@
 import Link from "@docusaurus/Link";
-import { useLatestVersion, useVersions } from "@docusaurus/plugin-content-docs/client";
+import { type GlobalVersion, useLatestVersion, useVersions } from "@docusaurus/plugin-content-docs/client";
 import { Table, TableBody, TableCell, TableRow } from "@fiestaboard/ui";
 import allVersions from "@site/versions.json";
 import Layout from "@theme/Layout";
@@ -22,6 +22,16 @@ import styles from "./versions.module.css";
  */
 const REPO = "https://github.com/Fiestaboard/FiestaBoard";
 const VERSIONED_DOCS = `${REPO}/tree/main/docs-site/versioned_docs`;
+
+/**
+ * Entry route for a version. `version.path` is the version's base URL (`/docs`
+ * for the latest), which is only a real route when a doc declares `slug: /` —
+ * ours doesn't, so link to the version's main doc instead. Bare `/docs` fails
+ * the `onBrokenLinks: "throw"` build check.
+ */
+function versionEntryPath(version: GlobalVersion): string {
+  return version.docs.find((doc) => doc.id === version.mainDocId)?.path ?? version.path;
+}
 
 export default function Versions(): ReactNode {
   const hosted = useVersions("default");
@@ -56,7 +66,7 @@ export default function Versions(): ReactNode {
             <TableRow>
               <TableCell>{latest.label}</TableCell>
               <TableCell>
-                <Link to={latest.path}>Documentation</Link>
+                <Link to={versionEntryPath(latest)}>Documentation</Link>
               </TableCell>
             </TableRow>
           </TableBody>
@@ -72,7 +82,7 @@ export default function Versions(): ReactNode {
                   <TableRow key={version.name}>
                     <TableCell>{version.label}</TableCell>
                     <TableCell>
-                      <Link to={version.path}>Documentation</Link>
+                      <Link to={versionEntryPath(version)}>Documentation</Link>
                     </TableCell>
                   </TableRow>
                 ))}
