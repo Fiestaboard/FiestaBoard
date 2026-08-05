@@ -16,7 +16,7 @@ None. Transition plugins don't expose template variables; they shape *how* a boa
 
 ## Example Templates
 
-Transition plugins are selected per page from the page editor's "Transition" picker (or globally from Settings → Transitions). They aren't placed in templates directly.
+Transition plugins are selected per page from the page editor's "Transition" picker (or globally from Settings → Board Transitions). They aren't placed in templates directly.
 
 ## Configuration
 

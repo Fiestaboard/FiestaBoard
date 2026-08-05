@@ -15,7 +15,7 @@ Quiet Library is a **transition plugin**: it animates the change from the curren
 
 1. **Enable the beta**: Settings → Advanced → Beta Features → toggle **Transition Plugins** on.
 2. **Enable the plugin**: Integrations → Quiet Library → enable. Optionally adjust *Tiles per step* and *Delay between steps*.
-3. **Select the transition**: edit a page and choose **Quiet Library** as its transition, or set it as the system default in Settings → Transitions.
+3. **Select the transition**: edit a page and choose **Quiet Library** as its transition, or set it as the system default in Settings → Board Transitions.
 4. **View**: the next time that page is sent, the board updates one small batch of tiles at a time. Preview it any time on the **Transitions** page (Transition Lab).
 
 ## Template Variables

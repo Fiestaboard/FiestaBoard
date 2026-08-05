@@ -12,7 +12,7 @@ How to enable the Typewriter transition and use it on a page.
 
 1. **Enable** — Open the Integrations page, find Typewriter under "Transition Plugins", and toggle it on.
 2. **Configure** — Optionally adjust `chars_per_frame` and `frame_interval_ms` (defaults are a good starting point).
-3. **Apply** — Open the page editor for any page, set the Transition picker to "Typewriter", and save. Or set it as the global default in Settings → Transitions.
+3. **Apply** — Open the page editor for any page, set the Transition picker to "Typewriter", and save. Or set it as the global default in Settings → Board Transitions.
 4. **View** — The next time that page becomes active, the board sweeps left-to-right as the new content lands.
 
 ## Template Variables

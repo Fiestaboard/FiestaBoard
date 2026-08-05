@@ -18,7 +18,7 @@ None. Transition plugins don't expose template variables.
 
 ## Example Templates
 
-Select Simple Dissolve from a page's Transition picker or set it as the global default in Settings → Transitions.
+Select Simple Dissolve from a page's Transition picker or set it as the global default in Settings → Board Transitions.
 
 ## Configuration
 

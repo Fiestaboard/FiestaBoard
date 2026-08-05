@@ -12,7 +12,7 @@ How to enable Slot Machine and use it on a page.
 
 1. **Enable** — Open the Integrations page, find Slot Machine under "Transition Plugins", and toggle it on.
 2. **Configure** — Optionally adjust `spin_frames`, `column_stagger`, `frame_interval_ms`, and `seed`.
-3. **Apply** — Open a page in the editor, set its Transition to "Slot Machine", and save. Or set it as the global default in Settings → Transitions.
+3. **Apply** — Open a page in the editor, set its Transition to "Slot Machine", and save. Or set it as the global default in Settings → Board Transitions.
 4. **View** — The next page transition will spin each column before locking on the new content.
 
 ## Template Variables
