@@ -128,10 +128,10 @@ Choose conservatively. A transition with `max_frames: 5000` and `min_interval_ms
 
 ## Selecting a transition plugin
 
-Once your plugin is installed it is opt-in automatically — there is no separate enable step. Users select it from:
+Once your plugin is installed it is ready to use — unlike data plugins, transition plugins don't need to be enabled on the Integrations page; installing one is opting in. (The `beta.transition_plugins_enabled` flag above still gates the feature as a whole.) Users select it from:
 
 - A specific page's Transition picker in the page editor
-- The global default in Settings → Transitions
+- The global default in Settings → Board Transitions
 
 Pages store the choice as `transition_strategy = "plugin:my_transition"`. The runtime parses the `plugin:` prefix and routes the send through `TransitionRunner`.
 
