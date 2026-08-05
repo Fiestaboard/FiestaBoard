@@ -49,7 +49,7 @@ docker compose up -d
 
 Then open **http://localhost:4420** to connect your board and start the service.
 
-> **Accessing from other devices:** FiestaBoard advertises itself on your local network via mDNS/Bonjour. Open **http://fiestaboard.local:4420** from any device on the same network. If `.local` addresses don't work, use your server's IP instead (e.g. `http://192.168.1.50:4420`).
+> **Accessing from other devices:** Open FiestaBoard at your server's IP address — for example `http://192.168.1.50:4420`. This works on a default Docker install. The shorter `http://fiestaboard.local:4420` only resolves when you run with host networking (`network_mode: host`) *and* the device you're browsing from has an mDNS/Bonjour resolver; the default `docker-compose.yml` uses bridge networking.
 
 ## What You Can Display
 
