@@ -1,69 +1,76 @@
 /**
- * CSS files with the .module.css suffix will be treated as CSS modules
- * and scoped locally.
+ * Homepage hero - FiestaUI re-skin (mirrors FiestaboardSite.dc.html).
+ * All colors/fonts/radii come from FiestaUI tokens defined in
+ * fiestaui.generated.css; no hardcoded values.
  */
-
-.heroBanner {
-  padding: 4rem 0;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
+.section {
+  border-bottom: 1px solid var(--border);
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
-}
-
-.heroLockup {
-  height: 80px;
-  width: auto;
-  margin-bottom: 1rem;
-}
-
-.heroDescription {
-  max-width: 700px;
-  margin: 1rem auto;
-  font-size: 1.2rem;
-}
-
-.heroDescriptionShort {
-  display: none;
-}
-
-@media screen and (max-width: 996px) {
-  .heroLockup {
-    height: 56px;
-  }
-
-  .heroDescription {
-    display: none;
-  }
-
-  .heroDescriptionShort {
-    display: block;
-    margin: 0.5rem auto;
-    font-size: 1.1rem;
-  }
-}
-
-.buttons {
+.heroInner {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 80px 24px 88px;
   display: flex;
-  align-items: center;
-  justify-content: center;
   flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  gap: 56px;
+  align-items: center;
 }
 
-.githubButton {
-  color: var(--hero-outline-btn-color);
-  border-color: var(--hero-outline-btn-color);
+.heroCopy {
+  flex: 1 1 430px;
+  min-width: 300px;
 }
 
-.githubButton:hover {
-  color: var(--hero-outline-btn-hover-text);
-  background-color: var(--hero-outline-btn-hover-bg);
-  border-color: var(--hero-outline-btn-hover-bg);
+.heroTitle {
+  margin: 22px 0 0;
+  font-size: clamp(38px, 4.6vw, 58px);
+  line-height: 1.04;
+  letter-spacing: -0.033em;
+  font-weight: 600;
+  text-wrap: balance;
+  color: var(--foreground);
+}
+
+.heroBody {
+  margin: 22px 0 0;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+  max-width: 580px;
+  text-wrap: pretty;
+}
+
+.heroSubline {
+  margin: 20px 0 0;
+  font-family: var(--font-geist-mono);
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  /* Uppercased mono runs wide; without a cap the second line orphans a couple
+     of words. `balance` splits it evenly instead. */
+  max-width: 46ch;
+  text-wrap: balance;
+}
+
+.heroButtons {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+
+.heroBoard {
+  flex: 1 1 420px;
+  min-width: 300px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Reserve the board's height during SSR / before hydration to avoid layout
+   shift when the client-only <HeroBoard> mounts. */
+.heroBoardFallback {
+  width: 100%;
+  min-height: 392px;
 }

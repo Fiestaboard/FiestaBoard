@@ -3,7 +3,7 @@
  *
  * Docusaurus persists the user's last-selected docs version in localStorage
  * (`docs-preferred-version-default`). That means a user who once picked an
- * old version will keep seeing it on every future visit — even after months.
+ * old version will keep seeing it on every future visit - even after months.
  *
  * Desired behaviour:
  *   • Loading the docs without a version in the URL → always land on the

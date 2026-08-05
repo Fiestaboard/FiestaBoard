@@ -1,434 +1,267 @@
-.features {
-  display: flex;
-  align-items: center;
-  padding: 2rem 0;
-  width: 100%;
+/**
+ * Homepage sections below the hero - FiestaUI re-skin
+ * (mirrors FiestaboardSite.dc.html). All colors/fonts/radii come from FiestaUI
+ * tokens defined in fiestaui.generated.css; no hardcoded values.
+ */
+
+/* Shared section scaffolding */
+.section {
+  border-bottom: 1px solid var(--border);
 }
 
-.featureIcon {
-  width: 80px;
-  height: 80px;
+.sectionMuted {
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.inner {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 80px 24px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 34px;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.sectionSubtitle {
+  margin: 10px 0 36px;
+  font-size: 17px;
+  color: var(--muted-foreground);
+}
+
+.centerAction {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 36px;
+  flex-wrap: wrap;
+}
+
+/* Feature grid */
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* No card chrome around the feature items - just a centered icon + text, so
+   they read as a clean feature grid rather than boxes. */
+.featureCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 16px;
+}
+
+/* The icons are small pixel art (~200px square); `contain` + pixelated keeps
+   each one whole and crisp on its pixel grid. */
+.featureCardImage {
   display: block;
-  margin: 0 auto 1rem;
+  width: auto;
+  height: 92px;
   object-fit: contain;
   image-rendering: pixelated;
 }
 
-/* Section titles */
-.sectionTitle {
-  font-size: 2.2rem;
-  margin-bottom: 0.5rem;
+.featureCardBody {
+  padding: 16px 0 0;
 }
 
-.sectionSubtitle {
-  font-size: 1.2rem;
-  color: var(--ifm-color-emphasis-600);
-  max-width: 600px;
-  margin: 0 auto;
+.featureCardTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--foreground);
 }
 
-/* Feature showcase with alternating screenshot + text */
-.showcase {
-  padding: 3rem 0;
-  background: var(--ifm-color-emphasis-100);
+.featureCardDesc {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+/* What's New highlights */
+.highlightGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.highlightCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+}
+
+/* The DS success badge (translucent tint + tint-colored text) collapses to
+   ~1.5:1 on the dark card, so override the "New" badge with opaque, theme-aware
+   green that clears WCAG 2.2 AA (6.5:1 light / 7.5:1 dark). App-level only; no
+   FiestaUI change. */
+.newBadge {
+  background-color: #dcfce7 !important;
+  border-color: #a7f3d0 !important;
+  color: #166534 !important;
+}
+
+[data-theme="dark"] .newBadge {
+  background-color: #14532d !important;
+  border-color: #22683c !important;
+  color: #bbf7d0 !important;
+}
+
+.highlightTitle {
+  margin: 14px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+.highlightBody {
+  margin: 10px 0 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+
+.cardButtons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+/* See It in Action showcase */
+.showcaseStack {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
 }
 
 .showcaseRow {
   display: flex;
+  flex-wrap: wrap;
+  gap: 36px;
   align-items: center;
-  gap: 3rem;
-  margin-bottom: 3rem;
 }
 
-.showcaseRow:last-child {
-  margin-bottom: 0;
-}
-
+/* Odd rows lead with the text on desktop, so the stack alternates. Only the
+   desktop rule reverses: below the breakpoint the row wraps like .showcaseRow,
+   which keeps the image first so every row reads image-then-text on mobile.
+   (`flex-wrap: wrap-reverse` does not do this - it reorders wrapped *lines*,
+   so it had no effect at all while both columns fit on one line.) */
 .showcaseRowReverse {
-  flex-direction: row-reverse;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 36px;
+  align-items: center;
+}
+
+@media (min-width: 840px) {
+  .showcaseRowReverse {
+    flex-direction: row-reverse;
+  }
 }
 
 .showcaseImage {
-  flex: 1.2;
-  min-width: 0;
+  flex: 2 1 460px;
+  min-width: 300px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--muted);
 }
 
 .showcaseImage img {
+  display: block;
   width: 100%;
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-}
-
-[data-theme="dark"] .showcaseImage img {
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }
 
 .showcaseContent {
-  flex: 0.8;
+  flex: 1 1 260px;
+  min-width: 240px;
 }
 
-.showcaseContent h3 {
-  font-size: 1.6rem;
-  margin-bottom: 0.75rem;
-}
-
-.showcaseContent p {
-  font-size: 1.1rem;
-  color: var(--ifm-color-emphasis-700);
-  margin-bottom: 1rem;
-}
-
-.showcaseToggle {
-  display: flex;
-  justify-content: center;
-  gap: 2px;
-  margin-top: 0.5rem;
-  padding: 3px;
-  border-radius: 8px;
-  background: var(--ifm-color-emphasis-200);
-  width: fit-content;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.showcaseToggleBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--ifm-color-emphasis-700);
-  font-size: 0.75rem;
-  font-family: inherit;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-  line-height: 1.4;
-}
-
-.showcaseToggleBtn:hover {
-  background: var(--ifm-color-emphasis-300);
-}
-
-.showcaseToggleBtnActive {
-  background: var(--ifm-background-color);
-  /*
-   * Use the accessible orange (4.69:1 on white). The dark-mode block
-   * below switches back to the brand primary where contrast on the
-   * dark surface is already ~7.8:1.
-   */
-  color: var(--fiesta-accessible-orange);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+.showcaseTitle {
+  margin: 0;
+  font-size: 20px;
   font-weight: 600;
+  color: var(--foreground);
 }
 
-[data-theme="dark"] .showcaseToggleBtnActive {
-  color: var(--ifm-color-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+.showcaseDesc {
+  margin: 10px 0 16px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
 }
 
-/* Lightbox modal */
-
-.lightboxOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(4px);
-  animation: fadeIn 0.15s ease;
-  cursor: zoom-out;
-}
-
-.lightboxContent {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  max-width: 92vw;
-  max-height: 92vh;
-  cursor: default;
-}
-
-.lightboxImage {
-  max-width: 92vw;
-  max-height: 82vh;
-  border-radius: 10px;
-  box-shadow: 0 12px 60px rgba(0, 0, 0, 0.5);
-  object-fit: contain;
-  animation: scaleIn 0.2s ease;
-}
-
-.lightboxClose {
-  position: absolute;
-  top: -40px;
-  right: -4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.lightboxClose:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.lightboxFooter {
-  margin-top: 0.75rem;
-}
-
-.lightboxFooter .showcaseToggle {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.lightboxToggleBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.75rem;
-  font-family: inherit;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-  line-height: 1.4;
-}
-
-.lightboxToggleBtn:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.lightboxToggleBtnActive {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  font-weight: 600;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    transform: scale(0.95);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@media screen and (max-width: 768px) {
-  .showcaseRow,
-  .showcaseRowReverse {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-}
-
-/* Plugin showcase grid */
-.pluginShowcase {
-  padding: 3rem 0;
-}
-
+/* Plugin grid */
 .pluginGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-}
-
-@media screen and (max-width: 996px) {
-  .pluginGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media screen and (max-width: 576px) {
-  .pluginGrid {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
 }
 
 .pluginCard {
   display: block;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--ifm-color-emphasis-100);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
   text-decoration: none;
   color: inherit;
+  transition: border-color 0.15s ease;
 }
 
 .pluginCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: var(--ring);
   text-decoration: none;
   color: inherit;
 }
 
-[data-theme="dark"] .pluginCard:hover {
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+.pluginCardBoard {
+  display: flex;
+  justify-content: center;
 }
 
-.pluginCardImage {
-  overflow: hidden;
-  aspect-ratio: 5 / 2;
-}
-
-.pluginCardImage img {
+.pluginBoardFallback {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+  min-height: 120px;
 }
 
-.pluginCardBody {
-  padding: 1rem;
+.pluginCardName {
+  margin-top: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--foreground);
 }
 
-.pluginCardBody h4 {
-  margin-bottom: 0.4rem;
-  font-size: 1.1rem;
+.pluginCardDesc {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted-foreground);
 }
 
-.pluginCardBody p {
-  font-size: 0.9rem;
-  color: var(--ifm-color-emphasis-600);
-  margin-bottom: 0;
-}
-
-/* Call to action section */
-.ctaSection {
-  padding: 4rem 0;
-  background: var(--ifm-color-emphasis-100);
-}
-
-.ctaTitle {
-  font-size: 2rem;
-  margin-bottom: 0.75rem;
+/* Call to action */
+.ctaInner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 88px 24px;
+  text-align: center;
 }
 
 .ctaSubtitle {
-  font-size: 1.15rem;
-  color: var(--ifm-color-emphasis-600);
-  max-width: 550px;
-  margin: 0 auto 1.5rem;
-}
-
-.ctaButtons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-/* "What's New" highlights — paired feature cards */
-.highlights {
-  padding: 4rem 0;
-  background: linear-gradient(180deg, var(--ifm-background-color) 0%, var(--ifm-color-emphasis-100) 100%);
-}
-
-.highlightsGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2rem;
-  margin-top: 1.5rem;
-}
-
-@media screen and (max-width: 768px) {
-  .highlightsGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.highlightCard {
-  display: flex;
-  flex-direction: column;
-  padding: 2rem;
-  border-radius: 16px;
-  background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
-  border: 1px solid var(--ifm-color-emphasis-200);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.highlightCard:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="dark"] .highlightCard {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-.highlightBadge {
-  display: inline-block;
-  align-self: flex-start;
-  padding: 0.2rem 0.7rem;
-  border-radius: 999px;
-  /*
-   * `--fiesta-accessible-orange` is defined in custom.css. White text on
-   * this shade reaches 4.69:1, meeting WCAG 2.2 AA. The dark-mode block
-   * below restores the brand orange, which has enough contrast against
-   * dark text in dark mode.
-   */
-  background: var(--fiesta-accessible-orange);
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 1rem;
-}
-
-[data-theme="dark"] .highlightBadge {
-  background: var(--ifm-color-primary);
-  color: #1b1b1d;
-}
-
-.highlightCard h3 {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.highlightCard p {
-  font-size: 1.05rem;
-  color: var(--ifm-color-emphasis-700);
-  margin-bottom: 1.25rem;
-  flex: 1;
-}
-
-.highlightLinks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  margin: 12px 0 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
 }

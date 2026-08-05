@@ -1,0 +1,61 @@
+/**
+ * Multi-device hero board stage. Fixed height so the layout doesn't shift as
+ * the board cycles between Flagship / Note / Note Array (different aspect
+ * ratios). Colors/fonts from FiestaUI tokens.
+ */
+.stage {
+  width: 100%;
+  /* Tall enough for the tallest board (the narrow 1×2 note array renders at
+     natural height rather than being width-scaled down). */
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+/* Cross-fade (with a hair of scale) between boards. The split-flap reveal of
+   the message itself is driven by FiestaUI's native board animation. */
+.frame {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 380ms ease,
+    transform 380ms ease;
+  will-change: opacity, transform;
+}
+
+.frame[data-visible="false"] {
+  opacity: 0;
+  transform: scale(0.985);
+}
+
+.caption {
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  opacity: 1;
+  transition: opacity 380ms ease;
+}
+
+.caption[data-visible="false"] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame,
+  .caption {
+    transition: none;
+  }
+}
+
+/* Hide the Fit/Actual toggle ScaledBoardDisplay renders for note-array boards -    the hero always uses fit mode. */
+.stage button {
+  display: none;
+}
