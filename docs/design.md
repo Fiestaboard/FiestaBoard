@@ -51,7 +51,7 @@ Use these for UI chrome, not for board tile colors.
 - **Display title (hub):** `.page-title-display` – `text-3xl sm:text-4xl font-bold tracking-tight`  
   Use for the Dashboard (home) title only.
 
-Font families: `--font-sans` (Geist, via the `"Geist Variable"` family) and `--font-mono` (Geist Mono, via `"Geist Mono Variable"`). Defined on `:root` in `globals.css` (`--font-geist-sans` / `--font-geist-mono`) and mapped in `@theme`.
+Font families: `--font-sans` (Geist, via the `"Geist Variable"` family) and `--font-mono` (Geist Mono, via `"Geist Mono Variable"`). Defined in `@fiestaboard/ui/theme.css` (`--font-geist-sans` / `--font-geist-mono` on `:root`) and mapped into Tailwind utilities in that file's `@theme inline` block — imported at the top of `globals.css`, not declared there.
 
 ## Spacing and radius
 
@@ -130,6 +130,6 @@ Hardcoded warm oklch values in `.card-interactive:hover` were replaced with achr
 
 ## Related files
 
-- Theme tokens: [`web/app/globals.css`](../web/app/globals.css)
+- Theme tokens: `@fiestaboard/ui/theme.css` (imported by [`web/app/globals.css`](../web/app/globals.css))
 - Empty-state component: [`EmptyState` in FiestaUI](https://github.com/Fiestaboard/FiestaUI/blob/main/src/components/ui/empty-state.tsx)
-- Tailwind config is inline in `globals.css` under `@theme inline { ... }` (Tailwind v4 — no separate `tailwind.config.ts`).
+- Tailwind config is inline under `@theme inline { ... }` in `@fiestaboard/ui/theme.css` (imported at the top of `globals.css`), not in `globals.css` itself (Tailwind v4 — no separate `tailwind.config.ts`). `globals.css` only `@import`s `theme.css`, declares the mandatory `@source` scan line, and holds app-only styles.
