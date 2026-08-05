@@ -1,5 +1,5 @@
 /**
- * Homepage hero — FiestaUI re-skin (mirrors FiestaboardSite.dc.html).
+ * Homepage hero - FiestaUI re-skin (mirrors FiestaboardSite.dc.html).
  * All colors/fonts/radii come from FiestaUI tokens defined in
  * fiestaui.generated.css; no hardcoded values.
  */
@@ -48,6 +48,10 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted-foreground);
+  /* Uppercased mono runs wide; without a cap the second line orphans a couple
+     of words. `balance` splits it evenly instead. */
+  max-width: 46ch;
+  text-wrap: balance;
 }
 
 .heroButtons {

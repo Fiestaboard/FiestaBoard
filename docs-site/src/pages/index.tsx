@@ -15,12 +15,12 @@ function Hero() {
         <div className={styles.heroCopy}>
           <h1 className={styles.heroTitle}>Turn your split-flap display into a living dashboard</h1>
           <p className={styles.heroBody}>
-            Transform your Vestaboard into a real-time information hub—track your morning commute, monitor the markets,
-            check surf conditions, or display Star Trek wisdom. Compatible with Vestaboard Flagship and Note. All
-            beautifully formatted, endlessly customizable, and running in Docker with zero hassle.
+            Transform your Vestaboard into a real-time information hub - track your morning commute, monitor the
+            markets, check surf conditions, or display Star Trek wisdom. Compatible with Vestaboard Flagship and Note.
+            All beautifully formatted, endlessly customizable, and running in Docker with zero hassle.
           </p>
           <p className={styles.heroSubline}>
-            Weather, stocks, sports &amp; more — flash a Raspberry Pi or run with Docker
+            Weather, stocks, sports &amp; more - flash a Raspberry Pi or run with Docker
           </p>
           <div className={styles.heroButtons}>
             <Button variant="brand" size="lg" asChild>

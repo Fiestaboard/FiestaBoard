@@ -1,4 +1,4 @@
-/* Documentation versions index — colors/fonts from FiestaUI tokens. */
+/* Documentation versions index - colors/fonts from FiestaUI tokens. */
 .section {
   margin-top: 44px;
 }
@@ -7,6 +7,37 @@
   font-size: 14px;
   color: var(--muted-foreground);
   margin-top: 6px;
+}
+
+/* Current version reads as a card, not a one-row table - it is the thing most
+   visitors want, so it gets weight rather than the same treatment as the list
+   of older versions below it. */
+.currentCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.currentLabel {
+  font-family: var(--font-geist-mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.currentTag {
+  margin-left: 10px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted-foreground);
 }
 
 .archivedGroup {

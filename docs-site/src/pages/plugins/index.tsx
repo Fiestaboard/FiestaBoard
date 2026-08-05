@@ -63,7 +63,7 @@ export default function PluginDirectory(): ReactNode {
   return (
     <Layout
       title="Plugin Directory"
-      description="Browse all FiestaBoard plugins — weather, stocks, transit, sports, art, and more. Explore what's available for your split-flap display."
+      description="Browse all FiestaBoard plugins - weather, stocks, transit, sports, art, and more. Explore what's available for your split-flap display."
     >
       <main className={styles.directoryPage}>
         <div className="container">
@@ -73,7 +73,7 @@ export default function PluginDirectory(): ReactNode {
               Plugin Directory
             </Heading>
             <p className={styles.subtitle}>
-              Explore {plugins.length} plugins for your split-flap display — from weather and stocks to Disney park wait
+              Explore {plugins.length} plugins for your split-flap display - from weather and stocks to Disney park wait
               times and generative art.
             </p>
           </div>

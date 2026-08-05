@@ -1,11 +1,11 @@
 /**
- * FiestaBoard docs — Infima → FiestaUI (@fiestaboard/ui) token bridge.
+ * FiestaBoard docs - Infima → FiestaUI (@fiestaboard/ui) token bridge.
  *
  * `fiestaui.generated.css` loads before this file and defines the FiestaUI
  * design tokens (`--background`, `--brand`, `--border`, `--radius`, the Geist
  * fonts, …) on `:root` (light) and `.dark` (dark). `src/theme/Root.tsx` mirrors
  * Docusaurus's `data-theme="dark"` onto the `.dark` class, so every token below
- * resolves to the correct value for the active theme automatically — one bridge
+ * resolves to the correct value for the active theme automatically - one bridge
  * covers both modes. This re-skins the navbar, sidebar, TOC, and every docs
  * page to match the FiestaUI design system.
  *
@@ -22,7 +22,7 @@
   --ifm-color-content: var(--foreground);
   --ifm-color-content-secondary: var(--muted-foreground);
 
-  /* Brand / primary — DS `--brand` is WCAG 2.2 AA tuned in both themes. */
+  /* Brand / primary - DS `--brand` is WCAG 2.2 AA tuned in both themes. */
   --ifm-color-primary: var(--brand);
   --ifm-color-primary-dark: var(--brand-emphasis);
   --ifm-color-primary-darker: var(--brand-emphasis);
@@ -111,7 +111,7 @@ div[class*="codeBlockContainer"] {
   border-color: var(--ring);
 }
 
-/* Hide the per-page version badge — the navbar version dropdown is sufficient. */
+/* Hide the per-page version badge - the navbar version dropdown is sufficient. */
 .theme-doc-version-badge {
   display: none;
 }

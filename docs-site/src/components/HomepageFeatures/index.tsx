@@ -27,7 +27,7 @@ const FeatureList: FeatureItem[] = [
     title: "WYSIWYG Editor",
     icon: "/img/features/wysiwyg-editor.png",
     description:
-      "Create pages with a visual editor that shows exactly how content will appear on your board—template variables, colors, and alignment in real time.",
+      "Create pages with a visual editor that shows exactly how content will appear on your board - template variables, colors, and alignment in real time.",
   },
   {
     title: "Schedule Mode",
@@ -64,11 +64,11 @@ type HighlightItem = {
 
 const HighlightList: HighlightItem[] = [
   {
-    title: "FiestaPi — flash a Raspberry Pi, done",
+    title: "FiestaPi - flash a Raspberry Pi, done",
     description: (
       <>
         A pre-built Raspberry Pi OS image with FiestaBoard, Docker, and the self-update sidecar all pre-installed. Flash
-        a microSD card with Raspberry Pi Imager, boot your Pi, open <Code>http://fiestapi.local:4420</Code> — no Docker
+        a microSD card with Raspberry Pi Imager, boot your Pi, open <Code>http://fiestapi.local:4420</Code> - no Docker
         setup, no terminal, no config files. Works on Pi 3B, Pi 4, Pi 5, and Pi Zero 2 W.
       </>
     ),
@@ -80,7 +80,7 @@ const HighlightList: HighlightItem[] = [
     description: (
       <>
         When a new version ships, a banner appears in Settings → System. Click Update Now and FiestaBoard updates itself
-        — no SSH, no <Code>docker compose pull</Code>. On for FiestaPi by default; opt in on Docker installs by enabling
+        - no SSH, no <Code>docker compose pull</Code>. On for FiestaPi by default; opt in on Docker installs by enabling
         the <Code>fiestaupdater</Code> sidecar.
       </>
     ),
@@ -110,7 +110,7 @@ const FeatureShowcaseList: ShowcaseItem[] = [
     image: "/img/page-editor-wysiwyg.png",
     alt: "FiestaBoard WYSIWYG page editor with visual board preview",
     description:
-      "Design your board layouts visually—see exactly how content will appear before sending it to your display.",
+      "Design your board layouts visually - see exactly how content will appear before sending it to your display.",
     link: "/docs/features/page-editor",
   },
   {
@@ -211,7 +211,9 @@ function FeatureCard({ title, icon, description }: FeatureItem) {
 function HighlightCard({ title, description, primary, secondary }: HighlightItem) {
   return (
     <div className={styles.highlightCard}>
-      <Badge variant="success">New</Badge>
+      <Badge variant="success" className={styles.newBadge}>
+        New
+      </Badge>
       <h3 className={styles.highlightTitle}>{title}</h3>
       <p className={styles.highlightBody}>{description}</p>
       <div className={styles.cardButtons}>
@@ -305,7 +307,7 @@ export default function HomepageFeatures(): ReactNode {
         <div className={styles.inner}>
           <h2 className={styles.sectionTitle}>{pluginCount}+ Plugins and Counting</h2>
           <p className={styles.sectionSubtitle}>
-            From weather and stocks to Disney park wait times—there&apos;s a plugin for everything
+            From weather and stocks to Disney park wait times - there&apos;s a plugin for everything
           </p>
           <div className={styles.pluginGrid}>
             {PluginList.map((props) => (

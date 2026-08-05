@@ -11,7 +11,7 @@ import versions from "./versions.json";
 //
 // Deploy builds are capped to the most recent minors: one snapshot exists per
 // minor release, so the full set grows without bound (57 as of 7.3) and
-// building all of them exhausts the Node heap — deploys OOMed from
+// building all of them exhausts the Node heap - deploys OOMed from
 // 2026-06-16 to 2026-07-18. Older snapshots stay in versioned_docs/ but are
 // not built or served.
 const isPRMode = process.env.DOCS_PR_MODE === "1";
@@ -22,7 +22,7 @@ const onlyIncludeVersions =
 // URL prefixes that used to serve docs but no longer exist, redirected to the
 // current docs at the same path. GitHub Pages can't emit HTTP 301s, so
 // plugin-client-redirects writes a stub page at each old URL (instant
-// meta-refresh + canonical link — treated as a permanent redirect by search
+// meta-refresh + canonical link - treated as a permanent redirect by search
 // engines):
 // - version snapshots older than DEPLOY_VERSION_CAP are no longer built, but
 //   their URLs were indexed while they were live; slice(CAP) keeps this list
@@ -164,7 +164,7 @@ const config: Config = {
             name: "How do I install FiestaBoard?",
             acceptedAnswer: {
               "@type": "Answer",
-              text: "FiestaBoard runs in Docker. Pull the image from Docker Hub and start it with docker-compose — you can be up and running in under 5 minutes. It works on Mac, Windows, Linux, and Raspberry Pi.",
+              text: "FiestaBoard runs in Docker. Pull the image from Docker Hub and start it with docker-compose - you can be up and running in under 5 minutes. It works on Mac, Windows, Linux, and Raspberry Pi.",
             },
           },
           {
@@ -192,7 +192,7 @@ const config: Config = {
     [
       "@sablier/docusaurus-plugin-llms",
       {
-        // Generate from the snapshot that /docs/ actually serves — the
+        // Generate from the snapshot that /docs/ actually serves - the
         // working docs/ dir can describe unreleased features between
         // releases. versions[0] keeps this on the latest snapshot as
         // releases ship.

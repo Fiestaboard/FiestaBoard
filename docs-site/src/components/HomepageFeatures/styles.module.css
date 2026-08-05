@@ -1,5 +1,5 @@
 /**
- * Homepage sections below the hero — FiestaUI re-skin
+ * Homepage sections below the hero - FiestaUI re-skin
  * (mirrors FiestaboardSite.dc.html). All colors/fonts/radii come from FiestaUI
  * tokens defined in fiestaui.generated.css; no hardcoded values.
  */
@@ -49,23 +49,28 @@
   gap: 20px;
 }
 
+/* No card chrome around the feature items - just a centered icon + text, so
+   they read as a clean feature grid rather than boxes. */
 .featureCard {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 16px;
 }
 
+/* The icons are small pixel art (~200px square); `contain` + pixelated keeps
+   each one whole and crisp on its pixel grid. */
 .featureCardImage {
   display: block;
-  width: 100%;
-  height: 180px;
-  object-fit: cover;
-  background: var(--muted);
+  width: auto;
+  height: 92px;
+  object-fit: contain;
+  image-rendering: pixelated;
 }
 
 .featureCardBody {
-  padding: 20px;
+  padding: 16px 0 0;
 }
 
 .featureCardTitle {
@@ -94,6 +99,22 @@
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 24px;
+}
+
+/* The DS success badge (translucent tint + tint-colored text) collapses to
+   ~1.5:1 on the dark card, so override the "New" badge with opaque, theme-aware
+   green that clears WCAG 2.2 AA (6.5:1 light / 7.5:1 dark). App-level only; no
+   FiestaUI change. */
+.newBadge {
+  background-color: #dcfce7 !important;
+  border-color: #a7f3d0 !important;
+  color: #166534 !important;
+}
+
+[data-theme="dark"] .newBadge {
+  background-color: #14532d !important;
+  border-color: #22683c !important;
+  color: #bbf7d0 !important;
 }
 
 .highlightTitle {
@@ -132,12 +153,22 @@
   align-items: center;
 }
 
-/* wrap-reverse: text leads on desktop, image still leads on mobile */
+/* Odd rows lead with the text on desktop, so the stack alternates. Only the
+   desktop rule reverses: below the breakpoint the row wraps like .showcaseRow,
+   which keeps the image first so every row reads image-then-text on mobile.
+   (`flex-wrap: wrap-reverse` does not do this - it reorders wrapped *lines*,
+   so it had no effect at all while both columns fit on one line.) */
 .showcaseRowReverse {
   display: flex;
-  flex-wrap: wrap-reverse;
+  flex-wrap: wrap;
   gap: 36px;
   align-items: center;
+}
+
+@media (min-width: 840px) {
+  .showcaseRowReverse {
+    flex-direction: row-reverse;
+  }
 }
 
 .showcaseImage {

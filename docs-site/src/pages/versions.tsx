@@ -1,6 +1,6 @@
 import Link from "@docusaurus/Link";
 import { type GlobalVersion, useLatestVersion, useVersions } from "@docusaurus/plugin-content-docs/client";
-import { Table, TableBody, TableCell, TableRow } from "@fiestaboard/ui";
+import { Button, Table, TableBody, TableCell, TableRow } from "@fiestaboard/ui";
 import allVersions from "@site/versions.json";
 import Layout from "@theme/Layout";
 import type { ReactNode } from "react";
@@ -10,7 +10,7 @@ import styles from "./versions.module.css";
 /**
  * Full documentation-versions index (linked from the footer).
  *
- * The version switcher lives here rather than in the navbar — visitors should
+ * The version switcher lives here rather than in the navbar - visitors should
  * land on the latest docs; this page is for the rare case of looking up an
  * older version.
  *
@@ -25,8 +25,7 @@ const VERSIONED_DOCS = `${REPO}/tree/main/docs-site/versioned_docs`;
 
 /**
  * Entry route for a version. `version.path` is the version's base URL (`/docs`
- * for the latest), which is only a real route when a doc declares `slug: /` —
- * ours doesn't, so link to the version's main doc instead. Bare `/docs` fails
+ * for the latest), which is only a real route when a doc declares `slug: /` -  * ours doesn't, so link to the version's main doc instead. Bare `/docs` fails
  * the `onBrokenLinks: "throw"` build check.
  */
 function versionEntryPath(version: GlobalVersion): string {
@@ -56,21 +55,20 @@ export default function Versions(): ReactNode {
       <main className="container margin-vert--lg">
         <h1>FiestaBoard documentation versions</h1>
         <p>
-          We recommend the <strong>latest</strong> version — it has the newest features and fixes, and it&apos;s what
+          We recommend the <strong>latest</strong> version - it has the newest features and fixes, and it&apos;s what
           the docs default to. Every released version is listed below.
         </p>
 
         <h2>Current version</h2>
-        <Table>
-          <TableBody>
-            <TableRow>
-              <TableCell>{latest.label}</TableCell>
-              <TableCell>
-                <Link to={versionEntryPath(latest)}>Documentation</Link>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        <div className={styles.currentCard}>
+          <div>
+            <span className={styles.currentLabel}>{latest.label}</span>
+            <span className={styles.currentTag}>recommended</span>
+          </div>
+          <Button asChild>
+            <Link to={versionEntryPath(latest)}>Read the docs</Link>
+          </Button>
+        </div>
 
         {maintained.length > 0 && (
           <div className={styles.section}>
@@ -95,7 +93,7 @@ export default function Versions(): ReactNode {
           <div className={styles.section}>
             <h2>Archived versions</h2>
             <p className={styles.note}>
-              No longer hosted — these {archived.length} snapshots redirect to the latest docs, but the original
+              No longer hosted - these {archived.length} snapshots redirect to the latest docs, but the original
               markdown is preserved in the repository. Follow a version to read its docs source on GitHub.
             </p>
             {majors.map((major) => (

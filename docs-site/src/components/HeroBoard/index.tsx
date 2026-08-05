@@ -7,12 +7,12 @@ import styles from "./styles.module.css";
  * Animated multi-device hero board.
  *
  * Cycles through a mix of the Vestaboard hardware families FiestaBoard supports
- * — Flagship (22×6), Note (15×3), and Note Arrays in several sizes (wide 2×1,
- * tall 1×2, big 2×2) — showing both data dashboards and colorful board art. For
+ * - Flagship (22×6), Note (15×3), and Note Arrays in several sizes (wide 2×1,
+ * tall 1×2, big 2×2) - showing both data dashboards and colorful board art. For
  * each one it:
  *   1. fades the previous board out,
  *   2. swaps to the new device (the grid-size change is hidden by the fade),
- *   3. fades the new board in while its contents flap in — every cell cycles
+ *   3. fades the new board in while its contents flap in - every cell cycles
  *      through random values and settles on a staggered per-cell frame,
  *      left-to-right / top-to-bottom, like a real split-flap board. Text boards
  *      flap through glyphs; art boards flap through colors.
@@ -23,7 +23,7 @@ import styles from "./styles.module.css";
  * distorted, and we disable its own animation since we drive the frames.
  *
  * Rendered inside <BrowserOnly> (see src/pages/index.tsx). Respects
- * `prefers-reduced-motion`: no scramble, no fade — the message is set directly.
+ * `prefers-reduced-motion`: no scramble, no fade - the message is set directly.
  */
 type BoardConfig = {
   kind: "text" | "art";
@@ -111,7 +111,7 @@ const FRAME_MS = 45; // scramble frame interval
 /**
  * Run the split-flap scramble for a board, calling `onFrame` with each frame.
  * Cell (row r, col c) locks to its final value at frame
- * 4 + c*0.8 + r*1.6 + rand(0..7); until then it shows a random value — a glyph
+ * 4 + c*0.8 + r*1.6 + rand(0..7); until then it shows a random value - a glyph
  * for text boards, a color tile for art boards. Returns the interval id.
  */
 function runScramble(board: BoardConfig, onFrame: (frame: string) => void): ReturnType<typeof setInterval> {

@@ -55,8 +55,7 @@
   }
 }
 
-/* Hide the Fit/Actual toggle ScaledBoardDisplay renders for note-array boards —
-   the hero always uses fit mode. */
+/* Hide the Fit/Actual toggle ScaledBoardDisplay renders for note-array boards -    the hero always uses fit mode. */
 .stage button {
   display: none;
 }

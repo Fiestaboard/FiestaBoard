@@ -176,11 +176,11 @@ export default function StatsPage(): ReactNode {
           <div className={styles.header}>
             <Heading as="h1">Plugin Stats</Heading>
             <p className={styles.subtitle}>
-              Popularity across all {data ? data.plugins.length : "—"} FiestaBoard plugins, updated daily.
+              Popularity across all {data ? data.plugins.length : "…"} FiestaBoard plugins, updated daily.
             </p>
           </div>
 
-          {error && <p className={styles.error}>Stats are unavailable right now — check back soon.</p>}
+          {error && <p className={styles.error}>Stats are unavailable right now - check back soon.</p>}
 
           {!data && !error && <div className={styles.loading}>Loading…</div>}
 
@@ -225,7 +225,7 @@ export default function StatsPage(): ReactNode {
               <section className={styles.section}>
                 <Heading as="h2">By category</Heading>
                 <p className={styles.sectionNote}>
-                  Sum of per-plugin installs by category, last {data.window_days} days — users installing multiple
+                  Sum of per-plugin installs by category, last {data.window_days} days - users installing multiple
                   plugins in the same category are counted once per plugin
                 </p>
                 <div className={styles.categoryGrid}>
