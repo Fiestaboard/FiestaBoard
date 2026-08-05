@@ -17,7 +17,8 @@
 .inner {
   max-width: 1140px;
   margin: 0 auto;
-  padding: 80px 24px;
+  /* Fluid vertical rhythm: full 80px on desktop, ~half on phones. */
+  padding: clamp(48px, 8vw, 80px) 24px;
 }
 
 .sectionTitle {
@@ -29,7 +30,7 @@
 }
 
 .sectionSubtitle {
-  margin: 10px 0 36px;
+  margin: 10px 0 clamp(28px, 5vw, 36px);
   font-size: 17px;
   color: var(--muted-foreground);
 }
@@ -143,13 +144,15 @@
 .showcaseStack {
   display: flex;
   flex-direction: column;
-  gap: 56px;
+  /* Stays larger than the intra-row gap below so stacked rows still read as
+     separate image + caption groups on phones. */
+  gap: clamp(44px, 7vw, 56px);
 }
 
 .showcaseRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 36px;
+  gap: clamp(20px, 4vw, 36px);
   align-items: center;
 }
 
@@ -161,7 +164,7 @@
 .showcaseRowReverse {
   display: flex;
   flex-wrap: wrap;
-  gap: 36px;
+  gap: clamp(20px, 4vw, 36px);
   align-items: center;
 }
 
@@ -255,7 +258,7 @@
 .ctaInner {
   max-width: 760px;
   margin: 0 auto;
-  padding: 88px 24px;
+  padding: clamp(56px, 9vw, 88px) 24px;
   text-align: center;
 }
 
