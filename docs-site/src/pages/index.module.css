@@ -10,10 +10,11 @@
 .heroInner {
   max-width: 1140px;
   margin: 0 auto;
-  padding: 80px 24px 88px;
+  /* Fluid vertical rhythm: full 80/88px on desktop, ~half on phones. */
+  padding: clamp(48px, 8vw, 80px) 24px clamp(56px, 9vw, 88px);
   display: flex;
   flex-wrap: wrap;
-  gap: 56px;
+  gap: clamp(32px, 6vw, 56px);
   align-items: center;
 }
 
@@ -72,5 +73,6 @@
    shift when the client-only <HeroBoard> mounts. */
 .heroBoardFallback {
   width: 100%;
-  min-height: 392px;
+  /* Match .stage's responsive min-height (+ gap and caption). */
+  min-height: min(392px, 57vw + 32px);
 }

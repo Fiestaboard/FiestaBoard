@@ -6,8 +6,10 @@
 .stage {
   width: 100%;
   /* Tall enough for the tallest board (the narrow 1×2 note array renders at
-     natural height rather than being width-scaled down). */
-  min-height: 360px;
+     natural height rather than being width-scaled down). Below ~630px the
+     boards fit-scale with the viewport (tallest ≈ 50vw), so scale the reserve
+     down too instead of holding ~200px of blank space on phones. */
+  min-height: min(360px, 57vw);
   display: flex;
   flex-direction: column;
   align-items: center;
