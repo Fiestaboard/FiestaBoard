@@ -114,12 +114,23 @@ test.describe("HA Ingress", () => {
     await page.goto(`${PREFIX}/`);
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
-    for (const [link, heading] of [
-      ["Pages", "Pages"],
-      ["Settings", "Settings"],
+    for (const [link, heading, path] of [
+      ["Pages", "Pages", "pages"],
+      ["Settings", "Settings", "settings"],
     ] as const) {
-      await page.getByRole("link", { name: link }).first().click();
-      await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible({ timeout: 10_000 });
+      // The click can land before the app is interactive — the dashboard is
+      // still fetching its board display at this point — and a swallowed
+      // click leaves us on the previous route with no navigation at all.
+      // Retry the click until the URL actually changes, so that a genuinely
+      // broken lazy chunk still fails below (on the heading + violation
+      // assertions) rather than being masked, and vice versa: a lost click
+      // no longer masquerades as a chunk failure.
+      await expect(async () => {
+        await page.getByRole("link", { name: link }).first().click();
+        await page.waitForURL(`**${PREFIX}/${path}`, { timeout: 5_000 });
+      }).toPass({ timeout: 20_000 });
+
+      await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible({ timeout: 15_000 });
     }
 
     expect(escapes, "lazy-route requests must stay under the ingress prefix").toEqual([]);
