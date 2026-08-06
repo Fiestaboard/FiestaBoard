@@ -55,11 +55,10 @@
   text-wrap: balance;
 }
 
+/* Layout (flex/gap/wrap) comes from the `Flex` primitive in index.tsx; only
+   the spacing above it is page-specific. */
 .heroButtons {
-  display: flex;
-  gap: 12px;
   margin-top: 32px;
-  flex-wrap: wrap;
 }
 
 .heroBoard {

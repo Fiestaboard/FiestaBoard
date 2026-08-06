@@ -1,4 +1,4 @@
-import { ScaledBoardDisplay } from "@fiestaboard/ui";
+import { Box, ScaledBoardDisplay, Text } from "@fiestaboard/ui";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import styles from "./styles.module.css";
@@ -203,8 +203,8 @@ export default function HeroBoard(): ReactNode {
   const board = BOARDS[shown];
 
   return (
-    <div className={styles.stage}>
-      <div className={styles.frame} data-visible={visible}>
+    <Box className={styles.stage}>
+      <Box className={styles.frame} data-visible={visible}>
         <ScaledBoardDisplay
           key={shown}
           message={message}
@@ -214,10 +214,10 @@ export default function HeroBoard(): ReactNode {
           size="md"
           animationsEnabled={false}
         />
-      </div>
-      <div className={styles.caption} data-visible={visible}>
+      </Box>
+      <Text as="span" className={styles.caption} data-visible={visible}>
         {board.label}
-      </div>
-    </div>
+      </Text>
+    </Box>
   );
 }
