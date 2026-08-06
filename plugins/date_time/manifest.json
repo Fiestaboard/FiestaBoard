@@ -254,6 +254,28 @@
       }
     ]
   },
+  "teaser": "Sat  2:30 PM",
+  "previews": [
+    {
+      "device_type": "flagship",
+      "rows": [
+        "                      ",
+        "       Saturday       ",
+        "     July 4 2026      ",
+        "       2:30 PM        ",
+        "         PST          ",
+        "                      "
+      ]
+    },
+    {
+      "device_type": "note",
+      "rows": [
+        "   Saturday    ",
+        "  July 4 2026  ",
+        "  2:30 PM PST  "
+      ]
+    }
+  ],
   "screenshots": [
     {
       "src": "docs/board-display.png",

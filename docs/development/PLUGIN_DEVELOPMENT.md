@@ -355,12 +355,43 @@ If you want only your declared variables to appear (hiding any extra data keys):
 
 ---
 
+## Board Previews
+
+The plugin directory renders your plugin as a real split-flap board built from
+manifest metadata — not a screenshot. Declare two fields:
+
+```json
+{
+  "teaser": "{66}AAPL +1.88%",
+  "previews": [
+    {"device_type": "flagship", "rows": ["… up to 6 rows × 22 tiles …"]},
+    {"device_type": "note",     "rows": ["… up to 3 rows × 15 tiles …"]}
+  ]
+}
+```
+
+`teaser` is one line (max **15 tiles**, the Note width) shown on your plugin's
+directory card. `previews` is a list of literal boards, each declaring its own
+shape — add one per board family you have composed for.
+
+Widths are counted in **tiles, not characters**: a colour marker such as `{66}`
+occupies one flap regardless of how many characters it takes to write, and
+closing tags like `{/green}` occupy none. Content must be literal — a
+`{{variable}}` reference is rejected, because previews render with no plugin
+data to resolve against.
+
+Check your work with `python scripts/validate_plugins.py --verbose`. Transition
+plugins do not declare these fields.
+
+See the [plugin guide](https://fiestaboard.com/docs/development/plugin-guide#board-previews)
+for the full field reference.
+
 ## Plugin Structure
 
 ```text
 plugins/my_plugin/
 ├── __init__.py           # Required: Plugin implementation
-├── manifest.json         # Required: Plugin metadata + screenshots
+├── manifest.json         # Required: Plugin metadata + previews
 ├── README.md             # Required: Developer documentation
 ├── docs/                 # Required: User documentation + images
 │   ├── SETUP.md          # Setup guide (API keys, configuration)

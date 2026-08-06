@@ -162,6 +162,28 @@
       }
     ]
   },
+  "teaser": "86D 14H 30M",
+  "previews": [
+    {
+      "device_type": "flagship",
+      "rows": [
+        "                      ",
+        "  Last Day of School  ",
+        "       86 days        ",
+        "       14h 30m        ",
+        "     86D 14H 30M      ",
+        "                      "
+      ]
+    },
+    {
+      "device_type": "note",
+      "rows": [
+        "  Last Day of  ",
+        "    School     ",
+        "  86D 14H 30M  "
+      ]
+    }
+  ],
   "screenshots": [
     {
       "src": "docs/board-display.png",
