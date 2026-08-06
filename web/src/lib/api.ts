@@ -197,6 +197,9 @@ export interface OutputSettings {
 // Active page settings
 export interface ActivePageResponse {
   page_id: string | null;
+  // When page_id is a collection, the member page the collection is currently
+  // rendering on the board (issue #1513). Equals page_id for plain pages.
+  resolved_page_id?: string | null;
   board_id?: string | null;
 }
 
@@ -736,6 +739,9 @@ export interface SetTemporaryOverrideRequest {
 
 export interface ActiveScheduleResponse {
   page_id: string | null;
+  // When page_id is a collection, the member page the collection is currently
+  // rendering on the board (issue #1513). Equals page_id for plain pages.
+  resolved_page_id?: string | null;
   source: "schedule" | "manual" | "none";
   schedule_enabled: boolean;
   current_time?: string;
