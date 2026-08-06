@@ -72,6 +72,6 @@
    shift when the client-only <HeroBoard> mounts. */
 .heroBoardFallback {
   width: 100%;
-  /* Match .stage's responsive min-height (+ gap and caption). */
-  min-height: min(392px, 57vw + 32px);
+  /* Match .stage's responsive min-height (+ gap and the two-line caption). */
+  min-height: min(409px, 57vw + 49px);
 }
