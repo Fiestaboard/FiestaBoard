@@ -9091,9 +9091,29 @@ async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRe
 
     compound_key = registry.make_instance_key(base_id, request.label)
 
-    # Persist empty config so the instance survives restarts
     config_manager = get_config_manager()
-    config_manager.set_plugin_config(compound_key, {"enabled": False})
+    # The registry can come up without its named instances — an unreadable
+    # config.json, or a base plugin that failed to load, both leave the stored
+    # entries untouched but drop the live instances. The UI then shows nothing
+    # and the user re-adds the label by hand. Blindly persisting an empty
+    # config here used to overwrite their saved settings with
+    # `{"enabled": false}`, so the plugin fell back to manifest defaults.
+    # Adopt whatever is still on disk instead.
+    stored = config_manager.get_plugin_config(compound_key)
+    if stored:
+        errors = registry.apply_stored_config(compound_key, stored)
+        if errors:
+            logger.warning(
+                "Adopted stored config for re-created instance '%s' despite validation errors: %s",
+                compound_key,
+                errors,
+            )
+        if stored.get("enabled"):
+            registry.enable_plugin(compound_key)
+        logger.info("Re-created instance '%s' adopted its existing stored config", compound_key)
+    else:
+        # Persist empty config so the instance survives restarts
+        config_manager.set_plugin_config(compound_key, {"enabled": False})
     # Re-creating an instance is an explicit user action — drop any
     # deliberate-removal tombstone left by a prior delete (#1394).
     config_manager.clear_plugin_removed(compound_key)
@@ -9104,12 +9124,16 @@ async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRe
 
     logger.info(f"Created plugin instance: {compound_key}")
 
+    # Report the normalized label — that is the instance the registry holds and
+    # the one `{{plugin:label.field}}` template references must use.
+    _, instance_label = registry.parse_instance_key(compound_key)
+
     return {
         "status": "success",
         "plugin_id": base_id,
-        "instance_label": request.label,
+        "instance_label": instance_label,
         "instance_key": compound_key,
-        "message": f"Instance '{request.label}' created for plugin '{base_id}'.",
+        "message": f"Instance '{instance_label}' created for plugin '{base_id}'.",
     }
 
 
