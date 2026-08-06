@@ -109,6 +109,10 @@ test.describe("HA Ingress", () => {
     // runtime preload helper, which used to build root-absolute
     // `/assets/...` URLs that bypassed the prefix and 404'd against the
     // Home Assistant origin.
+    // Two retried navigations on a loaded-from-cold container don't fit in
+    // the 30s default; the retries below need room to actually retry.
+    test.setTimeout(90_000);
+
     const { escapes, notFound } = trackIngressViolations(page);
 
     await page.goto(`${PREFIX}/`);
@@ -119,18 +123,21 @@ test.describe("HA Ingress", () => {
       ["Settings", "Settings", "settings"],
     ] as const) {
       // The click can land before the app is interactive — the dashboard is
-      // still fetching its board display at this point — and a swallowed
-      // click leaves us on the previous route with no navigation at all.
-      // Retry the click until the URL actually changes, so that a genuinely
-      // broken lazy chunk still fails below (on the heading + violation
-      // assertions) rather than being masked, and vice versa: a lost click
-      // no longer masquerades as a chunk failure.
+      // still fetching its board display at this point — and a half-landed
+      // click leaves the app on the previous route. That shows up two ways:
+      // no navigation at all, and — seen in CI — the URL swapping to
+      // `/pages` while the DOM keeps rendering the dashboard indefinitely,
+      // i.e. the router committed the history entry but React never
+      // committed the route. Waiting on the URL alone only catches the
+      // first, so retry the click until the route has actually *rendered*.
+      // A genuinely broken lazy chunk still fails: the heading never
+      // appears however many times we click, and the violation assertions
+      // below are untouched.
       await expect(async () => {
         await page.getByRole("link", { name: link }).first().click();
         await page.waitForURL(`**${PREFIX}/${path}`, { timeout: 5_000 });
-      }).toPass({ timeout: 20_000 });
-
-      await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible({ timeout: 10_000 });
+      }).toPass({ timeout: 30_000 });
     }
 
     expect(escapes, "lazy-route requests must stay under the ingress prefix").toEqual([]);
