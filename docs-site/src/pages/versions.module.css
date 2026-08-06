@@ -12,12 +12,8 @@
 /* Current version reads as a card, not a one-row table - it is the thing most
    visitors want, so it gets weight rather than the same treatment as the list
    of older versions below it. */
+/* Flex layout (wrap/align/justify/gap) comes from the `Flex` primitive. */
 .currentCard {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   margin-top: 14px;
   padding: 20px 22px;
   border: 1px solid var(--border);
@@ -53,11 +49,7 @@
   margin-bottom: 10px;
 }
 
-.chipGrid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+/* Flex layout (wrap/gap) comes from the `Flex` primitive. */
 
 .chip {
   display: inline-flex;

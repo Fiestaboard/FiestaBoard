@@ -1,7 +1,7 @@
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import Link from "@docusaurus/Link";
 import { useColorMode } from "@docusaurus/theme-common";
-import { Badge, Button, Code, ScaledBoardDisplay, TextLink } from "@fiestaboard/ui";
+import { Badge, Box, Button, Code, Heading, ScaledBoardDisplay, Text, TextLink } from "@fiestaboard/ui";
 import { type ReactNode } from "react";
 
 import { plugins } from "../../plugin-data";
@@ -198,33 +198,37 @@ function deriveThemedPath(src: string, mode: "light" | "dark"): string {
 
 function FeatureCard({ title, icon, description }: FeatureItem) {
   return (
-    <div className={styles.featureCard}>
+    <Box className={styles.featureCard}>
       <img className={styles.featureCardImage} src={icon} alt={title} loading="lazy" />
-      <div className={styles.featureCardBody}>
-        <h3 className={styles.featureCardTitle}>{title}</h3>
-        <p className={styles.featureCardDesc}>{description}</p>
-      </div>
-    </div>
+      <Box className={styles.featureCardBody}>
+        <Heading level={3} className={styles.featureCardTitle}>
+          {title}
+        </Heading>
+        <Text className={styles.featureCardDesc}>{description}</Text>
+      </Box>
+    </Box>
   );
 }
 
 function HighlightCard({ title, description, primary, secondary }: HighlightItem) {
   return (
-    <div className={styles.highlightCard}>
+    <Box className={styles.highlightCard}>
       <Badge variant="success" className={styles.newBadge}>
         New
       </Badge>
-      <h3 className={styles.highlightTitle}>{title}</h3>
-      <p className={styles.highlightBody}>{description}</p>
-      <div className={styles.cardButtons}>
+      <Heading level={3} className={styles.highlightTitle}>
+        {title}
+      </Heading>
+      <Text className={styles.highlightBody}>{description}</Text>
+      <Box className={styles.cardButtons}>
         <Button variant="secondary" size="sm" asChild>
           <Link to={primary.to}>{primary.label}</Link>
         </Button>
         <Button variant="ghost" size="sm" asChild>
           <Link to={secondary.to}>{secondary.label}</Link>
         </Button>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
@@ -232,29 +236,31 @@ function ShowcaseRow({ title, image, alt, description, link, reverse }: Showcase
   const { colorMode } = useColorMode();
   const src = deriveThemedPath(image, colorMode);
   return (
-    <div className={reverse ? styles.showcaseRowReverse : styles.showcaseRow}>
-      <div className={styles.showcaseImage}>
+    <Box className={reverse ? styles.showcaseRowReverse : styles.showcaseRow}>
+      <Box className={styles.showcaseImage}>
         <img src={src} alt={alt} loading="lazy" />
-      </div>
-      <div className={styles.showcaseContent}>
-        <h3 className={styles.showcaseTitle}>{title}</h3>
-        <p className={styles.showcaseDesc}>{description}</p>
+      </Box>
+      <Box className={styles.showcaseContent}>
+        <Heading level={3} className={styles.showcaseTitle}>
+          {title}
+        </Heading>
+        <Text className={styles.showcaseDesc}>{description}</Text>
         <TextLink href={link}>Learn More →</TextLink>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
 function PluginCard({ title, description, link, message }: PluginItem) {
   return (
     <Link to={link} className={styles.pluginCard}>
-      <div className={styles.pluginCardBoard}>
-        <BrowserOnly fallback={<div className={styles.pluginBoardFallback} />}>
+      <Box className={styles.pluginCardBoard}>
+        <BrowserOnly fallback={<Box className={styles.pluginBoardFallback} />}>
           {() => <ScaledBoardDisplay message={message} size="sm" />}
         </BrowserOnly>
-      </div>
-      <div className={styles.pluginCardName}>{title}</div>
-      <div className={styles.pluginCardDesc}>{description}</div>
+      </Box>
+      <Text className={styles.pluginCardName}>{title}</Text>
+      <Text className={styles.pluginCardDesc}>{description}</Text>
     </Link>
   );
 }
@@ -264,81 +270,89 @@ export default function HomepageFeatures(): ReactNode {
   return (
     <>
       {/* Feature grid */}
-      <section className={styles.section}>
-        <div className={styles.inner}>
-          <div className={styles.featureGrid}>
+      <Box as="section" className={styles.section}>
+        <Box className={styles.inner}>
+          <Box className={styles.featureGrid}>
             {FeatureList.map((props) => (
               <FeatureCard key={props.title} {...props} />
             ))}
-          </div>
-        </div>
-      </section>
+          </Box>
+        </Box>
+      </Box>
 
       {/* What's New */}
-      <section className={styles.sectionMuted}>
-        <div className={styles.inner}>
-          <h2 className={styles.sectionTitle}>What&apos;s New</h2>
-          <p className={styles.sectionSubtitle}>
+      <Box as="section" className={styles.sectionMuted}>
+        <Box className={styles.inner}>
+          <Heading level={2} className={styles.sectionTitle}>
+            What&apos;s New
+          </Heading>
+          <Text className={styles.sectionSubtitle}>
             The fastest way to run FiestaBoard, and updates without ever touching a terminal
-          </p>
-          <div className={styles.highlightGrid}>
+          </Text>
+          <Box className={styles.highlightGrid}>
             {HighlightList.map((props) => (
               <HighlightCard key={props.title} {...props} />
             ))}
-          </div>
-        </div>
-      </section>
+          </Box>
+        </Box>
+      </Box>
 
       {/* See It in Action */}
-      <section className={styles.section}>
-        <div className={styles.inner}>
-          <h2 className={styles.sectionTitle}>See It in Action</h2>
-          <p className={styles.sectionSubtitle}>A powerful web interface to manage your split-flap display</p>
-          <div className={styles.showcaseStack}>
+      <Box as="section" className={styles.section}>
+        <Box className={styles.inner}>
+          <Heading level={2} className={styles.sectionTitle}>
+            See It in Action
+          </Heading>
+          <Text className={styles.sectionSubtitle}>A powerful web interface to manage your split-flap display</Text>
+          <Box className={styles.showcaseStack}>
             {FeatureShowcaseList.map((props, idx) => (
               <ShowcaseRow key={props.title} {...props} reverse={idx % 2 === 1} />
             ))}
-          </div>
-        </div>
-      </section>
+          </Box>
+        </Box>
+      </Box>
 
       {/* Plugin grid */}
-      <section className={styles.sectionMuted}>
-        <div className={styles.inner}>
-          <h2 className={styles.sectionTitle}>{pluginCount}+ Plugins and Counting</h2>
-          <p className={styles.sectionSubtitle}>
+      <Box as="section" className={styles.sectionMuted}>
+        <Box className={styles.inner}>
+          <Heading level={2} className={styles.sectionTitle}>
+            {pluginCount}+ Plugins and Counting
+          </Heading>
+          <Text className={styles.sectionSubtitle}>
             From weather and stocks to Disney park wait times - there&apos;s a plugin for everything
-          </p>
-          <div className={styles.pluginGrid}>
+          </Text>
+          <Box className={styles.pluginGrid}>
             {PluginList.map((props) => (
               <PluginCard key={props.title} {...props} />
             ))}
-          </div>
-          <div className={styles.centerAction}>
+          </Box>
+          <Box className={styles.centerAction}>
             <Button variant="outline" size="lg" asChild>
               <Link to="/plugins">Explore All Plugins</Link>
             </Button>
-          </div>
-        </div>
-      </section>
+          </Box>
+        </Box>
+      </Box>
 
       {/* CTA */}
-      <section className={styles.section}>
-        <div className={styles.ctaInner}>
-          <h2 className={styles.sectionTitle}>Ready to Get Started?</h2>
-          <p className={styles.ctaSubtitle}>
+      <Box as="section" className={styles.section}>
+        <Box className={styles.ctaInner}>
+          <Heading level={2} className={styles.sectionTitle}>
+            Ready to Get Started?
+          </Heading>
+          <Text className={styles.ctaSubtitle}>
             FiestaBoard is free, open source, and runs anywhere Docker does. Get up and running in minutes.
-          </p>
-          <div className={styles.centerAction}>
+          </Text>
+          <Box className={styles.centerAction}>
             <Button variant="brand" size="lg" asChild>
               <Link to="/docs/setup/beginners-guide">Beginner&apos;s Guide</Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
               <Link to="/docs/development/plugin-guide">Build a Plugin</Link>
             </Button>
-          </div>
-        </div>
-      </section>
+          </Box>
+        </Box>
+      </Box>
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { Button, ScaledBoardDisplay } from "@fiestaboard/ui";
+import { Button, ScaledBoardDisplay, Text } from "@fiestaboard/ui";
 import { Pause, Play } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
@@ -275,8 +275,8 @@ export default function HeroBoard(): ReactNode {
   const board = BOARDS[shown];
 
   return (
-    <div className={styles.stage}>
-      <div className={styles.frame} data-visible={visible}>
+    <Box className={styles.stage}>
+      <Box className={styles.frame} data-visible={visible}>
         <ScaledBoardDisplay
           key={shown}
           message={message}
@@ -286,25 +286,19 @@ export default function HeroBoard(): ReactNode {
           size="md"
           animationsEnabled={false}
         />
-      </div>
-      <div className={styles.captionRow}>
-        <div className={styles.caption} data-visible={visible}>
-          <div className={styles.captionTitle}>{board.title}</div>
-          <div className={styles.captionMeta}>{board.label}</div>
-        </div>
-        {/* WCAG 2.2.2 (Pause, Stop, Hide): the rotation runs indefinitely, so it
-            needs a control to stop it. Always visible - a hover-only control is
-            unreachable by keyboard and touch users. */}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className={styles.pauseButton}
-          onClick={() => setPaused((p) => !p)}
-          aria-label={paused ? "Resume board rotation" : "Pause board rotation"}
-        >
-          {paused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
-        </Button>
-      </div>
-    </div>
+      </Box>
+      <Text as="span" className={styles.caption} data-visible={visible}>
+        {board.label}
+      </Text>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className={styles.pauseButton}
+        onClick={() => setPaused((p) => !p)}
+        aria-label={paused ? "Resume board rotation" : "Pause board rotation"}
+      >
+        {paused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
+      </Button>
+    </Box>
   );
 }
