@@ -83,6 +83,35 @@ describe("ActivePageDisplay", () => {
     expect(editLink).toHaveAttribute("href", "/pages/edit/page-1");
   });
 
+  it("renders the page name as a direct child of the link so hover styling reaches it", async () => {
+    // A descendant carrying its own text-* color class (e.g. <Text>, which
+    // always emits one) beats the anchor's inherited hover:text-primary, so the
+    // name would stay static while only the pencil icon changed color. Keep
+    // the name an unwrapped text node and the color on the anchor itself.
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Weather Page")).toBeInTheDocument();
+    });
+
+    const editLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
+    expect(editLink.className).toMatch(/hover:text-primary/);
+
+    const namedByOwnText = Array.from(editLink.childNodes).some(
+      (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === "Weather Page",
+    );
+    expect(namedByOwnText).toBe(true);
+
+    // getAttribute, not .className — the pencil is an <svg>, whose className is
+    // an SVGAnimatedString rather than a string.
+    const coloredDescendants = Array.from(editLink.querySelectorAll("*")).filter((el) =>
+      /(^|\s)text-(foreground|muted-foreground|primary|destructive|info|success|warning)(\s|$)/.test(
+        el.getAttribute("class") ?? "",
+      ),
+    );
+    expect(coloredDescendants).toEqual([]);
+  });
+
   it("does not render a page edit link when a collection is active", async () => {
     // Collections aren't a single editable page, so no editor link.
     server.use(
