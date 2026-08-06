@@ -81,6 +81,47 @@ describe("SystemUpdate", () => {
     expect(screen.queryByText(/Pull & Restart/i)).not.toBeInTheDocument();
   });
 
+  it("renders nothing when an update is available but updates are managed externally (HA add-on)", async () => {
+    server.use(
+      http.get(`${API_BASE}/system/update-check`, () => {
+        return HttpResponse.json({
+          current_version: "2.0.1",
+          latest_version: "2.0.2",
+          update_available: true,
+          package_url: "https://github.com/Fiestaboard/FiestaBoard/releases/latest",
+          error: null,
+          is_production: true,
+        });
+      }),
+      http.get(`${API_BASE}/system/update/status`, () => {
+        return HttpResponse.json({
+          updater_available: false,
+          auto_update_enabled: false,
+          auto_update_interval: "weekly",
+          managed_externally: true,
+          profile: null,
+          sidecar_url: null,
+          last_check: null,
+          last_update: null,
+          last_update_status: null,
+          last_update_action: null,
+          last_update_error: null,
+          snapshots: [],
+        });
+      }),
+    );
+
+    render(<SystemUpdate />, { wrapper: TestWrapper });
+
+    // Even though an update is available, the banner and the docker-compose
+    // "enable one-click updates" hint must never appear under HA.
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText("Update Available")).not.toBeInTheDocument();
+    expect(screen.queryByText(/COMPOSE_PROFILES=fiestaupdater/)).not.toBeInTheDocument();
+  });
+
   it("renders nothing when update check fails", async () => {
     server.use(
       http.get(`${API_BASE}/system/update-check`, () => {

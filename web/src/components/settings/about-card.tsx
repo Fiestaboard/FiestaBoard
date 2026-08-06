@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Cpu, ExternalLink, Info, Package } from "lucide-react";
 
 import { useStatus } from "@/hooks/use-board";
+import { useIsManagedExternally } from "@/hooks/use-managed-externally";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ export function AboutCard() {
 
   const { data: statusData, isLoading: isLoadingStatus } = useStatus();
   const isRunning = statusData?.running ?? false;
+  const managedExternally = useIsManagedExternally();
 
   return (
     <Card>
@@ -97,7 +99,7 @@ export function AboutCard() {
                       {t("devBuild")}
                     </Badge>
                   )}
-                  {updateCheck?.update_available && (
+                  {!managedExternally && updateCheck?.update_available && (
                     <Badge variant="outline" className="text-xs text-warning border-warning/50">
                       v{updateCheck.latest_version} available
                     </Badge>

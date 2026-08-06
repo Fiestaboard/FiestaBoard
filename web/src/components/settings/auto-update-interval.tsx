@@ -104,7 +104,12 @@ export function AutoUpdateIntervalCard() {
   // Hide the card entirely when the status query failed — the rest of the
   // System page already surfaces that error, and a half-broken selector is
   // worse than nothing.
-  if (isLoading || !status) {
+  //
+  // Also hide it under an external supervisor (the Home Assistant add-on):
+  // scheduling background update checks is meaningless when the Supervisor
+  // owns updates, and the manual "Check now" button would only produce a
+  // notification the user can't act on.
+  if (isLoading || !status || status.managed_externally) {
     return null;
   }
 
