@@ -38,10 +38,17 @@ change to the fade logic. The caption is not a live region: it is plain text
 that changes every few seconds, and announcing each change would spam screen
 readers for content that is decorative on a marketing page.
 
-**Layout shift:** the extra line makes the stage taller. `.stage`'s
-`min-height` reserve and `.heroBoardFallback`'s matching reserve in
-`src/pages/index.module.css` both grow by one line-height (~18px), keeping the
-pre-hydration placeholder the same height as the mounted component.
+**Layout shift:** the extra line makes the stage taller, and the two reserves
+that keep the hero from shifting — `.stage`'s `min-height` and
+`.heroBoardFallback`'s pre-hydration placeholder in `src/pages/index.module.css`
+— have to grow with it.
+
+Rather than re-estimate them, both are set to the measured height of the
+tallest board plus the two-line caption: `min(409px, 57vw + 49px)`. Previously
+they disagreed (360px vs 392px), so the hero shrank on hydration and grew again
+whenever the tall 1×2 array came around. With both at the same value the stage
+is the same height on all nine boards and matches the placeholder exactly, so
+the hero never shifts at all.
 
 ### 2. Three data-and-color boards
 
@@ -100,6 +107,12 @@ FRI {orange} HOT       78 58
 {orange}SF BALL 1ST+10
 ```
 
+**Existing board fixed in passing.** Checking every row against its grid turned
+up a pre-existing overflow: Transit + Markets had 31-cell rows on a 30-cell
+grid, so two of its three rows lost their last character (`BART 9 MI`,
+`-0.9`). A 2 × 1 array is two 15-column Notes side by side, so its content is
+relaid to 15 cells per half with a blank column either side of the seam.
+
 ### 3. Random colorful opener
 
 Nine boards at 4.8s each is a 43-second loop — longer than most visitors stay,
@@ -130,6 +143,38 @@ field disappears from `BoardConfig` entirely.
 The staggered settle timing (`4 + col * 0.8 + row * 1.6 + rand(0..7)` frames)
 is unchanged.
 
+### 5. Pause control (WCAG 2.2.2)
+
+The rotation starts on load and runs indefinitely, which fails WCAG 2.2.2
+(Pause, Stop, Hide): any automatically moving or auto-updating content lasting
+more than five seconds needs a mechanism to pause it. Today there is none.
+
+A pause/resume toggle sits next to the caption, below the board:
+
+- A real `<button>` (FiestaUI `Button`, `variant="ghost"`, `size="icon-sm"` —
+  32px, above the 24px WCAG 2.5.8 target minimum), so it is keyboard-focusable
+  and gets the design system's focus ring for free
+- Always visible. A control revealed only on hover is unreachable by keyboard
+  and touch users, which would not satisfy 2.2.2
+- Lucide `Pause`/`Play` icon, `aria-hidden`, with the accessible name carried
+  by `aria-label` — "Pause board rotation" / "Resume board rotation". The label
+  changes with state, so no `aria-pressed` (which would double-announce it)
+- It does not fade with the board: only the caption text is inside the fading
+  element, so the control is never mid-fade when someone reaches for it
+
+Clicking the board itself was considered and rejected — a clickable `div` is
+not focusable or announced, and making the board a `<button>` would wrap a grid
+of content in an interactive element.
+
+Implementation: the single mount effect splits in two — one that flaps the
+opening board in, and one that owns the rotation interval and re-runs on
+`paused`. Pausing mid-fade clears the pending fade-in timeout, so its cleanup
+also restores `visible`, otherwise the board would be stranded half-faded.
+
+One CSS knock-on: `.stage button { display: none }` (which hides the Fit/Actual
+toggle `ScaledBoardDisplay` renders for note arrays) would hide the pause
+button too. It narrows to `.frame button`.
+
 ## Testing
 
 `docs-site` has no test runner. Verification is:
@@ -140,6 +185,8 @@ is unchanged.
   caption, that no row overflows its grid, and that the mixed boards scramble
   through colors rather than glyph garbage
 - Reduced-motion path: message set directly, caption still correct
+- Pause control: keyboard-reachable, toggles the rotation, label flips, and
+  pausing mid-fade leaves the board fully visible
 
 Per the repo's container rules, all of this runs in a throwaway node container
 rather than installing `docs-site` dependencies on the host.
