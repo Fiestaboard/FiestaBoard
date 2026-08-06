@@ -372,6 +372,15 @@ jobs:
       working-directory: docs-site
       run: npm run lint
 
+    # A green `Build Docs` is not proof the site runs. Docusaurus prerenders
+    # at build time, so anything inside <BrowserOnly> is never evaluated and a
+    # broken reference in one of those components ships silently (a missing
+    # `Box` import in HeroBoard took the homepage down in prod this way).
+    # tsc sees the whole tree, so it catches what the build cannot.
+    - name: Typecheck
+      working-directory: docs-site
+      run: npm run typecheck
+
     - name: Prettier check
       working-directory: docs-site
       run: npm run format:check
