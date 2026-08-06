@@ -1,4 +1,4 @@
-import { Button, ScaledBoardDisplay, Text } from "@fiestaboard/ui";
+import { Box, Button, ScaledBoardDisplay, Text } from "@fiestaboard/ui";
 import { Pause, Play } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
