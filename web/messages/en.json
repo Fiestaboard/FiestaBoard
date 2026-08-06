@@ -571,6 +571,7 @@
     "noPageScheduled": "No page scheduled for current time. Set a default page in",
     "scheduleSettingsLink": "Schedule settings",
     "scheduleGapNoDefault": "Schedule gap (no default page set)",
+    "editActivePage": "Edit page \"{pageName}\"",
     "toastSetActivePage": "Set \"{pageName}\" as active page",
     "toastSetDefaultFailed": "Failed to set default page",
     "toastSwitchSuccess": "Switched to active page",

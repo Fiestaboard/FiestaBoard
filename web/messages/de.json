@@ -614,6 +614,7 @@
     "noPageScheduled": "Keine Seite für die aktuelle Zeit geplant. Legen Sie eine Standardseite fest unter",
     "scheduleSettingsLink": "Zeitplaneinstellungen",
     "scheduleGapNoDefault": "Zeitplanlücke (keine Standardseite festgelegt)",
+    "editActivePage": "Seite \"{pageName}\" bearbeiten",
     "toastSetActivePage": "\"{pageName}\" als aktive Seite festgelegt",
     "toastSetDefaultFailed": "Standardseite konnte nicht festgelegt werden",
     "toastSwitchSuccess": "Zur aktiven Seite gewechselt",

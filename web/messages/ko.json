@@ -614,6 +614,7 @@
     "noPageScheduled": "현재 시간에 예약된 페이지가 없습니다. 기본 페이지를 설정하세요",
     "scheduleSettingsLink": "스케줄 설정",
     "scheduleGapNoDefault": "스케줄 빈 시간대 (기본 페이지 미설정)",
+    "editActivePage": "\"{pageName}\" 페이지 편집",
     "toastSetActivePage": "\"{pageName}\"을(를) 활성 페이지로 설정했습니다",
     "toastSetDefaultFailed": "기본 페이지 설정에 실패했습니다",
     "toastSwitchSuccess": "활성 페이지로 전환되었습니다",

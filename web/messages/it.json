@@ -614,6 +614,7 @@
     "noPageScheduled": "Nessuna pagina programmata per l'orario corrente. Imposta una pagina predefinita in",
     "scheduleSettingsLink": "Impostazioni programmazione",
     "scheduleGapNoDefault": "Lacuna nella programmazione (nessuna pagina predefinita impostata)",
+    "editActivePage": "Modifica pagina \"{pageName}\"",
     "toastSetActivePage": "\"{pageName}\" impostata come pagina attiva",
     "toastSetDefaultFailed": "Impossibile impostare la pagina predefinita",
     "toastSwitchSuccess": "Passato alla pagina attiva",

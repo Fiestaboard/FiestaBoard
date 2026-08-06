@@ -614,6 +614,7 @@
     "noPageScheduled": "Geen pagina ingepland voor het huidige tijdstip. Stel een standaardpagina in bij",
     "scheduleSettingsLink": "Planningsinstellingen",
     "scheduleGapNoDefault": "Planningsgat (geen standaardpagina ingesteld)",
+    "editActivePage": "Pagina \"{pageName}\" bewerken",
     "toastSetActivePage": "\"{pageName}\" ingesteld als actieve pagina",
     "toastSetDefaultFailed": "Standaardpagina instellen mislukt",
     "toastSwitchSuccess": "Gewisseld naar actieve pagina",

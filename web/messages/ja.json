@@ -614,6 +614,7 @@
     "noPageScheduled": "現在の時間にスケジュールされたページがありません。デフォルトページを設定してください:",
     "scheduleSettingsLink": "スケジュール設定",
     "scheduleGapNoDefault": "スケジュールの空き時間（デフォルトページ未設定）",
+    "editActivePage": "ページ「{pageName}」を編集",
     "toastSetActivePage": "「{pageName}」をアクティブページに設定しました",
     "toastSetDefaultFailed": "デフォルトページの設定に失敗しました",
     "toastSwitchSuccess": "アクティブページに切り替えました",

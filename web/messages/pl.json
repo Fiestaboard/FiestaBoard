@@ -614,6 +614,7 @@
     "noPageScheduled": "Brak zaplanowanej strony na aktualny czas. Ustaw domyślną stronę w",
     "scheduleSettingsLink": "Ustawienia harmonogramu",
     "scheduleGapNoDefault": "Przerwa w harmonogramie (brak domyślnej strony)",
+    "editActivePage": "Edytuj stronę „{pageName}”",
     "toastSetActivePage": "Ustawiono \"{pageName}\" jako aktywną stronę",
     "toastSetDefaultFailed": "Nie udało się ustawić domyślnej strony",
     "toastSwitchSuccess": "Przełączono na aktywną stronę",

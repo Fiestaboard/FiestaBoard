@@ -614,6 +614,7 @@
     "noPageScheduled": "На текущее время страница не запланирована. Установите страницу по умолчанию в",
     "scheduleSettingsLink": "Настройках расписания",
     "scheduleGapNoDefault": "Пропуск в расписании (страница по умолчанию не задана)",
+    "editActivePage": "Редактировать страницу «{pageName}»",
     "toastSetActivePage": "Установлена активная страница «{pageName}»",
     "toastSetDefaultFailed": "Не удалось установить страницу по умолчанию",
     "toastSwitchSuccess": "Переключено на активную страницу",

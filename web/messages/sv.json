@@ -614,6 +614,7 @@
     "noPageScheduled": "Ingen sida schemalagd för aktuell tid. Ställ in en standardsida i",
     "scheduleSettingsLink": "Schemainställningar",
     "scheduleGapNoDefault": "Schemalucka (ingen standardsida inställd)",
+    "editActivePage": "Redigera sidan \"{pageName}\"",
     "toastSetActivePage": "Ställde in \"{pageName}\" som aktiv sida",
     "toastSetDefaultFailed": "Kunde inte ställa in standardsida",
     "toastSwitchSuccess": "Bytte till aktiv sida",
