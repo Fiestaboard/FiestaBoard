@@ -83,17 +83,6 @@
   font-weight: 500;
 }
 
-/* Align logo with nav: anchor image to bottom so text baseline matches nav
-   links; object-position crops the floating top of the taco so icon and text
-   look aligned. (Carried over from the previous theme.) */
-.navbar__logo img {
-  height: 48px;
-  width: auto;
-  object-fit: cover;
-  object-position: left 100%;
-  transform: translateY(-8px);
-}
-
 /* Code blocks: card-style frame matching the design references. */
 .theme-code-block,
 div[class*="codeBlockContainer"] {
@@ -101,15 +90,32 @@ div[class*="codeBlockContainer"] {
   border-radius: var(--radius);
 }
 
-/* Prev/next pagination cards: rounded, hover ring (FiestaboardDocs.dc.html). */
+/* Prev/next pagination: the anchor keeps Infima's `.pagination-nav` grid
+   placement (`--prev` / `--next` column + text alignment) but hands its box
+   treatment to the FiestaUI `Card` inside it. See src/theme/PaginatorNavLink. */
 .pagination-nav__link {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  transition: border-color 0.15s ease;
+  border: none;
+  padding: 0;
 }
 
-.pagination-nav__link:hover {
-  border-color: var(--ring);
+/* Navbar dropdown menu on DS surfaces - Infima's own dropdown tokens were
+   never part of the token bridge, so the panel kept its default white card. */
+.dropdown__menu {
+  background-color: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+.dropdown__link {
+  border-radius: calc(var(--radius) - 4px);
+  color: var(--muted-foreground);
+}
+
+.dropdown__link:hover,
+.dropdown__link--active {
+  background-color: var(--accent);
+  color: var(--foreground);
 }
 
 /* Hide the per-page version badge - the navbar version dropdown is sufficient. */
