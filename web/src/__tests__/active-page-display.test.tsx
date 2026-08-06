@@ -117,6 +117,69 @@ describe("ActivePageDisplay", () => {
     expect(screen.queryByRole("link", { name: /Edit page/i })).not.toBeInTheDocument();
   });
 
+  it("links to the scheduled page's editor when a schedule drives the display", async () => {
+    // Issue #1473 calls out complex schedules as the case where it's hardest to
+    // tell which saved page is on the board, so the link must follow the
+    // schedule's page — not whatever the manual active-page setting still says.
+    server.use(
+      http.get(`${API_BASE}/schedules/active/page`, () =>
+        HttpResponse.json({
+          page_id: "page-2",
+          source: "schedule",
+          schedule_enabled: true,
+          current_time: "09:00",
+          current_day: "monday",
+        }),
+      ),
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Custom Template")).toBeInTheDocument();
+    });
+
+    const editLink = screen.getByRole("link", { name: /Edit page "Custom Template"/i });
+    expect(editLink).toHaveAttribute("href", "/pages/edit/page-2");
+    // The manual active page (page-1) is stale in schedule mode; it must not leak through.
+    expect(screen.queryByRole("link", { name: /Edit page "Weather Page"/i })).not.toBeInTheDocument();
+  });
+
+  it("names the page edit link so it contains the visible page name", async () => {
+    // The aria-label overrides the visible text, so WCAG 2.5.3 (Label in Name)
+    // requires the accessible name to still contain the name shown on screen —
+    // otherwise "click Weather Page" fails for speech-input users.
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Weather Page")).toBeInTheDocument();
+    });
+
+    const editLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
+    expect(editLink).toHaveAccessibleName(expect.stringContaining("Weather Page"));
+  });
+
+  it("does not render a page edit link during a schedule gap", async () => {
+    // No page is scheduled for the current time, so there is nothing to edit.
+    server.use(
+      http.get(`${API_BASE}/schedules/active/page`, () =>
+        HttpResponse.json({
+          page_id: null,
+          source: "schedule",
+          schedule_enabled: true,
+        }),
+      ),
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Schedule gap (no default page set)")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("link", { name: /Edit page/i })).not.toBeInTheDocument();
+  });
+
   it("shows Change Page button in manual mode", async () => {
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
