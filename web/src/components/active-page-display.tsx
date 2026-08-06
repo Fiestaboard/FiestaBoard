@@ -37,7 +37,6 @@ import {
   Loader2,
   Moon,
   Pause,
-  Pencil,
   Radio,
   Timer,
   UploadCloud,
@@ -474,12 +473,11 @@ export function ActivePageDisplay() {
                 // so `hover:text-primary` isn't overridden on the name itself.
                 <Link
                   href={`/pages/edit/${activePage.id}`}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                  className="inline-flex items-center text-xs font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                   aria-label={t("editActivePage", { pageName: activePage.name })}
                   title={t("editActivePage", { pageName: activePage.name })}
                 >
                   {activePage.name}
-                  <Pencil className="h-3 w-3" aria-hidden="true" />
                 </Link>
               ) : (
                 <Text as="span" size="xs" weight="medium">
