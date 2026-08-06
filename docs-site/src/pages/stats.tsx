@@ -1,7 +1,7 @@
 import Link from "@docusaurus/Link";
+import { Badge, Box, Button, Heading, List, ListItem, Text } from "@fiestaboard/ui";
 import type { PluginEntry } from "@site/src/plugin-data";
 import { CATEGORY_LABELS as REGISTRY_CATEGORY_LABELS, pluginBoardImagePath, plugins } from "@site/src/plugin-data";
-import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import * as Icons from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
@@ -42,29 +42,35 @@ function PluginIcon({ name, size = 24 }: { name: string; size?: number }) {
 
 function StatStrip({ items }: { items: { value: string | number; label: string }[] }) {
   return (
-    <div className={styles.statStrip}>
+    <Box className={styles.statStrip}>
       {items.map((item, i) => (
-        <div key={i} className={styles.statStripItem}>
-          <span className={styles.statStripValue}>{item.value}</span>
-          <span className={styles.statStripLabel}>{item.label}</span>
-        </div>
+        <Box key={i} className={styles.statStripItem}>
+          <Text as="span" className={styles.statStripValue}>
+            {item.value}
+          </Text>
+          <Text as="span" className={styles.statStripLabel}>
+            {item.label}
+          </Text>
+        </Box>
       ))}
-    </div>
+    </Box>
   );
 }
 
 function BarRow({ plugin, max }: { plugin: PluginStat; max: number }) {
   const pct = max > 0 ? (plugin.clones_14d_uniques / max) * 100 : 0;
   return (
-    <div className={styles.barRow}>
+    <Box className={styles.barRow}>
       <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.barName}>
         {plugin.name}
       </Link>
-      <div className={styles.barTrack}>
-        <div className={styles.barFill} style={{ width: `${pct}%` }} />
-      </div>
-      <span className={styles.barValue}>{plugin.clones_14d_uniques.toLocaleString()}</span>
-    </div>
+      <Box className={styles.barTrack}>
+        <Box className={styles.barFill} style={{ width: `${pct}%` }} />
+      </Box>
+      <Text as="span" className={styles.barValue}>
+        {plugin.clones_14d_uniques.toLocaleString()}
+      </Text>
+    </Box>
   );
 }
 
@@ -91,22 +97,24 @@ function TopPluginSpotlight({
           onError={() => setImgOk(false)}
         />
       ) : (
-        <div className={styles.spotlightImagePlaceholder}>
+        <Box className={styles.spotlightImagePlaceholder}>
           <PluginIcon name={entry.icon} size={32} />
-        </div>
+        </Box>
       )}
-      <div className={styles.spotlightFooter}>
-        <div className={styles.spotlightIcon}>
+      <Box className={styles.spotlightFooter}>
+        <Box className={styles.spotlightIcon}>
           <PluginIcon name={entry.icon} size={20} />
-        </div>
-        <div className={styles.spotlightBody}>
-          <div className={styles.spotlightName}>{plugin.name}</div>
-          <div className={styles.spotlightStat}>
+        </Box>
+        <Box className={styles.spotlightBody}>
+          <Box className={styles.spotlightName}>{plugin.name}</Box>
+          <Box className={styles.spotlightStat}>
             {plugin.clones_14d_uniques.toLocaleString()} unique installs in the last {windowDays} days
-          </div>
-        </div>
-        <div className={styles.spotlightBadge}>Most popular</div>
-      </div>
+          </Box>
+        </Box>
+        <Badge variant="secondary" className={styles.spotlightBadge}>
+          Most popular
+        </Badge>
+      </Box>
     </Link>
   );
 }
@@ -171,23 +179,23 @@ export default function StatsPage(): ReactNode {
       title="Plugin Stats"
       description="Live popularity and activity stats for all FiestaBoard plugins, updated daily from GitHub."
     >
-      <main className={styles.page}>
-        <div className="container">
-          <div className={styles.header}>
-            <Heading as="h1">Plugin Stats</Heading>
-            <p className={styles.subtitle}>
+      <Box as="main" className={styles.page}>
+        <Box className="container">
+          <Box className={styles.header}>
+            <h1>Plugin Stats</h1>
+            <Text className={styles.subtitle}>
               Popularity across all {data ? data.plugins.length : "…"} FiestaBoard plugins, updated daily.
-            </p>
-          </div>
+            </Text>
+          </Box>
 
-          {error && <p className={styles.error}>Stats are unavailable right now - check back soon.</p>}
+          {error && <Text className={styles.error}>Stats are unavailable right now - check back soon.</Text>}
 
-          {!data && !error && <div className={styles.loading}>Loading…</div>}
+          {!data && !error && <Box className={styles.loading}>Loading…</Box>}
 
           {data && (
             <>
-              <div className={styles.dashboard}>
-                <div className={styles.dashboardLeft}>
+              <Box className={styles.dashboard}>
+                <Box className={styles.dashboardLeft}>
                   <StatStrip
                     items={[
                       { value: data.plugins.length, label: "plugins" },
@@ -204,94 +212,104 @@ export default function StatsPage(): ReactNode {
                         <TopPluginSpotlight plugin={topPlugin} entry={entry} windowDays={data.window_days} />
                       ) : null;
                     })()}
-                </div>
+                </Box>
 
-                <section className={styles.dashboardRight}>
-                  <Heading as="h2">Popularity ranking</Heading>
-                  <p className={styles.sectionNote}>Unique cloners in the last {data.window_days} days</p>
-                  <div className={styles.barChart}>
+                <Box as="section" className={styles.dashboardRight}>
+                  <Heading level={2}>Popularity ranking</Heading>
+                  <Text className={styles.sectionNote}>Unique cloners in the last {data.window_days} days</Text>
+                  <Box className={styles.barChart}>
                     {displayedPlugins.map((plugin) => (
                       <BarRow key={plugin.id} plugin={plugin} max={maxUniques} />
                     ))}
-                  </div>
+                  </Box>
                   {sorted.length > RANKING_PREVIEW && (
-                    <button className={styles.showMoreBtn} onClick={() => setShowAllRanking(!showAllRanking)}>
+                    <Button
+                      variant="ghost"
+                      className={styles.showMoreBtn}
+                      onClick={() => setShowAllRanking(!showAllRanking)}
+                    >
                       {showAllRanking ? "Show fewer" : `Show all ${sorted.length} plugins`}
-                    </button>
+                    </Button>
                   )}
-                </section>
-              </div>
+                </Box>
+              </Box>
 
-              <section className={styles.section}>
-                <Heading as="h2">By category</Heading>
-                <p className={styles.sectionNote}>
+              <Box as="section" className={styles.section}>
+                <Heading level={2}>By category</Heading>
+                <Text className={styles.sectionNote}>
                   Sum of per-plugin installs by category, last {data.window_days} days - users installing multiple
                   plugins in the same category are counted once per plugin
-                </p>
-                <div className={styles.categoryGrid}>
+                </Text>
+                <Box className={styles.categoryGrid}>
                   {byCategory.map(([cat, count]) => (
-                    <div key={cat} className={styles.categoryCard}>
-                      <div className={styles.categoryCount}>{count.toLocaleString()}</div>
-                      <div className={styles.categoryName}>{CATEGORY_LABELS[cat] ?? cat}</div>
-                    </div>
+                    <Box key={cat} className={styles.categoryCard}>
+                      <Box className={styles.categoryCount}>{count.toLocaleString()}</Box>
+                      <Box className={styles.categoryName}>{CATEGORY_LABELS[cat] ?? cat}</Box>
+                    </Box>
                   ))}
-                </div>
-              </section>
+                </Box>
+              </Box>
 
-              <section className={styles.section}>
-                <div className={styles.recentColumns}>
-                  <div>
-                    <Heading as="h2">Recently added</Heading>
-                    <ul className={styles.recentList}>
+              <Box as="section" className={styles.section}>
+                <Box className={styles.recentColumns}>
+                  <Box>
+                    <Heading level={2}>Recently added</Heading>
+                    <List gap="0" className={styles.recentList}>
                       {recentlyAdded.map((p) => (
-                        <li key={p.id} className={styles.recentItem}>
+                        <ListItem key={p.id} className={styles.recentItem}>
                           <Link to={`/plugins/detail?id=${p.id}`}>{p.name}</Link>
-                          <span className={styles.recentMeta}>
-                            <span className={styles.recentCategory}>{CATEGORY_LABELS[p.category] ?? p.category}</span>
-                            <span className={styles.recentDate}>
+                          <Text as="span" className={styles.recentMeta}>
+                            <Text as="span" className={styles.recentCategory}>
+                              {CATEGORY_LABELS[p.category] ?? p.category}
+                            </Text>
+                            <Text as="span" className={styles.recentDate}>
                               {new Date(p.created_at!).toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
                               })}
-                            </span>
-                          </span>
-                        </li>
+                            </Text>
+                          </Text>
+                        </ListItem>
                       ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <Heading as="h2">Recently updated</Heading>
-                    <ul className={styles.recentList}>
+                    </List>
+                  </Box>
+                  <Box>
+                    <Heading level={2}>Recently updated</Heading>
+                    <List gap="0" className={styles.recentList}>
                       {recentlyUpdated.map((p) => (
-                        <li key={p.id} className={styles.recentItem}>
+                        <ListItem key={p.id} className={styles.recentItem}>
                           <Link to={`/plugins/detail?id=${p.id}`}>{p.name}</Link>
-                          <span className={styles.recentMeta}>
-                            <span className={styles.recentCategory}>{CATEGORY_LABELS[p.category] ?? p.category}</span>
-                            <span className={styles.recentVersion}>v{p.version}</span>
-                            <span className={styles.recentDate}>
+                          <Text as="span" className={styles.recentMeta}>
+                            <Text as="span" className={styles.recentCategory}>
+                              {CATEGORY_LABELS[p.category] ?? p.category}
+                            </Text>
+                            <Text as="span" className={styles.recentVersion}>
+                              v{p.version}
+                            </Text>
+                            <Text as="span" className={styles.recentDate}>
                               {new Date(p.updated_at!).toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
                               })}
-                            </span>
-                          </span>
-                        </li>
+                            </Text>
+                          </Text>
+                        </ListItem>
                       ))}
-                    </ul>
-                  </div>
-                </div>
-              </section>
+                    </List>
+                  </Box>
+                </Box>
+              </Box>
 
-              <p className={styles.freshness}>
+              <Text className={styles.freshness}>
                 Data refreshed {generatedAt}. Clone counts reflect the {data.window_days}-day window provided by the
                 GitHub Traffic API.
-              </p>
+              </Text>
             </>
           )}
-        </div>
-      </main>
+        </Box>
+      </Box>
     </Layout>
   );
 }

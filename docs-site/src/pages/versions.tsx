@@ -1,6 +1,6 @@
 import Link from "@docusaurus/Link";
 import { type GlobalVersion, useLatestVersion, useVersions } from "@docusaurus/plugin-content-docs/client";
-import { Button, Table, TableBody, TableCell, TableRow } from "@fiestaboard/ui";
+import { Box, Button, Flex, Heading, Table, TableBody, TableCell, TableRow, Text, TextLink } from "@fiestaboard/ui";
 import allVersions from "@site/versions.json";
 import Layout from "@theme/Layout";
 import type { ReactNode } from "react";
@@ -52,28 +52,36 @@ export default function Versions(): ReactNode {
 
   return (
     <Layout title="Versions" description="Browse every version of the FiestaBoard documentation.">
-      <main className="container margin-vert--lg">
+      <Box as="main" className="container margin-vert--lg">
         <h1>FiestaBoard documentation versions</h1>
-        <p>
-          We recommend the <strong>latest</strong> version - it has the newest features and fixes, and it&apos;s what
-          the docs default to. Every released version is listed below.
-        </p>
+        <Text size="base">
+          We recommend the{" "}
+          <Text as="span" size="base" weight="semibold">
+            latest
+          </Text>{" "}
+          version - it has the newest features and fixes, and it&apos;s what the docs default to. Every released version
+          is listed below.
+        </Text>
 
-        <h2>Current version</h2>
-        <div className={styles.currentCard}>
-          <div>
-            <span className={styles.currentLabel}>{latest.label}</span>
-            <span className={styles.currentTag}>recommended</span>
-          </div>
+        <Heading level={2}>Current version</Heading>
+        <Flex align="center" justify="between" gap="4" wrap className={styles.currentCard}>
+          <Box>
+            <Text as="span" className={styles.currentLabel}>
+              {latest.label}
+            </Text>
+            <Text as="span" className={styles.currentTag}>
+              recommended
+            </Text>
+          </Box>
           <Button asChild>
             <Link to={versionEntryPath(latest)}>Read the docs</Link>
           </Button>
-        </div>
+        </Flex>
 
         {maintained.length > 0 && (
-          <div className={styles.section}>
-            <h2>Maintained versions</h2>
-            <p className={styles.note}>Previous versions still hosted on the site, with full browsable docs.</p>
+          <Box className={styles.section}>
+            <Heading level={2}>Maintained versions</Heading>
+            <Text className={styles.note}>Previous versions still hosted on the site, with full browsable docs.</Text>
             <Table>
               <TableBody>
                 {maintained.map((version) => (
@@ -86,31 +94,31 @@ export default function Versions(): ReactNode {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </Box>
         )}
 
         {archived.length > 0 && (
-          <div className={styles.section}>
-            <h2>Archived versions</h2>
-            <p className={styles.note}>
+          <Box className={styles.section}>
+            <Heading level={2}>Archived versions</Heading>
+            <Text className={styles.note}>
               No longer hosted - these {archived.length} snapshots redirect to the latest docs, but the original
               markdown is preserved in the repository. Follow a version to read its docs source on GitHub.
-            </p>
+            </Text>
             {majors.map((major) => (
-              <div key={major} className={styles.archivedGroup}>
-                <div className={styles.archivedMajor}>{major}.x</div>
-                <div className={styles.chipGrid}>
+              <Box key={major} className={styles.archivedGroup}>
+                <Text className={styles.archivedMajor}>{major}.x</Text>
+                <Flex wrap gap="2">
                   {archivedByMajor.get(major)!.map((name) => (
-                    <a key={name} className={styles.chip} href={`${VERSIONED_DOCS}/version-${name}`}>
+                    <TextLink key={name} className={styles.chip} href={`${VERSIONED_DOCS}/version-${name}`}>
                       {name}
-                    </a>
+                    </TextLink>
                   ))}
-                </div>
-              </div>
+                </Flex>
+              </Box>
             ))}
-          </div>
+          </Box>
         )}
-      </main>
+      </Box>
     </Layout>
   );
 }

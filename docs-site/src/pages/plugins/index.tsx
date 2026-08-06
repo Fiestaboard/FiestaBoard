@@ -1,16 +1,21 @@
 import Link from "@docusaurus/Link";
+import { Badge, Box, Button, EmptyState, Flex, Heading, Input, Text } from "@fiestaboard/ui";
 import type { PluginEntry } from "@site/src/plugin-data";
 import { CATEGORIES, CATEGORY_LABELS, pluginBoardImagePath, plugins } from "@site/src/plugin-data";
-import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import clsx from "clsx";
+import { SearchX } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 
 import styles from "./index.module.css";
 
 function CategoryBadge({ category }: { category: string }) {
   const label = CATEGORY_LABELS[category] ?? category;
-  return <span className={clsx(styles.categoryBadge, styles[`category_${category}`])}>{label}</span>;
+  return (
+    <Badge variant="secondary" className={clsx(styles.categoryBadge, styles[`category_${category}`])}>
+      {label}
+    </Badge>
+  );
 }
 
 function PluginCard({ plugin, boardColor }: { plugin: PluginEntry; boardColor: "black" | "white" }) {
@@ -18,7 +23,7 @@ function PluginCard({ plugin, boardColor }: { plugin: PluginEntry; boardColor: "
 
   return (
     <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.pluginCard}>
-      <div className={styles.pluginCardImage}>
+      <Box className={styles.pluginCardImage}>
         <img
           src={imgSrc}
           alt={`${plugin.name} displayed on a split-flap board`}
@@ -27,17 +32,19 @@ function PluginCard({ plugin, boardColor }: { plugin: PluginEntry; boardColor: "
             (e.target as HTMLImageElement).style.display = "none";
           }}
         />
-      </div>
-      <div className={styles.pluginCardBody}>
-        <div className={styles.pluginCardHeader}>
-          <Heading as="h3" className={styles.pluginCardTitle}>
+      </Box>
+      <Box className={styles.pluginCardBody}>
+        <Box className={styles.pluginCardHeader}>
+          <Heading level={3} className={styles.pluginCardTitle}>
             {plugin.name}
           </Heading>
           <CategoryBadge category={plugin.category} />
-        </div>
-        <p className={styles.pluginCardDescription}>{plugin.description}</p>
-        <span className={styles.pluginCardAuthor}>by {plugin.author}</span>
-      </div>
+        </Box>
+        <Text className={styles.pluginCardDescription}>{plugin.description}</Text>
+        <Text as="span" className={styles.pluginCardAuthor}>
+          by {plugin.author}
+        </Text>
+      </Box>
     </Link>
   );
 }
@@ -65,22 +72,20 @@ export default function PluginDirectory(): ReactNode {
       title="Plugin Directory"
       description="Browse all FiestaBoard plugins - weather, stocks, transit, sports, art, and more. Explore what's available for your split-flap display."
     >
-      <main className={styles.directoryPage}>
-        <div className="container">
+      <Box as="main" className={styles.directoryPage}>
+        <Box className="container">
           {/* Header */}
-          <div className={styles.header}>
-            <Heading as="h1" className={styles.title}>
-              Plugin Directory
-            </Heading>
-            <p className={styles.subtitle}>
+          <Box className={styles.header}>
+            <h1 className={styles.title}>Plugin Directory</h1>
+            <Text className={styles.subtitle}>
               Explore {plugins.length} plugins for your split-flap display - from weather and stocks to Disney park wait
               times and generative art.
-            </p>
-          </div>
+            </Text>
+          </Box>
 
           {/* Search and filters */}
-          <div className={styles.controls}>
-            <input
+          <Box className={styles.controls}>
+            <Input
               type="search"
               className={styles.searchInput}
               placeholder="Search plugins..."
@@ -88,71 +93,73 @@ export default function PluginDirectory(): ReactNode {
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search plugins"
             />
-            <div className={styles.categoryFilters}>
-              <button
+            <Flex wrap gap="2" className={styles.categoryFilters}>
+              <Button
                 type="button"
+                variant="ghost"
+                aria-pressed={activeCategory === null}
                 className={clsx(styles.filterButton, activeCategory === null && styles.filterButtonActive)}
                 onClick={() => setActiveCategory(null)}
               >
                 All
-              </button>
+              </Button>
               {CATEGORIES.map((cat) => (
-                <button
+                <Button
                   key={cat}
                   type="button"
+                  variant="ghost"
+                  aria-pressed={activeCategory === cat}
                   className={clsx(styles.filterButton, activeCategory === cat && styles.filterButtonActive)}
                   onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
                 >
                   {CATEGORY_LABELS[cat]}
-                </button>
+                </Button>
               ))}
-            </div>
-          </div>
+            </Flex>
+          </Box>
 
           {/* Board color toggle */}
-          <div className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
-            <button
-              type="button"
-              role="radio"
-              className={clsx(styles.boardColorOption, boardColor === "black" && styles.boardColorOptionActive)}
-              onClick={() => setBoardColor("black")}
-              aria-checked={boardColor === "black"}
-            >
-              Black Board
-            </button>
-            <button
-              type="button"
-              role="radio"
-              className={clsx(styles.boardColorOption, boardColor === "white" && styles.boardColorOptionActive)}
-              onClick={() => setBoardColor("white")}
-              aria-checked={boardColor === "white"}
-            >
-              White Board
-            </button>
-          </div>
+          <Box className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
+            {(["black", "white"] as const).map((color) => (
+              <Button
+                key={color}
+                type="button"
+                variant="ghost"
+                role="radio"
+                className={clsx(styles.boardColorOption, boardColor === color && styles.boardColorOptionActive)}
+                onClick={() => setBoardColor(color)}
+                aria-checked={boardColor === color}
+              >
+                {color === "black" ? "Black Board" : "White Board"}
+              </Button>
+            ))}
+          </Box>
 
           {/* Results */}
           {filtered.length > 0 ? (
-            <div className={styles.pluginGrid}>
+            <Box className={styles.pluginGrid}>
               {filtered.map((plugin) => (
                 <PluginCard key={plugin.id} plugin={plugin} boardColor={boardColor} />
               ))}
-            </div>
+            </Box>
           ) : (
-            <div className={styles.emptyState}>
-              <p>No plugins match your search. Try a different query or category.</p>
-            </div>
+            <EmptyState
+              className={styles.emptyState}
+              icon={SearchX}
+              title="No plugins found"
+              description="No plugins match your search. Try a different query or category."
+            />
           )}
 
           {/* CTA */}
-          <div className={styles.cta}>
-            <p>
+          <Box className={styles.cta}>
+            <Text>
               Want to build your own plugin?{" "}
               <Link to="/docs/development/plugin-guide">Check out the Plugin Development Guide →</Link>
-            </p>
-          </div>
-        </div>
-      </main>
+            </Text>
+          </Box>
+        </Box>
+      </Box>
     </Layout>
   );
 }

@@ -1,4 +1,7 @@
 import { useColorMode } from "@docusaurus/theme-common";
+import { Box, Button } from "@fiestaboard/ui";
+import clsx from "clsx";
+import { X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import styles from "./styles.module.css";
@@ -28,26 +31,22 @@ function BoardToggle({
   onSetStyle: (style: "black" | "white") => void;
 }) {
   return (
-    <div className={styles.toggleBar}>
-      <button
-        type="button"
-        className={`${styles.toggleButton} ${activeStyle === "black" ? styles.active : ""}`}
-        onClick={() => onSetStyle("black")}
-        aria-label="Show black board screenshot"
-        title="Black board"
-      >
-        Black
-      </button>
-      <button
-        type="button"
-        className={`${styles.toggleButton} ${activeStyle === "white" ? styles.active : ""}`}
-        onClick={() => onSetStyle("white")}
-        aria-label="Show white board screenshot"
-        title="White board"
-      >
-        White
-      </button>
-    </div>
+    <Box className={styles.toggleBar}>
+      {(["black", "white"] as const).map((style) => (
+        <Button
+          key={style}
+          type="button"
+          variant="ghost"
+          aria-pressed={activeStyle === style}
+          className={clsx(styles.toggleButton, activeStyle === style && styles.active)}
+          onClick={() => onSetStyle(style)}
+          aria-label={`Show ${style} board screenshot`}
+          title={`${style === "black" ? "Black" : "White"} board`}
+        >
+          {style === "black" ? "Black" : "White"}
+        </Button>
+      ))}
+    </Box>
   );
 }
 
@@ -81,27 +80,17 @@ function Lightbox({
   }, [handleKeyDown]);
 
   return (
-    <div className={styles.lightboxOverlay} onClick={onClose} role="dialog" aria-modal="true">
-      <div className={styles.lightboxContent} onClick={(e) => e.stopPropagation()}>
-        <button type="button" className={styles.lightboxClose} onClick={onClose} aria-label="Close">
-          <svg
-            viewBox="0 0 24 24"
-            width="24"
-            height="24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden="true"
-          >
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
+    <Box className={styles.lightboxOverlay} onClick={onClose} role="dialog" aria-modal="true">
+      <Box className={styles.lightboxContent} onClick={(e) => e.stopPropagation()}>
+        <Button type="button" variant="ghost" className={styles.lightboxClose} onClick={onClose} aria-label="Close">
+          <X aria-hidden="true" />
+        </Button>
         <img className={styles.lightboxImage} src={src} alt={alt} />
-        <div className={styles.lightboxFooter}>
+        <Box className={styles.lightboxFooter}>
           <BoardToggle activeStyle={activeStyle} onSetStyle={onSetStyle} />
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
