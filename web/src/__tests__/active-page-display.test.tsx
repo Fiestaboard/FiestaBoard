@@ -86,8 +86,8 @@ describe("ActivePageDisplay", () => {
   it("renders the page name as a direct child of the link so hover styling reaches it", async () => {
     // A descendant carrying its own text-* color class (e.g. <Text>, which
     // always emits one) beats the anchor's inherited hover:text-primary, so the
-    // name would stay static while only the pencil icon changed color. Keep
-    // the name an unwrapped text node and the color on the anchor itself.
+    // name would stay static on hover. Keep the name an unwrapped text node and
+    // the color on the anchor itself.
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
@@ -102,8 +102,8 @@ describe("ActivePageDisplay", () => {
     );
     expect(namedByOwnText).toBe(true);
 
-    // getAttribute, not .className — the pencil is an <svg>, whose className is
-    // an SVGAnimatedString rather than a string.
+    // getAttribute, not .className — an <svg> descendant's className is an
+    // SVGAnimatedString rather than a string.
     const coloredDescendants = Array.from(editLink.querySelectorAll("*")).filter((el) =>
       /(^|\s)text-(foreground|muted-foreground|primary|destructive|info|success|warning)(\s|$)/.test(
         el.getAttribute("class") ?? "",
