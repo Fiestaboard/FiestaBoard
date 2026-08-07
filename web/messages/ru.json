@@ -615,6 +615,7 @@
     "scheduleSettingsLink": "Настройках расписания",
     "scheduleGapNoDefault": "Пропуск в расписании (страница по умолчанию не задана)",
     "editActivePage": "Редактировать страницу «{pageName}»",
+    "editCollection": "Редактировать коллекцию «{collectionName}»",
     "toastSetActivePage": "Установлена активная страница «{pageName}»",
     "toastSetDefaultFailed": "Не удалось установить страницу по умолчанию",
     "toastSwitchSuccess": "Переключено на активную страницу",

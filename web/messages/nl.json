@@ -615,6 +615,7 @@
     "scheduleSettingsLink": "Planningsinstellingen",
     "scheduleGapNoDefault": "Planningsgat (geen standaardpagina ingesteld)",
     "editActivePage": "Pagina \"{pageName}\" bewerken",
+    "editCollection": "Verzameling \"{collectionName}\" bewerken",
     "toastSetActivePage": "\"{pageName}\" ingesteld als actieve pagina",
     "toastSetDefaultFailed": "Standaardpagina instellen mislukt",
     "toastSwitchSuccess": "Gewisseld naar actieve pagina",

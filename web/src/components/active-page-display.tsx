@@ -33,6 +33,7 @@ import {
   ArrowLeftRight,
   Calendar,
   CalendarOff,
+  ChevronRight,
   GalleryHorizontalEnd,
   Loader2,
   Moon,
@@ -51,6 +52,7 @@ import { PageGridSelector } from "@/components/page-grid-selector";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
 import {
+  collectionPollMs,
   getEffectiveBoardColor,
   getEffectiveDeviceType,
   queryKeys,
@@ -131,7 +133,11 @@ export function ActivePageDisplay() {
     // used elsewhere still match it as a prefix.
     queryKey: scopedBoardId ? ["schedules", "active", scopedBoardId] : ["schedules", "active"],
     queryFn: () => api.getActiveSchedule(scopedBoardId),
-    refetchInterval: 60000, // Poll every minute for schedule changes
+    // Every minute for schedule changes, but faster while a scheduled
+    // collection is active — it can swap the page on the board every few
+    // seconds, and the header names that page (issue #1513).
+    refetchInterval: (query) =>
+      Math.min(60000, collectionPollMs(query.state.data?.resolved_next_check_seconds) || 60000),
   });
 
   const scheduleEnabled = activeScheduleData?.schedule_enabled || false;
@@ -379,6 +385,19 @@ export function ActivePageDisplay() {
     return pages.find((p) => p.id === activePageId) || null;
   }, [pages, activePageId]);
 
+  // When a Collection is active the backend resolves which member page its
+  // logic is currently rendering on the board (issue #1513). Surface that page
+  // so the Dashboard can name and link to the design actually on the display.
+  const resolvedPageId = scheduleEnabled
+    ? (activeScheduleData?.resolved_page_id ?? null)
+    : (activePageData?.resolved_page_id ?? null);
+  const resolvedCollectionPage = useMemo(() => {
+    // Only relevant while a collection is active — for a plain page the
+    // resolved id just equals activePageId and activePage already links it.
+    if (!activeCollection || !resolvedPageId) return null;
+    return pages.find((p) => p.id === resolvedPageId) || null;
+  }, [activeCollection, resolvedPageId, pages]);
+
   // Get the active page name for display
   const activePageName = useMemo(() => {
     if (!activePageId && scheduleEnabled) {
@@ -464,11 +483,38 @@ export function ActivePageDisplay() {
           {/* Active page name and status */}
           <Flex align="center" gap="4" wrap className="text-xs text-muted-foreground mt-3">
             <Flex align="center" gap="1.5">
-              {activePage ? (
+              {activeCollection ? (
+                // A Collection drives the display through its own logic. Link the
+                // collection name to its editor so the user can adjust that logic
+                // (issue #1513), then link the member page the collection is
+                // currently rendering so they can jump straight to that design.
+                <>
+                  <Link
+                    href="/collections"
+                    className="inline-flex items-center text-xs font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    aria-label={t("editCollection", { collectionName: activeCollection.name })}
+                    title={t("editCollection", { collectionName: activeCollection.name })}
+                  >
+                    {activeCollection.name}
+                  </Link>
+                  {resolvedCollectionPage && (
+                    <>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                      <Link
+                        href={`/pages/edit/${resolvedCollectionPage.id}`}
+                        className="inline-flex items-center text-xs font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                        aria-label={t("editActivePage", { pageName: resolvedCollectionPage.name })}
+                        title={t("editActivePage", { pageName: resolvedCollectionPage.name })}
+                      >
+                        {resolvedCollectionPage.name}
+                      </Link>
+                    </>
+                  )}
+                </>
+              ) : activePage ? (
                 // When a saved Page is generating the display, link straight to
                 // its editor so the user can jump to the design they're seeing
-                // (issue #1473). Collections and schedule gaps stay plain text —
-                // a collection ID is prefixed, so it never resolves to a page.
+                // (issue #1473). Schedule gaps stay plain text.
                 // Sizing and color live on the anchor rather than an inner Text
                 // so `hover:text-primary` isn't overridden on the name itself.
                 <Link

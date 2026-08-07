@@ -615,6 +615,7 @@
     "scheduleSettingsLink": "Zeitplaneinstellungen",
     "scheduleGapNoDefault": "Zeitplanlücke (keine Standardseite festgelegt)",
     "editActivePage": "Seite \"{pageName}\" bearbeiten",
+    "editCollection": "Sammlung \"{collectionName}\" bearbeiten",
     "toastSetActivePage": "\"{pageName}\" als aktive Seite festgelegt",
     "toastSetDefaultFailed": "Standardseite konnte nicht festgelegt werden",
     "toastSwitchSuccess": "Zur aktiven Seite gewechselt",

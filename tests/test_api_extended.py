@@ -523,7 +523,39 @@ class TestSettingsEndpoints:
     def test_get_active_page(self, client, mock_settings_service):
         response = client.get("/settings/active-page")
         assert response.status_code == 200
-        assert response.json()["page_id"] == "page1"
+        body = response.json()
+        assert body["page_id"] == "page1"
+        # A plain page resolves to itself (issue #1513).
+        assert body["resolved_page_id"] == "page1"
+
+    def test_get_active_page_resolves_collection(self, client, mock_settings_service):
+        # Issue #1513: when a Collection drives the display, the response
+        # surfaces the member page the collection is currently rendering so the
+        # Dashboard can name and link to that page.
+        mock_settings_service.get_active_page_id.return_value = "collection:abc"
+        with patch("src.api_server.get_collection_service") as mock_get_cs:
+            cs = Mock()
+            cs.resolve_page_id.return_value = "member-page"
+            cs.seconds_until_next_check.return_value = 12
+            mock_get_cs.return_value = cs
+            response = client.get("/settings/active-page")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["page_id"] == "collection:abc"
+        assert body["resolved_page_id"] == "member-page"
+        # The collection's own cadence rides along so the Dashboard can re-poll
+        # when the page on the board can actually change, rather than caching a
+        # stale member-page name.
+        assert body["resolved_next_check_seconds"] == 12
+        cs.resolve_page_id.assert_called_once_with("collection:abc")
+        cs.seconds_until_next_check.assert_called_once_with("collection:abc")
+
+    def test_get_active_page_plain_page_has_no_next_check(self, client, mock_settings_service):
+        # A plain page never rotates, so there is nothing to re-poll for and the
+        # Dashboard keeps its previous (quiet) request volume.
+        response = client.get("/settings/active-page")
+        assert response.status_code == 200
+        assert response.json()["resolved_next_check_seconds"] is None
 
     def test_set_active_page(self, client, mock_settings_service, mock_page_service):
         response = client.put("/settings/active-page", json={"page_id": "page1"})
@@ -1235,6 +1267,26 @@ class TestScheduleEndpoints:
         data = response.json()
         assert data["source"] == "manual"
         assert data["schedule_enabled"] is False
+        # A plain page resolves to itself (issue #1513).
+        assert data["resolved_page_id"] == "page1"
+
+    def test_get_active_schedule_page_resolves_collection(self, client, mock_schedule_service, mock_settings_service):
+        # Issue #1513: in schedule mode, a scheduled Collection reports which
+        # member page it is currently rendering via resolved_page_id.
+        mock_settings_service.is_schedule_enabled.return_value = True
+        mock_schedule_service.get_active_page_id.return_value = "collection:abc"
+        with patch("src.api_server.get_collection_service") as mock_get_cs:
+            cs = Mock()
+            cs.resolve_page_id.return_value = "member-page"
+            cs.seconds_until_next_check.return_value = 7
+            mock_get_cs.return_value = cs
+            response = client.get("/schedules/active/page")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["source"] == "schedule"
+        assert data["page_id"] == "collection:abc"
+        assert data["resolved_page_id"] == "member-page"
+        assert data["resolved_next_check_seconds"] == 7
 
     def test_validate_schedules(self, client, mock_schedule_service):
         response = client.post("/schedules/validate", json={})

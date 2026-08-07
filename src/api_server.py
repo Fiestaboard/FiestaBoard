@@ -5948,6 +5948,43 @@ async def update_output_settings(request: dict):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
+def _resolve_active_page_id(page_id: str | None) -> str | None:
+    """Resolve a collection reference to the page it is currently showing.
+
+    When ``page_id`` is a collection ID the Dashboard needs to know which
+    member page the collection's logic is presently rendering on the board so
+    it can name and link to that page (issue #1513). Plain page IDs (and None)
+    are returned unchanged. Never raises — a collection that can't be resolved
+    just yields None.
+    """
+    if not is_collection_id(page_id):
+        return page_id
+    try:
+        return get_collection_service().resolve_page_id(page_id)
+    except Exception:  # pragma: no cover - defensive; resolution is best-effort
+        logger.warning("Failed to resolve collection page for %s", page_id, exc_info=True)
+        return None
+
+
+def _resolve_next_check_seconds(page_id: str | None) -> int | None:
+    """Seconds until ``page_id``'s collection may switch to a different page.
+
+    A collection can rotate as often as every 5 seconds (2 for variable-mode
+    polling), so a client that caches ``resolved_page_id`` on a fixed timer
+    would name the wrong page for most of the interval. Handing back the
+    collection's own cadence lets the Dashboard re-poll exactly when the page
+    on the board can change (issue #1513). None for plain pages, collections
+    that can't rotate (<2 pages), and any resolution failure.
+    """
+    if not is_collection_id(page_id):
+        return None
+    try:
+        return get_collection_service().seconds_until_next_check(page_id)
+    except Exception:  # pragma: no cover - defensive; resolution is best-effort
+        logger.warning("Failed to compute next check for collection %s", page_id, exc_info=True)
+        return None
+
+
 @app.get("/settings/active-page")
 async def get_active_page(board_id: str | None = None):
     """Get the currently active page ID.
@@ -5961,7 +5998,12 @@ async def get_active_page(board_id: str | None = None):
         page_id = settings_service.get_active_page_id(board_id=board_id)
     else:
         page_id = settings_service.get_active_page_id()
-    return {"page_id": page_id, "board_id": board_id}
+    return {
+        "page_id": page_id,
+        "resolved_page_id": _resolve_active_page_id(page_id),
+        "resolved_next_check_seconds": _resolve_next_check_seconds(page_id),
+        "board_id": board_id,
+    }
 
 
 @app.put("/settings/active-page")
@@ -7919,8 +7961,11 @@ async def get_active_schedule(board_id: str | None = None):
     }
 
     if not settings_service.is_schedule_enabled(board_id=board_id):
+        manual_page_id = settings_service.get_active_page_id()
         return {
-            "page_id": settings_service.get_active_page_id(),
+            "page_id": manual_page_id,
+            "resolved_page_id": _resolve_active_page_id(manual_page_id),
+            "resolved_next_check_seconds": _resolve_next_check_seconds(manual_page_id),
             "source": "manual",
             "schedule_enabled": False,
             "temporary_override": temporary_override_payload,
@@ -7934,6 +7979,8 @@ async def get_active_schedule(board_id: str | None = None):
     page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
     return {
         "page_id": page_id,
+        "resolved_page_id": _resolve_active_page_id(page_id),
+        "resolved_next_check_seconds": _resolve_next_check_seconds(page_id),
         "source": "schedule" if page_id else "none",
         "schedule_enabled": True,
         "current_time": now.strftime("%H:%M"),
