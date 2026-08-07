@@ -1243,6 +1243,7 @@ export const handlers = [
       updater_available: false,
       auto_update_enabled: false,
       auto_update_interval: "weekly",
+      managed_externally: false,
       profile: null,
       sidecar_url: null,
       last_check: null,

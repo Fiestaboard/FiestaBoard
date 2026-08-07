@@ -4,11 +4,13 @@ import { Flex, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpCircle, Package } from "lucide-react";
 
+import { useIsManagedExternally } from "@/hooks/use-managed-externally";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 export function VersionDisplay() {
   const t = useTranslations("versionDisplay");
+  const managedExternally = useIsManagedExternally();
   const { data: version } = useQuery({
     queryKey: ["version"],
     queryFn: () => api.getVersion(),
@@ -32,7 +34,7 @@ export function VersionDisplay() {
         v{version.package_version}
         {version.is_dev && ` ${t("devSuffix")}`}
       </Text>
-      {updateCheck?.update_available && (
+      {!managedExternally && updateCheck?.update_available && (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

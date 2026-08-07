@@ -1351,6 +1351,13 @@ export interface UpdateStatusResponse {
   updater_available: boolean;
   auto_update_enabled: boolean;
   auto_update_interval: AutoUpdateInterval;
+  /**
+   * True when an external supervisor (the Home Assistant add-on) owns
+   * updates. FiestaBoard cannot update itself in that case, so all
+   * update-available notifications are hidden. Sourced from the server's
+   * `_managed_externally()` check.
+   */
+  managed_externally: boolean;
   profile: "docker" | "pi";
   sidecar_url: string;
   last_check: string | null;

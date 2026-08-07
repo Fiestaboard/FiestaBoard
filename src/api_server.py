@@ -496,6 +496,10 @@ class UpdateStatusResponse(BaseModel):
     updater_available: bool
     auto_update_enabled: bool  # derived: True when interval != "manual"
     auto_update_interval: str  # "daily" | "weekly" | "monthly" | "manual"
+    # True when an external supervisor (the Home Assistant add-on) owns
+    # updates.  The UI hides every update notification and the periodic
+    # check loop is skipped when this is set.  See ``_managed_externally``.
+    managed_externally: bool
     profile: str  # "docker" | "pi"  (where this install is running)
     sidecar_url: str
     last_check: str | None = None
@@ -792,33 +796,39 @@ async def lifespan(app: FastAPI):
     # ``last_check`` so the in-app banner can show "Update Available" without
     # the user having to open Settings and click Refresh.
     system_update_task = None
-    try:
+    if _managed_externally():
+        # An external supervisor (HA add-on) owns updates — polling Docker Hub
+        # here serves no purpose and would only feed a duplicate notification
+        # the UI already suppresses.  Skip the checker entirely.
+        logger.info("System update checker disabled: updates are managed externally (e.g. Home Assistant add-on)")
+    else:
+        try:
 
-        async def _system_update_check_loop():
-            # Tick once an hour.  Even on the longest interval (monthly) this
-            # is plenty granular and keeps the work the loop does tiny.
-            tick_seconds = 3600
-            # Initial delay so we don't pile onto startup work.
-            await _asyncio.sleep(60)
-            while True:
-                try:
-                    state = _system_update_state_load()
-                    interval_name = _resolve_auto_update_interval(state)
-                    period_days = AUTO_UPDATE_INTERVALS.get(interval_name, 0)
-                    if period_days > 0 and _is_update_check_due(state, period_days):
-                        logger.info(
-                            "Auto-update check (interval=%s): checking for new version",
-                            interval_name,
-                        )
-                        await _perform_update_check()
-                except Exception as exc:
-                    logger.warning("System update check error: %s", exc)
-                await _asyncio.sleep(tick_seconds)
+            async def _system_update_check_loop():
+                # Tick once an hour.  Even on the longest interval (monthly) this
+                # is plenty granular and keeps the work the loop does tiny.
+                tick_seconds = 3600
+                # Initial delay so we don't pile onto startup work.
+                await _asyncio.sleep(60)
+                while True:
+                    try:
+                        state = _system_update_state_load()
+                        interval_name = _resolve_auto_update_interval(state)
+                        period_days = AUTO_UPDATE_INTERVALS.get(interval_name, 0)
+                        if period_days > 0 and _is_update_check_due(state, period_days):
+                            logger.info(
+                                "Auto-update check (interval=%s): checking for new version",
+                                interval_name,
+                            )
+                            await _perform_update_check()
+                    except Exception as exc:
+                        logger.warning("System update check error: %s", exc)
+                    await _asyncio.sleep(tick_seconds)
 
-        system_update_task = _asyncio.create_task(_system_update_check_loop())
-        logger.info("System update checker scheduled (interval read from state on each tick)")
-    except Exception as e:
-        logger.warning(f"Could not start system update checker: {e}")
+            system_update_task = _asyncio.create_task(_system_update_check_loop())
+            logger.info("System update checker scheduled (interval read from state on each tick)")
+        except Exception as e:
+            logger.warning(f"Could not start system update checker: {e}")
 
     # Hold the MCP session manager open for the lifetime of the API, then
     # let it tear down on shutdown. ``_mcp_ctx`` is None when the mcp
@@ -1843,6 +1853,31 @@ def _fiestaboard_profile() -> str:
     return os.getenv("FIESTABOARD_PROFILE", "docker").strip().lower() or "docker"
 
 
+def _managed_externally() -> bool:
+    """True when FiestaBoard's lifecycle is owned by an external supervisor
+    that ships its own update mechanism — currently the Home Assistant add-on.
+
+    Under HA, add-on updates come from the Supervisor's add-on store;
+    FiestaBoard cannot update itself and the Supervisor already surfaces its
+    own "update available" notice.  Ours would be a duplicate pointing the
+    user at an action they can't take, so the UI hides every update
+    notification and the periodic Docker Hub poll is skipped when this is set.
+
+    Detection signals (any one flips it on):
+      * ``FIESTABOARD_MANAGED_EXTERNALLY`` — explicit opt-in the add-on shim
+        can set unambiguously (accepts true/1/yes; false/0/no forces off).
+      * ``SUPERVISOR_TOKEN`` — injected by HA Supervisor into every add-on
+        container.  Present whether the UI is reached through Ingress or the
+        add-on's directly-published port, so it also covers direct access.
+    """
+    explicit = os.getenv("FIESTABOARD_MANAGED_EXTERNALLY", "").strip().lower()
+    if explicit in ("true", "1", "yes"):
+        return True
+    if explicit in ("false", "0", "no"):
+        return False
+    return bool(os.getenv("SUPERVISOR_TOKEN", "").strip())
+
+
 # Valid values for ``auto_update_interval``, mapped to their period in days.
 # ``manual`` (0) disables the periodic check entirely; the user can still hit
 # the Refresh button on Settings → System to trigger an on-demand check.
@@ -2387,6 +2422,7 @@ async def system_update_status():
         updater_available=available,
         auto_update_enabled=interval != "manual",
         auto_update_interval=interval,
+        managed_externally=_managed_externally(),
         profile=_fiestaboard_profile(),
         sidecar_url=_updater_url(),
         last_check=state.get("last_check"),

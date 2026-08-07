@@ -393,6 +393,56 @@ class TestSystemUpdateStatus:
         assert response.status_code == 200
         assert response.json()["updater_available"] is False
 
+    def test_managed_externally_false_by_default(self, client, monkeypatch):
+        """A plain Docker install is not managed externally."""
+        monkeypatch.delenv("SUPERVISOR_TOKEN", raising=False)
+        monkeypatch.delenv("FIESTABOARD_MANAGED_EXTERNALLY", raising=False)
+        response = client.get("/system/update/status")
+        assert response.status_code == 200
+        assert response.json()["managed_externally"] is False
+
+    def test_managed_externally_true_under_ha_supervisor(self, client, monkeypatch):
+        """HA Supervisor injects SUPERVISOR_TOKEN into every add-on, which
+        flips managed_externally on so the UI hides update notifications."""
+        monkeypatch.delenv("FIESTABOARD_MANAGED_EXTERNALLY", raising=False)
+        monkeypatch.setenv("SUPERVISOR_TOKEN", "supervisor-token")
+        response = client.get("/system/update/status")
+        assert response.status_code == 200
+        assert response.json()["managed_externally"] is True
+
+
+class TestManagedExternally:
+    """Tests for the ``_managed_externally`` HA-add-on detection helper."""
+
+    def test_defaults_off(self, monkeypatch):
+        from src.api_server import _managed_externally
+
+        monkeypatch.delenv("SUPERVISOR_TOKEN", raising=False)
+        monkeypatch.delenv("FIESTABOARD_MANAGED_EXTERNALLY", raising=False)
+        assert _managed_externally() is False
+
+    def test_supervisor_token_enables(self, monkeypatch):
+        from src.api_server import _managed_externally
+
+        monkeypatch.delenv("FIESTABOARD_MANAGED_EXTERNALLY", raising=False)
+        monkeypatch.setenv("SUPERVISOR_TOKEN", "tok")
+        assert _managed_externally() is True
+
+    def test_explicit_true_overrides_missing_supervisor(self, monkeypatch):
+        from src.api_server import _managed_externally
+
+        monkeypatch.delenv("SUPERVISOR_TOKEN", raising=False)
+        monkeypatch.setenv("FIESTABOARD_MANAGED_EXTERNALLY", "true")
+        assert _managed_externally() is True
+
+    def test_explicit_false_overrides_supervisor_token(self, monkeypatch):
+        from src.api_server import _managed_externally
+
+        # Explicit opt-out wins even when the Supervisor token is present.
+        monkeypatch.setenv("SUPERVISOR_TOKEN", "tok")
+        monkeypatch.setenv("FIESTABOARD_MANAGED_EXTERNALLY", "false")
+        assert _managed_externally() is False
+
 
 class TestSystemUpdateApply:
     """Tests for POST /system/update."""
