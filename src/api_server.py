@@ -5930,6 +5930,25 @@ def _resolve_active_page_id(page_id: str | None) -> str | None:
         return None
 
 
+def _resolve_next_check_seconds(page_id: str | None) -> int | None:
+    """Seconds until ``page_id``'s collection may switch to a different page.
+
+    A collection can rotate as often as every 5 seconds (2 for variable-mode
+    polling), so a client that caches ``resolved_page_id`` on a fixed timer
+    would name the wrong page for most of the interval. Handing back the
+    collection's own cadence lets the Dashboard re-poll exactly when the page
+    on the board can change (issue #1513). None for plain pages, collections
+    that can't rotate (<2 pages), and any resolution failure.
+    """
+    if not is_collection_id(page_id):
+        return None
+    try:
+        return get_collection_service().seconds_until_next_check(page_id)
+    except Exception:  # pragma: no cover - defensive; resolution is best-effort
+        logger.warning("Failed to compute next check for collection %s", page_id, exc_info=True)
+        return None
+
+
 @app.get("/settings/active-page")
 async def get_active_page(board_id: str | None = None):
     """Get the currently active page ID.
@@ -5946,6 +5965,7 @@ async def get_active_page(board_id: str | None = None):
     return {
         "page_id": page_id,
         "resolved_page_id": _resolve_active_page_id(page_id),
+        "resolved_next_check_seconds": _resolve_next_check_seconds(page_id),
         "board_id": board_id,
     }
 
@@ -7909,6 +7929,7 @@ async def get_active_schedule(board_id: str | None = None):
         return {
             "page_id": manual_page_id,
             "resolved_page_id": _resolve_active_page_id(manual_page_id),
+            "resolved_next_check_seconds": _resolve_next_check_seconds(manual_page_id),
             "source": "manual",
             "schedule_enabled": False,
             "temporary_override": temporary_override_payload,
@@ -7923,6 +7944,7 @@ async def get_active_schedule(board_id: str | None = None):
     return {
         "page_id": page_id,
         "resolved_page_id": _resolve_active_page_id(page_id),
+        "resolved_next_check_seconds": _resolve_next_check_seconds(page_id),
         "source": "schedule" if page_id else "none",
         "schedule_enabled": True,
         "current_time": now.strftime("%H:%M"),

@@ -200,6 +200,10 @@ export interface ActivePageResponse {
   // When page_id is a collection, the member page the collection is currently
   // rendering on the board (issue #1513). Equals page_id for plain pages.
   resolved_page_id?: string | null;
+  // Seconds until that collection may switch pages, so the client can re-poll
+  // on the collection's own cadence instead of a fixed timer. Null when the
+  // active reference can't rotate (plain page, or a single-page collection).
+  resolved_next_check_seconds?: number | null;
   board_id?: string | null;
 }
 
@@ -742,6 +746,10 @@ export interface ActiveScheduleResponse {
   // When page_id is a collection, the member page the collection is currently
   // rendering on the board (issue #1513). Equals page_id for plain pages.
   resolved_page_id?: string | null;
+  // Seconds until that collection may switch pages, so the client can re-poll
+  // on the collection's own cadence instead of a fixed timer. Null when the
+  // active reference can't rotate (plain page, or a single-page collection).
+  resolved_next_check_seconds?: number | null;
   source: "schedule" | "manual" | "none";
   schedule_enabled: boolean;
   current_time?: string;

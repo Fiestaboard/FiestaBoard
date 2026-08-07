@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it } from "vitest";
 
-import { useActivePage, useConfig, usePages, useStatus } from "@/hooks/use-board";
+import { collectionPollMs, useActivePage, useConfig, usePages, useStatus } from "@/hooks/use-board";
 
 // Wrapper for react-query
 function createWrapper() {
@@ -67,5 +67,26 @@ describe("usePages", () => {
 
     expect(result.current.data).toHaveProperty("pages");
     expect(Array.isArray(result.current.data?.pages)).toBe(true);
+  });
+});
+
+// Issue #1513: the Dashboard names the member page a collection is currently
+// rendering, so it has to re-poll on the collection's cadence rather than
+// caching a name that goes wrong within seconds.
+describe("collectionPollMs", () => {
+  it("does not poll when the active reference cannot rotate", () => {
+    // Plain pages (and single-page collections) report null.
+    expect(collectionPollMs(null)).toBe(false);
+    expect(collectionPollMs(undefined)).toBe(false);
+  });
+
+  it("polls on the collection's own cadence", () => {
+    expect(collectionPollMs(30)).toBe(30000);
+    expect(collectionPollMs(5)).toBe(5000);
+  });
+
+  it("floors a near-instant boundary so it cannot become a tight loop", () => {
+    expect(collectionPollMs(1)).toBe(2000);
+    expect(collectionPollMs(0)).toBe(2000);
   });
 });

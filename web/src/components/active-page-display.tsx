@@ -52,6 +52,7 @@ import { PageGridSelector } from "@/components/page-grid-selector";
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
 import {
+  collectionPollMs,
   getEffectiveBoardColor,
   getEffectiveDeviceType,
   queryKeys,
@@ -132,7 +133,11 @@ export function ActivePageDisplay() {
     // used elsewhere still match it as a prefix.
     queryKey: scopedBoardId ? ["schedules", "active", scopedBoardId] : ["schedules", "active"],
     queryFn: () => api.getActiveSchedule(scopedBoardId),
-    refetchInterval: 60000, // Poll every minute for schedule changes
+    // Every minute for schedule changes, but faster while a scheduled
+    // collection is active — it can swap the page on the board every few
+    // seconds, and the header names that page (issue #1513).
+    refetchInterval: (query) =>
+      Math.min(60000, collectionPollMs(query.state.data?.resolved_next_check_seconds) || 60000),
   });
 
   const scheduleEnabled = activeScheduleData?.schedule_enabled || false;
