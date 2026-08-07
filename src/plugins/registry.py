@@ -91,9 +91,15 @@ class PluginRegistry:
     def make_instance_key(plugin_id: str, instance_label: str) -> str:
         """Build a compound key from a base plugin ID and instance label.
 
-        Example: ``make_instance_key("weather", "sf")`` → ``"weather:sf"``
+        The label is normalized to lowercase to match how ``create_instance``
+        registers it (#774). Callers pass the label the user typed, so without
+        this a mixed-case label like ``"Xmas"`` would build ``countdown:Xmas``
+        while the registry holds ``countdown:xmas`` — the config would be
+        stored under a key nothing reads, and delete would miss entirely.
+
+        Example: ``make_instance_key("weather", "SF")`` → ``"weather:sf"``
         """
-        return f"{plugin_id}{INSTANCE_SEPARATOR}{instance_label}"
+        return f"{plugin_id}{INSTANCE_SEPARATOR}{instance_label.lower()}"
 
     @staticmethod
     def parse_instance_key(key: str) -> tuple[str, str | None]:
@@ -252,8 +258,13 @@ class PluginRegistry:
             config_manager = get_config_manager()
             # Get all plugin configs
             stored_configs = config_manager.get_all_plugin_configs()
-        except Exception as e:
-            logger.warning(f"Could not load stored plugin configs: {e}")
+        except Exception:
+            # Not cosmetic: with no stored configs every plugin is marked
+            # disabled below and _restore_instances creates no named instances
+            # at all, so the whole Integrations page comes up empty. Log it
+            # loudly — this is the fingerprint to look for when a user reports
+            # that their integrations "turned themselves off".
+            logger.exception("Could not load stored plugin configs — all plugins will start disabled")
 
         for plugin_id, plugin in loaded.items():
             manifest = self._loader.get_manifest(plugin_id)
@@ -311,8 +322,12 @@ class PluginRegistry:
 
             # Base plugin must be loaded for us to create an instance
             if base_id not in self._plugins:
-                logger.warning(
-                    "Cannot restore instance '%s': base plugin '%s' not loaded",
+                # The stored config survives, but the instance is invisible in
+                # the UI until the base plugin loads again — which reads to the
+                # user as "my integrations got disabled".
+                logger.error(
+                    "Cannot restore instance '%s': base plugin '%s' not loaded — "
+                    "its saved configuration is retained but the instance is unavailable",
                     config_key,
                     base_id,
                 )
@@ -331,16 +346,13 @@ class PluginRegistry:
 
             # Apply stored config via the proper pipeline so any future
             # side-effects (e.g. validation hooks) are consistently triggered.
-            config_errors = self.set_plugin_config(normalized_key, config)
+            config_errors = self.apply_stored_config(normalized_key, config)
             if config_errors:
                 logger.warning(
                     "Instance '%s' config failed validation on restore: %s — applying raw config to avoid data loss",
                     normalized_key,
                     config_errors,
                 )
-                # Fall back to direct assignment so we don't silently discard config
-                self._configs[normalized_key] = config
-                self._plugins[normalized_key].config = config
 
             # Enable via the proper pipeline so any future side-effects are
             # consistently triggered.
@@ -732,6 +744,29 @@ class PluginRegistry:
         logger.debug(f"Updated config for {plugin_id}")
         return []
 
+    def apply_stored_config(self, plugin_id: str, config: dict[str, Any]) -> list[str]:
+        """Apply a config that is already persisted in ``config.json``.
+
+        Unlike :meth:`set_plugin_config` — which rejects an invalid config so
+        the API can 400 a bad request — this keeps the config even when
+        validation fails. Stored config is the user's data: a plugin whose
+        manifest later gained a required field would otherwise have its saved
+        settings silently discarded on restore.
+
+        Args:
+            plugin_id: Plugin identifier (base or ``base:label`` instance key).
+            config: The stored configuration dictionary.
+
+        Returns:
+            List of validation errors. Non-empty means the config was applied
+            anyway and the caller should log it.
+        """
+        errors = self.set_plugin_config(plugin_id, config)
+        if errors and plugin_id in self._plugins:
+            self._configs[plugin_id] = config
+            self._plugins[plugin_id].config = config
+        return errors
+
     def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:
         """Get configuration for a plugin.
 
@@ -1068,15 +1103,13 @@ class PluginRegistry:
                 self.enable_plugin(compound_key)
             instance_config = self._configs.get(compound_key, {})
             if instance_config:
-                errors = self.set_plugin_config(compound_key, instance_config)
+                errors = self.apply_stored_config(compound_key, instance_config)
                 if errors:
                     logger.warning(
                         "Config validation failed after reload for '%s': %s — applying raw config to avoid data loss",
                         compound_key,
                         errors,
                     )
-                    self._configs[compound_key] = instance_config
-                    new_instance.config = instance_config
 
             logger.info("Rebuilt plugin instance after reload: %s", compound_key)
 
