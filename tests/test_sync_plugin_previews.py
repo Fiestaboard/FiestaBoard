@@ -50,11 +50,14 @@ class TestSeedIntegrity:
             errors = validate_previews(entry["previews"])
             assert not errors, f"{plugin_id}: {errors}"
 
-    def test_every_entry_covers_flagship_and_note(self):
-        """The #1436 requirement: Note owners see a preview too."""
+    def test_every_entry_has_at_least_one_preview(self):
+        """Authors choose their own shape mix (two flagships, all note arrays,
+        anything up to MAX_PREVIEWS) - the only floor is one board. Do not
+        tighten this to specific device types: the daily sync copies manifest
+        declarations verbatim, so a shape requirement here would turn CI red
+        the moment an author adopts a mix we didn't anticipate."""
         for plugin_id, entry in SEED["plugins"].items():
-            devices = {preview.get("device_type", "flagship") for preview in entry["previews"]}
-            assert {"flagship", "note"} <= devices, f"{plugin_id} covers only {sorted(devices)}"
+            assert entry["previews"], f"{plugin_id} has no previews"
 
     def test_entries_are_sorted(self):
         assert list(SEED["plugins"]) == sorted(SEED["plugins"])
@@ -90,6 +93,22 @@ class TestManifestEntry:
     def test_invalid_previews_are_rejected(self):
         declaration = {**VALID_ENTRY, "previews": [{"device_type": "spaceship", "rows": ["HI"]}]}
         assert manifest_entry("demo", {"id": "demo", **declaration}) is None
+
+    def test_any_shape_mix_is_adopted(self):
+        """Two flagships + a note + a note array in one manifest is fine."""
+        declaration = {
+            "teaser": "SHAPES",
+            "previews": [
+                {"label": "Morning", "device_type": "flagship", "rows": ["GOOD MORNING"]},
+                {"label": "Evening", "device_type": "flagship", "rows": ["GOOD EVENING"]},
+                {"device_type": "note", "rows": ["HI"]},
+                {"device_type": "note_array", "notes_wide": 2, "notes_tall": 1, "rows": ["WIDE BOARD"]},
+            ],
+        }
+        entry = manifest_entry("demo", {"id": "demo", **declaration})
+        assert entry is not None
+        assert len(entry["previews"]) == 4
+        assert entry["previews"][0]["label"] == "Morning"
 
     def test_unknown_preview_keys_are_stripped(self):
         declaration = {
