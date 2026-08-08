@@ -1,11 +1,12 @@
 import Link from "@docusaurus/Link";
-import { Badge, Box, Button, EmptyState, Flex, Heading, Input, Text } from "@fiestaboard/ui";
+import { useColorMode } from "@docusaurus/theme-common";
+import { Badge, BoardTeaser, Box, Button, EmptyState, Flex, Heading, Input, Text } from "@fiestaboard/ui";
 import type { PluginEntry } from "@site/src/plugin-data";
-import { CATEGORIES, CATEGORY_LABELS, pluginBoardImagePath, plugins } from "@site/src/plugin-data";
+import { CATEGORIES, CATEGORY_LABELS, pluginPreviews, plugins } from "@site/src/plugin-data";
 import Layout from "@theme/Layout";
 import clsx from "clsx";
 import { SearchX } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import styles from "./index.module.css";
 
@@ -18,21 +19,46 @@ function CategoryBadge({ category }: { category: string }) {
   );
 }
 
-function PluginCard({ plugin, boardColor }: { plugin: PluginEntry; boardColor: "black" | "white" }) {
-  const imgSrc = pluginBoardImagePath(plugin, boardColor === "white" ? "light" : "dark");
+/**
+ * Scales the fixed-size BoardTeaser strip up to the card's available width
+ * (viewport breakpoints can't see card width, so this measures instead).
+ * `transform` doesn't affect layout, so the wrapper height tracks the scale.
+ */
+function ScaledTeaser({ teaser, boardType }: { teaser: string; boardType: "black" | "white" }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const strip = container?.firstElementChild as HTMLElement | null;
+    if (!container || !strip) return;
+    const compute = () => {
+      // offsetWidth ignores the transform, so this is the intrinsic width.
+      if (strip.offsetWidth > 0) {
+        setScale(Math.min(1.5, Math.max(0.85, container.clientWidth / strip.offsetWidth)));
+      }
+    };
+    compute();
+    const observer = new ResizeObserver(compute);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <Box ref={containerRef} className={styles.teaserScaler} style={{ height: `${18 * scale}px` }}>
+      <Box style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}>
+        <BoardTeaser teaser={teaser} boardType={boardType} />
+      </Box>
+    </Box>
+  );
+}
+
+function PluginCard({ plugin }: { plugin: PluginEntry }) {
+  const { colorMode } = useColorMode();
+  const teaser = pluginPreviews[plugin.id]?.teaser ?? plugin.name;
 
   return (
     <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.pluginCard}>
-      <Box className={styles.pluginCardImage}>
-        <img
-          src={imgSrc}
-          alt={`${plugin.name} displayed on a split-flap board`}
-          loading="lazy"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = "none";
-          }}
-        />
-      </Box>
       <Box className={styles.pluginCardBody}>
         <Box className={styles.pluginCardHeader}>
           <Heading level={3} className={styles.pluginCardTitle}>
@@ -45,6 +71,9 @@ function PluginCard({ plugin, boardColor }: { plugin: PluginEntry; boardColor: "
           by {plugin.author}
         </Text>
       </Box>
+      <Box className={styles.pluginCardTeaser}>
+        <ScaledTeaser teaser={teaser} boardType={colorMode === "dark" ? "black" : "white"} />
+      </Box>
     </Link>
   );
 }
@@ -52,7 +81,6 @@ function PluginCard({ plugin, boardColor }: { plugin: PluginEntry; boardColor: "
 export default function PluginDirectory(): ReactNode {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [boardColor, setBoardColor] = useState<"black" | "white">("black");
 
   const filtered = useMemo(() => {
     return plugins.filter((p) => {
@@ -118,28 +146,11 @@ export default function PluginDirectory(): ReactNode {
             </Flex>
           </Box>
 
-          {/* Board color toggle */}
-          <Box className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
-            {(["black", "white"] as const).map((color) => (
-              <Button
-                key={color}
-                type="button"
-                variant="ghost"
-                role="radio"
-                className={clsx(styles.boardColorOption, boardColor === color && styles.boardColorOptionActive)}
-                onClick={() => setBoardColor(color)}
-                aria-checked={boardColor === color}
-              >
-                {color === "black" ? "Black Board" : "White Board"}
-              </Button>
-            ))}
-          </Box>
-
           {/* Results */}
           {filtered.length > 0 ? (
             <Box className={styles.pluginGrid}>
               {filtered.map((plugin) => (
-                <PluginCard key={plugin.id} plugin={plugin} boardColor={boardColor} />
+                <PluginCard key={plugin.id} plugin={plugin} />
               ))}
             </Box>
           ) : (

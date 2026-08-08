@@ -21,7 +21,7 @@
   text-decoration: none;
 }
 
-/* Hero image */
+/* Legacy screenshot hero - backwards compat for plugins with no previews yet */
 .heroImage {
   max-width: 720px;
   margin: 0 auto 2rem;
@@ -37,6 +37,62 @@
 .heroImage img {
   width: 100%;
   display: block;
+}
+
+/* Hero board preview */
+.heroBoard {
+  max-width: 720px;
+  margin: 0 auto 2rem;
+}
+
+.deviceTabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.deviceTab {
+  padding: 0.35rem 1rem;
+  font-size: 0.82rem;
+  font-family: inherit;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--ifm-color-emphasis-700);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+
+.deviceTab:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.deviceTabActive {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.deviceTabActive:hover {
+  color: #fff;
+}
+
+.heroBoardDisplay {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  border-radius: 12px;
+  background: var(--ifm-color-emphasis-100);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+[data-theme="dark"] .heroBoardDisplay {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
 /* Board color toggle */
