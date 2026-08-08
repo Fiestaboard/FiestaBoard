@@ -63,10 +63,13 @@
   color: inherit;
 }
 
-.spotlightImage {
-  display: block;
-  max-width: 100%;
-  height: auto;
+.spotlightBoard {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 1.25rem 1rem;
+  background: var(--ifm-color-emphasis-100);
+  overflow-x: auto;
 }
 
 .spotlightImagePlaceholder {

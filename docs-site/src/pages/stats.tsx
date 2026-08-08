@@ -1,6 +1,12 @@
 import Link from "@docusaurus/Link";
+import { StaticBoardDisplay } from "@fiestaboard/ui";
 import type { PluginEntry } from "@site/src/plugin-data";
-import { CATEGORY_LABELS as REGISTRY_CATEGORY_LABELS, pluginBoardImagePath, plugins } from "@site/src/plugin-data";
+import {
+  CATEGORY_LABELS as REGISTRY_CATEGORY_LABELS,
+  pluginPreviews,
+  plugins,
+  previewMessage,
+} from "@site/src/plugin-data";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import * as Icons from "lucide-react";
@@ -77,19 +83,22 @@ function TopPluginSpotlight({
   entry: PluginEntry;
   windowDays: number;
 }) {
-  const [imgOk, setImgOk] = useState(true);
-  const imgSrc = pluginBoardImagePath(entry, "dark");
+  const preview = pluginPreviews[plugin.id]?.previews[0];
 
   return (
     <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.spotlight}>
-      {imgOk ? (
-        <img
-          className={styles.spotlightImage}
-          src={imgSrc}
-          alt={`${plugin.name} on a split-flap board`}
-          loading="lazy"
-          onError={() => setImgOk(false)}
-        />
+      {preview ? (
+        <div className={styles.spotlightBoard}>
+          <StaticBoardDisplay
+            message={previewMessage(preview)}
+            size="sm"
+            boardType="black"
+            deviceType={preview.device_type ?? "flagship"}
+            notesWide={preview.notes_wide ?? 1}
+            notesTall={preview.notes_tall ?? 1}
+            previewLabel={`${plugin.name} on a split-flap board`}
+          />
+        </div>
       ) : (
         <div className={styles.spotlightImagePlaceholder}>
           <PluginIcon name={entry.icon} size={32} />

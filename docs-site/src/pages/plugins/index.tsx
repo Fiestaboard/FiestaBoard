@@ -1,6 +1,8 @@
 import Link from "@docusaurus/Link";
+import { useColorMode } from "@docusaurus/theme-common";
+import { BoardTeaser } from "@fiestaboard/ui";
 import type { PluginEntry } from "@site/src/plugin-data";
-import { CATEGORIES, CATEGORY_LABELS, pluginBoardImagePath, plugins } from "@site/src/plugin-data";
+import { CATEGORIES, CATEGORY_LABELS, pluginPreviews, plugins } from "@site/src/plugin-data";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import clsx from "clsx";
@@ -13,20 +15,14 @@ function CategoryBadge({ category }: { category: string }) {
   return <span className={clsx(styles.categoryBadge, styles[`category_${category}`])}>{label}</span>;
 }
 
-function PluginCard({ plugin, boardColor }: { plugin: PluginEntry; boardColor: "black" | "white" }) {
-  const imgSrc = pluginBoardImagePath(plugin, boardColor === "white" ? "light" : "dark");
+function PluginCard({ plugin }: { plugin: PluginEntry }) {
+  const { colorMode } = useColorMode();
+  const teaser = pluginPreviews[plugin.id]?.teaser ?? plugin.name;
 
   return (
     <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.pluginCard}>
-      <div className={styles.pluginCardImage}>
-        <img
-          src={imgSrc}
-          alt={`${plugin.name} displayed on a split-flap board`}
-          loading="lazy"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = "none";
-          }}
-        />
+      <div className={styles.pluginCardTeaser}>
+        <BoardTeaser teaser={teaser} boardType={colorMode === "dark" ? "black" : "white"} />
       </div>
       <div className={styles.pluginCardBody}>
         <div className={styles.pluginCardHeader}>
@@ -45,7 +41,6 @@ function PluginCard({ plugin, boardColor }: { plugin: PluginEntry; boardColor: "
 export default function PluginDirectory(): ReactNode {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [boardColor, setBoardColor] = useState<"black" | "white">("black");
 
   const filtered = useMemo(() => {
     return plugins.filter((p) => {
@@ -109,33 +104,11 @@ export default function PluginDirectory(): ReactNode {
             </div>
           </div>
 
-          {/* Board color toggle */}
-          <div className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
-            <button
-              type="button"
-              role="radio"
-              className={clsx(styles.boardColorOption, boardColor === "black" && styles.boardColorOptionActive)}
-              onClick={() => setBoardColor("black")}
-              aria-checked={boardColor === "black"}
-            >
-              Black Board
-            </button>
-            <button
-              type="button"
-              role="radio"
-              className={clsx(styles.boardColorOption, boardColor === "white" && styles.boardColorOptionActive)}
-              onClick={() => setBoardColor("white")}
-              aria-checked={boardColor === "white"}
-            >
-              White Board
-            </button>
-          </div>
-
           {/* Results */}
           {filtered.length > 0 ? (
             <div className={styles.pluginGrid}>
               {filtered.map((plugin) => (
-                <PluginCard key={plugin.id} plugin={plugin} boardColor={boardColor} />
+                <PluginCard key={plugin.id} plugin={plugin} />
               ))}
             </div>
           ) : (

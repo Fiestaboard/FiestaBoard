@@ -1,8 +1,9 @@
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import Link from "@docusaurus/Link";
+import { StaticBoardDisplay } from "@fiestaboard/ui";
 import { fetchPluginReadme, rewriteMarkdownImageUrls, rewriteMarkdownRepoLinks } from "@site/src/lib/github-readme";
 import type { PluginEntry } from "@site/src/plugin-data";
-import { CATEGORY_LABELS, pluginBoardImagePath, plugins } from "@site/src/plugin-data";
+import { CATEGORY_LABELS, pluginPreviews, plugins, previewLabel, previewMessage } from "@site/src/plugin-data";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import clsx from "clsx";
@@ -145,6 +146,7 @@ function ReadmeContent({ markdown }: { markdown: string }) {
 
 function DetailContent() {
   const [boardColor, setBoardColor] = useState<"black" | "white">("black");
+  const [activePreview, setActivePreview] = useState(0);
   const [readme, setReadme] = useState<string | null>(null);
   const [loadingReadme, setLoadingReadme] = useState(true);
 
@@ -197,7 +199,8 @@ function DetailContent() {
   }
 
   const categoryLabel = CATEGORY_LABELS[plugin.category] ?? plugin.category;
-  const heroImage = pluginBoardImagePath(plugin, boardColor === "white" ? "light" : "dark");
+  const previews = pluginPreviews[plugin.id]?.previews ?? [];
+  const preview = previews[Math.min(activePreview, previews.length - 1)];
 
   return (
     <>
@@ -208,16 +211,38 @@ function DetailContent() {
         </Link>
       </div>
 
-      {/* Hero image */}
-      <div className={styles.heroImage}>
-        <img
-          src={heroImage}
-          alt={`${plugin.name} displayed on a split-flap board`}
-          onError={(e) => {
-            (e.target as HTMLImageElement).parentElement!.style.display = "none";
-          }}
-        />
-      </div>
+      {/* Board preview: one board mounted at a time, tabs across previews[] */}
+      {preview && (
+        <div className={styles.heroBoard}>
+          {previews.length > 1 && (
+            <div className={styles.deviceTabs} role="tablist" aria-label="Board shape">
+              {previews.map((entry, index) => (
+                <button
+                  key={previewLabel(entry)}
+                  type="button"
+                  role="tab"
+                  aria-selected={index === activePreview}
+                  className={clsx(styles.deviceTab, index === activePreview && styles.deviceTabActive)}
+                  onClick={() => setActivePreview(index)}
+                >
+                  {previewLabel(entry)}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className={styles.heroBoardDisplay}>
+            <StaticBoardDisplay
+              message={previewMessage(preview)}
+              size="md"
+              boardType={boardColor}
+              deviceType={preview.device_type ?? "flagship"}
+              notesWide={preview.notes_wide ?? 1}
+              notesTall={preview.notes_tall ?? 1}
+              previewLabel={`${plugin.name} displayed on a split-flap board`}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Board color toggle */}
       <div className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
