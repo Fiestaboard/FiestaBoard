@@ -22,6 +22,12 @@ services:
     environment:
       - PRODUCTION=false
       - WATCHPACK_POLLING=true
+      # GitHub Packages auth for @fiestaboard/ui. The build gets the token via
+      # the `npm_token` secret above, but start-dev.sh also runs `npm install`
+      # at container startup (into the bind-mounted node_modules volume), so
+      # the token must be present at runtime too — export NPM_TOKEN on the host
+      # first, e.g. `export NPM_TOKEN=$(gh auth token)` (needs read:packages).
+      - NPM_TOKEN=${NPM_TOKEN:-}
       # Default a fresh dev install to talk to the bundled mock
       # Vestaboard instead of leaving the host blank (which strands
       # Active Display on a permanent spinner). These BOARD_* vars

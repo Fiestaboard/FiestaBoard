@@ -44,6 +44,15 @@ git checkout -b docs-update-readme  # for documentation
 ### 2. Make your changes
 
 - Edit code and docs on your branch.
+- **Authenticate to GitHub Packages first.** The web UI depends on `@fiestaboard/ui`, which is published to the GitHub Packages npm registry and requires a token even though it is public. Export one before building, or the Docker build (and the container's startup `npm install`) fails with `401 Unauthorized ... authentication token not provided`:
+
+  ```bash
+  # Any GitHub token with the read:packages scope works.
+  # If your gh login is missing the scope, add it once:
+  #   gh auth refresh -h github.com -s read:packages
+  export NPM_TOKEN=$(gh auth token)
+  ```
+
 - For API/web changes, use the dev stack so code is mounted and reloads:
 
   ```bash

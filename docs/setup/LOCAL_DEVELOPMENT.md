@@ -8,8 +8,24 @@ This guide is for **contributors and plugin developers** who want to work on Fie
 
 - Docker and Docker Compose installed
 - A `.env` file with your board API key (copy from `env.example`)
+- A GitHub token with `read:packages`, exported as `NPM_TOKEN` (see below)
 
 > **Important:** Do not run the API (`src/api_server.py`) or the web UI (`npm run dev`) directly on the host. All commands here run **inside** the dev container — no local `pip install` or `npm install` required.
+
+### GitHub Packages authentication (required to build)
+
+The web UI depends on `@fiestaboard/ui`, published to the GitHub Packages npm registry. That registry requires auth even for public packages, so export a token before your first build:
+
+```bash
+# Any GitHub token with the read:packages scope works.
+# If your gh login lacks the scope, add it once:
+#   gh auth refresh -h github.com -s read:packages
+export NPM_TOKEN=$(gh auth token)
+```
+
+The token is used both by the image build (as a BuildKit secret) and by the container's startup `npm install`, which is why it must be present in the shell you run `docker compose` from.
+
+> Without `NPM_TOKEN` set, the build (and the container startup) fails with `401 Unauthorized ... authentication token not provided`.
 
 ## Development Workflow
 

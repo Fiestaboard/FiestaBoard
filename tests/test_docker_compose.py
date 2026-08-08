@@ -108,6 +108,52 @@ class TestDevComposeNetwork:
 
 
 # ---------------------------------------------------------------------------
+# GitHub Packages auth at runtime — regression guard for #1524
+# ---------------------------------------------------------------------------
+
+
+class TestDevComposeNpmToken:
+    """The dev container installs @fiestaboard/ui at startup, not just at build.
+
+    ``start-dev.sh`` runs ``npm install`` on every container start (into the
+    bind-mounted node_modules volume). That install talks to the GitHub
+    Packages registry, which needs auth — but the build-time ``npm_token``
+    secret is not available at runtime. So the ``fiestaboard`` dev service must
+    pass ``NPM_TOKEN`` through as an environment variable, and start-dev.sh
+    must write it into an npmrc before installing. Without both, the container
+    boots and then dies with ``401 Unauthorized ... token not provided``
+    (issue #1524).
+    """
+
+    @pytest.fixture(autouse=True)
+    def load(self):
+        self.compose = _load_compose("docker-compose.dev.yml")
+
+    def test_fiestaboard_service_passes_npm_token(self):
+        env = self.compose["services"]["fiestaboard"].get("environment", [])
+        # environment may be a list ("KEY=VALUE") or a mapping.
+        if isinstance(env, dict):
+            keys = set(env.keys())
+        else:
+            keys = {item.split("=", 1)[0] for item in env}
+        assert "NPM_TOKEN" in keys, (
+            "docker-compose.dev.yml 'fiestaboard' service must pass NPM_TOKEN so the "
+            "runtime `npm install` in start-dev.sh can auth to GitHub Packages (issue #1524)"
+        )
+
+    def test_start_dev_writes_registry_auth(self):
+        path = os.path.join(REPO_ROOT, "start-dev.sh")
+        if not os.path.exists(path):
+            pytest.skip("start-dev.sh not found (not available in this environment)")
+        with open(path) as fh:
+            script = fh.read()
+        assert "npm.pkg.github.com/:_authToken" in script and "NPM_TOKEN" in script, (
+            "start-dev.sh must write the NPM_TOKEN into an npmrc before `npm install`, "
+            "otherwise the @fiestaboard/ui install fails with 401 at container start (issue #1524)"
+        )
+
+
+# ---------------------------------------------------------------------------
 # docker-compose.yml (production)
 # ---------------------------------------------------------------------------
 
