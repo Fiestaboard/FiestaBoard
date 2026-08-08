@@ -7,7 +7,9 @@ name: 'Scheduled: Maintenance'
 #
 # Jobs:
 #   - plugin-stats   : daily refresh of docs-site/static/plugin-stats.json
-#                      (was .github/workflows/plugin-stats.yml)
+#                      (was .github/workflows/plugin-stats.yml) and of
+#                      plugin-previews.json (manifest teaser/previews win,
+#                      seed entries are the fallback)
 #   - security-scan  : weekly bandit + pip-audit sweep of plugin-registry
 #                      repos, opens/updates an issue on findings
 #                      (was .github/workflows/registry-scan.yml)
@@ -56,11 +58,16 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
         run: python3 scripts/fetch_plugin_stats.py
 
+      - name: Sync plugin previews
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: python3 scripts/sync_plugin_previews.py
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs-site/static/plugin-stats.json
+          git add docs-site/static/plugin-stats.json plugin-previews.json
           if git diff --staged --quiet; then
             echo "No changes."
           else

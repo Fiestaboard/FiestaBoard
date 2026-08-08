@@ -1,0 +1,1221 @@
+{
+  "_comment": "Rendered board previews for registry plugins - the seed the docs site renders when a plugin's own manifest.json does not declare teaser/previews. Refreshed by scripts/sync_plugin_previews.py (scheduled-maintenance.yml): manifest values win, seed entries are the fallback, and entries are removed only when a plugin leaves plugin-registry.json. Contract: docs/development/PLUGIN_DEVELOPMENT.md (Board previews).",
+  "version": 1,
+  "plugins": {
+    "air_fog": {
+      "teaser": "AQI {66}45 CLEAR",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+            "     AIR QUALITY",
+            "     AQI 42  GOOD",
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+            "      VISIBILITY",
+            "  8.5 MILES  LIGHT FOG"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "AIR QUALITY",
+            "AQI {66} 45",
+            "FOG Clear"
+          ]
+        }
+      ]
+    },
+    "airport_board": {
+      "teaser": "UAL123 OVERHEAD",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "    Airport Board",
+            "         SFO",
+            "Nearby: 12 aircraft",
+            "Nearest: UAL123",
+            "Alt: 8500 ft",
+            "United States"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "NEARBY AIRCRAFT",
+            "UAL123",
+            "12 TRACKED"
+          ]
+        }
+      ]
+    },
+    "airport_departures": {
+      "teaser": "AS123 LAX 7:30",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "    SEA DEPARTURES",
+            "AS123 LAX 1930",
+            "AS123 LAX 1930",
+            "AS123 LAX 1930",
+            "",
+            "     5 DEPARTURES"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "SEA DEPARTURES",
+            "AS123 LAX 7:30",
+            "DL456 SFO DLY"
+          ]
+        }
+      ]
+    },
+    "aurora_forecast": {
+      "teaser": "AURORA KP 3.7",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "   Aurora Forecast",
+            "",
+            "Kp Index: 3.67",
+            "Activity: Quiet",
+            "Visible:  No"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "AURORA FORECAST",
+            "KP 3.67",
+            "Quiet"
+          ]
+        }
+      ]
+    },
+    "calendar_sub": {
+      "teaser": "APR 3 3:30 PM",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "      Next Event",
+            "    Parent Teacher",
+            "        Apr 3",
+            "       3:30 PM",
+            "       Room 204",
+            "      In 10 min"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "Parent Teacher",
+            "Apr 3",
+            "3:30 PM"
+          ]
+        }
+      ]
+    },
+    "currency": {
+      "teaser": "EUR 0.9234",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "  Currency Exchange",
+            " USD rates 2026-05-01",
+            "",
+            "EUR: 0.9234",
+            "GBP: 0.7912",
+            "JPY: 149.82"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "USD RATES",
+            "EUR 0.9234",
+            "GBP 0.7912"
+          ]
+        }
+      ]
+    },
+    "dad_jokes": {
+      "teaser": "DAD JOKES DAILY",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}",
+            "",
+            "  WHAT DO YOU CALL A",
+            "     FAKE NOODLE?",
+            "",
+            "     AN IMPASTA!"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "DAD JOKES",
+            "I'M HUNGRY.",
+            "HI HUNGRY, DAD"
+          ]
+        }
+      ]
+    },
+    "disney_parks_times": {
+      "teaser": "SPACE MTN 45MIN",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}",
+            "SPACE MOUNTAIN   45MIN",
+            "MATTERHORN BOBS  30MIN",
+            "PIRATES CARIBBN  15MIN",
+            "HAUNTED MANSION  20MIN",
+            "SPLASH MOUNTAIN  60MIN"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "WAIT TIMES",
+            "SPACE MTN 45MIN",
+            "PIRATES   15MIN"
+          ]
+        }
+      ]
+    },
+    "earthquake": {
+      "teaser": "M6.1 2H AGO",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "  Earthquake Monitor",
+            "",
+            "M6.1 50km NE of Tokyo",
+            "Depth: 12.4 km",
+            "2h ago",
+            "Feed total: 3"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "EARTHQUAKE",
+            "M6.1",
+            "2h ago"
+          ]
+        }
+      ]
+    },
+    "element_of_day": {
+      "teaser": "H - HYDROGEN",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "  Element of the Day",
+            "",
+            "     Hydrogen (H)",
+            "Atomic No: 1",
+            "Weight:    1.008",
+            "       nonmetal"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "Hydrogen",
+            "SYM H",
+            "AT# 1"
+          ]
+        }
+      ]
+    },
+    "generative_ai_art": {
+      "teaser": "{67}{68}{63}{64}{65}{66} AI ART",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{66}{66}{66}{66}{66}{66}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{68}{68}{68}{68}{68}{68}",
+            "{66}{66}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}",
+            "{67}{67}{67}{67}{67}{67}{67}{67}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{63}{63}{63}{63}",
+            "{67}{67}{67}{67}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{63}{63}{63}{63}{63}{63}{63}{63}",
+            "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{64}{64}",
+            "{68}{68}{68}{68}{68}{68}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{64}{64}{64}{64}{64}{64}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{66}{66}{66}{66}{66}{66}{66}{66}{67}{67}{67}{67}{67}{67}{67}",
+            "{66}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{68}",
+            "{67}{67}{67}{67}{67}{67}{67}{68}{68}{68}{68}{68}{68}{68}{68}"
+          ]
+        }
+      ]
+    },
+    "generic_data": {
+      "teaser": "3 FEEDS ACTIVE",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}",
+            "    ISS TRACKER",
+            "  LAT 32.71  LON 96.80",
+            "",
+            "    ALTITUDE 420 KM",
+            "   SPEED 27600 KM/H"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "DATA FEEDS",
+            "3 FEEDS",
+            "ACTIVE"
+          ]
+        }
+      ]
+    },
+    "guest_wifi": {
+      "teaser": "GUEST WIFI INFO",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}",
+            "     WIFI NETWORK",
+            "    ALOHA-GUEST-5G",
+            "",
+            "       PASSWORD",
+            "      MAHALO2026"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "GUEST WIFI",
+            "MyGuestNetwork",
+            "welcome123"
+          ]
+        }
+      ]
+    },
+    "hacker_news": {
+      "teaser": "{64}HN TOP STORIES",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}",
+            "HACKER NEWS",
+            "SHOW HN: A SPLIT-FLAP",
+            "DRIVER IN RUST",
+            "SCORE 342  BY TLB",
+            "COMMENTS 128"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "HACKER NEWS",
+            "SHOW HN: RUST",
+            "SCORE 342"
+          ]
+        }
+      ]
+    },
+    "health": {
+      "teaser": "HEALTH: AQI 45",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "     Health Index",
+            "        AQI 45",
+            "   Allergy MODERATE",
+            "",
+            "     Flu Risk LOW",
+            "  Pollen:MOD AQI:45"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "HEALTH INDEX",
+            "AQI 45",
+            "ALLERGY MED"
+          ]
+        }
+      ]
+    },
+    "home_assistant": {
+      "teaser": "HA 12 ENTITIES",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}",
+            "     SMART HOME",
+            "  LIVING ROOM  72F",
+            "  FRONT DOOR  LOCKED",
+            "  GARAGE DOOR  CLOSED",
+            "  ALARM ARMED 3 LIGHTS"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "HOME ASSISTANT",
+            "12 ENTITIES",
+            "rest"
+          ]
+        }
+      ]
+    },
+    "iss_tracker": {
+      "teaser": "ISS 51.5N 0.1W",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "     ISS Tracker",
+            "",
+            "Lat: 51.50",
+            "Lon: -0.13",
+            "Alt: 408.3 km",
+            "Spd: 27600 kph"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "ISS TRACKER",
+            "LAT 51.50",
+            "LON -0.13"
+          ]
+        }
+      ]
+    },
+    "last_fm": {
+      "teaser": "NOW: QUEEN",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}",
+            "     NOW PLAYING",
+            "  BOHEMIAN RHAPSODY",
+            "         QUEEN",
+            " A NIGHT AT THE OPERA",
+            "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "NOW PLAYING",
+            "BOHEMIAN RHAP.",
+            "QUEEN"
+          ]
+        }
+      ]
+    },
+    "lightning": {
+      "teaser": "{63}TORNADO WARN",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "  CA Weather Alerts",
+            "",
+            "Tornado Warning",
+            "Severity: Extreme",
+            "3 active alert(s)",
+            "All clear: No"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "WEATHER ALERTS",
+            "Tornado Warning",
+            "SEV Extreme"
+          ]
+        }
+      ]
+    },
+    "lyft_bike_share": {
+      "teaser": "5 E-BIKES READY",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}",
+            "     BAY WHEELS",
+            "MARKET + 2ND   8 BIKES",
+            "POWELL STATION 9 BIKES",
+            "EMBARCADERO   20 BIKES",
+            "FERRY BLDG    11 BIKES"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "BIKE SHARE",
+            "E-BIKE {65} 5",
+            "TOTAL 8"
+          ]
+        }
+      ]
+    },
+    "moon_phase": {
+      "teaser": "WAXING 42% LIT",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{63}{67}{65}{66}{64} MOON PHASE {64}{66}{65}{67}{63}",
+            "",
+            "   Waxing Crescent",
+            "  42.5% illuminated",
+            "",
+            " Full Moon 2026-05-12"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "MOON PHASE",
+            "Waxing Crescent",
+            "42.5% LIT"
+          ]
+        }
+      ]
+    },
+    "muni": {
+      "teaser": "N JUDAH 3 MIN",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+            "N JUDAH  CHURCH  3 MIN",
+            "N JUDAH  CHURCH 12 MIN",
+            "7 HAIGHT DUBOCE  8 MIN",
+            "38 GEARY POWELL  5 MIN",
+            "38 GEARY POWELL 14 MIN"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "Church & Duboce",
+            "N 3min  KT 8min"
+          ]
+        }
+      ]
+    },
+    "national_day": {
+      "teaser": "COFFEE DAY 9/29",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "     National Day",
+            "     September 29",
+            "",
+            " National Coffee Day",
+            "",
+            "3 observance(s) today"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "NATIONAL DAY",
+            "National Coffee",
+            "September 29"
+          ]
+        }
+      ]
+    },
+    "nearby_aircraft": {
+      "teaser": "UAL1234 35000FT",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+            "UAL 1532 B738 12000 FT",
+            "SWA 445  B737  8200 FT",
+            "DAL 892  A321 15400 FT",
+            "AAL 210  B789 22100 FT",
+            "SKW 5412 E175  6500 FT"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "NEARBY AIRCRAFT",
+            "UAL1234 35000ft",
+            "4 TRACKED"
+          ]
+        }
+      ]
+    },
+    "network_speed": {
+      "teaser": "DN 250 UP 19",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "    Network Speed",
+            "",
+            "Down: 250.4 Mbps",
+            "Up:   18.7 Mbps",
+            "Ping: 14.3 ms",
+            "2026-05-01 12:00"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "NETWORK SPEED",
+            "DN 250.4 MBPS",
+            "UP 18.7 MBPS"
+          ]
+        }
+      ]
+    },
+    "on_this_day": {
+      "teaser": "1969 MOON WALK",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "     On This Day",
+            "     May 1, 1969",
+            "",
+            "Moon landing"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "ON THIS DAY",
+            "1969",
+            "Moon landing"
+          ]
+        }
+      ]
+    },
+    "pet_facts": {
+      "teaser": "CATS SLEEP 16H",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "      Pet Facts",
+            "",
+            "cat fact:",
+            "Cats sleep 12-16 hours"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "cat FACT",
+            "Cats sleep",
+            "12-16 hours"
+          ]
+        }
+      ]
+    },
+    "pihole": {
+      "teaser": "BLOCKED 1,823",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "    Pi-hole Stats",
+            "   Status: enabled",
+            "",
+            "Queries: 12435",
+            "Blocked: 1823",
+            "  (14.7% filtered)"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "PI-HOLE enabled",
+            "BLK 1823",
+            "PCT 14.7%"
+          ]
+        }
+      ]
+    },
+    "quote_of_day": {
+      "teaser": "DAILY QUOTE",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "   Quote of the Day",
+            "",
+            "Do it with passion",
+            "",
+            "",
+            "          - Rosa Parks"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "Do it with",
+            "passion",
+            "- Rosa Parks"
+          ]
+        }
+      ]
+    },
+    "reddit_hot": {
+      "teaser": "R/PROGRAMMING",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            " HOT ON REDDIT TODAY",
+            "r/programming",
+            "Python 4.0 released",
+            "",
+            "SCORE 45321",
+            "CMNTS 1023"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "r/programming",
+            "Python 4.0",
+            "SC 45321"
+          ]
+        }
+      ]
+    },
+    "river_flow": {
+      "teaser": "245 CFS NORMAL",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "      River Flow",
+            "GUADALUPE R A SAN JOSE",
+            "",
+            "Flow: 245.0 cfs",
+            "Above normal",
+            "2026-05-01 12:00"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "GUADALUPE R A",
+            "245.0 CFS",
+            "Above normal"
+          ]
+        }
+      ]
+    },
+    "santa_tracker": {
+      "teaser": "SANTA IN TOKYO",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}{63}{66}",
+            "    SANTA TRACKER",
+            "",
+            "   STATUS IN FLIGHT",
+            "   NEXT STOP NEW YORK",
+            "   GIFTS 2.4 BILLION"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "SANTA TRACKER",
+            "Tokyo, Japan",
+            "50% DONE"
+          ]
+        }
+      ]
+    },
+    "solar_activity": {
+      "teaser": "7 SUNSPOTS",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "    Solar Activity",
+            "",
+            "Sunspots: 7",
+            "Flare:    M1.2",
+            "Activity: Moderate"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "SOLAR ACTIVITY",
+            "7 SUNSPOTS",
+            "Moderate"
+          ]
+        }
+      ]
+    },
+    "spacecraft_launches": {
+      "teaser": "FALCON 9 MAR 15",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}",
+            "     NEXT LAUNCH",
+            " FALCON 9  STARLINK",
+            " CAPE CANAVERAL  FL",
+            "",
+            "     T - 02:15:30"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "NEXT LAUNCH",
+            "Falcon 9",
+            "MAR 15 14:30"
+          ]
+        }
+      ]
+    },
+    "sports_scores": {
+      "teaser": "SF 24 - KC 21",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}",
+            "     NFL SCORES",
+            " 49ERS  24  CHIEFS  21",
+            "{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}",
+            " COWBOYS 17 EAGLES  31",
+            "{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "LIVE SCORES",
+            "SF 24 - KC 21",
+            "6 GAMES"
+          ]
+        }
+      ]
+    },
+    "star_trek_quotes": {
+      "teaser": "MAKE IT SO.",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}",
+            "THE NEEDS OF THE MANY",
+            " OUTWEIGH THE NEEDS",
+            "      OF THE FEW",
+            "",
+            "       - MR SPOCK"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "Make it so.",
+            "",
+            "Picard"
+          ]
+        }
+      ]
+    },
+    "stardate": {
+      "teaser": "SD 78234.5",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}",
+            "   USS ENTERPRISE",
+            "",
+            "       STARDATE",
+            "       79145.7",
+            "{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}{68}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "STARDATE",
+            "78234.5"
+          ]
+        }
+      ]
+    },
+    "stocks": {
+      "teaser": "{66}AAPL +1.88%",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{green}AAPL    189.84  +1.2%{/green}",
+            "{red}TSLA    248.50  -0.8%{/red}",
+            "{green}GOOGL   176.32  +0.5%{/green}",
+            "{green}MSFT    415.20  +0.3%{/green}",
+            "{red}AMZN    178.90  -0.2%{/red}",
+            "{green}NVDA    875.40  +2.1%{/green}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "STOCK PRICES",
+            "{66}AAPL +1.88%",
+            "{63}TSLA -0.42%"
+          ]
+        }
+      ]
+    },
+    "sun_art": {
+      "teaser": "{65}{64}{63} SUNSET ART",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}",
+            "{65}{65}{65}{65}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{65}{65}{65}{65}",
+            "{64}{64}{64}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{64}{64}{64}",
+            "{64}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{64}",
+            "{65}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{65}",
+            "{68}{68}{68}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{68}{68}{68}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}",
+            "{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}{64}",
+            "{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}"
+          ]
+        }
+      ]
+    },
+    "surf": {
+      "teaser": "WAVES 4.2 FT",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+            "   OCEAN BEACH  SF",
+            "    4 TO 6 FT WAVES",
+            "   14 SEC PERIOD  NW",
+            "    WIND 8MPH OFFSHORE",
+            "     GOOD CONDITIONS"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "SURF REPORT",
+            "WAVES 4.2 FT",
+            "QUAL {65} GOOD"
+          ]
+        }
+      ]
+    },
+    "tide_times": {
+      "teaser": "HIGH TIDE 2:45",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "      Tide Times",
+            "  San Francisco, CA",
+            "",
+            "Next: High tide",
+            "Time:   2:45 PM",
+            "Height: 5.4 ft"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "TIDE TIMES",
+            "High TIDE",
+            "2:45 PM"
+          ]
+        }
+      ]
+    },
+    "traffic": {
+      "teaser": "WORK 25 MIN +8",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}",
+            "    SF TO OAKLAND",
+            "",
+            " BAY BRIDGE    25 MIN",
+            " VIA I-880     32 MIN",
+            "{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}{65}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "WORK",
+            "25 MIN",
+            "+8 DELAY"
+          ]
+        }
+      ]
+    },
+    "uv_index": {
+      "teaser": "UV 7.2 HIGH",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "       UV Index",
+            "",
+            "UV Index: 7.2",
+            "Risk:     High",
+            "",
+            " SPF 30+, seek shade"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "UV INDEX",
+            "UV 7.2",
+            "High"
+          ]
+        }
+      ]
+    },
+    "visual_clock": {
+      "teaser": "CLOCK 12:34",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "  {63}  {67}{67}{67}{67}  {66}{66}{66}{66}  {65}{65}{65}{65}",
+            "  {63}  {67}  {67}     {66}  {65}  {65}",
+            "  {63}  {67}  {67}     {66}  {65}  {65}",
+            "  {63}  {67}  {67}  {66}{66}{66}{66}  {65}{65}{65}{65}",
+            "  {63}  {67}  {67}     {66}  {65}  {65}",
+            "  {63}  {67}{67}{67}{67}  {66}{66}{66}{66}  {65}{65}{65}{65}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+            "     12:34",
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}"
+          ]
+        }
+      ]
+    },
+    "volcano": {
+      "teaser": "KILAUEA ERUPTS",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "   Volcano Activity",
+            "",
+            "       Kilauea",
+            "    United States",
+            "   Eruption ongoing",
+            " 12 volcanoes active"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "VOLCANO",
+            "Kilauea",
+            "ERUPTING"
+          ]
+        }
+      ]
+    },
+    "weather": {
+      "teaser": "72F CLOUDY",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+            "    SAN FRANCISCO",
+            "   54 F  PARTLY CLOUDY",
+            "   HIGH 62   LOW 48",
+            "  WIND 12MPH HUMID 68%",
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "HOME",
+            "72F CLOUDY",
+            "HI 78 LO 55"
+          ]
+        }
+      ]
+    },
+    "webhook": {
+      "teaser": "DEPLOY SUCCESS!",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "   Webhook Display",
+            "",
+            "Message:",
+            "Deploy success!",
+            "",
+            "2026-05-01 12:00"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "WEBHOOK",
+            "Deploy success!"
+          ]
+        }
+      ]
+    },
+    "white_noise": {
+      "teaser": "RAIN 45 MIN",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+            "     WHITE NOISE",
+            "",
+            "   RAIN ON TIN ROOF",
+            "   VOL 60%   45 MIN",
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "WHITE NOISE",
+            "RAIN ON TIN",
+            "VOL 60% 45 MIN"
+          ]
+        }
+      ]
+    },
+    "wildfire": {
+      "teaser": "CALDOR 42% CONT",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "Wildfire Tracker",
+            "",
+            "Caldor Fire",
+            "CA  28,000 acres",
+            "Containment: 42%",
+            "15 active fires"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "WILDFIRE",
+            "Caldor Fire",
+            "42% CONT"
+          ]
+        }
+      ]
+    },
+    "word_of_day": {
+      "teaser": "EPHEMERAL",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "Word of the Day",
+            "",
+            "ephemeral",
+            "adjective",
+            "lasting for a very",
+            "short time"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "WORD OF DAY",
+            "EPHEMERAL",
+            "ADJ. FLEETING"
+          ]
+        }
+      ]
+    },
+    "wsdot": {
+      "teaser": "FERRY 2 ROUTES",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+            " SEATTLE - BAINBRIDGE",
+            "  NEXT DEP  3:30 PM",
+            "  VESSEL MV WENATCHEE",
+            "  CAR SPACES  45/120",
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "FERRY SCHEDULE",
+            "Bainbridge",
+            "2 ROUTES"
+          ]
+        }
+      ]
+    }
+  }
+}
