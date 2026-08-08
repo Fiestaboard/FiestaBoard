@@ -213,7 +213,7 @@ Two fields:
 
 A colour marker occupies **one flap**, however many characters it takes to write. `{66}` is one tile, not four. Closing tags like `{/green}` are formatting only and occupy none.
 
-```
+```text
 "{66}AAPL +1.88%"     →  12 tiles  (1 colour flap + 11 characters)
 "{green}AAPL{/green}" →   5 tiles  (1 colour flap + 4 characters)
 ```
