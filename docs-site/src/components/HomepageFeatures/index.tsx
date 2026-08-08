@@ -146,9 +146,9 @@ const FEATURED_PLUGINS: { id: string; description: string; device?: string }[] =
   { id: "dad_jokes", description: "A fresh dad joke every refresh", device: "note" },
   { id: "disney_parks_times", description: "Live ride wait times from Disney parks" },
   { id: "moon_phase", description: "Tonight's moon phase and illumination" },
-  { id: "muni", description: "Real-time SF Muni arrival predictions", device: "note" },
   { id: "visual_clock", description: "Full-screen pixel-art clock display" },
   { id: "star_trek_quotes", description: "Random quotes from TNG, Voyager, DS9" },
+  { id: "muni", description: "Real-time SF Muni arrival predictions", device: "note" },
 ];
 
 const PluginList: PluginItem[] = FEATURED_PLUGINS.flatMap(({ id, description, device }) => {
