@@ -201,6 +201,13 @@ function DetailContent() {
   const categoryLabel = CATEGORY_LABELS[plugin.category] ?? plugin.category;
   const previews = pluginPreviews[plugin.id]?.previews ?? [];
   const preview = previews[Math.min(activePreview, previews.length - 1)];
+  // Authors may declare several previews of the same shape ("Flagship" twice);
+  // number the repeats so every tab has a distinct accessible name.
+  const tabLabels = previews.map((entry, index) => {
+    const label = previewLabel(entry);
+    const repeat = previews.slice(0, index).filter((other) => previewLabel(other) === label).length;
+    return repeat > 0 ? `${label} ${repeat + 1}` : label;
+  });
 
   return (
     <>
@@ -216,16 +223,16 @@ function DetailContent() {
         <div className={styles.heroBoard}>
           {previews.length > 1 && (
             <div className={styles.deviceTabs} role="tablist" aria-label="Board shape">
-              {previews.map((entry, index) => (
+              {tabLabels.map((label, index) => (
                 <button
-                  key={previewLabel(entry)}
+                  key={label}
                   type="button"
                   role="tab"
                   aria-selected={index === activePreview}
                   className={clsx(styles.deviceTab, index === activePreview && styles.deviceTabActive)}
                   onClick={() => setActivePreview(index)}
                 >
-                  {previewLabel(entry)}
+                  {label}
                 </button>
               ))}
             </div>
