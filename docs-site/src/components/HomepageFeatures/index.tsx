@@ -1,10 +1,10 @@
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import Link from "@docusaurus/Link";
 import { useColorMode } from "@docusaurus/theme-common";
-import { Badge, Button, Code, ScaledBoardDisplay, TextLink } from "@fiestaboard/ui";
+import { Badge, BoardTeaser, Button, Code, ScaledBoardDisplay, TextLink } from "@fiestaboard/ui";
 import { type ReactNode } from "react";
 
-import { plugins } from "../../plugin-data";
+import { pluginPreviews, plugins, previewMessage } from "../../plugin-data";
 import styles from "./styles.module.css";
 
 /** Plugins that ship inside the container (countdown, date_time). */
@@ -129,65 +129,82 @@ type PluginItem = {
   message: string;
 };
 
-/** Sample board messages reused verbatim from FiestaboardSite.dc.html. */
-const PluginList: PluginItem[] = [
-  {
-    title: "Weather",
-    description: "Current conditions, UV index, high/low temps",
-    link: "/docs/plugins/weather",
-    message: "SAN FRANCISCO CA\n62F CLEAR SKIES\nHI 68F   LO 54F\nUV INDEX 4 MODERATE\nSUNSET 8:04 PM",
-  },
-  {
-    title: "Stocks",
-    description: "Real-time stock prices with color indicators",
-    link: "/docs/plugins/stocks",
-    message: "MARKETS  4:00 PM ET\nAAPL   232.10 +1.24\nMSFT   418.90 +0.62\nNVDA   121.44 -0.85\nBTC   64,880  -0.40",
-  },
-  {
-    title: "Sports Scores",
-    description: "NFL, Soccer, NHL, NBA live scores",
-    link: "/docs/plugins/sports-scores",
-    message: "TONIGHT\nNFL  SF 24  SEA 17 F\nNBA GSW 112 LAL 108\nNHL SJS  2  VGK   3\nMLS  SJ  1  LA    1",
-  },
-  {
-    title: "Sun Art",
-    description: "Beautiful time-of-day color patterns",
-    link: "/docs/plugins/sun-art",
-    message:
-      "{yellow}{yellow}{orange}{orange}{red}{red}\n{orange}{orange}{red}{red}{violet}{violet}\n{red}{red}{violet}{violet}{blue}{blue}\n{violet}{violet}{blue}{blue}{blue}{blue}",
-  },
-  {
-    title: "Disney Parks",
-    description: "Live ride wait times from Disney parks",
-    link: "/docs/plugins/disney-parks",
-    message: "DISNEYLAND WAITS\nRISE OF RESIST 85M\nSPACE MOUNTAIN 45M\nMATTERHORN     30M\nHAUNTED MANSION 25M",
-  },
-  {
-    title: "Star Trek Quotes",
-    description: "Random quotes from TNG, Voyager, DS9",
-    link: "/docs/plugins/star-trek-quotes",
-    message: "THINGS ARE ONLY\nIMPOSSIBLE UNTIL\nTHEY ARE NOT\n\n- JEAN LUC PICARD",
-  },
-  {
-    title: "SF Muni",
-    description: "Real-time SF Muni arrival predictions",
-    link: "/docs/plugins/muni",
-    message: "MUNI  CHURCH ST\nN JUDAH OB    4 MIN\nN JUDAH IB   11 MIN\nJ CHURCH OB   7 MIN\nKT INGLESIDE 15 MIN",
-  },
-  {
-    title: "Visual Clock",
-    description: "Full-screen pixel-art clock display",
-    link: "/docs/plugins/visual-clock",
-    message:
-      "{orange}{orange}{orange}  {orange}{orange}{orange}\n{orange}   {orange}    {orange}\n{orange}{orange}{orange}  {orange}{orange}{orange}\n{orange}       {orange}\n{orange}{orange}{orange}  {orange}{orange}{orange}",
-  },
-  {
-    title: "Nearby Aircraft",
-    description: "Real-time flights near your location",
-    link: "/docs/plugins/nearby-aircraft",
-    message: "OVERHEAD NOW\nUAL 1912  SFO  31K\nAAL  238  JFK  37K\nSWA  455  OAK   9K\nDAL 2201  ATL  35K",
-  },
+/**
+ * Featured plugins: a curated blurb per id; the board content comes from
+ * plugin-previews.json (previews[0], the same hero the detail page renders),
+ * so the homepage can never drift from the real preview data again.
+ */
+const FEATURED_PLUGINS: { id: string; description: string }[] = [
+  { id: "weather", description: "Current conditions, UV index, high/low temps" },
+  { id: "stocks", description: "Real-time stock prices with color indicators" },
+  { id: "sports_scores", description: "NFL, Soccer, NHL, NBA live scores" },
+  { id: "sun_art", description: "Beautiful time-of-day color patterns" },
+  { id: "disney_parks_times", description: "Live ride wait times from Disney parks" },
+  { id: "star_trek_quotes", description: "Random quotes from TNG, Voyager, DS9" },
+  { id: "muni", description: "Real-time SF Muni arrival predictions" },
+  { id: "visual_clock", description: "Full-screen pixel-art clock display" },
+  { id: "nearby_aircraft", description: "Real-time flights near your location" },
 ];
+
+const PluginList: PluginItem[] = FEATURED_PLUGINS.flatMap(({ id, description }) => {
+  const registryEntry = plugins.find((plugin) => plugin.id === id);
+  const hero = pluginPreviews[id]?.previews[0];
+  // Backwards compat: skip quietly if the id ever leaves the registry or seed.
+  if (!registryEntry || !hero) return [];
+  return [
+    {
+      title: registryEntry.name,
+      description,
+      link: `/plugins/detail?id=${id}`,
+      message: previewMessage(hero),
+    },
+  ];
+});
+
+/** All plugins with a teaser, split across two counter-scrolling marquee rows. */
+const MARQUEE_ROWS: { id: string; name: string; teaser: string }[][] = (() => {
+  const entries = plugins.flatMap((plugin) => {
+    const teaser = pluginPreviews[plugin.id]?.teaser;
+    return teaser ? [{ id: plugin.id, name: plugin.name, teaser }] : [];
+  });
+  const mid = Math.ceil(entries.length / 2);
+  return [entries.slice(0, mid), entries.slice(mid)];
+})();
+
+function TeaserMarquee() {
+  const { colorMode } = useColorMode();
+  const boardType = colorMode === "dark" ? "black" : "white";
+  return (
+    <div className={styles.marquee}>
+      {MARQUEE_ROWS.map((row, rowIndex) => (
+        <div key={rowIndex} className={styles.marqueeRow}>
+          {/* The track is rendered twice for a seamless CSS loop; the copy is
+              aria-hidden so assistive tech hears each plugin once. */}
+          {[0, 1].map((copy) => (
+            <div
+              key={copy}
+              className={rowIndex % 2 === 0 ? styles.marqueeTrack : styles.marqueeTrackReverse}
+              aria-hidden={copy === 1 || undefined}
+            >
+              {row.map(({ id, name, teaser }) => (
+                <Link
+                  key={id}
+                  to={`/plugins/detail?id=${id}`}
+                  className={styles.marqueeItem}
+                  aria-label={name}
+                  tabIndex={copy === 1 ? -1 : undefined}
+                  title={name}
+                >
+                  <BoardTeaser teaser={teaser} boardType={boardType} />
+                </Link>
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function deriveThemedPath(src: string, mode: "light" | "dark"): string {
   const lastSlash = src.lastIndexOf("/");
@@ -314,6 +331,10 @@ export default function HomepageFeatures(): ReactNode {
               <PluginCard key={props.title} {...props} />
             ))}
           </div>
+        </div>
+        {/* Every plugin's board teaser, drifting past - the "and counting" */}
+        <BrowserOnly fallback={<div className={styles.marqueeFallback} />}>{() => <TeaserMarquee />}</BrowserOnly>
+        <div className={styles.inner}>
           <div className={styles.centerAction}>
             <Button variant="outline" size="lg" asChild>
               <Link to="/plugins">Explore All Plugins</Link>

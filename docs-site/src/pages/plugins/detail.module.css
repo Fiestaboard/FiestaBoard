@@ -21,6 +21,24 @@
   text-decoration: none;
 }
 
+/* Legacy screenshot hero - backwards compat for plugins with no previews yet */
+.heroImage {
+  max-width: 720px;
+  margin: 0 auto 2rem;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .heroImage {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.heroImage img {
+  width: 100%;
+  display: block;
+}
+
 /* Hero board preview */
 .heroBoard {
   max-width: 720px;

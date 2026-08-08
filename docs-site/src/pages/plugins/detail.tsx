@@ -3,7 +3,14 @@ import Link from "@docusaurus/Link";
 import { StaticBoardDisplay } from "@fiestaboard/ui";
 import { fetchPluginReadme, rewriteMarkdownImageUrls, rewriteMarkdownRepoLinks } from "@site/src/lib/github-readme";
 import type { PluginEntry } from "@site/src/plugin-data";
-import { CATEGORY_LABELS, pluginPreviews, plugins, previewLabel, previewMessage } from "@site/src/plugin-data";
+import {
+  CATEGORY_LABELS,
+  pluginBoardImagePath,
+  pluginPreviews,
+  plugins,
+  previewLabel,
+  previewMessage,
+} from "@site/src/plugin-data";
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import clsx from "clsx";
@@ -248,6 +255,20 @@ function DetailContent() {
               previewLabel={`${plugin.name} displayed on a split-flap board`}
             />
           </div>
+        </div>
+      )}
+
+      {/* Backwards compat: plugins with no previews entry yet keep their
+          legacy screenshot hero (hidden if the image doesn't exist either) */}
+      {!preview && (
+        <div className={styles.heroImage}>
+          <img
+            src={pluginBoardImagePath(plugin, boardColor === "white" ? "light" : "dark")}
+            alt={`${plugin.name} displayed on a split-flap board`}
+            onError={(e) => {
+              (e.target as HTMLImageElement).parentElement!.style.display = "none";
+            }}
+          />
         </div>
       )}
 

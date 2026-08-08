@@ -3,6 +3,7 @@ import { StaticBoardDisplay } from "@fiestaboard/ui";
 import type { PluginEntry } from "@site/src/plugin-data";
 import {
   CATEGORY_LABELS as REGISTRY_CATEGORY_LABELS,
+  pluginBoardImagePath,
   pluginPreviews,
   plugins,
   previewMessage,
@@ -84,6 +85,8 @@ function TopPluginSpotlight({
   windowDays: number;
 }) {
   const preview = pluginPreviews[plugin.id]?.previews[0];
+  // Backwards compat: no previews entry yet -> legacy screenshot -> icon.
+  const [imgOk, setImgOk] = useState(true);
 
   return (
     <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.spotlight}>
@@ -99,6 +102,14 @@ function TopPluginSpotlight({
             previewLabel={`${plugin.name} on a split-flap board`}
           />
         </div>
+      ) : imgOk ? (
+        <img
+          className={styles.spotlightImage}
+          src={pluginBoardImagePath(entry, "dark")}
+          alt={`${plugin.name} on a split-flap board`}
+          loading="lazy"
+          onError={() => setImgOk(false)}
+        />
       ) : (
         <div className={styles.spotlightImagePlaceholder}>
           <PluginIcon name={entry.icon} size={32} />

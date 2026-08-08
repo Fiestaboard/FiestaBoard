@@ -70,3 +70,27 @@ export const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const CATEGORIES = Object.keys(CATEGORY_LABELS);
+
+/**
+ * Legacy fallback: the raw GitHub content URL for a plugin's board-display
+ * screenshot. Used only when a plugin has no previews entry yet (a registry
+ * plugin that predates plugin-previews.json and hasn't been synced) so the
+ * format shift stays backwards compatible.
+ * e.g. pluginBoardImagePath(plugin, "dark")
+ *   → "https://raw.githubusercontent.com/Fiestaboard/fiestaboard-plugin--air-fog/main/docs/black/board-display.png"
+ */
+export function pluginBoardImagePath(plugin: PluginEntry, colorMode: "light" | "dark"): string {
+  const boardDir = colorMode === "light" ? "white" : "black";
+
+  if (plugin.repository) {
+    const cleaned = plugin.repository.replace(/\.git$/, "").replace(/\/$/, "");
+    const match = cleaned.match(/github\.com\/(.+)/);
+    if (match) {
+      const branch = plugin.branch?.trim() || "main";
+      return `https://raw.githubusercontent.com/${match[1]}/${branch}/docs/${boardDir}/board-display.png`;
+    }
+  }
+
+  // Fallback for plugins without an external repository
+  return `/img/${boardDir}/${plugin.id.replace(/_/g, "-")}-display.png`;
+}
