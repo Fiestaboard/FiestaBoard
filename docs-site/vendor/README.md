@@ -1,11 +1,10 @@
 # Vendored `@fiestaboard/ui`
 
-`fiestaboard-ui-1.3.2-board-teaser.tgz` is a packed build of the FiestaUI design system
+`fiestaboard-ui-1.5.0.tgz` is a packed build of the FiestaUI design system
 (`@fiestaboard/ui`), referenced by `package.json` as
-`"@fiestaboard/ui": "file:./vendor/fiestaboard-ui-1.3.2-board-teaser.tgz"`.
-This pack is FiestaUI `main` at v1.3.2 plus the `BoardTeaser` component from
-[FiestaUI PR #55](https://github.com/Fiestaboard/FiestaUI/pull/55); re-vendor a
-clean pack once that PR ships in a released minor.
+`"@fiestaboard/ui": "file:./vendor/fiestaboard-ui-1.5.0.tgz"`.
+This is the published v1.5.0 pack from GitHub Packages (`BoardTeaser` shipped
+in v1.5.0).
 
 We vendor a tarball rather than depend on the published package because
 `@fiestaboard/ui` publishes to GitHub Packages (not npmjs) and its `dist/` is

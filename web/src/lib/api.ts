@@ -197,6 +197,13 @@ export interface OutputSettings {
 // Active page settings
 export interface ActivePageResponse {
   page_id: string | null;
+  // When page_id is a collection, the member page the collection is currently
+  // rendering on the board (issue #1513). Equals page_id for plain pages.
+  resolved_page_id?: string | null;
+  // Seconds until that collection may switch pages, so the client can re-poll
+  // on the collection's own cadence instead of a fixed timer. Null when the
+  // active reference can't rotate (plain page, or a single-page collection).
+  resolved_next_check_seconds?: number | null;
   board_id?: string | null;
 }
 
@@ -736,6 +743,13 @@ export interface SetTemporaryOverrideRequest {
 
 export interface ActiveScheduleResponse {
   page_id: string | null;
+  // When page_id is a collection, the member page the collection is currently
+  // rendering on the board (issue #1513). Equals page_id for plain pages.
+  resolved_page_id?: string | null;
+  // Seconds until that collection may switch pages, so the client can re-poll
+  // on the collection's own cadence instead of a fixed timer. Null when the
+  // active reference can't rotate (plain page, or a single-page collection).
+  resolved_next_check_seconds?: number | null;
   source: "schedule" | "manual" | "none";
   schedule_enabled: boolean;
   current_time?: string;
@@ -1351,6 +1365,13 @@ export interface UpdateStatusResponse {
   updater_available: boolean;
   auto_update_enabled: boolean;
   auto_update_interval: AutoUpdateInterval;
+  /**
+   * True when an external supervisor (the Home Assistant add-on) owns
+   * updates. FiestaBoard cannot update itself in that case, so all
+   * update-available notifications are hidden. Sourced from the server's
+   * `_managed_externally()` check.
+   */
+  managed_externally: boolean;
   profile: "docker" | "pi";
   sidecar_url: string;
   last_check: string | null;

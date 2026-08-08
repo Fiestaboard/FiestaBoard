@@ -615,6 +615,7 @@
     "scheduleSettingsLink": "Configuración del horario",
     "scheduleGapNoDefault": "Intervalo en el horario (sin página predeterminada)",
     "editActivePage": "Editar página \"{pageName}\"",
+    "editCollection": "Editar colección \"{collectionName}\"",
     "toastSetActivePage": "Se estableció \"{pageName}\" como página activa",
     "toastSetDefaultFailed": "Error al establecer la página predeterminada",
     "toastSwitchSuccess": "Se cambió a la página activa",

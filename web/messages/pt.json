@@ -615,6 +615,7 @@
     "scheduleSettingsLink": "Configurações da Agenda",
     "scheduleGapNoDefault": "Intervalo na agenda (sem página padrão definida)",
     "editActivePage": "Editar página \"{pageName}\"",
+    "editCollection": "Editar coleção \"{collectionName}\"",
     "toastSetActivePage": "\"{pageName}\" definida como página ativa",
     "toastSetDefaultFailed": "Falha ao definir página padrão",
     "toastSwitchSuccess": "Página ativa alterada",

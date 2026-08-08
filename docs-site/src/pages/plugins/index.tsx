@@ -1,14 +1,23 @@
 import Link from "@docusaurus/Link";
 import { useColorMode } from "@docusaurus/theme-common";
-import { BoardTeaser } from "@fiestaboard/ui";
+import { Badge, BoardTeaser, Box, Button, EmptyState, Flex, Heading, Input, Text } from "@fiestaboard/ui";
 import type { PluginEntry } from "@site/src/plugin-data";
 import { CATEGORIES, CATEGORY_LABELS, pluginPreviews, plugins } from "@site/src/plugin-data";
-import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import clsx from "clsx";
+import { SearchX } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import styles from "./index.module.css";
+
+function CategoryBadge({ category }: { category: string }) {
+  const label = CATEGORY_LABELS[category] ?? category;
+  return (
+    <Badge variant="secondary" className={clsx(styles.categoryBadge, styles[`category_${category}`])}>
+      {label}
+    </Badge>
+  );
+}
 
 /**
  * Scales the fixed-size BoardTeaser strip up to the card's available width
@@ -36,17 +45,12 @@ function ScaledTeaser({ teaser, boardType }: { teaser: string; boardType: "black
   }, []);
 
   return (
-    <div ref={containerRef} className={styles.teaserScaler} style={{ height: `${18 * scale}px` }}>
-      <div style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}>
+    <Box ref={containerRef} className={styles.teaserScaler} style={{ height: `${18 * scale}px` }}>
+      <Box style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}>
         <BoardTeaser teaser={teaser} boardType={boardType} />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
-}
-
-function CategoryBadge({ category }: { category: string }) {
-  const label = CATEGORY_LABELS[category] ?? category;
-  return <span className={clsx(styles.categoryBadge, styles[`category_${category}`])}>{label}</span>;
 }
 
 function PluginCard({ plugin }: { plugin: PluginEntry }) {
@@ -55,19 +59,21 @@ function PluginCard({ plugin }: { plugin: PluginEntry }) {
 
   return (
     <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.pluginCard}>
-      <div className={styles.pluginCardBody}>
-        <div className={styles.pluginCardHeader}>
-          <Heading as="h3" className={styles.pluginCardTitle}>
+      <Box className={styles.pluginCardBody}>
+        <Box className={styles.pluginCardHeader}>
+          <Heading level={3} className={styles.pluginCardTitle}>
             {plugin.name}
           </Heading>
           <CategoryBadge category={plugin.category} />
-        </div>
-        <p className={styles.pluginCardDescription}>{plugin.description}</p>
-        <span className={styles.pluginCardAuthor}>by {plugin.author}</span>
-      </div>
-      <div className={styles.pluginCardTeaser}>
+        </Box>
+        <Text className={styles.pluginCardDescription}>{plugin.description}</Text>
+        <Text as="span" className={styles.pluginCardAuthor}>
+          by {plugin.author}
+        </Text>
+      </Box>
+      <Box className={styles.pluginCardTeaser}>
         <ScaledTeaser teaser={teaser} boardType={colorMode === "dark" ? "black" : "white"} />
-      </div>
+      </Box>
     </Link>
   );
 }
@@ -94,22 +100,20 @@ export default function PluginDirectory(): ReactNode {
       title="Plugin Directory"
       description="Browse all FiestaBoard plugins - weather, stocks, transit, sports, art, and more. Explore what's available for your split-flap display."
     >
-      <main className={styles.directoryPage}>
-        <div className="container">
+      <Box as="main" className={styles.directoryPage}>
+        <Box className="container">
           {/* Header */}
-          <div className={styles.header}>
-            <Heading as="h1" className={styles.title}>
-              Plugin Directory
-            </Heading>
-            <p className={styles.subtitle}>
+          <Box className={styles.header}>
+            <h1 className={styles.title}>Plugin Directory</h1>
+            <Text className={styles.subtitle}>
               Explore {plugins.length} plugins for your split-flap display - from weather and stocks to Disney park wait
               times and generative art.
-            </p>
-          </div>
+            </Text>
+          </Box>
 
           {/* Search and filters */}
-          <div className={styles.controls}>
-            <input
+          <Box className={styles.controls}>
+            <Input
               type="search"
               className={styles.searchInput}
               placeholder="Search plugins..."
@@ -117,49 +121,56 @@ export default function PluginDirectory(): ReactNode {
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search plugins"
             />
-            <div className={styles.categoryFilters}>
-              <button
+            <Flex wrap gap="2" className={styles.categoryFilters}>
+              <Button
                 type="button"
+                variant="ghost"
+                aria-pressed={activeCategory === null}
                 className={clsx(styles.filterButton, activeCategory === null && styles.filterButtonActive)}
                 onClick={() => setActiveCategory(null)}
               >
                 All
-              </button>
+              </Button>
               {CATEGORIES.map((cat) => (
-                <button
+                <Button
                   key={cat}
                   type="button"
+                  variant="ghost"
+                  aria-pressed={activeCategory === cat}
                   className={clsx(styles.filterButton, activeCategory === cat && styles.filterButtonActive)}
                   onClick={() => setActiveCategory(cat === activeCategory ? null : cat)}
                 >
                   {CATEGORY_LABELS[cat]}
-                </button>
+                </Button>
               ))}
-            </div>
-          </div>
+            </Flex>
+          </Box>
 
           {/* Results */}
           {filtered.length > 0 ? (
-            <div className={styles.pluginGrid}>
+            <Box className={styles.pluginGrid}>
               {filtered.map((plugin) => (
                 <PluginCard key={plugin.id} plugin={plugin} />
               ))}
-            </div>
+            </Box>
           ) : (
-            <div className={styles.emptyState}>
-              <p>No plugins match your search. Try a different query or category.</p>
-            </div>
+            <EmptyState
+              className={styles.emptyState}
+              icon={SearchX}
+              title="No plugins found"
+              description="No plugins match your search. Try a different query or category."
+            />
           )}
 
           {/* CTA */}
-          <div className={styles.cta}>
-            <p>
+          <Box className={styles.cta}>
+            <Text>
               Want to build your own plugin?{" "}
               <Link to="/docs/development/plugin-guide">Check out the Plugin Development Guide →</Link>
-            </p>
-          </div>
-        </div>
-      </main>
+            </Text>
+          </Box>
+        </Box>
+      </Box>
     </Layout>
   );
 }

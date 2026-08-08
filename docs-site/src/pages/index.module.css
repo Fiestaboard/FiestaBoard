@@ -55,11 +55,10 @@
   text-wrap: balance;
 }
 
+/* Layout (flex/gap/wrap) comes from the `Flex` primitive in index.tsx; only
+   the spacing above it is page-specific. */
 .heroButtons {
-  display: flex;
-  gap: 12px;
   margin-top: 32px;
-  flex-wrap: wrap;
 }
 
 .heroBoard {
@@ -73,6 +72,6 @@
    shift when the client-only <HeroBoard> mounts. */
 .heroBoardFallback {
   width: 100%;
-  /* Match .stage's responsive min-height (+ gap and caption). */
-  min-height: min(392px, 57vw + 32px);
+  /* Match .stage's responsive min-height (+ gap and the two-line caption). */
+  min-height: min(409px, 57vw + 49px);
 }

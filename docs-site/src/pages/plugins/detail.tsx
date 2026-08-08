@@ -1,6 +1,21 @@
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import Link from "@docusaurus/Link";
-import { StaticBoardDisplay } from "@fiestaboard/ui";
+import {
+  Badge,
+  Box,
+  Button,
+  EmptyState,
+  Flex,
+  Heading,
+  Skeleton,
+  StaticBoardDisplay,
+  Table,
+  TableCell,
+  TableHead,
+  TableHeader,
+  Text,
+  TextLink,
+} from "@fiestaboard/ui";
 import { fetchPluginReadme, rewriteMarkdownImageUrls, rewriteMarkdownRepoLinks } from "@site/src/lib/github-readme";
 import type { PluginEntry } from "@site/src/plugin-data";
 import {
@@ -11,9 +26,9 @@ import {
   previewLabel,
   previewMessage,
 } from "@site/src/plugin-data";
-import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import clsx from "clsx";
+import { PackageX } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 
 import styles from "./detail.module.css";
@@ -34,6 +49,16 @@ function ReadmeContent({ markdown }: { markdown: string }) {
       const Wrapper = ({ children }: { children: string }) => (
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
+          /*
+           * These renderers are markdown *output* nodes, not app markup, so the
+           * prose ones stay as raw elements for the same reason the docs' own
+           * MDX does (see src/css/custom.css): FiestaUI's Text/Heading/List/Code
+           * are sized for the app's dense chrome, and README bodies need the
+           * long-form type scale that detail.module.css defines. Table nodes are
+           * the exception and do map onto the DS Table set, matching
+           * src/theme/MDXComponents.ts.
+           */
+          /* eslint-disable react/forbid-elements */
           components={{
             a: ({ href, children: kids, ...props }) => (
               <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
@@ -60,27 +85,29 @@ function ReadmeContent({ markdown }: { markdown: string }) {
                 </code>
               );
             },
+            // Table nodes map onto the design-system Table set, the same way
+            // src/theme/MDXComponents.ts maps GFM tables in the docs themselves.
             table: ({ children: kids, ...props }) => (
-              <div className={styles.readmeTableWrap}>
-                <table className={styles.readmeTable} {...props}>
+              <Box className={styles.readmeTableWrap}>
+                <Table className={styles.readmeTable} {...props}>
                   {kids}
-                </table>
-              </div>
+                </Table>
+              </Box>
             ),
             thead: ({ children: kids, ...props }) => (
-              <thead className={styles.readmeThead} {...props}>
+              <TableHeader className={styles.readmeThead} {...props}>
                 {kids}
-              </thead>
+              </TableHeader>
             ),
             th: ({ children: kids, ...props }) => (
-              <th className={styles.readmeTh} {...props}>
+              <TableHead className={styles.readmeTh} {...props}>
                 {kids}
-              </th>
+              </TableHead>
             ),
             td: ({ children: kids, ...props }) => (
-              <td className={styles.readmeTd} {...props}>
+              <TableCell className={styles.readmeTd} {...props}>
                 {kids}
-              </td>
+              </TableCell>
             ),
             h1: ({ children: kids, ...props }) => (
               <h1 className={styles.readmeH1} {...props}>
@@ -124,6 +151,7 @@ function ReadmeContent({ markdown }: { markdown: string }) {
               </strong>
             ),
           }}
+          /* eslint-enable react/forbid-elements */
         >
           {children}
         </ReactMarkdown>
@@ -137,12 +165,12 @@ function ReadmeContent({ markdown }: { markdown: string }) {
 
   if (!Markdown) {
     return (
-      <div className={styles.skeleton}>
-        <div />
-        <div />
-        <div />
-        <div />
-      </div>
+      <Box className={styles.skeleton}>
+        <Skeleton />
+        <Skeleton />
+        <Skeleton />
+        <Skeleton />
+      </Box>
     );
   }
 
@@ -195,13 +223,17 @@ function DetailContent() {
 
   if (!plugin) {
     return (
-      <div className={styles.notFound}>
-        <Heading as="h1">Plugin Not Found</Heading>
-        <p>The plugin "{pluginId}" doesn't exist in the registry.</p>
-        <Link className="button button--primary" to="/plugins">
-          ← Back to Plugin Directory
-        </Link>
-      </div>
+      <EmptyState
+        className={styles.notFound}
+        icon={PackageX}
+        title="Plugin not found"
+        description={`The plugin "${pluginId}" doesn't exist in the registry.`}
+        action={
+          <Button asChild>
+            <Link to="/plugins">← Back to Plugin Directory</Link>
+          </Button>
+        }
+      />
     );
   }
 
@@ -219,32 +251,33 @@ function DetailContent() {
   return (
     <>
       {/* Back link */}
-      <div className={styles.backRow}>
+      <Box className={styles.backRow}>
         <Link to="/plugins" className={styles.backLink}>
           ← Back to Plugin Directory
         </Link>
-      </div>
+      </Box>
 
       {/* Board preview: one board mounted at a time, tabs across previews[] */}
       {preview && (
-        <div className={styles.heroBoard}>
+        <Box className={styles.heroBoard}>
           {previews.length > 1 && (
-            <div className={styles.deviceTabs} role="tablist" aria-label="Board shape">
+            <Box className={styles.deviceTabs} role="tablist" aria-label="Board shape">
               {tabLabels.map((label, index) => (
-                <button
+                <Button
                   key={label}
                   type="button"
+                  variant="ghost"
                   role="tab"
                   aria-selected={index === activePreview}
                   className={clsx(styles.deviceTab, index === activePreview && styles.deviceTabActive)}
                   onClick={() => setActivePreview(index)}
                 >
                   {label}
-                </button>
+                </Button>
               ))}
-            </div>
+            </Box>
           )}
-          <div className={styles.heroBoardDisplay}>
+          <Box className={styles.heroBoardDisplay}>
             <StaticBoardDisplay
               message={previewMessage(preview)}
               size="md"
@@ -254,14 +287,14 @@ function DetailContent() {
               notesTall={preview.notes_tall ?? 1}
               previewLabel={`${plugin.name} displayed on a split-flap board`}
             />
-          </div>
-        </div>
+          </Box>
+        </Box>
       )}
 
       {/* Backwards compat: plugins with no previews entry yet keep their
           legacy screenshot hero (hidden if the image doesn't exist either) */}
       {!preview && (
-        <div className={styles.heroImage}>
+        <Box className={styles.heroImage}>
           <img
             src={pluginBoardImagePath(plugin, boardColor === "white" ? "light" : "dark")}
             alt={`${plugin.name} displayed on a split-flap board`}
@@ -269,89 +302,83 @@ function DetailContent() {
               (e.target as HTMLImageElement).parentElement!.style.display = "none";
             }}
           />
-        </div>
+        </Box>
       )}
 
       {/* Board color toggle */}
-      <div className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
-        <button
-          type="button"
-          role="radio"
-          className={clsx(styles.boardColorOption, boardColor === "black" && styles.boardColorOptionActive)}
-          onClick={() => setBoardColor("black")}
-          aria-checked={boardColor === "black"}
-        >
-          Black Board
-        </button>
-        <button
-          type="button"
-          role="radio"
-          className={clsx(styles.boardColorOption, boardColor === "white" && styles.boardColorOptionActive)}
-          onClick={() => setBoardColor("white")}
-          aria-checked={boardColor === "white"}
-        >
-          White Board
-        </button>
-      </div>
+      <Box className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
+        {(["black", "white"] as const).map((color) => (
+          <Button
+            key={color}
+            type="button"
+            variant="ghost"
+            role="radio"
+            className={clsx(styles.boardColorOption, boardColor === color && styles.boardColorOptionActive)}
+            onClick={() => setBoardColor(color)}
+            aria-checked={boardColor === color}
+          >
+            {color === "black" ? "Black Board" : "White Board"}
+          </Button>
+        ))}
+      </Box>
 
       {/* Plugin header */}
-      <div className={styles.pluginHeader}>
-        <div className={styles.pluginMeta}>
-          <div className={styles.pluginTitleRow}>
-            <Heading as="h1" className={styles.pluginName}>
-              {plugin.name}
-            </Heading>
-            <span className={clsx(styles.categoryBadge, styles[`category_${plugin.category}`])}>{categoryLabel}</span>
-          </div>
-          <p className={styles.pluginDescription}>{plugin.description}</p>
-          <div className={styles.pluginDetails}>
-            <span>by {plugin.author}</span>
-            <span className={styles.detailDot}>·</span>
-            <span>Requires FiestaBoard {plugin.fiestaboard_version}</span>
-          </div>
-        </div>
+      <Box className={styles.pluginHeader}>
+        <Box className={styles.pluginMeta}>
+          <Box className={styles.pluginTitleRow}>
+            <h1 className={styles.pluginName}>{plugin.name}</h1>
+            <Badge variant="secondary" className={clsx(styles.categoryBadge, styles[`category_${plugin.category}`])}>
+              {categoryLabel}
+            </Badge>
+          </Box>
+          <Text className={styles.pluginDescription}>{plugin.description}</Text>
+          <Flex align="center" gap="2" wrap className={styles.pluginDetails}>
+            <Text as="span">by {plugin.author}</Text>
+            <Text as="span" className={styles.detailDot}>
+              ·
+            </Text>
+            <Text as="span">Requires FiestaBoard {plugin.fiestaboard_version}</Text>
+          </Flex>
+        </Box>
 
-        <div className={styles.pluginActions}>
+        <Box className={styles.pluginActions}>
           {plugin.repository && (
-            <a
-              href={plugin.repository}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="button button--outline button--primary button--sm"
-            >
-              View on GitHub ↗
-            </a>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={plugin.repository} target="_blank" rel="noopener noreferrer">
+                View on GitHub ↗
+              </Link>
+            </Button>
           )}
-        </div>
-      </div>
+        </Box>
+      </Box>
 
       {/* README section */}
-      <div className={styles.readmeSection}>
-        <Heading as="h2" className={styles.readmeSectionTitle}>
+      <Box className={styles.readmeSection}>
+        <Heading level={2} className={styles.readmeSectionTitle}>
           Documentation
         </Heading>
         {loadingReadme ? (
-          <div className={styles.skeleton}>
-            <div />
-            <div />
-            <div />
-            <div />
-          </div>
+          <Box className={styles.skeleton}>
+            <Skeleton />
+            <Skeleton />
+            <Skeleton />
+            <Skeleton />
+          </Box>
         ) : readme ? (
-          <div className={styles.readmeBody}>
+          <Box className={styles.readmeBody}>
             <ReadmeContent markdown={readme} />
-          </div>
+          </Box>
         ) : (
-          <p className={styles.readmeEmpty}>
+          <Text className={styles.readmeEmpty}>
             Documentation not available.{" "}
             {plugin.repository && (
-              <a href={plugin.repository} target="_blank" rel="noopener noreferrer">
+              <TextLink href={plugin.repository} target="_blank" rel="noopener noreferrer">
                 View the source on GitHub
-              </a>
+              </TextLink>
             )}
-          </p>
+          </Text>
         )}
-      </div>
+      </Box>
     </>
   );
 }
@@ -361,21 +388,21 @@ function DetailContent() {
 export default function PluginDetailPage(): ReactNode {
   return (
     <Layout title="Plugin Details" description="View plugin details, documentation, and screenshots.">
-      <main className={styles.detailPage}>
-        <div className="container">
+      <Box as="main" className={styles.detailPage}>
+        <Box className="container">
           <BrowserOnly
             fallback={
-              <div className={styles.skeleton}>
-                <div />
-                <div />
-                <div />
-              </div>
+              <Box className={styles.skeleton}>
+                <Skeleton />
+                <Skeleton />
+                <Skeleton />
+              </Box>
             }
           >
             {() => <DetailContent />}
           </BrowserOnly>
-        </div>
-      </main>
+        </Box>
+      </Box>
     </Layout>
   );
 }

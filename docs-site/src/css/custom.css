@@ -3,9 +3,10 @@
  *
  * `fiestaui.generated.css` loads before this file and defines the FiestaUI
  * design tokens (`--background`, `--brand`, `--border`, `--radius`, the Geist
- * fonts, …) on `:root` (light) and `.dark` (dark). `src/theme/Root.tsx` mirrors
- * Docusaurus's `data-theme="dark"` onto the `.dark` class, so every token below
- * resolves to the correct value for the active theme automatically - one bridge
+ * fonts, …) on `:root` (light) and `.dark` (dark). `scripts/build-fiestaui-css.mjs`
+ * widens every compiled `.dark` selector to also match `[data-theme="dark"]`,
+ * Docusaurus's native theme attribute, so every token below resolves to the
+ * correct value for the active theme automatically with no JS - one bridge
  * covers both modes. This re-skins the navbar, sidebar, TOC, and every docs
  * page to match the FiestaUI design system.
  *
@@ -82,17 +83,6 @@
   font-weight: 500;
 }
 
-/* Align logo with nav: anchor image to bottom so text baseline matches nav
-   links; object-position crops the floating top of the taco so icon and text
-   look aligned. (Carried over from the previous theme.) */
-.navbar__logo img {
-  height: 48px;
-  width: auto;
-  object-fit: cover;
-  object-position: left 100%;
-  transform: translateY(-8px);
-}
-
 /* External navbar links (Docker Hub / Discord / GitHub): collapse to brand
    icons as the bar tightens, so the site nav (Documentation/Plugins/Stats/
    Blog) keeps room for its labels. Scoped to .navbar__items so the mobile
@@ -146,18 +136,82 @@ div[class*="codeBlockContainer"] {
   border-radius: var(--radius);
 }
 
-/* Prev/next pagination cards: rounded, hover ring (FiestaboardDocs.dc.html). */
+/* Prev/next pagination: the anchor keeps Infima's `.pagination-nav` grid
+   placement (`--prev` / `--next` column + text alignment) but hands its box
+   treatment to the FiestaUI `Card` inside it. See src/theme/PaginatorNavLink. */
 .pagination-nav__link {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  transition: border-color 0.15s ease;
+  border: none;
+  padding: 0;
 }
 
-.pagination-nav__link:hover {
-  border-color: var(--ring);
+/* Navbar dropdown menu on DS surfaces - Infima's own dropdown tokens were
+   never part of the token bridge, so the panel kept its default white card. */
+.dropdown__menu {
+  background-color: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+.dropdown__link {
+  border-radius: calc(var(--radius) - 4px);
+  color: var(--muted-foreground);
+}
+
+.dropdown__link:hover,
+.dropdown__link--active {
+  background-color: var(--accent);
+  color: var(--foreground);
 }
 
 /* Hide the per-page version badge - the navbar version dropdown is sufficient. */
 .theme-doc-version-badge {
   display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Prose treatment.
+
+   Long-form docs typography is bridged onto DS tokens here rather than mapped
+   onto FiestaUI's `Text`/`Heading`/`List` primitives in `MDXComponents`. Those
+   primitives are sized for the app's dense chrome - `Text` defaults to 14px and
+   `Heading` tops out at `text-xl` and only covers h2-h4 - so mapping them over
+   MDX would shrink body copy, flatten the docs heading scale, and (for `a`,
+   `li`, `code`, `h1`-`h6`) drop the Docusaurus behaviour layered into those
+   elements: client-side `Link` routing, broken-anchor collection, inline-vs-
+   block code splitting, and heading anchor ids. Admonitions are the exception -
+   they have no such behaviour to preserve, so they use the real `Alert`
+   component (see src/theme/Admonition/Types.tsx).
+   --------------------------------------------------------------------------- */
+
+/* Inline prose links carry FiestaUI's `TextLink` treatment: underlined at rest
+   (WCAG 1.4.1 - colour alone must not distinguish a link inside a text block)
+   and the DS 3px soft focus ring. Excludes anchors that are really controls:
+   heading hash-links, card tiles, and buttons. */
+.markdown a:not(.hash-link):not(.card):not([class*="button"]),
+.theme-doc-markdown a:not(.hash-link):not(.card):not([class*="button"]) {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.markdown a:not(.hash-link):focus-visible,
+.theme-doc-markdown a:not(.hash-link):focus-visible {
+  outline: none;
+  border-radius: calc(var(--radius) - 4px);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
+}
+
+/* Blockquotes: hairline rule + muted copy, matching DS surfaces. */
+.markdown blockquote {
+  border-left: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+/* Keyboard keys rendered as DS-style chips. */
+.markdown kbd {
+  background-color: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 4px);
+  box-shadow: none;
+  color: var(--foreground);
 }

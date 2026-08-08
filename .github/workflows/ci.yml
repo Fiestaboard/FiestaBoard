@@ -203,8 +203,10 @@ jobs:
 
     - name: Run plugin install integration tests
       run: |
-        # Real git clone/pull/uninstall against live Fiestaboard plugin repos on GitHub.
-        # Requires network access and git binary (both available on ubuntu-latest).
+        # Real git install/update/uninstall flows against local file:// fixture
+        # repos — hermetic on purpose. Cloning the live plugin repos from here
+        # made every CI run count as a "unique cloner" in their GitHub traffic
+        # stats, inflating fiestaboard.app/stats (dad-jokes, star-trek-quotes).
         pytest -m integration tests/test_plugin_install_integration.py -v
       env:
         BOARD_READ_WRITE_KEY: test_key
@@ -371,6 +373,15 @@ jobs:
     - name: ESLint
       working-directory: docs-site
       run: npm run lint
+
+    # A green `Build Docs` is not proof the site runs. Docusaurus prerenders
+    # at build time, so anything inside <BrowserOnly> is never evaluated and a
+    # broken reference in one of those components ships silently (a missing
+    # `Box` import in HeroBoard took the homepage down in prod this way).
+    # tsc sees the whole tree, so it catches what the build cannot.
+    - name: Typecheck
+      working-directory: docs-site
+      run: npm run typecheck
 
     - name: Prettier check
       working-directory: docs-site

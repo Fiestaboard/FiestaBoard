@@ -109,9 +109,9 @@
     {
       "device_type": "note",
       "rows": [
-        "   COIN FLIP   ",
-        "     Heads     ",
-        "    {66} green    "
+        "{65}{65} COIN FLIP",
+        "Heads",
+        "{66} green"
       ]
     }
   ],

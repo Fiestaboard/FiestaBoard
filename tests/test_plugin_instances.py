@@ -106,6 +106,12 @@ class TestInstanceKeyHelpers:
     def test_make_instance_key_with_underscores(self):
         assert PluginRegistry.make_instance_key("generic_data", "my_api") == "generic_data:my_api"
 
+    def test_make_instance_key_normalizes_label_case(self):
+        """Instance labels are registered lowercase (#774), so building a key
+        from a mixed-case label must produce the key the registry actually
+        holds — otherwise config is stored under a key nothing ever reads."""
+        assert PluginRegistry.make_instance_key("countdown", "Xmas") == "countdown:xmas"
+
     def test_parse_instance_key_compound(self):
         base, label = PluginRegistry.parse_instance_key("weather:sf")
         assert base == "weather"
@@ -228,6 +234,44 @@ class TestCreateInstance:
         assert "already exists" in errors[0]
 
 
+# ── apply_stored_config ─────────────────────────────────────────────────────
+
+
+class TestApplyStoredConfig:
+    """Tests for PluginRegistry.apply_stored_config()."""
+
+    def test_applies_valid_config(self, registry_with_plugin):
+        registry_with_plugin.create_instance("test_plugin", "inst")
+        plugin = registry_with_plugin._plugins["test_plugin:inst"]
+        plugin._validate_refresh_seconds.return_value = []
+        plugin.validate_config.return_value = []
+
+        config = {"enabled": True, "event_name": "Christmas"}
+        assert registry_with_plugin.apply_stored_config("test_plugin:inst", config) == []
+        assert registry_with_plugin._configs["test_plugin:inst"] == config
+        assert plugin.config == config
+
+    def test_keeps_raw_config_when_validation_fails(self, registry_with_plugin):
+        """A config that no longer validates (e.g. the manifest gained a
+        required field) must still be kept — reporting the error is fine,
+        silently dropping the user's settings is not."""
+        registry_with_plugin.create_instance("test_plugin", "inst")
+        plugin = registry_with_plugin._plugins["test_plugin:inst"]
+        plugin._validate_refresh_seconds.return_value = []
+        plugin.validate_config.return_value = ["Target date/time is required"]
+
+        config = {"enabled": True, "event_name": "Christmas"}
+        errors = registry_with_plugin.apply_stored_config("test_plugin:inst", config)
+        assert errors == ["Target date/time is required"]
+        assert registry_with_plugin._configs["test_plugin:inst"] == config
+        assert plugin.config == config
+
+    def test_unknown_plugin_reports_error(self, registry_with_plugin):
+        errors = registry_with_plugin.apply_stored_config("test_plugin:missing", {"enabled": True})
+        assert len(errors) == 1
+        assert "Plugin not found" in errors[0]
+
+
 # ── delete_instance ─────────────────────────────────────────────────────────
 
 
@@ -255,6 +299,14 @@ class TestDeleteInstance:
         errors = registry_with_plugin.delete_instance("test_plugin", "nope")
         assert len(errors) == 1
         assert "not found" in errors[0]
+
+    def test_delete_instance_with_mixed_case_label(self, registry_with_plugin):
+        """create_instance normalizes labels to lowercase, so deleting by the
+        label the user originally typed must resolve to the same key."""
+        registry_with_plugin.create_instance("test_plugin", "Wedding")
+        errors = registry_with_plugin.delete_instance("test_plugin", "Wedding")
+        assert errors == []
+        assert "test_plugin:wedding" not in registry_with_plugin._plugins
 
     def test_delete_instance_clears_discovered_vars(self, registry_with_plugin):
         registry_with_plugin.create_instance("test_plugin", "dv")
@@ -707,9 +759,16 @@ class TestPluginInstanceEndpoints:
             k.split(":", 1)[0],
             k.split(":", 1)[1] if ":" in k else None,
         )
-        registry.make_instance_key.side_effect = lambda base, label: f"{base}:{label}"
+        registry.make_instance_key.side_effect = lambda base, label: f"{base}:{label.lower()}"
         registry.is_instance_key.side_effect = lambda k: ":" in k
         return registry
+
+    @pytest.fixture
+    def mock_cm(self):
+        """Config manager with no stored config for the instance being created."""
+        cm = Mock()
+        cm.get_plugin_config.return_value = None
+        return cm
 
     # ── list instances ──────────────────────────────────────────────────────
 
@@ -745,10 +804,9 @@ class TestPluginInstanceEndpoints:
 
     # ── create instance ─────────────────────────────────────────────────────
 
-    def test_create_instance_success(self, client, mock_registry):
+    def test_create_instance_success(self, client, mock_registry, mock_cm):
         mock_registry.get_plugin.return_value = Mock()
         mock_registry.create_instance.return_value = []  # no errors
-        mock_cm = Mock()
         with (
             patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
             patch("src.api_server.get_plugin_registry", return_value=mock_registry),
@@ -765,20 +823,70 @@ class TestPluginInstanceEndpoints:
         # Persists config
         mock_cm.set_plugin_config.assert_called_once_with("weather:sf", {"enabled": False})
 
-    def test_create_instance_resets_services(self, client, mock_registry):
+    def test_create_instance_resets_services(self, client, mock_registry, mock_cm):
         """Creating an instance should reset display and template services."""
         mock_registry.get_plugin.return_value = Mock()
         mock_registry.create_instance.return_value = []
         with (
             patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
             patch("src.api_server.get_plugin_registry", return_value=mock_registry),
-            patch("src.api_server.get_config_manager", return_value=Mock()),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
             patch("src.api_server.reset_display_service") as mock_rds,
             patch("src.api_server.reset_template_engine") as mock_rte,
         ):
             client.post("/plugins/weather/instances", json={"label": "nyc"})
         mock_rds.assert_called_once()
         mock_rte.assert_called_once()
+
+    def test_create_instance_stores_config_under_normalized_key(self, client, mock_registry, mock_cm):
+        """create_instance registers the label lowercase, so the endpoint must
+        persist — and hand back — the same lowercase key. Storing under the
+        raw label leaves the config where nothing ever reads it, and the
+        instance runs on manifest fallbacks instead of the user's settings."""
+        mock_registry.get_plugin.return_value = Mock()
+        mock_registry.create_instance.return_value = []
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.api_server.reset_display_service"),
+            patch("src.api_server.reset_template_engine"),
+        ):
+            resp = client.post("/plugins/countdown/instances", json={"label": "Xmas"})
+        assert resp.status_code == 200
+        assert resp.json()["instance_key"] == "countdown:xmas"
+        mock_cm.set_plugin_config.assert_called_once_with("countdown:xmas", {"enabled": False})
+        mock_cm.clear_plugin_removed.assert_called_once_with("countdown:xmas")
+
+    def test_create_instance_preserves_existing_stored_config(self, client, mock_registry, mock_cm):
+        """The registry can boot without its instances (unreadable config, or a
+        base plugin that failed to load) while config.json still holds them.
+        Re-adding the same label must adopt those settings, not overwrite them
+        with a blank disabled config."""
+        stored = {
+            "enabled": True,
+            "event_name": "Christmas",
+            "target_datetime": "2027-12-25T00:00:00",
+            "timezone": "America/Los_Angeles",
+        }
+        mock_registry.get_plugin.return_value = Mock()
+        mock_registry.create_instance.return_value = []
+        mock_registry.apply_stored_config.return_value = []
+        mock_cm.get_plugin_config.return_value = stored
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+            patch("src.api_server.get_config_manager", return_value=mock_cm),
+            patch("src.api_server.reset_display_service"),
+            patch("src.api_server.reset_template_engine"),
+        ):
+            resp = client.post("/plugins/countdown/instances", json={"label": "xmas"})
+        assert resp.status_code == 200
+        # The user's settings are neither overwritten on disk...
+        mock_cm.set_plugin_config.assert_not_called()
+        # ...nor left behind: the live instance picks them up, still enabled.
+        mock_registry.apply_stored_config.assert_called_once_with("countdown:xmas", stored)
+        mock_registry.enable_plugin.assert_called_once_with("countdown:xmas")
 
     def test_create_instance_validation_error(self, client, mock_registry):
         mock_registry.get_plugin.return_value = Mock()
@@ -841,12 +949,11 @@ class TestPluginInstanceEndpoints:
         assert resp.status_code == 200
         mock_cm.mark_plugin_removed.assert_called_once_with("weather:sf")
 
-    def test_create_instance_clears_tombstone(self, client, mock_registry):
+    def test_create_instance_clears_tombstone(self, client, mock_registry, mock_cm):
         """Re-creating an instance clears any deliberate-removal tombstone for
         its compound key (#1394)."""
         mock_registry.get_plugin.return_value = Mock()
         mock_registry.create_instance.return_value = []
-        mock_cm = Mock()
         with (
             patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
             patch("src.api_server.get_plugin_registry", return_value=mock_registry),

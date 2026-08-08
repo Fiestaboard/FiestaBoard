@@ -68,7 +68,22 @@ export function useActivePage(boardId?: string) {
     retry: 1,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
+    // A collection picks a different member page as often as every few
+    // seconds, so a cached response names the wrong page for most of the
+    // interval (issue #1513). Re-poll on the collection's own cadence, which
+    // the backend reports. Plain pages report null and never poll, keeping
+    // the previous request volume for the common case.
+    refetchInterval: (query) => collectionPollMs(query.state.data?.resolved_next_check_seconds),
   });
+}
+
+// Floor the collection re-poll so a boundary landing at "1 second from now"
+// can't turn into a tight request loop.
+const MIN_COLLECTION_POLL_MS = 2000;
+
+export function collectionPollMs(nextCheckSeconds: number | null | undefined): number | false {
+  if (typeof nextCheckSeconds !== "number" || !Number.isFinite(nextCheckSeconds)) return false;
+  return Math.max(MIN_COLLECTION_POLL_MS, nextCheckSeconds * 1000);
 }
 
 // Board state query — what is actually on the physical board right now.

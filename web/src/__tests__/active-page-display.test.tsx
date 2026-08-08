@@ -86,8 +86,8 @@ describe("ActivePageDisplay", () => {
   it("renders the page name as a direct child of the link so hover styling reaches it", async () => {
     // A descendant carrying its own text-* color class (e.g. <Text>, which
     // always emits one) beats the anchor's inherited hover:text-primary, so the
-    // name would stay static while only the pencil icon changed color. Keep
-    // the name an unwrapped text node and the color on the anchor itself.
+    // name would stay static on hover. Keep the name an unwrapped text node and
+    // the color on the anchor itself.
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
 
     await waitFor(() => {
@@ -102,8 +102,8 @@ describe("ActivePageDisplay", () => {
     );
     expect(namedByOwnText).toBe(true);
 
-    // getAttribute, not .className — the pencil is an <svg>, whose className is
-    // an SVGAnimatedString rather than a string.
+    // getAttribute, not .className — an <svg> descendant's className is an
+    // SVGAnimatedString rather than a string.
     const coloredDescendants = Array.from(editLink.querySelectorAll("*")).filter((el) =>
       /(^|\s)text-(foreground|muted-foreground|primary|destructive|info|success|warning)(\s|$)/.test(
         el.getAttribute("class") ?? "",
@@ -144,6 +144,48 @@ describe("ActivePageDisplay", () => {
     });
 
     expect(screen.queryByRole("link", { name: /Edit page/i })).not.toBeInTheDocument();
+  });
+
+  it("links the collection name and the page it is currently rendering when a collection is active", async () => {
+    // Issue #1513: a Collection decides which member page shows on the board.
+    // The Dashboard must link the collection (to edit its logic) AND the member
+    // page the collection is currently rendering (to edit that design).
+    server.use(
+      http.get(`${API_BASE}/settings/active-page`, () =>
+        HttpResponse.json({ page_id: "collection:test-collection-id", resolved_page_id: "page-1" }),
+      ),
+      http.get(`${API_BASE}/collections`, () =>
+        HttpResponse.json({
+          collections: [
+            {
+              id: "collection:test-collection-id",
+              name: "Test Collection",
+              page_ids: ["page-1"],
+              selection_mode: "time",
+              time: { interval_seconds: 30 },
+              variable: null,
+              random: null,
+              created_at: "2025-01-01T00:00:00Z",
+            },
+          ],
+          total: 1,
+        }),
+      ),
+    );
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Collection")).toBeInTheDocument();
+    });
+
+    // Collection name links to the collections editor.
+    const collectionLink = screen.getByRole("link", { name: /Edit collection "Test Collection"/i });
+    expect(collectionLink).toHaveAttribute("href", "/collections");
+
+    // The member page the collection is currently rendering links to its editor.
+    const pageLink = screen.getByRole("link", { name: /Edit page "Weather Page"/i });
+    expect(pageLink).toHaveAttribute("href", "/pages/edit/page-1");
   });
 
   it("links to the scheduled page's editor when a schedule drives the display", async () => {

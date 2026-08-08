@@ -74,6 +74,14 @@ export function SystemUpdate() {
     return null;
   }
 
+  // Under an external supervisor (the Home Assistant add-on) updates flow
+  // through the Supervisor's add-on store, not this banner. Suppress the whole
+  // alert — including the docker-compose "enable one-click updates" hint,
+  // which is meaningless in an add-on install with no compose file.
+  if (status?.managed_externally) {
+    return null;
+  }
+
   const sidecarReady = !!status?.updater_available;
 
   return (

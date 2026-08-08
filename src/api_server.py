@@ -496,6 +496,10 @@ class UpdateStatusResponse(BaseModel):
     updater_available: bool
     auto_update_enabled: bool  # derived: True when interval != "manual"
     auto_update_interval: str  # "daily" | "weekly" | "monthly" | "manual"
+    # True when an external supervisor (the Home Assistant add-on) owns
+    # updates.  The UI hides every update notification and the periodic
+    # check loop is skipped when this is set.  See ``_managed_externally``.
+    managed_externally: bool
     profile: str  # "docker" | "pi"  (where this install is running)
     sidecar_url: str
     last_check: str | None = None
@@ -792,33 +796,39 @@ async def lifespan(app: FastAPI):
     # ``last_check`` so the in-app banner can show "Update Available" without
     # the user having to open Settings and click Refresh.
     system_update_task = None
-    try:
+    if _managed_externally():
+        # An external supervisor (HA add-on) owns updates — polling Docker Hub
+        # here serves no purpose and would only feed a duplicate notification
+        # the UI already suppresses.  Skip the checker entirely.
+        logger.info("System update checker disabled: updates are managed externally (e.g. Home Assistant add-on)")
+    else:
+        try:
 
-        async def _system_update_check_loop():
-            # Tick once an hour.  Even on the longest interval (monthly) this
-            # is plenty granular and keeps the work the loop does tiny.
-            tick_seconds = 3600
-            # Initial delay so we don't pile onto startup work.
-            await _asyncio.sleep(60)
-            while True:
-                try:
-                    state = _system_update_state_load()
-                    interval_name = _resolve_auto_update_interval(state)
-                    period_days = AUTO_UPDATE_INTERVALS.get(interval_name, 0)
-                    if period_days > 0 and _is_update_check_due(state, period_days):
-                        logger.info(
-                            "Auto-update check (interval=%s): checking for new version",
-                            interval_name,
-                        )
-                        await _perform_update_check()
-                except Exception as exc:
-                    logger.warning("System update check error: %s", exc)
-                await _asyncio.sleep(tick_seconds)
+            async def _system_update_check_loop():
+                # Tick once an hour.  Even on the longest interval (monthly) this
+                # is plenty granular and keeps the work the loop does tiny.
+                tick_seconds = 3600
+                # Initial delay so we don't pile onto startup work.
+                await _asyncio.sleep(60)
+                while True:
+                    try:
+                        state = _system_update_state_load()
+                        interval_name = _resolve_auto_update_interval(state)
+                        period_days = AUTO_UPDATE_INTERVALS.get(interval_name, 0)
+                        if period_days > 0 and _is_update_check_due(state, period_days):
+                            logger.info(
+                                "Auto-update check (interval=%s): checking for new version",
+                                interval_name,
+                            )
+                            await _perform_update_check()
+                    except Exception as exc:
+                        logger.warning("System update check error: %s", exc)
+                    await _asyncio.sleep(tick_seconds)
 
-        system_update_task = _asyncio.create_task(_system_update_check_loop())
-        logger.info("System update checker scheduled (interval read from state on each tick)")
-    except Exception as e:
-        logger.warning(f"Could not start system update checker: {e}")
+            system_update_task = _asyncio.create_task(_system_update_check_loop())
+            logger.info("System update checker scheduled (interval read from state on each tick)")
+        except Exception as e:
+            logger.warning(f"Could not start system update checker: {e}")
 
     # Hold the MCP session manager open for the lifetime of the API, then
     # let it tear down on shutdown. ``_mcp_ctx`` is None when the mcp
@@ -1843,6 +1853,31 @@ def _fiestaboard_profile() -> str:
     return os.getenv("FIESTABOARD_PROFILE", "docker").strip().lower() or "docker"
 
 
+def _managed_externally() -> bool:
+    """True when FiestaBoard's lifecycle is owned by an external supervisor
+    that ships its own update mechanism — currently the Home Assistant add-on.
+
+    Under HA, add-on updates come from the Supervisor's add-on store;
+    FiestaBoard cannot update itself and the Supervisor already surfaces its
+    own "update available" notice.  Ours would be a duplicate pointing the
+    user at an action they can't take, so the UI hides every update
+    notification and the periodic Docker Hub poll is skipped when this is set.
+
+    Detection signals (any one flips it on):
+      * ``FIESTABOARD_MANAGED_EXTERNALLY`` — explicit opt-in the add-on shim
+        can set unambiguously (accepts true/1/yes; false/0/no forces off).
+      * ``SUPERVISOR_TOKEN`` — injected by HA Supervisor into every add-on
+        container.  Present whether the UI is reached through Ingress or the
+        add-on's directly-published port, so it also covers direct access.
+    """
+    explicit = os.getenv("FIESTABOARD_MANAGED_EXTERNALLY", "").strip().lower()
+    if explicit in ("true", "1", "yes"):
+        return True
+    if explicit in ("false", "0", "no"):
+        return False
+    return bool(os.getenv("SUPERVISOR_TOKEN", "").strip())
+
+
 # Valid values for ``auto_update_interval``, mapped to their period in days.
 # ``manual`` (0) disables the periodic check entirely; the user can still hit
 # the Refresh button on Settings → System to trigger an on-demand check.
@@ -2387,6 +2422,7 @@ async def system_update_status():
         updater_available=available,
         auto_update_enabled=interval != "manual",
         auto_update_interval=interval,
+        managed_externally=_managed_externally(),
         profile=_fiestaboard_profile(),
         sidecar_url=_updater_url(),
         last_check=state.get("last_check"),
@@ -5912,6 +5948,43 @@ async def update_output_settings(request: dict):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
+def _resolve_active_page_id(page_id: str | None) -> str | None:
+    """Resolve a collection reference to the page it is currently showing.
+
+    When ``page_id`` is a collection ID the Dashboard needs to know which
+    member page the collection's logic is presently rendering on the board so
+    it can name and link to that page (issue #1513). Plain page IDs (and None)
+    are returned unchanged. Never raises — a collection that can't be resolved
+    just yields None.
+    """
+    if not is_collection_id(page_id):
+        return page_id
+    try:
+        return get_collection_service().resolve_page_id(page_id)
+    except Exception:  # pragma: no cover - defensive; resolution is best-effort
+        logger.warning("Failed to resolve collection page for %s", page_id, exc_info=True)
+        return None
+
+
+def _resolve_next_check_seconds(page_id: str | None) -> int | None:
+    """Seconds until ``page_id``'s collection may switch to a different page.
+
+    A collection can rotate as often as every 5 seconds (2 for variable-mode
+    polling), so a client that caches ``resolved_page_id`` on a fixed timer
+    would name the wrong page for most of the interval. Handing back the
+    collection's own cadence lets the Dashboard re-poll exactly when the page
+    on the board can change (issue #1513). None for plain pages, collections
+    that can't rotate (<2 pages), and any resolution failure.
+    """
+    if not is_collection_id(page_id):
+        return None
+    try:
+        return get_collection_service().seconds_until_next_check(page_id)
+    except Exception:  # pragma: no cover - defensive; resolution is best-effort
+        logger.warning("Failed to compute next check for collection %s", page_id, exc_info=True)
+        return None
+
+
 @app.get("/settings/active-page")
 async def get_active_page(board_id: str | None = None):
     """Get the currently active page ID.
@@ -5925,7 +5998,12 @@ async def get_active_page(board_id: str | None = None):
         page_id = settings_service.get_active_page_id(board_id=board_id)
     else:
         page_id = settings_service.get_active_page_id()
-    return {"page_id": page_id, "board_id": board_id}
+    return {
+        "page_id": page_id,
+        "resolved_page_id": _resolve_active_page_id(page_id),
+        "resolved_next_check_seconds": _resolve_next_check_seconds(page_id),
+        "board_id": board_id,
+    }
 
 
 @app.put("/settings/active-page")
@@ -7883,8 +7961,11 @@ async def get_active_schedule(board_id: str | None = None):
     }
 
     if not settings_service.is_schedule_enabled(board_id=board_id):
+        manual_page_id = settings_service.get_active_page_id()
         return {
-            "page_id": settings_service.get_active_page_id(),
+            "page_id": manual_page_id,
+            "resolved_page_id": _resolve_active_page_id(manual_page_id),
+            "resolved_next_check_seconds": _resolve_next_check_seconds(manual_page_id),
             "source": "manual",
             "schedule_enabled": False,
             "temporary_override": temporary_override_payload,
@@ -7898,6 +7979,8 @@ async def get_active_schedule(board_id: str | None = None):
     page_id = schedule_service.get_active_page_id(current_time, current_day, board_id=board_id)
     return {
         "page_id": page_id,
+        "resolved_page_id": _resolve_active_page_id(page_id),
+        "resolved_next_check_seconds": _resolve_next_check_seconds(page_id),
         "source": "schedule" if page_id else "none",
         "schedule_enabled": True,
         "current_time": now.strftime("%H:%M"),
@@ -9091,9 +9174,29 @@ async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRe
 
     compound_key = registry.make_instance_key(base_id, request.label)
 
-    # Persist empty config so the instance survives restarts
     config_manager = get_config_manager()
-    config_manager.set_plugin_config(compound_key, {"enabled": False})
+    # The registry can come up without its named instances — an unreadable
+    # config.json, or a base plugin that failed to load, both leave the stored
+    # entries untouched but drop the live instances. The UI then shows nothing
+    # and the user re-adds the label by hand. Blindly persisting an empty
+    # config here used to overwrite their saved settings with
+    # `{"enabled": false}`, so the plugin fell back to manifest defaults.
+    # Adopt whatever is still on disk instead.
+    stored = config_manager.get_plugin_config(compound_key)
+    if stored:
+        errors = registry.apply_stored_config(compound_key, stored)
+        if errors:
+            logger.warning(
+                "Adopted stored config for re-created instance '%s' despite validation errors: %s",
+                compound_key,
+                errors,
+            )
+        if stored.get("enabled"):
+            registry.enable_plugin(compound_key)
+        logger.info("Re-created instance '%s' adopted its existing stored config", compound_key)
+    else:
+        # Persist empty config so the instance survives restarts
+        config_manager.set_plugin_config(compound_key, {"enabled": False})
     # Re-creating an instance is an explicit user action — drop any
     # deliberate-removal tombstone left by a prior delete (#1394).
     config_manager.clear_plugin_removed(compound_key)
@@ -9104,12 +9207,16 @@ async def create_plugin_instance(plugin_id: str, request: PluginInstanceCreateRe
 
     logger.info(f"Created plugin instance: {compound_key}")
 
+    # Report the normalized label — that is the instance the registry holds and
+    # the one `{{plugin:label.field}}` template references must use.
+    _, instance_label = registry.parse_instance_key(compound_key)
+
     return {
         "status": "success",
         "plugin_id": base_id,
-        "instance_label": request.label,
+        "instance_label": instance_label,
         "instance_key": compound_key,
-        "message": f"Instance '{request.label}' created for plugin '{base_id}'.",
+        "message": f"Instance '{instance_label}' created for plugin '{base_id}'.",
     }
 
 

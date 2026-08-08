@@ -615,6 +615,7 @@
     "scheduleSettingsLink": "Paramètres de planification",
     "scheduleGapNoDefault": "Créneau vide (aucune page par défaut définie)",
     "editActivePage": "Modifier la page « {pageName} »",
+    "editCollection": "Modifier la collection « {collectionName} »",
     "toastSetActivePage": "« {pageName} » définie comme page active",
     "toastSetDefaultFailed": "Échec de la définition de la page par défaut",
     "toastSwitchSuccess": "Page active changée",
