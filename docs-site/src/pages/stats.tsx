@@ -16,8 +16,10 @@ interface PluginStat {
   version: string | null;
   created_at: string | null;
   updated_at: string | null;
-  clones_14d_count: number;
-  clones_14d_uniques: number;
+  // null when GitHub exposes no traffic data for the repo (community-hosted
+  // plugins outside the Fiestaboard org — the traffic API needs push access).
+  clones_14d_count: number | null;
+  clones_14d_uniques: number | null;
 }
 
 interface StatsData {
@@ -58,7 +60,8 @@ function StatStrip({ items }: { items: { value: string | number; label: string }
 }
 
 function BarRow({ plugin, max }: { plugin: PluginStat; max: number }) {
-  const pct = max > 0 ? (plugin.clones_14d_uniques / max) * 100 : 0;
+  const uniques = plugin.clones_14d_uniques ?? 0;
+  const pct = max > 0 ? (uniques / max) * 100 : 0;
   return (
     <Box className={styles.barRow}>
       <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.barName}>
@@ -68,7 +71,7 @@ function BarRow({ plugin, max }: { plugin: PluginStat; max: number }) {
         <Box className={styles.barFill} style={{ width: `${pct}%` }} />
       </Box>
       <Text as="span" className={styles.barValue}>
-        {plugin.clones_14d_uniques.toLocaleString()}
+        {uniques.toLocaleString()}
       </Text>
     </Box>
   );
@@ -108,7 +111,7 @@ function TopPluginSpotlight({
         <Box className={styles.spotlightBody}>
           <Box className={styles.spotlightName}>{plugin.name}</Box>
           <Box className={styles.spotlightStat}>
-            {plugin.clones_14d_uniques.toLocaleString()} unique cloners in the last {windowDays} days
+            {(plugin.clones_14d_uniques ?? 0).toLocaleString()} unique cloners in the last {windowDays} days
           </Box>
         </Box>
         <Badge variant="secondary" className={styles.spotlightBadge}>
@@ -136,17 +139,25 @@ export default function StatsPage(): ReactNode {
       .catch(() => setError(true));
   }, []);
 
-  const sorted = data ? [...data.plugins].sort((a, b) => b.clones_14d_uniques - a.clones_14d_uniques) : [];
+  // Plugins with null traffic (community-hosted repos GitHub exposes no
+  // traffic data for) stay in the directory sections below but are excluded
+  // from the popularity ranking and totals — "unknown" is not "zero".
+  const ranked = data
+    ? data.plugins
+        .filter((p) => p.clones_14d_uniques != null)
+        .sort((a, b) => (b.clones_14d_uniques ?? 0) - (a.clones_14d_uniques ?? 0))
+    : [];
 
-  const topPlugin = sorted[0];
-  const totalUniques = sorted.reduce((s, p) => s + p.clones_14d_uniques, 0);
+  const topPlugin = ranked[0];
+  const totalUniques = ranked.reduce((s, p) => s + (p.clones_14d_uniques ?? 0), 0);
   const maxUniques = topPlugin?.clones_14d_uniques ?? 1;
-  const displayedPlugins = showAllRanking ? sorted : sorted.slice(0, RANKING_PREVIEW);
+  const hiddenFromRanking = data ? data.plugins.length - ranked.length : 0;
+  const displayedPlugins = showAllRanking ? ranked : ranked.slice(0, RANKING_PREVIEW);
 
   const byCategory = data
     ? Object.entries(
         data.plugins.reduce<Record<string, number>>((acc, p) => {
-          acc[p.category] = (acc[p.category] ?? 0) + p.clones_14d_uniques;
+          acc[p.category] = (acc[p.category] ?? 0) + (p.clones_14d_uniques ?? 0);
           return acc;
         }, {}),
       ).sort(([, a], [, b]) => b - a)
@@ -216,19 +227,23 @@ export default function StatsPage(): ReactNode {
 
                 <Box as="section" className={styles.dashboardRight}>
                   <Heading level={2}>Popularity ranking</Heading>
-                  <Text className={styles.sectionNote}>Unique cloners in the last {data.window_days} days</Text>
+                  <Text className={styles.sectionNote}>
+                    Unique cloners in the last {data.window_days} days
+                    {hiddenFromRanking > 0 &&
+                      ` - ${hiddenFromRanking} community-hosted ${hiddenFromRanking === 1 ? "plugin doesn't" : "plugins don't"} expose clone data and ${hiddenFromRanking === 1 ? "is" : "are"} not ranked`}
+                  </Text>
                   <Box className={styles.barChart}>
                     {displayedPlugins.map((plugin) => (
                       <BarRow key={plugin.id} plugin={plugin} max={maxUniques} />
                     ))}
                   </Box>
-                  {sorted.length > RANKING_PREVIEW && (
+                  {ranked.length > RANKING_PREVIEW && (
                     <Button
                       variant="ghost"
                       className={styles.showMoreBtn}
                       onClick={() => setShowAllRanking(!showAllRanking)}
                     >
-                      {showAllRanking ? "Show fewer" : `Show all ${sorted.length} plugins`}
+                      {showAllRanking ? "Show fewer" : `Show all ${ranked.length} plugins`}
                     </Button>
                   )}
                 </Box>
