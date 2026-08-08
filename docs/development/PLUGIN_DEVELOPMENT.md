@@ -383,7 +383,7 @@ data to resolve against.
 Check your work with `python scripts/validate_plugins.py --verbose`. Transition
 plugins do not declare these fields.
 
-See the [plugin guide](https://fiestaboard.com/docs/development/plugin-guide#board-previews)
+See the [plugin guide](https://fiestaboard.app/docs/development/plugin-guide#board-previews)
 for the full field reference.
 
 ## Plugin Structure
