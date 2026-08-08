@@ -19,9 +19,9 @@
         {
           "device_type": "note",
           "rows": [
-            "AIR QUALITY",
-            "AQI {66} 45",
-            "FOG Clear"
+            "{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}{66}",
+            "  AQI 45 GOOD",
+            "  FOG CLEAR"
           ]
         }
       ]
@@ -43,8 +43,8 @@
         {
           "device_type": "note",
           "rows": [
-            "NEARBY AIRCRAFT",
-            "UAL123",
+            "{67}AIRPORT BOARD",
+            "UAL123 {66}ON TIME",
             "12 TRACKED"
           ]
         }
@@ -67,9 +67,9 @@
         {
           "device_type": "note",
           "rows": [
-            "SEA DEPARTURES",
-            "AS123 LAX 7:30",
-            "DL456 SFO DLY"
+            "{67}SEA DEPARTURES",
+            "AS123 LAX {66}7:30",
+            "DL456 SFO {63}DLY"
           ]
         }
       ]
@@ -90,9 +90,9 @@
         {
           "device_type": "note",
           "rows": [
-            "AURORA FORECAST",
-            "KP 3.67",
-            "Quiet"
+            "{66}{68}{66}{68} AURORA",
+            "KP 3.7 QUIET",
+            "{68}{66}{68}{66}{68}{66}{68}{66}{68}{66}{68}{66}{68}{66}{68}"
           ]
         }
       ]
@@ -114,9 +114,9 @@
         {
           "device_type": "note",
           "rows": [
-            "Parent Teacher",
-            "Apr 3",
-            "3:30 PM"
+            "{63}{63} CALENDAR",
+            "PARENT TEACHER",
+            "3:30 PM TODAY"
           ]
         }
       ]
@@ -138,7 +138,7 @@
         {
           "device_type": "note",
           "rows": [
-            "USD RATES",
+            "{66}{66} USD RATES",
             "EUR 0.9234",
             "GBP 0.7912"
           ]
@@ -162,7 +162,7 @@
         {
           "device_type": "note",
           "rows": [
-            "DAD JOKES",
+            "{65}{65} DAD JOKES",
             "I'M HUNGRY.",
             "HI HUNGRY, DAD"
           ]
@@ -186,7 +186,7 @@
         {
           "device_type": "note",
           "rows": [
-            "WAIT TIMES",
+            "{63}{65}{67} WAIT TIMES",
             "SPACE MTN 45MIN",
             "PIRATES   15MIN"
           ]
@@ -210,9 +210,9 @@
         {
           "device_type": "note",
           "rows": [
-            "EARTHQUAKE",
-            "M6.1",
-            "2h ago"
+            "{64}{64} EARTHQUAKE",
+            "MAG 6.1",
+            "2H AGO"
           ]
         }
       ]
@@ -234,9 +234,9 @@
         {
           "device_type": "note",
           "rows": [
-            "Hydrogen",
-            "SYM H",
-            "AT# 1"
+            "{68}{68} HYDROGEN",
+            "SYMBOL H  NO. 1",
+            "PERIOD 1 GAS"
           ]
         }
       ]
@@ -282,9 +282,9 @@
         {
           "device_type": "note",
           "rows": [
-            "DATA FEEDS",
-            "3 FEEDS",
-            "ACTIVE"
+            "{67}{66}{65} DATA FEEDS",
+            "3 FEEDS {66}ACTIVE",
+            "ALL OK"
           ]
         }
       ]
@@ -306,7 +306,7 @@
         {
           "device_type": "note",
           "rows": [
-            "GUEST WIFI",
+            "{67}{67} GUEST WIFI",
             "MyGuestNetwork",
             "welcome123"
           ]
@@ -330,7 +330,7 @@
         {
           "device_type": "note",
           "rows": [
-            "HACKER NEWS",
+            "{64}{64} HACKER NEWS",
             "SHOW HN: RUST",
             "SCORE 342"
           ]
@@ -355,7 +355,7 @@
           "device_type": "note",
           "rows": [
             "HEALTH INDEX",
-            "AQI 45",
+            "{66}AQI 45 {65}UV 6",
             "ALLERGY MED"
           ]
         }
@@ -378,9 +378,9 @@
         {
           "device_type": "note",
           "rows": [
-            "HOME ASSISTANT",
+            "{67}{67} HOME ASST",
             "12 ENTITIES",
-            "rest"
+            "ALL {66}ONLINE"
           ]
         }
       ]
@@ -402,9 +402,9 @@
         {
           "device_type": "note",
           "rows": [
-            "ISS TRACKER",
-            "LAT 51.50",
-            "LON -0.13"
+            "{67}{67} ISS TRACKER",
+            "LAT 51.50 N",
+            "LON  0.13 W"
           ]
         }
       ]
@@ -426,7 +426,7 @@
         {
           "device_type": "note",
           "rows": [
-            "NOW PLAYING",
+            "{63}{63} NOW PLAYING",
             "BOHEMIAN RHAP.",
             "QUEEN"
           ]
@@ -450,9 +450,9 @@
         {
           "device_type": "note",
           "rows": [
-            "WEATHER ALERTS",
-            "Tornado Warning",
-            "SEV Extreme"
+            "{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}",
+            "TORNADO WARNING",
+            "{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}{63}"
           ]
         }
       ]
@@ -474,9 +474,9 @@
         {
           "device_type": "note",
           "rows": [
-            "BIKE SHARE",
-            "E-BIKE {65} 5",
-            "TOTAL 8"
+            "{66}{66} BIKE SHARE",
+            "E-BIKES 5",
+            "CLASSIC 3"
           ]
         }
       ]
@@ -498,8 +498,8 @@
         {
           "device_type": "note",
           "rows": [
-            "MOON PHASE",
-            "Waxing Crescent",
+            "{69}{69} MOON PHASE",
+            "WAXING CRESCENT",
             "42.5% LIT"
           ]
         }
@@ -522,8 +522,9 @@
         {
           "device_type": "note",
           "rows": [
-            "Church & Duboce",
-            "N 3min  KT 8min"
+            "{63}{63} MUNI",
+            "N JUDAH  3 MIN",
+            "KT INGLE 8 MIN"
           ]
         }
       ]
@@ -545,9 +546,9 @@
         {
           "device_type": "note",
           "rows": [
-            "NATIONAL DAY",
-            "National Coffee",
-            "September 29"
+            "{64}{65} NATIONAL DAY",
+            "COFFEE DAY",
+            "SEPTEMBER 29"
           ]
         }
       ]
@@ -569,8 +570,8 @@
         {
           "device_type": "note",
           "rows": [
-            "NEARBY AIRCRAFT",
-            "UAL1234 35000ft",
+            "{67}{67} OVERHEAD",
+            "UAL1234 35000FT",
             "4 TRACKED"
           ]
         }
@@ -593,9 +594,9 @@
         {
           "device_type": "note",
           "rows": [
-            "NETWORK SPEED",
-            "DN 250.4 MBPS",
-            "UP 18.7 MBPS"
+            "{66}DN 250.4 MBPS",
+            "{65}UP  18.7 MBPS",
+            "PING 12 MS"
           ]
         }
       ]
@@ -615,9 +616,9 @@
         {
           "device_type": "note",
           "rows": [
-            "ON THIS DAY",
+            "{65}{65} ON THIS DAY",
             "1969",
-            "Moon landing"
+            "MOON LANDING"
           ]
         }
       ]
@@ -637,9 +638,9 @@
         {
           "device_type": "note",
           "rows": [
-            "cat FACT",
-            "Cats sleep",
-            "12-16 hours"
+            "{64}{64} PET FACTS",
+            "CATS SLEEP",
+            "12-16 HOURS"
           ]
         }
       ]
@@ -661,9 +662,9 @@
         {
           "device_type": "note",
           "rows": [
-            "PI-HOLE enabled",
-            "BLK 1823",
-            "PCT 14.7%"
+            "{63}PI-HOLE {66}ON",
+            "BLOCKED 1,823",
+            "14.7% OF DNS"
           ]
         }
       ]
@@ -685,9 +686,9 @@
         {
           "device_type": "note",
           "rows": [
-            "Do it with",
-            "passion",
-            "- Rosa Parks"
+            "DO IT WITH",
+            "PASSION",
+            "{68}- ROSA PARKS"
           ]
         }
       ]
@@ -709,9 +710,9 @@
         {
           "device_type": "note",
           "rows": [
-            "r/programming",
-            "Python 4.0",
-            "SC 45321"
+            "{64}REDDIT HOT",
+            "PYTHON 4.0",
+            "SCORE 45321"
           ]
         }
       ]
@@ -733,9 +734,9 @@
         {
           "device_type": "note",
           "rows": [
-            "GUADALUPE R A",
-            "245.0 CFS",
-            "Above normal"
+            "{67}{67} RIVER FLOW",
+            "245 CFS",
+            "{66}ABOVE NORMAL"
           ]
         }
       ]
@@ -757,9 +758,9 @@
         {
           "device_type": "note",
           "rows": [
-            "SANTA TRACKER",
-            "Tokyo, Japan",
-            "50% DONE"
+            "{63}{66}{63} SANTA",
+            "IN TOKYO JAPAN",
+            "50% COMPLETE"
           ]
         }
       ]
@@ -780,9 +781,9 @@
         {
           "device_type": "note",
           "rows": [
-            "SOLAR ACTIVITY",
+            "{65}{64}{65} SOLAR",
             "7 SUNSPOTS",
-            "Moderate"
+            "MODERATE"
           ]
         }
       ]
@@ -804,8 +805,8 @@
         {
           "device_type": "note",
           "rows": [
-            "NEXT LAUNCH",
-            "Falcon 9",
+            "{64}NEXT LAUNCH",
+            "FALCON 9",
             "MAR 15 14:30"
           ]
         }
@@ -828,9 +829,9 @@
         {
           "device_type": "note",
           "rows": [
-            "LIVE SCORES",
+            "{66}{66} LIVE SCORES",
             "SF 24 - KC 21",
-            "6 GAMES"
+            "6 GAMES TODAY"
           ]
         }
       ]
@@ -852,9 +853,9 @@
         {
           "device_type": "note",
           "rows": [
-            "Make it so.",
-            "",
-            "Picard"
+            "{65}STAR TREK",
+            "MAKE IT SO.",
+            "- PICARD"
           ]
         }
       ]
@@ -876,8 +877,9 @@
         {
           "device_type": "note",
           "rows": [
-            "STARDATE",
-            "78234.5"
+            "{67}{68} STARDATE",
+            "78234.5",
+            "ENGAGE"
           ]
         }
       ]
@@ -947,9 +949,9 @@
         {
           "device_type": "note",
           "rows": [
-            "SURF REPORT",
+            "{67}{67} SURF REPORT",
             "WAVES 4.2 FT",
-            "QUAL {65} GOOD"
+            "{66}GOOD QUALITY"
           ]
         }
       ]
@@ -971,9 +973,9 @@
         {
           "device_type": "note",
           "rows": [
-            "TIDE TIMES",
-            "High TIDE",
-            "2:45 PM"
+            "{67}{67} TIDE TIMES",
+            "HIGH 2:45 PM",
+            "LOW  8:52 AM"
           ]
         }
       ]
@@ -995,9 +997,9 @@
         {
           "device_type": "note",
           "rows": [
-            "WORK",
-            "25 MIN",
-            "+8 DELAY"
+            "{65}{65} TRAFFIC",
+            "WORK 25 MIN",
+            "{63}+8 MIN DELAY"
           ]
         }
       ]
@@ -1019,9 +1021,9 @@
         {
           "device_type": "note",
           "rows": [
-            "UV INDEX",
-            "UV 7.2",
-            "High"
+            "{64}{64} UV INDEX",
+            "UV 7.2 {64}HIGH",
+            "SPF 30+ SHADE"
           ]
         }
       ]
@@ -1067,9 +1069,9 @@
         {
           "device_type": "note",
           "rows": [
-            "VOLCANO",
-            "Kilauea",
-            "ERUPTING"
+            "{63}{64} VOLCANO",
+            "KILAUEA",
+            "{63}ERUPTING"
           ]
         }
       ]
@@ -1091,9 +1093,9 @@
         {
           "device_type": "note",
           "rows": [
-            "HOME",
-            "72F CLOUDY",
-            "HI 78 LO 55"
+            "{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}{67}",
+            "  72F CLOUDY",
+            "HI 78   LO 55"
           ]
         }
       ]
@@ -1115,8 +1117,9 @@
         {
           "device_type": "note",
           "rows": [
-            "WEBHOOK",
-            "Deploy success!"
+            "{66}{66} WEBHOOK",
+            "DEPLOY SUCCESS!",
+            "AT 12:00"
           ]
         }
       ]
@@ -1138,7 +1141,7 @@
         {
           "device_type": "note",
           "rows": [
-            "WHITE NOISE",
+            "{67}{67} WHITE NOISE",
             "RAIN ON TIN",
             "VOL 60% 45 MIN"
           ]
@@ -1162,9 +1165,9 @@
         {
           "device_type": "note",
           "rows": [
-            "WILDFIRE",
-            "Caldor Fire",
-            "42% CONT"
+            "{63}{64} WILDFIRE",
+            "CALDOR FIRE",
+            "42% CONTAINED"
           ]
         }
       ]
@@ -1186,7 +1189,7 @@
         {
           "device_type": "note",
           "rows": [
-            "WORD OF DAY",
+            "{68}{68} WORD OF DAY",
             "EPHEMERAL",
             "ADJ. FLEETING"
           ]
@@ -1210,9 +1213,9 @@
         {
           "device_type": "note",
           "rows": [
-            "FERRY SCHEDULE",
-            "Bainbridge",
-            "2 ROUTES"
+            "{66}{66} WSDOT FERRY",
+            "BAINBRIDGE",
+            "NEXT 2:45 PM"
           ]
         }
       ]
