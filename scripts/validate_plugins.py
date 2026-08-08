@@ -36,6 +36,17 @@ SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 PLUGINS_DIR = PROJECT_ROOT / "plugins"
 
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Board-preview rules are imported rather than re-implemented here. The rest of
+# this script duplicates manifest validation so it can run standalone, but tile
+# counting and device geometry are exactly the logic that must not drift between
+# the authoring lane and the runtime lane.
+from src.plugins.previews import (  # noqa: E402
+    validate_previews,
+    validate_teaser,
+)
+
 # Directories to skip
 SKIP_DIRECTORIES = {"_template", "_template_transition", "__pycache__"}
 
@@ -199,7 +210,38 @@ def validate_manifest_schema(manifest: dict, plugin_dir_name: str) -> list[str]:
     if category and category not in valid_categories:
         errors.append(f"category must be one of: {', '.join(valid_categories)}")
 
+    # Board previews. Transition plugins are exempt — they have no board
+    # content to preview, and their whole purpose is animation.
+    is_transition = manifest.get("plugin_type", "data") == "transition"
+    if is_transition:
+        for field_name in ("teaser", "previews"):
+            if field_name in manifest:
+                errors.append(f"{field_name} is not supported for transition plugins")
+    else:
+        if "teaser" in manifest:
+            errors.extend(validate_teaser(manifest["teaser"]))
+        if "previews" in manifest:
+            errors.extend(validate_previews(manifest["previews"]))
+
     return errors
+
+
+def validate_preview_presence(manifest: dict) -> list[str]:
+    """Warn when a plugin ships no board previews.
+
+    A warning rather than an error: plugins predating the preview contract must
+    keep validating (and loading) until they are backfilled. ``--strict`` turns
+    it into a failure, which is what the registry-submission lane should use.
+    """
+    if manifest.get("plugin_type", "data") == "transition":
+        return []
+
+    warnings = []
+    if "teaser" not in manifest:
+        warnings.append("No teaser — plugin directory cards will have no preview strip")
+    if "previews" not in manifest:
+        warnings.append("No previews — the plugin detail page will have no board preview")
+    return warnings
 
 
 def validate_plugin_structure(plugin_dir: Path) -> tuple[list[str], list[str]]:
@@ -259,6 +301,10 @@ def validate_plugin(plugin_dir: Path) -> ValidationResult:
     schema_errors = validate_manifest_schema(manifest, plugin_dir.name)
     for error in schema_errors:
         result.add_error(error)
+
+    # Board previews (warning until every plugin is backfilled; --strict fails)
+    for warning in validate_preview_presence(manifest):
+        result.add_warning(warning)
 
     return result
 

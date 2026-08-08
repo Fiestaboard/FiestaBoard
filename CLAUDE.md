@@ -306,6 +306,23 @@ The `manifest.json` MUST include:
 - `version` - Semantic version (X.Y.Z)
 - `settings_schema` - JSON Schema for configuration
 - `variables` - Template variables exposed by plugin
+- `teaser` - One line of literal board text, max 15 tiles (data plugins only)
+- `previews` - Literal board rows per device shape (data plugins only)
+
+### Board Previews (`teaser` / `previews`)
+
+Docs render plugins as live split-flap boards from manifest metadata — never
+from screenshots. Both fields hold **literal** board text (no `{{variables}}`).
+
+- Widths count **tiles, not characters**: `{66}` is one flap; `{/green}` is zero
+- `teaser` max 15 tiles (the Note width, so it fits every board)
+- Provide at least `flagship` (22×6) and `note` (15×3) previews
+- Rows may be shorter than the board (padded), never longer
+- Transition plugins (`plugin_type: "transition"`) must NOT declare either field
+- Validate with `python scripts/validate_plugins.py --verbose`
+
+Absence is a warning, not an error — plugins predating the contract must keep
+loading. `--strict` escalates it for the registry lane.
 
 Optional but recommended:
 - `icon` - Lucide icon name for UI display

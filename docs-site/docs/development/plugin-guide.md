@@ -153,6 +153,8 @@ These fields are not enforced by the manifest validator but should be included i
 | `settings_schema` | object | [JSON Schema](https://json-schema.org/) defining user-configurable settings. |
 | `variables` | object | Template variables your plugin exposes (see [Variables](#variables) below). |
 | `max_lengths` | object | Maximum character lengths for each variable (used for template validation). |
+| `teaser` | string | One line of board text for your plugin's directory card (see [Board Previews](#board-previews)). |
+| `previews` | array | Literal boards shown on your plugin's detail page (see [Board Previews](#board-previews)). |
 
 ### Optional Fields
 
@@ -164,6 +166,70 @@ These fields are not enforced by the manifest validator but should be included i
 | `documentation` | string | `"README.md"` | Path to documentation file relative to plugin directory. |
 | `env_vars` | array | `[]` | Environment variables the plugin can read (see [Environment Variables](#environment-variables)). |
 | `color_rules_schema` | object | `{}` | Schema for dynamic color rules (see [Color Rules](#color-rules)). |
+
+### Board Previews {#board-previews}
+
+The plugin directory renders your plugin as a real split-flap board rather than a screenshot. You supply the content as text; nothing needs to be photographed, and no images are committed.
+
+Two fields:
+
+```json
+{
+  "teaser": "{66}AAPL +1.88%",
+  "previews": [
+    {
+      "device_type": "flagship",
+      "rows": [
+        "     STOCK PRICES     ",
+        "{66}AAPL    189.84  +1.2%",
+        "{63}TSLA    248.50  -0.8%"
+      ]
+    },
+    {
+      "device_type": "note",
+      "rows": [
+        "  STOCK PRICES ",
+        "{66}AAPL   +1.2%",
+        "{63}TSLA   -0.8%"
+      ]
+    }
+  ]
+}
+```
+
+**`teaser`** is one line shown on your plugin's card in the directory. Maximum **15 tiles** — the Note width, so the same teaser fits every board.
+
+**`previews`** is a list of boards, each declaring its own shape. Add one per board family you have composed for. `previews[0]` is the hero on your detail page.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `label` | string | derived from shape | Tab label, e.g. `"Morning"`. |
+| `device_type` | string | `"flagship"` | `"flagship"` (22×6), `"note"` (15×3), or `"note_array"`. |
+| `notes_wide` | integer | `1` | Notes across, `note_array` only. Max 4 for previews. |
+| `notes_tall` | integer | `1` | Notes down, `note_array` only. Max 4 for previews. |
+| `rows` | array | required | Literal board rows. |
+
+#### Counting tiles, not characters
+
+A colour marker occupies **one flap**, however many characters it takes to write. `{66}` is one tile, not four. Closing tags like `{/green}` are formatting only and occupy none.
+
+```
+"{66}AAPL +1.88%"     →  12 tiles  (1 colour flap + 11 characters)
+"{green}AAPL{/green}" →   5 tiles  (1 colour flap + 4 characters)
+```
+
+This is why a 22-tile flagship row can be far longer than 22 characters of source text.
+
+#### Rules
+
+- Rows may be **shorter** than the board's row count — the remainder is padded with blanks. They may never be longer.
+- Every row must fit the board's width in tiles.
+- Content must be **literal**. A `{{variable}}` reference is rejected: previews render with no plugin data to resolve against.
+- Characters the board cannot display are rejected rather than silently replaced with blanks.
+- Lowercase is fine — the board uppercases on render.
+- Transition plugins do not declare these fields.
+
+Run `python scripts/validate_plugins.py --verbose` to check your previews; every rule above reports a specific, actionable error.
 
 ### Settings Schema
 

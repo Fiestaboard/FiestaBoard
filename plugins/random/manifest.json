@@ -93,6 +93,28 @@
       {"alignment": "center", "wrap": false}
     ]
   },
+  "teaser": "Heads {66} green",
+  "previews": [
+    {
+      "device_type": "flagship",
+      "rows": [
+        "                      ",
+        "      COIN FLIP       ",
+        "        Heads         ",
+        "                      ",
+        "       {66} green        ",
+        "                      "
+      ]
+    },
+    {
+      "device_type": "note",
+      "rows": [
+        "{65}{65} COIN FLIP",
+        "Heads",
+        "{66} green"
+      ]
+    }
+  ],
   "screenshots": [
     {
       "src": "docs/board-display.png",

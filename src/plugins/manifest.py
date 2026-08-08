@@ -7,6 +7,8 @@ The manifest.json file is the heart of each plugin, defining:
 - Template variables schema (simple, arrays, nested)
 - Max lengths for template validation
 - Color rules schema
+- Board previews (teaser + previews) that let docs render the plugin
+  without a screenshot -- see :mod:`src.plugins.previews`
 """
 
 import copy
@@ -15,6 +17,8 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from .previews import BoardPreview, parse_previews, validate_previews, validate_teaser
 
 logger = logging.getLogger(__name__)
 
@@ -243,6 +247,56 @@ MANIFEST_SCHEMA = {
             },
             "description": "Demo page template that showcases the plugin's features",
         },
+        "teaser": {
+            "type": "string",
+            "description": (
+                "One line of literal board text, at most 15 tiles (the Note width). "
+                "Rendered as a split-flap strip on plugin directory cards. "
+                "Colour markers like {66} count as one tile."
+            ),
+        },
+        "previews": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["rows"],
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "description": "Tab label; defaults to the board shape (e.g. 'Flagship')",
+                    },
+                    "device_type": {
+                        "type": "string",
+                        "enum": ["flagship", "note", "note_array"],
+                        "default": "flagship",
+                        "description": "Board shape this preview is composed for",
+                    },
+                    "notes_wide": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 4,
+                        "default": 1,
+                        "description": "Notes wide (note_array only)",
+                    },
+                    "notes_tall": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 4,
+                        "default": 1,
+                        "description": "Notes tall (note_array only)",
+                    },
+                    "rows": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Literal board rows. May be shorter than the device's row "
+                            "count (padded with blanks) but never longer."
+                        ),
+                    },
+                },
+            },
+            "description": "Literal board previews rendered on the plugin detail page",
+        },
     },
 }
 
@@ -374,6 +428,8 @@ class PluginManifest:
     supports_triggers: bool = False
     screenshots: list[Screenshot] = field(default_factory=list)
     demo: dict[str, DemoPageSchema] | None = None  # keyed by device_type
+    teaser: str = ""
+    previews: list[BoardPreview] = field(default_factory=list)
     plugin_type: str = "data"  # "data" or "transition"
     transition_settings: dict[str, Any] = field(default_factory=dict)
     raw: dict[str, Any] = field(default_factory=dict)
@@ -535,6 +591,8 @@ class PluginManifest:
             supports_triggers=supports_triggers,
             screenshots=screenshots,
             demo=demo,
+            teaser=data.get("teaser", "") if isinstance(data.get("teaser", ""), str) else "",
+            previews=parse_previews(data.get("previews")),
             plugin_type=data.get("plugin_type", "data"),
             transition_settings=dict(data.get("transition_settings", {})),
             raw=raw,
@@ -569,6 +627,17 @@ class PluginManifest:
                     "primary": s.primary,
                 }
                 for s in self.screenshots
+            ],
+            "teaser": self.teaser,
+            "previews": [
+                {
+                    "label": p.label,
+                    "device_type": p.device_type,
+                    "notes_wide": p.notes_wide,
+                    "notes_tall": p.notes_tall,
+                    "rows": p.rows,
+                }
+                for p in self.previews
             ],
         }
         # Include parsed metadata and groups so the frontend can use them
@@ -738,7 +807,53 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
                 elif not isinstance(entry["template"], list):
                     errors.append(f"demo.{key}.template must be an array of strings")
 
+    # Validate board previews when present.
+    #
+    # Deliberately NOT required here: load_manifest() returns None whenever
+    # validation fails, so requiring teaser/previews would stop every plugin
+    # that has not yet adopted them from loading at all. Absence means "not
+    # migrated"; only malformed values are errors. The authoring lane enforces
+    # presence via validate_preview_completeness().
+    is_transition = data.get("plugin_type", "data") == "transition"
+
+    if "teaser" in data:
+        if is_transition:
+            errors.append("teaser is not supported for transition plugins — they have no board content to preview")
+        else:
+            errors.extend(validate_teaser(data["teaser"]))
+
+    if "previews" in data:
+        if is_transition:
+            errors.append("previews is not supported for transition plugins — they have no board content to preview")
+        else:
+            errors.extend(validate_previews(data["previews"]))
+
     return len(errors) == 0, errors
+
+
+def validate_preview_completeness(data: dict[str, Any]) -> list[str]:
+    """Require board previews. For the authoring and registry lane only.
+
+    Kept separate from :func:`validate_manifest` on purpose. A manifest with no
+    ``teaser``/``previews`` is *valid* — it simply has not been migrated yet, and
+    must keep loading for existing users. But a plugin being submitted to the
+    registry, or shipped in this repo, is expected to carry both so the docs site
+    can render it without a screenshot.
+
+    Transition plugins are exempt: they have no data to display, and their whole
+    purpose is animation, which previews deliberately do not render.
+
+    Returns a list of human-readable errors (empty when complete).
+    """
+    if data.get("plugin_type", "data") == "transition":
+        return []
+
+    errors: list[str] = []
+    if "teaser" not in data:
+        errors.append("missing required field: teaser (one line, max 15 tiles, shown on plugin directory cards)")
+    if "previews" not in data:
+        errors.append("missing required field: previews (at least one literal board for the detail page)")
+    return errors
 
 
 def load_manifest(manifest_path: Path) -> tuple[PluginManifest | None, list[str]]:
