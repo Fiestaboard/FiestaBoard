@@ -6,9 +6,43 @@ import { CATEGORIES, CATEGORY_LABELS, pluginPreviews, plugins } from "@site/src/
 import Heading from "@theme/Heading";
 import Layout from "@theme/Layout";
 import clsx from "clsx";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import styles from "./index.module.css";
+
+/**
+ * Scales the fixed-size BoardTeaser strip up to the card's available width
+ * (viewport breakpoints can't see card width, so this measures instead).
+ * `transform` doesn't affect layout, so the wrapper height tracks the scale.
+ */
+function ScaledTeaser({ teaser, boardType }: { teaser: string; boardType: "black" | "white" }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const strip = container?.firstElementChild as HTMLElement | null;
+    if (!container || !strip) return;
+    const compute = () => {
+      // offsetWidth ignores the transform, so this is the intrinsic width.
+      if (strip.offsetWidth > 0) {
+        setScale(Math.min(1.5, Math.max(0.85, container.clientWidth / strip.offsetWidth)));
+      }
+    };
+    compute();
+    const observer = new ResizeObserver(compute);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} className={styles.teaserScaler} style={{ height: `${18 * scale}px` }}>
+      <div style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}>
+        <BoardTeaser teaser={teaser} boardType={boardType} />
+      </div>
+    </div>
+  );
+}
 
 function CategoryBadge({ category }: { category: string }) {
   const label = CATEGORY_LABELS[category] ?? category;
@@ -21,9 +55,6 @@ function PluginCard({ plugin }: { plugin: PluginEntry }) {
 
   return (
     <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.pluginCard}>
-      <div className={styles.pluginCardTeaser}>
-        <BoardTeaser teaser={teaser} boardType={colorMode === "dark" ? "black" : "white"} />
-      </div>
       <div className={styles.pluginCardBody}>
         <div className={styles.pluginCardHeader}>
           <Heading as="h3" className={styles.pluginCardTitle}>
@@ -33,6 +64,9 @@ function PluginCard({ plugin }: { plugin: PluginEntry }) {
         </div>
         <p className={styles.pluginCardDescription}>{plugin.description}</p>
         <span className={styles.pluginCardAuthor}>by {plugin.author}</span>
+      </div>
+      <div className={styles.pluginCardTeaser}>
+        <ScaledTeaser teaser={teaser} boardType={colorMode === "dark" ? "black" : "white"} />
       </div>
     </Link>
   );

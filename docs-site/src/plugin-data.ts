@@ -70,4 +70,3 @@ export const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const CATEGORIES = Object.keys(CATEGORY_LABELS);
-

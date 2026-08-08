@@ -131,12 +131,17 @@
 }
 
 .pluginCardTeaser {
-  display: flex;
-  justify-content: center;
+  margin-top: auto;
   padding: 1.1rem 0.75rem;
   background: var(--ifm-color-emphasis-100);
-  border-bottom: 1px solid var(--ifm-color-emphasis-200);
-  overflow-x: auto;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  overflow: hidden;
+}
+
+/* Measured by ScaledTeaser; the inner strip is transform-scaled to fit. */
+.teaserScaler {
+  display: flex;
+  justify-content: center;
 }
 
 .pluginCardBody {
