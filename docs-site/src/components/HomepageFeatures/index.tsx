@@ -1,7 +1,7 @@
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import Link from "@docusaurus/Link";
 import { useColorMode } from "@docusaurus/theme-common";
-import { Badge, BoardTeaser, Button, Code, ScaledBoardDisplay, TextLink } from "@fiestaboard/ui";
+import { Badge, Button, Code, ScaledBoardDisplay, TextLink } from "@fiestaboard/ui";
 import { type ReactNode } from "react";
 
 import { pluginPreviews, plugins, previewMessage } from "../../plugin-data";
@@ -127,84 +127,48 @@ type PluginItem = {
   description: string;
   link: string;
   message: string;
+  deviceType: "flagship" | "note" | "note_array";
+  notesWide: number;
+  notesTall: number;
 };
 
 /**
  * Featured plugins: a curated blurb per id; the board content comes from
- * plugin-previews.json (previews[0], the same hero the detail page renders),
- * so the homepage can never drift from the real preview data again.
+ * plugin-previews.json (the same data the detail page renders), so the
+ * homepage can never drift from the real preview data again. `device`
+ * picks which declared shape to showcase - a deliberate mix of flagship
+ * dashboards, Note boards, art, quotes, and transit for variety.
  */
-const FEATURED_PLUGINS: { id: string; description: string }[] = [
+const FEATURED_PLUGINS: { id: string; description: string; device?: string }[] = [
   { id: "weather", description: "Current conditions, UV index, high/low temps" },
   { id: "stocks", description: "Real-time stock prices with color indicators" },
-  { id: "sports_scores", description: "NFL, Soccer, NHL, NBA live scores" },
   { id: "sun_art", description: "Beautiful time-of-day color patterns" },
+  { id: "dad_jokes", description: "A fresh dad joke every refresh", device: "note" },
   { id: "disney_parks_times", description: "Live ride wait times from Disney parks" },
-  { id: "star_trek_quotes", description: "Random quotes from TNG, Voyager, DS9" },
-  { id: "muni", description: "Real-time SF Muni arrival predictions" },
+  { id: "moon_phase", description: "Tonight's moon phase and illumination" },
+  { id: "muni", description: "Real-time SF Muni arrival predictions", device: "note" },
   { id: "visual_clock", description: "Full-screen pixel-art clock display" },
-  { id: "nearby_aircraft", description: "Real-time flights near your location" },
+  { id: "star_trek_quotes", description: "Random quotes from TNG, Voyager, DS9" },
 ];
 
-const PluginList: PluginItem[] = FEATURED_PLUGINS.flatMap(({ id, description }) => {
+const PluginList: PluginItem[] = FEATURED_PLUGINS.flatMap(({ id, description, device }) => {
   const registryEntry = plugins.find((plugin) => plugin.id === id);
-  const hero = pluginPreviews[id]?.previews[0];
+  const previews = pluginPreviews[id]?.previews ?? [];
+  const board = (device && previews.find((entry) => entry.device_type === device)) || previews[0];
   // Backwards compat: skip quietly if the id ever leaves the registry or seed.
-  if (!registryEntry || !hero) return [];
+  if (!registryEntry || !board) return [];
   return [
     {
       title: registryEntry.name,
       description,
       link: `/plugins/detail?id=${id}`,
-      message: previewMessage(hero),
+      message: previewMessage(board),
+      deviceType: board.device_type ?? "flagship",
+      notesWide: board.notes_wide ?? 1,
+      notesTall: board.notes_tall ?? 1,
     },
   ];
 });
-
-/** All plugins with a teaser, split across two counter-scrolling marquee rows. */
-const MARQUEE_ROWS: { id: string; name: string; teaser: string }[][] = (() => {
-  const entries = plugins.flatMap((plugin) => {
-    const teaser = pluginPreviews[plugin.id]?.teaser;
-    return teaser ? [{ id: plugin.id, name: plugin.name, teaser }] : [];
-  });
-  const mid = Math.ceil(entries.length / 2);
-  return [entries.slice(0, mid), entries.slice(mid)];
-})();
-
-function TeaserMarquee() {
-  const { colorMode } = useColorMode();
-  const boardType = colorMode === "dark" ? "black" : "white";
-  return (
-    <div className={styles.marquee}>
-      {MARQUEE_ROWS.map((row, rowIndex) => (
-        <div key={rowIndex} className={styles.marqueeRow}>
-          {/* The track is rendered twice for a seamless CSS loop; the copy is
-              aria-hidden so assistive tech hears each plugin once. */}
-          {[0, 1].map((copy) => (
-            <div
-              key={copy}
-              className={rowIndex % 2 === 0 ? styles.marqueeTrack : styles.marqueeTrackReverse}
-              aria-hidden={copy === 1 || undefined}
-            >
-              {row.map(({ id, name, teaser }) => (
-                <Link
-                  key={id}
-                  to={`/plugins/detail?id=${id}`}
-                  className={styles.marqueeItem}
-                  aria-label={name}
-                  tabIndex={copy === 1 ? -1 : undefined}
-                  title={name}
-                >
-                  <BoardTeaser teaser={teaser} boardType={boardType} />
-                </Link>
-              ))}
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function deriveThemedPath(src: string, mode: "light" | "dark"): string {
   const lastSlash = src.lastIndexOf("/");
@@ -262,12 +226,20 @@ function ShowcaseRow({ title, image, alt, description, link, reverse }: Showcase
   );
 }
 
-function PluginCard({ title, description, link, message }: PluginItem) {
+function PluginCard({ title, description, link, message, deviceType, notesWide, notesTall }: PluginItem) {
   return (
     <Link to={link} className={styles.pluginCard}>
       <div className={styles.pluginCardBoard}>
         <BrowserOnly fallback={<div className={styles.pluginBoardFallback} />}>
-          {() => <ScaledBoardDisplay message={message} size="sm" />}
+          {() => (
+            <ScaledBoardDisplay
+              message={message}
+              size="sm"
+              deviceType={deviceType}
+              notesWide={notesWide}
+              notesTall={notesTall}
+            />
+          )}
         </BrowserOnly>
       </div>
       <div className={styles.pluginCardName}>{title}</div>
@@ -331,10 +303,6 @@ export default function HomepageFeatures(): ReactNode {
               <PluginCard key={props.title} {...props} />
             ))}
           </div>
-        </div>
-        {/* Every plugin's board teaser, drifting past - the "and counting" */}
-        <BrowserOnly fallback={<div className={styles.marqueeFallback} />}>{() => <TeaserMarquee />}</BrowserOnly>
-        <div className={styles.inner}>
           <div className={styles.centerAction}>
             <Button variant="outline" size="lg" asChild>
               <Link to="/plugins">Explore All Plugins</Link>
