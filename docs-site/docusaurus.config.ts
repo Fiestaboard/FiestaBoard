@@ -377,20 +377,26 @@ const config: Config = {
           label: "Blog",
           position: "left",
         },
+        // The three external links collapse to brand icons as the bar
+        // tightens (see "External navbar links" in src/css/custom.css) -
+        // the site nav (Documentation/Plugins/Stats/Blog) keeps its labels.
         {
           href: "https://hub.docker.com/r/fiestaboard/fiestaboard",
           label: "Docker Hub",
           position: "right",
+          className: "navbar-ext-link navbar-ext-dockerhub",
         },
         {
           href: "https://discord.gg/JvN8y6ahaf",
           label: "Discord",
           position: "right",
+          className: "navbar-ext-link navbar-ext-discord",
         },
         {
           href: "https://github.com/Fiestaboard/FiestaBoard",
           label: "GitHub",
           position: "right",
+          className: "navbar-ext-link navbar-ext-github",
         },
       ],
     },
