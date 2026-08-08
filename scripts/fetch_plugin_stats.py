@@ -31,14 +31,20 @@ def gh_api(path: str):
 
 
 def fetch_plugin(plugin: dict) -> dict:
-    repo_name = plugin["repository"].rstrip("/").split("/")[-1]
-    print(f"  {repo_name}", file=sys.stderr)
+    # Registry plugins are not all org-hosted (community plugins live under
+    # their author's account), so derive owner/repo from the registry URL
+    # instead of assuming the Fiestaboard org.
+    owner, repo_name = plugin["repository"].rstrip("/").split("/")[-2:]
+    print(f"  {owner}/{repo_name}", file=sys.stderr)
 
-    traffic = gh_api(f"repos/Fiestaboard/{repo_name}/traffic/clones") or {}
-    meta = gh_api(f"repos/Fiestaboard/{repo_name}") or {}
+    # The traffic API needs push access, which we only have for org repos.
+    # For community repos it 403s — keep None so the output distinguishes
+    # "no data" (null) from a genuine zero.
+    traffic = gh_api(f"repos/{owner}/{repo_name}/traffic/clones")
+    meta = gh_api(f"repos/{owner}/{repo_name}") or {}
 
     version = None
-    manifest_raw = gh_api(f"repos/Fiestaboard/{repo_name}/contents/manifest.json")
+    manifest_raw = gh_api(f"repos/{owner}/{repo_name}/contents/manifest.json")
     if manifest_raw and manifest_raw.get("content"):
         try:
             manifest_data = json.loads(base64.b64decode(manifest_raw["content"]).decode())
@@ -55,8 +61,8 @@ def fetch_plugin(plugin: dict) -> dict:
         "version": version,
         "created_at": meta.get("created_at"),
         "updated_at": meta.get("updated_at"),
-        "clones_14d_count": traffic.get("count", 0),
-        "clones_14d_uniques": traffic.get("uniques", 0),
+        "clones_14d_count": traffic.get("count", 0) if traffic is not None else None,
+        "clones_14d_uniques": traffic.get("uniques", 0) if traffic is not None else None,
     }
 
 
