@@ -108,7 +108,7 @@ function TopPluginSpotlight({
         <Box className={styles.spotlightBody}>
           <Box className={styles.spotlightName}>{plugin.name}</Box>
           <Box className={styles.spotlightStat}>
-            {plugin.clones_14d_uniques.toLocaleString()} unique installs in the last {windowDays} days
+            {plugin.clones_14d_uniques.toLocaleString()} unique cloners in the last {windowDays} days
           </Box>
         </Box>
         <Badge variant="secondary" className={styles.spotlightBadge}>
@@ -201,7 +201,7 @@ export default function StatsPage(): ReactNode {
                       { value: data.plugins.length, label: "plugins" },
                       {
                         value: totalUniques.toLocaleString(),
-                        label: `unique installs (last ${data.window_days} days)`,
+                        label: `unique cloners (last ${data.window_days} days)`,
                       },
                     ]}
                   />
@@ -237,7 +237,7 @@ export default function StatsPage(): ReactNode {
               <Box as="section" className={styles.section}>
                 <Heading level={2}>By category</Heading>
                 <Text className={styles.sectionNote}>
-                  Sum of per-plugin installs by category, last {data.window_days} days - users installing multiple
+                  Sum of per-plugin unique cloners by category, last {data.window_days} days - users cloning multiple
                   plugins in the same category are counted once per plugin
                 </Text>
                 <Box className={styles.categoryGrid}>
@@ -304,7 +304,8 @@ export default function StatsPage(): ReactNode {
 
               <Text className={styles.freshness}>
                 Data refreshed {generatedAt}. Clone counts reflect the {data.window_days}-day window provided by the
-                GitHub Traffic API.
+                GitHub Traffic API and include automated traffic such as fleet auto-updates and the weekly security
+                scan.
               </Text>
             </>
           )}
