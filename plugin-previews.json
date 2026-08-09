@@ -51,25 +51,33 @@
       ]
     },
     "airport_departures": {
-      "teaser": "AS123 LAX 7:30",
+      "teaser": "AS2248 SFO 2144",
       "previews": [
         {
           "device_type": "flagship",
           "rows": [
-            "    SEA DEPARTURES",
-            "AS123 LAX 1930",
-            "AS123 LAX 1930",
-            "AS123 LAX 1930",
+            "    PAE DEPARTURES",
+            "AS2139  SFO  1117",
+            "AS747   PHX  1149",
+            "AS2248  SFO  2144",
             "",
-            "     5 DEPARTURES"
+            "     3 DEPARTURES"
           ]
         },
         {
           "device_type": "note",
           "rows": [
-            "{67}SEA DEPARTURES",
-            "AS123 LAX {66}7:30",
-            "DL456 SFO {63}DLY"
+            "{67}PAE DEPARTURES",
+            "AS2139 SFO 1117",
+            "AS747 PHX 1149"
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "{67}PAE ARRIVALS",
+            "AS2248 SFO 2144",
+            "{63}AS2055 LAS DLY"
           ]
         }
       ]
