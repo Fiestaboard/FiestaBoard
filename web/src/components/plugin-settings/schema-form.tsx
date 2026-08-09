@@ -1260,15 +1260,16 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
   const handleAdd = () => {
     let defaultValue: unknown;
     if (itemSchema.type === "object") {
-      // Seed every enum-typed property with its first allowed value. The
-      // Select for a fresh entry already *displays* that option, so without
-      // this the form would persist `{}` — silently saving something other
-      // than what the user sees, and omitting properties the plugin's schema
-      // lists as required.
+      // Seed every enum-typed property — required or not — with the value its
+      // Select will display: the declared `default` when there is one, else the
+      // first allowed value. Both render paths resolve the shown option that
+      // way, so seeding anything else would persist something other than what
+      // the user sees. The presence check must stay `!== undefined` so a
+      // legitimate falsy default such as `0` or `""` is honoured.
       const seeded: Record<string, unknown> = {};
       for (const [key, propSchema] of Object.entries(itemSchema.properties ?? {})) {
         if (Array.isArray(propSchema.enum) && propSchema.enum.length > 0) {
-          seeded[key] = propSchema.enum[0];
+          seeded[key] = propSchema.default !== undefined ? propSchema.default : propSchema.enum[0];
         }
       }
       defaultValue = seeded;

@@ -468,7 +468,7 @@ describe("SchemaForm - declarative array of objects with an enum property", () =
     expect(last.stations).toEqual([{ station_id: 9 }]);
   });
 
-  it("seeds a newly added entry with the first enum value instead of an empty object", async () => {
+  it("falls back to the first enum value when a newly added entry's property declares no default", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<Harness schema={stationsSchema()} initial={{ stations: [] }} onChange={onChange} />);
@@ -480,6 +480,67 @@ describe("SchemaForm - declarative array of objects with an enum property", () =
     // would drop the property the plugin lists as required.
     const last = onChange.mock.calls.at(-1)?.[0] as { stations: unknown[] };
     expect(last.stations).toEqual([{ station_id: 1 }]);
+  });
+
+  it("seeds a newly added entry with the property's default when it differs from the first enum value", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    // A manifest is free to declare a `default` that isn't `enum[0]` — several
+    // shipped plugins already do. The Select renders `default` in preference to
+    // `enum[0]`, so seeding `enum[0]` here would persist something other than
+    // what the user sees and make the declared default unreachable.
+    const schema: JSONSchema = {
+      type: "object",
+      properties: {
+        pets: {
+          type: "array",
+          title: "Pets",
+          items: {
+            type: "object",
+            properties: {
+              animal: { type: "string", title: "Animal", enum: ["cat", "dog", "random"], default: "random" },
+            },
+          },
+        },
+      },
+    };
+    render(<Harness schema={schema} initial={{ pets: [] }} onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: /add pets/i }));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { pets: unknown[] };
+    expect(last.pets).toEqual([{ animal: "random" }]);
+  });
+
+  it("honours a falsy default such as 0 rather than falling back to the first enum value", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    // `0` is a legitimate default and the Select does display it. Picking the
+    // seed must therefore be a presence check, not a truthiness check, or the
+    // seed silently drifts back to `enum[0]` for every falsy default.
+    const schema: JSONSchema = {
+      type: "object",
+      properties: {
+        offsets: {
+          type: "array",
+          title: "Offsets",
+          items: {
+            type: "object",
+            properties: {
+              minutes: { type: "integer", title: "Minutes", enum: [1, 0, 5], default: 0 },
+            },
+          },
+        },
+      },
+    };
+    render(<Harness schema={schema} initial={{ offsets: [] }} onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: /add offsets/i }));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { offsets: unknown[] };
+    expect(last.offsets).toEqual([{ minutes: 0 }]);
+    // The persisted seed matches what the Select shows for the fresh entry.
+    expect(screen.getByRole("combobox")).toHaveTextContent("0");
   });
 
   it("removes the entry the user clicked remove on", async () => {
