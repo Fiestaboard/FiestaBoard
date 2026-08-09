@@ -1227,7 +1227,11 @@
     "waiting": "Başlatılması bekleniyor…",
     "errorHeading": "FiestaBoard'a bağlanılamadı",
     "errorDescription": "Uygulamanın çalıştığından emin olun ve sayfayı yenilemeyi deneyin.",
-    "refreshPage": "Sayfayı yenile"
+    "refreshPage": "Sayfayı yenile",
+    "updateWaiting": "Güncelleme tamamlanıyor…",
+    "updateWaitingDescription": "Güncellemeyi tamamlamak için FiestaBoard yeniden başlatılıyor. Bu bir dakika sürebilir.",
+    "updateErrorHeading": "FiestaBoard henüz geri dönmedi",
+    "updateErrorDescription": "Güncelleme bitti ancak uygulama hâlâ yeniden başlıyor. Biraz bekleyip sayfayı yenileyin."
   },
   "globalAiChatDrawer": {
     "panelAriaLabel": "FiestaBot yapay zeka sohbeti"
@@ -1627,7 +1631,11 @@
     "dontCloseTab": "Güncellemeler birkaç dakika sürebilir — lütfen bu sekmeyi kapatmayın.",
     "stepPull": "İndiriliyor",
     "stepRestart": "Yeniden başlatılıyor",
-    "stepDone": "Tamam"
+    "stepDone": "Tamam",
+    "failedHeading": "Güncelleme tamamlanmadı",
+    "failedDescription": "FiestaBoard hâlâ başladığınız sürümü çalıştırıyor. Ayrıntılar için ana makinede <code>docker logs fiestaupdater</code> komutuna bakın.",
+    "failedReason": "Neden: {reason}",
+    "dismiss": "Kapat"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Kurulum sihirbazı yükleniyor...",

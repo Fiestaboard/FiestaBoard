@@ -1227,7 +1227,11 @@
     "waiting": "Oczekiwanie na uruchomienie…",
     "errorHeading": "Nie można połączyć się z FiestaBoard",
     "errorDescription": "Sprawdź, czy aplikacja działa, i spróbuj odświeżyć stronę.",
-    "refreshPage": "Odśwież stronę"
+    "refreshPage": "Odśwież stronę",
+    "updateWaiting": "Kończenie aktualizacji…",
+    "updateWaitingDescription": "FiestaBoard uruchamia się ponownie, aby dokończyć aktualizację. Może to potrwać minutę.",
+    "updateErrorHeading": "FiestaBoard jeszcze nie wrócił",
+    "updateErrorDescription": "Aktualizacja się zakończyła, ale aplikacja nadal się uruchamia. Poczekaj chwilę i odśwież stronę."
   },
   "globalAiChatDrawer": {
     "panelAriaLabel": "Czat AI FiestaBot"
@@ -1627,7 +1631,11 @@
     "dontCloseTab": "Aktualizacje mogą zająć kilka minut — nie zamykaj tej karty.",
     "stepPull": "Pobieranie",
     "stepRestart": "Restart",
-    "stepDone": "Gotowe"
+    "stepDone": "Gotowe",
+    "failedHeading": "Aktualizacja nie została ukończona",
+    "failedDescription": "FiestaBoard nadal działa w wersji początkowej. Sprawdź <code>docker logs fiestaupdater</code> na hoście, aby poznać szczegóły.",
+    "failedReason": "Powód: {reason}",
+    "dismiss": "Zamknij"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Ładowanie kreatora konfiguracji...",

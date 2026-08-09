@@ -1227,7 +1227,11 @@
     "waiting": "Ожидание запуска…",
     "errorHeading": "Не удалось подключиться к FiestaBoard",
     "errorDescription": "Убедитесь, что приложение запущено, и попробуйте обновить страницу.",
-    "refreshPage": "Обновить страницу"
+    "refreshPage": "Обновить страницу",
+    "updateWaiting": "Завершение обновления…",
+    "updateWaitingDescription": "FiestaBoard перезапускается, чтобы завершить обновление. Это может занять минуту.",
+    "updateErrorHeading": "FiestaBoard ещё не вернулся",
+    "updateErrorDescription": "Обновление завершено, но приложение всё ещё перезапускается. Подождите немного и обновите страницу."
   },
   "globalAiChatDrawer": {
     "panelAriaLabel": "ИИ-чат FiestaBot"
@@ -1627,7 +1631,11 @@
     "dontCloseTab": "Обновления могут занять несколько минут — не закрывайте эту вкладку.",
     "stepPull": "Загрузка",
     "stepRestart": "Перезапуск",
-    "stepDone": "Готово"
+    "stepDone": "Готово",
+    "failedHeading": "Обновление не завершено",
+    "failedDescription": "FiestaBoard по-прежнему работает на исходной версии. Подробности смотрите в <code>docker logs fiestaupdater</code> на хосте.",
+    "failedReason": "Причина: {reason}",
+    "dismiss": "Закрыть"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Загрузка мастера настройки...",

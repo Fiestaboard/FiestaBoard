@@ -1227,7 +1227,11 @@
     "waiting": "正在等待启动…",
     "errorHeading": "无法连接到 FiestaBoard",
     "errorDescription": "请确认应用正在运行，然后尝试刷新页面。",
-    "refreshPage": "刷新页面"
+    "refreshPage": "刷新页面",
+    "updateWaiting": "正在完成更新…",
+    "updateWaitingDescription": "FiestaBoard 正在重启以完成更新，可能需要一分钟。",
+    "updateErrorHeading": "FiestaBoard 尚未恢复",
+    "updateErrorDescription": "更新已完成，但应用仍在重启。请稍候片刻，然后刷新页面。"
   },
   "globalAiChatDrawer": {
     "panelAriaLabel": "FiestaBot AI 聊天"
@@ -1627,7 +1631,11 @@
     "dontCloseTab": "更新可能需要几分钟 — 请勿关闭此选项卡。",
     "stepPull": "拉取中",
     "stepRestart": "重启中",
-    "stepDone": "完成"
+    "stepDone": "完成",
+    "failedHeading": "更新未完成",
+    "failedDescription": "FiestaBoard 仍在运行你开始时的版本。请在主机上查看 <code>docker logs fiestaupdater</code> 了解详情。",
+    "failedReason": "原因：{reason}",
+    "dismiss": "关闭"
   },
   "wizardProvider": {
     "loadingSetupWizard": "加载设置向导中...",

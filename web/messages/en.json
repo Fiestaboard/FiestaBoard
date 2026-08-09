@@ -1184,7 +1184,11 @@
     "waiting": "Waiting to start…",
     "errorHeading": "Couldn't connect to FiestaBoard",
     "errorDescription": "Check that the app is running and try refreshing the page.",
-    "refreshPage": "Refresh page"
+    "refreshPage": "Refresh page",
+    "updateWaiting": "Finishing update…",
+    "updateWaitingDescription": "FiestaBoard is restarting to finish the update. This can take a minute.",
+    "updateErrorHeading": "FiestaBoard hasn't come back yet",
+    "updateErrorDescription": "The update finished, but the app is still restarting. Give it another moment, then refresh."
   },
   "globalAiChatDrawer": {
     "panelAriaLabel": "FiestaBot AI chat"
@@ -1584,7 +1588,11 @@
     "dontCloseTab": "Updates can take a few minutes — please don't close this tab.",
     "stepPull": "Pulling",
     "stepRestart": "Restarting",
-    "stepDone": "Done"
+    "stepDone": "Done",
+    "failedHeading": "Update didn't complete",
+    "failedDescription": "FiestaBoard is still running the version you started on. Check <code>docker logs fiestaupdater</code> on the host for details.",
+    "failedReason": "Reason: {reason}",
+    "dismiss": "Dismiss"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Loading setup wizard...",

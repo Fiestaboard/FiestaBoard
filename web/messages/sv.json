@@ -1227,7 +1227,11 @@
     "waiting": "Väntar på start…",
     "errorHeading": "Det gick inte att ansluta till FiestaBoard",
     "errorDescription": "Kontrollera att appen körs och försök ladda om sidan.",
-    "refreshPage": "Ladda om sidan"
+    "refreshPage": "Ladda om sidan",
+    "updateWaiting": "Slutför uppdateringen…",
+    "updateWaitingDescription": "FiestaBoard startar om för att slutföra uppdateringen. Det kan ta en minut.",
+    "updateErrorHeading": "FiestaBoard är inte tillbaka än",
+    "updateErrorDescription": "Uppdateringen är klar, men appen startar fortfarande om. Vänta en stund och uppdatera sedan sidan."
   },
   "globalAiChatDrawer": {
     "panelAriaLabel": "FiestaBot AI-chatt"
@@ -1627,7 +1631,11 @@
     "dontCloseTab": "Uppdateringar kan ta några minuter — stäng inte denna flik.",
     "stepPull": "Laddar ned",
     "stepRestart": "Startar om",
-    "stepDone": "Klar"
+    "stepDone": "Klar",
+    "failedHeading": "Uppdateringen slutfördes inte",
+    "failedDescription": "FiestaBoard kör fortfarande versionen du startade på. Kontrollera <code>docker logs fiestaupdater</code> på värden för detaljer.",
+    "failedReason": "Orsak: {reason}",
+    "dismiss": "Stäng"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Laddar installationsguide...",
