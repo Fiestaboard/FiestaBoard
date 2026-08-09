@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 import { useBoardSettings } from "@/hooks/use-board";
@@ -100,12 +100,21 @@ export function CurrentBoardProvider({ children }: { children: React.ReactNode }
 
   // Refs so setCurrentBoardId can compute the switch direction without
   // changing identity every time the selection or board list updates.
+  //
+  // These sync in a LAYOUT effect, not a passive one: passive effects are
+  // deferred until after paint, which leaves a window where the committed DOM
+  // already shows the reconciled board but the refs still hold the previous
+  // value. A click landing in that window makes setCurrentBoardId compare
+  // against a stale id — re-selecting the board that is already current would
+  // run a spurious view transition, and a real switch would compute its
+  // direction from the wrong `fromIndex`. Layout effects run synchronously
+  // with the commit, so the refs can never lag what the user sees.
   const currentBoardIdRef = useRef(currentBoardId);
   const boardsRef = useRef(boards);
-  useEffect(() => {
+  useLayoutEffect(() => {
     currentBoardIdRef.current = currentBoardId;
   }, [currentBoardId]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     boardsRef.current = boards;
   }, [boards]);
 

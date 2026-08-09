@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -49,10 +49,14 @@ describe("LanguageSelector", () => {
     const trigger = screen.getByRole("combobox", { name: /language/i });
     await user.click(trigger);
 
-    const spanishOption = screen.getByText("Español");
-    await user.click(spanishOption);
+    // The Select popup mounts with `opacity: 0; pointer-events: none` and only
+    // becomes interactive once its open transition has run. Waiting for the
+    // listbox before clicking keeps user-event from firing at a popup that
+    // still refuses pointer events.
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    await user.click(screen.getByRole("option", { name: "Español" }));
 
-    expect(document.cookie).toContain("NEXT_LOCALE=es");
+    await waitFor(() => expect(document.cookie).toContain("NEXT_LOCALE=es"));
     expect(changeLanguageMock).toHaveBeenCalledWith("es");
   });
 
