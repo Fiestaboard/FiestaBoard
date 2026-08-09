@@ -97,8 +97,8 @@ jobs:
       - name: Configure git identity
         if: steps.dedup.outputs.go == 'true'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "FiestaBoard CI"
+          git config user.email "ci@fiestaboard.dev"
 
       - name: Gather fixed bugs since last learn
         id: gather
@@ -127,7 +127,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6
             --max-turns 60
-            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(cat:*),Bash(jq:*),Bash(date:*),Bash(git status:*),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
+            --allowed-tools "Read,Glob,Grep,Edit,Write,Bash(cat:*),Bash(jq:*),Bash(date:*),Bash(git status:*),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git -c:*),Bash(git push:*)"
           prompt: |
             You maintain the FiestaBoard bug-hunt **pattern memory** — the
             positive-learning file the daily bug hunter reads to hunt smarter.
@@ -171,7 +171,7 @@ jobs:
             2. Commit and push to `main`:
                ```bash
                git add .github/bug-hunt/pattern-memory.md .github/bug-hunt-state.json
-               git commit -m "chore(bug-hunt): refresh pattern memory [skip ci]" || exit 0
+               git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.dev" commit -m "chore(bug-hunt): refresh pattern memory [skip ci]" || exit 0
                git push origin HEAD:main
                ```
 
@@ -193,5 +193,5 @@ jobs:
             exit 0
           fi
           git add .github/bug-hunt/pattern-memory.md .github/bug-hunt-state.json
-          git commit -m "chore(bug-hunt): refresh pattern memory [skip ci]"
+          git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.dev" commit -m "chore(bug-hunt): refresh pattern memory [skip ci]"
           git push origin HEAD:main

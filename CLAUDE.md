@@ -252,6 +252,55 @@ Before completing any feature or task:
 3. Delete all temporary implementation/testing markdown files
 4. Ensure all critical information is preserved in proper documentation
 
+## Commit Attribution
+
+Git history is public and feeds the repo's GitHub Insights graph. Attribution
+must be consistent so that one contributor reads as one contributor.
+
+### Claude co-author trailer
+
+End Claude-assisted commit messages with **exactly** this line, and nothing else
+resembling it:
+
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+- No model name, version, or context-window suffix — not `Claude Opus 5`, not
+  `Claude Sonnet 4.6 (1M context)`, not `Claude Fable 5`
+- Use this capitalization (`Co-Authored-By`) so trailers group cleanly
+- One trailer per commit — never repeat it
+
+Model-specific trailers fragment Claude into a separate Insights contributor per
+model per capitalization (history already carries 12 such variants), and they
+leak model-selection history into permanent public metadata for no benefit.
+
+### Other agents
+
+Do not add `Co-authored-by:` or `Made-with:` trailers for other coding agents
+(Cursor, Copilot, etc.). If an agent's tooling adds one automatically, strip it
+before committing, or edit it out of the squash-merge body at merge time.
+
+### Automation identity
+
+Workflows that commit must set an identity matching what actually authored the
+change:
+
+- **Mechanical commits** (version bumps, docs snapshots, stats refreshes, state
+  bookkeeping) → `FiestaBoard CI <ci@fiestaboard.dev>`
+- **Claude-authored content** → left to `claude[bot]`, which the Claude action
+  sets itself
+
+The Claude action rewrites global git config while it runs, so any shell step
+that commits *after* it inherits `claude[bot]`. Bookkeeping commits in those
+jobs must pin their identity inline rather than rely on an earlier
+`git config`:
+
+```bash
+git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.dev" \
+  commit -m "chore(scope): advance sweep state [skip ci]"
+```
+
 ## Plugin Development Rules
 
 ### Creating a New Plugin

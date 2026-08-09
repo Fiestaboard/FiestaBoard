@@ -65,8 +65,8 @@ jobs:
 
       - name: Commit and push
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "FiestaBoard CI"
+          git config user.email "ci@fiestaboard.dev"
           git add docs-site/static/plugin-stats.json plugin-previews.json
           if git diff --staged --quiet; then
             echo "No changes."
