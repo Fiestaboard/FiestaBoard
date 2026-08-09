@@ -1227,7 +1227,11 @@
     "waiting": "Wachten op opstarten…",
     "errorHeading": "Kan geen verbinding maken met FiestaBoard",
     "errorDescription": "Controleer of de app draait en probeer de pagina opnieuw te laden.",
-    "refreshPage": "Pagina vernieuwen"
+    "refreshPage": "Pagina vernieuwen",
+    "updateWaiting": "Update afronden…",
+    "updateWaitingDescription": "FiestaBoard start opnieuw op om de update af te ronden. Dit kan een minuut duren.",
+    "updateErrorHeading": "FiestaBoard is nog niet terug",
+    "updateErrorDescription": "De update is klaar, maar de app start nog op. Wacht even en vernieuw daarna de pagina."
   },
   "globalAiChatDrawer": {
     "panelAriaLabel": "FiestaBot AI-chat"
@@ -1627,7 +1631,11 @@
     "dontCloseTab": "Updates kunnen enkele minuten duren — sluit dit tabblad niet.",
     "stepPull": "Downloaden",
     "stepRestart": "Herstarten",
-    "stepDone": "Klaar"
+    "stepDone": "Klaar",
+    "failedHeading": "Update is niet voltooid",
+    "failedDescription": "FiestaBoard draait nog steeds op de versie waarmee je begon. Bekijk <code>docker logs fiestaupdater</code> op de host voor details.",
+    "failedReason": "Reden: {reason}",
+    "dismiss": "Sluiten"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Installatiewizard laden...",

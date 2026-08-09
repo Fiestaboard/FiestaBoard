@@ -1227,7 +1227,11 @@
     "waiting": "A aguardar o início…",
     "errorHeading": "Não foi possível ligar ao FiestaBoard",
     "errorDescription": "Verifica se a aplicação está em execução e tenta recarregar a página.",
-    "refreshPage": "Recarregar página"
+    "refreshPage": "Recarregar página",
+    "updateWaiting": "A concluir a atualização…",
+    "updateWaitingDescription": "O FiestaBoard está a reiniciar para concluir a atualização. Pode demorar um minuto.",
+    "updateErrorHeading": "O FiestaBoard ainda não voltou",
+    "updateErrorDescription": "A atualização terminou, mas a aplicação ainda está a reiniciar. Aguarde um momento e recarregue a página."
   },
   "globalAiChatDrawer": {
     "panelAriaLabel": "Chat de IA do FiestaBot"
@@ -1627,7 +1631,11 @@
     "dontCloseTab": "As atualizações podem demorar alguns minutos — não feche este separador.",
     "stepPull": "Baixando",
     "stepRestart": "Reiniciando",
-    "stepDone": "Concluído"
+    "stepDone": "Concluído",
+    "failedHeading": "A atualização não foi concluída",
+    "failedDescription": "O FiestaBoard continua a executar a versão inicial. Verifique <code>docker logs fiestaupdater</code> no host para mais detalhes.",
+    "failedReason": "Motivo: {reason}",
+    "dismiss": "Dispensar"
   },
   "wizardProvider": {
     "loadingSetupWizard": "A carregar assistente de configuração...",

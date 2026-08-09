@@ -1376,7 +1376,26 @@ export interface UpdateStatusResponse {
   sidecar_url: string;
   last_check: string | null;
   last_update: string | null;
+  /**
+   * Outcome of the most recent /update or /rollback attempt, as recorded by
+   * the fiestaupdater sidecar. The sidecar owns this state, so it survives
+   * the FiestaBoard container being torn down and recreated — which makes it
+   * the only trustworthy "did the update actually finish?" signal available
+   * to the UI. `null` when the sidecar is unreachable.
+   */
+  last_update_status: UpdateAttemptStatus | null;
+  last_update_action: "update" | "rollback" | null;
+  /** Sidecar error code, e.g. "pull_failed" | "recreate_failed" | "retag_failed". */
+  last_update_error: string | null;
+  last_update_previous_digest: string | null;
+  last_update_completed_at: string | null;
 }
+
+/**
+ * Sidecar-reported lifecycle of an update/rollback attempt.
+ * `none` means no attempt has ever been recorded.
+ */
+export type UpdateAttemptStatus = "in_progress" | "success" | "rolled_back" | "rollback_failed" | "failed" | "none";
 
 export type AutoUpdateInterval = "daily" | "weekly" | "monthly" | "manual";
 

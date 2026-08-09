@@ -1227,7 +1227,11 @@
     "waiting": "Warten auf den Start…",
     "errorHeading": "Verbindung zu FiestaBoard fehlgeschlagen",
     "errorDescription": "Prüfe, ob die App läuft, und versuche, die Seite neu zu laden.",
-    "refreshPage": "Seite neu laden"
+    "refreshPage": "Seite neu laden",
+    "updateWaiting": "Update wird abgeschlossen…",
+    "updateWaitingDescription": "FiestaBoard startet neu, um das Update abzuschließen. Das kann eine Minute dauern.",
+    "updateErrorHeading": "FiestaBoard ist noch nicht zurück",
+    "updateErrorDescription": "Das Update ist abgeschlossen, aber die App startet noch. Warten Sie einen Moment und aktualisieren Sie die Seite."
   },
   "globalAiChatDrawer": {
     "panelAriaLabel": "FiestaBot-KI-Chat"
@@ -1627,7 +1631,11 @@
     "dontCloseTab": "Updates können einige Minuten dauern – bitte schließen Sie diesen Tab nicht.",
     "stepPull": "Herunterladen",
     "stepRestart": "Neustart",
-    "stepDone": "Fertig"
+    "stepDone": "Fertig",
+    "failedHeading": "Update nicht abgeschlossen",
+    "failedDescription": "FiestaBoard läuft weiterhin mit der Version, mit der Sie begonnen haben. Prüfen Sie <code>docker logs fiestaupdater</code> auf dem Host für Details.",
+    "failedReason": "Grund: {reason}",
+    "dismiss": "Schließen"
   },
   "wizardProvider": {
     "loadingSetupWizard": "Einrichtungsassistent wird geladen...",

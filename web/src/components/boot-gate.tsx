@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
 import { apiUrl, appUrl } from "@/lib/base-path";
 
@@ -15,16 +16,29 @@ const SHOW_SPLASH_DELAY_MS = 600;
 const ERROR_TIMEOUT_MS = 30_000;
 
 /**
+ * Restarting after an update legitimately takes longer than a cold boot — the
+ * new container has to start from scratch on hardware that was just busy
+ * pulling an image. Showing "Couldn't connect to FiestaBoard" at 30 s there
+ * reads as a failure when the machine is simply still coming up.
+ */
+const POST_UPDATE_ERROR_TIMEOUT_MS = 120_000;
+
+/**
  * Gates the main UI behind an API availability check on boot.
  *
  * - If the API responds within SHOW_SPLASH_DELAY_MS → no splash ever shown.
  * - If the API is still unavailable after SHOW_SPLASH_DELAY_MS → "Waiting to start…" screen.
- * - If still unavailable after ERROR_TIMEOUT_MS → error screen with a refresh button.
+ * - If still unavailable after the error timeout → error screen with a refresh button.
  * - Once the API responds for the first time → the gate is removed permanently for this session.
  *   A brief connection hiccup during normal use never re-shows the splash.
+ *
+ * When the page has just reloaded itself to finish an update (see
+ * `UpdateProvider`), the same states get update-specific copy and a longer
+ * error timeout, so a normal post-update restart doesn't look like a crash.
  */
 export function BootGate({ children }: { children: React.ReactNode }) {
   const t = useTranslations("bootGate");
+  const { awaitingPostUpdateBoot, markPostUpdateBootComplete } = useUpdate();
   const [hasConnected, setHasConnected] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
@@ -46,10 +60,13 @@ export function BootGate({ children }: { children: React.ReactNode }) {
     enabled: !hasConnected,
   });
 
-  // Mark connected on first successful response.
+  // Mark connected on first successful response. This is also what retires a
+  // post-update marker: the new container answered, so the update is over.
   useEffect(() => {
-    if (data) setHasConnected(true);
-  }, [data]);
+    if (!data) return;
+    setHasConnected(true);
+    markPostUpdateBootComplete();
+  }, [data, markPostUpdateBootComplete]);
 
   // Delay showing the splash so fast startups never flash it.
   useEffect(() => {
@@ -61,11 +78,14 @@ export function BootGate({ children }: { children: React.ReactNode }) {
 
   // Switch to error state after the timeout elapses.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setTimedOut(true);
-    }, ERROR_TIMEOUT_MS);
+    const timer = setTimeout(
+      () => {
+        setTimedOut(true);
+      },
+      awaitingPostUpdateBoot ? POST_UPDATE_ERROR_TIMEOUT_MS : ERROR_TIMEOUT_MS,
+    );
     return () => clearTimeout(timer);
-  }, []);
+  }, [awaitingPostUpdateBoot]);
 
   // API is up — show the real app.
   if (hasConnected) return <>{children}</>;
@@ -96,9 +116,9 @@ export function BootGate({ children }: { children: React.ReactNode }) {
             <WifiOff className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
             <Stack gap="1.5">
               <Text size="base" weight="semibold">
-                {t("errorHeading")}
+                {awaitingPostUpdateBoot ? t("updateErrorHeading") : t("errorHeading")}
               </Text>
-              <Text tone="muted">{t("errorDescription")}</Text>
+              <Text tone="muted">{awaitingPostUpdateBoot ? t("updateErrorDescription") : t("errorDescription")}</Text>
             </Stack>
             <button
               onClick={() => window.location.reload()}
@@ -114,7 +134,16 @@ export function BootGate({ children }: { children: React.ReactNode }) {
               className="h-8 w-8 rounded-full border-[2.5px] border-muted-foreground/25 border-t-muted-foreground animate-spin"
               aria-hidden="true"
             />
-            <Text tone="muted">{t("waiting")}</Text>
+            {awaitingPostUpdateBoot ? (
+              <Stack gap="1.5">
+                <Text size="base" weight="semibold">
+                  {t("updateWaiting")}
+                </Text>
+                <Text tone="muted">{t("updateWaitingDescription")}</Text>
+              </Stack>
+            ) : (
+              <Text tone="muted">{t("waiting")}</Text>
+            )}
           </>
         )}
       </Flex>
