@@ -287,7 +287,7 @@ Workflows that commit must set an identity matching what actually authored the
 change:
 
 - **Mechanical commits** (version bumps, docs snapshots, stats refreshes, state
-  bookkeeping) → `FiestaBoard CI <ci@fiestaboard.dev>`
+  bookkeeping) → `FiestaBoard CI <ci@fiestaboard.app>`
 - **Claude-authored content** → left to `claude[bot]`, which the Claude action
   sets itself
 
@@ -297,7 +297,7 @@ jobs must pin their identity inline rather than rely on an earlier
 `git config`:
 
 ```bash
-git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.dev" \
+git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" \
   commit -m "chore(scope): advance sweep state [skip ci]"
 ```
 

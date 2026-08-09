@@ -172,7 +172,7 @@ jobs:
         if: steps.dedup.outputs.go == 'true'
         run: |
           git config user.name "FiestaBoard CI"
-          git config user.email "ci@fiestaboard.dev"
+          git config user.email "ci@fiestaboard.app"
 
       - name: Run Claude bug-hunt
         if: steps.dedup.outputs.go == 'true'
@@ -406,7 +406,7 @@ jobs:
             4. Commit to `main` directly and push:
                ```bash
                git add .github/bug-hunt-state.json
-               git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.dev" commit -m "chore(bug-hunt): advance sweep state [skip ci]" || exit 0
+               git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" commit -m "chore(bug-hunt): advance sweep state [skip ci]" || exit 0
                git push origin HEAD:main
                ```
                This is the ONLY commit you make.
@@ -451,5 +451,5 @@ jobs:
             exit 0
           fi
           git add .github/bug-hunt-state.json
-          git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.dev" commit -m "chore(bug-hunt): advance sweep state [skip ci]"
+          git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" commit -m "chore(bug-hunt): advance sweep state [skip ci]"
           git push origin HEAD:main

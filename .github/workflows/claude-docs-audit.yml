@@ -248,7 +248,7 @@ jobs:
       - name: Configure git identity
         run: |
           git config user.name "FiestaBoard CI"
-          git config user.email "ci@fiestaboard.dev"
+          git config user.email "ci@fiestaboard.app"
 
       - name: Run Claude docs audit
         uses: anthropics/claude-code-action@v1
@@ -627,7 +627,7 @@ jobs:
 
                ```bash
                git add .github/docs-audit-state.json
-               git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.dev" commit -m "chore(docs-audit): advance sweep state [skip ci]" || exit 0
+               git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" commit -m "chore(docs-audit): advance sweep state [skip ci]" || exit 0
                for attempt in 1 2 3 4 5; do
                  if git push origin HEAD:main; then
                    echo "State pushed on attempt $attempt."
@@ -683,7 +683,7 @@ jobs:
             exit 0
           fi
           git add .github/docs-audit-state.json
-          git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.dev" commit -m "chore(docs-audit): advance sweep state [skip ci]"
+          git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" commit -m "chore(docs-audit): advance sweep state [skip ci]"
           for attempt in 1 2 3 4 5; do
             if git push origin HEAD:main; then
               echo "State pushed on attempt $attempt."

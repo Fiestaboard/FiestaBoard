@@ -97,7 +97,7 @@ jobs:
       - name: Configure git identity
         run: |
           git config user.name "FiestaBoard CI"
-          git config user.email "ci@fiestaboard.dev"
+          git config user.email "ci@fiestaboard.app"
 
       - name: Capture rejection
         env:

@@ -109,7 +109,7 @@ jobs:
         run: |
           set -euo pipefail
           git config user.name "FiestaBoard CI"
-          git config user.email "ci@fiestaboard.dev"
+          git config user.email "ci@fiestaboard.app"
           git fetch origin main
 
           if git merge-base --is-ancestor origin/main HEAD; then

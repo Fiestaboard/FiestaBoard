@@ -334,7 +334,7 @@ jobs:
           # Checkout the main branch of FiestaBoard so we can commit to it.
           cd "$GITHUB_WORKSPACE/FiestaBoard"
           git config user.name "FiestaBoard CI"
-          git config user.email "ci@fiestaboard.dev"
+          git config user.email "ci@fiestaboard.app"
           git fetch origin main
           git checkout -B main origin/main
 

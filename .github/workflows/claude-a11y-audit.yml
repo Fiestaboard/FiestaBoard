@@ -160,7 +160,7 @@ jobs:
         if: steps.dedup.outputs.go == 'true'
         run: |
           git config user.name "FiestaBoard CI"
-          git config user.email "ci@fiestaboard.dev"
+          git config user.email "ci@fiestaboard.app"
 
       - name: Run Claude a11y-audit
         if: steps.dedup.outputs.go == 'true'
@@ -436,7 +436,7 @@ jobs:
             4. Commit to `main` directly and push:
                ```bash
                git add .github/a11y-audit-state.json
-               git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.dev" commit -m "chore(a11y-audit): advance sweep state [skip ci]" || exit 0
+               git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" commit -m "chore(a11y-audit): advance sweep state [skip ci]" || exit 0
                git push origin HEAD:main
                ```
                This is the ONLY commit you make.
@@ -478,5 +478,5 @@ jobs:
             exit 0
           fi
           git add .github/a11y-audit-state.json
-          git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.dev" commit -m "chore(a11y-audit): advance sweep state [skip ci]"
+          git -c user.name="FiestaBoard CI" -c user.email="ci@fiestaboard.app" commit -m "chore(a11y-audit): advance sweep state [skip ci]"
           git push origin HEAD:main
