@@ -14,11 +14,13 @@ import {
 } from "@fiestaboard/ui";
 import { format } from "date-fns";
 import { Calendar, ChevronRight, Edit, GalleryHorizontalEnd, Moon, Trash2 } from "lucide-react";
+import { useMemo } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 import type { Collection, Page, ScheduleEntry } from "@/lib/api";
 import { isCollectionId } from "@/lib/api";
 import type { ResolvedSilenceSchedule } from "@/lib/schedule-calendar";
+import { sortSchedulesByStart } from "@/lib/schedule-sort";
 
 interface ScheduleListViewProps {
   schedules: ScheduleEntry[];
@@ -123,6 +125,9 @@ export function ScheduleListView({
 
   const showSilenceRow = !!silenceSchedule?.enabled;
 
+  // Entries read chronologically, not in creation order.
+  const sortedSchedules = useMemo(() => sortSchedulesByStart(schedules), [schedules]);
+
   const getPageName = (pageId: string): string => {
     if (isCollectionId(pageId)) {
       const collection = collections.find((c) => c.id === pageId);
@@ -188,7 +193,7 @@ export function ScheduleListView({
         ) : (
           <Stack gap="3">
             {renderSilenceRow()}
-            {schedules.map((schedule) => {
+            {sortedSchedules.map((schedule) => {
               const pageName = getPageName(schedule.page_id);
               const toggleId = `schedule-enabled-${schedule.id}`;
               return (
