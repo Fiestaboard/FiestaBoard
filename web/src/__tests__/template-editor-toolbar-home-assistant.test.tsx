@@ -79,11 +79,16 @@ function makeFakeEditor() {
   };
 }
 
-/** Open the picker and drive it to "sensor.temperature" → "state". */
-async function chooseTemperatureState(user: ReturnType<typeof userEvent.setup>) {
+/** Open the picker and drive it to "sensor.temperature" → `attribute`. */
+async function chooseTemperatureAttribute(user: ReturnType<typeof userEvent.setup>, attribute: string) {
   await user.click(await screen.findByLabelText(HA_BUTTON_LABEL));
   await user.click(await screen.findByText("sensor.temperature"));
-  await user.click(await screen.findByText("state"));
+  await user.click(await screen.findByText(attribute));
+}
+
+/** Open the picker and drive it to "sensor.temperature" → "state". */
+async function chooseTemperatureState(user: ReturnType<typeof userEvent.setup>) {
+  await chooseTemperatureAttribute(user, "state");
 }
 
 describe("TemplateEditorToolbar Home Assistant entity picker", () => {
@@ -143,6 +148,22 @@ describe("TemplateEditorToolbar Home Assistant entity picker", () => {
 
     await waitFor(() => expect(insertSpy).toHaveBeenCalledTimes(1));
     expect(insertSpy.mock.calls[0][1]).toBe("{{home_assistant.sensor_temperature.state}}");
+  });
+
+  it("inserts the attribute the user picked rather than always defaulting to state", async () => {
+    const user = userEvent.setup();
+    useHomeAssistantVariables();
+    useEntities([sensorTemperature]);
+    renderToolbar({ editor: makeFakeEditor() });
+
+    // "state" is also the first entry the picker lists, so choosing it cannot
+    // distinguish "honours the selection" from "always emits .state". Pick a
+    // real attribute instead.
+    await chooseTemperatureAttribute(user, "unit_of_measurement");
+    await user.click(screen.getByRole("button", { name: "Insert" }));
+
+    await waitFor(() => expect(insertSpy).toHaveBeenCalledTimes(1));
+    expect(insertSpy.mock.calls[0][1]).toBe("{{home_assistant.sensor_temperature.unit_of_measurement}}");
   });
 
   it("closes the dialog after inserting, and stays closed when onClose fires twice", async () => {

@@ -115,12 +115,12 @@ export function TemplateEditorToolbar({
   const [homeAssistantPickerOpen, setHomeAssistantPickerOpen] = useState(false);
   const pendingHomeAssistantInsert = useRef<number | null>(null);
 
-  // The entity picker emits its variable *before* the dialog tears itself down.
-  // Inserting synchronously would move the caret into the editor only for the
-  // dialog's closing focus restore to yank it straight back to the toolbar
-  // button, so close first and insert on the next frame.
+  // The entity picker emits its variable *before* the dialog tears itself down:
+  // it calls `onSelect` and then, synchronously, `onClose`. Inserting here and
+  // now would move the caret into the editor only for the dialog's closing focus
+  // restore to yank it straight back to the toolbar button, so let that close
+  // land first and do the insert on the next frame.
   const handleHomeAssistantSelect = (variable: string) => {
-    setHomeAssistantPickerOpen(false);
     if (pendingHomeAssistantInsert.current !== null) {
       cancelAnimationFrame(pendingHomeAssistantInsert.current);
     }
