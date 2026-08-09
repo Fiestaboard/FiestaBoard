@@ -27,11 +27,15 @@ function motionDisabled(): boolean {
  * the other (CSS in globals.css keys off `html[data-board-switch]`). Falls
  * back to an instant switch when the View Transitions API is unavailable or
  * the user prefers reduced motion.
+ *
+ * `onSettled` runs once the transition finishes OR is aborted, and on the
+ * instant-switch path runs immediately.
  */
-function runBoardSwitchTransition(direction: BoardSwitchDirection, update: () => void) {
+function runBoardSwitchTransition(direction: BoardSwitchDirection, update: () => void, onSettled: () => void) {
   const doc = document as DocumentWithViewTransition;
   if (typeof doc.startViewTransition !== "function" || motionDisabled()) {
     update();
+    onSettled();
     return;
   }
   doc.documentElement.dataset.boardSwitch = direction;
@@ -40,9 +44,17 @@ function runBoardSwitchTransition(direction: BoardSwitchDirection, update: () =>
     // React commit must land synchronously inside it.
     flushSync(update);
   });
-  transition.finished.finally(() => {
-    delete doc.documentElement.dataset.boardSwitch;
-  });
+  transition.finished
+    // A transition started while another is active SKIPS the earlier one and
+    // rejects its `finished` with AbortError. That is a normal outcome of a
+    // fast second switch, not an error — but `.finally()` re-raises a rejection
+    // on the promise it returns, so without this `.catch()` every abort leaks
+    // an unhandled rejection.
+    .catch(() => {})
+    .finally(() => {
+      delete doc.documentElement.dataset.boardSwitch;
+      onSettled();
+    });
 }
 
 interface CurrentBoardContextValue {
@@ -118,8 +130,16 @@ export function CurrentBoardProvider({ children }: { children: React.ReactNode }
     boardsRef.current = boards;
   }, [boards]);
 
+  // The board a transition is currently heading toward, or "" when none is in
+  // flight. `startViewTransition` invokes its callback asynchronously, so
+  // `setCurrentBoardIdState` — and therefore `currentBoardIdRef` — has not
+  // moved yet while a switch is in flight. Recording the target synchronously,
+  // with no commit required, is what lets the guard below see it.
+  const pendingIdRef = useRef("");
+
   const setCurrentBoardId = useCallback((boardId: string) => {
-    if (boardId === currentBoardIdRef.current) return;
+    if (boardId === (pendingIdRef.current || currentBoardIdRef.current)) return;
+    pendingIdRef.current = boardId;
 
     // Moving down the board list slides forward; moving up slides backward —
     // mirrors the order the user sees in the sidebar selector.
@@ -128,9 +148,18 @@ export function CurrentBoardProvider({ children }: { children: React.ReactNode }
     const toIndex = list.findIndex((b) => b.id === boardId);
     const direction: BoardSwitchDirection = toIndex >= fromIndex ? "forward" : "backward";
 
-    runBoardSwitchTransition(direction, () => {
-      setCurrentBoardIdState(boardId);
-    });
+    runBoardSwitchTransition(
+      direction,
+      () => {
+        setCurrentBoardIdState(boardId);
+      },
+      () => {
+        // Only clear if a newer switch has not already claimed the slot —
+        // otherwise an earlier transition aborting would drop the guard for the
+        // switch that superseded it.
+        if (pendingIdRef.current === boardId) pendingIdRef.current = "";
+      },
+    );
     try {
       localStorage.setItem(STORAGE_KEY, boardId);
     } catch {}
