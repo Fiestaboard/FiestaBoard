@@ -1720,6 +1720,7 @@
     "variables": "변수",
     "variablesNoVarsAvailable": "변수 (사용 가능한 변수 없음)",
     "noVariablesAvailable": "사용 가능한 템플릿 변수가 없습니다. 설정에서 플러그인을 구성하세요.",
+    "homeAssistantEntities": "Home Assistant 엔티티",
     "colors": "색상",
     "drawMode": "보드에 그리기",
     "drawModeActive": "그리기 모드 종료",
