@@ -49,11 +49,19 @@ describe("LanguageSelector", () => {
     const trigger = screen.getByRole("combobox", { name: /language/i });
     await user.click(trigger);
 
-    // The Select popup mounts with `opacity: 0; pointer-events: none` and only
-    // becomes interactive once its open transition has run. Waiting for the
-    // listbox before clicking keeps user-event from firing at a popup that
-    // still refuses pointer events.
-    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    // Wait for the popup before clicking into it. The Select popup mounts
+    // non-interactive and only accepts pointer events once its open sequence
+    // has run; clicking too early aborts user-event with "Unable to perform
+    // pointer interaction as the element has `pointer-events: none`".
+    //
+    // Worth knowing when this bites: run this file on its own and the popup is
+    // already interactive by the time the trigger click resolves — probing the
+    // DOM at that point shows the listbox, all 14 options, and
+    // `pointer-events: auto` on every ancestor. The race only opens under
+    // full-suite load, when the open sequence has not finished settling. So a
+    // green single-file run proves nothing here; the failure is only ever
+    // visible in a full `npm run test:run`.
+    await screen.findByRole("listbox");
     await user.click(screen.getByRole("option", { name: "Español" }));
 
     await waitFor(() => expect(document.cookie).toContain("NEXT_LOCALE=es"));
