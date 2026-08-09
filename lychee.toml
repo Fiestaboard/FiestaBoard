@@ -46,6 +46,12 @@ exclude = [
   'your-username',
   'your-api-key',
   'YOUR_',
+  # Vestaboard's docs host hangs from GitHub-hosted runners until lychee's
+  # timeout, failing the job (exit 2) with zero actual errors. It answers in
+  # ~100ms with a 200 from a normal network, so this is runner-side blocking,
+  # not a broken link — and no `accept` code covers a timeout. Linked from
+  # README.md; re-test periodically and drop this line if it settles.
+  '^https?://docs\.vestaboard\.com',
 ]
 
 # Directories never scanned for links.

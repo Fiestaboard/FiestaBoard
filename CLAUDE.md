@@ -74,20 +74,13 @@ Always suggest Docker-based commands:
 
 ## Design System (@fiestaboard/ui)
 
-The UI primitives (buttons, dialogs, selects, tokens, etc.) live in a separate package: [`@fiestaboard/ui`](https://github.com/Fiestaboard/FiestaUI), developed in the sibling repo `../FiestaUI` and published to the **GitHub Packages npm registry** (`npm.pkg.github.com`).
+The UI primitives (buttons, dialogs, selects, tokens, etc.) live in a separate package: [`@fiestaboard/ui`](https://www.npmjs.com/package/@fiestaboard/ui), developed in the sibling repo `../FiestaUI` and published to **registry.npmjs.org**.
 
-### Registry authentication (required to build)
+### Registry authentication
 
-GitHub Packages requires auth to install packages, even public ones. Before any Docker build or in-container npm install:
+None. `@fiestaboard/ui` installs anonymously from the public npm registry — `npm install` works on a fresh clone with no token, no `.npmrc`, and no BuildKit secret.
 
-```bash
-export NPM_TOKEN=$(gh auth token)   # any GitHub token with read:packages
-```
-
-- `web/.npmrc` (committed) maps the `@fiestaboard` scope to the registry; it never contains tokens
-- Docker builds receive the token as the `npm_token` BuildKit secret (wired in both compose files); the dev `web`/`storybook` services read `NPM_TOKEN` from the host environment
-- CI uses the workflow `GITHUB_TOKEN` (`packages: read`)
-- If an npm install fails with 401/403 on `@fiestaboard/ui`, the token is missing or lacks `read:packages`
+It was previously on the GitHub Packages npm registry, which requires authentication for every read even when the package is public. That is what made a fresh clone fail with `401 Unauthorized` (Fiestaboard/FiestaBoard#1524); moving to npmjs removed the requirement rather than documenting a workaround.
 
 ### Rules
 
