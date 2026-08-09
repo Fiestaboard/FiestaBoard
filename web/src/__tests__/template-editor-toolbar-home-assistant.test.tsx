@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -240,18 +240,21 @@ describe("TemplateEditorToolbar Home Assistant entity picker", () => {
     expect(screen.queryByText("Select Attribute")).toBeNull();
   });
 
-  it("does not run the deferred insertion if the toolbar unmounts first", async () => {
+  it("cancels the deferred insertion if the toolbar unmounts before the frame runs", async () => {
     const user = userEvent.setup();
     useHomeAssistantVariables();
     useEntities([sensorTemperature]);
     const { unmount } = renderToolbar({ editor: makeFakeEditor() });
 
     await chooseTemperatureState(user);
-    await user.click(screen.getByRole("button", { name: "Insert" }));
 
+    // Confirm and unmount in one synchronous block: no `await` in between, so
+    // the scheduled frame provably cannot have run yet on any machine.
+    fireEvent.click(screen.getByRole("button", { name: "Insert" }));
+    expect(insertSpy).not.toHaveBeenCalled();
     unmount();
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     expect(insertSpy).not.toHaveBeenCalled();
   });
