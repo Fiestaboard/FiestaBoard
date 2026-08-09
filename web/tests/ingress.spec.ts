@@ -145,20 +145,24 @@ test.describe("HA Ingress", () => {
   });
 
   test("in-app logo icon renders (not just requested)", async ({ page }) => {
-    // The sidebar logo is a JSX `<img src>` that lands in the JS bundle,
-    // where sub_filter can't reliably reach it — it must go through the
-    // runtime base path (appUrl) instead.
+    // The sidebar logo used to be a JSX `<img src>` pointing at a PNG under
+    // /icons, which sub_filter can't reliably reach inside the JS bundle and
+    // so had to go through the runtime base path (appUrl). It is now
+    // FiestaUI's `FiestaIcon` — an inline SVG with no URL at all — so the
+    // ingress prefix can't break it. Assert it actually paints.
     await page.goto(`${PREFIX}/`);
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // The sidebar renders several logo copies (desktop expanded/collapsed,
     // mobile) — assert on the one that's actually visible.
-    const logo = page.locator('img[src*="/icons/favicon-32x32.png"]').filter({ visible: true }).first();
+    const logo = page
+      .locator('svg[viewBox="0 0 32 32"][shape-rendering="crispEdges"]')
+      .filter({ visible: true })
+      .first();
     await expect(logo).toBeVisible({ timeout: 10_000 });
-    expect(await logo.getAttribute("src"), "logo src must carry the ingress prefix").toContain(PREFIX);
     await expect
-      .poll(async () => logo.evaluate((el: HTMLImageElement) => el.naturalWidth), {
-        message: "logo image bytes must actually load",
+      .poll(async () => logo.evaluate((el: SVGSVGElement) => el.querySelectorAll("rect").length), {
+        message: "logo mark must render its pixel rects",
       })
       .toBeGreaterThan(0);
   });

@@ -34,6 +34,7 @@ import {
   CardHeader,
   CardTitle,
   Checkbox,
+  FiestaIcon,
   FiestaLogo,
   Flex,
   Input,
@@ -48,7 +49,7 @@ import { type FormEvent, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { AuthStatusResponse } from "@/lib/api";
-import { apiUrl, appUrl } from "@/lib/base-path";
+import { apiUrl } from "@/lib/base-path";
 
 type AuthStatus = AuthStatusResponse;
 
@@ -485,7 +486,7 @@ function CenteredCard({
   return (
     <Flex direction="col" align="center" justify="center" className="min-h-screen bg-background p-4">
       <Flex align="center" gap="3" className="mb-6">
-        <img src={appUrl("/icons/favicon-32x32.png")} alt="" width={36} height={36} className="flex-shrink-0" />
+        <FiestaIcon size={36} className="flex-shrink-0" />
         <FiestaLogo className="text-2xl" />
       </Flex>
       <Card className="w-full max-w-md">
