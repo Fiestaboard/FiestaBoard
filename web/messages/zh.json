@@ -1720,6 +1720,7 @@
     "variables": "变量",
     "variablesNoVarsAvailable": "变量(没有可用的变量)",
     "noVariablesAvailable": "没有可用的模板变量。在设置中配置插件。",
+    "homeAssistantEntities": "Home Assistant 实体",
     "colors": "颜色",
     "drawMode": "在看板上绘制",
     "drawModeActive": "退出绘制模式",

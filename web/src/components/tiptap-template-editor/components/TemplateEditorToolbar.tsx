@@ -16,6 +16,7 @@ import {
   Copy,
   Download,
   Eraser,
+  House,
   Palette,
   Pencil,
   Redo2,
@@ -25,8 +26,9 @@ import {
   Undo2,
   WrapText,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { HomeAssistantEntityPicker } from "@/components/home-assistant-entity-picker";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -96,6 +98,10 @@ export function TemplateEditorToolbar({
   const hasVariables = templateVars?.variables && Object.keys(templateVars.variables).length > 0;
   const hasColors = templateVars?.colors && Object.keys(templateVars.colors).length > 0;
   const hasFormatting = templateVars?.formatting && Object.keys(templateVars.formatting).length > 0;
+  // The Home Assistant entity picker hits `/home-assistant/entities`, which 503s
+  // when the plugin isn't installed/enabled. Only offer it when the plugin has
+  // actually contributed template variables.
+  const hasHomeAssistant = Boolean(templateVars?.variables?.home_assistant);
 
   // Track undo/redo availability and selection state
   const [canUndo, setCanUndo] = useState(false);
@@ -106,6 +112,33 @@ export function TemplateEditorToolbar({
   // focused buttons). The actual read happens inside `handlePaste`, which
   // is a real user-gesture handler and is gesture-allowed in every browser.
   const [hasClipboardContent, setHasClipboardContent] = useState(true);
+  const [homeAssistantPickerOpen, setHomeAssistantPickerOpen] = useState(false);
+  const pendingHomeAssistantInsert = useRef<number | null>(null);
+
+  // The entity picker emits its variable *before* the dialog tears itself down.
+  // Inserting synchronously would move the caret into the editor only for the
+  // dialog's closing focus restore to yank it straight back to the toolbar
+  // button, so close first and insert on the next frame.
+  const handleHomeAssistantSelect = (variable: string) => {
+    setHomeAssistantPickerOpen(false);
+    if (pendingHomeAssistantInsert.current !== null) {
+      cancelAnimationFrame(pendingHomeAssistantInsert.current);
+    }
+    pendingHomeAssistantInsert.current = requestAnimationFrame(() => {
+      pendingHomeAssistantInsert.current = null;
+      handleInsert(variable);
+    });
+  };
+
+  useEffect(
+    () => () => {
+      if (pendingHomeAssistantInsert.current !== null) {
+        cancelAnimationFrame(pendingHomeAssistantInsert.current);
+        pendingHomeAssistantInsert.current = null;
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!editor) {
@@ -525,6 +558,41 @@ export function TemplateEditorToolbar({
                   <Text>{t("noVariablesAvailable")}</Text>
                 </TooltipContent>
               </Tooltip>
+            )}
+
+            {/* Home Assistant entity picker.
+                Deliberately NOT a `ToolbarDropdown`: the dropdown's
+                outside-mousedown and capture-phase Escape handlers fight the
+                picker's modal portal. A plain button plus a sibling dialog
+                keeps both behaving. */}
+            {hasHomeAssistant && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      data-testid="home-assistant-entity-button"
+                      onClick={() => setHomeAssistantPickerOpen(true)}
+                      className={cn(
+                        "flex items-center justify-center p-1.5 rounded-md transition-colors",
+                        "border border-transparent hover:bg-muted/50",
+                      )}
+                      aria-label={t("homeAssistantEntities")}
+                    >
+                      <House className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <Text>{t("homeAssistantEntities")}</Text>
+                  </TooltipContent>
+                </Tooltip>
+
+                <HomeAssistantEntityPicker
+                  open={homeAssistantPickerOpen}
+                  onClose={() => setHomeAssistantPickerOpen(false)}
+                  onSelect={handleHomeAssistantSelect}
+                />
+              </>
             )}
 
             {/* Colors Dropdown */}

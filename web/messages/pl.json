@@ -1720,6 +1720,7 @@
     "variables": "Zmienne",
     "variablesNoVarsAvailable": "Zmienne (brak dostępnych zmiennych)",
     "noVariablesAvailable": "Brak dostępnych zmiennych szablonu. Skonfiguruj wtyczki w Ustawieniach.",
+    "homeAssistantEntities": "Encje Home Assistant",
     "colors": "Kolory",
     "drawMode": "Rysuj na tablicy",
     "drawModeActive": "Zakończ tryb rysowania",

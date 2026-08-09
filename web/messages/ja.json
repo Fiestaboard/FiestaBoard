@@ -1720,6 +1720,7 @@
     "variables": "変数",
     "variablesNoVarsAvailable": "変数(利用可能な変数はありません)",
     "noVariablesAvailable": "利用可能なテンプレート変数がありません。設定でプラグインを構成してください。",
+    "homeAssistantEntities": "Home Assistant エンティティ",
     "colors": "色",
     "drawMode": "ボードに描画",
     "drawModeActive": "描画モードを終了",

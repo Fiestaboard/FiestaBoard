@@ -1720,6 +1720,7 @@
     "variables": "Variabili",
     "variablesNoVarsAvailable": "Variabili (nessuna variabile disponibile)",
     "noVariablesAvailable": "Nessuna variabile del modello disponibile. Configura i plugin in Impostazioni.",
+    "homeAssistantEntities": "Entità Home Assistant",
     "colors": "Colori",
     "drawMode": "Disegna sul board",
     "drawModeActive": "Esci dalla modalità disegno",

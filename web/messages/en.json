@@ -1677,6 +1677,7 @@
     "variables": "Variables",
     "variablesNoVarsAvailable": "Variables (no variables available)",
     "noVariablesAvailable": "No template variables available. Configure plugins in Settings.",
+    "homeAssistantEntities": "Home Assistant entities",
     "colors": "Colors",
     "drawMode": "Draw on board",
     "drawModeActive": "Exit drawing mode",
