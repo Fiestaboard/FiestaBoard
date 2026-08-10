@@ -3,7 +3,6 @@
 import {
   Box,
   Button,
-  Code,
   Flex,
   Grid,
   Input,
@@ -17,13 +16,12 @@ import {
   Switch,
   Text,
 } from "@fiestaboard/ui";
-import { Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, Loader2, MapPin, Plus, Trash2, Zap } from "lucide-react";
+import { Eye, EyeOff, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { useTranslations } from "@/i18n/translations";
-import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 import { FieldScopeContext, SchemaFormPluginContext, useFieldScope } from "./field-context";
