@@ -1711,6 +1711,8 @@
     "remoteOptionsAdd": "Lägg till…",
     "remoteOptionsAddLabel": "Lägg till alternativ",
     "remoteOptionsRemove": "Ta bort {label}",
+    "remoteOptionsLabelFor": "Visningsnamn för {label}",
+    "remoteOptionsLabelPlaceholder": "Kort namn",
     "remoteOptionsMoveUp": "Flytta {label} uppåt",
     "remoteOptionsMoveDown": "Flytta {label} nedåt",
     "remoteOptionsSearchLabel": "Sök bland alternativ",

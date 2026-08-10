@@ -1711,6 +1711,8 @@
     "remoteOptionsAdd": "添加…",
     "remoteOptionsAddLabel": "添加选项",
     "remoteOptionsRemove": "移除{label}",
+    "remoteOptionsLabelFor": "{label}的显示名称",
+    "remoteOptionsLabelPlaceholder": "简称",
     "remoteOptionsMoveUp": "上移{label}",
     "remoteOptionsMoveDown": "下移{label}",
     "remoteOptionsSearchLabel": "搜索选项",

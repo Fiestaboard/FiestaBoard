@@ -109,6 +109,47 @@ export interface RemoteOptionsUiOptions {
   allow_custom?: boolean;
   cache_seconds?: number;
   placeholder?: string;
+  /**
+   * Name of a *sibling* property collecting a short display name per chosen
+   * option, keyed by `String(value)`. Multi-select only.
+   */
+  labels_field?: string;
+}
+
+/**
+ * Read the stored label map out of the sibling property.
+ *
+ * A `Map`, not a bare object, so the widget cannot look a label up by a raw
+ * numeric value and be rescued by JS coercing the key: stored config arrives
+ * from JSON with string keys, and every lookup has to go through
+ * {@link optionKey} to find them.
+ *
+ * Anything that is not a plain object — absent, `null`, a leftover array —
+ * reads as empty rather than throwing, because the widget must survive config
+ * written before the field existed. Entries whose value is not a string are
+ * not display names and are ignored.
+ */
+function readLabels(stored: unknown): Map<string, string> {
+  const labels = new Map<string, string>();
+  if (typeof stored !== "object" || stored === null || Array.isArray(stored)) return labels;
+  for (const [key, text] of Object.entries(stored as Record<string, unknown>)) {
+    if (typeof text === "string") labels.set(key, text);
+  }
+  return labels;
+}
+
+/**
+ * The canonical string key for an option value — what the catalog is indexed
+ * by, and what a `labels_field` map is keyed by.
+ *
+ * Explicitly stringified, because the plugin reads the map back with string
+ * keys: Disney's does `custom_names.get(str(ride_id))` while its option values
+ * are integers. Leaving the raw value in place would happen to survive being
+ * written into a JS object — keys coerce — but every lookup the widget itself
+ * does would then miss the string keys that came back from stored config.
+ */
+function optionKey(value: unknown): string {
+  return String(value);
 }
 
 /** The slice of a JSON-schema property this widget reads. */
@@ -124,7 +165,11 @@ export interface RemoteOptionsFieldProps {
   name: string;
   property: RemoteOptionsProperty;
   value: unknown;
-  onChange: (value: unknown) => void;
+  /**
+   * Commit the field's value, plus — only for `labels_field` — a patch of the
+   * sibling properties in the same object, applied in the same update.
+   */
+  onChange: (value: unknown, siblings?: Record<string, unknown>) => void;
   disabled?: boolean;
 }
 
@@ -197,6 +242,14 @@ export function RemoteOptionsField({ name, property, value, onChange, disabled }
   const options = query.data?.options ?? [];
   const scalarType = ui.multiple ? property.items?.type : property.type;
 
+  // `labels_field` is the only thing this widget writes outside its own key, so
+  // it stays inert unless the manifest asked for it on a multi-select. The map
+  // is read straight out of the field's scope on every render and written only
+  // from a user action — never from an effect, because an effect would fire on
+  // the empty first render of a cold dialog open and wipe saved names.
+  const labelsField = multiple && ui.labels_field ? ui.labels_field : undefined;
+  const labels = readLabels(labelsField ? fieldScope.scope[labelsField] : undefined);
+
   // Without a plugin id there is nothing to ask. Say so and stay inert rather
   // than throwing or requesting `/plugins/null/options/…`.
   if (!pluginId) {
@@ -239,6 +292,8 @@ export function RemoteOptionsField({ name, property, value, onChange, disabled }
           maxItems={property.maxItems}
           reorderable={Boolean(ui.reorderable)}
           placeholder={ui.placeholder}
+          labelsField={labelsField}
+          labels={labels}
         />
       ) : (
         <SingleSelectControl
@@ -333,7 +388,8 @@ interface ControlProps {
   options: PluginOption[];
   /** What search has left to offer. */
   visible: PluginOption[];
-  onChange: (value: unknown) => void;
+  /** Same contract as {@link RemoteOptionsFieldProps.onChange}. */
+  onChange: (value: unknown, siblings?: Record<string, unknown>) => void;
   disabled?: boolean;
   scalarType: string | undefined;
   placeholder?: string;
@@ -408,17 +464,56 @@ function MultiSelectControl({
   maxItems,
   reorderable,
   placeholder,
-}: ControlProps & { value: unknown[]; maxItems?: number; reorderable: boolean }) {
+  labelsField,
+  labels,
+}: ControlProps & {
+  value: unknown[];
+  maxItems?: number;
+  reorderable: boolean;
+  /** Sibling property collecting per-choice display names, or undefined. */
+  labelsField?: string;
+  /** Those names as stored, keyed by {@link optionKey}. */
+  labels: Map<string, string>;
+}) {
   const t = useTranslations("schemaForm");
-  const labels = new Map(options.map((option) => [String(option.value), option.label]));
-  const chosen = value.map((item) => String(item));
+  const catalogLabels = new Map(options.map((option) => [optionKey(option.value), option.label]));
+  const chosen = value.map((item) => optionKey(item));
   const chosenSet = new Set(chosen);
   // Offering an already-chosen option again can only produce a duplicate.
-  const available = visible.filter((option) => !chosenSet.has(String(option.value)));
+  const available = visible.filter((option) => !chosenSet.has(optionKey(option.value)));
   const atMax = maxItems !== undefined && value.length >= maxItems;
   // Same rule as the single control: an unrecognised stored value shows as
   // itself so a save never silently drops it.
-  const labelOf = (raw: string) => labels.get(raw) ?? raw;
+  const labelOf = (raw: string) => catalogLabels.get(raw) ?? raw;
+
+  // The display name and the selection are one edit, committed together — see
+  // `FieldProps.onChange`. Only the keys the user actually touched move.
+  const setLabel = (raw: string, text: string) => {
+    if (!labelsField) return;
+    const next = new Map(labels);
+    // An empty box means "no custom name", which the *absence* of a key
+    // already says — storing "" would only accumulate entries that mean
+    // nothing to the plugin.
+    if (text === "") next.delete(raw);
+    else next.set(raw, text);
+    onChange(value, { [labelsField]: Object.fromEntries(next) });
+  };
+
+  /**
+   * Remove a chosen option, and with it the display name that only existed to
+   * describe it. Exactly that one key: names for the rows that stay, and for
+   * anything else already in the map, are left as they are.
+   */
+  const remove = (index: number) => {
+    const remaining = value.filter((_, i) => i !== index);
+    if (!labelsField) {
+      onChange(remaining);
+      return;
+    }
+    const next = new Map(labels);
+    next.delete(chosen[index]);
+    onChange(remaining, { [labelsField]: Object.fromEntries(next) });
+  };
 
   const move = (index: number, direction: -1 | 1) => {
     const target = index + direction;
@@ -441,6 +536,16 @@ function MultiSelectControl({
           <Text as="span" className="flex-1 truncate">
             {labelOf(raw)}
           </Text>
+          {labelsField && (
+            <Input
+              value={labels.get(raw) ?? ""}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLabel(raw, e.target.value)}
+              aria-label={t("remoteOptionsLabelFor", { label: labelOf(raw) })}
+              placeholder={t("remoteOptionsLabelPlaceholder")}
+              disabled={disabled}
+              className="h-7 w-32 shrink-0 text-sm"
+            />
+          )}
           {reorderable && (
             <Flex align="center" className="shrink-0">
               <Button
@@ -473,7 +578,7 @@ function MultiSelectControl({
             size="icon"
             className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
             disabled={disabled}
-            onClick={() => onChange(value.filter((_, i) => i !== index))}
+            onClick={() => remove(index)}
             aria-label={t("remoteOptionsRemove", { label: labelOf(raw) })}
           >
             <Trash2 className="h-4 w-4" />

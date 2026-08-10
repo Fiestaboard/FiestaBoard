@@ -1711,6 +1711,8 @@
     "remoteOptionsAdd": "Toevoegen…",
     "remoteOptionsAddLabel": "Optie toevoegen",
     "remoteOptionsRemove": "{label} verwijderen",
+    "remoteOptionsLabelFor": "Weergavenaam voor {label}",
+    "remoteOptionsLabelPlaceholder": "Korte naam",
     "remoteOptionsMoveUp": "{label} omhoog verplaatsen",
     "remoteOptionsMoveDown": "{label} omlaag verplaatsen",
     "remoteOptionsSearchLabel": "Opties zoeken",

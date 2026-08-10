@@ -1711,6 +1711,8 @@
     "remoteOptionsAdd": "Добавить…",
     "remoteOptionsAddLabel": "Добавить вариант",
     "remoteOptionsRemove": "Удалить: {label}",
+    "remoteOptionsLabelFor": "Отображаемое имя для {label}",
+    "remoteOptionsLabelPlaceholder": "Краткое имя",
     "remoteOptionsMoveUp": "Переместить {label} вверх",
     "remoteOptionsMoveDown": "Переместить {label} вниз",
     "remoteOptionsSearchLabel": "Поиск вариантов",

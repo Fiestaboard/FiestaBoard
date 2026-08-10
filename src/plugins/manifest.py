@@ -58,7 +58,8 @@ OPTIONS_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 # "requires type 'array'" rule, which a stricter type check would double up on.
 UI_OPTIONS_BOOLEAN_KEYS = frozenset({"searchable", "server_search", "reorderable", "allow_custom"})
 UI_OPTIONS_KEYS = (
-    frozenset({"options_id", "depends_on", "multiple", "cache_seconds", "placeholder"}) | UI_OPTIONS_BOOLEAN_KEYS
+    frozenset({"options_id", "depends_on", "multiple", "cache_seconds", "placeholder", "labels_field"})
+    | UI_OPTIONS_BOOLEAN_KEYS
 )
 
 # How long the UI may reuse a fetched option list. Zero means "never cache";
@@ -844,6 +845,27 @@ def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
             errors.append(
                 f"settings_schema.{field_path}: ui:options.multiple requires type 'array', got {prop.get('type')!r}"
             )
+
+        # ``labels_field`` is the one key that makes the widget write *outside*
+        # its own property: it names the sibling that collects the per-choice
+        # display names, keyed by option value. That sibling therefore has to
+        # exist in the same object schema, and there has to be more than one
+        # choice for the names to be worth keying.
+        labels_field = ui_options.get("labels_field")
+        if labels_field is not None:
+            if not isinstance(labels_field, str):
+                errors.append(
+                    f"settings_schema.{field_path}: ui:options.labels_field must be a string, got {labels_field!r}"
+                )
+            elif labels_field not in siblings:
+                # Siblings only, unlike ``depends_on``: this is a write target,
+                # and the widget writes into the object its own key lives in.
+                errors.append(
+                    f"settings_schema.{field_path}: ui:options.labels_field "
+                    f"references unknown property '{labels_field}'"
+                )
+            if not ui_options.get("multiple"):
+                errors.append(f"settings_schema.{field_path}: ui:options.labels_field requires ui:options.multiple")
 
         if ui_options.get("reorderable") and not ui_options.get("multiple"):
             errors.append(f"settings_schema.{field_path}: ui:options.reorderable requires ui:options.multiple")
