@@ -1,11 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { type JSONSchema, SchemaForm } from "@/components/plugin-settings";
 import type * as apiModule from "@/lib/api";
+
+import { server } from "./mocks/server";
 
 /**
  * Regression tests for the bug reported in
@@ -261,11 +264,6 @@ vi.mock("@/lib/api", async () => {
         ],
         total: 2,
       }),
-      getQueueTimesParks: vi.fn().mockResolvedValue([{ id: 5, name: "Magic Kingdom" }]),
-      getQueueTimesRides: vi.fn().mockResolvedValue([
-        { id: 1, name: "Space Mountain" },
-        { id: 2, name: "Haunted Mansion" },
-      ]),
     },
   };
 });
@@ -580,21 +578,77 @@ describe("SchemaForm - declarative array of objects with an enum property", () =
 });
 
 /**
- * disney-parks-times-picker widget: a plugin declares
- * `"ui:widget": "disney-parks-times-picker"` on an array field to manage parks
- * and their rides. The custom-name input and the reorder arrows are gated
- * behind capability flags in `ui:options`, defaulting to false so older plugin
- * versions that don't support them never expose the controls.
+ * A parks-and-rides picker built entirely out of generic primitives: an array
+ * of objects whose `park_id` and `ride_ids` are both `remote-options` fields,
+ * exactly as the Disney plugin's manifest declares them from v1.3.0 on.
+ *
+ * These assertions were written against the bespoke `disney-parks-times-picker`
+ * widget core used to ship, and are kept — repointed at the generic primitive —
+ * because what they protect is user-facing behaviour, not an implementation:
+ * per-choice display names and reorder arrows stay opt-in (`labels_field` and
+ * `reorderable` replacing the old `customRideNames` / `reorderRides` flags), the
+ * remove control is always there, and reordering rewrites the persisted order.
+ *
+ * The composition is the point. `RemoteOptionsField`'s own suite covers each
+ * capability on a flat schema; here they are nested one level down, inside an
+ * array row, where the label map has to land on the row's own `custom_names`
+ * and the picker has to resolve `depends_on: ["park_id"]` against its sibling.
  */
-describe("SchemaForm - disney-parks-times-picker widget", () => {
-  const parkSchema = (uiOptions?: { customRideNames?: boolean; reorderRides?: boolean }): JSONSchema => ({
+const PARK_OPTIONS = [{ value: 5, label: "Magic Kingdom" }];
+const RIDE_OPTIONS = [
+  { value: 1, label: "Space Mountain" },
+  { value: 2, label: "Haunted Mansion" },
+];
+
+/** Serve both catalogs the manifest names, chosen by `options_id`. */
+function mockParkAndRideOptions() {
+  server.use(
+    http.post("/api/plugins/:pluginId/options/:optionsId", ({ params }) => {
+      const optionsId = String(params.optionsId);
+      const options = optionsId === "parks" ? PARK_OPTIONS : RIDE_OPTIONS;
+      return HttpResponse.json({
+        plugin_id: String(params.pluginId),
+        options_id: optionsId,
+        options,
+        has_more: false,
+        cursor: null,
+        total: options.length,
+        error: null,
+        cached: false,
+        stale: false,
+        cache_seconds: 300,
+      });
+    }),
+  );
+}
+
+describe("SchemaForm - parks and rides via the generic remote-options widget", () => {
+  const parkSchema = (rideUiOptions: Record<string, unknown> = {}): JSONSchema => ({
     type: "object",
     properties: {
       parks: {
         type: "array",
-        title: "Parks",
-        "ui:widget": "disney-parks-times-picker",
-        ...(uiOptions ? { "ui:options": uiOptions } : {}),
+        title: "Parks and rides",
+        items: {
+          type: "object",
+          properties: {
+            park_id: {
+              type: "integer",
+              title: "Park",
+              "ui:widget": "remote-options",
+              "ui:options": { options_id: "parks" },
+            },
+            ride_ids: {
+              type: "array",
+              title: "Rides",
+              items: { type: "integer" },
+              "ui:widget": "remote-options",
+              "ui:options": { options_id: "rides", depends_on: ["park_id"], multiple: true, ...rideUiOptions },
+            },
+            custom_names: { type: "object", title: "Custom ride names" },
+          },
+          required: ["park_id", "ride_ids"],
+        },
       },
     },
   });
@@ -614,6 +668,7 @@ describe("SchemaForm - disney-parks-times-picker widget", () => {
         <SchemaForm
           schema={schema}
           values={values}
+          pluginId="disney-parks-times"
           onChange={(v) => {
             setValues(v);
             onChange?.(v);
@@ -623,25 +678,27 @@ describe("SchemaForm - disney-parks-times-picker widget", () => {
     );
   }
 
-  const oneParkTwoRides = { parks: [{ park_id: 5, ride_ids: [1, 2] }] };
+  const oneParkTwoRides = { parks: [{ park_id: 5, ride_ids: [1, 2], custom_names: {} }] };
 
-  it("hides reorder arrows and the custom-name input when no capability flags are set", async () => {
+  it("hides reorder arrows and the display-name input when the manifest asks for neither", async () => {
+    mockParkAndRideOptions();
     render(<Harness schema={parkSchema()} initial={oneParkTwoRides} />);
 
-    // Ride names render once the rides have loaded.
+    // Ride names render once the catalog has loaded.
     expect(await screen.findByText("Space Mountain")).toBeInTheDocument();
     // The remove button is always available.
     expect(screen.getByRole("button", { name: "Remove Space Mountain" })).toBeInTheDocument();
     // Gated controls must NOT be present.
     expect(screen.queryByRole("button", { name: "Move Space Mountain up" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Move Space Mountain down" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: /custom name for space mountain/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /display name for space mountain/i })).not.toBeInTheDocument();
   });
 
-  it("shows reorder arrows only when reorderRides is enabled, and reorders on click", async () => {
+  it("shows reorder arrows only when reorderable is set, and reorders on click", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<Harness schema={parkSchema({ reorderRides: true })} initial={oneParkTwoRides} onChange={onChange} />);
+    mockParkAndRideOptions();
+    render(<Harness schema={parkSchema({ reorderable: true })} initial={oneParkTwoRides} onChange={onChange} />);
 
     expect(await screen.findByText("Space Mountain")).toBeInTheDocument();
     // First ride can't move up (disabled) but can move down.
@@ -652,22 +709,26 @@ describe("SchemaForm - disney-parks-times-picker widget", () => {
     expect(last.parks[0].ride_ids).toEqual([2, 1]);
   });
 
-  it("shows the custom-name input only when customRideNames is enabled", async () => {
-    render(<Harness schema={parkSchema({ customRideNames: true })} initial={oneParkTwoRides} />);
+  it("shows the display-name input only when labels_field is set", async () => {
+    mockParkAndRideOptions();
+    render(<Harness schema={parkSchema({ labels_field: "custom_names" })} initial={oneParkTwoRides} />);
 
     expect(await screen.findByText("Space Mountain")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Custom name for Space Mountain" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Display name for Space Mountain" })).toBeInTheDocument();
     // Reorder remains gated independently.
     expect(screen.queryByRole("button", { name: "Move Space Mountain up" })).not.toBeInTheDocument();
   });
 
-  it("writes and clears custom_names as the user edits the label", async () => {
+  it("writes and clears the row's custom_names as the user edits the label", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<Harness schema={parkSchema({ customRideNames: true })} initial={oneParkTwoRides} onChange={onChange} />);
+    mockParkAndRideOptions();
+    render(
+      <Harness schema={parkSchema({ labels_field: "custom_names" })} initial={oneParkTwoRides} onChange={onChange} />,
+    );
 
     const input = (await screen.findByRole("textbox", {
-      name: "Custom name for Space Mountain",
+      name: "Display name for Space Mountain",
     })) as HTMLInputElement;
 
     await user.type(input, "Rocket");

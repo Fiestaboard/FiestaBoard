@@ -17,27 +17,13 @@ import {
   Switch,
   Text,
 } from "@fiestaboard/ui";
-import {
-  ArrowDown,
-  ArrowUp,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Eye,
-  EyeOff,
-  Loader2,
-  MapPin,
-  Plus,
-  Trash2,
-  Zap,
-} from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, Loader2, MapPin, Plus, Trash2, Zap } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { useTranslations } from "@/i18n/translations";
-import { api, type QueueTimesPark, type QueueTimesRide } from "@/lib/api";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 import { FieldScopeContext, SchemaFormPluginContext, useFieldScope } from "./field-context";
@@ -61,13 +47,7 @@ interface SchemaProperty {
   required?: string[];
   "ui:widget"?: string;
   "ui:placeholder"?: string;
-  // Capability flags declared by the plugin manifest. Absent → treated as
-  // false, so the picker degrades gracefully on older plugin versions that
-  // don't support these features.
-  "ui:options"?: {
-    customRideNames?: boolean;
-    reorderRides?: boolean;
-  } & RemoteOptionsUiOptions;
+  "ui:options"?: RemoteOptionsUiOptions;
 }
 
 interface JSONSchema {
@@ -581,277 +561,6 @@ function NumberField(props: NumberFieldProps) {
 
 function BooleanField({ name, value, onChange, disabled }: FieldProps) {
   return <Switch id={name} checked={Boolean(value)} onCheckedChange={onChange} disabled={disabled} />;
-}
-
-// Disney Park Queue Times picker: display names, store park_id and ride_ids.
-// ride_ids order is the display/board order. custom_names maps a ride id to a
-// user-supplied label (empty/absent = use the real ride name).
-interface ParkRideEntry {
-  park_id: number;
-  ride_ids: number[];
-  custom_names?: Record<number, string>;
-}
-
-type DisneyParksTimesPickerProps = FieldProps;
-
-function DisneyParksTimesPicker({ name, property, value, onChange, disabled }: DisneyParksTimesPickerProps) {
-  const t = useTranslations("schemaForm");
-  const [parks, setParks] = useState<QueueTimesPark[]>([]);
-  const [parksLoading, setParksLoading] = useState(true);
-  const [ridesByParkId, setRidesByParkId] = useState<Record<number, QueueTimesRide[]>>({});
-
-  // Capability flags from the plugin manifest. Default to false so the picker
-  // only exposes features the installed plugin version actually supports.
-  const uiOptions = property["ui:options"] ?? {};
-  const allowCustomNames = uiOptions.customRideNames === true;
-  const allowReorder = uiOptions.reorderRides === true;
-
-  const items = (Array.isArray(value) ? value : []) as ParkRideEntry[];
-
-  const ensureRidesForPark = useCallback((parkId: number) => {
-    setRidesByParkId((prev) => {
-      if (prev[parkId] !== undefined) return prev;
-      api
-        .getQueueTimesRides(parkId)
-        .then((data) => {
-          setRidesByParkId((p) => ({ ...p, [parkId]: data }));
-        })
-        .catch(() => {
-          setRidesByParkId((p) => ({ ...p, [parkId]: [] }));
-        });
-      return prev;
-    });
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getQueueTimesParks()
-      .then((data) => {
-        if (!cancelled) {
-          setParks(data);
-          setParksLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setParksLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    items.forEach((entry) => {
-      if (entry?.park_id) ensureRidesForPark(entry.park_id);
-    });
-  }, [items, ensureRidesForPark]);
-
-  const setEntryAt = (index: number, next: ParkRideEntry) => {
-    const nextItems = [...items];
-    nextItems[index] = next;
-    onChange(nextItems);
-  };
-
-  const setParkAt = (index: number, parkId: number) => {
-    setEntryAt(index, { park_id: parkId, ride_ids: [] });
-    ensureRidesForPark(parkId);
-  };
-
-  const setRidesAt = (index: number, rideIds: number[]) => {
-    setEntryAt(index, { ...items[index], ride_ids: rideIds });
-  };
-
-  const addRideAt = (index: number, rideId: number) => {
-    const entry = items[index];
-    if (!entry || entry.ride_ids.includes(rideId)) return;
-    setRidesAt(index, [...entry.ride_ids, rideId]);
-  };
-
-  const removeRideAt = (index: number, rideIndex: number) => {
-    const entry = items[index];
-    if (!entry) return;
-    const removedId = entry.ride_ids[rideIndex];
-    const next = entry.ride_ids.filter((_, i) => i !== rideIndex);
-    const nextNames = { ...(entry.custom_names ?? {}) };
-    delete nextNames[removedId];
-    setEntryAt(index, { ...entry, ride_ids: next, custom_names: nextNames });
-  };
-
-  const moveRideAt = (index: number, rideIndex: number, direction: -1 | 1) => {
-    const entry = items[index];
-    if (!entry) return;
-    const target = rideIndex + direction;
-    if (target < 0 || target >= entry.ride_ids.length) return;
-    const next = [...entry.ride_ids];
-    [next[rideIndex], next[target]] = [next[target], next[rideIndex]];
-    setRidesAt(index, next);
-  };
-
-  const setCustomNameAt = (index: number, rideId: number, customName: string) => {
-    const entry = items[index];
-    if (!entry) return;
-    const nextNames = { ...(entry.custom_names ?? {}) };
-    if (customName) {
-      nextNames[rideId] = customName;
-    } else {
-      delete nextNames[rideId];
-    }
-    setEntryAt(index, { ...entry, custom_names: nextNames });
-  };
-
-  const handleAddPark = () => {
-    const firstId = parks[0]?.id ?? 0;
-    onChange([...items, { park_id: firstId, ride_ids: [] }]);
-    if (firstId) ensureRidesForPark(firstId);
-  };
-
-  const handleRemovePark = (index: number) => {
-    onChange(items.filter((_, i) => i !== index));
-  };
-
-  const _parkName = (id: number) => parks.find((p) => p.id === id)?.name ?? `Park ${id}`;
-  const rideName = (parkId: number, rideId: number) =>
-    ridesByParkId[parkId]?.find((r) => r.id === rideId)?.name ?? `Ride ${rideId}`;
-
-  if (parksLoading) {
-    return (
-      <Flex align="center" gap="2" className="text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        {t("loadingParks")}
-      </Flex>
-    );
-  }
-
-  return (
-    <Stack gap="4">
-      {items.map((entry, index) => (
-        <Stack key={index} gap="2" className="rounded-lg border p-3">
-          <Flex gap="2" align="center">
-            <Select
-              value={entry.park_id ? String(entry.park_id) : ""}
-              onValueChange={(val) => setParkAt(index, parseInt(val, 10))}
-              disabled={disabled}
-            >
-              <SelectTrigger id={`${name}-park-${index}`} className="flex-1">
-                <SelectValue placeholder={t("selectPark")} />
-              </SelectTrigger>
-              <SelectContent>
-                {parks.map((p) => (
-                  <SelectItem key={p.id} value={String(p.id)}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => handleRemovePark(index)}
-              disabled={disabled}
-              className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
-              aria-label={t("removePark")}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </Flex>
-          {entry.park_id > 0 && (
-            <Stack gap="2">
-              <Text size="xs" tone="muted">
-                {t("rides")}
-              </Text>
-              <Stack gap="2" className="rounded-md border p-2">
-                {(entry.ride_ids || []).map((rid, rideIndex) => (
-                  <Box key={rid} className="rounded-sm border overflow-hidden">
-                    <Flex
-                      align="center"
-                      gap="1"
-                      className={cn("bg-muted/50 px-2 py-1.5", allowCustomNames && "border-b")}
-                    >
-                      <Text as="span" weight="medium" className="flex-1">
-                        {rideName(entry.park_id, rid)}
-                      </Text>
-                      {allowReorder && (
-                        <>
-                          <Flex align="center" className="shrink-0">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => moveRideAt(index, rideIndex, -1)}
-                              disabled={disabled || rideIndex === 0}
-                              className="h-7 w-7 hover:bg-background"
-                              aria-label={t("moveRideUp", { ride: rideName(entry.park_id, rid) })}
-                            >
-                              <ArrowUp className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => moveRideAt(index, rideIndex, 1)}
-                              disabled={disabled || rideIndex === entry.ride_ids.length - 1}
-                              className="h-7 w-7 hover:bg-background"
-                              aria-label={t("moveRideDown", { ride: rideName(entry.park_id, rid) })}
-                            >
-                              <ArrowDown className="h-4 w-4" />
-                            </Button>
-                          </Flex>
-                          <Box className="mx-1 h-5 w-px shrink-0 bg-border" />
-                        </>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeRideAt(index, rideIndex)}
-                        disabled={disabled}
-                        className="h-7 w-7 shrink-0 text-destructive hover:bg-background hover:text-destructive"
-                        aria-label={t("removeRide", { ride: rideName(entry.park_id, rid) })}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </Flex>
-                    {allowCustomNames && (
-                      <Box className="p-2">
-                        <Input
-                          value={entry.custom_names?.[rid] ?? ""}
-                          onChange={(e) => setCustomNameAt(index, rid, e.target.value)}
-                          disabled={disabled}
-                          placeholder={t("customRideNamePlaceholder")}
-                          aria-label={t("customRideNameLabel", { ride: rideName(entry.park_id, rid) })}
-                          className="h-8 text-sm"
-                        />
-                      </Box>
-                    )}
-                  </Box>
-                ))}
-                <Select value="" onValueChange={(val) => addRideAt(index, parseInt(val, 10))} disabled={disabled}>
-                  <SelectTrigger className="w-full border-dashed text-muted-foreground">
-                    <SelectValue placeholder={t("addRide")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(ridesByParkId[entry.park_id] ?? [])
-                      .filter((r) => !(entry.ride_ids || []).includes(r.id))
-                      .map((r) => (
-                        <SelectItem key={r.id} value={String(r.id)}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </Stack>
-            </Stack>
-          )}
-        </Stack>
-      ))}
-      <Button type="button" variant="outline" size="sm" onClick={handleAddPark} disabled={disabled} className="w-full">
-        <Plus className="h-4 w-4 mr-2" />
-        {t("addPark")}
-      </Button>
-    </Stack>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1485,18 +1194,6 @@ function FormField({
             required={required}
             disabled={disabled}
             allValues={allValues || {}}
-          />
-        );
-      }
-      if (property["ui:widget"] === "disney-parks-times-picker") {
-        return (
-          <DisneyParksTimesPicker
-            name={name}
-            property={property}
-            value={value}
-            onChange={onChange}
-            required={required}
-            disabled={disabled}
           />
         );
       }
