@@ -82,6 +82,12 @@ class PluginRegistry:
         # Maps plugin_id -> bool (True = update available).
         self._update_status: dict[str, bool] = {}
 
+        # Why an upstream commit was *not* offered as an update, for the
+        # plugins where that happened.  Maps plugin_id -> reason.  Kept
+        # alongside (not inside) _update_status so the boolean shape the API
+        # and UI already consume is unchanged.
+        self._update_blocked: dict[str, str] = {}
+
         # Auto-discovery cache: maps plugin_id -> discovered variable names
         self._discovered_vars: dict[str, list[str]] = {}
 
@@ -1079,6 +1085,7 @@ class PluginRegistry:
                 "fiestaboard_version": manifest.fiestaboard_version if manifest else "",
                 "source": source.to_dict() if source else {"source_type": "builtin"},
                 "update_available": self._update_status.get(plugin_id, False),
+                "update_blocked_reason": self._update_blocked.get(plugin_id, ""),
                 "supports_triggers": manifest.supports_triggers if manifest else False,
                 "instance_label": instance_label,
                 "base_plugin_id": base_id,
@@ -1208,10 +1215,17 @@ class PluginRegistry:
         ``_update_status`` so the ``/plugins/updates`` endpoint can return
         instantly between checks.
 
+        An upstream commit whose manifest requires a newer FiestaBoard core is
+        reported as *no* update — applying it would leave the running core
+        unable to parse the manifest, which drops the plugin off the user's
+        board.  The explanation is cached in ``_update_blocked`` so the UI can
+        say why instead of looking broken.
+
         Returns:
             Mapping of plugin_id -> True if an update is available.
         """
         results: dict[str, bool] = {}
+        blocked: dict[str, str] = {}
         for plugin_id, source in self._loader.plugin_sources.items():
             if source.source_type != "external" or not source.local_path:
                 continue
@@ -1221,17 +1235,33 @@ class PluginRegistry:
             if not self._plugin_in_use(plugin_id):
                 continue
             local_path = Path(source.local_path)
-            update_available = check_plugin_update_available(local_path)
-            results[plugin_id] = update_available
-            if update_available:
+            check = check_plugin_update_available(local_path)
+            results[plugin_id] = check.available
+            if check.available:
                 logger.info("Update available for external plugin: %s", plugin_id)
+            elif check.blocked_reason:
+                blocked[plugin_id] = check.blocked_reason
+                logger.warning(
+                    "Update for external plugin '%s' held back: %s",
+                    plugin_id,
+                    check.blocked_reason,
+                )
 
         self._update_status = results
+        self._update_blocked = blocked
         return results
 
     def get_update_status(self) -> dict[str, bool]:
         """Return cached update status from the last check_for_updates() call."""
         return self._update_status.copy()
+
+    def get_update_blocked_reasons(self) -> dict[str, str]:
+        """Return why held-back updates were held back, by plugin id.
+
+        Only contains plugins that have an upstream commit which the running
+        core cannot run.  Empty for every plugin that is simply up to date.
+        """
+        return self._update_blocked.copy()
 
     def get_plugin_source(self, plugin_id: str) -> PluginSource | None:
         """Get the source information for a loaded plugin.

@@ -13,7 +13,7 @@ from src.plugins.registry import (
     get_plugin_registry,
     reset_plugin_registry,
 )
-from src.plugins.sources import PluginSource, RegistryEntry
+from src.plugins.sources import PluginSource, PluginUpdateCheck, RegistryEntry
 
 
 @pytest.fixture
@@ -811,7 +811,10 @@ def test_check_for_updates_skips_builtin(registry, mock_loader):
     assert results == {}
 
 
-@patch("src.plugins.registry.check_plugin_update_available", return_value=True)
+@patch(
+    "src.plugins.registry.check_plugin_update_available",
+    return_value=PluginUpdateCheck(available=True),
+)
 def test_check_for_updates_detects_external(mock_check, registry, mock_loader):
     """check_for_updates checks enabled external plugins and caches results."""
     mock_loader.plugin_sources = {
@@ -824,7 +827,10 @@ def test_check_for_updates_detects_external(mock_check, registry, mock_loader):
     mock_check.assert_called_once()
 
 
-@patch("src.plugins.registry.check_plugin_update_available", return_value=False)
+@patch(
+    "src.plugins.registry.check_plugin_update_available",
+    return_value=PluginUpdateCheck(available=False),
+)
 def test_check_for_updates_no_update(mock_check, registry, mock_loader):
     """check_for_updates returns False when up to date."""
     mock_loader.plugin_sources = {
@@ -833,6 +839,62 @@ def test_check_for_updates_no_update(mock_check, registry, mock_loader):
     registry._enabled = {"ext_plugin": True}
     results = registry.check_for_updates()
     assert results == {"ext_plugin": False}
+
+
+@patch("src.plugins.registry.check_plugin_update_available")
+def test_check_for_updates_records_blocked_reason(mock_check, registry, mock_loader):
+    """A withheld update is reported as "no update" plus a reason to show."""
+    mock_check.return_value = PluginUpdateCheck(
+        available=False,
+        blocked_reason="Plugin requires FiestaBoard >=99.0.0, but running version is 8.25.0",
+    )
+    mock_loader.plugin_sources = {
+        "ext_plugin": PluginSource(source_type="external", local_path="/ext/ext_plugin"),
+    }
+    registry._enabled = {"ext_plugin": True}
+
+    results = registry.check_for_updates()
+
+    assert results == {"ext_plugin": False}
+    assert registry.get_update_blocked_reasons() == {
+        "ext_plugin": "Plugin requires FiestaBoard >=99.0.0, but running version is 8.25.0"
+    }
+
+
+@patch("src.plugins.registry.check_plugin_update_available")
+def test_check_for_updates_clears_stale_blocked_reason(mock_check, registry, mock_loader):
+    """Once the core catches up the reason must not linger on the plugin."""
+    mock_check.return_value = PluginUpdateCheck(available=True)
+    mock_loader.plugin_sources = {
+        "ext_plugin": PluginSource(source_type="external", local_path="/ext/ext_plugin"),
+    }
+    registry._enabled = {"ext_plugin": True}
+    registry._update_blocked = {"ext_plugin": "stale reason"}
+
+    registry.check_for_updates()
+
+    assert registry.get_update_blocked_reasons() == {}
+
+
+def test_get_update_blocked_reasons_returns_copy(registry):
+    """Callers cannot mutate the registry's cached reasons."""
+    registry._update_blocked = {"p": "because"}
+    reasons = registry.get_update_blocked_reasons()
+    reasons["p"] = "tampered"
+    assert registry._update_blocked["p"] == "because"
+
+
+def test_list_plugins_exposes_update_blocked_reason(registry, mock_loader, mock_plugin, mock_manifest):
+    """The reason rides along with update_available so the UI can explain it."""
+    mock_loader.load_all_plugins.return_value = {"test_plugin": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "test_plugin" else None
+    registry.initialize()
+    registry._update_blocked = {"test_plugin": "needs a newer core"}
+
+    info = registry.list_plugins()[0]
+
+    assert info["update_available"] is False
+    assert info["update_blocked_reason"] == "needs a newer core"
 
 
 def test_get_update_status_returns_copy(registry):
@@ -1790,7 +1852,10 @@ def test_check_for_updates_checks_enabled_plugin(registry, mock_loader, tmp_path
     mock_loader.plugin_sources = {"foo": _external_source(tmp_path)}
     registry._enabled = {"foo": True}
 
-    with patch("src.plugins.registry.check_plugin_update_available", return_value=True) as mock_check:
+    with patch(
+        "src.plugins.registry.check_plugin_update_available",
+        return_value=PluginUpdateCheck(available=True),
+    ) as mock_check:
         results = registry.check_for_updates()
 
     mock_check.assert_called_once()
@@ -1803,7 +1868,10 @@ def test_check_for_updates_checks_base_with_enabled_instance(registry, mock_load
     mock_loader.plugin_sources = {"foo": _external_source(tmp_path)}
     registry._enabled = {"foo": False, "foo:home": True}
 
-    with patch("src.plugins.registry.check_plugin_update_available", return_value=False) as mock_check:
+    with patch(
+        "src.plugins.registry.check_plugin_update_available",
+        return_value=PluginUpdateCheck(available=False),
+    ) as mock_check:
         results = registry.check_for_updates()
 
     mock_check.assert_called_once()

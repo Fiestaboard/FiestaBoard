@@ -1629,10 +1629,25 @@ class TestPluginUpdates:
         ):
             registry = Mock()
             registry.get_update_status.return_value = {"my_plugin": True}
+            registry.get_update_blocked_reasons.return_value = {}
             mock_reg.return_value = registry
             response = client.get("/plugins/updates")
             assert response.status_code == 200
             assert response.json()["updates"]["my_plugin"] is True
+
+    def test_get_updates_includes_blocked_reasons(self, client):
+        """Held-back updates are reported with the reason they were held back."""
+        with (
+            patch("src.api_server.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.api_server.get_plugin_registry") as mock_reg,
+        ):
+            registry = Mock()
+            registry.get_update_status.return_value = {"my_plugin": False}
+            registry.get_update_blocked_reasons.return_value = {"my_plugin": "needs FiestaBoard >=99.0.0"}
+            mock_reg.return_value = registry
+            response = client.get("/plugins/updates")
+            assert response.status_code == 200
+            assert response.json()["blocked"] == {"my_plugin": "needs FiestaBoard >=99.0.0"}
 
     def test_get_updates_unavailable(self, client):
         """Plugin system unavailable → 503."""

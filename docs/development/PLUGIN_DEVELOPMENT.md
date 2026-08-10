@@ -1326,6 +1326,22 @@ Open a pull request against the FiestaBoard repository that adds one entry to th
 
 Set `fiestaboard_version` to the minimum FiestaBoard version your plugin requires. Use an existing `category` value (`art`, `data`, `entertainment`, `home`, `transit`, `utility`, `weather`).
 
+#### `fiestaboard_version` gates auto-update
+
+The same field in your plugin's own `manifest.json` decides whether installed
+copies of your plugin will pick up a new commit. Before offering an update,
+FiestaBoard reads `manifest.json` at your repository's remote head (without
+checking anything out) and compares its `fiestaboard_version` against the
+running core. If the incoming manifest needs a newer core than the user is on,
+no update is offered and the reason is reported through `GET /plugins/updates`
+(`blocked`) and each plugin's `update_blocked_reason`.
+
+This matters because plugin auto-update is on by default and polls hourly,
+while core updates are a manual image pull. Raising the floor in the same
+commit that starts using newer manifest grammar keeps users on the last commit
+their core can load, instead of pulling a manifest the loader rejects — which
+removes the plugin from their board.
+
 ### Registry checklist
 
 Before submitting your PR, verify all of the following:
