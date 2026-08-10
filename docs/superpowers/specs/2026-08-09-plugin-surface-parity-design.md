@@ -183,6 +183,15 @@ footer from `entry.teaser`, Install button / Installed badge in the `action`
 slot. A plugin with no teaser renders the card without the footer strip
 (no empty band).
 
+**Deviation found while building:** the design put a coloured category badge on
+each card, matching the docs. In the app the marketplace grid is *grouped by
+category* with a section heading, so a per-card badge repeats its own heading
+verbatim for every card in the section — nine identical badges under a "Data &
+Information" header. The badge therefore moves to the section heading, one per
+group, and the cards omit it. Same palette, same familiarity cue, no repetition;
+the docs grid is flat, so its cards keep theirs. `PluginCard` already treats
+`category` as optional, so this needed no component change.
+
 Board color is the user's *actual* board colour —
 `currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)`, the same
 expression `active-page-display.tsx` uses — not the UI theme. The docs site has

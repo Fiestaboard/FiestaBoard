@@ -468,7 +468,9 @@
     "checking": "Recherche…",
     "toastUpdatesFound": "{count, plural, one {# mise à jour de plugin disponible} other {# mises à jour de plugins disponibles}}",
     "toastNoUpdates": "Tous les plugins sont à jour",
-    "toastCheckFailed": "Impossible de rechercher des mises à jour : {error}"
+    "toastCheckFailed": "Impossible de rechercher des mises à jour : {error}",
+    "installAction": "Installer",
+    "installedBadge": "Installé"
   },
   "settings": {
     "title": "Paramètres",
@@ -1605,7 +1607,15 @@
     "toastInstalled": "{name} installé et activé",
     "toastInstallFailed": "Échec de l'installation : {error}",
     "toastInstanceCreated": "Instance « {label} » créée",
-    "toastCreateInstanceFailed": "Échec de la création de l'instance : {error}"
+    "toastCreateInstanceFailed": "Échec de la création de l'instance : {error}",
+    "boardPreviewLabel": "{name} sur un tableau split-flap",
+    "boardShapeLabel": "Format du tableau",
+    "boardColorLabel": "Couleur du tableau",
+    "blackBoard": "Tableau noir",
+    "whiteBoard": "Tableau blanc",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Matrice Note {w}×{h}"
   },
   "boardDisplay": {
     "loading": "Chargement de l'affichage du tableau",

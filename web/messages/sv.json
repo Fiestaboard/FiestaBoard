@@ -468,7 +468,9 @@
     "checking": "Söker…",
     "toastUpdatesFound": "{count, plural, one {# plugin-uppdatering tillgänglig} other {# plugin-uppdateringar tillgängliga}}",
     "toastNoUpdates": "Alla plugins är uppdaterade",
-    "toastCheckFailed": "Kunde inte söka efter uppdateringar: {error}"
+    "toastCheckFailed": "Kunde inte söka efter uppdateringar: {error}",
+    "installAction": "Installera",
+    "installedBadge": "Installerad"
   },
   "settings": {
     "title": "Inställningar",
@@ -1605,7 +1607,15 @@
     "toastInstalled": "{name} installerad och aktiverad",
     "toastInstallFailed": "Misslyckades installera: {error}",
     "toastInstanceCreated": "Instansen ”{label}” skapad",
-    "toastCreateInstanceFailed": "Misslyckades skapa instans: {error}"
+    "toastCreateInstanceFailed": "Misslyckades skapa instans: {error}",
+    "boardPreviewLabel": "{name} på en split-flap-tavla",
+    "boardShapeLabel": "Tavelformat",
+    "boardColorLabel": "Tavelfärg",
+    "blackBoard": "Svart tavla",
+    "whiteBoard": "Vit tavla",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Note-matris {w}×{h}"
   },
   "boardDisplay": {
     "loading": "Laddar board-display",

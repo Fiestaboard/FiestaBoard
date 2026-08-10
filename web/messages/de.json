@@ -468,7 +468,9 @@
     "checking": "Suche…",
     "toastUpdatesFound": "{count, plural, one {# Plugin-Update verfügbar} other {# Plugin-Updates verfügbar}}",
     "toastNoUpdates": "Alle Plugins sind aktuell",
-    "toastCheckFailed": "Suche nach Updates fehlgeschlagen: {error}"
+    "toastCheckFailed": "Suche nach Updates fehlgeschlagen: {error}",
+    "installAction": "Installieren",
+    "installedBadge": "Installiert"
   },
   "settings": {
     "title": "Einstellungen",
@@ -1605,7 +1607,15 @@
     "toastInstalled": "{name} installiert und aktiviert",
     "toastInstallFailed": "Installation fehlgeschlagen: {error}",
     "toastInstanceCreated": "Instanz „{label}\" erstellt",
-    "toastCreateInstanceFailed": "Erstellen der Instanz fehlgeschlagen: {error}"
+    "toastCreateInstanceFailed": "Erstellen der Instanz fehlgeschlagen: {error}",
+    "boardPreviewLabel": "{name} auf einer Fallblattanzeige",
+    "boardShapeLabel": "Anzeigeformat",
+    "boardColorLabel": "Anzeigefarbe",
+    "blackBoard": "Schwarze Anzeige",
+    "whiteBoard": "Weiße Anzeige",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Note-Array {w}×{h}"
   },
   "boardDisplay": {
     "loading": "Board-Anzeige wird geladen",

@@ -1,5 +1,5 @@
 import {
-  Badge,
+  BoardShowcase,
   Box,
   Button,
   Code,
@@ -15,6 +15,7 @@ import {
   Label,
   List,
   PageLayout,
+  PluginCategoryBadge,
   Skeleton,
   Stack,
   Table,
@@ -34,6 +35,7 @@ import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
 import Link from "@/components/smart-link";
+import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
 import { useParams, useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
@@ -46,6 +48,7 @@ export default function PluginDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const boardColor = useEffectiveBoardColor();
   const pluginId = params.pluginId as string;
   const [addInstanceOpen, setAddInstanceOpen] = useState(false);
   const [instanceLabel, setInstanceLabel] = useState("");
@@ -89,6 +92,7 @@ export default function PluginDetailPage() {
       )
     : null;
   const categoryLabel = CATEGORY_LABELS[entry?.category ?? "utility"] ?? entry?.category ?? t("categories.utility");
+  const previews = entry?.previews ?? [];
 
   // Install mutation
   const installMutation = useMutation({
@@ -144,6 +148,27 @@ export default function PluginDetailPage() {
       </Box>
 
       <Stack gap="6" className="max-w-3xl mx-auto animate-card-fade-in">
+        {/* Board hero — what this plugin actually puts on a board, the same
+            way the public directory leads at fiestaboard.app/plugins. Absent
+            for plugins that predate the previews contract, in which case the
+            page falls back to leading with the header card. */}
+        {previews.length > 0 && (
+          <BoardShowcase
+            previews={previews}
+            previewLabel={t("boardPreviewLabel", { name: entry?.name ?? pluginId })}
+            defaultBoardType={boardColor}
+            labels={{
+              flagship: t("deviceFlagship"),
+              note: t("deviceNote"),
+              noteArray: t("deviceNoteArray"),
+              boardShape: t("boardShapeLabel"),
+              boardColor: t("boardColorLabel"),
+              blackBoard: t("blackBoard"),
+              whiteBoard: t("whiteBoard"),
+            }}
+          />
+        )}
+
         {/* Plugin header card */}
         <Box className="rounded-xl border bg-card px-6 py-5">
           <Flex align="start" justify="between" gap="4">
@@ -165,9 +190,7 @@ export default function PluginDetailPage() {
                           (couldn't snap — see wave 1 report). */}
                       {/* eslint-disable-next-line react/forbid-elements -- custom card-header hero title; PageHeader's icon+card shape doesn't fit and Heading has no level=1 */}
                       <h1 className="text-xl font-semibold">{entry?.name ?? pluginId}</h1>
-                      <Badge variant="secondary" className="text-xs">
-                        {categoryLabel}
-                      </Badge>
+                      <PluginCategoryBadge category={entry?.category ?? "utility"} label={categoryLabel} />
                     </Flex>
                     <Text tone="muted">
                       {entry?.author && (

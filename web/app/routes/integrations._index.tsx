@@ -38,6 +38,8 @@ import {
   Label,
   PageHeader,
   PageLayout,
+  PluginCard,
+  PluginCategoryBadge,
   Sheet,
   SheetClose,
   SheetContent,
@@ -267,6 +269,7 @@ import { toast } from "sonner";
 
 import { SchemaForm } from "@/components/plugin-settings";
 import Link from "@/components/smart-link";
+import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
 import { useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { PluginInfo, RegistryEntry } from "@/lib/api";
@@ -961,7 +964,7 @@ function renderValueWithColors(value: string): ReactNode[] {
   return nodes;
 }
 
-interface PluginCardProps {
+interface InstalledPluginRowProps {
   plugin: PluginInfo;
   onToggle: (pluginId: string, enabled: boolean) => void;
   isToggling: boolean;
@@ -972,7 +975,7 @@ interface PluginCardProps {
   isUpdating?: boolean;
 }
 
-function PluginCard({
+function InstalledPluginRow({
   plugin,
   onToggle,
   isToggling,
@@ -981,7 +984,7 @@ function PluginCard({
   onUpdate,
   isUninstalling,
   isUpdating,
-}: PluginCardProps) {
+}: InstalledPluginRowProps) {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -1729,6 +1732,13 @@ function PluginCard({
   );
 }
 
+/**
+ * Marketplace card, built on the design system's `PluginCard` so it reads the
+ * same as the public plugin directory at fiestaboard.app/plugins — including
+ * the split-flap teaser strip, which is the whole point: you can see what a
+ * plugin puts on a board before installing it. The board color is the user's
+ * own, not a guess from the UI theme.
+ */
 function RegistryPluginCard({
   entry,
   onInstall,
@@ -1742,56 +1752,43 @@ function RegistryPluginCard({
   isInstalled?: boolean;
   index?: number;
 }) {
-  const Icon = getPluginIcon(entry.icon);
+  const t = useTranslations("integrations");
+  const boardColor = useEffectiveBoardColor();
+
   return (
-    <Box className="rounded-xl animate-card-fade-in h-full" style={{ animationDelay: `${index * 60}ms` }}>
-      <Link href={`/integrations/${entry.id}`} className="block h-full group">
-        <Card className="h-full flex flex-col group-hover:bg-muted/20 transition-colors">
-          <CardHeader className="pb-3">
-            <Flex align="start" justify="between" gap="4">
-              <Flex align="center" gap="3">
-                <Box className="p-2 rounded-lg bg-muted text-muted-foreground shrink-0">
-                  <Icon className="h-5 w-5" />
-                </Box>
-                <Box>
-                  <CardTitle className="text-base">{entry.name}</CardTitle>
-                  <CardDescription className="text-xs mt-0.5">by {entry.author}</CardDescription>
-                </Box>
-              </Flex>
-              {isInstalled ? (
-                <Badge variant="secondary" className="text-xs gap-1 shrink-0 self-start mt-0.5">
-                  <CheckCircle className="h-3 w-3" />
-                  Installed
-                </Badge>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs shrink-0"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onInstall(entry.id);
-                  }}
-                  disabled={isInstalling}
-                >
-                  <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
-                  {isInstalling ? "Installing..." : "Install"}
-                </Button>
-              )}
-            </Flex>
-          </CardHeader>
-          <CardContent className="pt-0 flex flex-col flex-1">
-            <Text tone="muted" className="mb-3 line-clamp-2 flex-1">
-              {entry.description}
-            </Text>
-            <Badge variant="secondary" className="text-xs gap-1 self-start">
-              {CATEGORY_LABELS[entry.category || "utility"] || entry.category || "Utility"}
-            </Badge>
-          </CardContent>
-        </Card>
-      </Link>
-    </Box>
+    <PluginCard
+      className="animate-card-fade-in"
+      style={{ animationDelay: `${index * 60}ms` }}
+      name={entry.name}
+      description={entry.description}
+      authorLabel={t("byAuthor", { author: entry.author })}
+      teaser={entry.teaser}
+      boardType={boardColor}
+      renderLink={({ className, children }) => (
+        <Link href={`/integrations/${entry.id}`} className={className}>
+          {children}
+        </Link>
+      )}
+      action={
+        isInstalled ? (
+          <Badge variant="secondary" className="text-xs gap-1">
+            <CheckCircle className="h-3 w-3" />
+            {t("installedBadge")}
+          </Badge>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs"
+            onClick={() => onInstall(entry.id)}
+            disabled={isInstalling}
+          >
+            <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
+            {isInstalling ? t("installing") : t("installAction")}
+          </Button>
+        )
+      }
+    />
   );
 }
 
@@ -1806,6 +1803,7 @@ function RegistryPluginRow({
   isInstalling: boolean;
   isInstalled?: boolean;
 }) {
+  const t = useTranslations("integrations");
   const Icon = getPluginIcon(entry.icon);
   return (
     <TableRow className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
@@ -1822,7 +1820,7 @@ function RegistryPluginRow({
               {isInstalled && (
                 <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 h-5">
                   <CheckCircle className="h-2.5 w-2.5" />
-                  Installed
+                  {t("installedBadge")}
                 </Badge>
               )}
             </Flex>
@@ -1848,7 +1846,7 @@ function RegistryPluginRow({
             disabled={isInstalling}
           >
             <ArrowDownToLine className={cn("h-3 w-3 mr-1", isInstalling && "animate-bounce")} />
-            {isInstalling ? "Installing..." : "Install"}
+            {isInstalling ? t("installing") : t("installAction")}
           </Button>
         )}
       </TableCell>
@@ -2450,7 +2448,7 @@ export default function IntegrationsPage() {
                   </TableHeader>
                   <TableBody>
                     {sortedInstalled.map((plugin) => (
-                      <PluginCard
+                      <InstalledPluginRow
                         key={plugin.id}
                         plugin={plugin}
                         onToggle={handleToggle}
@@ -2497,12 +2495,12 @@ export default function IntegrationsPage() {
                   if (entries.length === 0) return null;
                   return (
                     <Box as="section" key={category}>
-                      <Heading
-                        level={2}
-                        size="sm"
-                        className="font-medium text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2"
-                      >
-                        {CATEGORY_LABELS[category] || category}
+                      {/* The category colour lives on the section heading, not on
+                          every card: the grid is grouped, so a badge per card would
+                          repeat the heading verbatim N times. Cards in the public
+                          directory carry it because that grid is flat. */}
+                      <Heading level={2} size="sm" className="mb-3 flex items-center gap-2">
+                        <PluginCategoryBadge category={category} label={CATEGORY_LABELS[category] || category} />
                         <Text as="span" size="xs" tone="muted" className="normal-case tracking-normal">
                           ({entries.length})
                         </Text>

@@ -468,7 +468,9 @@
     "checking": "Kontrol ediliyor…",
     "toastUpdatesFound": "{count, plural, one {# eklenti güncellemesi mevcut} other {# eklenti güncellemesi mevcut}}",
     "toastNoUpdates": "Tüm eklentiler güncel",
-    "toastCheckFailed": "Güncellemeler kontrol edilemedi: {error}"
+    "toastCheckFailed": "Güncellemeler kontrol edilemedi: {error}",
+    "installAction": "Kur",
+    "installedBadge": "Kuruldu"
   },
   "settings": {
     "title": "Ayarlar",
@@ -1605,7 +1607,15 @@
     "toastInstalled": "{name} kuruldu ve etkinleştirildi",
     "toastInstallFailed": "Kurulum başarısız: {error}",
     "toastInstanceCreated": "\"{label}\" örneği oluşturuldu",
-    "toastCreateInstanceFailed": "Örnek oluşturulamadı: {error}"
+    "toastCreateInstanceFailed": "Örnek oluşturulamadı: {error}",
+    "boardPreviewLabel": "Split-flap panoda {name}",
+    "boardShapeLabel": "Pano biçimi",
+    "boardColorLabel": "Pano rengi",
+    "blackBoard": "Siyah pano",
+    "whiteBoard": "Beyaz pano",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Note dizisi {w}×{h}"
   },
   "boardDisplay": {
     "loading": "Board ekranı yükleniyor",

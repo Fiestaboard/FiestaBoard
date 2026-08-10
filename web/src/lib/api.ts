@@ -2,6 +2,8 @@
 // All API calls go through nginx at /api/* (same origin, unified container).
 // URLs are built via apiUrl() so they pick up the runtime base path when
 // the app is served from a subpath (HA Ingress) — see lib/base-path.ts.
+import type { BoardPreviewEntry } from "@fiestaboard/ui";
+
 import { apiUrl, appUrl, stripBasePath } from "./base-path";
 
 // Types for API responses
@@ -1312,6 +1314,13 @@ export interface RegistryEntry {
   icon: string;
   category: string;
   installed: boolean;
+  /**
+   * One-line board strip for the marketplace card, at most 15 tiles. Empty for
+   * plugins that predate the previews contract.
+   */
+  teaser: string;
+  /** Literal boards for the detail-page hero, one per declared shape. */
+  previews: BoardPreviewEntry[];
 }
 
 export interface RegistryListResponse {

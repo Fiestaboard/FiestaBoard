@@ -357,8 +357,9 @@ If you want only your declared variables to appear (hiding any extra data keys):
 
 ## Board Previews
 
-The plugin directory renders your plugin as a real split-flap board built from
-manifest metadata — not a screenshot. Declare two fields:
+The plugin directory and FiestaBoard's own marketplace both render your plugin
+as a real split-flap board built from manifest metadata — not a screenshot.
+Declare two fields:
 
 ```json
 {
@@ -371,8 +372,14 @@ manifest metadata — not a screenshot. Declare two fields:
 ```
 
 `teaser` is one line (max **15 tiles**, the Note width) shown on your plugin's
-directory card. `previews` is a list of literal boards, each declaring its own
-shape — add one per board family you have composed for.
+directory and marketplace cards. `previews` is a list of literal boards, each
+declaring its own shape — add one per board family you have composed for; they
+become the shape tabs on the plugin detail page.
+
+Registry plugins that a user hasn't installed have no manifest on the box to
+read, so FiestaBoard falls back to the rendered copies in the root
+`plugin-previews.json` (refreshed by `scripts/sync_plugin_previews.py`). Your
+manifest always wins over that seed once the plugin is installed.
 
 Widths are counted in **tiles, not characters**: a colour marker such as `{66}`
 occupies one flap regardless of how many characters it takes to write, and
