@@ -52,7 +52,14 @@ OPTIONS_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 # Every key a ``ui:options`` block may carry. Anything else is a typo, and a
 # silently-ignored typo is how a picker ships without ever calling the plugin.
-UI_OPTIONS_KEYS = frozenset({"options_id", "depends_on", "multiple", "cache_seconds"})
+#
+# The render flags below are plain booleans. ``multiple`` is deliberately not
+# one of them: it predates the flags and is already policed by its own
+# "requires type 'array'" rule, which a stricter type check would double up on.
+UI_OPTIONS_BOOLEAN_KEYS = frozenset({"searchable", "server_search", "reorderable", "allow_custom"})
+UI_OPTIONS_KEYS = (
+    frozenset({"options_id", "depends_on", "multiple", "cache_seconds", "placeholder"}) | UI_OPTIONS_BOOLEAN_KEYS
+)
 
 # How long the UI may reuse a fetched option list. Zero means "never cache";
 # the ceiling is an hour, above which a stale picker outlives the dialog it
@@ -824,9 +831,32 @@ def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
         for key in sorted(set(ui_options) - UI_OPTIONS_KEYS):
             errors.append(f"settings_schema.{field_path}: unknown ui:options key '{key}'")
 
+        for key in sorted(UI_OPTIONS_BOOLEAN_KEYS):
+            value = ui_options.get(key)
+            if value is not None and not isinstance(value, bool):
+                errors.append(f"settings_schema.{field_path}: ui:options.{key} must be a boolean, got {value!r}")
+
+        placeholder = ui_options.get("placeholder")
+        if placeholder is not None and not isinstance(placeholder, str):
+            errors.append(f"settings_schema.{field_path}: ui:options.placeholder must be a string, got {placeholder!r}")
+
         if ui_options.get("multiple") and prop.get("type") != "array":
             errors.append(
                 f"settings_schema.{field_path}: ui:options.multiple requires type 'array', got {prop.get('type')!r}"
+            )
+
+        if ui_options.get("reorderable") and not ui_options.get("multiple"):
+            errors.append(f"settings_schema.{field_path}: ui:options.reorderable requires ui:options.multiple")
+
+        # ``server_search`` turns the filter box on by itself -- the widget
+        # renders it on ``searchable || server_search`` -- so an omitted
+        # ``searchable`` is fine. An explicit ``false`` is not: the author asked
+        # for a box and asked for no box, and the UI would quietly pick one.
+        searchable = ui_options.get("searchable")
+        if ui_options.get("server_search") and searchable is False:
+            errors.append(
+                f"settings_schema.{field_path}: ui:options.server_search implies ui:options.searchable, "
+                f"got searchable={searchable!r}"
             )
 
         cache_seconds = ui_options.get("cache_seconds")
