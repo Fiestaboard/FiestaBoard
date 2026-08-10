@@ -40,7 +40,9 @@ import { useTranslations } from "@/i18n/translations";
 import { api, type QueueTimesPark, type QueueTimesRide } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+import { FieldScopeContext, SchemaFormPluginContext, useFieldScope } from "./field-context";
 import { PagePickerField } from "./page-picker-field";
+import { RemoteOptionsField, type RemoteOptionsUiOptions } from "./remote-options-field";
 
 // JSON Schema types (simplified for our use case)
 interface SchemaProperty {
@@ -65,7 +67,7 @@ interface SchemaProperty {
   "ui:options"?: {
     customRideNames?: boolean;
     reorderRides?: boolean;
-  };
+  } & RemoteOptionsUiOptions;
 }
 
 interface JSONSchema {
@@ -74,12 +76,27 @@ interface JSONSchema {
   required?: string[];
 }
 
+/** Property name → its display title (falling back to the raw key). */
+function titlesOf(properties: Record<string, SchemaProperty> | undefined): Record<string, string> {
+  const titles: Record<string, string> = {};
+  for (const [key, propSchema] of Object.entries(properties ?? {})) {
+    titles[key] = propSchema.title || key;
+  }
+  return titles;
+}
+
 interface SchemaFormProps {
   schema: JSONSchema;
   values: Record<string, unknown>;
   onChange: (values: Record<string, unknown>) => void;
   disabled?: boolean;
   className?: string;
+  /**
+   * Id of the plugin whose settings are being edited. Optional so existing
+   * call sites keep working; `remote-options` fields need it to know which
+   * plugin to ask for a catalog and degrade to a disabled control without it.
+   */
+  pluginId?: string;
 }
 
 // Individual field components
@@ -1237,6 +1254,7 @@ interface ArrayFieldProps extends FieldProps {
 
 function ArrayField({ name, property, value, onChange, disabled, itemSchema }: ArrayFieldProps) {
   const t = useTranslations("schemaForm");
+  const { root } = useFieldScope();
   const rawItems = Array.isArray(value) ? value : [];
 
   // Track items with stable IDs so React doesn't reuse component instances
@@ -1309,28 +1327,38 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
         <Flex key={id} gap="2">
           <Box className="flex-1">
             {itemSchema.type === "object" && itemSchema.properties ? (
-              <Grid gap="3" className="p-3 border rounded-lg bg-muted/30">
-                {Object.entries(itemSchema.properties).map(([key, propSchema]) => (
-                  <Grid key={key} gap="1.5">
-                    <Label htmlFor={`${name}-${index}-${key}`} className="text-xs">
-                      {propSchema.title || key}
-                    </Label>
-                    <FormField
-                      name={`${name}-${index}-${key}`}
-                      property={propSchema}
-                      value={(item as Record<string, unknown>)?.[key]}
-                      onChange={(val) => {
-                        const newItem = { ...(item as Record<string, unknown>), [key]: val };
-                        handleItemChange(index, newItem);
-                      }}
-                      disabled={disabled}
-                      onLocationRequest={undefined}
-                      showLocationButton={false}
-                      isLocationLoading={false}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
+              // A field inside an array item names its siblings *within that
+              // item*, so the item — not the whole config — is its scope.
+              <FieldScopeContext.Provider
+                value={{
+                  scope: (item as Record<string, unknown>) ?? {},
+                  root,
+                  titles: titlesOf(itemSchema.properties),
+                }}
+              >
+                <Grid gap="3" className="p-3 border rounded-lg bg-muted/30">
+                  {Object.entries(itemSchema.properties).map(([key, propSchema]) => (
+                    <Grid key={key} gap="1.5">
+                      <Label htmlFor={`${name}-${index}-${key}`} className="text-xs">
+                        {propSchema.title || key}
+                      </Label>
+                      <FormField
+                        name={`${name}-${index}-${key}`}
+                        property={propSchema}
+                        value={(item as Record<string, unknown>)?.[key]}
+                        onChange={(val) => {
+                          const newItem = { ...(item as Record<string, unknown>), [key]: val };
+                          handleItemChange(index, newItem);
+                        }}
+                        disabled={disabled}
+                        onLocationRequest={undefined}
+                        showLocationButton={false}
+                        isLocationLoading={false}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+              </FieldScopeContext.Provider>
             ) : (
               <FormField
                 name={`${name}-${index}`}
@@ -1387,6 +1415,16 @@ function FormField({
   allValues,
 }: FormFieldProps) {
   const t = useTranslations("schemaForm");
+  const { root } = useFieldScope();
+
+  // The generic remote-options widget serves every declared type — a scalar
+  // field is single-select, an array field with `ui:options.multiple` is
+  // multi-select — so it is dispatched ahead of the per-type switch. There is
+  // deliberately only one widget name for this capability.
+  if (property["ui:widget"] === "remote-options") {
+    return <RemoteOptionsField name={name} property={property} value={value} onChange={onChange} disabled={disabled} />;
+  }
+
   switch (property.type) {
     case "string":
       return (
@@ -1468,39 +1506,49 @@ function FormField({
     case "object":
       if (property.properties) {
         return (
-          <Grid gap="4" className="p-4 border rounded-lg">
-            {Object.entries(property.properties).map(([key, propSchema]) => (
-              <Grid key={key} gap="1.5">
-                <Label htmlFor={`${name}-${key}`}>
-                  {propSchema.title || key}
-                  {property.required?.includes(key) && (
-                    <Text as="span" tone="destructive" className="ml-1">
-                      *
+          // Same rule as an array item: a field in a nested object names its
+          // siblings inside that object, so that object is its scope.
+          <FieldScopeContext.Provider
+            value={{
+              scope: (value as Record<string, unknown>) ?? {},
+              root,
+              titles: titlesOf(property.properties),
+            }}
+          >
+            <Grid gap="4" className="p-4 border rounded-lg">
+              {Object.entries(property.properties).map(([key, propSchema]) => (
+                <Grid key={key} gap="1.5">
+                  <Label htmlFor={`${name}-${key}`}>
+                    {propSchema.title || key}
+                    {property.required?.includes(key) && (
+                      <Text as="span" tone="destructive" className="ml-1">
+                        *
+                      </Text>
+                    )}
+                  </Label>
+                  <FormField
+                    name={`${name}-${key}`}
+                    property={propSchema}
+                    value={(value as Record<string, unknown>)?.[key]}
+                    onChange={(val) => {
+                      const newValue = { ...(value as Record<string, unknown>), [key]: val };
+                      onChange(newValue);
+                    }}
+                    required={property.required?.includes(key)}
+                    disabled={disabled}
+                    onLocationRequest={undefined}
+                    showLocationButton={false}
+                    isLocationLoading={false}
+                  />
+                  {propSchema.description && (
+                    <Text size="xs" tone="muted">
+                      {propSchema.description}
                     </Text>
                   )}
-                </Label>
-                <FormField
-                  name={`${name}-${key}`}
-                  property={propSchema}
-                  value={(value as Record<string, unknown>)?.[key]}
-                  onChange={(val) => {
-                    const newValue = { ...(value as Record<string, unknown>), [key]: val };
-                    onChange(newValue);
-                  }}
-                  required={property.required?.includes(key)}
-                  disabled={disabled}
-                  onLocationRequest={undefined}
-                  showLocationButton={false}
-                  isLocationLoading={false}
-                />
-                {propSchema.description && (
-                  <Text size="xs" tone="muted">
-                    {propSchema.description}
-                  </Text>
-                )}
-              </Grid>
-            ))}
-          </Grid>
+                </Grid>
+              ))}
+            </Grid>
+          </FieldScopeContext.Provider>
         );
       }
       return <Text tone="muted">{t("objectTypeNoProperties")}</Text>;
@@ -1520,8 +1568,14 @@ function FormField({
  * - Array fields (add/remove items)
  * - Nested object fields
  */
-export function SchemaForm({ schema, values, onChange, disabled, className }: SchemaFormProps) {
+export function SchemaForm({ schema, values, onChange, disabled, className, pluginId }: SchemaFormProps) {
   const t = useTranslations("schemaForm");
+  // Top-level fields resolve `depends_on` against the whole config: at this
+  // depth the sibling scope and the root are the same object.
+  const rootScope = React.useMemo(
+    () => ({ scope: values, root: values, titles: titlesOf(schema.properties) }),
+    [values, schema.properties],
+  );
   const handleFieldChange = useCallback(
     (fieldName: string, fieldValue: unknown) => {
       onChange({ ...values, [fieldName]: fieldValue });
@@ -1550,62 +1604,66 @@ export function SchemaForm({ schema, values, onChange, disabled, className }: Sc
   }
 
   return (
-    <Grid gap="4" className={className}>
-      {Object.entries(schema.properties).map(([name, property]) => {
-        // Skip the 'enabled' field as it's handled separately
-        if (name === "enabled") return null;
+    <SchemaFormPluginContext.Provider value={pluginId ?? null}>
+      <FieldScopeContext.Provider value={rootScope}>
+        <Grid gap="4" className={className}>
+          {Object.entries(schema.properties).map(([name, property]) => {
+            // Skip the 'enabled' field as it's handled separately
+            if (name === "enabled") return null;
 
-        const isRequired = schema.required?.includes(name);
-        const isLocationField = hasLocationFields && (name === "latitude" || name === "longitude");
-        const showLocationButton = isLocationField && !!navigator.geolocation;
+            const isRequired = schema.required?.includes(name);
+            const isLocationField = hasLocationFields && (name === "latitude" || name === "longitude");
+            const showLocationButton = isLocationField && !!navigator.geolocation;
 
-        // Disable digit_color when color_pattern is not "solid" (visual_clock plugin)
-        const isDigitColorField = name === "digit_color";
-        const colorPattern = values["color_pattern"] || schema.properties["color_pattern"]?.default || "solid";
-        const shouldDisableDigitColor = isDigitColorField && colorPattern !== "solid";
-        const fieldDisabled = disabled || shouldDisableDigitColor;
+            // Disable digit_color when color_pattern is not "solid" (visual_clock plugin)
+            const isDigitColorField = name === "digit_color";
+            const colorPattern = values["color_pattern"] || schema.properties["color_pattern"]?.default || "solid";
+            const shouldDisableDigitColor = isDigitColorField && colorPattern !== "solid";
+            const fieldDisabled = disabled || shouldDisableDigitColor;
 
-        return (
-          <Grid key={name} gap="1.5">
-            <Label htmlFor={name} className="flex items-center gap-1">
-              {property.title || name}
-              {isRequired && (
-                <Text as="span" tone="destructive">
-                  *
-                </Text>
-              )}
-            </Label>
-            <FormField
-              name={name}
-              property={property}
-              value={values[name]}
-              onChange={(val) => handleFieldChange(name, val)}
-              required={isRequired}
-              disabled={fieldDisabled}
-              onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
-              showLocationButton={showLocationButton}
-              isLocationLoading={false}
-              allValues={values}
-            />
-            {property.description && (
-              <Text size="xs" tone="muted">
-                {property.description}
-              </Text>
-            )}
-            {showLocationButton && (
-              <Text size="xs" tone="muted">
-                {t("clickLocationIcon")}
-              </Text>
-            )}
-            {shouldDisableDigitColor && (
-              <Text size="xs" tone="muted">
-                {t("digitColorNotUsed")}
-              </Text>
-            )}
-          </Grid>
-        );
-      })}
-    </Grid>
+            return (
+              <Grid key={name} gap="1.5">
+                <Label htmlFor={name} className="flex items-center gap-1">
+                  {property.title || name}
+                  {isRequired && (
+                    <Text as="span" tone="destructive">
+                      *
+                    </Text>
+                  )}
+                </Label>
+                <FormField
+                  name={name}
+                  property={property}
+                  value={values[name]}
+                  onChange={(val) => handleFieldChange(name, val)}
+                  required={isRequired}
+                  disabled={fieldDisabled}
+                  onLocationRequest={showLocationButton ? handleLocationRequest : undefined}
+                  showLocationButton={showLocationButton}
+                  isLocationLoading={false}
+                  allValues={values}
+                />
+                {property.description && (
+                  <Text size="xs" tone="muted">
+                    {property.description}
+                  </Text>
+                )}
+                {showLocationButton && (
+                  <Text size="xs" tone="muted">
+                    {t("clickLocationIcon")}
+                  </Text>
+                )}
+                {shouldDisableDigitColor && (
+                  <Text size="xs" tone="muted">
+                    {t("digitColorNotUsed")}
+                  </Text>
+                )}
+              </Grid>
+            );
+          })}
+        </Grid>
+      </FieldScopeContext.Provider>
+    </SchemaFormPluginContext.Provider>
   );
 }
 
