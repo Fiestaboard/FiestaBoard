@@ -1,0 +1,8 @@
+{
+  "label": "Setup",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "Get FiestaBoard up and running on your system."
+  }
+}
