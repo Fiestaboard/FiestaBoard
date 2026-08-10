@@ -420,9 +420,7 @@ No core change is needed for a new plugin.
 }
 ```
 
-`ui:options` accepts exactly these ten keys — anything else is a validation
-error, because a silently-ignored typo is how a picker ships without ever
-calling your plugin:
+`ui:options` understands these ten keys:
 
 | Key | Meaning |
 | --- | --- |
@@ -436,6 +434,47 @@ calling your plugin:
 | `allow_custom` | Accept a typed value the catalog does not offer. Boolean. |
 | `placeholder` | Trigger placeholder text. String. |
 | `labels_field` | Name of a sibling property collecting a short display name per chosen option. String. Requires `multiple`. |
+
+### Forward compatibility: keys from a newer core
+
+**You may use a `ui:options` key that the user's core does not have yet.** A
+core that does not recognize a key ignores it, records a warning against your
+plugin in `GET /plugins/errors`, and loads the plugin normally. The field still
+renders and still calls `get_options()` — it simply goes without whatever that
+key was going to add.
+
+This matters because the two halves update on different clocks. Plugin
+auto-update runs hourly and is on by default; core updates are a manual image
+pull. Your plugin therefore lands on cores older than the one you wrote it
+against, routinely. When `disney-parks-times` adopted `labels_field` (added in
+core 8.25.0), every board still on 8.24.x would have lost the plugin outright
+at the next auto-update, because an unrecognized `ui:options` key used to be a
+hard validation error and a manifest that fails validation does not load at
+all.
+
+So adopt new grammar freely, but treat it as an enhancement: keep the field
+usable for someone whose core ignores the key. Prefer a picker that degrades to
+"no custom labels" over one that is meaningless without them.
+
+The forgiveness covers **unknown keys only**. A key core does know, carrying a
+value core knows is wrong, is unambiguously your bug and still fails the whole
+manifest:
+
+- a malformed value for a known key — `"cache_seconds": "soon"`,
+  `"labels_field": true`
+- `"ui:widget": "remote-options"` with no `options_id`, or an `options_id` that
+  is not `^[a-z][a-z0-9_]*$`
+- the same `options_id` declared twice anywhere in the schema
+- `depends_on` naming a property that does not exist
+- `labels_field` without `multiple`, or naming a non-sibling
+- `"multiple": true` on a field that is not `"type": "array"`
+- `ui:options` that is not an object at all
+
+The warning names the key and the field path, so a typo (`cache_second`) shows
+up in `GET /plugins/errors` and the container log rather than disappearing. If
+you meant the key, the warning is the expected cost of shipping ahead of core;
+if you did not, it is the typo report. An unrecognized `ui:widget` behaves the
+same way and always has.
 
 ### Per-choice display names (`labels_field`)
 
@@ -527,7 +566,9 @@ touched, so a search box cannot disturb a running listener.
 
 A manifest that declares `remote-options` on a plugin that does not implement
 `get_options()` still loads, but the mismatch is reported by
-`GET /plugins/errors`. An unrecognized `ui:widget` is only a warning.
+`GET /plugins/errors`. An unrecognized `ui:widget`, or an unrecognized
+`ui:options` key, is reported the same way and is likewise not fatal — see
+[Forward compatibility](#forward-compatibility-keys-from-a-newer-core).
 
 ### The HTTP route
 
