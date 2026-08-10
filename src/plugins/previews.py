@@ -24,12 +24,22 @@ lose its last three tiles.
 
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from src.board_chars import BoardChars
 from src.devices import DEVICE_DIMENSIONS, DeviceDimensions, resolve_dimensions
 from src.text_to_board import COLOR_MARKER_PATTERN, text_to_board_array
+
+logger = logging.getLogger(__name__)
+
+# Rendered previews for registry plugins that are not installed locally, so
+# there is no manifest to read them from. Refreshed by
+# ``scripts/sync_plugin_previews.py``; manifests always win over this seed.
+PREVIEW_SEED_FILENAME = "plugin-previews.json"
 
 # The Note is 15 columns — the narrowest board we support. A teaser that fits
 # a Note fits everything.
@@ -47,6 +57,57 @@ MAX_PREVIEW_NOTES_PER_AXIS = 4
 VALID_DEVICE_TYPES = (*DEVICE_DIMENSIONS.keys(), "note_array")
 
 _TEMPLATE_VARIABLE = "{{"
+
+
+def load_preview_seed(seed_path: Path | None = None) -> dict[str, dict[str, Any]]:
+    """Load rendered board previews for registry plugins.
+
+    The marketplace lists plugins that are mostly *not* installed, so their
+    manifests aren't on disk to read ``teaser``/``previews`` from. This seed
+    file — refreshed by ``scripts/sync_plugin_previews.py`` — is what fills
+    that gap; an installed plugin's own manifest always wins over it.
+
+    Args:
+        seed_path: Explicit path.  When *None* the file is located relative to
+            the project root.
+
+    Returns:
+        ``{plugin_id: {"teaser": str, "previews": list[dict]}}``.  A missing or
+        unreadable seed degrades to ``{}`` — no board on the card, never an
+        error.
+    """
+    if seed_path is None:
+        seed_path = Path(__file__).parent.parent.parent / PREVIEW_SEED_FILENAME
+
+    if not seed_path.exists():
+        logger.debug("Plugin preview seed not found at %s", seed_path)
+        return {}
+
+    try:
+        with seed_path.open(encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.error("Failed to read plugin preview seed %s: %s", seed_path, exc)
+        return {}
+
+    plugins = data.get("plugins")
+    if not isinstance(plugins, dict):
+        logger.error("Plugin preview seed %s has no 'plugins' object", seed_path)
+        return {}
+
+    seeded: dict[str, dict[str, Any]] = {}
+    for plugin_id, entry in plugins.items():
+        if not isinstance(entry, dict):
+            continue
+        teaser = entry.get("teaser", "")
+        previews = entry.get("previews", [])
+        seeded[plugin_id] = {
+            "teaser": teaser if isinstance(teaser, str) else "",
+            "previews": previews if isinstance(previews, list) else [],
+        }
+
+    logger.debug("Loaded previews for %d plugins from the seed", len(seeded))
+    return seeded
 
 
 def count_tiles(text: str) -> int:

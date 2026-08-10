@@ -35,6 +35,7 @@ services:
       - ./plugins:/app/plugins
       - ./external_plugins:/app/external_plugins
       - ./plugin-registry.json:/app/plugin-registry.json:ro
+      - ./plugin-previews.json:/app/plugin-previews.json:ro
       - ./staff-picks:/app/staff-picks:ro
       - ./tests:/app/tests
       - ./scripts:/app/scripts
