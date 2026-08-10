@@ -625,6 +625,81 @@ What each failure means to the user:
 Options work while your plugin is **disabled** — users browse the catalog in
 order to configure it, before they ever turn it on.
 
+## Mapping A JSON Response Onto Variables (`json-path-mapper`)
+
+When your plugin fetches a document the *user* chooses — an arbitrary JSON or
+XML feed — you cannot declare its variables in advance, because you do not know
+what is in it. `json-path-mapper` gives that field a helper: the user probes
+the endpoint, browses the parsed response as a tree, and clicks a value to turn
+it into a template variable.
+
+```json
+{
+  "mappings": {
+    "type": "array",
+    "title": "Variable Mappings",
+    "ui:widget": "json-path-mapper",
+    "ui:options": {
+      "probe": {
+        "url": "url",
+        "format": "format",
+        "method": "method",
+        "headers": "headers",
+        "body": "body"
+      },
+      "keys": { "variable": "variable", "path": "path", "default": "default" }
+    },
+    "items": {
+      "type": "object",
+      "properties": {
+        "variable": { "type": "string", "title": "Variable Name" },
+        "path": { "type": "string", "title": "Data Path" },
+        "default": { "type": "string", "title": "Default Value" }
+      },
+      "required": ["variable", "path"]
+    }
+  }
+}
+```
+
+Neither block is required. Both exist so the widget never has to know your
+field names:
+
+| Key | Meaning |
+| --- | --- |
+| `probe` | Maps each part of the probe request core knows how to send — `url`, `format`, `method`, `headers`, `body` — onto the settings property you keep it in. Omitted parts are not sent. |
+| `keys` | Maps each part of a mapping row core knows how to edit — `variable`, `path`, `default` — onto the key you store it under. |
+
+Anything you leave out defaults to the same name as the part itself
+(`"url": "url"`, `"variable": "variable"`), which is what a manifest written
+before these blocks existed gets.
+
+The template hint under each row (`{{your_plugin.temperature}}`) is built from
+the plugin whose settings are open, not from a fixed name.
+
+### What is rejected
+
+The left-hand side of both blocks is *core's* vocabulary, so an unrecognised
+entry there cannot be grammar from a newer core — it is a typo, and the field
+would silently probe with that part missing. These fail the whole manifest:
+
+- an unknown key inside `probe` or `keys`
+- a `probe` or `keys` value that is not a non-empty string
+- a `probe` or `keys` that is not an object
+
+An unknown key at the *top level* of `ui:options` stays a warning, exactly as
+it is for `remote-options` — see
+[Forward compatibility](#forward-compatibility-keys-from-a-newer-core).
+
+### The deprecated name
+
+This widget shipped as `generic-data-mapping-helper`, named after the first
+plugin to use it. That name is still accepted and still renders the same
+widget, so a manifest does not have to move in lockstep with a core release.
+New manifests should declare `json-path-mapper`; a core too old to know the
+name warns and falls back to a plain array field rather than refusing to load
+the plugin.
+
 ## Plugin Structure
 
 ```text
@@ -875,6 +950,9 @@ Use JSON Schema to define configuration fields:
 - `array-input` - Array of items
 - `datetime` - Date/time picker
 - `timezone` - Timezone selector
+- `page-picker` - Choose an existing page
+- `remote-options` - Choices from your own `get_options()` — see [Settings Options From Live Data](#settings-options-from-live-data-remote-options)
+- `json-path-mapper` - Probe a URL and map paths in the response onto variables — see [Mapping A JSON Response Onto Variables](#mapping-a-json-response-onto-variables-json-path-mapper)
 
 ### Color Rules
 

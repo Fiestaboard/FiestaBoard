@@ -46,6 +46,31 @@ TRIGGER_PAGE_ID_PROPERTY: dict[str, Any] = {
 # ``get_options()`` implementation rather than a static ``enum``.
 REMOTE_OPTIONS_WIDGET = "remote-options"
 
+# ``ui:widget`` value that opts a settings field into the generic JSON path
+# mapper: the user probes an endpoint, browses the response, and maps paths in
+# it onto template variables.
+JSON_PATH_MAPPER_WIDGET = "json-path-mapper"
+
+# The name the mapper shipped under before it was a capability. Kept as an
+# accepted alias so a manifest written for an older core keeps rendering the
+# real widget rather than degrading to a plain textarea. Removing it is a
+# separate, later change.
+JSON_PATH_MAPPER_DEPRECATED_WIDGET = "generic-data-mapping-helper"
+
+# The parts of a probe request core knows how to send. A ``ui:options.probe``
+# block maps each of these onto the settings property the plugin keeps it in,
+# so the widget never has to know a particular plugin's field names.
+JSON_PATH_MAPPER_PROBE_PARTS = frozenset({"url", "format", "method", "headers", "body"})
+
+# The parts of one mapping row core knows how to edit, mapped the same way onto
+# whatever keys the plugin stores each row under.
+JSON_PATH_MAPPER_ROW_KEYS = frozenset({"variable", "path", "default"})
+
+# Every ``ui:options`` key a ``json-path-mapper`` field understands. As with
+# remote-options, an unknown key here is a warning rather than an error: it may
+# be grammar from a newer core.
+JSON_PATH_MAPPER_UI_OPTIONS_KEYS = frozenset({"probe", "keys"})
+
 # ``options_id`` becomes a URL path segment on the options route, so keep it to
 # a boring lowercase identifier.
 OPTIONS_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -77,7 +102,8 @@ MAX_OPTIONS_CACHE_SECONDS = 3600
 KNOWN_SETTINGS_WIDGETS = frozenset(
     {
         "datetime",
-        "generic-data-mapping-helper",
+        JSON_PATH_MAPPER_DEPRECATED_WIDGET,
+        JSON_PATH_MAPPER_WIDGET,
         "page-picker",
         "password",
         REMOTE_OPTIONS_WIDGET,
@@ -86,6 +112,21 @@ KNOWN_SETTINGS_WIDGETS = frozenset(
         "wsdot-route-picker",
     }
 )
+
+
+def _ui_options_keys_for(widget: Any) -> frozenset[str] | None:
+    """Which ``ui:options`` vocabulary applies to *widget*.
+
+    ``None`` means the widget takes no ``ui:options`` at all, so there is no
+    vocabulary to be forward-compatible about. The sets are read at call time
+    rather than captured in a lookup table so that tests can simulate an older
+    core by taking a key back out of the module-level grammar.
+    """
+    if widget == REMOTE_OPTIONS_WIDGET:
+        return UI_OPTIONS_KEYS
+    if widget in (JSON_PATH_MAPPER_WIDGET, JSON_PATH_MAPPER_DEPRECATED_WIDGET):
+        return JSON_PATH_MAPPER_UI_OPTIONS_KEYS
+    return None
 
 
 def _inject_trigger_page_id(settings_schema: dict[str, Any]) -> dict[str, Any]:
@@ -809,7 +850,10 @@ def settings_schema_ui_warnings(settings_schema: dict[str, Any]) -> list[str]:
                 f"settings_schema.{field_path}: unknown ui:widget '{widget}' — "
                 f"the settings form will fall back to a plain input"
             )
-        if widget != REMOTE_OPTIONS_WIDGET:
+        # Each widget has its own ``ui:options`` vocabulary; a widget with no
+        # entry here declares no options and is left alone.
+        known_keys = _ui_options_keys_for(widget)
+        if known_keys is None:
             continue
 
         ui_options = prop.get("ui:options")
@@ -818,7 +862,7 @@ def settings_schema_ui_warnings(settings_schema: dict[str, Any]) -> list[str]:
             # gap -- there are no keys to be forward-compatible about.
             continue
 
-        for key in sorted(set(ui_options) - UI_OPTIONS_KEYS):
+        for key in sorted(set(ui_options) - known_keys):
             warnings.append(
                 f"settings_schema.{field_path}: unknown ui:options key '{key}' — ignored. "
                 f"Check the spelling; if the key is spelled correctly it was added in a newer "
@@ -826,6 +870,41 @@ def settings_schema_ui_warnings(settings_schema: dict[str, Any]) -> list[str]:
             )
 
     return warnings
+
+
+def _json_path_mapper_errors(field_path: str, prop: dict[str, Any]) -> list[str]:
+    """Validate the ``ui:options`` of one ``json-path-mapper`` field.
+
+    Both blocks are plain string→string maps from a name *core* knows onto the
+    property name *this plugin* uses. Everything on the left is core's own
+    vocabulary, so an unrecognised entry there is a typo rather than grammar
+    from a newer core, and is reported as an error.
+    """
+    errors: list[str] = []
+    ui_options = prop.get("ui:options")
+    if ui_options is None:
+        return errors
+    if not isinstance(ui_options, dict):
+        return [f"settings_schema.{field_path}: ui:options must be an object"]
+    for block, allowed in (
+        ("probe", JSON_PATH_MAPPER_PROBE_PARTS),
+        ("keys", JSON_PATH_MAPPER_ROW_KEYS),
+    ):
+        mapping = ui_options.get(block)
+        if mapping is None:
+            continue
+        if not isinstance(mapping, dict):
+            errors.append(f"settings_schema.{field_path}: ui:options.{block} must be an object, got {mapping!r}")
+            continue
+        for key in sorted(set(mapping) - allowed):
+            errors.append(f"settings_schema.{field_path}: unknown ui:options.{block} key '{key}'")
+        for key in sorted(set(mapping) & allowed):
+            value = mapping[key]
+            if not isinstance(value, str) or not value:
+                errors.append(
+                    f"settings_schema.{field_path}: ui:options.{block}.{key} must name a property, got {value!r}"
+                )
+    return errors
 
 
 def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
@@ -852,6 +931,9 @@ def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
 
     for field_path, prop, siblings in _iter_settings_fields(settings_schema):
         widget = prop.get("ui:widget")
+        if widget in (JSON_PATH_MAPPER_WIDGET, JSON_PATH_MAPPER_DEPRECATED_WIDGET):
+            errors.extend(_json_path_mapper_errors(field_path, prop))
+            continue
         if widget != REMOTE_OPTIONS_WIDGET:
             continue
 
