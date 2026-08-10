@@ -815,29 +815,6 @@ describe("API Extended Tests", () => {
     });
   });
 
-  describe("Queue-Times endpoints", () => {
-    beforeEach(() => {
-      server.use(
-        http.get(`${API_BASE}/queue-times/parks`, () => HttpResponse.json([{ id: 1, name: "Test Park" }])),
-        http.get(`${API_BASE}/queue-times/parks/:parkId/rides`, () =>
-          HttpResponse.json([{ id: 10, name: "Test Ride" }]),
-        ),
-      );
-    });
-
-    it("getQueueTimesParks returns parks", async () => {
-      const result = await api.getQueueTimesParks();
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe("Test Park");
-    });
-
-    it("getQueueTimesRides returns rides", async () => {
-      const result = await api.getQueueTimesRides(1);
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe("Test Ride");
-    });
-  });
-
   describe("Plugin endpoints", () => {
     it("listPlugins returns plugin list", async () => {
       server.use(

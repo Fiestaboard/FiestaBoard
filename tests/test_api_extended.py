@@ -1883,44 +1883,6 @@ class TestTrafficGeocode:
 
 
 # ============================================================
-# Queue Times Proxy
-# ============================================================
-
-
-class TestQueueTimes:
-    def test_list_disney_parks(self, client):
-        with patch("src.api_server._queue_times_get") as mock_qt:
-            mock_qt.return_value = [
-                {"id": 2, "parks": [{"id": 1, "name": "Magic Kingdom", "country": "US", "timezone": "EST"}]},
-            ]
-            response = client.get("/queue-times/parks")
-        assert response.status_code == 200
-
-    def test_list_disney_parks_no_group(self, client):
-        with patch("src.api_server._queue_times_get") as mock_qt:
-            mock_qt.return_value = [{"id": 99, "parks": []}]
-            response = client.get("/queue-times/parks")
-        assert response.status_code == 200
-        assert response.json() == []
-
-    def test_list_disney_parks_error(self, client):
-        with patch("src.api_server._queue_times_get", side_effect=Exception("API down")):
-            response = client.get("/queue-times/parks")
-        assert response.status_code == 502
-
-    def test_list_park_rides(self, client):
-        with patch("src.api_server._queue_times_get") as mock_qt:
-            mock_qt.return_value = {"lands": [{"rides": [{"id": 1, "name": "Space Mountain"}]}]}
-            response = client.get("/queue-times/parks/1/rides")
-        assert response.status_code == 200
-
-    def test_list_park_rides_error(self, client):
-        with patch("src.api_server._queue_times_get", side_effect=Exception("fail")):
-            response = client.get("/queue-times/parks/1/rides")
-        assert response.status_code == 502
-
-
-# ============================================================
 # Per-board send routing (issue #1244)
 # ============================================================
 

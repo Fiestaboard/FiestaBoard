@@ -77,7 +77,6 @@ MAX_OPTIONS_CACHE_SECONDS = 3600
 KNOWN_SETTINGS_WIDGETS = frozenset(
     {
         "datetime",
-        "disney-parks-times-picker",
         "generic-data-mapping-helper",
         "page-picker",
         "password",
