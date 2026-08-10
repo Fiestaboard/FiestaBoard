@@ -97,6 +97,24 @@ def test_unknown_key_inside_ui_options_is_an_error():
     assert any("cache_second" in e for e in errors), errors
 
 
+def test_a_key_outside_the_grammar_is_still_an_error_after_the_grammar_grew():
+    """Widening the key set for the widget's flags must not open the gate."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "symbols": {
+                "type": "array",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "bogus_key": True},
+            }
+        },
+    }
+
+    errors = validate_settings_schema_ui(schema)
+
+    assert errors == ["settings_schema.symbols: unknown ui:options key 'bogus_key'"]
+
+
 def test_multiple_requires_an_array_typed_field():
     """A multi-select needs somewhere to put the second selection."""
     schema = {
@@ -131,6 +149,132 @@ def test_cache_seconds_outside_the_allowed_range_is_an_error():
     errors = validate_settings_schema_ui(schema)
 
     assert any("cache_seconds" in e for e in errors), errors
+
+
+@pytest.mark.parametrize("key", ["searchable", "server_search", "reorderable", "allow_custom"])
+def test_boolean_ui_options_flags_are_accepted(key):
+    """The widget's render flags are part of the grammar, not typos."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "symbols": {
+                "type": "array",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "multiple": True, key: True},
+            }
+        },
+    }
+
+    assert validate_settings_schema_ui(schema) == []
+
+
+@pytest.mark.parametrize("key", ["searchable", "server_search", "reorderable", "allow_custom"])
+def test_boolean_ui_options_flags_reject_a_non_boolean(key):
+    """A truthy string renders the same as ``true`` in JS — say so in Python."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "symbols": {
+                "type": "array",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "multiple": True, key: "yes"},
+            }
+        },
+    }
+
+    errors = validate_settings_schema_ui(schema)
+
+    assert errors == [f"settings_schema.symbols: ui:options.{key} must be a boolean, got 'yes'"]
+
+
+def test_placeholder_text_is_accepted():
+    """The trigger's placeholder is the plugin author's copy, not core's."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "symbol": {
+                "type": "string",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "placeholder": "Search tickers"},
+            }
+        },
+    }
+
+    assert validate_settings_schema_ui(schema) == []
+
+
+def test_placeholder_must_be_a_string():
+    """Anything else reaches the DOM as ``[object Object]``."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "symbol": {
+                "type": "string",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "placeholder": 42},
+            }
+        },
+    }
+
+    errors = validate_settings_schema_ui(schema)
+
+    assert errors == ["settings_schema.symbol: ui:options.placeholder must be a string, got 42"]
+
+
+def test_reorderable_requires_a_multi_select():
+    """There is nothing to reorder in a single choice — the arrows never render."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "symbol": {
+                "type": "string",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "reorderable": True},
+            }
+        },
+    }
+
+    errors = validate_settings_schema_ui(schema)
+
+    assert errors == ["settings_schema.symbol: ui:options.reorderable requires ui:options.multiple"]
+
+
+def test_server_search_implies_searchable_without_declaring_it():
+    """The widget renders the box on ``searchable || server_search``, so asking
+    for a second flag would be ceremony the UI does not need."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "symbol": {
+                "type": "string",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "server_search": True},
+            }
+        },
+    }
+
+    assert validate_settings_schema_ui(schema) == []
+
+
+def test_server_search_contradicting_an_explicit_searchable_false_is_an_error():
+    """``searchable: false`` here is a declaration the widget will ignore, and a
+    silently-ignored declaration is exactly what the unknown-key rule prevents."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "symbol": {
+                "type": "string",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "server_search": True, "searchable": False},
+            }
+        },
+    }
+
+    errors = validate_settings_schema_ui(schema)
+
+    assert errors == [
+        "settings_schema.symbol: ui:options.server_search implies ui:options.searchable, got searchable=False"
+    ]
 
 
 def test_depends_on_must_name_a_real_property():

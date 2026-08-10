@@ -420,14 +420,21 @@ No core change is needed for a new plugin.
 }
 ```
 
-`ui:options` accepts exactly four keys:
+`ui:options` accepts exactly these nine keys — anything else is a validation
+error, because a silently-ignored typo is how a picker ships without ever
+calling your plugin:
 
 | Key | Meaning |
 | --- | --- |
-| `options_id` | Which catalog this field wants. `^[a-z][a-z0-9_]*$`, unique across the schema. |
+| `options_id` | Which catalog this field wants. `^[a-z][a-z0-9_]*$`, unique across the schema. Required. |
 | `depends_on` | Sibling or root property names whose values scope the catalog. |
 | `multiple` | Multi-select. Requires `"type": "array"`. |
 | `cache_seconds` | How long the UI may reuse the list. Integer, 0–3600. |
+| `searchable` | Render a filter box over the options already fetched. Boolean. |
+| `server_search` | Send the filter text to `get_options()` as `query`, debounced. Boolean. Turns the box on by itself, so `searchable` may be omitted — but `"server_search": true` with an explicit `"searchable": false` is rejected rather than quietly resolved. |
+| `reorderable` | Up/down arrows on the chosen items. Boolean. Requires `multiple`. |
+| `allow_custom` | Accept a typed value the catalog does not offer. Boolean. |
+| `placeholder` | Trigger placeholder text. String. |
 
 Then implement `get_options()` — one method serves every `options_id`:
 
