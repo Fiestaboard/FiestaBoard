@@ -1154,6 +1154,49 @@ export interface PluginsListResponse {
   message?: string;
 }
 
+/**
+ * One selectable choice returned by a plugin's `get_options()`.
+ * Mirrors `src/plugins/base.py::Option`. `value` is a JSON scalar and is what
+ * gets persisted into the plugin's config verbatim.
+ */
+export interface PluginOption {
+  value: string | number | boolean;
+  label: string;
+  description?: string | null;
+  group?: string | null;
+  preview?: string | null;
+  disabled?: boolean;
+  meta?: Record<string, unknown> | null;
+}
+
+/** Body of `POST /plugins/{plugin_id}/options/{options_id}`. */
+export interface PluginOptionsRequest {
+  /** Values of the fields this one `depends_on`, so the plugin can scope the catalog. */
+  parent?: Record<string, unknown>;
+  /** Free-text the user typed, for server-side search. */
+  query?: string;
+  limit?: number;
+  cursor?: string | null;
+}
+
+/** Response of `POST /plugins/{plugin_id}/options/{options_id}`. */
+export interface PluginOptionsResponse {
+  plugin_id: string;
+  options_id: string;
+  options: PluginOption[];
+  has_more: boolean;
+  cursor: string | null;
+  total: number | null;
+  /**
+   * Human-readable reason the list is empty or partial (the plugin raised
+   * `OptionsUnavailable`). Not an incident — the UI shows it as a hint.
+   */
+  error: string | null;
+  cached: boolean;
+  stale: boolean;
+  cache_seconds: number;
+}
+
 export interface PluginManifest {
   id: string;
   name: string;
@@ -2123,6 +2166,17 @@ export const api = {
   disablePlugin: (pluginId: string) =>
     fetchApi<PluginEnableResponse>(`/plugins/${pluginId}/disable`, {
       method: "POST",
+    }),
+
+  /**
+   * Browse a plugin's upstream catalog for one `remote-options` field. Runs on
+   * a throwaway plugin instance server-side, so it is safe to call while the
+   * settings dialog is open on an unconfigured plugin.
+   */
+  getPluginOptions: (pluginId: string, optionsId: string, request: PluginOptionsRequest = {}) =>
+    fetchApi<PluginOptionsResponse>(`/plugins/${pluginId}/options/${optionsId}`, {
+      method: "POST",
+      body: JSON.stringify(request),
     }),
 
   getPluginData: (pluginId: string) => fetchApi<PluginDataResponse>(`/plugins/${pluginId}/data`),

@@ -1307,6 +1307,9 @@ function InstalledPluginRow({
                       values={configValues}
                       onChange={setConfigValues}
                       disabled={isSaving}
+                      // Lets `remote-options` fields ask this plugin — and only
+                      // this plugin — for their catalogs.
+                      pluginId={plugin.id}
                     />
                   </Stack>
                 )}
