@@ -306,6 +306,39 @@ SENSITIVE_FIELDS = {
     "client_secret",
 }
 
+# What the API substitutes for a sensitive value on the way out. Anything that
+# comes back from a settings form carries this rather than the real secret.
+MASKED_VALUE = "***"
+
+
+def unmask_sensitive_values(values: dict[str, Any], stored: dict[str, Any]) -> dict[str, Any]:
+    """Return *values* with every masked sensitive field restored from *stored*.
+
+    The browser never holds a real secret: :meth:`ConfigManager._mask_sensitive`
+    replaces every :data:`SENSITIVE_FIELDS` entry with :data:`MASKED_VALUE`
+    before the config leaves the process. Anything the form posts back
+    therefore says ``"***"`` where the API key used to be, and writing that
+    through — or handing it to a plugin — replaces a working credential with
+    three asterisks.
+
+    A masked key with nothing stored resolves to ``""`` rather than being
+    dropped, matching the persisted-config behaviour this was extracted from:
+    the field was explicitly submitted, so it should end up present and empty
+    rather than silently absent.
+
+    Args:
+        values: Incoming settings, possibly carrying masked placeholders.
+        stored: The currently persisted settings to restore secrets from.
+
+    Returns:
+        A new dict; *values* is not mutated.
+    """
+    merged = dict(values)
+    for key, value in values.items():
+        if key in SENSITIVE_FIELDS and value == MASKED_VALUE:
+            merged[key] = stored.get(key, "")
+    return merged
+
 
 class ConfigManager:
     """Manages configuration file read/write operations."""
@@ -1380,10 +1413,7 @@ class ConfigManager:
 
             # Preserve sensitive fields if they're masked
             existing = self._config["plugins"].get(plugin_id, {})
-            for key, value in config.items():
-                if key in SENSITIVE_FIELDS and value == "***":
-                    # Keep existing value
-                    config[key] = existing.get(key, "")
+            config.update(unmask_sensitive_values(config, existing))
 
             self._config["plugins"][plugin_id] = config
             self._save_internal()

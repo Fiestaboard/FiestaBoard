@@ -467,6 +467,61 @@ A manifest that declares `remote-options` on a plugin that does not implement
 `get_options()` still loads, but the mismatch is reported by
 `GET /plugins/errors`. An unrecognized `ui:widget` is only a warning.
 
+### The HTTP route
+
+The settings form reaches your `get_options()` through one core route:
+
+```text
+POST /plugins/{plugin_id}/options/{options_id}
+```
+
+It is a POST rather than a GET because `parent` carries arbitrary JSON and
+`draft_config` carries credentials — neither belongs in a URL, an access log,
+or browser history.
+
+Request body, all fields optional:
+
+| Field | Meaning |
+| --- | --- |
+| `parent` | Values of the fields this one `depends_on`. |
+| `query` | Free text the user has typed. |
+| `limit` | Page size. Clamped to 1–1000. |
+| `cursor` | Continuation token from a previous result. |
+| `refresh` | Bypass the cache. Rate-limited to once a second per question. |
+| `draft_config` | Unsaved settings values, layered over the stored config. |
+
+The response always carries the same keys: `plugin_id`, `options_id`,
+`options`, `has_more`, `cursor`, `total`, `error`, `cached`, `stale`,
+`cache_seconds`.
+
+Things core does for you, so your plugin does not have to:
+
+- **Authorization.** Only `options_id`s your own manifest declares can be
+  dispatched; anything else is a 400 and never reaches your code.
+- **Off the event loop.** Your method runs on a worker thread with a 20-second
+  ceiling, at most four at a time. Still set your own HTTP timeouts — a
+  timeout here abandons the *wait*, not your thread.
+- **Caching.** Per `ui:options.cache_seconds` (default 300, `0` disables),
+  keyed by the full instance id and a fingerprint of the effective config, so
+  two differently-credentialed installs never share a list.
+- **Sanitisation.** Options are capped at `min(limit, 1000)`; `label` and
+  `description` at 200 characters, `preview` at 120, `group` at 80; the whole
+  payload at 512KB. An option whose `value` is not a JSON scalar is dropped.
+- **Un-masking.** The browser holds sensitive fields as `"***"`; core swaps in
+  the stored secret before your method sees the draft config.
+
+What each failure means to the user:
+
+| Your plugin | Response |
+| --- | --- |
+| raises `OptionsUnavailable` | 200 with `error` set and `options: []` — shown as an inline hint, because "not configured yet" is the normal mid-setup state |
+| does not implement `get_options` | 501 |
+| raises anything else | 502, or 200 with `stale: true` if a previous answer is cached |
+| takes longer than 20s | 504, or 200 with `stale: true` |
+
+Options work while your plugin is **disabled** — users browse the catalog in
+order to configure it, before they ever turn it on.
+
 ## Plugin Structure
 
 ```text

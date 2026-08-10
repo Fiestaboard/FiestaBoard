@@ -740,6 +740,36 @@ def collect_options_ids(settings_schema: dict[str, Any]) -> set[str]:
     return ids
 
 
+def options_cache_seconds(settings_schema: dict[str, Any], options_id: str) -> int | None:
+    """Return the ``ui:options.cache_seconds`` declared for *options_id*.
+
+    ``None`` means the field did not declare one and the caller's default
+    applies; ``0`` is a deliberate "never cache this". The TTL lives per
+    provider because only the plugin author knows whether the catalog is a
+    departure board that goes stale in seconds or a list of airports that does
+    not change this decade.
+
+    Args:
+        settings_schema: The plugin's ``settings_schema`` object.
+        options_id: The provider being asked about.
+
+    Returns:
+        The declared TTL in seconds, or ``None`` when unspecified.
+    """
+    for _path, prop, _siblings in _iter_settings_fields(settings_schema):
+        if prop.get("ui:widget") != REMOTE_OPTIONS_WIDGET:
+            continue
+        ui_options = prop.get("ui:options")
+        if not isinstance(ui_options, dict) or ui_options.get("options_id") != options_id:
+            continue
+        seconds = ui_options.get("cache_seconds")
+        # bool is an int subclass; a `true` here is a schema bug, not a TTL.
+        if isinstance(seconds, int) and not isinstance(seconds, bool):
+            return seconds
+        return None
+    return None
+
+
 def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
     """Validate the ``ui:*`` annotations in a plugin's ``settings_schema``.
 
