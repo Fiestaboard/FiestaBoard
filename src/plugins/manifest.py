@@ -14,6 +14,8 @@ The manifest.json file is the heart of each plugin, defining:
 import copy
 import json
 import logging
+import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -37,6 +39,44 @@ TRIGGER_PAGE_ID_PROPERTY: dict[str, Any] = {
     "ui:widget": "page-picker",
     "default": "",
 }
+
+
+# ``ui:widget`` value that opts a settings field into the generic remote
+# options primitive: the field's choices come from the plugin's own
+# ``get_options()`` implementation rather than a static ``enum``.
+REMOTE_OPTIONS_WIDGET = "remote-options"
+
+# ``options_id`` becomes a URL path segment on the options route, so keep it to
+# a boring lowercase identifier.
+OPTIONS_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+# Every key a ``ui:options`` block may carry. Anything else is a typo, and a
+# silently-ignored typo is how a picker ships without ever calling the plugin.
+UI_OPTIONS_KEYS = frozenset({"options_id", "depends_on", "multiple", "cache_seconds"})
+
+# How long the UI may reuse a fetched option list. Zero means "never cache";
+# the ceiling is an hour, above which a stale picker outlives the dialog it
+# was opened from.
+MIN_OPTIONS_CACHE_SECONDS = 0
+MAX_OPTIONS_CACHE_SECONDS = 3600
+
+# ``ui:widget`` values the settings form knows how to render. An unrecognised
+# value is a *warning*, never an error: several installed plugins declare
+# picker widgets core never implemented, and load_manifest() returns None on
+# any validation error -- rejecting them here would uninstall them in practice.
+KNOWN_SETTINGS_WIDGETS = frozenset(
+    {
+        "datetime",
+        "disney-parks-times-picker",
+        "generic-data-mapping-helper",
+        "page-picker",
+        "password",
+        REMOTE_OPTIONS_WIDGET,
+        "textarea",
+        "timezone",
+        "wsdot-route-picker",
+    }
+)
 
 
 def _inject_trigger_page_id(settings_schema: dict[str, Any]) -> dict[str, Any]:
@@ -658,6 +698,134 @@ class PluginManifest:
         return result
 
 
+def _iter_settings_fields(
+    settings_schema: dict[str, Any],
+) -> Iterator[tuple[str, dict[str, Any], dict[str, Any]]]:
+    """Yield ``(dotted_path, property_schema, sibling_properties)`` for every
+    field in *settings_schema*, recursing through nested ``properties`` and
+    array ``items.properties``.
+    """
+
+    def _walk(properties: dict[str, Any], path: str) -> Iterator[tuple[str, dict[str, Any], dict[str, Any]]]:
+        for name, prop in properties.items():
+            if not isinstance(prop, dict):
+                continue
+            field_path = f"{path}.{name}" if path else name
+            yield field_path, prop, properties
+
+            nested = prop.get("properties")
+            if isinstance(nested, dict):
+                yield from _walk(nested, field_path)
+            items = prop.get("items")
+            if isinstance(items, dict) and isinstance(items.get("properties"), dict):
+                yield from _walk(items["properties"], f"{field_path}.items")
+
+    yield from _walk(settings_schema.get("properties") or {}, "")
+
+
+def collect_options_ids(settings_schema: dict[str, Any]) -> set[str]:
+    """Return every ``ui:options.options_id`` declared anywhere in *settings_schema*.
+
+    A non-empty result means the plugin promises to answer options requests and
+    therefore must implement :meth:`~src.plugins.base.PluginBase.get_options`.
+    """
+    ids: set[str] = set()
+    for _path, prop, _siblings in _iter_settings_fields(settings_schema):
+        if prop.get("ui:widget") != REMOTE_OPTIONS_WIDGET:
+            continue
+        ui_options = prop.get("ui:options")
+        options_id = ui_options.get("options_id") if isinstance(ui_options, dict) else None
+        if isinstance(options_id, str) and options_id:
+            ids.add(options_id)
+    return ids
+
+
+def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
+    """Validate the ``ui:*`` annotations in a plugin's ``settings_schema``.
+
+    Returns a list of hard **errors** (empty when the schema is fine). An
+    unrecognised ``ui:widget`` is deliberately *not* an error -- see the module
+    note on ``load_manifest`` returning ``None`` for any validation failure.
+
+    Args:
+        settings_schema: The manifest's ``settings_schema`` object.
+
+    Returns:
+        List of human-readable error strings.
+    """
+    errors: list[str] = []
+    seen_ids: dict[str, str] = {}
+    root_properties = settings_schema.get("properties") or {}
+
+    for field_path, prop, siblings in _iter_settings_fields(settings_schema):
+        widget = prop.get("ui:widget")
+        if widget is not None and widget not in KNOWN_SETTINGS_WIDGETS:
+            # Soft failure on purpose -- see KNOWN_SETTINGS_WIDGETS.
+            logger.warning(
+                "settings_schema.%s: unknown ui:widget '%s' — the settings form will fall back to a plain input",
+                field_path,
+                widget,
+            )
+        if widget != REMOTE_OPTIONS_WIDGET:
+            continue
+
+        ui_options = prop.get("ui:options") or {}
+        if not isinstance(ui_options, dict):
+            errors.append(f"settings_schema.{field_path}: ui:options must be an object")
+            # Fall through with an empty block so the field still gets the
+            # "missing options_id" error rather than two shapes of the same bug.
+            ui_options = {}
+
+        options_id = ui_options.get("options_id")
+        if not options_id:
+            errors.append(f"settings_schema.{field_path}: ui:widget 'remote-options' requires ui:options.options_id")
+        elif not isinstance(options_id, str) or not OPTIONS_ID_RE.match(options_id):
+            errors.append(
+                f"settings_schema.{field_path}: ui:options.options_id '{options_id}' must match {OPTIONS_ID_RE.pattern}"
+            )
+        elif options_id in seen_ids:
+            errors.append(
+                f"settings_schema.{field_path}: duplicate ui:options.options_id '{options_id}' "
+                f"(already declared by settings_schema.{seen_ids[options_id]})"
+            )
+        else:
+            seen_ids[options_id] = field_path
+
+        for key in sorted(set(ui_options) - UI_OPTIONS_KEYS):
+            errors.append(f"settings_schema.{field_path}: unknown ui:options key '{key}'")
+
+        if ui_options.get("multiple") and prop.get("type") != "array":
+            errors.append(
+                f"settings_schema.{field_path}: ui:options.multiple requires type 'array', got {prop.get('type')!r}"
+            )
+
+        cache_seconds = ui_options.get("cache_seconds")
+        if cache_seconds is not None and (
+            not isinstance(cache_seconds, int)
+            or isinstance(cache_seconds, bool)
+            or not (MIN_OPTIONS_CACHE_SECONDS <= cache_seconds <= MAX_OPTIONS_CACHE_SECONDS)
+        ):
+            errors.append(
+                f"settings_schema.{field_path}: ui:options.cache_seconds must be an integer between "
+                f"{MIN_OPTIONS_CACHE_SECONDS} and {MAX_OPTIONS_CACHE_SECONDS}, got {cache_seconds!r}"
+            )
+
+        depends_on = ui_options.get("depends_on") or []
+        if not isinstance(depends_on, list):
+            errors.append(f"settings_schema.{field_path}: ui:options.depends_on must be an array")
+        else:
+            # A dependency may point at a sibling (same object) or at a
+            # top-level setting -- array item fields routinely depend on a
+            # root field such as the account or agency the rows belong to.
+            for dep in depends_on:
+                if dep not in siblings and dep not in root_properties:
+                    errors.append(
+                        f"settings_schema.{field_path}: ui:options.depends_on references unknown property '{dep}'"
+                    )
+
+    return errors
+
+
 def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
     """Validate a manifest dictionary against the schema.
 
@@ -702,6 +870,8 @@ def validate_manifest(data: dict[str, Any]) -> tuple[bool, list[str]]:
     settings = data.get("settings_schema", {})
     if settings and not isinstance(settings, dict):
         errors.append("settings_schema must be an object")
+    elif isinstance(settings, dict):
+        errors.extend(validate_settings_schema_ui(settings))
 
     # Validate env_vars if present
     env_vars = data.get("env_vars", [])
