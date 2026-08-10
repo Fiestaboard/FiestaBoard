@@ -104,7 +104,18 @@ interface FieldProps {
   name: string;
   property: SchemaProperty;
   value: unknown;
-  onChange: (value: unknown) => void;
+  /**
+   * Commit this field's value, optionally together with a patch of *sibling*
+   * properties in the same object.
+   *
+   * Only `remote-options` with `ui:options.labels_field` uses the second
+   * argument, and it has to exist because the two writes are one edit:
+   * removing a chosen row changes the array *and* drops that row's display
+   * name. Two separate `onChange` calls in one handler would both be computed
+   * from the same pre-edit object, so the second would silently undo the
+   * first. Every other field ignores the argument and nothing changes for it.
+   */
+  onChange: (value: unknown, siblings?: Record<string, unknown>) => void;
   required?: boolean;
   disabled?: boolean;
 }
@@ -1346,8 +1357,8 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
                         name={`${name}-${index}-${key}`}
                         property={propSchema}
                         value={(item as Record<string, unknown>)?.[key]}
-                        onChange={(val) => {
-                          const newItem = { ...(item as Record<string, unknown>), [key]: val };
+                        onChange={(val, siblings) => {
+                          const newItem = { ...(item as Record<string, unknown>), ...siblings, [key]: val };
                           handleItemChange(index, newItem);
                         }}
                         disabled={disabled}
@@ -1530,8 +1541,8 @@ function FormField({
                     name={`${name}-${key}`}
                     property={propSchema}
                     value={(value as Record<string, unknown>)?.[key]}
-                    onChange={(val) => {
-                      const newValue = { ...(value as Record<string, unknown>), [key]: val };
+                    onChange={(val, siblings) => {
+                      const newValue = { ...(value as Record<string, unknown>), ...siblings, [key]: val };
                       onChange(newValue);
                     }}
                     required={property.required?.includes(key)}
@@ -1577,8 +1588,8 @@ export function SchemaForm({ schema, values, onChange, disabled, className, plug
     [values, schema.properties],
   );
   const handleFieldChange = useCallback(
-    (fieldName: string, fieldValue: unknown) => {
-      onChange({ ...values, [fieldName]: fieldValue });
+    (fieldName: string, fieldValue: unknown, siblings?: Record<string, unknown>) => {
+      onChange({ ...values, ...siblings, [fieldName]: fieldValue });
     },
     [values, onChange],
   );
@@ -1635,7 +1646,7 @@ export function SchemaForm({ schema, values, onChange, disabled, className, plug
                   name={name}
                   property={property}
                   value={values[name]}
-                  onChange={(val) => handleFieldChange(name, val)}
+                  onChange={(val, siblings) => handleFieldChange(name, val, siblings)}
                   required={isRequired}
                   disabled={fieldDisabled}
                   onLocationRequest={showLocationButton ? handleLocationRequest : undefined}

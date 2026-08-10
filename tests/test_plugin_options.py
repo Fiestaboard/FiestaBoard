@@ -321,6 +321,116 @@ def test_depends_on_may_reference_a_root_property_from_a_nested_field():
     assert validate_settings_schema_ui(schema) == []
 
 
+def test_labels_field_naming_a_sibling_of_a_multi_select_is_accepted():
+    """``labels_field`` lets a multi-select carry a per-choice display name.
+
+    The names land in the *sibling* property it points at, keyed by option
+    value, so the sibling has to be declared alongside the picker.
+    """
+    schema = {
+        "type": "object",
+        "properties": {
+            "ride_ids": {
+                "type": "array",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "rides", "multiple": True, "labels_field": "custom_names"},
+            },
+            "custom_names": {"type": "object"},
+        },
+    }
+
+    assert validate_settings_schema_ui(schema) == []
+
+
+def test_labels_field_must_be_a_string():
+    """It is a property *name*; anything else cannot be looked up at all."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "ride_ids": {
+                "type": "array",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "rides", "multiple": True, "labels_field": True},
+            },
+            "custom_names": {"type": "object"},
+        },
+    }
+
+    errors = validate_settings_schema_ui(schema)
+
+    assert errors == ["settings_schema.ride_ids: ui:options.labels_field must be a string, got True"]
+
+
+def test_labels_field_must_name_a_declared_sibling_property():
+    """The names are written into that sibling, so a typo silently discards
+    every display name the user types."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "ride_ids": {
+                "type": "array",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "rides", "multiple": True, "labels_field": "custom_nmaes"},
+            },
+            "custom_names": {"type": "object"},
+        },
+    }
+
+    errors = validate_settings_schema_ui(schema)
+
+    assert errors == ["settings_schema.ride_ids: ui:options.labels_field references unknown property 'custom_nmaes'"]
+
+
+def test_labels_field_sibling_is_resolved_inside_the_array_item_not_at_the_root():
+    """A picker on an array row writes into *that row*, so a same-named root
+    property is not the sibling it means."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "custom_names": {"type": "object"},
+            "rows": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "ride_ids": {
+                            "type": "array",
+                            "ui:widget": "remote-options",
+                            "ui:options": {"options_id": "rides", "multiple": True, "labels_field": "custom_names"},
+                        }
+                    },
+                },
+            },
+        },
+    }
+
+    errors = validate_settings_schema_ui(schema)
+
+    assert errors == [
+        "settings_schema.rows.items.ride_ids: ui:options.labels_field references unknown property 'custom_names'"
+    ]
+
+
+def test_labels_field_without_multiple_is_an_error():
+    """A single choice has nothing to key a map of names by — the field's own
+    title already names it, and the widget renders no label input at all."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "ride_id": {
+                "type": "string",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "rides", "labels_field": "custom_names"},
+            },
+            "custom_names": {"type": "object"},
+        },
+    }
+
+    errors = validate_settings_schema_ui(schema)
+
+    assert errors == ["settings_schema.ride_id: ui:options.labels_field requires ui:options.multiple"]
+
+
 def test_validation_recurses_into_array_item_properties():
     """Most real pickers live on array item fields, not at the root."""
     schema = {

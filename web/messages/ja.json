@@ -1711,6 +1711,8 @@
     "remoteOptionsAdd": "追加…",
     "remoteOptionsAddLabel": "オプションを追加",
     "remoteOptionsRemove": "{label}を削除",
+    "remoteOptionsLabelFor": "{label}の表示名",
+    "remoteOptionsLabelPlaceholder": "短い名前",
     "remoteOptionsMoveUp": "{label}を上に移動",
     "remoteOptionsMoveDown": "{label}を下に移動",
     "remoteOptionsSearchLabel": "オプションを検索",

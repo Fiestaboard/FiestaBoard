@@ -1711,6 +1711,8 @@
     "remoteOptionsAdd": "추가…",
     "remoteOptionsAddLabel": "옵션 추가",
     "remoteOptionsRemove": "{label} 제거",
+    "remoteOptionsLabelFor": "{label}의 표시 이름",
+    "remoteOptionsLabelPlaceholder": "짧은 이름",
     "remoteOptionsMoveUp": "{label} 위로 이동",
     "remoteOptionsMoveDown": "{label} 아래로 이동",
     "remoteOptionsSearchLabel": "옵션 검색",

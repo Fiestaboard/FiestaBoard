@@ -420,7 +420,7 @@ No core change is needed for a new plugin.
 }
 ```
 
-`ui:options` accepts exactly these nine keys — anything else is a validation
+`ui:options` accepts exactly these ten keys — anything else is a validation
 error, because a silently-ignored typo is how a picker ships without ever
 calling your plugin:
 
@@ -435,6 +435,61 @@ calling your plugin:
 | `reorderable` | Up/down arrows on the chosen items. Boolean. Requires `multiple`. |
 | `allow_custom` | Accept a typed value the catalog does not offer. Boolean. |
 | `placeholder` | Trigger placeholder text. String. |
+| `labels_field` | Name of a sibling property collecting a short display name per chosen option. String. Requires `multiple`. |
+
+### Per-choice display names (`labels_field`)
+
+A board row is 22 tiles wide, so "Seven Dwarfs Mine Train" has to be shortened
+before it will fit. `labels_field` gives every *chosen* row of a multi-select a
+small text box, and collects what the user types into the sibling property it
+names — a plain object keyed by the option's value:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "ride_ids": {
+      "type": "array",
+      "title": "Rides",
+      "items": { "type": "integer" },
+      "ui:widget": "remote-options",
+      "ui:options": { "options_id": "rides", "multiple": true, "labels_field": "custom_names" }
+    },
+    "custom_names": {
+      "type": "object",
+      "title": "Custom ride names",
+      "additionalProperties": { "type": "string" }
+    }
+  }
+}
+```
+
+```python
+custom_names = self.config.get("custom_names") or {}
+label = custom_names.get(str(ride_id)) or ride.name
+```
+
+Rules, all enforced at manifest validation time:
+
+- `labels_field` must be a string naming a property declared **in the same
+  object** as the picker. On an array row that means a property of the row, not
+  a same-named one at the root
+- it requires `"multiple": true` — a single choice is already named by the
+  field's own title, and the widget renders no box for it
+
+**Keys are always the value stringified.** Look them up as `str(value)` in
+Python, exactly as above: the widget writes `String(value)` whatever the
+declared item type is, so integer option values arrive as `"284"`, not `284`.
+Indexing with the raw integer happens to work through a JSON round trip in
+JavaScript and does not in Python.
+
+Removing a chosen row deletes that one key; reordering rows changes nothing,
+because the map is keyed by value rather than by position. A name for a value
+the catalog no longer offers is kept, not pruned — the catalog going quiet is
+not the user un-choosing anything.
+
+The sibling is an ordinary schema property and the settings form still renders
+it as one, so give it a `title` that reads sensibly on its own.
 
 Then implement `get_options()` — one method serves every `options_id`:
 

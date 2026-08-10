@@ -1711,6 +1711,8 @@
     "remoteOptionsAdd": "Ekle…",
     "remoteOptionsAddLabel": "Seçenek ekle",
     "remoteOptionsRemove": "{label} ögesini kaldır",
+    "remoteOptionsLabelFor": "{label} için görünen ad",
+    "remoteOptionsLabelPlaceholder": "Kısa ad",
     "remoteOptionsMoveUp": "{label} ögesini yukarı taşı",
     "remoteOptionsMoveDown": "{label} ögesini aşağı taşı",
     "remoteOptionsSearchLabel": "Seçeneklerde ara",

@@ -1711,6 +1711,8 @@
     "remoteOptionsAdd": "Añadir…",
     "remoteOptionsAddLabel": "Añadir opción",
     "remoteOptionsRemove": "Eliminar {label}",
+    "remoteOptionsLabelFor": "Nombre visible de {label}",
+    "remoteOptionsLabelPlaceholder": "Nombre corto",
     "remoteOptionsMoveUp": "Mover {label} hacia arriba",
     "remoteOptionsMoveDown": "Mover {label} hacia abajo",
     "remoteOptionsSearchLabel": "Buscar opciones",

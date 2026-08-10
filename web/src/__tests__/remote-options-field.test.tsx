@@ -1083,3 +1083,291 @@ describe("RemoteOptionsField - truncated catalogs", () => {
     expect(screen.queryByText("Not all options are shown")).not.toBeInTheDocument();
   });
 });
+
+/**
+ * `labels_field` — a per-choice display name.
+ *
+ * A board row is 22 tiles wide, so "Seven Dwarfs Mine Train" has to be
+ * shortened before it can be shown. The widget therefore lets each *chosen*
+ * row carry a short name, and writes those names into the sibling property the
+ * manifest names — the only case where this widget writes outside its own key.
+ *
+ * The map is keyed by `String(value)` because that is what the plugin reads:
+ * Disney's does `custom_names.get(str(ride_id))` against integer ride ids.
+ */
+const RIDES: MockOption[] = [
+  { value: 279, label: "Space Mountain" },
+  { value: 284, label: "Seven Dwarfs Mine Train" },
+  { value: 291, label: "Big Thunder Mountain Railroad" },
+];
+
+function labelledSchema(uiOptions: Record<string, unknown> = {}): JSONSchema {
+  return {
+    type: "object",
+    properties: {
+      ride_ids: {
+        type: "array",
+        title: "Rides",
+        items: { type: "integer" },
+        "ui:widget": "remote-options",
+        "ui:options": { options_id: "rides", multiple: true, labels_field: "custom_names", ...uiOptions },
+      },
+      custom_names: { type: "object", title: "Custom ride names" },
+    },
+  };
+}
+
+describe("RemoteOptionsField - labels_field", () => {
+  it("writes a typed display name into the sibling map under the option's value", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    mockOptions(RIDES);
+
+    render(
+      <Harness
+        schema={labelledSchema()}
+        initial={{ ride_ids: [279], custom_names: {} }}
+        pluginId="disney-parks-times"
+        onChange={onChange}
+      />,
+    );
+
+    await user.type(await screen.findByRole("textbox", { name: "Display name for Space Mountain" }), "SPACE MTN");
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { ride_ids: unknown; custom_names: unknown };
+    expect(last.custom_names).toEqual({ "279": "SPACE MTN" });
+    // The picker's own value is untouched: the label rides alongside it, and a
+    // write that replaced the selection would be a data-loss bug.
+    expect(last.ride_ids).toEqual([279]);
+  });
+
+  it("renders no label input at all when the manifest does not ask for one", async () => {
+    mockOptions(TICKERS);
+
+    render(<Harness schema={multiSchema()} initial={{ symbols: ["AAPL"] }} pluginId="stocks" />);
+
+    await screen.findByText("Apple Inc.");
+    // Every other multi-select must be untouched by this capability — the
+    // widget writing outside its own key is opt-in, and so is the extra input.
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  /**
+   * The Disney-shaped case, and the one that has bitten before: the picker
+   * lives on an array *row*, its values are integers, and the plugin reads the
+   * map back with `custom_names.get(str(ride_id))`. The key therefore has to be
+   * the stringified value, and the row's own `custom_names` — not a same-named
+   * property at the root — is what gets written.
+   */
+  it("keys the map by the stringified value when the option values are integers", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    mockOptions(RIDES);
+    const disneySchema: JSONSchema = {
+      type: "object",
+      properties: {
+        parks: {
+          type: "array",
+          title: "Parks and rides",
+          items: {
+            type: "object",
+            properties: {
+              ride_ids: {
+                type: "array",
+                title: "Rides",
+                items: { type: "integer" },
+                "ui:widget": "remote-options",
+                "ui:options": { options_id: "rides", multiple: true, labels_field: "custom_names" },
+              },
+              custom_names: { type: "object", title: "Custom ride names" },
+            },
+          },
+        },
+      },
+    };
+
+    render(
+      <Harness
+        schema={disneySchema}
+        initial={{ parks: [{ ride_ids: [279, 284], custom_names: {} }] }}
+        pluginId="disney-parks-times"
+        onChange={onChange}
+      />,
+    );
+
+    await user.type(
+      await screen.findByRole("textbox", { name: "Display name for Seven Dwarfs Mine Train" }),
+      "MINE TRAIN",
+    );
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { parks: { ride_ids: unknown; custom_names: unknown }[] };
+    // Serialised, because what reaches the plugin is JSON: a Map here would
+    // stringify to `{}`, and a numeric key would have to survive as `"284"`.
+    expect(JSON.stringify(last.parks[0])).toBe('{"ride_ids":[279,284],"custom_names":{"284":"MINE TRAIN"}}');
+    expect(Object.keys(last.parks[0].custom_names as object)).toEqual(["284"]);
+    // The selection is still integers — the schema's declared type, and what
+    // the plugin's own ride lookups use.
+    expect(last.parks[0].ride_ids).toEqual([279, 284]);
+  });
+
+  it("hydrates the inputs from display names already in the stored config", async () => {
+    mockOptions(RIDES);
+
+    render(
+      <Harness
+        schema={labelledSchema()}
+        // Integer values, string keys — the shape that comes back from JSON.
+        initial={{ ride_ids: [279, 284], custom_names: { "279": "SPACE MTN", "284": "MINE TRAIN" } }}
+        pluginId="disney-parks-times"
+      />,
+    );
+
+    expect(await screen.findByRole("textbox", { name: "Display name for Space Mountain" })).toHaveValue("SPACE MTN");
+    expect(screen.getByRole("textbox", { name: "Display name for Seven Dwarfs Mine Train" })).toHaveValue("MINE TRAIN");
+  });
+
+  it("drops only the removed row's display name, leaving the others alone", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    mockOptions(RIDES);
+
+    render(
+      <Harness
+        schema={labelledSchema()}
+        initial={{
+          ride_ids: [279, 284, 291],
+          custom_names: { "279": "SPACE MTN", "284": "MINE TRAIN", "291": "BIG THUNDER" },
+        }}
+        pluginId="disney-parks-times"
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Remove Seven Dwarfs Mine Train" }));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { ride_ids: unknown; custom_names: unknown };
+    // A name for a ride that is no longer chosen is dead weight the plugin
+    // would carry forever…
+    expect(last.custom_names).toEqual({ "279": "SPACE MTN", "291": "BIG THUNDER" });
+    // …but the other two rides keep theirs, and the removal itself still works.
+    expect(last.ride_ids).toEqual([279, 291]);
+  });
+
+  it("forgets a display name the user clears instead of storing an empty one", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    mockOptions(RIDES);
+
+    render(
+      <Harness
+        schema={labelledSchema()}
+        initial={{ ride_ids: [279, 284], custom_names: { "279": "SPACE MTN", "284": "MINE TRAIN" } }}
+        pluginId="disney-parks-times"
+        onChange={onChange}
+      />,
+    );
+
+    await user.clear(await screen.findByRole("textbox", { name: "Display name for Space Mountain" }));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { custom_names: unknown };
+    // "" is not a display name — keeping it would grow the stored config with
+    // entries that mean exactly what an absent key already means.
+    expect(last.custom_names).toEqual({ "284": "MINE TRAIN" });
+  });
+
+  it("leaves the display names untouched when the chosen rows are reordered", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    mockOptions(RIDES);
+    const stored = { "279": "SPACE MTN", "284": "MINE TRAIN" };
+
+    render(
+      <Harness
+        schema={labelledSchema({ reorderable: true })}
+        initial={{ ride_ids: [279, 284], custom_names: stored }}
+        pluginId="disney-parks-times"
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Move Space Mountain down" }));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { ride_ids: unknown; custom_names: unknown };
+    expect(last.ride_ids).toEqual([284, 279]);
+    // The map is keyed by value, not by position, so reordering has nothing to
+    // say about it — and each row's input still shows its own name.
+    expect(last.custom_names).toEqual(stored);
+    expect(screen.getByRole("textbox", { name: "Display name for Space Mountain" })).toHaveValue("SPACE MTN");
+    expect(screen.getByRole("textbox", { name: "Display name for Seven Dwarfs Mine Train" })).toHaveValue("MINE TRAIN");
+  });
+
+  it("keeps a display name for a value the catalog no longer offers", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    mockOptions(RIDES);
+
+    render(
+      <Harness
+        schema={labelledSchema()}
+        // 999 was closed since the config was saved: it is still chosen, and
+        // still named, but the catalog has never heard of it.
+        initial={{ ride_ids: [279, 999], custom_names: { "279": "SPACE MTN", "999": "OLD RIDE" } }}
+        pluginId="disney-parks-times"
+        onChange={onChange}
+      />,
+    );
+
+    // Assert only once the catalog has arrived — until then *every* row is
+    // unrecognised, which would pass this vacuously.
+    const known = await screen.findByRole("textbox", { name: "Display name for Space Mountain" });
+    // Rendering it at all is the first half: the row shows as its own value…
+    expect(screen.getByRole("textbox", { name: "Display name for 999" })).toHaveValue("OLD RIDE");
+    // …and nothing is rewritten behind the user's back just by opening the form.
+    expect(onChange).not.toHaveBeenCalled();
+
+    // Editing a *different* row must carry the orphaned name through untouched
+    // rather than quietly pruning it on the next save.
+    await user.type(known, "!");
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { custom_names: unknown };
+    expect(last.custom_names).toEqual({ "279": "SPACE MTN!", "999": "OLD RIDE" });
+  });
+
+  /**
+   * The cold-open case, mandatory for anything in this file that touches
+   * stored config: `InstalledPluginRow` mounts the form with `{}` and fills it
+   * in when the `["plugin", id]` query resolves. A widget that reconciled its
+   * label map in an effect would see "no rides chosen, but names stored" on
+   * that first render and prune every name the user had saved.
+   */
+  it("keeps stored display names when the config arrives after the first render", async () => {
+    const onChange = vi.fn();
+    const captured = mockOptions(RIDES);
+
+    render(
+      <ColdOpenHarness
+        schema={labelledSchema()}
+        stored={{ ride_ids: [279, 284], custom_names: { "279": "SPACE MTN", "284": "MINE TRAIN" } }}
+        pluginId="disney-parks-times"
+        onChange={onChange}
+      />,
+    );
+
+    // The catalog is only fetched once, but the form definitely rendered empty
+    // first — the inputs below can only exist after hydration.
+    await waitFor(() => expect(captured).toHaveLength(1));
+    // Let every effect from the hydrating render run, so a map that is about to
+    // be wiped is not mistaken for one that survived.
+    await delay(30);
+
+    // The user touched nothing, so the form must write nothing back…
+    expect(onChange).not.toHaveBeenCalled();
+    // …and both names are still in what the dialog would POST.
+    expect(savedConfig()).toEqual({
+      ride_ids: [279, 284],
+      custom_names: { "279": "SPACE MTN", "284": "MINE TRAIN" },
+    });
+    expect(await screen.findByRole("textbox", { name: "Display name for Space Mountain" })).toHaveValue("SPACE MTN");
+    expect(screen.getByRole("textbox", { name: "Display name for Seven Dwarfs Mine Train" })).toHaveValue("MINE TRAIN");
+  });
+});
