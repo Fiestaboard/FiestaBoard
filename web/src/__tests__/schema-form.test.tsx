@@ -383,6 +383,203 @@ describe("SchemaForm - numeric enum (integer Select)", () => {
 });
 
 /**
+ * Declarative array-of-objects: a plugin can describe a repeatable picker
+ * entirely in its manifest — an array whose `items` is an object with an
+ * enum-typed property — and get a Select per entry with no core-side,
+ * plugin-specific widget. Option labels come from the manifest's `enumNames`.
+ */
+describe("SchemaForm - declarative array of objects with an enum property", () => {
+  const stationsSchema = (overrides?: { maxItems?: number }): JSONSchema => ({
+    type: "object",
+    properties: {
+      stations: {
+        type: "array",
+        title: "Stations",
+        description: "Select the stations you want to monitor.",
+        ...(overrides?.maxItems !== undefined ? { maxItems: overrides.maxItems } : {}),
+        items: {
+          type: "object",
+          properties: {
+            station_id: {
+              type: "integer",
+              title: "Station",
+              enum: [1, 7, 9],
+              enumNames: ["North Terminal", "South Terminal", "East Terminal"],
+            },
+          },
+          required: ["station_id"],
+        },
+      },
+    },
+  });
+
+  function Harness({
+    schema,
+    initial,
+    onChange,
+  }: {
+    schema: JSONSchema;
+    initial: Record<string, unknown>;
+    onChange?: (v: Record<string, unknown>) => void;
+  }) {
+    const [values, setValues] = useState<Record<string, unknown>>(initial);
+    return (
+      <SchemaForm
+        schema={schema}
+        values={values}
+        onChange={(v) => {
+          setValues(v);
+          onChange?.(v);
+        }}
+      />
+    );
+  }
+
+  it("renders one Select per stored entry, labelled from the manifest's enumNames", () => {
+    render(<Harness schema={stationsSchema()} initial={{ stations: [{ station_id: 7 }, { station_id: 9 }] }} />);
+
+    const selects = screen.getAllByRole("combobox");
+    expect(selects).toHaveLength(2);
+    expect(screen.getByText("South Terminal")).toBeInTheDocument();
+    expect(screen.getByText("East Terminal")).toBeInTheDocument();
+    // No raw number inputs — the enum must win over the free-number field.
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+  });
+
+  it("round-trips an already-stored value without rewriting it on render", () => {
+    const onChange = vi.fn();
+    render(<Harness schema={stationsSchema()} initial={{ stations: [{ station_id: 1 }] }} onChange={onChange} />);
+
+    // The stored id maps to its manifest label…
+    expect(screen.getByText("North Terminal")).toBeInTheDocument();
+    // …and merely rendering must not mutate the persisted config.
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps the stored object shape when a different option is selected", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Harness schema={stationsSchema()} initial={{ stations: [{ station_id: 1 }] }} onChange={onChange} />);
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "East Terminal" }));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { stations: unknown[] };
+    expect(last.stations).toEqual([{ station_id: 9 }]);
+  });
+
+  it("falls back to the first enum value when a newly added entry's property declares no default", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Harness schema={stationsSchema()} initial={{ stations: [] }} onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: /add stations/i }));
+
+    // The Select already *displays* the first option, so persisting `{}` here
+    // would silently save a config that doesn't match what the user sees — and
+    // would drop the property the plugin lists as required.
+    const last = onChange.mock.calls.at(-1)?.[0] as { stations: unknown[] };
+    expect(last.stations).toEqual([{ station_id: 1 }]);
+  });
+
+  it("seeds a newly added entry with the property's default when it differs from the first enum value", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    // A manifest is free to declare a `default` that isn't `enum[0]` — several
+    // shipped plugins already do. The Select renders `default` in preference to
+    // `enum[0]`, so seeding `enum[0]` here would persist something other than
+    // what the user sees and make the declared default unreachable.
+    const schema: JSONSchema = {
+      type: "object",
+      properties: {
+        pets: {
+          type: "array",
+          title: "Pets",
+          items: {
+            type: "object",
+            properties: {
+              animal: { type: "string", title: "Animal", enum: ["cat", "dog", "random"], default: "random" },
+            },
+          },
+        },
+      },
+    };
+    render(<Harness schema={schema} initial={{ pets: [] }} onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: /add pets/i }));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { pets: unknown[] };
+    expect(last.pets).toEqual([{ animal: "random" }]);
+  });
+
+  it("honours a falsy default such as 0 rather than falling back to the first enum value", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    // `0` is a legitimate default and the Select does display it. Picking the
+    // seed must therefore be a presence check, not a truthiness check, or the
+    // seed silently drifts back to `enum[0]` for every falsy default.
+    const schema: JSONSchema = {
+      type: "object",
+      properties: {
+        offsets: {
+          type: "array",
+          title: "Offsets",
+          items: {
+            type: "object",
+            properties: {
+              minutes: { type: "integer", title: "Minutes", enum: [1, 0, 5], default: 0 },
+            },
+          },
+        },
+      },
+    };
+    render(<Harness schema={schema} initial={{ offsets: [] }} onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: /add offsets/i }));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { offsets: unknown[] };
+    expect(last.offsets).toEqual([{ minutes: 0 }]);
+    // The persisted seed matches what the Select shows for the fresh entry.
+    expect(screen.getByRole("combobox")).toHaveTextContent("0");
+  });
+
+  it("removes the entry the user clicked remove on", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <Harness
+        schema={stationsSchema()}
+        initial={{ stations: [{ station_id: 1 }, { station_id: 7 }, { station_id: 9 }] }}
+        onChange={onChange}
+      />,
+    );
+
+    const removeButtons = screen.getAllByRole("button", { name: "Remove item" });
+    expect(removeButtons).toHaveLength(3);
+    await user.click(removeButtons[1]);
+
+    const last = onChange.mock.calls.at(-1)?.[0] as { stations: unknown[] };
+    expect(last.stations).toEqual([{ station_id: 1 }, { station_id: 9 }]);
+  });
+
+  it("hides the add button once maxItems entries are present", () => {
+    const { unmount } = render(
+      <Harness schema={stationsSchema({ maxItems: 2 })} initial={{ stations: [{ station_id: 1 }] }} />,
+    );
+    expect(screen.getByRole("button", { name: /add stations/i })).toBeInTheDocument();
+    unmount();
+
+    render(
+      <Harness
+        schema={stationsSchema({ maxItems: 2 })}
+        initial={{ stations: [{ station_id: 1 }, { station_id: 7 }] }}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /add stations/i })).not.toBeInTheDocument();
+  });
+});
+
+/**
  * disney-parks-times-picker widget: a plugin declares
  * `"ui:widget": "disney-parks-times-picker"` on an array field to manage parks
  * and their rides. The custom-name input and the reorder arrows are gated

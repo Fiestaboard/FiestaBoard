@@ -555,105 +555,6 @@ function BooleanField({ name, value, onChange, disabled }: FieldProps) {
   return <Switch id={name} checked={Boolean(value)} onCheckedChange={onChange} disabled={disabled} />;
 }
 
-/** WSF route options for the route picker (id matches WSDOT API route_id) */
-const WSDOT_FERRY_ROUTES = [
-  { id: 1, label: "Seattle – Bainbridge Island" },
-  { id: 2, label: "Seattle – Bremerton" },
-  { id: 3, label: "Fauntleroy – Vashon – Southworth" },
-  { id: 4, label: "Point Defiance – Tahlequah" },
-  { id: 5, label: "Anacortes – San Juan Islands" },
-  { id: 6, label: "Anacortes – Sidney B.C." },
-  { id: 7, label: "Mukilteo – Clinton" },
-  { id: 8, label: "Port Townsend – Keystone" },
-  { id: 9, label: "Edmonds – Kingston" },
-] as const;
-
-interface WsdotRoutePickerProps extends FieldProps {
-  maxItems?: number;
-}
-
-function WsdotRoutePicker({
-  name,
-  property: _property,
-  value,
-  onChange,
-  disabled,
-  maxItems = 4,
-}: WsdotRoutePickerProps) {
-  const t = useTranslations("schemaForm");
-  const items = Array.isArray(value) ? value : [];
-  const routeEntries = items.map((item) =>
-    item && typeof item === "object" && "route_id" in item ? Number((item as { route_id: number }).route_id) : 0,
-  );
-
-  const setRouteAt = (index: number, routeId: number) => {
-    const next = [...routeEntries];
-    next[index] = routeId;
-    onChange(next.map((id) => ({ route_id: id })));
-  };
-
-  const handleAdd = () => {
-    const firstId = WSDOT_FERRY_ROUTES[0]?.id ?? 1;
-    onChange([...items, { route_id: firstId }]);
-  };
-
-  const handleRemove = (index: number) => {
-    const next = items.filter((_, i) => i !== index) as { route_id: number }[];
-    onChange(next);
-  };
-
-  const canAdd = routeEntries.length < maxItems;
-  const canRemove = routeEntries.length > 0;
-
-  return (
-    <Stack gap="3">
-      {routeEntries.map((routeId, index) => (
-        <Flex key={index} gap="2" align="center">
-          <Select
-            value={
-              routeId && WSDOT_FERRY_ROUTES.some((r) => r.id === routeId)
-                ? String(routeId)
-                : String(WSDOT_FERRY_ROUTES[0]?.id ?? "")
-            }
-            onValueChange={(val) => setRouteAt(index, parseInt(val, 10))}
-            disabled={disabled}
-          >
-            <SelectTrigger id={`${name}-${index}`} className="flex-1">
-              <SelectValue placeholder={t("selectFerryRoute")} />
-            </SelectTrigger>
-            <SelectContent>
-              {WSDOT_FERRY_ROUTES.map((route) => (
-                <SelectItem key={route.id} value={String(route.id)}>
-                  {route.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {canRemove && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => handleRemove(index)}
-              disabled={disabled}
-              className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
-              aria-label={t("removeRoute")}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-        </Flex>
-      ))}
-      {canAdd && (
-        <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={disabled} className="w-full">
-          <Plus className="h-4 w-4 mr-2" />
-          {t("addFerryRoute")}
-        </Button>
-      )}
-    </Stack>
-  );
-}
-
 // Disney Park Queue Times picker: display names, store park_id and ride_ids.
 // ride_ids order is the display/board order. custom_names maps a ride id to a
 // user-supplied label (empty/absent = use the real ride name).
@@ -1359,7 +1260,19 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
   const handleAdd = () => {
     let defaultValue: unknown;
     if (itemSchema.type === "object") {
-      defaultValue = {};
+      // Seed every enum-typed property — required or not — with the value its
+      // Select will display: the declared `default` when there is one, else the
+      // first allowed value. Both render paths resolve the shown option that
+      // way, so seeding anything else would persist something other than what
+      // the user sees. The presence check must stay `!== undefined` so a
+      // legitimate falsy default such as `0` or `""` is honoured.
+      const seeded: Record<string, unknown> = {};
+      for (const [key, propSchema] of Object.entries(itemSchema.properties ?? {})) {
+        if (Array.isArray(propSchema.enum) && propSchema.enum.length > 0) {
+          seeded[key] = propSchema.default !== undefined ? propSchema.default : propSchema.enum[0];
+        }
+      }
+      defaultValue = seeded;
     } else if (itemSchema.type === "string") {
       defaultValue = "";
     } else if (itemSchema.type === "number" || itemSchema.type === "integer") {
@@ -1523,19 +1436,6 @@ function FormField({
             required={required}
             disabled={disabled}
             allValues={allValues || {}}
-          />
-        );
-      }
-      if (property["ui:widget"] === "wsdot-route-picker" && property.items) {
-        return (
-          <WsdotRoutePicker
-            name={name}
-            property={property}
-            value={value}
-            onChange={onChange}
-            required={required}
-            disabled={disabled}
-            maxItems={property.maxItems ?? 4}
           />
         );
       }
