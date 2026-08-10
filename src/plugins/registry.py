@@ -12,12 +12,13 @@ import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait as futures_wait
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Optional
 
 from src.devices import BoardContext
 
-from .base import PluginBase, PluginResult
+from .base import OptionsRequest, OptionsResult, PluginBase, PluginResult, normalise
 from .loader import PluginLoader
 from .manifest import PluginManifest, VariableMetadata
 from .previews import load_preview_seed
@@ -810,6 +811,80 @@ class PluginRegistry:
         except Exception as e:
             logger.exception(f"Error fetching data from {plugin_id}")
             return PluginResult(available=False, error=str(e))
+
+    def get_plugin_options(
+        self,
+        plugin_id: str,
+        options_id: str,
+        request: OptionsRequest,
+        draft_config: dict[str, Any] | None = None,
+    ) -> OptionsResult:
+        """Ask a plugin to browse its upstream catalog for one settings field.
+
+        Runs on a **throwaway sandbox instance**, never the live one. Options
+        are fetched while the settings dialog is open — potentially on every
+        keystroke — and the live instance's ``config`` setter fires
+        :meth:`~src.plugins.base.PluginBase.clear_cache` and
+        :meth:`~src.plugins.base.PluginBase.on_config_change`. For the Home
+        Assistant plugin that tears down its running MQTT statestream listener,
+        so typing in a search box would repeatedly kill a live subscription.
+        The sandbox gets its config assigned to ``_config`` directly, bypassing
+        the property setter and its side effects, and is always cleaned up.
+
+        The plugin's stored config is applied whether or not it is enabled:
+        a user configuring a plugin for the first time has not enabled it yet.
+
+        Args:
+            plugin_id: Plugin identifier, possibly an instance key (``weather:sf``).
+            options_id: Which catalog to browse (from ``ui:options.options_id``).
+            request: Query/paging context. Its ``options_id`` is overridden by
+                the *options_id* argument so the caller's route wins.
+            draft_config: Unsaved settings-form values. Not yet applied — see
+                the TODO below.
+
+        Returns:
+            An :class:`OptionsResult`.
+
+        Raises:
+            KeyError: No such plugin, or its class is no longer loadable.
+            NotImplementedError: The plugin is a transition plugin, or does not
+                implement ``get_options``.
+            OptionsUnavailable: The plugin cannot answer right now.
+        """
+        base_id, _instance_label = self.parse_instance_key(plugin_id)
+
+        live = self._plugins.get(plugin_id)
+        if live is None:
+            raise KeyError(f"Plugin not found: {plugin_id}")
+
+        # Transition plugins animate sends; they have no settings catalog.
+        if not isinstance(live, PluginBase):
+            raise NotImplementedError(f"Plugin {plugin_id} is a transition plugin (no options)")
+
+        # Config comes from the full instance key, the class from the base id.
+        effective_config = dict(self._configs.get(plugin_id) or {})
+        # TODO(#options-route): merge *draft_config* over effective_config once
+        # the HTTP layer can unmask the redacted secrets the form sends back.
+        # Applying it verbatim today would overwrite a real API key with the
+        # placeholder the UI displays.
+        _ = draft_config
+
+        sandbox = self._loader.create_instance(base_id)
+        if sandbox is None:
+            raise KeyError(f"Cannot create sandbox instance for plugin: {base_id}")
+
+        # Direct field assignment on purpose: the ``config`` property setter
+        # calls clear_cache() + on_config_change(), which is exactly the
+        # teardown this sandbox exists to avoid.
+        sandbox._config = effective_config
+
+        try:
+            return normalise(sandbox.get_options(replace(request, options_id=options_id)))
+        finally:
+            try:
+                sandbox.cleanup()
+            except Exception:
+                logger.exception("Error cleaning up options sandbox for %s", plugin_id)
 
     def _discover_variables(self, plugin_id: str) -> list[str]:
         """Introspect a plugin's live data to discover top-level variable names.

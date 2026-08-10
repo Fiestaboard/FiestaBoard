@@ -393,6 +393,80 @@ plugins do not declare these fields.
 See the [plugin guide](https://fiestaboard.app/docs/development/plugin-guide#board-previews)
 for the full field reference.
 
+## Settings Options From Live Data (`remote-options`)
+
+When a setting is a choice out of your service's catalog — a ticker, a transit
+stop, a station — do not make the user hand-type it into a bare array. Declare
+the field as a remote-options field in the manifest and implement one method.
+No core change is needed for a new plugin.
+
+```json
+{
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "symbols": {
+        "type": "array",
+        "title": "Symbols",
+        "ui:widget": "remote-options",
+        "ui:options": {
+          "options_id": "symbols",
+          "multiple": true,
+          "cache_seconds": 300
+        }
+      }
+    }
+  }
+}
+```
+
+`ui:options` accepts exactly four keys:
+
+| Key | Meaning |
+| --- | --- |
+| `options_id` | Which catalog this field wants. `^[a-z][a-z0-9_]*$`, unique across the schema. |
+| `depends_on` | Sibling or root property names whose values scope the catalog. |
+| `multiple` | Multi-select. Requires `"type": "array"`. |
+| `cache_seconds` | How long the UI may reuse the list. Integer, 0–3600. |
+
+Then implement `get_options()` — one method serves every `options_id`:
+
+```python
+from src.plugins.base import Option, OptionsRequest, OptionsResult, OptionsUnavailable
+
+class StocksPlugin(PluginBase):
+    def get_options(self, request: OptionsRequest) -> OptionsResult | list[Option]:
+        if not self.config.get("api_key"):
+            raise OptionsUnavailable("Add an API key first")
+        if request.options_id != "symbols":
+            raise NotImplementedError(request.options_id)
+
+        matches = search_symbols(request.query, timeout=5)
+        return [Option(value=m.ticker, label=m.name, group=m.exchange) for m in matches]
+```
+
+Returning a bare list is fine; return an `OptionsResult` when you need
+`has_more`/`cursor` paging.
+
+**This is not `fetch_data()`.** `fetch_data` returns board content for items the
+user has *already* chosen; `get_options` browses the whole upstream catalog so
+they can choose something new. It runs while the settings dialog is open,
+potentially on every keystroke, on a plugin that may not be configured yet:
+
+- Be safe when disabled or unconfigured — raise `OptionsUnavailable` rather than
+  assuming credentials exist
+- Put a timeout on every outbound call
+- Never mutate persisted state (no config writes, no cache priming, no
+  background threads or connections)
+
+The registry runs `get_options()` on a **throwaway instance** with your stored
+config applied, and calls `cleanup()` afterwards — your live instance is never
+touched, so a search box cannot disturb a running listener.
+
+A manifest that declares `remote-options` on a plugin that does not implement
+`get_options()` still loads, but the mismatch is reported by
+`GET /plugins/errors`. An unrecognized `ui:widget` is only a warning.
+
 ## Plugin Structure
 
 ```text

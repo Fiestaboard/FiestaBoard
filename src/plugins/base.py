@@ -10,7 +10,7 @@ import threading
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -114,6 +114,99 @@ class PluginInfo:
     author: str = "Unknown"
     repository: str = ""
     documentation: str = "README.md"
+
+
+class OptionsUnavailable(Exception):
+    """The plugin ran but cannot produce options right now.
+
+    Raise this for "ask me later" conditions — no API key configured yet, the
+    upstream service is unreachable, a dependent field has not been chosen.
+    It is *not* an error in the plugin; the UI turns it into a hint next to the
+    field rather than a stack trace.
+    """
+
+
+@dataclass
+class Option:
+    """One selectable choice offered by :meth:`PluginBase.get_options`.
+
+    Attributes:
+        value: What gets stored in the plugin config. JSON scalars only —
+            the value round-trips through config.json and the settings form.
+        label: Human-readable text shown in the picker.
+        description: Secondary line under the label.
+        group: Optional heading the option is filed under.
+        preview: Short sample of what this choice puts on the board.
+        disabled: Show the option but refuse selection (e.g. unsupported).
+        meta: Free-form extras for the widget; never persisted to config.
+    """
+
+    value: str | int | float | bool
+    label: str
+    description: str | None = None
+    group: str | None = None
+    preview: str | None = None
+    disabled: bool = False
+    meta: dict[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        # ``value`` is written verbatim into the plugin's stored config, so a
+        # dict or list here becomes an un-comparable, un-dedupable blob that
+        # only fails much later. Reject it where it is created.
+        if not isinstance(self.value, str | int | float | bool):
+            raise TypeError(f"Option.value must be a JSON scalar, got {type(self.value).__name__}")
+
+
+@dataclass
+class OptionsRequest:
+    """A request for one field's choices.
+
+    Attributes:
+        options_id: Which catalog the field asked for (from the manifest's
+            ``ui:options.options_id``).
+        parent: Values of the fields this one ``depends_on``, so the plugin can
+            scope the catalog (e.g. ``{"agency": "SF"}``).
+        query: Free-text the user has typed, for server-side search.
+        limit: Maximum number of options to return.
+        cursor: Opaque continuation token from a previous result.
+    """
+
+    options_id: str
+    parent: dict[str, Any] = field(default_factory=dict)
+    query: str = ""
+    limit: int = 200
+    cursor: str | None = None
+
+
+@dataclass
+class OptionsResult:
+    """The answer to an :class:`OptionsRequest`.
+
+    Attributes:
+        options: The choices to show.
+        has_more: Whether more options exist beyond this page.
+        cursor: Continuation token to pass back for the next page.
+        total: Total catalog size when the plugin knows it.
+        error: Human-readable reason the list is empty or partial.
+    """
+
+    options: list[Option] = field(default_factory=list)
+    has_more: bool = False
+    cursor: str | None = None
+    total: int | None = None
+    error: str | None = None
+
+
+def normalise(result: "OptionsResult | list[Option]") -> "OptionsResult":
+    """Coerce a plugin's ``get_options`` return value into an :class:`OptionsResult`.
+
+    Most plugins have a small catalog and just want to return a list; paging
+    and totals are the exception. Accepting both keeps the common case a
+    one-liner without making every caller handle two shapes.
+    """
+    if isinstance(result, OptionsResult):
+        return result
+    return OptionsResult(options=list(result))
 
 
 class PluginBase(ABC):
@@ -572,6 +665,48 @@ class PluginBase(ABC):
         The default implementation raises ``NotImplementedError`` (→ HTTP 405).
         """
         raise NotImplementedError(f"Plugin {self.plugin_id} does not support receive")
+
+    def get_options(self, request: "OptionsRequest") -> "OptionsResult | list[Option]":
+        """Browse this plugin's upstream catalog so the user can pick from it.
+
+        Override this in plugins whose settings schema declares
+        ``"ui:widget": "remote-options"`` on a field. The manifest's
+        ``ui:options.options_id`` selects which catalog is being asked for;
+        one method serves them all via ``request.options_id``.
+
+        **This is not** :meth:`fetch_data`. ``fetch_data`` returns board content
+        for items the user has *already* selected. ``get_options`` browses the
+        whole upstream catalog so the user can select something new — it runs
+        while the settings dialog is open, on every keystroke in a search box,
+        for a plugin that may not be configured yet.
+
+        That leads to four rules:
+
+        * **Be safe when disabled or unconfigured.** The method is called on a
+          throwaway instance with the draft config applied, whether or not the
+          plugin is enabled. Raise :class:`OptionsUnavailable` rather than
+          assuming credentials exist.
+        * **Set a timeout on every outbound call.** A hung request here blocks
+          a UI interaction, not a background poll.
+        * **Do not mutate persisted state.** No config writes, no cache
+          priming, no starting background threads or connections.
+        * **Raise** :class:`OptionsUnavailable` for "cannot answer right now"
+          (not configured, upstream down); let genuine bugs raise normally.
+
+        Return either an :class:`OptionsResult` or a bare ``list[Option]`` —
+        :func:`normalise` accepts both.
+
+        Args:
+            request: Which catalog to browse, plus query/paging context.
+
+        Returns:
+            An :class:`OptionsResult`, or a plain list of :class:`Option`.
+
+        Raises:
+            OptionsUnavailable: The plugin cannot answer right now.
+            NotImplementedError: The plugin offers no remote options (default).
+        """
+        raise NotImplementedError(f"Plugin {self.plugin_id} does not provide options")
 
     def check_triggers(self) -> list["TriggerResult"]:
         """Check whether any event-based triggers should fire.

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .base import PluginBase, TransitionPluginBase
-from .manifest import PluginManifest, load_manifest
+from .manifest import PluginManifest, collect_options_ids, load_manifest
 from .sources import (
     PluginSource,
     get_external_plugins_dir,
@@ -378,6 +378,24 @@ class PluginLoader:
                 )
                 self._load_errors[plugin_name] = errors
                 return None
+
+            # A manifest can promise remote options that the code never
+            # delivers. Soft failure on purpose: the plugin is otherwise fine
+            # and must keep working, but the mismatch is invisible until a
+            # user opens the settings dialog and the picker comes up empty,
+            # so surface it through GET /plugins/errors instead.
+            options_ids = collect_options_ids(manifest.settings_schema)
+            if (
+                options_ids
+                and isinstance(plugin_instance, PluginBase)
+                and type(plugin_instance).get_options is PluginBase.get_options
+            ):
+                message = (
+                    f"Manifest declares remote options {sorted(options_ids)} but "
+                    f"{type(plugin_instance).__name__} does not implement get_options()"
+                )
+                logger.warning("Plugin '%s': %s", plugin_name, message)
+                self._load_errors.setdefault(plugin_name, []).append(message)
 
             # Store loaded plugin and class
             self._loaded_plugins[manifest.id] = (plugin_instance, manifest)
