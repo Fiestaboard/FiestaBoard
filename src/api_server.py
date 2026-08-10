@@ -6608,6 +6608,11 @@ async def update_display_settings(request: dict):
     - board_animations: "on" | "desktop" | "off" — control split-flap board
       animation. "desktop" disables it on mobile screens only.
     - site_animations: "on" | "off" — control general UI transitions/hovers.
+    - board_flap_speed: "hardware" | "quick" | "standard" | "relaxed", or a
+      raw millisecond count clamped to [8, 2000] — how fast a tile flips one
+      character in the ON-SCREEN board preview. Default "standard" (80ms).
+      This is not the physical board: pacing for the hardware lives in
+      /settings/transitions (step_interval_ms / step_size).
     """
     settings_service = get_settings_service()
     display = settings_service.update_display_settings(request)

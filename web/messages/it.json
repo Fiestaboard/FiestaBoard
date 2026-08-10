@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "Transizioni, hover e altri movimenti dell'interfaccia",
     "siteAnimationsOn": "Attive",
     "siteAnimationsOff": "Disattive",
-    "animationsReduceMotionOverride": "«Riduci movimento» è attivo e sovrascrive queste impostazioni."
+    "animationsReduceMotionOverride": "«Riduci movimento» è attivo e sovrascrive queste impostazioni.",
+    "flapSpeedLabel": "Velocità di ribaltamento",
+    "flapSpeedHint": "Per quanto tempo ogni tessera mostra un carattere mentre il board si assesta",
+    "flapSpeed_hardware": "Hardware",
+    "flapSpeed_quick": "Rapida",
+    "flapSpeed_standard": "Standard",
+    "flapSpeed_relaxed": "Rilassata",
+    "flapSpeed_hardwareHint": "{ms} ms — la cadenza dell'apparecchio reale. Circa un fotogramma per carattere, quindi un board che si assesta appare sfocato anziché leggibile.",
+    "flapSpeed_quickHint": "{ms} ms — più veloce del valore predefinito, con i caratteri ancora leggibili durante il ribaltamento.",
+    "flapSpeed_standardHint": "{ms} ms — il valore predefinito, quello che FiestaBoard ha sempre usato.",
+    "flapSpeed_relaxedHint": "{ms} ms — un ribaltamento lento e deliberato per display d'ambiente.",
+    "flapSpeedPreviewLabel": "Anteprima",
+    "flapSpeedInactive": "Le animazioni del board sono disattivate, quindi la velocità di ribaltamento non ha effetto.",
+    "flapSpeedScreenOnlyNote": "Questo cambia solo l'anteprima del board a schermo. Il ritmo delle transizioni del tuo Vestaboard fisico si imposta separatamente, in Comportamento → Transizioni del board."
   },
   "monitor": {
     "title": "Monitor",

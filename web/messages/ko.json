@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "전환, 호버 및 기타 UI 모션",
     "siteAnimationsOn": "켜짐",
     "siteAnimationsOff": "꺼짐",
-    "animationsReduceMotionOverride": "「모션 줄이기」가 활성화되어 이 설정을 재정의합니다."
+    "animationsReduceMotionOverride": "「모션 줄이기」가 활성화되어 이 설정을 재정의합니다.",
+    "flapSpeedLabel": "회전 속도",
+    "flapSpeedHint": "보드가 안정될 때까지 각 타일이 한 글자를 표시하는 시간",
+    "flapSpeed_hardware": "하드웨어",
+    "flapSpeed_quick": "빠르게",
+    "flapSpeed_standard": "표준",
+    "flapSpeed_relaxed": "느긋하게",
+    "flapSpeed_hardwareHint": "{ms}ms — 실제 기기와 같은 속도. 글자당 약 한 프레임이라 전환 중인 보드는 글자가 아니라 흐릿하게 보입니다.",
+    "flapSpeed_quickHint": "{ms}ms — 기본값보다 빠르지만 회전 중에도 글자를 읽을 수 있습니다.",
+    "flapSpeed_standardHint": "{ms}ms — 기본값이며 FiestaBoard가 계속 사용해 온 속도입니다.",
+    "flapSpeed_relaxedHint": "{ms}ms — 은은한 디스플레이를 위한 느리고 차분한 회전.",
+    "flapSpeedPreviewLabel": "미리보기",
+    "flapSpeedInactive": "보드 애니메이션이 꺼져 있어 회전 속도는 적용되지 않습니다.",
+    "flapSpeedScreenOnlyNote": "이 설정은 화면의 보드 미리보기만 바꿉니다. 실제 Vestaboard의 전환 속도는 동작 → 보드 전환에서 따로 설정합니다."
   },
   "monitor": {
     "title": "모니터",

@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "Geçişler, hover'lar ve diğer arayüz hareketi",
     "siteAnimationsOn": "Açık",
     "siteAnimationsOff": "Kapalı",
-    "animationsReduceMotionOverride": "\"Hareketi azalt\" etkin, bu ayarları geçersiz kılar."
+    "animationsReduceMotionOverride": "\"Hareketi azalt\" etkin, bu ayarları geçersiz kılar.",
+    "flapSpeedLabel": "Çevirme hızı",
+    "flapSpeedHint": "Board yerine oturana kadar her karonun bir karakteri ne kadar süre gösterdiği",
+    "flapSpeed_hardware": "Donanım",
+    "flapSpeed_quick": "Hızlı",
+    "flapSpeed_standard": "Standart",
+    "flapSpeed_relaxed": "Sakin",
+    "flapSpeed_hardwareHint": "{ms} ms — gerçek cihazın kendi hızı. Karakter başına yaklaşık bir kare düştüğü için yerine oturan board okunaklı harfler yerine bulanık görünür.",
+    "flapSpeed_quickHint": "{ms} ms — varsayılandan hızlı, karakterler çevrilirken hâlâ okunabilir.",
+    "flapSpeed_standardHint": "{ms} ms — varsayılan ve FiestaBoard'un her zaman kullandığı hız.",
+    "flapSpeed_relaxedHint": "{ms} ms — ortam ekranları için yavaş, ölçülü bir çevirme.",
+    "flapSpeedPreviewLabel": "Önizleme",
+    "flapSpeedInactive": "Board animasyonları kapalı, bu yüzden çevirme hızının etkisi yok.",
+    "flapSpeedScreenOnlyNote": "Bu yalnızca ekrandaki board önizlemesini değiştirir. Fiziksel Vestaboard'unuzun kendi geçiş hızı ayrı olarak Davranış → Board geçişleri altında ayarlanır."
   },
   "monitor": {
     "title": "Monitör",

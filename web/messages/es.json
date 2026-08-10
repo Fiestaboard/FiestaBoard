@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "Transiciones, efectos al pasar el ratón y otro movimiento de la interfaz",
     "siteAnimationsOn": "Activadas",
     "siteAnimationsOff": "Desactivadas",
-    "animationsReduceMotionOverride": "Reducir movimiento está activado, lo que anula estos ajustes."
+    "animationsReduceMotionOverride": "Reducir movimiento está activado, lo que anula estos ajustes.",
+    "flapSpeedLabel": "Velocidad de giro",
+    "flapSpeedHint": "Cuánto tiempo muestra cada casilla un carácter mientras la pantalla se asienta",
+    "flapSpeed_hardware": "Hardware",
+    "flapSpeed_quick": "Rápida",
+    "flapSpeed_standard": "Estándar",
+    "flapSpeed_relaxed": "Pausada",
+    "flapSpeed_hardwareHint": "{ms} ms: el ritmo del aparato real. Aproximadamente un fotograma por carácter, así que la pantalla se ve borrosa en vez de mostrar letras girando.",
+    "flapSpeed_quickHint": "{ms} ms: más rápida que la predeterminada, con los caracteres aún legibles durante el giro.",
+    "flapSpeed_standardHint": "{ms} ms: la predeterminada, y la que FiestaBoard siempre ha usado.",
+    "flapSpeed_relaxedHint": "{ms} ms: un giro lento y deliberado para pantallas ambientales.",
+    "flapSpeedPreviewLabel": "Vista previa",
+    "flapSpeedInactive": "Las animaciones de la pantalla están desactivadas, así que la velocidad de giro no tiene efecto.",
+    "flapSpeedScreenOnlyNote": "Esto solo cambia la vista previa en pantalla. El ritmo de las transiciones de tu Vestaboard físico se configura aparte, en Comportamiento → Transiciones de la pantalla."
   },
   "monitor": {
     "title": "Monitor",

@@ -838,6 +838,13 @@ export interface DisplaySettings {
   reduce_motion: boolean;
   board_animations: BoardAnimationsMode;
   site_animations: SiteAnimationsMode;
+  /** Milliseconds per split-flap character step for the ON-SCREEN board
+   *  preview only — unrelated to `TransitionSettings.step_interval_ms`, which
+   *  paces the physical Vestaboard over the Local API. Normally one of the
+   *  `FLAP_SPEED_PRESETS` names from `@fiestaboard/ui` (`"hardware"` |
+   *  `"quick"` | `"standard"` | `"relaxed"`); a raw millisecond count is
+   *  accepted as an escape hatch and clamped to [8, 2000]. */
+  board_flap_speed: string | number;
 }
 
 export interface BetaSettings {

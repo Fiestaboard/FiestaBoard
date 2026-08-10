@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "Transições, efeitos de cursor e outro movimento da UI",
     "siteAnimationsOn": "Ativadas",
     "siteAnimationsOff": "Desativadas",
-    "animationsReduceMotionOverride": "«Reduzir movimento» está ativado, o que substitui estas definições."
+    "animationsReduceMotionOverride": "«Reduzir movimento» está ativado, o que substitui estas definições.",
+    "flapSpeedLabel": "Velocidade de viragem",
+    "flapSpeedHint": "Quanto tempo cada mosaico mostra um carácter enquanto o board estabiliza",
+    "flapSpeed_hardware": "Hardware",
+    "flapSpeed_quick": "Rápida",
+    "flapSpeed_standard": "Padrão",
+    "flapSpeed_relaxed": "Calma",
+    "flapSpeed_hardwareHint": "{ms} ms — o ritmo do aparelho real. Cerca de um fotograma por carácter, pelo que um board a estabilizar aparece desfocado em vez de legível.",
+    "flapSpeed_quickHint": "{ms} ms — mais rápida do que a predefinição, com os caracteres ainda legíveis durante a viragem.",
+    "flapSpeed_standardHint": "{ms} ms — a predefinição, e o que o FiestaBoard sempre usou.",
+    "flapSpeed_relaxedHint": "{ms} ms — uma viragem lenta e deliberada para ecrãs de ambiente.",
+    "flapSpeedPreviewLabel": "Pré-visualização",
+    "flapSpeedInactive": "As animações do board estão desligadas, por isso a velocidade de viragem não tem efeito.",
+    "flapSpeedScreenOnlyNote": "Isto altera apenas a pré-visualização do board no ecrã. O ritmo das transições do seu Vestaboard físico define-se à parte, em Comportamento → Transições do board."
   },
   "monitor": {
     "title": "Monitor",

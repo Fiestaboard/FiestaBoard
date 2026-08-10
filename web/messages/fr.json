@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "Transitions, survols et autres mouvements de l'interface",
     "siteAnimationsOn": "Activées",
     "siteAnimationsOff": "Désactivées",
-    "animationsReduceMotionOverride": "« Réduire les animations » est activé, ce qui remplace ces paramètres."
+    "animationsReduceMotionOverride": "« Réduire les animations » est activé, ce qui remplace ces paramètres.",
+    "flapSpeedLabel": "Vitesse de basculement",
+    "flapSpeedHint": "Durée pendant laquelle chaque tuile affiche un caractère le temps que le board se stabilise",
+    "flapSpeed_hardware": "Matériel",
+    "flapSpeed_quick": "Rapide",
+    "flapSpeed_standard": "Standard",
+    "flapSpeed_relaxed": "Posée",
+    "flapSpeed_hardwareHint": "{ms} ms — la cadence de l'appareil réel. Environ une image par caractère : un board en cours de stabilisation apparaît flou plutôt que lisible.",
+    "flapSpeed_quickHint": "{ms} ms — plus rapide que la valeur par défaut, les caractères restent lisibles pendant le basculement.",
+    "flapSpeed_standardHint": "{ms} ms — la valeur par défaut, celle que FiestaBoard a toujours utilisée.",
+    "flapSpeed_relaxedHint": "{ms} ms — un basculement lent et posé pour les affichages d'ambiance.",
+    "flapSpeedPreviewLabel": "Aperçu",
+    "flapSpeedInactive": "Les animations du board sont désactivées : la vitesse de basculement n'a aucun effet.",
+    "flapSpeedScreenOnlyNote": "Cela ne modifie que l'aperçu du board à l'écran. La cadence des transitions de votre Vestaboard physique se règle séparément, dans Comportement → Transitions du board."
   },
   "monitor": {
     "title": "Moniteur",

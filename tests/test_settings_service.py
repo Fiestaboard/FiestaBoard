@@ -743,6 +743,38 @@ class TestDisplaySettings:
         restored = DisplaySettings.from_dict(original.to_dict())
         assert restored == original
 
+    def test_board_flap_speed_defaults_to_standard(self):
+        assert DisplaySettings().board_flap_speed == "standard"
+        assert DisplaySettings.from_dict({}).board_flap_speed == "standard"
+
+    @pytest.mark.parametrize("preset", ["hardware", "quick", "standard", "relaxed"])
+    def test_from_dict_accepts_each_flap_speed_preset(self, preset):
+        assert DisplaySettings.from_dict({"board_flap_speed": preset}).board_flap_speed == preset
+
+    def test_from_dict_flap_speed_is_case_insensitive(self):
+        assert DisplaySettings.from_dict({"board_flap_speed": "RELAXED"}).board_flap_speed == "relaxed"
+
+    def test_from_dict_flap_speed_accepts_raw_milliseconds(self):
+        # The escape hatch: a cadence the four presets do not cover.
+        assert DisplaySettings.from_dict({"board_flap_speed": 200}).board_flap_speed == 200
+        assert DisplaySettings.from_dict({"board_flap_speed": "200"}).board_flap_speed == 200
+
+    def test_from_dict_flap_speed_clamps_out_of_range_milliseconds(self):
+        # Below ~8ms nothing survives a frame boundary; above 2s a board would
+        # take minutes to settle. Clamp rather than reject, so a bad value
+        # degrades instead of wedging the UI.
+        assert DisplaySettings.from_dict({"board_flap_speed": 1}).board_flap_speed == 8
+        assert DisplaySettings.from_dict({"board_flap_speed": 99999}).board_flap_speed == 2000
+
+    def test_from_dict_rejects_invalid_flap_speed(self):
+        assert DisplaySettings.from_dict({"board_flap_speed": "blazing"}).board_flap_speed == "standard"
+        assert DisplaySettings.from_dict({"board_flap_speed": True}).board_flap_speed == "standard"
+        assert DisplaySettings.from_dict({"board_flap_speed": None}).board_flap_speed == "standard"
+
+    def test_to_dict_roundtrip_preserves_flap_speed(self):
+        original = DisplaySettings(board_flap_speed="relaxed")
+        assert DisplaySettings.from_dict(original.to_dict()) == original
+
 
 class TestSettingsServiceDisplay:
     """Test SettingsService display-settings methods."""
@@ -760,6 +792,22 @@ class TestSettingsServiceDisplay:
     def test_update_site_animations(self, settings_service):
         ds = settings_service.update_display_settings({"site_animations": "off"})
         assert ds.site_animations == "off"
+
+    def test_update_board_flap_speed(self, settings_service):
+        ds = settings_service.update_display_settings({"board_flap_speed": "hardware"})
+        assert ds.board_flap_speed == "hardware"
+
+    def test_update_board_flap_speed_rejects_invalid_value(self, settings_service):
+        settings_service.update_display_settings({"board_flap_speed": "relaxed"})
+        ds = settings_service.update_display_settings({"board_flap_speed": "warp"})
+        assert ds.board_flap_speed == "standard"
+
+    def test_update_board_flap_speed_leaves_hardware_transitions_alone(self, settings_service):
+        # The on-screen cadence and the physical board's step interval are
+        # different settings; touching one must not touch the other.
+        before = settings_service.get_transition_settings()
+        settings_service.update_display_settings({"board_flap_speed": "quick"})
+        assert settings_service.get_transition_settings() == before
 
     def test_update_display_settings_partial_preserves_others(self, settings_service):
         settings_service.update_display_settings(
