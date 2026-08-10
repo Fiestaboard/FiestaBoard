@@ -47,6 +47,22 @@ This project uses a **unified single container** for all environments (productio
 - **CI**: Tests run directly on the GitHub Actions host for speed (Python and Node.js installed natively)
 - Re-testing after changes should also be done in the container
 
+### Test quality bar
+
+Coverage is not proof. A test that still passes when you revert the production
+change it covers is testing nothing.
+
+- Write the test first and watch it fail. Confirm it fails for the reason you
+  expect, not from a typo, a missing import, or an unmocked request.
+- If a test was written after the code it covers, prove it is not vacuous:
+  break that specific behavior in the production code, confirm the test fails,
+  then restore it. Put the observed failure output in the PR description.
+- One behavior per test, named for the behavior.
+- Never weaken an assertion to make a test pass. Fix the code, or establish
+  that the test encoded the wrong contract and say which.
+- A green CI run is not evidence a new test works. It is only evidence that
+  nothing already covered broke.
+
 ### Exceptions
 
 The only code that may run locally:
