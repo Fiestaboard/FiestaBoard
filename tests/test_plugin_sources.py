@@ -1,11 +1,17 @@
 """Tests for the external plugin sources module."""
 
 import json
+import os
+import shutil
 import subprocess
 from pathlib import Path
 from unittest import mock
 
-from src.plugins.loader import _check_version_constraint, _parse_version
+from src.plugins.loader import (
+    _check_version_constraint,
+    _get_fiestaboard_version,
+    _parse_version,
+)
 from src.plugins.sources import (
     PluginSource,
     RegistryEntry,
@@ -679,21 +685,303 @@ class TestCheckPluginUpdateAvailable:
     def test_no_update_when_shas_match(self, _remote, _local, tmp_path):
         d = tmp_path / "plugin"
         d.mkdir()
-        assert not check_plugin_update_available(d)
+        assert check_plugin_update_available(d).available is False
 
     @mock.patch("src.plugins.sources.get_local_head_sha", return_value="abc")
     @mock.patch("src.plugins.sources.get_remote_head_sha", return_value="def")
     def test_update_available_when_shas_differ(self, _remote, _local, tmp_path):
         d = tmp_path / "plugin"
         d.mkdir()
-        assert check_plugin_update_available(d)
+        assert check_plugin_update_available(d).available is True
 
     @mock.patch("src.plugins.sources.get_local_head_sha", return_value=None)
     @mock.patch("src.plugins.sources.get_remote_head_sha", return_value="def")
     def test_no_update_when_local_sha_missing(self, _remote, _local, tmp_path):
         d = tmp_path / "plugin"
         d.mkdir()
-        assert not check_plugin_update_available(d)
+        assert check_plugin_update_available(d).available is False
+
+
+# ── incoming-version guard ───────────────────────────────────────────────────
+
+
+_GIT_ENV = {
+    "GIT_CONFIG_GLOBAL": os.devnull,
+    "GIT_CONFIG_SYSTEM": os.devnull,
+    "GIT_AUTHOR_NAME": "Test",
+    "GIT_AUTHOR_EMAIL": "test@example.com",
+    "GIT_COMMITTER_NAME": "Test",
+    "GIT_COMMITTER_EMAIL": "test@example.com",
+    "GIT_TERMINAL_PROMPT": "0",
+}
+
+
+def _git(cwd: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(cwd), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={**os.environ, **_GIT_ENV},
+    )
+    return result.stdout.strip()
+
+
+def _origin_and_clone(tmp_path: Path, incoming_manifest: str) -> tuple[Path, Path]:
+    """Build a real origin repo plus a clone one commit behind it.
+
+    The clone's checked-out manifest is always a plain, current-core manifest;
+    ``incoming_manifest`` is only ever the *remote* head's content, so any test
+    that reads it proves the read came from the remote and not from disk.
+    """
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    _git(origin, "init", "--quiet", "--initial-branch=main")
+    (origin / "manifest.json").write_text(
+        json.dumps({"id": "p", "name": "P", "version": "1.0.0"}),
+        encoding="utf-8",
+    )
+    _git(origin, "add", "-A")
+    _git(origin, "commit", "--quiet", "-m", "initial")
+
+    clone = tmp_path / "clone"
+    subprocess.run(
+        ["git", "clone", "--quiet", str(origin), str(clone)],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={**os.environ, **_GIT_ENV},
+    )
+
+    (origin / "manifest.json").write_text(incoming_manifest, encoding="utf-8")
+    _git(origin, "add", "-A")
+    _git(origin, "commit", "--quiet", "-m", "incoming")
+    return origin, clone
+
+
+def _check_against_real_remote(origin: Path, clone: Path):
+    """Run the check with the real SHAs of ``origin``/``clone``.
+
+    Only the two SHA helpers are stubbed, and only because
+    :func:`get_remote_head_sha` refuses non-HTTPS remotes.  The manifest read
+    under test still runs for real against the local origin.
+    """
+    local_sha = _git(clone, "rev-parse", "HEAD")
+    remote_sha = _git(origin, "rev-parse", "HEAD")
+    with (
+        mock.patch("src.plugins.sources.get_local_head_sha", return_value=local_sha),
+        mock.patch("src.plugins.sources.get_remote_head_sha", return_value=remote_sha),
+    ):
+        return check_plugin_update_available(clone)
+
+
+class TestUpdateBlockedByCoreVersion:
+    """An update must not be offered when the incoming manifest declares a
+    ``fiestaboard_version`` floor above the running core.
+
+    The loader rejects a manifest it cannot parse outright (``load_manifest``
+    returns *None*), which uninstalls the plugin from the user's board in
+    practice.  Auto-update polls hourly and is on by default while core
+    updates are a manual image pull, so without this guard a plugin can
+    update past its core and silently vanish.
+    """
+
+    def test_no_update_when_incoming_requires_newer_core(self, tmp_path):
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": ">=99.0.0",
+                }
+            ),
+        )
+        local_sha = _git(clone, "rev-parse", "HEAD")
+        remote_sha = _git(origin, "rev-parse", "HEAD")
+
+        with (
+            mock.patch("src.plugins.sources.get_local_head_sha", return_value=local_sha),
+            mock.patch("src.plugins.sources.get_remote_head_sha", return_value=remote_sha),
+        ):
+            result = check_plugin_update_available(clone)
+
+        assert result.available is False
+        assert ">=99.0.0" in result.blocked_reason
+
+    def test_update_offered_when_running_core_satisfies_floor(self, tmp_path):
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": ">=1.0.0",
+                }
+            ),
+        )
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_update_offered_when_incoming_manifest_has_no_version(self, tmp_path):
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps({"id": "p", "name": "P", "version": "2.0.0"}),
+        )
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_update_offered_when_remote_manifest_is_malformed_json(self, tmp_path):
+        origin, clone = _origin_and_clone(tmp_path, "{ not json at all")
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_update_offered_when_remote_manifest_cannot_be_read(self, tmp_path):
+        """The remote is unreachable — fail open, and let no exception escape."""
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": ">=99.0.0",
+                }
+            ),
+        )
+        remote_sha = _git(origin, "rev-parse", "HEAD")
+        local_sha = _git(clone, "rev-parse", "HEAD")
+        shutil.rmtree(origin)
+
+        with (
+            mock.patch("src.plugins.sources.get_local_head_sha", return_value=local_sha),
+            mock.patch("src.plugins.sources.get_remote_head_sha", return_value=remote_sha),
+        ):
+            result = check_plugin_update_available(clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_update_offered_when_remote_head_has_no_manifest(self, tmp_path):
+        origin, clone = _origin_and_clone(tmp_path, "{}")
+        (origin / "manifest.json").unlink()
+        _git(origin, "add", "-A")
+        _git(origin, "commit", "--quiet", "-m", "drop manifest")
+
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_update_offered_when_remote_manifest_is_not_an_object(self, tmp_path):
+        origin, clone = _origin_and_clone(tmp_path, json.dumps(["not", "a", "manifest"]))
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_detached_clone_still_reads_the_remote_floor(self, tmp_path):
+        """A clone checked out at a tag reports "HEAD" as its branch name."""
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": ">=99.0.0",
+                }
+            ),
+        )
+        _git(clone, "checkout", "--quiet", "--detach", "HEAD")
+
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is False
+        assert ">=99.0.0" in result.blocked_reason
+
+    def test_update_offered_when_constraint_is_unparseable(self, tmp_path):
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": "whatever-comes-next",
+                }
+            ),
+        )
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_equal_version_satisfies_a_greater_or_equal_floor(self, tmp_path):
+        """Boundary: the running core exactly meets the floor it declares."""
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": f">={_get_fiestaboard_version()}",
+                }
+            ),
+        )
+        result = _check_against_real_remote(origin, clone)
+
+        assert result.available is True
+        assert result.blocked_reason == ""
+
+    def test_no_update_when_shas_identical_and_remote_is_never_read(self, tmp_path):
+        _origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps({"id": "p", "name": "P", "version": "2.0.0"}),
+        )
+        local_sha = _git(clone, "rev-parse", "HEAD")
+
+        with (
+            mock.patch("src.plugins.sources.get_local_head_sha", return_value=local_sha),
+            mock.patch("src.plugins.sources.get_remote_head_sha", return_value=local_sha),
+            mock.patch("src.plugins.sources._read_remote_manifest_version") as read_manifest,
+        ):
+            result = check_plugin_update_available(clone)
+
+        assert result.available is False
+        assert result.blocked_reason == ""
+        read_manifest.assert_not_called()
+
+    def test_check_does_not_modify_the_working_tree(self, tmp_path):
+        """The guard inspects the remote ref; it never pulls first and asks later."""
+        origin, clone = _origin_and_clone(
+            tmp_path,
+            json.dumps(
+                {
+                    "id": "p",
+                    "name": "P",
+                    "version": "2.0.0",
+                    "fiestaboard_version": ">=99.0.0",
+                }
+            ),
+        )
+        head_before = _git(clone, "rev-parse", "HEAD")
+        manifest_before = (clone / "manifest.json").read_text(encoding="utf-8")
+
+        _check_against_real_remote(origin, clone)
+
+        assert _git(clone, "rev-parse", "HEAD") == head_before
+        assert (clone / "manifest.json").read_text(encoding="utf-8") == manifest_before
+        assert _git(clone, "status", "--porcelain") == ""
 
 
 class TestRegistryPluginDependencies:

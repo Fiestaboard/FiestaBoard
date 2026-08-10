@@ -8732,12 +8732,20 @@ async def get_plugin_updates():
 
     Results are refreshed by a background task every 6 hours.  Call
     ``POST /plugins/updates/check`` to trigger an immediate check.
+
+    ``blocked`` maps plugin ids to the reason an upstream commit was *not*
+    offered — currently only "the incoming manifest needs a newer FiestaBoard
+    core".  Those plugins appear in ``updates`` as ``False``; the reason is
+    what lets the UI say so rather than looking stuck.
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
         raise HTTPException(status_code=503, detail="Plugin system is not available.")
 
     registry = get_plugin_registry()
-    return {"updates": registry.get_update_status()}
+    return {
+        "updates": registry.get_update_status(),
+        "blocked": registry.get_update_blocked_reasons(),
+    }
 
 
 @app.get("/plugins/{plugin_id}")

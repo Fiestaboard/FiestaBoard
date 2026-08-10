@@ -130,6 +130,25 @@ class RegistryEntry:
         )
 
 
+@dataclass(frozen=True)
+class PluginUpdateCheck:
+    """Outcome of an upstream update check for one cloned external plugin.
+
+    ``blocked_reason`` is non-empty only when an upstream commit exists but was
+    deliberately withheld — currently because the incoming manifest requires a
+    newer FiestaBoard core.  It is carried on the result rather than fetched by
+    a separate call because it falls out of the same network round trip that
+    decides ``available``; a companion function would either double the git
+    traffic on an hourly poll or need its own cache.
+    """
+
+    #: True when an upstream commit exists that this core can actually run.
+    available: bool
+
+    #: Human-readable explanation when an update exists but is being held back.
+    blocked_reason: str = ""
+
+
 # ── registry loading ────────────────────────────────────────────────────────
 
 
@@ -524,13 +543,110 @@ def get_local_head_sha(dest_dir: Path) -> str | None:
         return None
 
 
-def check_plugin_update_available(dest_dir: Path) -> bool:
-    """Return True if the remote has commits not yet pulled locally."""
+def _read_remote_manifest_version(dest_dir: Path) -> str:
+    """Return the *incoming* manifest's ``fiestaboard_version`` constraint.
+
+    Reads ``manifest.json`` at the remote head **without touching the working
+    tree**: ``git fetch`` only writes into ``.git`` (objects plus
+    ``FETCH_HEAD``) and ``git show`` reads the blob straight out of the object
+    database.  Nothing is checked out, so a refused update leaves the plugin
+    exactly as it was.
+
+    Returns ``""`` whenever the constraint cannot be determined — missing
+    remote, unreadable or malformed manifest, no ``fiestaboard_version`` key.
+    Callers treat that as "no opinion" and fall back to the plain SHA
+    comparison, so a network hiccup can never freeze a user's updates.
+    """
+    if not dest_dir.exists() or not (dest_dir / ".git").is_dir():
+        return ""
+
+    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+    try:
+        # The local branch name is only a hint about which remote branch this
+        # clone tracks; fall back to the remote's advertised HEAD exactly like
+        # get_remote_head_sha does, because ``git init`` creates "master"
+        # while most plugin repos publish "main".
+        branch_result = subprocess.run(
+            ["git", "-C", str(dest_dir), "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, timeout=10, env=env,
+        )
+        refs: list[str] = []
+        branch = branch_result.stdout.strip()
+        # Re-derive the branch from the match result so the subprocess sink
+        # does not see it as tainted (CodeQL py/command-line-injection).
+        branch_m = re.fullmatch(r"[A-Za-z0-9_./-]+", branch)
+        if branch_m and branch_m.group(0) != "HEAD":
+            refs.append(branch_m.group(0))
+        refs.append("HEAD")
+
+        fetched = False
+        for ref in refs:
+            fetch_result = subprocess.run(
+                ["git", "-C", str(dest_dir), "fetch", "--quiet", "--depth=1", "origin", ref],
+                capture_output=True, text=True, timeout=120, env=env,
+            )
+            if fetch_result.returncode == 0:
+                fetched = True
+                break
+        if not fetched:
+            return ""
+
+        show_result = subprocess.run(
+            ["git", "-C", str(dest_dir), "show", "FETCH_HEAD:manifest.json"],
+            capture_output=True, text=True, timeout=30, env=env,
+        )
+        if show_result.returncode != 0:
+            return ""
+        data = json.loads(show_result.stdout)
+    except (subprocess.SubprocessError, OSError, json.JSONDecodeError):
+        return ""
+
+    if not isinstance(data, dict):
+        return ""
+    # RegistryEntry.from_dict is the tolerant parser: every field has a
+    # default and none is required, so a manifest written for a *newer* core
+    # still yields its version floor.  PluginManifest.from_dict would be the
+    # wrong tool here — it requires keys and parses nested structures, and the
+    # manifests this guard exists for are exactly the ones this core cannot
+    # parse.
+    return RegistryEntry.from_dict(data).fiestaboard_version
+
+
+def check_plugin_update_available(dest_dir: Path) -> PluginUpdateCheck:
+    """Check whether an external plugin has an upstream update it can run.
+
+    An update is available when the remote has commits not yet pulled locally
+    **and** the incoming manifest's ``fiestaboard_version`` floor is satisfied
+    by the running core.  Pulling a manifest this core cannot parse makes the
+    loader reject the plugin outright, which removes it from the user's board
+    — see ``KNOWN_SETTINGS_WIDGETS`` in :mod:`src.plugins.manifest`.
+    """
     local = get_local_head_sha(dest_dir)
     remote = get_remote_head_sha(dest_dir)
     if local is None or remote is None:
-        return False
-    return local != remote
+        return PluginUpdateCheck(available=False)
+    if local == remote:
+        # Already up to date — never spend a network round trip reading a
+        # manifest we have on disk.
+        return PluginUpdateCheck(available=False)
+
+    constraint = _read_remote_manifest_version(dest_dir)
+    if not constraint:
+        return PluginUpdateCheck(available=True)
+
+    # Imported lazily: loader imports this module at import time, so a
+    # module-level import here would be circular.  Reusing the loader's
+    # comparator keeps one definition of "does this core satisfy the floor".
+    from .loader import _check_version_constraint, _get_fiestaboard_version
+
+    satisfied, reason = _check_version_constraint(constraint, _get_fiestaboard_version())
+    if satisfied:
+        # Includes constraints this core cannot parse: the loader's comparator
+        # reports those as satisfied, and failing open is deliberate.
+        return PluginUpdateCheck(available=True)
+
+    logger.info("Holding back plugin update in %s: %s", dest_dir, reason)
+    return PluginUpdateCheck(available=False, blocked_reason=reason)
 
 
 def remove_external_plugin(dest_dir: Path) -> bool:
