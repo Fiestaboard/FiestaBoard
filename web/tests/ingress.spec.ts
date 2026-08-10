@@ -145,22 +145,28 @@ test.describe("HA Ingress", () => {
   });
 
   test("in-app logo icon renders (not just requested)", async ({ page }) => {
-    // The sidebar logo is a JSX `<img src>` that lands in the JS bundle,
-    // where sub_filter can't reliably reach it — it must go through the
-    // runtime base path (appUrl) instead.
+    // The sidebar logo used to be a JSX `<img src>` pointing at a PNG under
+    // /icons — a URL that lives in the JS bundle, where sub_filter can't
+    // reliably reach it, so it had to be threaded through the runtime base
+    // path (appUrl) to survive the prefix. It is now FiestaUI's own mark,
+    // which the package inlines as a `data:image/svg+xml` URI: nothing for
+    // the ingress prefix to rewrite, and nothing to 404.
     await page.goto(`${PREFIX}/`);
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
 
     // The sidebar renders several logo copies (desktop expanded/collapsed,
     // mobile) — assert on the one that's actually visible.
-    const logo = page.locator('img[src*="/icons/favicon-32x32.png"]').filter({ visible: true }).first();
+    const logo = page.locator('img[src^="data:image/svg+xml"]').filter({ visible: true }).first();
     await expect(logo).toBeVisible({ timeout: 10_000 });
-    expect(await logo.getAttribute("src"), "logo src must carry the ingress prefix").toContain(PREFIX);
     await expect
       .poll(async () => logo.evaluate((el: HTMLImageElement) => el.naturalWidth), {
         message: "logo image bytes must actually load",
       })
       .toBeGreaterThan(0);
+
+    // Nothing may fall back to the old prefixed raster: that URL is the whole
+    // reason this test exists.
+    await expect(page.locator('img[src*="/icons/favicon-32x32.png"]')).toHaveCount(0);
   });
 
   test("deep-route document load resolves under the prefix", async ({ page }) => {

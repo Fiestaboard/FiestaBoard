@@ -1,13 +1,13 @@
 "use client";
 
-import { Box, FiestaLogo, Flex, Stack, Text } from "@fiestaboard/ui";
+import { Box, FiestaIcon, FiestaLogo, Flex, Stack, Text } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useUpdate } from "@/components/update-context";
 import { useTranslations } from "@/i18n/translations";
-import { apiUrl, appUrl } from "@/lib/base-path";
+import { apiUrl } from "@/lib/base-path";
 
 /** How long to wait before showing the splash (avoids a flash for fast startups). */
 const SHOW_SPLASH_DELAY_MS = 600;
@@ -106,7 +106,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
       >
         {/* Branding */}
         <Flex align="center" gap="3">
-          <img src={appUrl("/icons/favicon-32x32.png")} alt="" width={36} height={36} className="flex-shrink-0" />
+          <FiestaIcon size={36} className="flex-shrink-0" />
           <FiestaLogo className="text-2xl" />
         </Flex>
 

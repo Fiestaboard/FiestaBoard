@@ -36,7 +36,6 @@ import { useActiveSeason } from "@/hooks/use-pride-active";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
-import { appUrl } from "@/lib/base-path";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 
 interface NavItemDef {
@@ -173,7 +172,6 @@ export function NavigationSidebar() {
       transitioning={transitioning}
       onToggleCollapsed={toggle}
       onTransitionEnd={onTransitionEnd}
-      logoIconSrc={appUrl("/icons/favicon-32x32.png")}
       season={season}
       onLogoClick={fireCelebration}
       ai={hasAiProviders ? { active: aiPanelOpen, onOpen: openAiPanel } : undefined}
