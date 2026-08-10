@@ -468,7 +468,9 @@
     "checking": "A verificar…",
     "toastUpdatesFound": "{count, plural, one {# atualização de plugin disponível} other {# atualizações de plugins disponíveis}}",
     "toastNoUpdates": "Todos os plugins estão atualizados",
-    "toastCheckFailed": "Falha ao procurar atualizações: {error}"
+    "toastCheckFailed": "Falha ao procurar atualizações: {error}",
+    "installAction": "Instalar",
+    "installedBadge": "Instalado"
   },
   "settings": {
     "title": "Configurações",
@@ -1609,7 +1611,15 @@
     "toastInstalled": "{name} instalado e ativado",
     "toastInstallFailed": "Falha ao instalar: {error}",
     "toastInstanceCreated": "Instância «{label}» criada",
-    "toastCreateInstanceFailed": "Falha ao criar instância: {error}"
+    "toastCreateInstanceFailed": "Falha ao criar instância: {error}",
+    "boardPreviewLabel": "{name} num painel split-flap",
+    "boardShapeLabel": "Formato do painel",
+    "boardColorLabel": "Cor do painel",
+    "blackBoard": "Painel preto",
+    "whiteBoard": "Painel branco",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Matriz Note {w}×{h}"
   },
   "boardDisplay": {
     "loading": "A carregar visualização do board",

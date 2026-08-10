@@ -425,7 +425,9 @@
     "checking": "Checking…",
     "toastUpdatesFound": "{count, plural, one {# plugin update available} other {# plugin updates available}}",
     "toastNoUpdates": "All plugins are up to date",
-    "toastCheckFailed": "Couldn't check for updates: {error}"
+    "toastCheckFailed": "Couldn't check for updates: {error}",
+    "installAction": "Install",
+    "installedBadge": "Installed"
   },
   "settings": {
     "title": "Settings",
@@ -1566,7 +1568,15 @@
     "toastInstalled": "{name} installed and enabled",
     "toastInstallFailed": "Failed to install: {error}",
     "toastInstanceCreated": "Instance \"{label}\" created",
-    "toastCreateInstanceFailed": "Failed to create instance: {error}"
+    "toastCreateInstanceFailed": "Failed to create instance: {error}",
+    "boardPreviewLabel": "{name} displayed on a split-flap board",
+    "boardShapeLabel": "Board shape",
+    "boardColorLabel": "Board color",
+    "blackBoard": "Black Board",
+    "whiteBoard": "White Board",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Note Array {w}×{h}"
   },
   "boardDisplay": {
     "loading": "Loading board display",

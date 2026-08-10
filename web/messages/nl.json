@@ -468,7 +468,9 @@
     "checking": "Controleren…",
     "toastUpdatesFound": "{count, plural, one {# plugin-update beschikbaar} other {# plugin-updates beschikbaar}}",
     "toastNoUpdates": "Alle plugins zijn up-to-date",
-    "toastCheckFailed": "Updates controleren mislukt: {error}"
+    "toastCheckFailed": "Updates controleren mislukt: {error}",
+    "installAction": "Installeren",
+    "installedBadge": "Geïnstalleerd"
   },
   "settings": {
     "title": "Instellingen",
@@ -1609,7 +1611,15 @@
     "toastInstalled": "{name} geïnstalleerd en ingeschakeld",
     "toastInstallFailed": "Installeren mislukt: {error}",
     "toastInstanceCreated": "Instantie \"{label}\" gemaakt",
-    "toastCreateInstanceFailed": "Instantie maken mislukt: {error}"
+    "toastCreateInstanceFailed": "Instantie maken mislukt: {error}",
+    "boardPreviewLabel": "{name} op een split-flapbord",
+    "boardShapeLabel": "Bordformaat",
+    "boardColorLabel": "Bordkleur",
+    "blackBoard": "Zwart bord",
+    "whiteBoard": "Wit bord",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Note-array {w}×{h}"
   },
   "boardDisplay": {
     "loading": "Board-weergave laden",

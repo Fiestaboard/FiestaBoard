@@ -6,6 +6,9 @@ geometry, and the overflow/unmappable-character cases that
 ``text_to_board_array`` would otherwise swallow silently.
 """
 
+import json
+from pathlib import Path
+
 import pytest
 
 from src.plugins.previews import (
@@ -14,6 +17,7 @@ from src.plugins.previews import (
     MAX_TEASER_TILES,
     BoardPreview,
     count_tiles,
+    load_preview_seed,
     parse_previews,
     validate_previews,
     validate_teaser,
@@ -318,3 +322,70 @@ class TestPreviewToGrid:
     def test_colour_marker_becomes_a_colour_code(self):
         preview = BoardPreview(rows=["{66}"], device_type="flagship")
         assert preview.to_grid()[0][0] == 66
+
+
+class TestLoadPreviewSeed:
+    """The seed fills in previews for plugins that aren't installed."""
+
+    def _write(self, tmp_path, text):
+        seed = tmp_path / "plugin-previews.json"
+        seed.write_text(text, encoding="utf-8")
+        return seed
+
+    def test_reads_teaser_and_previews(self, tmp_path):
+        seed = self._write(
+            tmp_path,
+            json.dumps(
+                {
+                    "version": 1,
+                    "plugins": {
+                        "weather": {
+                            "teaser": "SF 62F SUNNY",
+                            "previews": [{"device_type": "note", "rows": ["SF 62F"]}],
+                        }
+                    },
+                }
+            ),
+        )
+        loaded = load_preview_seed(seed)
+        assert loaded == {
+            "weather": {
+                "teaser": "SF 62F SUNNY",
+                "previews": [{"device_type": "note", "rows": ["SF 62F"]}],
+            }
+        }
+
+    def test_missing_file_is_empty_not_an_error(self, tmp_path):
+        assert load_preview_seed(tmp_path / "nope.json") == {}
+
+    def test_unparseable_file_is_empty_not_an_error(self, tmp_path):
+        assert load_preview_seed(self._write(tmp_path, "{ not json")) == {}
+
+    def test_missing_plugins_object_is_empty(self, tmp_path):
+        assert load_preview_seed(self._write(tmp_path, json.dumps({"version": 1}))) == {}
+
+    def test_malformed_entries_are_skipped_and_coerced(self, tmp_path):
+        seed = self._write(
+            tmp_path,
+            json.dumps(
+                {
+                    "plugins": {
+                        "not_an_object": "nope",
+                        "wrong_types": {"teaser": 42, "previews": "nope"},
+                        "partial": {"teaser": "OK"},
+                    }
+                }
+            ),
+        )
+        loaded = load_preview_seed(seed)
+        assert "not_an_object" not in loaded
+        assert loaded["wrong_types"] == {"teaser": "", "previews": []}
+        assert loaded["partial"] == {"teaser": "OK", "previews": []}
+
+    def test_shipped_seed_covers_the_registry(self):
+        """The seed the image ships must not silently fall behind the registry."""
+        root = Path(__file__).parent.parent
+        registry = json.loads((root / "plugin-registry.json").read_text(encoding="utf-8"))
+        seeded = load_preview_seed(root / "plugin-previews.json")
+        missing = sorted({p["id"] for p in registry["plugins"]} - set(seeded))
+        assert missing == [], f"registry plugins with no seeded preview: {missing}"

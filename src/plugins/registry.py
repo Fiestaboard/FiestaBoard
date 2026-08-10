@@ -20,6 +20,7 @@ from src.devices import BoardContext
 from .base import PluginBase, PluginResult
 from .loader import PluginLoader
 from .manifest import PluginManifest, VariableMetadata
+from .previews import load_preview_seed
 from .sources import (
     PluginSource,
     check_plugin_update_available,
@@ -1170,25 +1171,62 @@ class PluginRegistry:
     def get_registry_entries(self) -> list[dict[str, Any]]:
         """Return all entries from the plugin registry file.
 
+        Each entry carries the plugin's board previews (``teaser`` and
+        ``previews``) so the marketplace can show what a plugin actually puts
+        on a board before it is installed.  An installed plugin's own manifest
+        wins over the seed file — it is the newer of the two.
+
         Returns:
             List of registry entry dictionaries.
         """
         entries = load_registry()
-        return [
-            {
-                "id": e.plugin_id,
-                "name": e.name,
-                "description": e.description,
-                "repository": e.repository,
-                "branch": e.branch,
-                "author": e.author,
-                "fiestaboard_version": e.fiestaboard_version,
-                "icon": e.icon,
-                "category": e.category,
-                "installed": e.plugin_id in self._plugins,
-            }
-            for e in entries
-        ]
+        seed = load_preview_seed()
+
+        result: list[dict[str, Any]] = []
+        for e in entries:
+            installed = e.plugin_id in self._plugins
+            teaser, previews = self._board_previews_for(e.plugin_id, seed)
+            result.append(
+                {
+                    "id": e.plugin_id,
+                    "name": e.name,
+                    "description": e.description,
+                    "repository": e.repository,
+                    "branch": e.branch,
+                    "author": e.author,
+                    "fiestaboard_version": e.fiestaboard_version,
+                    "icon": e.icon,
+                    "category": e.category,
+                    "installed": installed,
+                    "teaser": teaser,
+                    "previews": previews,
+                }
+            )
+        return result
+
+    def _board_previews_for(self, plugin_id: str, seed: dict[str, dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
+        """Resolve ``(teaser, previews)`` for a registry entry.
+
+        The installed manifest is preferred; the seed is the fallback for
+        plugins that aren't installed (which is most of the marketplace).
+        """
+        manifest = self._manifests.get(plugin_id)
+        if manifest is not None and (manifest.teaser or manifest.previews):
+            return manifest.teaser, [
+                {
+                    "label": p.label,
+                    "device_type": p.device_type,
+                    "notes_wide": p.notes_wide,
+                    "notes_tall": p.notes_tall,
+                    "rows": p.rows,
+                }
+                for p in manifest.previews
+            ]
+
+        seeded = seed.get(plugin_id)
+        if seeded is None:
+            return "", []
+        return seeded["teaser"], seeded["previews"]
 
     @staticmethod
     def _clear_removed_tombstone(plugin_id: str) -> None:

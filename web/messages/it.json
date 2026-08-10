@@ -468,7 +468,9 @@
     "checking": "Ricerca…",
     "toastUpdatesFound": "{count, plural, one {# aggiornamento plugin disponibile} other {# aggiornamenti plugin disponibili}}",
     "toastNoUpdates": "Tutti i plugin sono aggiornati",
-    "toastCheckFailed": "Ricerca aggiornamenti non riuscita: {error}"
+    "toastCheckFailed": "Ricerca aggiornamenti non riuscita: {error}",
+    "installAction": "Installa",
+    "installedBadge": "Installato"
   },
   "settings": {
     "title": "Impostazioni",
@@ -1609,7 +1611,15 @@
     "toastInstalled": "{name} installato e attivato",
     "toastInstallFailed": "Installazione non riuscita: {error}",
     "toastInstanceCreated": "Istanza «{label}» creata",
-    "toastCreateInstanceFailed": "Impossibile creare l'istanza: {error}"
+    "toastCreateInstanceFailed": "Impossibile creare l'istanza: {error}",
+    "boardPreviewLabel": "{name} su un tabellone split-flap",
+    "boardShapeLabel": "Formato del tabellone",
+    "boardColorLabel": "Colore del tabellone",
+    "blackBoard": "Tabellone nero",
+    "whiteBoard": "Tabellone bianco",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Matrice Note {w}×{h}"
   },
   "boardDisplay": {
     "loading": "Caricamento display board",

@@ -468,7 +468,9 @@
     "checking": "Проверка…",
     "toastUpdatesFound": "{count, plural, one {Доступно # обновление плагина} few {Доступно # обновления плагинов} many {Доступно # обновлений плагинов} other {Доступно # обновлений плагинов}}",
     "toastNoUpdates": "Все плагины актуальны",
-    "toastCheckFailed": "Не удалось проверить обновления: {error}"
+    "toastCheckFailed": "Не удалось проверить обновления: {error}",
+    "installAction": "Установить",
+    "installedBadge": "Установлено"
   },
   "settings": {
     "title": "Настройки",
@@ -1609,7 +1611,15 @@
     "toastInstalled": "{name} установлен и включён",
     "toastInstallFailed": "Не удалось установить: {error}",
     "toastInstanceCreated": "Экземпляр «{label}» создан",
-    "toastCreateInstanceFailed": "Не удалось создать экземпляр: {error}"
+    "toastCreateInstanceFailed": "Не удалось создать экземпляр: {error}",
+    "boardPreviewLabel": "{name} на сплит-флап табло",
+    "boardShapeLabel": "Формат табло",
+    "boardColorLabel": "Цвет табло",
+    "blackBoard": "Чёрное табло",
+    "whiteBoard": "Белое табло",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Массив Note {w}×{h}"
   },
   "boardDisplay": {
     "loading": "Загрузка дисплея board",

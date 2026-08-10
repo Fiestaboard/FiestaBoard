@@ -468,7 +468,9 @@
     "checking": "確認中…",
     "toastUpdatesFound": "{count, plural, one {# 件のプラグイン更新あり} other {# 件のプラグイン更新あり}}",
     "toastNoUpdates": "すべてのプラグインは最新です",
-    "toastCheckFailed": "更新の確認に失敗: {error}"
+    "toastCheckFailed": "更新の確認に失敗: {error}",
+    "installAction": "インストール",
+    "installedBadge": "インストール済み"
   },
   "settings": {
     "title": "設定",
@@ -1609,7 +1611,15 @@
     "toastInstalled": "{name} をインストールして有効化しました",
     "toastInstallFailed": "インストールに失敗: {error}",
     "toastInstanceCreated": "インスタンス「{label}」を作成しました",
-    "toastCreateInstanceFailed": "インスタンスの作成に失敗: {error}"
+    "toastCreateInstanceFailed": "インスタンスの作成に失敗: {error}",
+    "boardPreviewLabel": "スプリットフラップボードに表示された{name}",
+    "boardShapeLabel": "ボードの形状",
+    "boardColorLabel": "ボードの色",
+    "blackBoard": "ブラックボード",
+    "whiteBoard": "ホワイトボード",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Note アレイ {w}×{h}"
   },
   "boardDisplay": {
     "loading": "ボード表示を読み込み中",

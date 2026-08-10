@@ -107,6 +107,9 @@ COPY plugins/ ./plugins/
 COPY tests/ ./tests/
 COPY staff-picks/ ./staff-picks/
 COPY plugin-registry.json ./plugin-registry.json
+# Rendered board previews for registry plugins that aren't installed, so the
+# marketplace can show a plugin's board before you install it.
+COPY plugin-previews.json ./plugin-previews.json
 
 # Copy the static SPA bundle. Vite emits /app/build/client/ with
 # index.html + hashed assets/ subdirectory. nginx serves this directly

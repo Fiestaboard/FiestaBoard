@@ -7,6 +7,7 @@ import pytest
 
 from src.plugins.base import PluginBase, PluginResult
 from src.plugins.manifest import PluginManifest
+from src.plugins.previews import BoardPreview
 from src.plugins.registry import (
     PluginRegistry,
     get_plugin_registry,
@@ -59,6 +60,8 @@ def mock_manifest():
     manifest.variables.get_all_variable_names.return_value = ["var1", "var2"]
     manifest.max_lengths = {"var1": 10, "var2": 20}
     manifest.raw = {"variables": {"simple": ["var1", "var2"]}}
+    manifest.teaser = ""
+    manifest.previews = []
     return manifest
 
 
@@ -899,6 +902,111 @@ def test_get_registry_entries_marks_installed(mock_load, registry, mock_loader, 
     ]
     entries = registry.get_registry_entries()
     assert entries[0]["installed"] is True
+
+
+# --- get_registry_entries: board previews ---
+
+
+@patch("src.plugins.registry.load_preview_seed")
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_uses_preview_seed(mock_load, mock_seed, registry):
+    """An uninstalled plugin gets its board previews from the seed file."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+    mock_seed.return_value = {
+        "weather": {
+            "teaser": "SF 62F SUNNY",
+            "previews": [{"device_type": "note", "rows": ["SF 62F", "SUNNY"]}],
+        }
+    }
+
+    entries = registry.get_registry_entries()
+    assert entries[0]["teaser"] == "SF 62F SUNNY"
+    assert entries[0]["previews"] == [{"device_type": "note", "rows": ["SF 62F", "SUNNY"]}]
+
+
+@patch("src.plugins.registry.load_preview_seed")
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_without_previews(mock_load, mock_seed, registry):
+    """A plugin in neither the manifests nor the seed reports empty previews."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+    mock_seed.return_value = {}
+
+    entries = registry.get_registry_entries()
+    assert entries[0]["teaser"] == ""
+    assert entries[0]["previews"] == []
+
+
+@patch("src.plugins.registry.load_preview_seed")
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_manifest_wins_over_seed(
+    mock_load, mock_seed, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """An installed plugin's manifest is newer than the seed, so it wins."""
+    mock_manifest.id = "weather"
+    mock_manifest.teaser = "FROM MANIFEST"
+    mock_manifest.previews = [
+        BoardPreview(rows=["FROM MANIFEST"], device_type="note"),
+    ]
+    mock_loader.load_all_plugins.return_value = {"weather": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "weather" else None
+    registry.initialize()
+
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+    mock_seed.return_value = {"weather": {"teaser": "FROM SEED", "previews": [{"rows": ["FROM SEED"]}]}}
+
+    entries = registry.get_registry_entries()
+    assert entries[0]["teaser"] == "FROM MANIFEST"
+    assert entries[0]["previews"] == [
+        {
+            "label": "Note",
+            "device_type": "note",
+            "notes_wide": 1,
+            "notes_tall": 1,
+            "rows": ["FROM MANIFEST"],
+        }
+    ]
+
+
+@patch("src.plugins.registry.load_preview_seed")
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_installed_without_manifest_previews_falls_back(
+    mock_load, mock_seed, registry, mock_loader, mock_plugin, mock_manifest
+):
+    """A plugin predating the previews contract still shows the seeded board."""
+    mock_manifest.id = "weather"  # teaser/previews left empty by the fixture
+    mock_loader.load_all_plugins.return_value = {"weather": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest if pid == "weather" else None
+    registry.initialize()
+
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+    mock_seed.return_value = {"weather": {"teaser": "FROM SEED", "previews": []}}
+
+    entries = registry.get_registry_entries()
+    assert entries[0]["teaser"] == "FROM SEED"
 
 
 # --- install_from_registry ---

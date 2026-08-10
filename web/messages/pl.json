@@ -468,7 +468,9 @@
     "checking": "Sprawdzanie…",
     "toastUpdatesFound": "{count, plural, one {# aktualizacja wtyczki dostępna} few {# aktualizacje wtyczek dostępne} many {# aktualizacji wtyczek dostępnych} other {# aktualizacji wtyczek dostępnych}}",
     "toastNoUpdates": "Wszystkie wtyczki są aktualne",
-    "toastCheckFailed": "Nie udało się sprawdzić aktualizacji: {error}"
+    "toastCheckFailed": "Nie udało się sprawdzić aktualizacji: {error}",
+    "installAction": "Zainstaluj",
+    "installedBadge": "Zainstalowano"
   },
   "settings": {
     "title": "Ustawienia",
@@ -1609,7 +1611,15 @@
     "toastInstalled": "{name} zainstalowana i włączona",
     "toastInstallFailed": "Instalacja nie powiodła się: {error}",
     "toastInstanceCreated": "Instancja „{label}\" utworzona",
-    "toastCreateInstanceFailed": "Nie udało się utworzyć instancji: {error}"
+    "toastCreateInstanceFailed": "Nie udało się utworzyć instancji: {error}",
+    "boardPreviewLabel": "{name} na tablicy split-flap",
+    "boardShapeLabel": "Format tablicy",
+    "boardColorLabel": "Kolor tablicy",
+    "blackBoard": "Czarna tablica",
+    "whiteBoard": "Biała tablica",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Macierz Note {w}×{h}"
   },
   "boardDisplay": {
     "loading": "Ładowanie wyświetlacza boarda",

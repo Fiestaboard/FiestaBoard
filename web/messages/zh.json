@@ -468,7 +468,9 @@
     "checking": "检查中…",
     "toastUpdatesFound": "{count, plural, one {# 个插件更新可用} other {# 个插件更新可用}}",
     "toastNoUpdates": "所有插件均为最新",
-    "toastCheckFailed": "无法检查更新:{error}"
+    "toastCheckFailed": "无法检查更新:{error}",
+    "installAction": "安装",
+    "installedBadge": "已安装"
   },
   "settings": {
     "title": "设置",
@@ -1609,7 +1611,15 @@
     "toastInstalled": "{name} 已安装并启用",
     "toastInstallFailed": "安装失败:{error}",
     "toastInstanceCreated": "实例 \"{label}\" 已创建",
-    "toastCreateInstanceFailed": "创建实例失败:{error}"
+    "toastCreateInstanceFailed": "创建实例失败:{error}",
+    "boardPreviewLabel": "{name} 在翻牌显示屏上的效果",
+    "boardShapeLabel": "显示屏形状",
+    "boardColorLabel": "显示屏颜色",
+    "blackBoard": "黑色显示屏",
+    "whiteBoard": "白色显示屏",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Note 阵列 {w}×{h}"
   },
   "boardDisplay": {
     "loading": "加载 board 显示中",

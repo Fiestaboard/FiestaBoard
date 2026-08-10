@@ -468,7 +468,9 @@
     "checking": "확인 중…",
     "toastUpdatesFound": "{count, plural, one {#개의 플러그인 업데이트 가능} other {#개의 플러그인 업데이트 가능}}",
     "toastNoUpdates": "모든 플러그인이 최신입니다",
-    "toastCheckFailed": "업데이트 확인 실패: {error}"
+    "toastCheckFailed": "업데이트 확인 실패: {error}",
+    "installAction": "설치",
+    "installedBadge": "설치됨"
   },
   "settings": {
     "title": "설정",
@@ -1609,7 +1611,15 @@
     "toastInstalled": "{name} 설치 및 활성화됨",
     "toastInstallFailed": "설치 실패: {error}",
     "toastInstanceCreated": "인스턴스 \"{label}\" 생성됨",
-    "toastCreateInstanceFailed": "인스턴스 생성 실패: {error}"
+    "toastCreateInstanceFailed": "인스턴스 생성 실패: {error}",
+    "boardPreviewLabel": "스플릿 플랩 보드에 표시된 {name}",
+    "boardShapeLabel": "보드 형태",
+    "boardColorLabel": "보드 색상",
+    "blackBoard": "블랙 보드",
+    "whiteBoard": "화이트 보드",
+    "deviceFlagship": "Flagship",
+    "deviceNote": "Note",
+    "deviceNoteArray": "Note 배열 {w}×{h}"
   },
   "boardDisplay": {
     "loading": "보드 디스플레이 로드 중",
