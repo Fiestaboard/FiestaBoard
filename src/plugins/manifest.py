@@ -50,8 +50,10 @@ REMOTE_OPTIONS_WIDGET = "remote-options"
 # a boring lowercase identifier.
 OPTIONS_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
-# Every key a ``ui:options`` block may carry. Anything else is a typo, and a
-# silently-ignored typo is how a picker ships without ever calling the plugin.
+# Every key a ``ui:options`` block *this core* understands. Anything else is
+# either a typo or a key a newer core introduced, and core has no way to tell
+# which -- so it is reported and ignored, never fatal. See
+# ``settings_schema_ui_warnings``.
 #
 # The render flags below are plain booleans. ``multiple`` is deliberately not
 # one of them: it predates the flags and is already policed by its own
@@ -778,12 +780,63 @@ def options_cache_seconds(settings_schema: dict[str, Any], options_id: str) -> i
     return None
 
 
+def settings_schema_ui_warnings(settings_schema: dict[str, Any]) -> list[str]:
+    """Collect the *non-fatal* ``ui:*`` findings in a ``settings_schema``.
+
+    These are the vocabulary gaps -- a ``ui:widget`` or a ``ui:options`` key
+    this core has never heard of. Core cannot tell an author's typo from a
+    piece of grammar a *newer* core introduced, and ``load_manifest`` returns
+    ``None`` on any validation error, so guessing "typo" and failing would
+    uninstall the plugin from every user running a release behind. Plugin
+    auto-update is hourly and on by default; core updates are a manual image
+    pull, so plugin versions routinely run ahead of core versions.
+
+    Malformed *values* for keys this core does know stay hard errors in
+    :func:`validate_settings_schema_ui` -- those are unambiguously author bugs,
+    with no newer-core reading available.
+
+    Args:
+        settings_schema: The manifest's ``settings_schema`` object.
+
+    Returns:
+        List of human-readable warning strings.
+    """
+    warnings: list[str] = []
+
+    for field_path, prop, _siblings in _iter_settings_fields(settings_schema):
+        widget = prop.get("ui:widget")
+        if widget is not None and widget not in KNOWN_SETTINGS_WIDGETS:
+            warnings.append(
+                f"settings_schema.{field_path}: unknown ui:widget '{widget}' — "
+                f"the settings form will fall back to a plain input"
+            )
+        if widget != REMOTE_OPTIONS_WIDGET:
+            continue
+
+        ui_options = prop.get("ui:options")
+        if not isinstance(ui_options, dict):
+            # A non-object ``ui:options`` is a hard error, not a vocabulary
+            # gap -- there are no keys to be forward-compatible about.
+            continue
+
+        for key in sorted(set(ui_options) - UI_OPTIONS_KEYS):
+            warnings.append(
+                f"settings_schema.{field_path}: unknown ui:options key '{key}' — ignored. "
+                f"Check the spelling; if the key is spelled correctly it was added in a newer "
+                f"FiestaBoard, and this core will ignore it until you update."
+            )
+
+    return warnings
+
+
 def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
     """Validate the ``ui:*`` annotations in a plugin's ``settings_schema``.
 
-    Returns a list of hard **errors** (empty when the schema is fine). An
-    unrecognised ``ui:widget`` is deliberately *not* an error -- see the module
-    note on ``load_manifest`` returning ``None`` for any validation failure.
+    Returns a list of hard **errors** (empty when the schema is fine).
+    Unrecognised vocabulary -- an unknown ``ui:widget`` or an unknown
+    ``ui:options`` key -- is deliberately *not* an error; it is reported by
+    :func:`settings_schema_ui_warnings`, which this function logs and the
+    plugin loader surfaces through ``GET /plugins/errors``.
 
     Args:
         settings_schema: The manifest's ``settings_schema`` object.
@@ -795,15 +848,11 @@ def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
     seen_ids: dict[str, str] = {}
     root_properties = settings_schema.get("properties") or {}
 
+    for warning in settings_schema_ui_warnings(settings_schema):
+        logger.warning("%s", warning)
+
     for field_path, prop, siblings in _iter_settings_fields(settings_schema):
         widget = prop.get("ui:widget")
-        if widget is not None and widget not in KNOWN_SETTINGS_WIDGETS:
-            # Soft failure on purpose -- see KNOWN_SETTINGS_WIDGETS.
-            logger.warning(
-                "settings_schema.%s: unknown ui:widget '%s' — the settings form will fall back to a plain input",
-                field_path,
-                widget,
-            )
         if widget != REMOTE_OPTIONS_WIDGET:
             continue
 
@@ -828,9 +877,6 @@ def validate_settings_schema_ui(settings_schema: dict[str, Any]) -> list[str]:
             )
         else:
             seen_ids[options_id] = field_path
-
-        for key in sorted(set(ui_options) - UI_OPTIONS_KEYS):
-            errors.append(f"settings_schema.{field_path}: unknown ui:options key '{key}'")
 
         for key in sorted(UI_OPTIONS_BOOLEAN_KEYS):
             value = ui_options.get(key)

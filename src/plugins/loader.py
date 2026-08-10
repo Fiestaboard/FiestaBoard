@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .base import PluginBase, TransitionPluginBase
-from .manifest import PluginManifest, collect_options_ids, load_manifest
+from .manifest import PluginManifest, collect_options_ids, load_manifest, settings_schema_ui_warnings
 from .sources import (
     PluginSource,
     get_external_plugins_dir,
@@ -284,6 +284,14 @@ class PluginLoader:
             errors.append(f"Manifest id '{manifest.id}' does not match directory name '{plugin_name}'")
             self._load_errors[plugin_name] = errors
             return None
+
+        # Vocabulary this core does not recognise -- a ui:widget or a
+        # ui:options key from a newer release. Soft failure on purpose: the
+        # manifest is otherwise valid and the plugin must keep working, but an
+        # ignored key is invisible from the settings dialog, so surface it
+        # through GET /plugins/errors rather than only in the container log.
+        for message in settings_schema_ui_warnings(manifest.settings_schema):
+            self._load_errors.setdefault(plugin_name, []).append(message)
 
         # Check FiestaBoard version compatibility (soft failure -- warn but still load)
         if manifest.fiestaboard_version:

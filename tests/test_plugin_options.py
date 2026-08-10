@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.plugins import manifest as manifest_module
 from src.plugins.base import (
     Option,
     OptionsRequest,
@@ -29,7 +30,12 @@ from src.plugins.base import (
     normalise,
 )
 from src.plugins.loader import PluginLoader
-from src.plugins.manifest import collect_options_ids, validate_manifest, validate_settings_schema_ui
+from src.plugins.manifest import (
+    collect_options_ids,
+    settings_schema_ui_warnings,
+    validate_manifest,
+    validate_settings_schema_ui,
+)
 from src.plugins.registry import PluginRegistry
 
 
@@ -79,8 +85,14 @@ def test_options_id_must_be_a_lowercase_snake_case_identifier():
     assert any("Stock-Symbols" in e for e in errors), errors
 
 
-def test_unknown_key_inside_ui_options_is_an_error():
-    """Typos in ``ui:options`` fail loudly instead of being silently ignored."""
+def test_unknown_key_inside_ui_options_is_a_warning_not_an_error():
+    """Forward compatibility.
+
+    Core cannot tell a typo from a key added by a newer core, and
+    ``load_manifest`` returns ``None`` on *any* validation error — so treating
+    an unrecognised key as fatal uninstalls the plugin from every user whose
+    core is a release behind. It is reported, never fatal.
+    """
     schema = {
         "type": "object",
         "properties": {
@@ -92,27 +104,30 @@ def test_unknown_key_inside_ui_options_is_an_error():
         },
     }
 
-    errors = validate_settings_schema_ui(schema)
-
-    assert any("cache_second" in e for e in errors), errors
+    assert validate_settings_schema_ui(schema) == []
 
 
-def test_a_key_outside_the_grammar_is_still_an_error_after_the_grammar_grew():
-    """Widening the key set for the widget's flags must not open the gate."""
+def test_an_unknown_ui_options_key_is_reported_as_a_warning():
+    """The key still has to be *named* — a silently-ignored typo is how a
+    picker ships without ever calling the plugin."""
     schema = {
         "type": "object",
         "properties": {
             "symbols": {
                 "type": "array",
                 "ui:widget": "remote-options",
-                "ui:options": {"options_id": "symbols", "bogus_key": True},
+                "ui:options": {"options_id": "symbols", "group_by": "exchange"},
             }
         },
     }
 
-    errors = validate_settings_schema_ui(schema)
+    warnings = settings_schema_ui_warnings(schema)
 
-    assert errors == ["settings_schema.symbols: unknown ui:options key 'bogus_key'"]
+    assert warnings == [
+        "settings_schema.symbols: unknown ui:options key 'group_by' — ignored. Check the spelling; "
+        "if the key is spelled correctly it was added in a newer FiestaBoard, and this core will "
+        "ignore it until you update."
+    ]
 
 
 def test_multiple_requires_an_array_typed_field():
@@ -552,6 +567,128 @@ def test_validate_manifest_rejects_a_malformed_remote_options_field():
     assert any("options_id" in e for e in errors), errors
 
 
+# Every ui:options mistake that must keep costing the plugin its load.
+#
+# Forward compatibility is for keys this core has never *heard of* — core
+# cannot tell those from grammar a newer core added. Everything below is
+# either a key core knows carrying a value core knows is wrong, or a broken
+# reference core can resolve for itself. There is no newer-core reading of
+# any of them, so they stay fatal and this table is the fence around that.
+_STILL_FATAL_SETTINGS_SCHEMAS: dict[str, dict[str, Any]] = {
+    "cache_seconds_is_not_an_integer": {
+        "type": "object",
+        "properties": {
+            "symbols": {
+                "type": "array",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "cache_seconds": "soon"},
+            }
+        },
+    },
+    "labels_field_is_not_a_string": {
+        "type": "object",
+        "properties": {
+            "symbols": {
+                "type": "array",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "multiple": True, "labels_field": True},
+            },
+            "custom_names": {"type": "object"},
+        },
+    },
+    "multiple_is_not_a_boolean": {
+        "type": "object",
+        "properties": {
+            "symbol": {
+                "type": "string",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "multiple": "yes"},
+            }
+        },
+    },
+    "remote_options_without_an_options_id": {
+        "type": "object",
+        "properties": {"symbols": {"type": "array", "ui:widget": "remote-options"}},
+    },
+    "depends_on_names_a_property_that_does_not_exist": {
+        "type": "object",
+        "properties": {
+            "stop": {
+                "type": "string",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "stops", "depends_on": ["agencyy"]},
+            },
+            "agency": {"type": "string"},
+        },
+    },
+    "labels_field_without_multiple": {
+        "type": "object",
+        "properties": {
+            "ride_id": {
+                "type": "string",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "rides", "labels_field": "custom_names"},
+            },
+            "custom_names": {"type": "object"},
+        },
+    },
+    "labels_field_names_a_non_sibling": {
+        "type": "object",
+        "properties": {
+            "ride_ids": {
+                "type": "array",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "rides", "multiple": True, "labels_field": "custom_nmaes"},
+            },
+            "custom_names": {"type": "object"},
+        },
+    },
+    "duplicate_options_id_across_the_schema": {
+        "type": "object",
+        "properties": {
+            "home": {"type": "string", "ui:widget": "remote-options", "ui:options": {"options_id": "stops"}},
+            "work": {"type": "string", "ui:widget": "remote-options", "ui:options": {"options_id": "stops"}},
+        },
+    },
+    "multiple_true_on_a_non_array_field": {
+        "type": "object",
+        "properties": {
+            "symbol": {
+                "type": "string",
+                "ui:widget": "remote-options",
+                "ui:options": {"options_id": "symbols", "multiple": True},
+            }
+        },
+    },
+    "ui_options_is_not_an_object_at_all": {
+        "type": "object",
+        "properties": {"symbols": {"type": "array", "ui:widget": "remote-options", "ui:options": "symbols"}},
+    },
+}
+
+
+@pytest.mark.parametrize("case", sorted(_STILL_FATAL_SETTINGS_SCHEMAS))
+def test_a_known_ui_options_mistake_still_stops_the_manifest_loading(case):
+    """Guard against this being 'simplified' into blanket leniency.
+
+    Unknown *keys* became a warning so a plugin built for a newer core keeps
+    working on an older one. That reasoning does not reach any of these: each
+    is a value or a reference this core can judge on its own, and letting one
+    through ships a picker that silently does the wrong thing.
+    """
+    manifest = {
+        "id": "guard",
+        "name": "Guard",
+        "version": "1.0.0",
+        "settings_schema": _STILL_FATAL_SETTINGS_SCHEMAS[case],
+    }
+
+    is_valid, errors = validate_manifest(manifest)
+
+    assert not is_valid, f"{case} must fail validation outright"
+    assert errors, f"{case} must say why"
+
+
 # ── src.plugins.base ────────────────────────────────────────────────────
 
 
@@ -762,7 +899,13 @@ def test_unknown_plugin_raises_key_error(options_registry):
 # ── src.plugins.loader ──────────────────────────────────────────────────
 
 
-def _write_options_plugin(tmp_path: Path, plugin_id: str, *, implements_get_options: bool) -> None:
+def _write_options_plugin(
+    tmp_path: Path,
+    plugin_id: str,
+    *,
+    implements_get_options: bool,
+    ui_options: dict[str, Any] | None = None,
+) -> None:
     """Write a plugin whose manifest declares a remote-options field."""
     plugin_dir = tmp_path / plugin_id
     plugin_dir.mkdir()
@@ -778,7 +921,7 @@ def _write_options_plugin(tmp_path: Path, plugin_id: str, *, implements_get_opti
                         "symbols": {
                             "type": "array",
                             "ui:widget": "remote-options",
-                            "ui:options": {"options_id": "symbols"},
+                            "ui:options": ui_options if ui_options is not None else {"options_id": "symbols"},
                         }
                     },
                 },
@@ -819,6 +962,107 @@ def test_loader_flags_a_manifest_that_promises_options_without_implementing_them
 
     assert plugin is not None, "the plugin must still load"
     assert any("get_options" in e for e in loader.load_errors.get("brokenopts", [])), loader.load_errors
+
+
+def test_loader_loads_a_plugin_using_an_unknown_ui_options_key_and_reports_it(tmp_path):
+    """A key from a newer core must not cost the user the whole plugin.
+
+    It is still reported through ``GET /plugins/errors`` so the author who
+    typed ``cache_second`` finds out, rather than shipping a picker that
+    silently ignores half its configuration.
+    """
+    _write_options_plugin(
+        tmp_path,
+        "futurekeys",
+        implements_get_options=True,
+        ui_options={"options_id": "symbols", "group_by": "exchange"},
+    )
+    loader = PluginLoader(plugins_dir=tmp_path, external_dirs=[])
+
+    plugin = loader.load_plugin("futurekeys")
+
+    assert plugin is not None, "the plugin must still load"
+    assert any("group_by" in e for e in loader.load_errors.get("futurekeys", [])), loader.load_errors
+
+
+_DISNEY_RIDE_PICKER = {
+    "type": "object",
+    "properties": {
+        "ride_ids": {
+            "type": "array",
+            "ui:widget": "remote-options",
+            "ui:options": {
+                "options_id": "rides",
+                "multiple": True,
+                "searchable": True,
+                "labels_field": "custom_names",
+            },
+        },
+        "custom_names": {"type": "object"},
+    },
+}
+
+
+def test_a_manifest_using_a_ui_options_key_from_a_newer_core_still_loads(tmp_path, monkeypatch):
+    """The Disney incident, reproduced.
+
+    ``disney-parks-times`` adopted ``labels_field`` in the release that core
+    8.25.0 introduced it. On 8.24.x that key did not exist, and an unknown
+    ``ui:options`` key was fatal — so the hourly plugin auto-update would have
+    deleted the plugin from every board still on the older image. Core updates
+    are a manual image pull, so that is a lot of boards.
+
+    An older core is simulated by taking the key back out of the grammar.
+    """
+    monkeypatch.setattr(manifest_module, "UI_OPTIONS_KEYS", manifest_module.UI_OPTIONS_KEYS - {"labels_field"})
+    plugin_dir = tmp_path / "disneyparks"
+    plugin_dir.mkdir()
+    (plugin_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "id": "disneyparks",
+                "name": "Disney Parks",
+                "version": "1.0.0",
+                "settings_schema": _DISNEY_RIDE_PICKER,
+            }
+        )
+    )
+    (plugin_dir / "__init__.py").write_text(
+        '''"""Test plugin."""
+from src.plugins.base import PluginBase, PluginResult
+
+
+class DisneyPlugin(PluginBase):
+    @property
+    def plugin_id(self) -> str:
+        return "disneyparks"
+
+    def fetch_data(self) -> PluginResult:
+        return PluginResult(available=True, data={})
+
+    def get_options(self, request):
+        return []
+'''
+    )
+    loader = PluginLoader(plugins_dir=tmp_path, external_dirs=[])
+
+    plugin = loader.load_plugin("disneyparks")
+
+    assert plugin is not None, "the plugin must survive a core that predates the key"
+    assert any("labels_field" in e for e in loader.load_errors.get("disneyparks", [])), loader.load_errors
+
+
+def test_a_field_using_a_newer_cores_key_still_works_minus_that_capability(monkeypatch):
+    """Degrade, do not disappear.
+
+    The ride picker keeps dispatching to ``get_options`` and keeps its
+    multi-select; only the per-ride custom labels — the part the older core
+    cannot render — are missing.
+    """
+    monkeypatch.setattr(manifest_module, "UI_OPTIONS_KEYS", manifest_module.UI_OPTIONS_KEYS - {"labels_field"})
+
+    assert validate_settings_schema_ui(_DISNEY_RIDE_PICKER) == []
+    assert collect_options_ids(_DISNEY_RIDE_PICKER) == {"rides"}
 
 
 def test_loader_stays_quiet_when_the_plugin_implements_get_options(tmp_path):
