@@ -651,3 +651,29 @@ def test_collect_options_ids_ignores_a_field_with_no_usable_id():
     }
 
     assert collect_options_ids(schema) == set()
+
+
+def test_draft_config_is_layered_over_the_stored_config(options_registry):
+    """The picker has to work *before* Save — that is the whole point of a
+    settings dialog. Unsaved form values win over what is on disk, and keys the
+    form did not touch keep their stored values."""
+    options_registry.registry._configs["stocks"] = {"api_key": "stored_key", "account": "STORED"}
+
+    options_registry.registry.get_plugin_options(
+        "stocks",
+        "symbols",
+        OptionsRequest(options_id="symbols"),
+        draft_config={"account": "DRAFT"},
+    )
+
+    (sandbox,) = options_registry.sandboxes
+    assert sandbox.config == {"api_key": "stored_key", "account": "DRAFT"}
+
+
+def test_no_draft_config_leaves_the_stored_config_alone(options_registry):
+    """Opening a dialog without editing anything must not change what the
+    sandbox sees."""
+    options_registry.registry.get_plugin_options("stocks", "symbols", OptionsRequest(options_id="symbols"))
+
+    (sandbox,) = options_registry.sandboxes
+    assert sandbox.config == {"api_key": "test_key"}

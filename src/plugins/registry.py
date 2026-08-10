@@ -839,8 +839,9 @@ class PluginRegistry:
             options_id: Which catalog to browse (from ``ui:options.options_id``).
             request: Query/paging context. Its ``options_id`` is overridden by
                 the *options_id* argument so the caller's route wins.
-            draft_config: Unsaved settings-form values. Not yet applied — see
-                the TODO below.
+            draft_config: Unsaved settings-form values, layered over the stored
+                config. Sensitive fields must already be un-masked by the
+                caller; see ``unmask_sensitive_values``.
 
         Returns:
             An :class:`OptionsResult`.
@@ -863,11 +864,13 @@ class PluginRegistry:
 
         # Config comes from the full instance key, the class from the base id.
         effective_config = dict(self._configs.get(plugin_id) or {})
-        # TODO(#options-route): merge *draft_config* over effective_config once
-        # the HTTP layer can unmask the redacted secrets the form sends back.
-        # Applying it verbatim today would overwrite a real API key with the
-        # placeholder the UI displays.
-        _ = draft_config
+        # Unsaved form values win: the user is browsing the catalog *in order
+        # to* fill the form in, so the credentials they just typed are the ones
+        # that matter. The HTTP layer un-masks the redacted secrets the form
+        # sends back before they get here — applying a raw draft would
+        # overwrite a real API key with the "***" placeholder the UI displays.
+        if draft_config:
+            effective_config.update(draft_config)
 
         sandbox = self._loader.create_instance(base_id)
         if sandbox is None:
