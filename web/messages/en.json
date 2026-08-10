@@ -1664,6 +1664,7 @@
     "remoteOptionsEmpty": "No options available",
     "remoteOptionsStale": "Showing cached results",
     "remoteOptionsRefineSearch": "Refine your search to see more",
+    "remoteOptionsTruncated": "Not all options are shown",
     "remoteOptionsAdd": "Add…",
     "remoteOptionsAddLabel": "Add option",
     "remoteOptionsRemove": "Remove {label}",

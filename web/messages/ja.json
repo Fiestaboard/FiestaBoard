@@ -1707,6 +1707,7 @@
     "remoteOptionsEmpty": "利用できるオプションがありません",
     "remoteOptionsStale": "キャッシュされた結果を表示しています",
     "remoteOptionsRefineSearch": "検索条件を絞り込むと、さらに表示されます",
+    "remoteOptionsTruncated": "すべてのオプションが表示されているわけではありません",
     "remoteOptionsAdd": "追加…",
     "remoteOptionsAddLabel": "オプションを追加",
     "remoteOptionsRemove": "{label}を削除",

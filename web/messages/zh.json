@@ -1707,6 +1707,7 @@
     "remoteOptionsEmpty": "没有可用的选项",
     "remoteOptionsStale": "正在显示缓存结果",
     "remoteOptionsRefineSearch": "缩小搜索范围以查看更多",
+    "remoteOptionsTruncated": "并未显示全部选项",
     "remoteOptionsAdd": "添加…",
     "remoteOptionsAddLabel": "添加选项",
     "remoteOptionsRemove": "移除{label}",

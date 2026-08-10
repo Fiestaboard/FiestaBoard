@@ -1707,6 +1707,7 @@
     "remoteOptionsEmpty": "Geen opties beschikbaar",
     "remoteOptionsStale": "Resultaten uit cache worden getoond",
     "remoteOptionsRefineSearch": "Verfijn je zoekopdracht om meer te zien",
+    "remoteOptionsTruncated": "Niet alle opties worden weergegeven",
     "remoteOptionsAdd": "Toevoegen…",
     "remoteOptionsAddLabel": "Optie toevoegen",
     "remoteOptionsRemove": "{label} verwijderen",
