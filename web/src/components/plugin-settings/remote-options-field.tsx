@@ -165,19 +165,34 @@ export function RemoteOptionsField({ name, property, value, onChange, disabled }
   });
 
   // A value chosen under one parent cannot be assumed to exist under another
-  // (stop 13915 is a Muni stop, not an AC Transit one), so switching the parent
-  // drops it instead of persisting something the plugin will fail to resolve.
+  // (stop 13915 is a Muni stop, not an AC Transit one), so moving from one
+  // answered parent to a *different* answered parent drops it instead of
+  // persisting something the plugin will fail to resolve.
+  //
+  // Only answered parents are remembered, and that is the whole point: a form
+  // may render before its saved config has loaded — `InstalledPluginRow` mounts
+  // `SchemaForm` with `{}` and fills it in from a `useEffect` — so a dependency
+  // going from *unanswered* to *answered* is hydration, not the user changing
+  // anything, and must leave the stored value alone. (Comparing raw parent keys
+  // instead deleted the saved child value on every cold dialog open; reopening
+  // it in the same session hid the bug, because react-query then had the config
+  // cached and the empty first render never happened.) The same rule means
+  // clearing a parent keeps the child until a different parent is actually
+  // chosen, so a mis-click costs nothing.
   const parentKey = JSON.stringify(parent);
   const multiple = Boolean(ui.multiple);
   const hasValue = multiple ? Array.isArray(value) && value.length > 0 : isAnswered(value);
   // `onChange` gets a new identity every render, so the effect re-runs often;
   // the recorded key is what makes it a no-op unless the parent really moved.
-  const lastParentKey = useRef(parentKey);
+  const lastSatisfiedParentKey = useRef<string | null>(dependsSatisfied ? parentKey : null);
   useEffect(() => {
-    if (lastParentKey.current === parentKey) return;
-    lastParentKey.current = parentKey;
+    if (!dependsSatisfied) return;
+    const previous = lastSatisfiedParentKey.current;
+    lastSatisfiedParentKey.current = parentKey;
+    // `null` is "we have never seen this field scoped" — nothing to invalidate.
+    if (previous === null || previous === parentKey) return;
     if (hasValue) onChange(multiple ? [] : undefined);
-  }, [parentKey, hasValue, multiple, onChange]);
+  }, [dependsSatisfied, parentKey, hasValue, multiple, onChange]);
 
   const options = query.data?.options ?? [];
   const scalarType = ui.multiple ? property.items?.type : property.type;
@@ -541,9 +556,13 @@ function FieldNotes({
           {t("remoteOptionsStale")}
         </Text>
       )}
-      {data.has_more && serverSearch && (
+      {/* A cap the user cannot see is indistinguishable from "your option does
+          not exist", so every truncated catalog says so. Only `server_search`
+          can actually reach the rest — client-side search just filters what
+          already arrived — so only it gets the "narrow it down" wording. */}
+      {data.has_more && (
         <Text size="xs" tone="muted">
-          {t("remoteOptionsRefineSearch")}
+          {serverSearch ? t("remoteOptionsRefineSearch") : t("remoteOptionsTruncated")}
         </Text>
       )}
     </Stack>

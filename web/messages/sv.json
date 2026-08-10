@@ -1707,6 +1707,7 @@
     "remoteOptionsEmpty": "Inga alternativ tillgängliga",
     "remoteOptionsStale": "Visar cachade resultat",
     "remoteOptionsRefineSearch": "Förfina sökningen för att se fler",
+    "remoteOptionsTruncated": "Alla alternativ visas inte",
     "remoteOptionsAdd": "Lägg till…",
     "remoteOptionsAddLabel": "Lägg till alternativ",
     "remoteOptionsRemove": "Ta bort {label}",

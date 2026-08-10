@@ -1707,6 +1707,7 @@
     "remoteOptionsEmpty": "Нет доступных вариантов",
     "remoteOptionsStale": "Показаны сохранённые результаты",
     "remoteOptionsRefineSearch": "Уточните запрос, чтобы увидеть больше",
+    "remoteOptionsTruncated": "Показаны не все варианты",
     "remoteOptionsAdd": "Добавить…",
     "remoteOptionsAddLabel": "Добавить вариант",
     "remoteOptionsRemove": "Удалить: {label}",

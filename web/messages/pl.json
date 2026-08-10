@@ -1707,6 +1707,7 @@
     "remoteOptionsEmpty": "Brak dostępnych opcji",
     "remoteOptionsStale": "Wyświetlanie wyników z pamięci podręcznej",
     "remoteOptionsRefineSearch": "Zawęź wyszukiwanie, aby zobaczyć więcej",
+    "remoteOptionsTruncated": "Nie wszystkie opcje są wyświetlane",
     "remoteOptionsAdd": "Dodaj…",
     "remoteOptionsAddLabel": "Dodaj opcję",
     "remoteOptionsRemove": "Usuń: {label}",

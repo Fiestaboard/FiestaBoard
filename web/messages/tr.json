@@ -1707,6 +1707,7 @@
     "remoteOptionsEmpty": "Kullanılabilir seçenek yok",
     "remoteOptionsStale": "Önbellekteki sonuçlar gösteriliyor",
     "remoteOptionsRefineSearch": "Daha fazlasını görmek için aramanızı daraltın",
+    "remoteOptionsTruncated": "Tüm seçenekler gösterilmiyor",
     "remoteOptionsAdd": "Ekle…",
     "remoteOptionsAddLabel": "Seçenek ekle",
     "remoteOptionsRemove": "{label} ögesini kaldır",

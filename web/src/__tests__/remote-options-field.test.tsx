@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
@@ -760,5 +760,326 @@ describe("RemoteOptionsField - missing plugin context", () => {
     // …and must never guess at a plugin id by firing a request anyway.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(captured).toHaveLength(0);
+  });
+});
+
+/**
+ * Cold-load hydration.
+ *
+ * `InstalledPluginRow` (app/routes/integrations._index.tsx) mounts `SchemaForm`
+ * with `configValues` still `{}` and only fills it in once the `["plugin", id]`
+ * query resolves. Reopen the dialog in the same session and react-query answers
+ * from cache, so the form never sees the empty state — but on a cold page load
+ * it does, and a dependent field then watches its parent go from *absent* to
+ * *answered* with no user involved. Reading that as "the user changed the
+ * parent" silently deletes the saved child value on the next save.
+ *
+ * The harness below reproduces exactly that order: first render with no config
+ * at all, config on a later render.
+ */
+function ColdOpenForm({
+  schema,
+  stored,
+  pluginId,
+  onChange,
+}: {
+  schema: JSONSchema;
+  stored: Record<string, unknown>;
+  pluginId: string;
+  onChange?: (values: Record<string, unknown>) => void;
+}) {
+  // Stands in for the dialog's `["plugin", id]` query: nothing is cached on a
+  // cold load, so `data` is undefined for the first render and only the second
+  // render carries the saved config.
+  const config = useQuery({
+    queryKey: ["stored-config"],
+    queryFn: async () => {
+      await delay(5);
+      return stored;
+    },
+  });
+  const [edited, setEdited] = useState<Record<string, unknown> | null>(null);
+  const values = edited ?? config.data ?? {};
+  // The parent is driven from outside the form as well as through it, so that
+  // "the user cleared the parent" can be exercised — the enum select offers no
+  // blank row to click.
+  const setParent = (agency: unknown) => setEdited({ ...values, agency });
+
+  return (
+    <>
+      <button type="button" data-testid="parent-sf" onClick={() => setParent("SF")} />
+      <button type="button" data-testid="parent-ac" onClick={() => setParent("AC")} />
+      <button type="button" data-testid="parent-clear" onClick={() => setParent("")} />
+      {/* What `handleSaveConfig` would POST. `undefined` drops out of JSON
+          exactly as it does on the wire, so a deleted key shows up as absent. */}
+      <output data-testid="config-json">{JSON.stringify(values)}</output>
+      <SchemaForm
+        schema={schema}
+        values={values}
+        pluginId={pluginId}
+        onChange={(next) => {
+          setEdited(next);
+          onChange?.(next);
+        }}
+      />
+    </>
+  );
+}
+
+function ColdOpenHarness({
+  schema,
+  stored,
+  pluginId = "muni",
+  onChange,
+}: {
+  schema: JSONSchema;
+  stored: Record<string, unknown>;
+  pluginId?: string;
+  onChange?: (values: Record<string, unknown>) => void;
+}) {
+  const [client] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }));
+  return (
+    <QueryClientProvider client={client}>
+      <ColdOpenForm schema={schema} stored={stored} pluginId={pluginId} onChange={onChange} />
+    </QueryClientProvider>
+  );
+}
+
+/** The config the dialog would save right now. */
+function savedConfig(): Record<string, unknown> {
+  return JSON.parse(screen.getByTestId("config-json").textContent || "{}");
+}
+
+/**
+ * What the named select's trigger currently shows.
+ *
+ * Not `findByText(label)`: the closed dropdown keeps its rows in the DOM, so
+ * an option's text is present whether or not it is the chosen one. Only the
+ * trigger says what the field actually holds.
+ */
+function selectedLabel(name: string): string {
+  return screen.getByRole("combobox", { name }).textContent?.trim() ?? "";
+}
+
+const dependentMultiSchema: JSONSchema = {
+  type: "object",
+  properties: {
+    agency: agencyField,
+    stop_codes: {
+      type: "array",
+      title: "Stops",
+      items: { type: "string" },
+      "ui:widget": "remote-options",
+      "ui:options": { options_id: "stops", depends_on: ["agency"], multiple: true },
+    },
+  },
+};
+
+/** Two agencies with disjoint catalogs, so a stop can never span both. */
+function mockTwoAgencies(): CapturedRequest[] {
+  const captured: CapturedRequest[] = [];
+  server.use(
+    http.post(OPTIONS_PATH, async ({ params, request }) => {
+      const body = (await request.json()) as CapturedRequest["body"];
+      captured.push({ pluginId: String(params.pluginId), optionsId: String(params.optionsId), body });
+      const agency = body.parent?.agency;
+      return HttpResponse.json({
+        plugin_id: String(params.pluginId),
+        options_id: String(params.optionsId),
+        options:
+          agency === "SF"
+            ? [{ value: "13915", label: "Market St & 5th" }]
+            : [{ value: "55555", label: "Broadway & 12th" }],
+        has_more: false,
+        cursor: null,
+        total: 1,
+        error: null,
+        cached: false,
+        stale: false,
+        cache_seconds: 300,
+      });
+    }),
+  );
+  return captured;
+}
+
+describe("RemoteOptionsField - cold-load hydration", () => {
+  it("keeps the stored dependent value when the config arrives after the first render", async () => {
+    const onChange = vi.fn();
+    const captured = mockOptions([{ value: "13915", label: "Market St & 5th" }]);
+
+    render(
+      <ColdOpenHarness schema={dependentSchema} stored={{ agency: "SF", stop_code: "13915" }} onChange={onChange} />,
+    );
+
+    // The catalog is only asked for once the parent has hydrated, so this also
+    // proves the empty first render really happened.
+    await waitFor(() => expect(captured).toHaveLength(1));
+    expect(captured[0].body.parent).toEqual({ agency: "SF" });
+    // Give every effect from the hydrating render time to run, so a value that
+    // is about to be wiped is not mistaken for one that survived.
+    await delay(30);
+
+    // The user touched nothing, so the form must write nothing back…
+    expect(onChange).not.toHaveBeenCalled();
+    // …and the stop the user saved is still in what the dialog would POST.
+    expect(savedConfig()).toEqual({ agency: "SF", stop_code: "13915" });
+    await waitFor(() => expect(selectedLabel("Stop")).toBe("Market St & 5th"));
+  });
+
+  it("keeps a stored multi-select dependent array when the config arrives after the first render", async () => {
+    const onChange = vi.fn();
+    const captured = mockOptions([
+      { value: "13915", label: "Market St & 5th" },
+      { value: "13916", label: "Market St & 6th" },
+    ]);
+
+    render(
+      <ColdOpenHarness
+        schema={dependentMultiSchema}
+        stored={{ agency: "SF", stop_codes: ["13915", "13916"] }}
+        onChange={onChange}
+      />,
+    );
+
+    await waitFor(() => expect(captured).toHaveLength(1));
+    await delay(30);
+
+    expect(onChange).not.toHaveBeenCalled();
+    // An emptied array is the multi-select shape of the same data loss.
+    expect(savedConfig()).toEqual({ agency: "SF", stop_codes: ["13915", "13916"] });
+    const chosen = await screen.findAllByTestId("remote-options-chosen");
+    expect(chosen.map((node) => node.textContent)).toEqual([
+      expect.stringContaining("Market St & 5th"),
+      expect.stringContaining("Market St & 6th"),
+    ]);
+  });
+
+  it("still drops the dependent value when the user changes the parent after hydration", async () => {
+    const user = userEvent.setup();
+    const captured = mockTwoAgencies();
+
+    render(<ColdOpenHarness schema={dependentSchema} stored={{ agency: "SF", stop_code: "13915" }} />);
+    await waitFor(() => expect(selectedLabel("Stop")).toBe("Market St & 5th"));
+
+    await user.click(screen.getByRole("combobox", { name: "Transit Agency" }));
+    await user.click(await screen.findByRole("option", { name: "AC Transit" }));
+
+    // A Muni stop cannot exist under AC Transit, so it goes.
+    await waitFor(() => expect(savedConfig()).toEqual({ agency: "AC" }));
+    await waitFor(() => expect(captured.at(-1)?.body.parent).toEqual({ agency: "AC" }));
+  });
+
+  it("keeps the dependent value when the user clears the parent", async () => {
+    const user = userEvent.setup();
+    mockOptions([{ value: "13915", label: "Market St & 5th" }]);
+
+    render(<ColdOpenHarness schema={dependentSchema} stored={{ agency: "SF", stop_code: "13915" }} />);
+    await waitFor(() => expect(selectedLabel("Stop")).toBe("Market St & 5th"));
+
+    await user.click(screen.getByTestId("parent-clear"));
+
+    expect(await screen.findByText("Select Transit Agency first")).toBeInTheDocument();
+    await delay(30);
+    // An unanswered parent says nothing about whether the stop is still valid.
+    // Dropping it here would punish a mis-click; it is dropped only once a
+    // *different* agency is actually chosen.
+    expect(savedConfig()).toEqual({ agency: "", stop_code: "13915" });
+  });
+
+  it("restores the dependent value when the cleared parent comes back unchanged", async () => {
+    const user = userEvent.setup();
+    mockOptions([{ value: "13915", label: "Market St & 5th" }]);
+
+    render(<ColdOpenHarness schema={dependentSchema} stored={{ agency: "SF", stop_code: "13915" }} />);
+    await waitFor(() => expect(selectedLabel("Stop")).toBe("Market St & 5th"));
+
+    await user.click(screen.getByTestId("parent-clear"));
+    expect(await screen.findByText("Select Transit Agency first")).toBeInTheDocument();
+    await user.click(screen.getByTestId("parent-sf"));
+
+    await waitFor(() => expect(selectedLabel("Stop")).toBe("Market St & 5th"));
+    expect(savedConfig()).toEqual({ agency: "SF", stop_code: "13915" });
+  });
+
+  it("drops the dependent value once a cleared parent is replaced by a different one", async () => {
+    const user = userEvent.setup();
+    mockTwoAgencies();
+
+    render(<ColdOpenHarness schema={dependentSchema} stored={{ agency: "SF", stop_code: "13915" }} />);
+    await waitFor(() => expect(selectedLabel("Stop")).toBe("Market St & 5th"));
+
+    await user.click(screen.getByTestId("parent-clear"));
+    expect(await screen.findByText("Select Transit Agency first")).toBeInTheDocument();
+    await user.click(screen.getByTestId("parent-ac"));
+
+    await waitFor(() => expect(savedConfig()).toEqual({ agency: "AC" }));
+  });
+});
+
+/**
+ * The route caps a catalog it considers too large and reports `has_more`. A cap
+ * the user cannot see is indistinguishable from "your option does not exist",
+ * so every truncated list has to say so — not only the server-searchable ones,
+ * which were the only case the hint used to cover.
+ */
+describe("RemoteOptionsField - truncated catalogs", () => {
+  it("says the list is incomplete when has_more is set and the plugin has no server search", async () => {
+    mockOptions([{ value: 16, label: "Magic Kingdom" }], { has_more: true, total: 3000 });
+
+    render(<Harness schema={singleSchema} initial={{ park_id: 16 }} />);
+
+    expect(await screen.findByText("Not all options are shown")).toBeInTheDocument();
+  });
+
+  it("keeps saying so when the list is only searchable client-side", async () => {
+    // Client-side search filters the truncated list; it cannot reach the rest.
+    const searchableSchema: JSONSchema = {
+      type: "object",
+      properties: {
+        park_id: {
+          type: "integer",
+          title: "Park",
+          "ui:widget": "remote-options",
+          "ui:options": { options_id: "parks", searchable: true },
+        },
+      },
+    };
+    mockOptions([{ value: 16, label: "Magic Kingdom" }], { has_more: true, total: 3000 });
+
+    render(<Harness schema={searchableSchema} initial={{ park_id: 16 }} />);
+
+    expect(await screen.findByText("Not all options are shown")).toBeInTheDocument();
+  });
+
+  it("prefers the refine-search hint when the plugin does search server-side", async () => {
+    const serverSearchSchema: JSONSchema = {
+      type: "object",
+      properties: {
+        park_id: {
+          type: "integer",
+          title: "Park",
+          "ui:widget": "remote-options",
+          "ui:options": { options_id: "parks", server_search: true },
+        },
+      },
+    };
+    mockOptions([{ value: 16, label: "Magic Kingdom" }], { has_more: true, total: 3000 });
+
+    render(<Harness schema={serverSearchSchema} initial={{ park_id: 16 }} />);
+
+    // Typing more really can return different rows here, so the actionable
+    // hint wins and the generic one must not also appear.
+    expect(await screen.findByText("Refine your search to see more")).toBeInTheDocument();
+    expect(screen.queryByText("Not all options are shown")).not.toBeInTheDocument();
+  });
+
+  it("stays quiet when the catalog is complete", async () => {
+    mockOptions([{ value: 16, label: "Magic Kingdom" }]);
+
+    render(<Harness schema={singleSchema} initial={{ park_id: 16 }} />);
+
+    await screen.findByText("Magic Kingdom");
+    expect(screen.queryByText("Not all options are shown")).not.toBeInTheDocument();
   });
 });
