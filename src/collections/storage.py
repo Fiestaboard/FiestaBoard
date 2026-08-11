@@ -14,6 +14,8 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
+from src.atomic_io import staging_path
+
 from .models import COLLECTION_ID_PREFIX, Collection
 
 logger = logging.getLogger(__name__)
@@ -263,7 +265,7 @@ class CollectionStorage:
                 "collections": records,
             }
 
-            tmp_path = self.storage_file.with_suffix(self.storage_file.suffix + ".tmp")
+            tmp_path = staging_path(self.storage_file)
             try:
                 with open(tmp_path, "w") as f:  # noqa: PTH123
                     json.dump(data, f, indent=2)

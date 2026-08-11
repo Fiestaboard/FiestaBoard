@@ -13,6 +13,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+from src.atomic_io import staging_path
 from src.text_utils import extract_alignment_from_line as _extract_alignment_from_line
 
 from .models import Page
@@ -356,7 +357,7 @@ class PageStorage:
             # Datetimes are already coerced to ISO strings while building
             # pages_out above (covers both parsed pages and preserved
             # _failed_entries), so write data straight out — atomically.
-            tmp_path = self.storage_file.with_suffix(self.storage_file.suffix + ".tmp")
+            tmp_path = staging_path(self.storage_file)
             try:
                 with tmp_path.open("w") as f:
                     json.dump(data, f, indent=2)

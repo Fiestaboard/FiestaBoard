@@ -15,6 +15,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, Optional
 
+from src.atomic_io import staging_path
+
 logger = logging.getLogger(__name__)
 
 # Valid values for the built-in (hardware) transition strategies.  Plugin
@@ -709,7 +711,7 @@ class SettingsService:
         renamed over it (see #1304). Uses builtins.open on the tmp path so
         existing tests can patch builtins.open to inject write errors.
         """
-        tmp_path = self.settings_file.with_suffix(self.settings_file.suffix + ".tmp")
+        tmp_path = staging_path(self.settings_file)
         try:
             with open(tmp_path, "w") as f:  # noqa: PTH123
                 json.dump(data, f, indent=2)

@@ -33,6 +33,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from src.atomic_io import staging_path
+
 logger = logging.getLogger(__name__)
 
 # --- Config ----------------------------------------------------------------
@@ -400,7 +402,7 @@ class AuthService:
 
     def _save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self._path.with_suffix(self._path.suffix + ".tmp")
+        tmp = staging_path(self._path)
         # Restrictive perms on the temp file before fdopen writes to it.
         fd = os.open(
             str(tmp),
