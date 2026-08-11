@@ -17,8 +17,9 @@ Strategy
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 
@@ -49,7 +50,9 @@ def _call_tool(mcp_instance: Any, tool_name: str, **kwargs: Any) -> Any:
         raise KeyError(f"Tool '{tool_name}' not registered. Available: {list(mgr._tools)}")
     result = tool.fn(**kwargs)
     if asyncio.iscoroutine(result):
-        result = asyncio.get_event_loop().run_until_complete(result)
+        # asyncio.run(), not get_event_loop(): 3.14 raises RuntimeError when
+        # there is no current loop rather than creating one implicitly.
+        result = asyncio.run(result)
     return result
 
 
@@ -68,8 +71,10 @@ def mcp():
 
 @pytest.fixture
 def mock_registry():
-    """Minimal mock plugin registry."""
-    registry = MagicMock()
+    """Minimal mock plugin registry, specced against the real class."""
+    from src.plugins.registry import PluginRegistry
+
+    registry = create_autospec(PluginRegistry, instance=True)
     registry.list_plugins.return_value = [
         {
             "id": "openweather",
@@ -94,8 +99,10 @@ def mock_registry():
 
 @pytest.fixture
 def mock_config_manager():
-    """Minimal mock config manager."""
-    cm = MagicMock()
+    """Minimal mock config manager, specced against the real class."""
+    from src.config_manager import ConfigManager
+
+    cm = create_autospec(ConfigManager, instance=True)
     cm.get_plugin_config.return_value = {"api_key": "secret123", "units": "imperial"}
     cm._mask_sensitive.return_value = {"api_key": "***", "units": "imperial"}
     return cm
@@ -103,8 +110,10 @@ def mock_config_manager():
 
 @pytest.fixture
 def mock_page_service():
-    """Minimal mock page service."""
-    svc = MagicMock()
+    """Minimal mock page service, specced against the real class."""
+    from src.pages.service import PageService
+
+    svc = create_autospec(PageService, instance=True)
     page = MagicMock()
     page.id = "page-001"
     page.name = "Weather"
@@ -136,8 +145,10 @@ def mock_page_service():
 
 @pytest.fixture
 def mock_schedule_service():
-    """Minimal mock schedule service."""
-    svc = MagicMock()
+    """Minimal mock schedule service, specced against the real class."""
+    from src.schedules.service import ScheduleService
+
+    svc = create_autospec(ScheduleService, instance=True)
     entry = MagicMock()
     entry.id = "sched-001"
     entry.page_id = "page-001"
@@ -161,8 +172,10 @@ def mock_schedule_service():
 
 @pytest.fixture
 def mock_collection_service():
-    """Minimal mock collection service."""
-    svc = MagicMock()
+    """Minimal mock collection service, specced against the real class."""
+    from src.collections.service import CollectionService
+
+    svc = create_autospec(CollectionService, instance=True)
     c = MagicMock()
     c.id = "collection-001"
     c.name = "Daily"
@@ -182,15 +195,73 @@ def mock_collection_service():
 
 
 @pytest.fixture
-def mock_settings_service():
-    """Minimal mock settings service.
+def autospec_settings_service():
+    """A SettingsService mock that refuses calls the real class doesn't define.
+
+    Plain MagicMock() conjures any attribute on access, which is how issue
+    #1559 shipped: the tool called a method that never existed and the test
+    asserting on it still passed. create_autospec() is what makes that
+    impossible — an unknown attribute raises AttributeError.
+    """
+    from src.settings.service import SettingsService
+
+    return create_autospec(SettingsService, instance=True)
+
+
+@pytest.fixture
+def api_stack(mock_page_service):
+    """Stand up the collaborators PUT /settings/active-page needs.
+
+    set_active_page delegates to that endpoint so the two can't drift apart,
+    so the tool's tests have to satisfy the endpoint's dependencies.
+    """
+    from src.pages.service import BoardCompatibility
+    from src.settings.service import SettingsService
+    from src.triggers.service import TriggerService
+
+    settings = create_autospec(SettingsService, instance=True)
+    settings.should_send_to_board.return_value = True
+    settings.get_primary_board_id.return_value = None
+    settings.get_transition_settings.return_value = SimpleNamespace(
+        strategy="instant", step_interval_ms=100, step_size=1
+    )
+
+    triggers = create_autospec(TriggerService, instance=True)
+
+    client = MagicMock()
+    client.render.return_value = (True, True)
+    service = MagicMock()
+    service.vb_client = client
+
+    preview = SimpleNamespace(available=True, formatted="HELLO")
+    mock_page_service.preview_page.return_value = preview
+
+    with (
+        patch("src.api_server.get_settings_service", return_value=settings),
+        patch("src.api_server.get_page_service", return_value=mock_page_service),
+        patch("src.api_server.get_service", return_value=service),
+        patch("src.triggers.service.get_trigger_service", return_value=triggers),
+        # ok is a derived property (error is None), not a constructor arg.
+        patch("src.api_server.check_ref_board_compatibility", return_value=BoardCompatibility()),
+        patch("src.api_server._board_is_paused", return_value=False),
+    ):
+        yield {
+            "settings": settings,
+            "pages": mock_page_service,
+            "triggers": triggers,
+            "service": service,
+            "client": client,
+        }
+
+
+@pytest.fixture
+def mock_settings_service(autospec_settings_service):
+    """Minimal mock settings service, specced against the real class.
 
     Uses SimpleNamespace for return values so Python 3.14's stricter
     MagicMock.__dict__ handling doesn't interfere.
     """
-    from types import SimpleNamespace
-
-    svc = MagicMock()
+    svc = autospec_settings_service
     svc.get_display_settings.return_value = SimpleNamespace(brightness=80, refresh_rate=30)
     svc.get_location_settings.return_value = SimpleNamespace(
         latitude=40.7128, longitude=-74.0060, timezone="America/New_York"
@@ -750,33 +821,62 @@ class TestGetSettingsSummary:
 
 
 class TestSetActivePage:
-    def test_set_active_page(self, mcp):
-        mock_cm = MagicMock()
-        with patch("src.config_manager.get_config_manager", return_value=mock_cm):
-            result = _call_tool(mcp, "set_active_page", page_id="page-001")
-        assert result["page_id"] == "page-001"
-        mock_cm.set_active_page.assert_called_once_with("page-001")
+    """Issue #1559 — the tool called ConfigManager.set_active_page(), which
+    does not exist, so every call was a no-op that returned an error string.
 
-    def test_error_handling(self, mcp):
-        mock_cm = MagicMock()
-        mock_cm.set_active_page.side_effect = ValueError("page not found")
-        with patch("src.config_manager.get_config_manager", return_value=mock_cm):
-            result = _call_tool(mcp, "set_active_page", page_id="bad-id")
+    These tests pin the tool to the same path the REST endpoint takes:
+    persist via SettingsService, dismiss plugin triggers, push to the board.
+    """
+
+    def test_persists_selection_via_settings_service(self, mcp, api_stack):
+        result = _call_tool(mcp, "set_active_page", page_id="page-001")
+
+        assert result["status"] == "success", result
+        api_stack["settings"].set_active_page_id.assert_called_once_with("page-001")
+
+    def test_pushes_the_page_to_the_board(self, mcp, api_stack):
+        """The docstring promises it immediately changes what's on the board."""
+        result = _call_tool(mcp, "set_active_page", page_id="page-001")
+
+        assert result["status"] == "success", result
+        api_stack["client"].render.assert_called_once()
+
+    def test_dismisses_plugin_triggers_so_the_choice_sticks(self, mcp, api_stack):
+        """Without this a re-emitting plugin trigger overwrites the user's pick (#856)."""
+        _call_tool(mcp, "set_active_page", page_id="page-001")
+
+        api_stack["triggers"].dismiss_active_for_user_override.assert_called_once()
+
+    def test_unknown_page_reports_error_and_persists_nothing(self, mcp, api_stack):
+        api_stack["pages"].get_page.return_value = None
+
+        result = _call_tool(mcp, "set_active_page", page_id="no-such-page")
+
         assert result["status"] == "error"
+        assert "no-such-page" in result["error"]
+        api_stack["settings"].set_active_page_id.assert_not_called()
 
 
 class TestSetScheduleMode:
-    def test_enable(self, mcp, mock_schedule_service):
-        with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
-            result = _call_tool(mcp, "set_schedule_mode", enabled=True)
-        assert result["enabled"] is True
-        assert "enabled" in result["message"]
+    """Same defect class as #1559: the tool called
+    ScheduleService.set_schedule_enabled(), which lives on SettingsService.
+    """
 
-    def test_disable(self, mcp, mock_schedule_service):
-        with patch("src.schedules.service.get_schedule_service", return_value=mock_schedule_service):
+    def test_enable_persists_via_settings_service(self, mcp, autospec_settings_service):
+        with patch("src.settings.service.get_settings_service", return_value=autospec_settings_service):
+            result = _call_tool(mcp, "set_schedule_mode", enabled=True)
+
+        assert result["status"] == "success", result
+        assert result["enabled"] is True
+        autospec_settings_service.set_schedule_enabled.assert_called_once_with(True)
+
+    def test_disable_persists_via_settings_service(self, mcp, autospec_settings_service):
+        with patch("src.settings.service.get_settings_service", return_value=autospec_settings_service):
             result = _call_tool(mcp, "set_schedule_mode", enabled=False)
+
+        assert result["status"] == "success", result
         assert result["enabled"] is False
-        assert "disabled" in result["message"]
+        autospec_settings_service.set_schedule_enabled.assert_called_once_with(False)
 
 
 # ---------------------------------------------------------------------------

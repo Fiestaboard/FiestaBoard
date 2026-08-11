@@ -957,7 +957,7 @@ def _build_mcp_server() -> Any:
             return _err(str(exc))
 
     @mcp.tool()
-    def set_active_page(page_id: str) -> dict[str, Any]:
+    async def set_active_page(page_id: str) -> dict[str, Any]:
         """Set which page is currently shown on the FiestaBoard display.
 
         This immediately changes what's visible on the board.
@@ -965,14 +965,34 @@ def _build_mcp_server() -> Any:
         Args:
             page_id: The page or collection ID to display (from list_pages() or list_collections()).
         """
-        try:
-            from .config_manager import get_config_manager
+        # Delegate to the REST handler rather than reimplementing it. Selecting
+        # a page is more than a settings write: it validates the ref, enforces
+        # page<->board size compatibility, dismisses active plugin triggers so
+        # the choice sticks (#856), and renders to the board. Issue #1559 was
+        # this tool going its own way and calling a method that never existed.
+        from fastapi import HTTPException
 
-            cm = get_config_manager()
-            cm.set_active_page(page_id)
-            return _ok(f"Active page set to '{page_id}'.", page_id=page_id)
+        from .api_server import set_active_page as _rest_set_active_page
+
+        try:
+            response = await _rest_set_active_page({"page_id": page_id})
+        except HTTPException as exc:
+            return _err(f"Error setting active page: {exc.detail}")
         except Exception as exc:
             return _err(f"Error setting active page: {exc}")
+
+        message = f"Active page set to '{page_id}'."
+        if response.get("paused"):
+            message += " The board is paused, so it will appear when you resume it."
+        elif not response.get("sent_to_board"):
+            message += " It will appear on the board on the next display refresh."
+        return _ok(
+            message,
+            page_id=page_id,
+            sent_to_board=bool(response.get("sent_to_board")),
+            paused=bool(response.get("paused")),
+            warnings=response.get("warnings", []),
+        )
 
     @mcp.tool()
     def set_schedule_mode(enabled: bool) -> dict[str, Any]:
@@ -985,9 +1005,11 @@ def _build_mcp_server() -> Any:
             enabled: True to enable schedule-based display, False to disable.
         """
         try:
-            from .schedules.service import get_schedule_service
+            # Schedule mode is a settings flag (per-board since #1244), not
+            # something ScheduleService owns — same mixup as issue #1559.
+            from .settings.service import get_settings_service
 
-            svc = get_schedule_service()
+            svc = get_settings_service()
             svc.set_schedule_enabled(enabled)
             state = "enabled" if enabled else "disabled"
             return _ok(f"Schedule mode {state}.", enabled=enabled)
