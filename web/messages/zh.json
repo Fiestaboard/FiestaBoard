@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "过渡、悬停和其他 UI 动作",
     "siteAnimationsOn": "开",
     "siteAnimationsOff": "关",
-    "animationsReduceMotionOverride": "\"减少动态效果\" 已启用,它会覆盖这些设置。"
+    "animationsReduceMotionOverride": "\"减少动态效果\" 已启用,它会覆盖这些设置。",
+    "flapSpeedLabel": "翻转速度",
+    "flapSpeedHint": "board 稳定之前，每个瓦片停留在一个字符上的时长",
+    "flapSpeed_hardware": "硬件",
+    "flapSpeed_quick": "快速",
+    "flapSpeed_standard": "标准",
+    "flapSpeed_relaxed": "舒缓",
+    "flapSpeed_hardwareHint": "{ms} 毫秒 — 实机本身的速度。每个字符大约只有一帧，因此正在稳定的 board 看起来是一片模糊，而不是逐个翻动的字母。",
+    "flapSpeed_quickHint": "{ms} 毫秒 — 比默认更快，翻转过程中字符仍可辨认。",
+    "flapSpeed_standardHint": "{ms} 毫秒 — 默认值，也是 FiestaBoard 一直使用的速度。",
+    "flapSpeed_relaxedHint": "{ms} 毫秒 — 缓慢而从容的翻转，适合氛围展示。",
+    "flapSpeedPreviewLabel": "预览",
+    "flapSpeedInactive": "board 动画已关闭，因此翻转速度不起作用。",
+    "flapSpeedScreenOnlyNote": "这只会改变屏幕上的 board 预览。实体 Vestaboard 自身的过渡节奏另在「行为 → Board 过渡」中设置。"
   },
   "monitor": {
     "title": "监视器",

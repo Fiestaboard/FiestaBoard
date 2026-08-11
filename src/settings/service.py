@@ -367,6 +367,42 @@ def _coerce_site_animations(value: object) -> str:
     return s if s in SITE_ANIMATIONS_VALUES else "on"
 
 
+# Named split-flap cadences for the ON-SCREEN board preview, in milliseconds
+# per character step. Mirrors FLAP_SPEED_PRESETS in @fiestaboard/ui — the web
+# UI imports the numbers from the package, so this list only has to agree on
+# the *names*. Unrelated to TransitionSettings.step_interval_ms, which paces
+# the physical Vestaboard over the Local API.
+BOARD_FLAP_SPEED_VALUES = ("hardware", "quick", "standard", "relaxed")
+
+# Below ~8ms nothing survives a frame boundary; above 2s a board would take
+# minutes to settle. Matches the clamp in @fiestaboard/ui's resolveFlapSpeed.
+BOARD_FLAP_SPEED_MIN_MS = 8
+BOARD_FLAP_SPEED_MAX_MS = 2000
+
+
+def _coerce_board_flap_speed(value: object) -> str | int:
+    """Accept a preset name, or a raw millisecond count as an escape hatch.
+
+    The settings UI only writes preset names. A number lets an advanced user
+    (or the AI settings tool) pick a cadence the UI does not offer; it is
+    clamped rather than rejected so a bad value degrades instead of raising.
+    Anything unrecognised falls back to the default.
+    """
+    if isinstance(value, bool):
+        return "standard"
+    if isinstance(value, (int, float)):
+        return max(BOARD_FLAP_SPEED_MIN_MS, min(BOARD_FLAP_SPEED_MAX_MS, round(value)))
+    if isinstance(value, str):
+        s = value.strip().lower()
+        if s in BOARD_FLAP_SPEED_VALUES:
+            return s
+        try:
+            return max(BOARD_FLAP_SPEED_MIN_MS, min(BOARD_FLAP_SPEED_MAX_MS, round(float(s))))
+        except (TypeError, ValueError):
+            return "standard"
+    return "standard"
+
+
 @dataclass
 class DisplaySettings:
     """Web UI display preferences."""
@@ -379,6 +415,10 @@ class DisplaySettings:
     # General UI motion (transitions, hovers, page enter/leave).
     # "on" = animate, "off" = disable. `reduce_motion` overrides to off.
     site_animations: str = "on"
+    # How fast a tile flips one character in the on-screen board preview:
+    # a preset name from BOARD_FLAP_SPEED_VALUES, or a raw ms count.
+    # "standard" is 80ms — what the app has always shipped.
+    board_flap_speed: str | int = "standard"
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -389,6 +429,7 @@ class DisplaySettings:
             reduce_motion=bool(data.get("reduce_motion", False)),
             board_animations=_coerce_board_animations(data.get("board_animations", "on")),
             site_animations=_coerce_site_animations(data.get("site_animations", "on")),
+            board_flap_speed=_coerce_board_flap_speed(data.get("board_flap_speed", "standard")),
         )
 
 
@@ -1449,6 +1490,8 @@ class SettingsService:
             self._display.board_animations = _coerce_board_animations(updates["board_animations"])
         if "site_animations" in updates:
             self._display.site_animations = _coerce_site_animations(updates["site_animations"])
+        if "board_flap_speed" in updates:
+            self._display.board_flap_speed = _coerce_board_flap_speed(updates["board_flap_speed"])
         self._save_to_file()
         logger.info(f"Display settings updated: {self._display}")
         return self._display

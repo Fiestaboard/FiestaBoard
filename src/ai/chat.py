@@ -260,7 +260,9 @@ SETTINGS (non-credential settings only):
 
    Valid categories and their representative keys:
    - "display": display preferences. `reduce_motion` (bool) disables
-     animated transitions.
+     animated transitions. `board_flap_speed` ("hardware" | "quick" |
+     "standard" | "relaxed", or ms) sets how fast the on-screen board
+     flips — not the physical board, which is "transitions".
    - "transitions": how pages animate in. `transition_type` (string),
      `duration_ms` (int).
    - "output": where rendered pages are sent. `target` is "ui",

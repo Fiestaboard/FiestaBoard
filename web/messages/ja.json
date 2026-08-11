@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "トランジション、ホバー、その他の UI の動き",
     "siteAnimationsOn": "オン",
     "siteAnimationsOff": "オフ",
-    "animationsReduceMotionOverride": "「動きを減らす」が有効になっており、これらの設定を上書きします。"
+    "animationsReduceMotionOverride": "「動きを減らす」が有効になっており、これらの設定を上書きします。",
+    "flapSpeedLabel": "反転速度",
+    "flapSpeedHint": "ボードが落ち着くまで、各タイルが 1 文字を表示し続ける時間",
+    "flapSpeed_hardware": "ハードウェア",
+    "flapSpeed_quick": "速い",
+    "flapSpeed_standard": "標準",
+    "flapSpeed_relaxed": "ゆっくり",
+    "flapSpeed_hardwareHint": "{ms} ミリ秒 — 実機と同じ速さ。1 文字あたりおよそ 1 フレームなので、切り替わり中のボードは文字ではなくぼやけて見えます。",
+    "flapSpeed_quickHint": "{ms} ミリ秒 — 標準より速く、反転中でも文字を読み取れます。",
+    "flapSpeed_standardHint": "{ms} ミリ秒 — 標準設定。FiestaBoard が従来から使ってきた速さです。",
+    "flapSpeed_relaxedHint": "{ms} ミリ秒 — アンビエント表示向けの、ゆっくりとした反転。",
+    "flapSpeedPreviewLabel": "プレビュー",
+    "flapSpeedInactive": "ボードアニメーションがオフのため、反転速度は影響しません。",
+    "flapSpeedScreenOnlyNote": "これは画面上のボードプレビューだけを変更します。実機の Vestaboard の切り替え速度は、動作 → ボードトランジションで別に設定します。"
   },
   "monitor": {
     "title": "モニター",

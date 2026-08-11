@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "Przejścia, najechania i inny ruch interfejsu",
     "siteAnimationsOn": "Włączone",
     "siteAnimationsOff": "Wyłączone",
-    "animationsReduceMotionOverride": "„Ogranicz ruch\" jest włączone, co zastępuje te ustawienia."
+    "animationsReduceMotionOverride": "„Ogranicz ruch\" jest włączone, co zastępuje te ustawienia.",
+    "flapSpeedLabel": "Szybkość obrotu",
+    "flapSpeedHint": "Jak długo każdy kafelek pokazuje jeden znak, zanim board się ustabilizuje",
+    "flapSpeed_hardware": "Sprzętowa",
+    "flapSpeed_quick": "Szybka",
+    "flapSpeed_standard": "Standardowa",
+    "flapSpeed_relaxed": "Spokojna",
+    "flapSpeed_hardwareHint": "{ms} ms — tempo prawdziwego urządzenia. Około jednej klatki na znak, więc ustawiający się board wygląda jak rozmycie, a nie jak obracające się litery.",
+    "flapSpeed_quickHint": "{ms} ms — szybciej niż domyślnie, znaki nadal czytelne w trakcie obrotu.",
+    "flapSpeed_standardHint": "{ms} ms — wartość domyślna, używana w FiestaBoard od zawsze.",
+    "flapSpeed_relaxedHint": "{ms} ms — powolny, wyważony obrót dla wyświetlaczy w tle.",
+    "flapSpeedPreviewLabel": "Podgląd",
+    "flapSpeedInactive": "Animacje boarda są wyłączone, więc szybkość obrotu nie ma znaczenia.",
+    "flapSpeedScreenOnlyNote": "To zmienia wyłącznie podgląd boarda na ekranie. Tempo przejść fizycznego Vestaboard ustawia się osobno, w Zachowanie → Przejścia boarda."
   },
   "monitor": {
     "title": "Monitor",

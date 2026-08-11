@@ -5,6 +5,7 @@ import type {
   CurrentDisplayResponse,
   DisplayRawResponse,
   DisplayResponse,
+  DisplaySettings,
   DisplaysResponse,
   GeneralConfig,
   LogEntry,
@@ -95,6 +96,16 @@ export const mockTransitionSettings: TransitionSettings = {
   step_interval_ms: 500,
   step_size: 2,
   available_strategies: ["column", "reverse-column", "edges-to-center", "row", "diagonal", "random"],
+};
+
+// Web UI motion preferences. `board_flap_speed` is the on-screen split-flap
+// cadence — deliberately not the same thing as mockTransitionSettings'
+// `step_interval_ms`, which paces the physical unit.
+export const mockDisplaySettings: DisplaySettings = {
+  reduce_motion: false,
+  board_animations: "on",
+  site_animations: "on",
+  board_flap_speed: "standard",
 };
 
 export const mockOutputSettings: OutputSettings = {
@@ -1119,11 +1130,22 @@ export const handlers = [
         password: "",
         external_url: "",
       },
+      display: mockDisplaySettings,
       status: {
         running: true,
         config_summary: {},
       },
     });
+  }),
+
+  // Display settings (web UI motion preferences, incl. board flap speed)
+  http.get(`${API_BASE}/settings/display`, () => {
+    return HttpResponse.json(mockDisplaySettings);
+  }),
+
+  http.put(`${API_BASE}/settings/display`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ status: "success", settings: { ...mockDisplaySettings, ...body } });
   }),
 
   // MQTT settings endpoints

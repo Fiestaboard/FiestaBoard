@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "Overgangen, hover-effecten en andere UI-beweging",
     "siteAnimationsOn": "Aan",
     "siteAnimationsOff": "Uit",
-    "animationsReduceMotionOverride": "\"Beweging verminderen\" is ingeschakeld en overschrijft deze instellingen."
+    "animationsReduceMotionOverride": "\"Beweging verminderen\" is ingeschakeld en overschrijft deze instellingen.",
+    "flapSpeedLabel": "Omklapsnelheid",
+    "flapSpeedHint": "Hoe lang elke tegel één teken toont terwijl het board tot rust komt",
+    "flapSpeed_hardware": "Hardware",
+    "flapSpeed_quick": "Snel",
+    "flapSpeed_standard": "Standaard",
+    "flapSpeed_relaxed": "Rustig",
+    "flapSpeed_hardwareHint": "{ms} ms — het tempo van het echte apparaat. Ongeveer één frame per teken, dus een board dat tot rust komt oogt wazig in plaats van leesbaar.",
+    "flapSpeed_quickHint": "{ms} ms — sneller dan standaard, tekens blijven tijdens het omklappen leesbaar.",
+    "flapSpeed_standardHint": "{ms} ms — de standaard, en wat FiestaBoard altijd heeft gebruikt.",
+    "flapSpeed_relaxedHint": "{ms} ms — een traag, bedachtzaam omklappen voor sfeerschermen.",
+    "flapSpeedPreviewLabel": "Voorbeeld",
+    "flapSpeedInactive": "Board-animaties staan uit, dus de omklapsnelheid heeft geen effect.",
+    "flapSpeedScreenOnlyNote": "Dit wijzigt alleen het board-voorbeeld op het scherm. Het tempo van de overgangen op je fysieke Vestaboard stel je apart in, onder Gedrag → Board-overgangen."
   },
   "monitor": {
     "title": "Monitor",

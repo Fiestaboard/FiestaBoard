@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "Переходы, наведения и другое движение интерфейса",
     "siteAnimationsOn": "Вкл",
     "siteAnimationsOff": "Выкл",
-    "animationsReduceMotionOverride": "«Уменьшить движение» включено, что переопределяет эти настройки."
+    "animationsReduceMotionOverride": "«Уменьшить движение» включено, что переопределяет эти настройки.",
+    "flapSpeedLabel": "Скорость переворота",
+    "flapSpeedHint": "Сколько времени каждая плитка показывает один символ, пока board не установится",
+    "flapSpeed_hardware": "Как у устройства",
+    "flapSpeed_quick": "Быстрая",
+    "flapSpeed_standard": "Стандартная",
+    "flapSpeed_relaxed": "Спокойная",
+    "flapSpeed_hardwareHint": "{ms} мс — темп настоящего устройства. Примерно один кадр на символ, поэтому во время смены board выглядит размытым, а не как переворачивающиеся буквы.",
+    "flapSpeed_quickHint": "{ms} мс — быстрее стандартной, символы всё ещё читаются во время переворота.",
+    "flapSpeed_standardHint": "{ms} мс — значение по умолчанию, которое FiestaBoard использует всегда.",
+    "flapSpeed_relaxedHint": "{ms} мс — медленный, размеренный переворот для фоновых дисплеев.",
+    "flapSpeedPreviewLabel": "Предпросмотр",
+    "flapSpeedInactive": "Анимации board отключены, поэтому скорость переворота ни на что не влияет.",
+    "flapSpeedScreenOnlyNote": "Это меняет только предпросмотр board на экране. Темп переходов физического Vestaboard настраивается отдельно, в разделе «Поведение → Переходы board»."
   },
   "monitor": {
     "title": "Монитор",

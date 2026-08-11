@@ -1348,7 +1348,20 @@
     "siteAnimationsHint": "Übergänge, Hover-Effekte und andere UI-Bewegungen",
     "siteAnimationsOn": "Ein",
     "siteAnimationsOff": "Aus",
-    "animationsReduceMotionOverride": "„Bewegung reduzieren\" ist aktiviert und überschreibt diese Einstellungen."
+    "animationsReduceMotionOverride": "„Bewegung reduzieren\" ist aktiviert und überschreibt diese Einstellungen.",
+    "flapSpeedLabel": "Umklappgeschwindigkeit",
+    "flapSpeedHint": "Wie lange jede Kachel ein Zeichen zeigt, während das Board sich einpendelt",
+    "flapSpeed_hardware": "Hardware",
+    "flapSpeed_quick": "Schnell",
+    "flapSpeed_standard": "Standard",
+    "flapSpeed_relaxed": "Gemächlich",
+    "flapSpeed_hardwareHint": "{ms} ms – das Tempo des echten Geräts. Etwa ein Bild pro Zeichen, ein einlaufendes Board wirkt daher verschwommen statt lesbar.",
+    "flapSpeed_quickHint": "{ms} ms – schneller als der Standard, Zeichen bleiben während des Umklappens lesbar.",
+    "flapSpeed_standardHint": "{ms} ms – der Standard und das, was FiestaBoard schon immer verwendet hat.",
+    "flapSpeed_relaxedHint": "{ms} ms – ein langsames, bewusstes Umklappen für ruhige Displays.",
+    "flapSpeedPreviewLabel": "Vorschau",
+    "flapSpeedInactive": "Board-Animationen sind aus, die Umklappgeschwindigkeit hat daher keine Wirkung.",
+    "flapSpeedScreenOnlyNote": "Dies ändert nur die Board-Vorschau auf dem Bildschirm. Wie Ihr physisches Vestaboard seine eigenen Übergänge taktet, wird separat unter Verhalten → Board-Übergänge eingestellt."
   },
   "monitor": {
     "title": "Monitor",
