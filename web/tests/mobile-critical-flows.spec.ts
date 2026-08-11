@@ -10,8 +10,10 @@ import {
   configureBoard,
   createCollection,
   createPage,
+  createSchedule,
   deleteAllCollections,
   deleteAllPages,
+  deleteAllSchedules,
   expect,
   suppressWizard,
   test,
@@ -240,6 +242,40 @@ test.describe("Mobile — Long names stay inside the viewport", () => {
     }, MOBILE_VIEWPORT.width);
     expect(chipRows.count).toBeGreaterThan(0); // guard against a vacuous pass
     expect(chipRows.overflowing).toBe(0);
+  });
+
+  test("schedule list rows keep their action buttons on screen", async ({ page }) => {
+    // Mirrors the report in #1558: a multi-word page name plus the
+    // "Disabled" badge is enough to blow the row past the phone viewport.
+    const pageId = await createPage("School Departure Countdown");
+    await createSchedule(pageId, "07:40", "07:45", "weekdays", undefined, {
+      enabled: false,
+    });
+
+    try {
+      await page.goto("/schedule");
+      await expect(page.getByTestId("schedule-list-row").first()).toBeVisible({ timeout: 15_000 });
+
+      // The row is overflow:visible, so a too-wide row never widens
+      // document.body — the Edit/Delete buttons simply render past the
+      // right edge. Measure the row's own content box instead.
+      const geometry = await page.evaluate((vw) => {
+        const rows = [...document.querySelectorAll('[data-testid="schedule-list-row"]')];
+        return {
+          count: rows.length,
+          overflowingRows: rows.filter((r) => r.scrollWidth > r.clientWidth + 1).length,
+          offscreenButtons: rows
+            .flatMap((r) => [...r.querySelectorAll("button")])
+            .filter((b) => b.getBoundingClientRect().right > vw + 1).length,
+        };
+      }, MOBILE_VIEWPORT.width);
+
+      expect(geometry.count).toBeGreaterThan(0); // guard against a vacuous pass
+      expect(geometry.overflowingRows).toBe(0);
+      expect(geometry.offscreenButtons).toBe(0);
+    } finally {
+      await deleteAllSchedules().catch(() => {});
+    }
   });
 
   test("collections card truncates long collection and page names", async ({ page }) => {
