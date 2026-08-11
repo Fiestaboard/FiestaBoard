@@ -3,6 +3,7 @@
 import importlib
 import json
 import threading
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -1319,6 +1320,50 @@ def test_save_internal_is_atomic_on_mid_write_crash(tmp_path, monkeypatch):
     # The original file must be byte-identical — the crash should have hit a
     # .tmp file that never got renamed over the real one.
     assert config_path.read_bytes() == original_bytes
+
+
+def test_save_internal_survives_a_concurrent_process_saving_the_same_config(tmp_path, monkeypatch):
+    """A second process saving the same config must not break our save.
+
+    ``_file_lock`` is a ``threading.Lock``, so it serialises threads and
+    nothing else. Under ``pytest -n auto`` every xdist worker is its own
+    process sharing one ``data/`` directory, and in production the API
+    server, MQTT bridge and CLI scripts all construct a ConfigManager. If
+    every one of them stages through the same fixed ``config.json.tmp``,
+    the process that renames second finds its source already gone and
+    ``os.replace`` raises ENOENT.
+
+    Simulated deterministically here: a competing writer completes a full
+    save — same naming scheme, tmp staged then renamed into place — in the
+    window between our write and our rename.
+    """
+    config_path = tmp_path / "config.json"
+    cm = ConfigManager(config_path=str(config_path))
+    cm._save_internal()
+
+    real_replace = Path.replace
+    competitor_ran = False
+
+    def replace_after_a_competing_save(self, target):
+        nonlocal competitor_ran
+        if not competitor_ran:
+            competitor_ran = True
+            competitor_tmp = Path(f"{target}.tmp")
+            competitor_tmp.write_text(json.dumps({"written_by": "the other process"}))
+            real_replace(competitor_tmp, target)
+        return real_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", replace_after_a_competing_save)
+    cm._config["general"]["timezone"] = "America/Chicago"
+    cm._save_internal()
+    monkeypatch.undo()
+
+    assert competitor_ran, "the competing save never ran — the test proves nothing"
+    # We renamed last, so our config is what survives, intact and parseable.
+    on_disk = json.loads(config_path.read_text())
+    assert on_disk["general"]["timezone"] == "America/Chicago"
+    # And we left no staging file behind.
+    assert list(tmp_path.glob("config.json*.tmp")) == []
 
 
 # --- deliberate-removal tombstones (issue #1394) ---

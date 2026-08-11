@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 # Import TimeService for migration
+from .atomic_io import staging_path
 from .time_service import get_time_service
 
 logger = logging.getLogger(__name__)
@@ -744,12 +745,13 @@ class ConfigManager:
     def _save_internal(self) -> None:
         """Internal save without acquiring lock (called from locked context).
 
-        Writes to a sibling ``<file>.tmp`` and ``os.replace``s it into place so
-        a mid-write crash (OOM, SIGKILL, power loss) never leaves a truncated
-        config file (see #1304).
+        Writes to a process-scoped sibling staging file and ``os.replace``s it
+        into place so a mid-write crash (OOM, SIGKILL, power loss) never leaves
+        a truncated config file (see #1304). See :mod:`src.atomic_io` for why
+        the staging name has to be per-process.
         """
         try:
-            tmp_path = self._config_path.with_suffix(self._config_path.suffix + ".tmp")
+            tmp_path = staging_path(self._config_path)
             try:
                 with tmp_path.open("w") as f:
                     json.dump(self._config, f, indent=2)

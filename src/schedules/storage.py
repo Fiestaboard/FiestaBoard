@@ -12,6 +12,8 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+from src.atomic_io import staging_path
+
 from .models import DEFAULT_BOARD_ID, ScheduleEntry
 
 logger = logging.getLogger(__name__)
@@ -248,7 +250,7 @@ class ScheduleStorage:
             # Datetimes are already coerced to ISO strings while building
             # schedules_out above (covers both parsed schedules and preserved
             # _failed_entries), so write data straight out — atomically.
-            tmp_path = self.storage_file.with_suffix(self.storage_file.suffix + ".tmp")
+            tmp_path = staging_path(self.storage_file)
             try:
                 # Use builtins.open (not Path.open) on the tmp path so existing
                 # tests can patch builtins.open to inject I/O errors.
