@@ -96,12 +96,22 @@ class TestStatePublisherGather:
             get_display_running=lambda: False,
             get_current_message=lambda: "—",
         )
-        pub.gather_and_publish()
-        first_state_count = mock_client.publish_state.call_count
-        first_attrs_count = mock_client.publish_attributes.call_count
-        pub.gather_and_publish()
-        second_state_count = mock_client.publish_state.call_count
-        second_attrs_count = mock_client.publish_attributes.call_count
+        # `uptime` is derived from the real, unmocked wall clock
+        # (`time.time()` inside StatePublisher._get_uptime) -- only
+        # `_service_start_time` is patched above. Two back-to-back
+        # gather_and_publish() calls can straddle a whole-second boundary
+        # (more likely under xdist CPU contention), making `uptime`
+        # legitimately change between calls and get republished. That is
+        # correct dedup behavior, not a bug -- but it makes this specific
+        # test flaky since it isn't about `uptime` at all. Freeze time so
+        # both calls observe identical state (see #1571).
+        with patch("time.time", return_value=1_000_042.0):
+            pub.gather_and_publish()
+            first_state_count = mock_client.publish_state.call_count
+            first_attrs_count = mock_client.publish_attributes.call_count
+            pub.gather_and_publish()
+            second_state_count = mock_client.publish_state.call_count
+            second_attrs_count = mock_client.publish_attributes.call_count
         assert second_state_count == first_state_count
         assert second_attrs_count == first_attrs_count
 
