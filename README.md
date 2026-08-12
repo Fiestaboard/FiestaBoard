@@ -187,6 +187,7 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [Webhook](https://github.com/Fiestaboard/fiestaboard-plugin--webhook) | Custom message via HTTP webhook | No |
 | [White Noise](https://github.com/Fiestaboard/fiestaboard-plugin--white-noise) | Ambient rain/white noise effect | No |
 | [Wildfire Monitor](https://github.com/Fiestaboard/fiestaboard-plugin--wildfire) | Active wildfires from NIFC | No |
+| [Word Clock](https://github.com/rummeyer/fiestaboard-plugin--word-clock) | Time spelled out in words, QLOCKTWO style | No |
 | [Word of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--word-of-day) | Word, pronunciation, and definition | No |
 | [WSDOT Ferries](https://github.com/Fiestaboard/fiestaboard-plugin--wsdot) | WA State ferry schedules and alerts | Yes (free) |
 
