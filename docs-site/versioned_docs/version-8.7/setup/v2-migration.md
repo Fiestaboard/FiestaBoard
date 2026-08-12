@@ -77,8 +77,7 @@ The `PUT /settings/board` endpoint previously accepted only a `board_type` field
 { "devices": ["flagship", "note"] }
 ```
 
-<a id="example-full-board-instance"></a>
-**Example — configure a full board instance:**
+#### Example — configure a full board instance {#example-full-board-instance}
 
 ```json
 {
