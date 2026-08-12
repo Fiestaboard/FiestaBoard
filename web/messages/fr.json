@@ -418,9 +418,11 @@
       "finance": "Finance",
       "home": "Maison connectée",
       "transit": "Transports",
+      "transition": "Transitions",
       "utility": "Utilitaires",
       "weather": "Météo et environnement"
     },
+    "transitionBadge": "Transition",
     "tabInstalled": "Installés",
     "tabMarketplace": "Marché",
     "searchInstalledPlaceholder": "Rechercher des plugins installés...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "entrée de planning",
     "retargetSurfaceActivePage": "page active",
     "notesWideOption": "{count} en largeur",
-    "notesTallOption": "{count} en hauteur"
+    "notesTallOption": "{count} en hauteur",
+    "transitionMenuTitle": "Transition",
+    "transitionPickerAriaLabel": "Transition de la page",
+    "transitionPickerTooltip": "Transition de cette page : {strategy}",
+    "transitionUseGlobalDefault": "Utiliser le réglage par défaut global",
+    "transitionBuiltInGroup": "Intégrées",
+    "transitionPluginsGroup": "Plugins (bêta)",
+    "transitionOpenLab": "Ouvrir le labo des transitions"
   },
   "displaySettings": {
     "title": "Vos tableaux",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "Par défaut",
     "stepSizeDescription": "Combien de lignes ou colonnes s'animent simultanément. Laissez vide pour la valeur par défaut du tableau.",
     "localApiNote": "Les transitions ne sont prises en charge que par l'API locale. Si votre tableau est configuré pour utiliser l'API Cloud, les paramètres de transition n'auront aucun effet. Les pages individuelles peuvent également remplacer ce réglage par défaut dans le constructeur de pages.",
+    "pluginNote": "Les transitions de plugin sont animées par FiestaBoard et envoyées comme des mises à jour normales du tableau ; elles fonctionnent donc avec n'importe quelle connexion au tableau.",
+    "builtInGroup": "Intégrées",
+    "pluginsGroup": "Plugins de transition",
+    "pluginsBetaBadge": "Bêta",
+    "unavailablePluginNote": "Ce plugin de transition n'est pas disponible actuellement. Choisissez une autre option pour la modifier.",
     "toastSaved": "Paramètres de transition enregistrés",
     "toastSaveFailed": "Échec de l'enregistrement des paramètres de transition : {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "Choisissez un plugin de transition, puis les pages de départ et d'arrivée.",
     "pluginLabel": "Plugin de transition",
     "pluginPlaceholder": "Sélectionner un plugin...",
-    "noPlugins": "Aucun plugin de transition activé. Activez-en un sur la page Intégrations.",
+    "noPlugins": "Aucun plugin de transition installé. Ajoutez-en un depuis la page Intégrations.",
     "deviceLabel": "Appareil",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1604,6 +1618,7 @@
       "finance": "Finance",
       "home": "Maison connectée",
       "transit": "Transport",
+      "transition": "Transitions",
       "utility": "Utilitaires",
       "weather": "Météo & environnement"
     },

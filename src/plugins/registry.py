@@ -1082,6 +1082,7 @@ class PluginRegistry:
                 "enabled": self._enabled.get(plugin_id, False),
                 "icon": manifest.icon if manifest else "puzzle",
                 "category": manifest.category if manifest else "utility",
+                "plugin_type": manifest.plugin_type if manifest else "data",
                 "fiestaboard_version": manifest.fiestaboard_version if manifest else "",
                 "source": source.to_dict() if source else {"source_type": "builtin"},
                 "update_available": self._update_status.get(plugin_id, False),

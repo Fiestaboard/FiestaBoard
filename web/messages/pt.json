@@ -418,9 +418,11 @@
       "finance": "Finanças",
       "home": "Casa Inteligente",
       "transit": "Transporte",
+      "transition": "Transições",
       "utility": "Utilitários",
       "weather": "Clima e Meio Ambiente"
     },
+    "transitionBadge": "Transição",
     "tabInstalled": "Instalados",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Pesquisar plugins instalados...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "entrada de agenda",
     "retargetSurfaceActivePage": "página ativa",
     "notesWideOption": "{count} de largura",
-    "notesTallOption": "{count} de altura"
+    "notesTallOption": "{count} de altura",
+    "transitionMenuTitle": "Transição",
+    "transitionPickerAriaLabel": "Transição da página",
+    "transitionPickerTooltip": "Transição desta página: {strategy}",
+    "transitionUseGlobalDefault": "Usar o padrão global",
+    "transitionBuiltInGroup": "Integradas",
+    "transitionPluginsGroup": "Plugins (beta)",
+    "transitionOpenLab": "Abrir o laboratório de transições"
   },
   "displaySettings": {
     "title": "Seus Painéis",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "Padrão",
     "stepSizeDescription": "Quantas linhas ou colunas são animadas de cada vez. Deixe vazio para usar o padrão do painel.",
     "localApiNote": "As transições são suportadas apenas na API Local. Se o seu painel estiver configurado para usar a API na Nuvem, as configurações de transição não terão efeito. Páginas individuais também podem substituir este padrão no editor de páginas.",
+    "pluginNote": "As transições de plugin são animadas pelo FiestaBoard e enviadas como atualizações normais do painel, por isso funcionam em qualquer conexão do painel.",
+    "builtInGroup": "Integradas",
+    "pluginsGroup": "Plugins de transição",
+    "pluginsBetaBadge": "Beta",
+    "unavailablePluginNote": "Este plugin de transição não está disponível no momento. Escolha outra opção para alterá-la.",
     "toastSaved": "Configurações de transição salvas",
     "toastSaveFailed": "Falha ao salvar configurações de transição: {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "Escolha um plugin de transição e depois as páginas de origem e destino.",
     "pluginLabel": "Plugin de transição",
     "pluginPlaceholder": "Selecione um plugin...",
-    "noPlugins": "Nenhum plugin de transição ativado. Ative um na página de Integrações.",
+    "noPlugins": "Nenhum plugin de transição instalado. Adicione um a partir da página de Integrações.",
     "deviceLabel": "Dispositivo",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1604,6 +1618,7 @@
       "finance": "Finanças",
       "home": "Smart Home",
       "transit": "Transportes",
+      "transition": "Transições",
       "utility": "Utilidades",
       "weather": "Tempo e ambiente"
     },

@@ -9,14 +9,14 @@ Quiet Library is a **transition plugin**: it animates the change from the curren
 **Prerequisites**
 
 - FiestaBoard with the **Transition Plugins** beta enabled (Settings → Advanced → Beta Features)
-- Any board type (Flagship, Note, or a note array)
+- Any board type (Flagship, Note, or a note array) on either a Local API or Cloud connection — FiestaBoard sends each step as a regular board update, so unlike the built-in Local API strategies, this works on Cloud boards too
 
 ## Quick Setup
 
-1. **Enable the beta**: Settings → Advanced → Beta Features → toggle **Transition Plugins** on.
-2. **Enable the plugin**: Integrations → Quiet Library → enable. Optionally adjust *Tiles per step* and *Delay between steps*.
-3. **Select the transition**: edit a page and choose **Quiet Library** as its transition, or set it as the system default in Settings → Board Transitions.
-4. **View**: the next time that page is sent, the board updates one small batch of tiles at a time. Preview it any time on the **Transitions** page (Transition Lab).
+1. **Enable the beta**: Settings → Advanced → Beta Features → toggle **Transition Plugins** on. That single switch is all that gates Quiet Library — installed transition plugins have no enable step of their own.
+2. **Adjust the pacing (optional)**: *Tiles per step* and *Delay between steps* are in Quiet Library's settings on the Integrations page. The 6-tile, 14.5-second defaults are tuned for the hardware's flap debounce; change them only if you know what you want instead.
+3. **Select the transition**: open a page in the editor and choose **Quiet Library** from the **Transition** dropdown in the toolbar, or set it as the system default under Settings → Behavior → Board Transitions. A page's own choice overrides the default; "Use global default" clears it.
+4. **View**: the next time that page is sent, the board updates one small batch of tiles at a time. Preview it any time on the **Transition Lab** page, which also has a config box for trying different pacing on a single run.
 
 ## Template Variables
 
@@ -33,7 +33,7 @@ No environment variables.
 
 ## Troubleshooting
 
-- **The board snaps instantly instead of animating** — the Transition Plugins beta is off, or the plugin is disabled on the Integrations page. Both must be on.
+- **The board snaps instantly instead of animating** — the Transition Plugins beta is off (Settings → Advanced → Beta Features), or the page in question has a different Transition set. With the beta off, pages saved with a plugin transition go straight to the target.
 - **A full-board change takes a long time** — that is the point: with the default settings a completely different message updates in ~14.5s steps. Lower `step_delay_ms` (at the cost of dropped animation steps on hardware, which debounces sends for ~14s) or raise `batch_size` for a faster, louder update.
 - **The transition stops partway** — a new page, trigger, or manual send preempted it; the board lands on the newest content. Rotation dwell times shorter than the full transition will regularly do this — that final snap to the new target is expected behavior, not an error.
 - **Cloud note arrays** — the Cloud API throttles note-array sends to one per 15 seconds; the runner paces steps automatically, so transitions work but never faster than that floor.

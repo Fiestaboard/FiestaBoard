@@ -418,9 +418,11 @@
       "finance": "ファイナンス",
       "home": "スマートホーム",
       "transit": "交通",
+      "transition": "トランジション",
       "utility": "ユーティリティ",
       "weather": "天気・環境"
     },
+    "transitionBadge": "トランジション",
     "tabInstalled": "インストール済み",
     "tabMarketplace": "マーケットプレイス",
     "searchInstalledPlaceholder": "インストール済みプラグインを検索...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "スケジュール項目",
     "retargetSurfaceActivePage": "アクティブページ",
     "notesWideOption": "横 {count} 枚",
-    "notesTallOption": "縦 {count} 枚"
+    "notesTallOption": "縦 {count} 枚",
+    "transitionMenuTitle": "トランジション",
+    "transitionPickerAriaLabel": "ページのトランジション",
+    "transitionPickerTooltip": "このページのトランジション: {strategy}",
+    "transitionUseGlobalDefault": "全体のデフォルトを使用",
+    "transitionBuiltInGroup": "組み込み",
+    "transitionPluginsGroup": "プラグイン (ベータ)",
+    "transitionOpenLab": "トランジションラボを開く"
   },
   "displaySettings": {
     "title": "ボード一覧",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "デフォルト",
     "stepSizeDescription": "一度にアニメーションする行または列の数。ボードのデフォルトを使用する場合は空のままにしてください。",
     "localApiNote": "トランジションはローカル API のみでサポートされています。ボードがクラウド API を使用するよう設定されている場合、トランジション設定は反映されません。個別のページでこのデフォルトをページビルダーで上書きすることもできます。",
+    "pluginNote": "プラグイントランジションは FiestaBoard がアニメーションを生成し、通常のボード更新として送信されるため、どのボード接続でも動作します。",
+    "builtInGroup": "組み込み",
+    "pluginsGroup": "トランジションプラグイン",
+    "pluginsBetaBadge": "ベータ",
+    "unavailablePluginNote": "このトランジションプラグインは現在利用できません。変更するには別のオプションを選択してください。",
     "toastSaved": "トランジション設定を保存しました",
     "toastSaveFailed": "トランジション設定の保存に失敗しました: {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "トランジションプラグインを選び、開始ページと終了ページを選択します。",
     "pluginLabel": "トランジションプラグイン",
     "pluginPlaceholder": "プラグインを選択...",
-    "noPlugins": "有効なトランジションプラグインがありません。連携ページで有効にしてください。",
+    "noPlugins": "トランジションプラグインがインストールされていません。連携ページから追加してください。",
     "deviceLabel": "デバイス",
     "deviceFlagship": "Flagship（6×22）",
     "deviceNote": "Note（3×15）",
@@ -1604,6 +1618,7 @@
       "finance": "ファイナンス",
       "home": "スマートホーム",
       "transit": "交通",
+      "transition": "トランジション",
       "utility": "ユーティリティ",
       "weather": "天気と環境"
     },

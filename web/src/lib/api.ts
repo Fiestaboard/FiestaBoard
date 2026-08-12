@@ -1132,6 +1132,13 @@ export interface PluginInfo {
   configured: boolean;
   icon: string;
   category: string;
+  /**
+   * `"transition"` plugins supply a board-transition animation instead of
+   * template data. They have no polling loop, so the registry runs any
+   * installed one regardless of `enabled` — the UI must not offer a toggle
+   * for them. Absent on responses that predate the field; treat as `"data"`.
+   */
+  plugin_type?: "data" | "transition";
   fiestaboard_version?: string;
   config: Record<string, unknown>;
   source?: { source_type: "builtin" | "registry" | "external" | "git"; repository_url?: string; local_path?: string };

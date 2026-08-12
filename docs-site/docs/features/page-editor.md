@@ -158,6 +158,18 @@ The split-flap display supports colored tiles using special character codes. You
 
 See the [Color Guide](/docs/reference/color-guide) for detailed usage examples.
 
+## Page Transitions
+
+The editor's header toolbar has a **Transition** dropdown that controls how the board animates when it changes to this page.
+
+- **Use global default** - inherit the transition set in **Settings → Behavior → Board Transitions**
+- A **built-in strategy** (Wave, Drift, Curtain, Row, Diagonal, Random) - performed by the board itself, Local API only
+- A **transition plugin** (Typewriter, Simple Dissolve, and others) - animated by FiestaBoard, works on any connection, shown only when the Transition Plugins beta is enabled
+
+Anything other than **Use global default** becomes a page-level override that applies whenever this page is sent. Switching back to **Use global default** clears it.
+
+See [Transitions](/docs/features/transitions) for how the two kinds differ, what they require, and how to preview them in the Transition Lab.
+
 ## Page Layout
 
 The board display dimensions depend on the target device:
@@ -198,6 +210,7 @@ Pages that are referenced in schedules should be updated or removed from the sch
 
 ## Next Steps
 
+- [Transitions](/docs/features/transitions) - Choose how the board animates into this page
 - [Schedule Mode](/docs/features/schedule) - Automate when pages are displayed
 - [Plugins Overview](/docs/plugins/overview) - See available data sources for your pages
 - [Color Guide](/docs/reference/color-guide) - Learn about color formatting options

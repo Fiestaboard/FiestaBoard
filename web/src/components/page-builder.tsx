@@ -23,6 +23,14 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   Flex,
   ScrollArea,
   Select,
@@ -40,7 +48,7 @@ import {
   TooltipTrigger,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Copy, Radio, Save, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Check, Copy, Radio, Save, Sparkles, Trash2, Upload } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -65,6 +73,7 @@ import {
 } from "@/components/tiptap-template-editor/utils/draw-mode";
 import { queryKeys } from "@/hooks/use-board";
 import { getEffectiveBoardColor, useBoardSettings } from "@/hooks/use-board";
+import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, ToolCall } from "@/lib/ai-chat-types";
 import type {
@@ -148,6 +157,28 @@ function getStoredEditorMode(): "rich" | "plain" {
   return "rich";
 }
 
+/**
+ * Sentinel used as the radio-group value for "no per-page override". The menu
+ * needs a non-empty string; the saved value is `null`.
+ */
+const TRANSITION_INHERIT = "__inherit__";
+
+/**
+ * Built-in transition strategies, paired with their key under the shared
+ * `transitionSettings.strategies.*` namespace so the per-page picker and the
+ * global settings card always read the same labels.
+ */
+const BUILT_IN_TRANSITIONS: { value: string; labelKey: string }[] = [
+  { value: "column", labelKey: "column" },
+  { value: "reverse-column", labelKey: "reverseColumn" },
+  { value: "edges-to-center", labelKey: "edgesToCenter" },
+  { value: "row", labelKey: "row" },
+  { value: "diagonal", labelKey: "diagonal" },
+  { value: "random", labelKey: "random" },
+];
+
+const PLUGIN_STRATEGY_PREFIX = "plugin:";
+
 interface DraftData {
   name: string;
   templateLines: string[];
@@ -163,7 +194,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const t = useTranslations("pageBuilder");
   const tCommon = useTranslations("common");
   const tDisplaySettings = useTranslations("displaySettings");
+  // Shared with the global transition settings card so both surfaces label the
+  // built-in strategies identically.
+  const tTransitions = useTranslations("transitionSettings");
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
@@ -201,6 +236,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [draftRestored, setDraftRestored] = useState(false);
   const [editorMode, setEditorMode] = useState<"rich" | "plain">(getStoredEditorMode);
 
+  // Per-page transition override. `null` means "inherit the global default"
+  // — the backend clears a stored override only when it is sent an explicit
+  // null, so this always goes out on the wire (see the save mutation).
+  const [transitionStrategy, setTransitionStrategy] = useState<string | null>(null);
+
   // Pencil draw-mode state — see handleStrokeCommit / drawPreviewMessage
   // below for how a painted stroke flows back into templateLines.
   const [drawMode, setDrawMode] = useState(false);
@@ -220,6 +260,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     templateLines: string[];
     lineAlignments: LineAlignment[];
     lineWrapEnabled: boolean[];
+    transitionStrategy: string | null;
   } | null>(null);
 
   // Export dialog
@@ -280,9 +321,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       name !== savedSnapshot.name ||
       JSON.stringify(templateLines) !== JSON.stringify(savedSnapshot.templateLines) ||
       JSON.stringify(lineAlignments) !== JSON.stringify(savedSnapshot.lineAlignments) ||
-      JSON.stringify(lineWrapEnabled) !== JSON.stringify(savedSnapshot.lineWrapEnabled)
+      JSON.stringify(lineWrapEnabled) !== JSON.stringify(savedSnapshot.lineWrapEnabled) ||
+      transitionStrategy !== savedSnapshot.transitionStrategy
     );
-  }, [savedSnapshot, name, templateLines, lineAlignments, lineWrapEnabled]);
+  }, [savedSnapshot, name, templateLines, lineAlignments, lineWrapEnabled, transitionStrategy]);
 
   const pushUndoSnapshot = useCallback(() => {
     const snap: PageSnapshot = {
@@ -574,6 +616,44 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     enabled: !!pageId,
   });
 
+  // Transition plugins (beta): the /transitions/plugins endpoint 404s while
+  // the flag is off, so only fetch once the flag is known to be on. Query keys
+  // match the Transition Lab route so both share one cache entry.
+  const { data: betaSettings } = useQuery({
+    queryKey: ["settings", "beta"],
+    queryFn: () => api.getBetaSettings(),
+  });
+  const transitionPluginsEnabled = betaSettings?.settings.transition_plugins_enabled ?? false;
+
+  const { data: transitionPluginsData } = useQuery({
+    queryKey: ["transition-plugins"],
+    queryFn: () => api.listTransitionPlugins(),
+    enabled: transitionPluginsEnabled,
+  });
+  const transitionPlugins = useMemo(() => transitionPluginsData?.plugins ?? [], [transitionPluginsData]);
+
+  // A `plugin:<id>` override whose plugin isn't in the list — the beta is off,
+  // or the plugin was uninstalled. Surface it under its raw id rather than
+  // silently showing "Use global default"; the user's setting is never cleared
+  // behind their back.
+  const unknownPluginStrategy = useMemo(() => {
+    if (!transitionStrategy?.startsWith(PLUGIN_STRATEGY_PREFIX)) return null;
+    const id = transitionStrategy.slice(PLUGIN_STRATEGY_PREFIX.length);
+    return transitionPlugins.some((p) => p.id === id) ? null : id;
+  }, [transitionStrategy, transitionPlugins]);
+
+  // Human-readable name for the currently selected transition, for the tooltip.
+  const transitionLabel = useMemo(() => {
+    if (!transitionStrategy) return t("transitionUseGlobalDefault");
+    if (unknownPluginStrategy) return unknownPluginStrategy;
+    if (transitionStrategy.startsWith(PLUGIN_STRATEGY_PREFIX)) {
+      const id = transitionStrategy.slice(PLUGIN_STRATEGY_PREFIX.length);
+      return transitionPlugins.find((p) => p.id === id)?.name ?? id;
+    }
+    const builtIn = BUILT_IN_TRANSITIONS.find((s) => s.value === transitionStrategy);
+    return builtIn ? tTransitions(`strategies.${builtIn.labelKey}.label`) : transitionStrategy;
+  }, [transitionStrategy, unknownPluginStrategy, transitionPlugins, t, tTransitions]);
+
   // Device/size retarget (issue #1250): compare the saved geometry with the
   // editor's current one. A shrink on either axis is lossy (content that
   // doesn't fit is cut off), so the save asks for confirmation first.
@@ -625,11 +705,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       setDebouncedLineAlignments(alignments);
       setDebouncedLineWrapEnabled(wrapStates);
       setDebouncedTemplateLines(contents);
+      // Per-page transition override (null = inherit the global default).
+      const savedTransition = existingPage.transition_strategy ?? null;
+      setTransitionStrategy(savedTransition);
       setSavedSnapshot({
         name: pageName,
         templateLines: contents,
         lineAlignments: alignments,
         lineWrapEnabled: wrapStates,
+        transitionStrategy: savedTransition,
       });
     } else if (!pageId && !loadingPage) {
       const draftKey = getDraftKey();
@@ -840,6 +924,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           device_type: deviceType,
           template: cleanedLines,
           line_metadata: metadata,
+          // Always sent, even when null: the API clears a stored override only
+          // for keys it actually receives, so omitting this would silently keep
+          // a previous per-page transition after the user chose "global default".
+          transition_strategy: transitionStrategy,
           ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
         };
         return api.updatePage(pageId, payload);
@@ -850,6 +938,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
           device_type: deviceType,
           template: cleanedLines,
           line_metadata: metadata,
+          transition_strategy: transitionStrategy,
           ...(deviceType === "note_array" ? { notes_wide: notesWide, notes_tall: notesTall } : {}),
         };
         return api.createPage(payload);
@@ -1440,6 +1529,80 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                *  tooltip pops. */}
               <TooltipProvider skipDelayDuration={0}>
                 <Flex align="center" gap="1.5">
+                  {/* Per-page transition override. Null (the default) inherits
+                   *  the global setting; the trigger carries a dot when this
+                   *  page overrides it. */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="relative h-9 w-9"
+                            aria-label={t("transitionPickerAriaLabel")}
+                          >
+                            <Sparkles className={`h-4 w-4 ${transitionStrategy ? "text-brand" : ""}`} />
+                            {transitionStrategy && (
+                              <Text
+                                as="span"
+                                aria-hidden="true"
+                                className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand"
+                              />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <Text>{t("transitionPickerTooltip", { strategy: transitionLabel })}</Text>
+                      </TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel className="text-xs font-medium">{t("transitionMenuTitle")}</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup
+                        value={transitionStrategy ?? TRANSITION_INHERIT}
+                        onValueChange={(value) =>
+                          setTransitionStrategy(value === TRANSITION_INHERIT ? null : String(value))
+                        }
+                      >
+                        <DropdownMenuRadioItem value={TRANSITION_INHERIT} className="text-xs">
+                          {t("transitionUseGlobalDefault")}
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                          {t("transitionBuiltInGroup")}
+                        </DropdownMenuLabel>
+                        {BUILT_IN_TRANSITIONS.map((strategy) => (
+                          <DropdownMenuRadioItem key={strategy.value} value={strategy.value} className="text-xs">
+                            {tTransitions(`strategies.${strategy.labelKey}.label`)}
+                          </DropdownMenuRadioItem>
+                        ))}
+                        {transitionPlugins.length > 0 && (
+                          <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+                            {t("transitionPluginsGroup")}
+                          </DropdownMenuLabel>
+                        )}
+                        {transitionPlugins.map((plugin) => (
+                          <DropdownMenuRadioItem
+                            key={plugin.id}
+                            value={`${PLUGIN_STRATEGY_PREFIX}${plugin.id}`}
+                            className="text-xs"
+                          >
+                            {plugin.name}
+                          </DropdownMenuRadioItem>
+                        ))}
+                        {unknownPluginStrategy && (
+                          <DropdownMenuRadioItem value={transitionStrategy!} className="text-xs">
+                            {unknownPluginStrategy}
+                          </DropdownMenuRadioItem>
+                        )}
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-xs" onClick={() => router.push("/transitions")}>
+                        {t("transitionOpenLab")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   {/* Delete button - only show when editing */}
                   {pageId && (
                     <AlertDialog>
