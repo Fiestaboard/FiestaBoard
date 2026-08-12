@@ -307,7 +307,7 @@ export function ActivePageDisplay() {
         },
       });
     }
-  }, [scheduleEnabled, isLoadingActivePage, isLoadingPages, activePageId, pages, setActivePageMutation]);
+  }, [scheduleEnabled, isLoadingActivePage, isLoadingPages, activePageId, pages, setActivePageMutation, t]);
 
   // Use transition for non-urgent updates to improve perceived performance
   const [isPending, startTransition] = useTransition();
@@ -407,7 +407,7 @@ export function ActivePageDisplay() {
       return activeCollection.name;
     }
     return activePage?.name || "No page selected";
-  }, [activePage, activePageId, scheduleEnabled, activeCollection]);
+  }, [activePage, activePageId, scheduleEnabled, activeCollection, t]);
 
   // Poll the actual board state from the backend cache (backend hits Vestaboard
   // at the configured interval; we just read the cached result here). Secondary
