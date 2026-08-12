@@ -62,9 +62,7 @@ def test_lmstudio_rejects_json_object():
 
 def test_lmstudio_accepts_text_and_json_schema():
     for kind in ("text", "json_schema"):
-        LMStudioEmulator().validate(
-            {"model": "m", "messages": MESSAGES, "response_format": {"type": kind}}, {}
-        )
+        LMStudioEmulator().validate({"model": "m", "messages": MESSAGES, "response_format": {"type": kind}}, {})
 
 
 def test_lmstudio_error_envelope_is_a_flat_string():
@@ -93,9 +91,7 @@ def test_openai_rejects_missing_credentials():
 
 def test_ollama_rejects_json_schema_it_does_not_implement():
     with pytest.raises(ProviderRejection):
-        OllamaEmulator().validate(
-            {"model": "m", "messages": MESSAGES, "response_format": {"type": "json_schema"}}, {}
-        )
+        OllamaEmulator().validate({"model": "m", "messages": MESSAGES, "response_format": {"type": "json_schema"}}, {})
 
 
 def test_anthropic_requires_version_header():
@@ -144,30 +140,43 @@ def _generator_body() -> dict:
     return PROTOCOLS["openai"].build_body("test-model", MESSAGES, 0.7, 1200)
 
 
-@pytest.mark.parametrize(
-    "emulator",
-    [
-        pytest.param(
-            e,
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason=(
-                    "#1560 — _openai_body() hardcodes response_format json_object, "
-                    "which LM Studio rejects with a 400. Fix lands separately; "
-                    "strict=True so this flips loudly when it does."
-                ),
-            )
-            if e.name == "lmstudio"
-            else (),
-        )
-        for e in OPENAI_FAMILY
-    ],
-    ids=lambda e: e.name,
-)
+@pytest.mark.parametrize("emulator", OPENAI_FAMILY, ids=lambda e: e.name)
 def test_generator_body_is_accepted_by_every_openai_compatible_provider(emulator):
-    """#1560: fails for lmstudio until ``response_format`` stops being json_object."""
+    """Regression for #1560 — lmstudio is the parametrization that used to fail."""
     headers = PROTOCOLS["openai"].build_headers("sk-test", {})
     emulator.validate(_generator_body(), headers)
+
+
+def test_generator_does_not_request_json_object_mode():
+    """Pins the #1560 fix against a well-meaning revert.
+
+    LM Studio validates ``response_format.type`` and 400s on
+    ``json_object``. The prompt asks for JSON and
+    ``_extract_json_object()`` recovers it from prose, so ``text`` is the
+    portable choice.
+    """
+    assert _generator_body()["response_format"] == {"type": "text"}
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        '{"name": "A", "template": ["HI"]}',
+        '```json\n{"name": "A", "template": ["HI"]}\n```',
+        'Sure! Here is your page:\n\n{"name": "A", "template": ["HI"]}\n\nHope that helps.',
+    ],
+    ids=["bare", "fenced", "prose-wrapped"],
+)
+def test_json_is_recovered_without_json_object_mode(raw):
+    """The safety net that makes dropping ``json_object`` viable.
+
+    Without a server-enforced JSON mode a model may wrap its object in
+    prose or a markdown fence. If this ever stops holding, the #1560 fix
+    needs revisiting rather than the parser.
+    """
+    from src.ai.generator import _extract_json_object
+
+    assert _extract_json_object(raw)["name"] == "A"
 
 
 def test_anthropic_generator_body_is_accepted():
@@ -210,9 +219,7 @@ def test_chat_body_is_accepted_by_every_openai_compatible_provider(emulator):
 
 
 def test_chat_body_is_accepted_by_anthropic():
-    AnthropicEmulator().validate(
-        _chat_body("anthropic"), PROTOCOLS["anthropic"].build_headers("sk-ant-test", {})
-    )
+    AnthropicEmulator().validate(_chat_body("anthropic"), PROTOCOLS["anthropic"].build_headers("sk-ant-test", {}))
 
 
 def test_chat_still_strips_response_format():
@@ -221,9 +228,9 @@ def test_chat_still_strips_response_format():
     Pins the asymmetry #1560 describes: chat works against LM Studio because
     it drops ``response_format``, while the generator does not.
     """
-    source = (
-        __import__("pathlib").Path(__file__).resolve().parents[2] / "src" / "ai" / "chat.py"
-    ).read_text(encoding="utf-8")
+    source = (__import__("pathlib").Path(__file__).resolve().parents[2] / "src" / "ai" / "chat.py").read_text(
+        encoding="utf-8"
+    )
     assert 'payload.pop("response_format", None)' in source, (
         "src/ai/chat.py no longer strips response_format — _chat_body() above "
         "no longer reproduces what chat puts on the wire."
@@ -235,26 +242,7 @@ def test_chat_still_strips_response_format():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "emulator",
-    [
-        pytest.param(
-            e,
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason=(
-                    "_openai_error() only reads {'error': {'message': ...}}, so "
-                    "LM Studio's flat-string envelope yields None and the user "
-                    "gets a raw JSON dump. Fix lands with #1560."
-                ),
-            )
-            if e.name == "lmstudio"
-            else (),
-        )
-        for e in ALL_EMULATORS
-    ],
-    ids=lambda e: e.name,
-)
+@pytest.mark.parametrize("emulator", ALL_EMULATORS, ids=lambda e: e.name)
 def test_provider_error_messages_reach_the_user(emulator):
     """``parse_error`` should extract the provider's message, whatever its shape.
 

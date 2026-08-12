@@ -133,8 +133,9 @@ def test_every_resource_has_a_description(resources):
 
 def _documented_args(description: str) -> set[str]:
     """Parse the ``Args:`` block of a Google-style docstring."""
-    m = re.search(r"^\s*Args:\s*$(.*?)(?=^\s*(?:Returns|Raises|Examples?|Note):|\Z)",
-                  description, re.MULTILINE | re.DOTALL)
+    m = re.search(
+        r"^\s*Args:\s*$(.*?)(?=^\s*(?:Returns|Raises|Examples?|Note):|\Z)", description, re.MULTILINE | re.DOTALL
+    )
     if m is None:
         return set()
     return set(re.findall(r"^\s{4,}(\w+)\s*:", m.group(1), re.MULTILINE))

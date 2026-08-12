@@ -157,9 +157,7 @@ def test_switch_parser_resolves_a_realistic_floor():
 def test_union_parser_flags_a_known_bad_input(tmp_path):
     f = tmp_path / "types.ts"
     f.write_text(
-        'export type ToolCall =\n'
-        '  | { id: string; op: "alpha"; args: A }\n'
-        '  | { id: string; op: "beta"; args: B };\n',
+        'export type ToolCall =\n  | { id: string; op: "alpha"; args: A }\n  | { id: string; op: "beta"; args: B };\n',
         encoding="utf-8",
     )
     assert _ts_union_ops(f) == {"alpha", "beta"}
