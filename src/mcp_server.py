@@ -48,7 +48,9 @@ including why claude.ai web Connectors can't reach a LAN host.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 logger = logging.getLogger(__name__)
 
@@ -1178,8 +1180,17 @@ def _build_mcp_server() -> Any:
         )
 
     @mcp.prompt()
-    def create_display_page(topic: str = "weather") -> str:
-        """Create a new display page for a specific topic."""
+    def create_display_page(
+        topic: Annotated[
+            str,
+            Field(description="What the page should show, e.g. 'weather', 'my commute', 'stock prices'."),
+        ] = "weather",
+    ) -> str:
+        """Create a new display page for a specific topic.
+
+        Args:
+            topic: What the page should show, e.g. "weather", "my commute".
+        """
         return (
             f"Help me create a FiestaBoard display page for: {topic}\n\n"
             "Please:\n"
