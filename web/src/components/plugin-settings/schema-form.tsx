@@ -574,9 +574,17 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
   // Track items with stable IDs so React doesn't reuse component instances
   // when items are added or removed — index-based keys cause Radix UI portal
   // cleanup to call removeChild on a detached node.
-  const nextId = useRef(0);
+  //
+  // `nextId` seeds from the initial item count rather than 0 so IDs assigned
+  // later (handleAdd, the resync effect) never collide with the initial
+  // index-based IDs below. The initial `keyed` state uses plain array
+  // indices instead of `nextId.current++` because reading a ref's value
+  // during render (even inside a useState lazy initializer, which runs
+  // during the render phase) is unsound under Strict Mode / concurrent
+  // rendering — refs must only be read in effects or event handlers.
+  const nextId = useRef(rawItems.length);
   const [keyed, setKeyed] = useState<{ id: number; value: unknown }[]>(() =>
-    rawItems.map((v) => ({ id: nextId.current++, value: v })),
+    rawItems.map((v, i) => ({ id: i, value: v })),
   );
 
   // Keep keyed list in sync when the parent value changes from outside

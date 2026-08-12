@@ -242,14 +242,29 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
   const viewRef = useRef<EditorView | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mirrors `expr` for the debounced validation callback below, which needs
+  // to compare against the *latest* expression, not the one captured in its
+  // closure. Refs may only be read/written outside of render (effects,
+  // event handlers), so the mirror is synced in an effect rather than
+  // assigned inline during render.
   const latestExprRef = useRef(expr);
-  latestExprRef.current = expr;
+  useEffect(() => {
+    latestExprRef.current = expr;
+  }, [expr]);
 
+  // Mirrors the last expression that passed validation. Kept as a ref (not
+  // state) because it's read from the CodeMirror Mod-Enter keybinding
+  // below, whose closure is created once when the editor mounts and would
+  // otherwise see a stale value; `lastValidExpr` state (below) is the
+  // render-safe counterpart used for `isConfirmDisabled`.
   const lastValidExprRef = useRef<string | null>(null);
+  const [lastValidExpr, setLastValidExpr] = useState<string | null>(null);
 
   // Always-current snapshot of state for use inside CodeMirror keybinding handlers
   const latestStateRef = useRef({ expr, validationState });
-  latestStateRef.current = { expr, validationState };
+  useEffect(() => {
+    latestStateRef.current = { expr, validationState };
+  }, [expr, validationState]);
 
   // ─── Fetch built-in function signatures ──────────────────────────────────
 
@@ -267,6 +282,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
     const trimmed = expression.trim();
     if (!trimmed) {
       lastValidExprRef.current = null;
+      setLastValidExpr(null);
       setValidationState("idle");
       setErrors([]);
       return;
@@ -283,10 +299,12 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
 
         if (result.valid) {
           lastValidExprRef.current = trimmed;
+          setLastValidExpr(trimmed);
           setValidationState("valid");
           setErrors([]);
         } else {
           lastValidExprRef.current = null;
+          setLastValidExpr(null);
           setValidationState("invalid");
           setErrors(result.errors.map((e) => e.message.replace(/^Formula\s+/, "")));
         }
@@ -428,7 +446,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
     });
   };
 
-  const isConfirmDisabled = !expr.trim() || validationState !== "valid" || lastValidExprRef.current !== expr.trim();
+  const isConfirmDisabled = !expr.trim() || validationState !== "valid" || lastValidExpr !== expr.trim();
 
   // ─── Group functions by category ─────────────────────────────────────────
 
