@@ -1073,7 +1073,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         onLineCountChange(lineCount);
       }
       scheduleMeasureRef.current?.();
-    }, [value, editor, boardLines]);
+    }, [value, editor, boardLines, onLineCountChange]);
 
     // No need to enforce paragraph count - we use line breaks now
 
@@ -1169,35 +1169,37 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       if (onLineWrapChange) {
         onLineWrapChange(lineIndex, newWrap);
       }
-    }, [editor, getCurrentLineIndex, onLineWrapChange, lineWrapEnabled]);
+      // Depend on the actual values read above (boardLines for the bounds
+      // check, effectiveWrapEnabled for the current-state read) rather than
+      // the raw lineWrapEnabled prop, which this callback doesn't reference
+      // directly and which is stale once the fallback branch of
+      // effectiveWrapEnabled (undefined lineWrapEnabled) is in play.
+    }, [editor, getCurrentLineIndex, onLineWrapChange, boardLines, effectiveWrapEnabled]);
 
     // Safely get current line index - use useMemo to prevent calculation during problematic renders
-    // MUST be called before any early returns to maintain hook order
+    // MUST be called before any early returns to maintain hook order.
+    //
+    // TipTap's `editor` instance keeps a stable reference across selection
+    // changes (it mutates `editor.state` in place rather than being replaced),
+    // so `editor` alone in the dependency array would never pick up a cursor
+    // move; `editor?.state?.selection?.$from?.pos` is what actually needs to
+    // trigger a recompute. eslint-plugin-react-hooks only allows "extra"
+    // dependencies like this for useEffect (where it can't prove they're
+    // unnecessary), not for useMemo/useCallback — so it always flags this one
+    // as unnecessary, even though removing it would leave currentLineIndex
+    // frozen after the very first cursor position (a real regression, not a
+    // lint nit).
     const currentLineIndex = useMemo(() => {
       try {
-        // Only try to get line index if editor is fully initialized
-        if (!editor) {
+        if (!editor?.state?.selection?.$from) {
           return null;
         }
-        if (!editor.state) {
-          return null;
-        }
-        if (!editor.state.selection) {
-          return null;
-        }
-        const { state } = editor;
-        const { selection } = state;
-        if (!selection || !selection.$from) {
-          return null;
-        }
-        const { $from } = selection;
-
-        if (!state.doc) {
+        if (!editor.state.doc) {
           return null;
         }
 
         let lineIndex = 0;
-        state.doc.nodesBetween(0, $from.pos, (node) => {
+        editor.state.doc.nodesBetween(0, editor.state.selection.$from.pos, (node) => {
           if (node && node.type && node.type.name === "hardBreak") {
             lineIndex++;
           }
@@ -1207,6 +1209,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         console.warn("Error getting current line index:", error);
         return null;
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editor, editor?.state?.selection?.$from?.pos]);
 
     const currentAlignment =
