@@ -148,6 +148,26 @@ def registry_has_plugin(data: dict, plugin_id: str) -> bool:
     return any(e.get("id") == plugin_id for e in data.get("plugins", []))
 
 
+def build_registry_entry(plugin_id: str, manifest: dict, repo_url: str) -> dict:
+    """Build the ``plugin-registry.json`` entry for a freshly extracted plugin.
+
+    ``plugin_type`` has to travel with the rest of the manifest metadata:
+    without it a published transition plugin would land in the marketplace
+    indistinguishable from a data plugin.
+    """
+    return {
+        "id": plugin_id,
+        "name": manifest.get("name", plugin_id),
+        "description": manifest.get("description", ""),
+        "repository": repo_url,
+        "author": manifest.get("author", "FiestaBoard Team"),
+        "fiestaboard_version": FIESTABOARD_VERSION_CONSTRAINT,
+        "icon": manifest.get("icon", "puzzle"),
+        "category": manifest.get("category", "utility"),
+        "plugin_type": manifest.get("plugin_type", "data"),
+    }
+
+
 def load_plugin_manifest(plugin_dir: Path) -> dict:
     manifest_path = plugin_dir / "manifest.json"
     with open(manifest_path, encoding="utf-8") as f:
@@ -309,18 +329,7 @@ def extract_plugin(plugin_id: str, dry_run: bool = False) -> bool:
         log(f"  Registry entry already exists for {plugin_id}, updating...")
         registry["plugins"] = [e for e in registry["plugins"] if e.get("id") != plugin_id]
 
-    registry["plugins"].append(
-        {
-            "id": plugin_id,
-            "name": manifest.get("name", plugin_id),
-            "description": manifest.get("description", ""),
-            "repository": repo_url,
-            "author": manifest.get("author", "FiestaBoard Team"),
-            "fiestaboard_version": FIESTABOARD_VERSION_CONSTRAINT,
-            "icon": manifest.get("icon", "puzzle"),
-            "category": manifest.get("category", "utility"),
-        }
-    )
+    registry["plugins"].append(build_registry_entry(plugin_id, manifest, repo_url))
 
     # Keep registry sorted by id for clean diffs
     registry["plugins"].sort(key=lambda e: e["id"])

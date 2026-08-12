@@ -10,6 +10,7 @@
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -25,6 +26,13 @@ interface MockPlugin {
   plugin_type?: "data" | "transition";
   enabled?: boolean;
   configured?: boolean;
+}
+
+interface MockRegistryEntry {
+  id: string;
+  name: string;
+  category: string;
+  plugin_type?: "data" | "transition";
 }
 
 function mockPlugins(plugins: MockPlugin[]) {
@@ -54,6 +62,35 @@ function mockPlugins(plugins: MockPlugin[]) {
     ),
     http.get(`${API_BASE}/plugins/registry`, () => HttpResponse.json({ entries: [] })),
   );
+}
+
+/** Marketplace fixtures: nothing installed, `entries` available in the registry. */
+function mockRegistry(entries: MockRegistryEntry[]) {
+  const full = entries.map((e) => ({
+    description: `${e.name} description`,
+    repository: `https://example.com/${e.id}`,
+    branch: "main",
+    author: "FiestaBoard",
+    fiestaboard_version: ">=8.0.0",
+    icon: "puzzle",
+    installed: false,
+    teaser: "",
+    previews: [],
+    ...e,
+  }));
+  server.use(
+    http.get(`${API_BASE}/plugins`, () =>
+      HttpResponse.json({ plugins: [], plugin_system_enabled: true, total: 0, enabled_count: 0 }),
+    ),
+    http.get(`${API_BASE}/plugins/registry`, () => HttpResponse.json({ entries: full })),
+  );
+}
+
+/** Open Marketplace → list view, where registry entries render as table rows. */
+async function openMarketplaceList() {
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole("tab", { name: /marketplace/i }));
+  await user.click(await screen.findByRole("button", { name: /list view/i }));
 }
 
 function renderPage() {
@@ -144,5 +181,46 @@ describe("Integrations page — transition plugins", () => {
     await waitFor(() => {
       expect(within(row).getByRole("button", { name: /more options/i })).toBeInTheDocument();
     });
+  });
+});
+
+/**
+ * The Marketplace tab is a separate code path from the Installed table: it
+ * renders `RegistryEntry` rows straight from the registry payload. Without a
+ * type marker there, a transition plugin is indistinguishable from a data
+ * plugin until after it is installed.
+ */
+describe("Integrations page — transition plugins in the Marketplace", () => {
+  it("badges a registry entry whose plugin_type is transition", async () => {
+    mockRegistry([{ id: "typewriter", name: "Typewriter", category: "transition", plugin_type: "transition" }]);
+    renderPage();
+    await openMarketplaceList();
+
+    const row = await rowFor("Typewriter");
+    expect(within(row).getByText("Transition")).toBeInTheDocument();
+  });
+
+  it("does not badge a registry entry that declares no plugin_type", async () => {
+    mockRegistry([{ id: "weather", name: "Weather", category: "weather" }]);
+    renderPage();
+    await openMarketplaceList();
+
+    // Positive control: the row rendered at all, so the absent badge below is
+    // a real absence and not a selector that quietly stopped matching.
+    const row = await rowFor("Weather");
+    expect(within(row).getByRole("button", { name: /install/i })).toBeInTheDocument();
+    expect(within(row).queryByText("Transition")).not.toBeInTheDocument();
+  });
+
+  it("labels a transition category group with its translated name", async () => {
+    mockRegistry([{ id: "typewriter", name: "Typewriter", category: "transition", plugin_type: "transition" }]);
+    renderPage();
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("tab", { name: /marketplace/i }));
+
+    const heading = await screen.findByRole("heading", { name: /transitions/i });
+    expect(within(heading).getByText("Transitions")).toBeInTheDocument();
+    expect(within(heading).queryByText("transition")).not.toBeInTheDocument();
   });
 });

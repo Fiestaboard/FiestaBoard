@@ -1860,6 +1860,18 @@ function RegistryPluginRow({
                   {t("installedBadge")}
                 </Badge>
               )}
+              {/* Transitions behave nothing like data plugins once installed —
+                  no variables, no enable toggle — so the marketplace flags the
+                  type up front, with the same badge the Installed table uses. */}
+              {entry.plugin_type === "transition" && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] gap-1 px-1.5 py-0 h-5 border-violet-300 text-violet-600 dark:text-violet-400 dark:border-violet-700"
+                >
+                  <Wand2 className="h-2.5 w-2.5" />
+                  {t("transitionBadge")}
+                </Badge>
+              )}
             </Flex>
             {entry.description && (
               <Text size="xs" tone="muted" className="truncate max-w-xs">
