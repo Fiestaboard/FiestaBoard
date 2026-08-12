@@ -9,15 +9,31 @@
  */
 "use client";
 
-import { Badge, Box, Flex, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import {
+  Badge,
+  Box,
+  Flex,
+  Skeleton,
+  Text,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@fiestaboard/ui";
 import { NodeViewWrapper } from "@tiptap/react";
 import { SquareFunction } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useTranslations } from "@/i18n/translations";
 
-import { FormulaEditorPanel } from "../components/FormulaEditorPanel";
+// Lazy-loaded — CodeMirror (+ the lucide-react icon barrel pulled in via
+// VariablePickerContent's "Variables" tab) is only needed once the formula
+// modal is actually opened, and keeping it out of the base TipTap editor
+// chunk is what keeps that chunk under the 500 kB warning threshold (#1575).
+const FormulaEditorPanel = lazy(() =>
+  import("../components/FormulaEditorPanel").then((m) => ({ default: m.FormulaEditorPanel })),
+);
 
 interface FormulaNodeViewProps {
   node: {
@@ -139,12 +155,14 @@ export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaN
 
             {/* Modal panel */}
             <Box className="relative rounded-lg border border-border bg-popover shadow-2xl max-h-[90vh] overflow-y-auto w-full max-w-[min(660px,90vw)]">
-              <FormulaEditorPanel
-                mode="edit"
-                initialExpr={expression}
-                onConfirm={handleConfirm}
-                onCancel={handleCancel}
-              />
+              <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+                <FormulaEditorPanel
+                  mode="edit"
+                  initialExpr={expression}
+                  onConfirm={handleConfirm}
+                  onCancel={handleCancel}
+                />
+              </Suspense>
             </Box>
           </Flex>,
           document.body,
