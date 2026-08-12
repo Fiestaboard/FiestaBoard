@@ -527,12 +527,24 @@ def _build_mcp_server() -> Any:
             from .pages.service import get_page_service
 
             svc = get_page_service()
-            data = PageUpdate(
-                name=name,
-                template=template_lines,
-                duration_seconds=duration_seconds,
-            )
-            page = svc.update_page(page_id, data)
+            # Only pass fields the caller actually supplied. PageService.update_page
+            # merges with model_dump(exclude_unset=True), and "unset" means *not
+            # passed to the constructor* — an explicit None counts as set. Passing
+            # name/template/duration unconditionally therefore sent template=None on
+            # every partial update, wiping the template and failing validation with
+            # "Template page requires template content". Renaming a page or changing
+            # its duration over MCP was impossible.
+            fields: dict[str, Any] = {}
+            if name is not None:
+                fields["name"] = name
+            if template_lines is not None:
+                fields["template"] = template_lines
+            if duration_seconds is not None:
+                fields["duration_seconds"] = duration_seconds
+            if not fields:
+                return _err("Nothing to update: pass at least one of name, template_lines, duration_seconds.")
+
+            page = svc.update_page(page_id, PageUpdate(**fields))
             if page is None:
                 return _err(f"Page '{page_id}' not found.")
             return _ok(f"Page '{page_id}' updated.", page_id=page.id, name=page.name)
@@ -554,9 +566,21 @@ def _build_mcp_server() -> Any:
 
             svc = get_page_service()
             result = svc.delete_page(page_id)
-            if not result.success:
-                return _err(f"Error deleting page: {result.message}")
-            return _ok(f"Page '{page_id}' deleted successfully.", page_id=page_id)
+            # DeleteResult exposes `deleted`, not `success`, and has no
+            # `message`. Reading `result.success` raised AttributeError, which
+            # this tool caught and returned as an error string — so delete_page
+            # never deleted anything over MCP. Same drift as #1559/#1561: the
+            # REST handler was updated (api_server.py uses result.deleted) and
+            # this call site was left behind.
+            if not result.deleted:
+                return _err(f"Page '{page_id}' was not deleted (it may not exist).")
+            return _ok(
+                f"Page '{page_id}' deleted successfully.",
+                page_id=page_id,
+                default_page_created=result.default_page_created,
+                new_page_id=result.new_page_id,
+                active_page_updated=result.active_page_updated,
+            )
         except Exception as exc:
             return _err(f"Error deleting page '{page_id}': {exc}")
 

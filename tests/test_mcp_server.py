@@ -136,10 +136,12 @@ def mock_page_service():
     result.name = "New Page"
     svc.create_page.return_value = result
     svc.update_page.return_value = page
-    delete_result = MagicMock()
-    delete_result.success = True
-    delete_result.message = "Deleted"
-    svc.delete_page.return_value = delete_result
+    # A real DeleteResult, not MagicMock with invented attributes. The old
+    # stub set .success/.message, neither of which DeleteResult defines, so
+    # it agreed with a tool that was reading attributes into thin air.
+    from src.pages.service import DeleteResult
+
+    svc.delete_page.return_value = DeleteResult(deleted=True)
     return svc
 
 
@@ -628,15 +630,36 @@ class TestDeletePage:
         assert "deleted successfully" in result["message"]
 
     def test_delete_failure(self, mcp):
-        mock_svc = MagicMock()
-        fail = MagicMock()
-        fail.success = False
-        fail.message = "Page is in use"
-        mock_svc.delete_page.return_value = fail
+        """Uses a real DeleteResult, not a MagicMock with invented attributes.
+
+        This test previously built ``MagicMock()`` and set ``.success`` and
+        ``.message`` on it — neither of which ``DeleteResult`` defines. It
+        therefore asserted that production code read attributes that do not
+        exist, and passed. The tool really was reading ``result.success``,
+        catching the AttributeError, and returning it as an error string, so
+        delete_page never deleted anything over MCP.
+        """
+        from src.pages.service import DeleteResult, PageService
+
+        mock_svc = create_autospec(PageService, instance=True)
+        mock_svc.delete_page.return_value = DeleteResult(deleted=False)
         with patch("src.pages.service.get_page_service", return_value=mock_svc):
             result = _call_tool(mcp, "delete_page", page_id="page-001")
         assert result["status"] == "error"
-        assert "Page is in use" in result["error"]
+        assert "not deleted" in result["error"]
+
+    def test_delete_reports_default_page_creation(self, mcp):
+        """Deleting the last page creates a default one; the client is told."""
+        from src.pages.service import DeleteResult, PageService
+
+        mock_svc = create_autospec(PageService, instance=True)
+        mock_svc.delete_page.return_value = DeleteResult(
+            deleted=True, default_page_created=True, new_page_id="page-new"
+        )
+        with patch("src.pages.service.get_page_service", return_value=mock_svc):
+            result = _call_tool(mcp, "delete_page", page_id="page-001")
+        assert result["default_page_created"] is True
+        assert result["new_page_id"] == "page-new"
 
 
 class TestRenderPagePreview:
