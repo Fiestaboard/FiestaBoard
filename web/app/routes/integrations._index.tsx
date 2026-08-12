@@ -539,16 +539,22 @@ const ICON_MAP: Record<string, LucideIcon> = {
 };
 
 /**
- * Get the Lucide icon component for a plugin based on its manifest icon field.
- * Falls back to Puzzle icon if not found.
+ * Normalize a plugin manifest icon field into an `ICON_MAP` key
+ * (lowercase, snake_case). Used to look up the Lucide icon component
+ * for a plugin, falling back to Puzzle if not found.
+ *
+ * This resolves the map *key* rather than the component itself so
+ * callers can do a plain `ICON_MAP[key] ?? Puzzle` lookup inline —
+ * assigning a function's return value directly to a capitalized
+ * variable used as a JSX tag defines a new component reference during
+ * render (see React Compiler's "Cannot create components during
+ * render" rule).
  */
-function getPluginIcon(iconName?: string): LucideIcon {
-  if (!iconName) return Puzzle;
+function normalizePluginIconKey(iconName?: string): string {
+  if (!iconName) return "";
 
   // Normalize: lowercase and handle both snake_case and lowercase
-  const normalized = iconName.toLowerCase().replace(/-/g, "_");
-
-  return ICON_MAP[normalized] || Puzzle;
+  return iconName.toLowerCase().replace(/-/g, "_");
 }
 
 // Color display helpers - using board's official colors
@@ -1188,7 +1194,7 @@ function InstalledPluginRow({
   };
 
   // Use icon from plugin manifest, falling back to Puzzle
-  const Icon = getPluginIcon(plugin.icon);
+  const Icon = ICON_MAP[normalizePluginIconKey(plugin.icon)] ?? Puzzle;
 
   const sourceType = plugin.source?.source_type;
   // "builtin" = ships with FiestaBoard, "external"/"registry" = from marketplace, "git" = user custom git URL
@@ -1841,7 +1847,7 @@ function RegistryPluginRow({
 }) {
   const t = useTranslations("integrations");
   const categoryLabels = useCategoryLabels();
-  const Icon = getPluginIcon(entry.icon);
+  const Icon = ICON_MAP[normalizePluginIconKey(entry.icon)] ?? Puzzle;
   return (
     <TableRow className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
       <TableCell className="px-4 py-2.5">
