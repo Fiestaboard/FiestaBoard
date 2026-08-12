@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-11T05:13:15Z",
+  "generated_at": "2026-08-12T05:39:41Z",
   "window_days": 14,
   "plugins": [
     {
@@ -11,8 +11,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:40Z",
       "updated_at": "2026-08-09T21:02:10Z",
-      "clones_14d_count": 26,
-      "clones_14d_uniques": 19
+      "clones_14d_count": 33,
+      "clones_14d_uniques": 25
     },
     {
       "id": "air_fog",
@@ -23,8 +23,8 @@
       "version": "1.3.0",
       "created_at": "2026-03-22T01:21:49Z",
       "updated_at": "2026-08-09T21:02:23Z",
-      "clones_14d_count": 445,
-      "clones_14d_uniques": 316
+      "clones_14d_count": 448,
+      "clones_14d_uniques": 319
     },
     {
       "id": "aurora_forecast",
@@ -35,8 +35,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:44Z",
       "updated_at": "2026-08-09T21:02:07Z",
-      "clones_14d_count": 19,
-      "clones_14d_uniques": 14
+      "clones_14d_count": 21,
+      "clones_14d_uniques": 16
     },
     {
       "id": "lyft_bike_share",
@@ -47,8 +47,8 @@
       "version": "2.1.0",
       "created_at": "2026-03-22T01:21:56Z",
       "updated_at": "2026-08-10T04:17:50Z",
-      "clones_14d_count": 423,
-      "clones_14d_uniques": 307
+      "clones_14d_count": 437,
+      "clones_14d_uniques": 319
     },
     {
       "id": "calendar_sub",
@@ -83,8 +83,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:02Z",
       "updated_at": "2026-08-09T21:02:37Z",
-      "clones_14d_count": 3343,
-      "clones_14d_uniques": 850
+      "clones_14d_count": 3372,
+      "clones_14d_uniques": 864
     },
     {
       "id": "disney_parks_times",
@@ -95,8 +95,8 @@
       "version": "1.3.0",
       "created_at": "2026-03-22T01:22:10Z",
       "updated_at": "2026-08-10T06:02:33Z",
-      "clones_14d_count": 45,
-      "clones_14d_uniques": 21
+      "clones_14d_count": 50,
+      "clones_14d_uniques": 24
     },
     {
       "id": "earthquake",
@@ -107,8 +107,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:51Z",
       "updated_at": "2026-08-09T21:02:34Z",
-      "clones_14d_count": 21,
-      "clones_14d_uniques": 18
+      "clones_14d_count": 22,
+      "clones_14d_uniques": 19
     },
     {
       "id": "element_of_day",
@@ -119,8 +119,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:55Z",
       "updated_at": "2026-08-09T21:02:30Z",
-      "clones_14d_count": 16,
-      "clones_14d_uniques": 14
+      "clones_14d_count": 17,
+      "clones_14d_uniques": 15
     },
     {
       "id": "generic_data",
@@ -128,9 +128,9 @@
       "name": "Generic Data",
       "category": "data",
       "description": "Fetch data from any URL (JSON or XML) and map fields to template variables \u2014 supports multiple feeds",
-      "version": "1.2.2",
+      "version": "1.3.0",
       "created_at": "2026-03-22T01:22:18Z",
-      "updated_at": "2026-08-09T21:02:31Z",
+      "updated_at": "2026-08-12T03:02:13Z",
       "clones_14d_count": 32,
       "clones_14d_uniques": 21
     },
@@ -143,8 +143,8 @@
       "version": "1.4.2",
       "created_at": "2026-05-02T18:33:00Z",
       "updated_at": "2026-08-09T21:02:28Z",
-      "clones_14d_count": 15,
-      "clones_14d_uniques": 15
+      "clones_14d_count": 14,
+      "clones_14d_uniques": 14
     },
     {
       "id": "guest_wifi",
@@ -155,8 +155,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:22:24Z",
       "updated_at": "2026-08-09T21:03:00Z",
-      "clones_14d_count": 419,
-      "clones_14d_uniques": 305
+      "clones_14d_count": 423,
+      "clones_14d_uniques": 308
     },
     {
       "id": "hacker_news",
@@ -167,8 +167,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:00:58Z",
       "updated_at": "2026-08-09T21:03:03Z",
-      "clones_14d_count": 16,
-      "clones_14d_uniques": 13
+      "clones_14d_count": 17,
+      "clones_14d_uniques": 14
     },
     {
       "id": "health",
@@ -179,8 +179,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:22:31Z",
       "updated_at": "2026-08-09T21:02:59Z",
-      "clones_14d_count": 20,
-      "clones_14d_uniques": 18
+      "clones_14d_count": 19,
+      "clones_14d_uniques": 17
     },
     {
       "id": "home_assistant",
@@ -191,8 +191,8 @@
       "version": "1.3.0",
       "created_at": "2026-03-22T01:22:37Z",
       "updated_at": "2026-08-10T03:59:16Z",
-      "clones_14d_count": 446,
-      "clones_14d_uniques": 326
+      "clones_14d_count": 478,
+      "clones_14d_uniques": 344
     },
     {
       "id": "iss_tracker",
@@ -227,8 +227,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:05Z",
       "updated_at": "2026-08-09T21:02:59Z",
-      "clones_14d_count": 19,
-      "clones_14d_uniques": 16
+      "clones_14d_count": 20,
+      "clones_14d_uniques": 17
     },
     {
       "id": "moon_phase",
@@ -239,8 +239,8 @@
       "version": "0.1.5",
       "created_at": "2026-05-02T07:01:09Z",
       "updated_at": "2026-08-09T21:03:08Z",
-      "clones_14d_count": 20,
-      "clones_14d_uniques": 14
+      "clones_14d_count": 22,
+      "clones_14d_uniques": 16
     },
     {
       "id": "muni",
@@ -251,8 +251,8 @@
       "version": "1.2.0",
       "created_at": "2026-03-22T01:22:49Z",
       "updated_at": "2026-08-10T04:25:35Z",
-      "clones_14d_count": 420,
-      "clones_14d_uniques": 301
+      "clones_14d_count": 432,
+      "clones_14d_uniques": 308
     },
     {
       "id": "national_day",
@@ -263,8 +263,8 @@
       "version": "0.1.4",
       "created_at": "2026-05-02T07:01:13Z",
       "updated_at": "2026-08-09T21:13:23Z",
-      "clones_14d_count": 35,
-      "clones_14d_uniques": 25
+      "clones_14d_count": 36,
+      "clones_14d_uniques": 26
     },
     {
       "id": "nearby_aircraft",
@@ -287,8 +287,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:17Z",
       "updated_at": "2026-08-09T21:03:27Z",
-      "clones_14d_count": 28,
-      "clones_14d_uniques": 21
+      "clones_14d_count": 29,
+      "clones_14d_uniques": 22
     },
     {
       "id": "on_this_day",
@@ -299,8 +299,8 @@
       "version": "0.1.4",
       "created_at": "2026-05-02T07:01:20Z",
       "updated_at": "2026-08-09T21:03:30Z",
-      "clones_14d_count": 20,
-      "clones_14d_uniques": 14
+      "clones_14d_count": 21,
+      "clones_14d_uniques": 15
     },
     {
       "id": "pet_facts",
@@ -347,8 +347,8 @@
       "version": "0.2.2",
       "created_at": "2026-05-02T07:01:36Z",
       "updated_at": "2026-08-09T21:03:45Z",
-      "clones_14d_count": 21,
-      "clones_14d_uniques": 15
+      "clones_14d_count": 24,
+      "clones_14d_uniques": 18
     },
     {
       "id": "river_flow",
@@ -383,8 +383,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:43Z",
       "updated_at": "2026-08-09T21:03:52Z",
-      "clones_14d_count": 19,
-      "clones_14d_uniques": 13
+      "clones_14d_count": 20,
+      "clones_14d_uniques": 14
     },
     {
       "id": "spacecraft_launches",
@@ -395,8 +395,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:09Z",
       "updated_at": "2026-08-09T21:03:39Z",
-      "clones_14d_count": 44,
-      "clones_14d_uniques": 22
+      "clones_14d_count": 45,
+      "clones_14d_uniques": 23
     },
     {
       "id": "sports_scores",
@@ -407,8 +407,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:17Z",
       "updated_at": "2026-08-09T21:03:42Z",
-      "clones_14d_count": 27,
-      "clones_14d_uniques": 13
+      "clones_14d_count": 29,
+      "clones_14d_uniques": 15
     },
     {
       "id": "star_trek_quotes",
@@ -419,8 +419,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:23:22Z",
       "updated_at": "2026-08-09T21:03:53Z",
-      "clones_14d_count": 1751,
-      "clones_14d_uniques": 744
+      "clones_14d_count": 1766,
+      "clones_14d_uniques": 753
     },
     {
       "id": "stardate",
@@ -443,8 +443,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:34Z",
       "updated_at": "2026-08-09T21:04:08Z",
-      "clones_14d_count": 410,
-      "clones_14d_uniques": 300
+      "clones_14d_count": 414,
+      "clones_14d_uniques": 302
     },
     {
       "id": "sun_art",
@@ -455,8 +455,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:41Z",
       "updated_at": "2026-08-09T21:03:58Z",
-      "clones_14d_count": 25,
-      "clones_14d_uniques": 14
+      "clones_14d_count": 27,
+      "clones_14d_uniques": 16
     },
     {
       "id": "surf",
@@ -467,7 +467,7 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:48Z",
       "updated_at": "2026-08-09T21:04:24Z",
-      "clones_14d_count": 419,
+      "clones_14d_count": 422,
       "clones_14d_uniques": 301
     },
     {
@@ -479,8 +479,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:46Z",
       "updated_at": "2026-08-09T21:04:07Z",
-      "clones_14d_count": 28,
-      "clones_14d_uniques": 18
+      "clones_14d_count": 33,
+      "clones_14d_uniques": 23
     },
     {
       "id": "traffic",
@@ -491,8 +491,8 @@
       "version": "1.1.2",
       "created_at": "2026-03-22T01:23:54Z",
       "updated_at": "2026-08-09T21:04:04Z",
-      "clones_14d_count": 416,
-      "clones_14d_uniques": 286
+      "clones_14d_count": 419,
+      "clones_14d_uniques": 287
     },
     {
       "id": "uv_index",
@@ -503,8 +503,8 @@
       "version": "0.1.3",
       "created_at": "2026-05-02T07:01:49Z",
       "updated_at": "2026-08-09T21:04:23Z",
-      "clones_14d_count": 14,
-      "clones_14d_uniques": 11
+      "clones_14d_count": 15,
+      "clones_14d_uniques": 12
     },
     {
       "id": "visual_clock",
@@ -515,8 +515,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:24:01Z",
       "updated_at": "2026-08-09T21:04:30Z",
-      "clones_14d_count": 24,
-      "clones_14d_uniques": 18
+      "clones_14d_count": 26,
+      "clones_14d_uniques": 20
     },
     {
       "id": "volcano",
@@ -539,8 +539,8 @@
       "version": "1.4.0",
       "created_at": "2026-03-22T01:24:09Z",
       "updated_at": "2026-08-09T21:04:17Z",
-      "clones_14d_count": 441,
-      "clones_14d_uniques": 314
+      "clones_14d_count": 461,
+      "clones_14d_uniques": 320
     },
     {
       "id": "webhook",
@@ -563,8 +563,8 @@
       "version": "1.1.3",
       "created_at": "2026-03-22T01:24:14Z",
       "updated_at": "2026-08-09T21:04:25Z",
-      "clones_14d_count": 17,
-      "clones_14d_uniques": 11
+      "clones_14d_count": 18,
+      "clones_14d_uniques": 12
     },
     {
       "id": "wildfire",
@@ -575,8 +575,8 @@
       "version": "0.1.2",
       "created_at": "2026-05-02T07:02:01Z",
       "updated_at": "2026-08-09T21:04:23Z",
-      "clones_14d_count": 25,
-      "clones_14d_uniques": 17
+      "clones_14d_count": 28,
+      "clones_14d_uniques": 20
     },
     {
       "id": "word_of_day",
@@ -588,7 +588,7 @@
       "created_at": "2026-05-02T07:02:05Z",
       "updated_at": "2026-08-09T21:04:45Z",
       "clones_14d_count": 21,
-      "clones_14d_uniques": 15
+      "clones_14d_uniques": 16
     },
     {
       "id": "airport_departures",
@@ -611,7 +611,7 @@
       "version": "1.2.0",
       "created_at": "2026-03-22T01:24:21Z",
       "updated_at": "2026-08-09T23:45:49Z",
-      "clones_14d_count": 43,
+      "clones_14d_count": 44,
       "clones_14d_uniques": 16
     }
   ]
