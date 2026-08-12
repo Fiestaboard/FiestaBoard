@@ -25,7 +25,8 @@ const VERSIONED_DOCS = `${REPO}/tree/main/docs-site/versioned_docs`;
 
 /**
  * Entry route for a version. `version.path` is the version's base URL (`/docs`
- * for the latest), which is only a real route when a doc declares `slug: /` -  * ours doesn't, so link to the version's main doc instead. Bare `/docs` fails
+ * for the latest), which is only a real route when a doc declares `slug: /` -
+ * ours doesn't, so link to the version's main doc instead. Bare `/docs` fails
  * the `onBrokenLinks: "throw"` build check.
  */
 function versionEntryPath(version: GlobalVersion): string {
