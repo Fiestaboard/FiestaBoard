@@ -5,12 +5,23 @@ import "@testing-library/jest-dom/vitest";
 // en messages are statically imported so lookups resolve synchronously.
 import "../i18n/i18next";
 
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import React from "react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 
 import enMessages from "../../messages/en.json";
 import { server } from "./mocks/server";
+
+// Several routes now lazy-load heavy dependencies (TipTap/ProseMirror,
+// CodeMirror, the lucide-react icon barrel — see #1575) via `React.lazy` +
+// `Suspense`. The first `render()` that touches one of those modules in a
+// given worker pays the cost of vitest transforming a large module graph on
+// demand, which can exceed testing-library's default 1000ms `waitFor` /
+// `findBy*` timeout — especially under full-suite parallelism where workers
+// have less CPU time each. Bump the default so async assertions have
+// realistic headroom; this doesn't weaken any assertion, it just gives
+// intentionally-async renders enough time to resolve.
+configure({ asyncUtilTimeout: 5000 });
 
 // Tests mock `@/i18n/translations` with a synchronous English-only
 // implementation so component output is deterministic without

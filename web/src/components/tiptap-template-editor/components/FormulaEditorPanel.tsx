@@ -20,6 +20,7 @@ import {
   Flex,
   List,
   ListItem,
+  Skeleton,
   Stack,
   Tabs,
   TabsContent,
@@ -46,13 +47,20 @@ import {
   Type as TypeIcon,
   XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-import { VariablePickerContent } from "./VariablePickerContent";
+// Lazy-loaded — see TemplateEditorToolbar.tsx for why: it pulls in
+// lucide-react's full `icons` barrel. Dynamically importing it here too
+// (rather than statically) means the "Variables" tab shares one chunk with
+// the toolbar's Variables dropdown instead of duplicating the barrel into
+// this already-CodeMirror-heavy formula panel chunk (#1575).
+const VariablePickerContent = lazy(() =>
+  import("./VariablePickerContent").then((m) => ({ default: m.VariablePickerContent })),
+);
 
 // ─── Formula pretty-printer ────────────────────────────────────────────────────
 
@@ -568,12 +576,22 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
             {/* ── Variables tab ── */}
             <TabsContent value="variables" className="mt-0">
               {/* sm:min-w-0 overrides the component's own min-w to fit the column */}
-              <VariablePickerContent
-                onInsert={handleVariableInsert}
-                maxHeight="400px"
-                autoFocusSearch={false}
-                className="sm:min-w-0"
-              />
+              <Suspense
+                fallback={
+                  <Box className="p-3 min-w-[300px]">
+                    <Skeleton className="h-4 w-full mb-2" />
+                    <Skeleton className="h-4 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </Box>
+                }
+              >
+                <VariablePickerContent
+                  onInsert={handleVariableInsert}
+                  maxHeight="400px"
+                  autoFocusSearch={false}
+                  className="sm:min-w-0"
+                />
+              </Suspense>
             </TabsContent>
           </Tabs>
         </Box>

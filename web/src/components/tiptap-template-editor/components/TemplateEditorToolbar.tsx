@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { Box, Flex, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import { Box, Flex, Skeleton, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import type { Editor } from "@tiptap/react";
 import {
@@ -26,7 +26,7 @@ import {
   Undo2,
   WrapText,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { HomeAssistantEntityPicker } from "@/components/home-assistant-entity-picker";
 import { useTranslations } from "@/i18n/translations";
@@ -42,7 +42,14 @@ import { ColorPickerContent } from "./ColorPickerContent";
 import { DrawCharPickerContent } from "./DrawCharPickerContent";
 import { FormattingPickerContent } from "./FormattingPickerContent";
 import { ToolbarDropdown } from "./ToolbarDropdown";
-import { VariablePickerContent } from "./VariablePickerContent";
+
+// Lazy-loaded — pulls in lucide-react's full `icons` barrel (every icon in
+// the library, ~1.2 MB) to resolve plugin-provided icon names dynamically.
+// Deferring it until the "Variables" dropdown is actually opened keeps that
+// cost out of the base TipTap editor chunk (#1575).
+const VariablePickerContent = lazy(() =>
+  import("./VariablePickerContent").then((m) => ({ default: m.VariablePickerContent })),
+);
 
 interface TemplateEditorToolbarProps {
   editor: Editor | null;
@@ -530,12 +537,22 @@ export function TemplateEditorToolbar({
             {hasVariables ? (
               <ToolbarDropdown label={t("variables")} icon={<Code2 className="w-4 h-4" />}>
                 {(close) => (
-                  <VariablePickerContent
-                    onInsert={(variable) => {
-                      handleInsert(variable);
-                      close();
-                    }}
-                  />
+                  <Suspense
+                    fallback={
+                      <Box className="p-3 min-w-[300px]">
+                        <Skeleton className="h-4 w-full mb-2" />
+                        <Skeleton className="h-4 w-3/4 mb-2" />
+                        <Skeleton className="h-4 w-1/2" />
+                      </Box>
+                    }
+                  >
+                    <VariablePickerContent
+                      onInsert={(variable) => {
+                        handleInsert(variable);
+                        close();
+                      }}
+                    />
+                  </Suspense>
                 )}
               </ToolbarDropdown>
             ) : (

@@ -49,7 +49,17 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Copy, Radio, Save, Sparkles, Trash2, Upload } from "lucide-react";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
@@ -61,9 +71,6 @@ import type {
   DrawHistoryEvent,
   TipTapTemplateEditorHandle,
 } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
-// Direct import – bypasses next/dynamic chunk caching issues in dev mode.
-// TipTap's useEditor({ immediatelyRender: false }) handles SSR safely.
-import { TipTapTemplateEditor } from "@/components/tiptap-template-editor/TipTapTemplateEditor";
 import type { CellPaint, DrawBrush } from "@/components/tiptap-template-editor/utils/draw-mode";
 import {
   brushToCell,
@@ -90,6 +97,19 @@ import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
 import { applyLineOpInPlace } from "@/lib/line-ops";
 import { onLiveOutputMessageChange, writeLiveOutputMessage } from "@/lib/live-output-channel";
 import { clearPreviewCacheForPage } from "@/lib/preview-cache";
+
+// Lazy-loaded — TipTap + ProseMirror + CodeMirror + the lucide-react icon
+// barrel push this module past 500 kB minified on their own (see #1575).
+// It's route-split from the surrounding page-builder chunk so "plain" text
+// editor mode (below) never pays for it, and "rich" mode streams it in
+// behind a Suspense fallback instead of blocking the whole page-builder
+// chunk's parse/eval. TipTap's useEditor({ immediatelyRender: false })
+// handles SSR safely, so deferring the import is safe under RR7 SPA mode.
+const TipTapTemplateEditor = lazy(() =>
+  import("@/components/tiptap-template-editor/TipTapTemplateEditor").then((m) => ({
+    default: m.TipTapTemplateEditor,
+  })),
+);
 
 interface PageBuilderProps {
   pageId?: string; // If provided, edit existing page
@@ -1775,90 +1795,92 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                 {editorMode === "rich" ? (
                   <Box>
                     {/* Template editor with device-specific dimensions */}
-                    <TipTapTemplateEditor
-                      ref={tipTapRef}
-                      value={templateLines.join("\n")}
-                      onChange={(newValue) => {
-                        if (isUpdatingWrap.current) {
-                          return;
-                        }
-                        const lines = newValue.split("\n");
-                        setTemplateLines(lines);
-
-                        const oldLen = templateLines.length;
-                        const newLen = lines.length;
-                        if (newLen !== oldLen) {
-                          let prefixMatch = 0;
-                          while (
-                            prefixMatch < Math.min(newLen, oldLen) &&
-                            lines[prefixMatch] === templateLines[prefixMatch]
-                          ) {
-                            prefixMatch++;
+                    <Suspense fallback={<Skeleton className="h-48 w-full rounded-md" />}>
+                      <TipTapTemplateEditor
+                        ref={tipTapRef}
+                        value={templateLines.join("\n")}
+                        onChange={(newValue) => {
+                          if (isUpdatingWrap.current) {
+                            return;
                           }
-                          let suffixMatch = 0;
-                          while (
-                            suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
-                            lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]
-                          ) {
-                            suffixMatch++;
-                          }
+                          const lines = newValue.split("\n");
+                          setTemplateLines(lines);
 
-                          const updatedAlignments = [...lineAlignments];
-                          const updatedWrap = [...lineWrapEnabled];
-
-                          if (newLen < oldLen) {
-                            const deleteCount = oldLen - newLen;
-                            const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
-                            updatedAlignments.splice(deleteStart, deleteCount);
-                            updatedWrap.splice(deleteStart, deleteCount);
-                          } else {
-                            const insertCount = newLen - oldLen;
-                            const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
-                            for (let i = 0; i < insertCount; i++) {
-                              updatedAlignments.splice(insertStart + i, 0, "left");
-                              updatedWrap.splice(insertStart + i, 0, false);
+                          const oldLen = templateLines.length;
+                          const newLen = lines.length;
+                          if (newLen !== oldLen) {
+                            let prefixMatch = 0;
+                            while (
+                              prefixMatch < Math.min(newLen, oldLen) &&
+                              lines[prefixMatch] === templateLines[prefixMatch]
+                            ) {
+                              prefixMatch++;
                             }
+                            let suffixMatch = 0;
+                            while (
+                              suffixMatch < Math.min(newLen, oldLen) - prefixMatch &&
+                              lines[newLen - 1 - suffixMatch] === templateLines[oldLen - 1 - suffixMatch]
+                            ) {
+                              suffixMatch++;
+                            }
+
+                            const updatedAlignments = [...lineAlignments];
+                            const updatedWrap = [...lineWrapEnabled];
+
+                            if (newLen < oldLen) {
+                              const deleteCount = oldLen - newLen;
+                              const deleteStart = prefixMatch + (newLen - prefixMatch - suffixMatch);
+                              updatedAlignments.splice(deleteStart, deleteCount);
+                              updatedWrap.splice(deleteStart, deleteCount);
+                            } else {
+                              const insertCount = newLen - oldLen;
+                              const insertStart = prefixMatch + (oldLen - prefixMatch - suffixMatch);
+                              for (let i = 0; i < insertCount; i++) {
+                                updatedAlignments.splice(insertStart + i, 0, "left");
+                                updatedWrap.splice(insertStart + i, 0, false);
+                              }
+                            }
+
+                            while (updatedAlignments.length < newLen) updatedAlignments.push("left");
+                            while (updatedWrap.length < newLen) updatedWrap.push(false);
+                            updatedAlignments.length = newLen;
+                            updatedWrap.length = newLen;
+
+                            setLineAlignments(updatedAlignments);
+                            setLineWrapEnabled(updatedWrap);
                           }
-
-                          while (updatedAlignments.length < newLen) updatedAlignments.push("left");
-                          while (updatedWrap.length < newLen) updatedWrap.push(false);
-                          updatedAlignments.length = newLen;
-                          updatedWrap.length = newLen;
-
-                          setLineAlignments(updatedAlignments);
-                          setLineWrapEnabled(updatedWrap);
-                        }
-                      }}
-                      lineAlignments={lineAlignments}
-                      lineWrapEnabled={lineWrapEnabled}
-                      onLineAlignmentChange={(lineIndex, alignment) => {
-                        setLineAlignments((prev) => {
-                          const newAlignments = [...prev];
-                          newAlignments[lineIndex] = alignment;
-                          return newAlignments;
-                        });
-                      }}
-                      onLineWrapChange={(lineIndex, wrapEnabled) => {
-                        setLineWrapEnabled((prev) => {
-                          const newWrapStates = [...prev];
-                          newWrapStates[lineIndex] = wrapEnabled;
-                          return newWrapStates;
-                        });
-                      }}
-                      placeholder={t("richEditorPlaceholder")}
-                      showAlignmentControls={true}
-                      showToolbar={true}
-                      boardWidth={dims.cols}
-                      boardLines={numLines}
-                      deviceType={deviceType}
-                      onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
-                      syncFromBoardPending={syncFromBoardMutation.isPending}
-                      drawMode={drawMode}
-                      onDrawModeToggle={() => setDrawMode((v) => !v)}
-                      drawBrush={drawBrush}
-                      onDrawBrushChange={setDrawBrush}
-                      onDrawHistoryEvent={handleDrawHistoryEvent}
-                    />
+                        }}
+                        lineAlignments={lineAlignments}
+                        lineWrapEnabled={lineWrapEnabled}
+                        onLineAlignmentChange={(lineIndex, alignment) => {
+                          setLineAlignments((prev) => {
+                            const newAlignments = [...prev];
+                            newAlignments[lineIndex] = alignment;
+                            return newAlignments;
+                          });
+                        }}
+                        onLineWrapChange={(lineIndex, wrapEnabled) => {
+                          setLineWrapEnabled((prev) => {
+                            const newWrapStates = [...prev];
+                            newWrapStates[lineIndex] = wrapEnabled;
+                            return newWrapStates;
+                          });
+                        }}
+                        placeholder={t("richEditorPlaceholder")}
+                        showAlignmentControls={true}
+                        showToolbar={true}
+                        boardWidth={dims.cols}
+                        boardLines={numLines}
+                        deviceType={deviceType}
+                        onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
+                        syncFromBoardPending={syncFromBoardMutation.isPending}
+                        drawMode={drawMode}
+                        onDrawModeToggle={() => setDrawMode((v) => !v)}
+                        drawBrush={drawBrush}
+                        onDrawBrushChange={setDrawBrush}
+                        onDrawHistoryEvent={handleDrawHistoryEvent}
+                      />
+                    </Suspense>
                   </Box>
                 ) : (
                   <Box>
