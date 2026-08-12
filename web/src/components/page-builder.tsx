@@ -1566,14 +1566,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                           setTransitionStrategy(value === TRANSITION_INHERIT ? null : String(value))
                         }
                       >
-                        <DropdownMenuRadioItem value={TRANSITION_INHERIT} className="text-xs">
+                        {/* Base UI's MenuRadioItem defaults closeOnClick to
+                         *  false; without this the menu stays open after a
+                         *  pick and its inert backdrop swallows clicks on
+                         *  Save. Picking a transition is a one-shot choice,
+                         *  so every item closes the menu. */}
+                        <DropdownMenuRadioItem value={TRANSITION_INHERIT} className="text-xs" closeOnClick>
                           {t("transitionUseGlobalDefault")}
                         </DropdownMenuRadioItem>
                         <DropdownMenuLabel className="text-[11px] text-muted-foreground">
                           {t("transitionBuiltInGroup")}
                         </DropdownMenuLabel>
                         {BUILT_IN_TRANSITIONS.map((strategy) => (
-                          <DropdownMenuRadioItem key={strategy.value} value={strategy.value} className="text-xs">
+                          <DropdownMenuRadioItem
+                            key={strategy.value}
+                            value={strategy.value}
+                            className="text-xs"
+                            closeOnClick
+                          >
                             {tTransitions(`strategies.${strategy.labelKey}.label`)}
                           </DropdownMenuRadioItem>
                         ))}
@@ -1587,12 +1597,13 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                             key={plugin.id}
                             value={`${PLUGIN_STRATEGY_PREFIX}${plugin.id}`}
                             className="text-xs"
+                            closeOnClick
                           >
                             {plugin.name}
                           </DropdownMenuRadioItem>
                         ))}
                         {unknownPluginStrategy && (
-                          <DropdownMenuRadioItem value={transitionStrategy!} className="text-xs">
+                          <DropdownMenuRadioItem value={transitionStrategy!} className="text-xs" closeOnClick>
                             {unknownPluginStrategy}
                           </DropdownMenuRadioItem>
                         )}
