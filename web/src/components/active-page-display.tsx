@@ -98,6 +98,13 @@ export function ActivePageDisplay() {
   // When true, the page selector treats selection as manual (after disabling schedule)
   const [openSheetAsManual, setOpenSheetAsManual] = useState(false);
 
+  // Use transition for non-urgent updates to improve perceived performance.
+  // Declared before the effects below so `startTransition` isn't referenced
+  // before its declaration (react-hooks/immutability).
+  const [isPending, startTransition] = useTransition();
+  const lastClickTimeRef = useRef<number>(0);
+  const lastPageIdRef = useRef<string | null>(null);
+
   // Start pre-rendering grid in background after component mounts
   useEffect(() => {
     // Use startTransition to make this low-priority
@@ -308,11 +315,6 @@ export function ActivePageDisplay() {
       });
     }
   }, [scheduleEnabled, isLoadingActivePage, isLoadingPages, activePageId, pages, setActivePageMutation, t]);
-
-  // Use transition for non-urgent updates to improve perceived performance
-  const [isPending, startTransition] = useTransition();
-  const lastClickTimeRef = useRef<number>(0);
-  const lastPageIdRef = useRef<string | null>(null);
 
   // Handle page selection with debouncing and optimistic updates
   const handleSelectPage = useCallback(

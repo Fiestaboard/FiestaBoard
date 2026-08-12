@@ -109,6 +109,11 @@ const todayISO = (): string => {
   return `${d.getFullYear()}-${m}-${day}`;
 };
 
+const timeToMinutes = (time: string): number => {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+};
+
 export function ScheduleEntryForm({
   schedule,
   pages,
@@ -261,11 +266,6 @@ export function ScheduleEntryForm({
     oneOffHasRange,
     t,
   ]);
-
-  const timeToMinutes = (time: string): number => {
-    const [h, m] = time.split(":").map(Number);
-    return h * 60 + m;
-  };
 
   const getTimeTypeLabel = (type: TimeType): string => {
     switch (type) {

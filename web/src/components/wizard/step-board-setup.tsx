@@ -52,8 +52,14 @@ export function StepBoardSetup({
   const t = useTranslations("wizard.boardSetup");
   const tc = useTranslations("common");
   const tbs = useTranslations("boardSettings");
+  // Mirrors `config` for use inside async callbacks (connection tests, board
+  // scans) so they always read the latest value instead of a stale closure.
+  // Refs may only be read/written outside of render, so the mirror is
+  // synced in an effect rather than assigned inline during render.
   const configRef = useRef(config);
-  configRef.current = config;
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState("");
