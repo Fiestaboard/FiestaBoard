@@ -523,7 +523,6 @@ export function GlobalAiChatDrawer() {
     },
     [
       router,
-      close,
       hasEditor,
       applyEditorOp,
       saveEditor,

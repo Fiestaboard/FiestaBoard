@@ -275,6 +275,9 @@ const eslintConfig = [
       "**/*.stories.{ts,tsx}",
       "vitest.config.{ts,mts}",
       "playwright.config.{ts,mts}",
+      // Standalone CLI utility scripts (run manually via `node scripts/*.mjs`,
+      // never bundled into the app) — their console output IS the feature.
+      "scripts/**",
     ],
     rules: {
       "no-console": "off",

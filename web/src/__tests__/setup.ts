@@ -31,9 +31,23 @@ function getNestedRaw(obj: unknown, path: string): unknown {
   return current;
 }
 
+// `t` must be a STABLE reference across renders, exactly like the real
+// `useTranslations` in `@/i18n/translations` (which memoizes on
+// [language, namespace]). Components legitimately put `t` in `useEffect` /
+// `useMemo` dependency arrays so their text recomputes on a language switch.
+// If this mock handed back a fresh `t` on every render, any such effect that
+// calls `setState` would re-fire every render -> re-render -> re-fire, an
+// infinite loop that OOMs the vitest worker and takes the whole test file
+// down with it (see #1570). The mock is English-only and stateless, so `t`
+// is fully determined by `namespace` and can be built once and cached.
+const intlMockTCache = new Map<string, unknown>();
+
 function makeIntlMock() {
   return {
     useTranslations: (namespace?: string) => {
+      const cacheKey = namespace ?? "";
+      const cached = intlMockTCache.get(cacheKey);
+      if (cached !== undefined) return cached;
       const ns = namespace ? getNestedRaw(enMessages, namespace) : enMessages;
       const lookup = (key: string): unknown => {
         const v = getNestedRaw(ns, key);
@@ -113,6 +127,7 @@ function makeIntlMock() {
         const v = getNestedRaw(ns, key);
         return v === undefined ? key : v;
       };
+      intlMockTCache.set(cacheKey, t);
       return t;
     },
     useLocale: () => "en",

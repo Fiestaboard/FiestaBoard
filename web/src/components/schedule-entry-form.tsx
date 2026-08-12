@@ -259,6 +259,7 @@ export function ScheduleEntryForm({
     oneOffDate,
     oneOffEndDate,
     oneOffHasRange,
+    t,
   ]);
 
   const timeToMinutes = (time: string): number => {

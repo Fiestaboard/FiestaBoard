@@ -213,6 +213,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const [notesTall, setNotesTall] = useState(1);
   const dims = resolveDimensions(deviceType, notesWide, notesTall);
   const numLines = dims.rows;
+  // Latest numLines for effects that need it without becoming reactive to it
+  // (the load-draft effect below intentionally excludes notesWide/notesTall
+  // changes so resizing a note-array grid doesn't reset in-progress edits).
+  const numLinesRef = useRef(numLines);
+  numLinesRef.current = numLines;
 
   // Preview board color - defaults to the user's configured board color
   const defaultBoardColor = getEffectiveBoardColor(boardSettings);
@@ -536,7 +541,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         liveTimeoutRef.current = null;
       }
     };
-  }, [liveOutputEnabled, debouncedTemplateLines, debouncedLineAlignments, debouncedLineWrapEnabled, disableLiveOutput]);
+  }, [
+    liveOutputEnabled,
+    debouncedTemplateLines,
+    debouncedLineAlignments,
+    debouncedLineWrapEnabled,
+    disableLiveOutput,
+    LIVE_OUTPUT_TIMEOUT_MS,
+  ]);
 
   // Keep lastPreviewRef in sync so the transition effect below can read the
   // current preview without creating a stale closure.
@@ -566,7 +578,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       });
     }
     liveOutputEnabledRef.current = liveOutputEnabled;
-  }, [liveOutputEnabled]);
+  }, [liveOutputEnabled, queryClient]);
 
   // Restore board display when component unmounts if live output was active.
   // Also clear the shared live-output cache + localStorage so the Home page
@@ -682,7 +694,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       const pageName = existingPage.name;
       setName(pageName);
 
-      const rawLines = existingPage.template || emptyLines();
+      const rawLines = existingPage.template || Array.from({ length: numLinesRef.current }, () => "");
       const meta = existingPage.line_metadata;
 
       const alignments: LineAlignment[] = [];
@@ -1154,14 +1166,24 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     },
   });
 
+  // react-query returns a new `previewMutation` object identity on most
+  // renders, so it can't be listed directly in the effect's dependency array
+  // below without making the debounced-preview effect (and its 200ms
+  // setTimeout) re-fire on every render instead of only when the tracked
+  // template/alignment/wrap state actually changes. Read the latest mutation
+  // through a ref instead — same pattern as lastPreviewRef/liveOutputEnabledRef
+  // above.
+  const previewMutationRef = useRef(previewMutation);
+  previewMutationRef.current = previewMutation;
+
   // Auto-preview when debounced template lines or alignments change (debounced)
   // Skipped when live mode is on — the live fast path handles preview updates directly.
   useEffect(() => {
     if (liveOutputEnabled) {
       needsRePreview.current = false;
-      if (previewMutation.isPending) {
+      if (previewMutationRef.current.isPending) {
         shouldIgnoreNextResponse.current = true;
-        previewMutation.reset();
+        previewMutationRef.current.reset();
       }
       return;
     }
@@ -1171,9 +1193,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     if (!hasContent) {
       setPreview(null);
       needsRePreview.current = false;
-      if (previewMutation.isPending) {
+      if (previewMutationRef.current.isPending) {
         shouldIgnoreNextResponse.current = true;
-        previewMutation.reset();
+        previewMutationRef.current.reset();
       }
       return;
     }
@@ -1190,15 +1212,15 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       if (!stillHasContent) {
         setPreview(null);
         shouldIgnoreNextResponse.current = false;
-        if (previewMutation.isPending) {
+        if (previewMutationRef.current.isPending) {
           shouldIgnoreNextResponse.current = true;
-          previewMutation.reset();
+          previewMutationRef.current.reset();
         }
         return;
       }
 
-      if (!previewMutation.isPending) {
-        previewMutation.mutate();
+      if (!previewMutationRef.current.isPending) {
+        previewMutationRef.current.mutate();
       } else {
         needsRePreview.current = true;
       }
@@ -1238,6 +1260,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     },
   });
 
+  // Same react-query identity-churn concern as previewMutationRef above.
+  const liveSendMutationRef = useRef(liveSendMutation);
+  liveSendMutationRef.current = liveSendMutation;
+
   // Legacy live send path — only used as fallback when fast path hasn't handled the update.
   // The fast path sets lastLiveSentPreview to match preview, so this is effectively a no-op
   // when live mode is active. Kept for safety if the fast path request fails.
@@ -1249,10 +1275,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
     const hasContent = debouncedTemplateLines.some((line) => line.trim().length > 0);
     if (!hasContent) return;
 
-    if (!liveSendMutation.isPending) {
-      liveSendMutation.mutate(preview);
+    if (!liveSendMutationRef.current.isPending) {
+      liveSendMutationRef.current.mutate(preview);
     }
-  }, [preview, liveOutputEnabled]);
+  }, [preview, liveOutputEnabled, debouncedTemplateLines]);
 
   // Live edit fast path: single 100ms debounce → single API call → preview + board update.
   // Bypasses the normal double-debounce (150ms + 200ms) and double API call chain.
@@ -1331,7 +1357,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
         liveAbortRef.current = null;
       }
     };
-  }, [liveOutputEnabled, templateLines, lineAlignments, lineWrapEnabled, selectedBoardId]);
+  }, [liveOutputEnabled, templateLines, lineAlignments, lineWrapEnabled, selectedBoardId, deviceType, queryClient]);
 
   // Initialize selected board to first board when settings load
   useEffect(() => {

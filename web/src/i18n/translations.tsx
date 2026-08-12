@@ -13,7 +13,7 @@
  * `messages/*.json` (which uses next-intl's ICU syntax) keeps working
  * without a per-string codemod across 14 locales.
  */
-import React, { Fragment } from "react";
+import React, { Fragment, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import i18n from "@/i18n/i18next";
@@ -67,70 +67,80 @@ export function useTranslations(namespace?: string): TFn {
   void rrtT;
   const language = rrtI18n.language || i18n.language || "en";
 
-  const resources = (i18n.getResourceBundle(language, "translation") ?? {}) as Record<string, unknown>;
-  const ns = namespace ? getNestedRaw(resources, namespace) : resources;
+  // Memoize `t` itself so it's a stable reference across renders as long as
+  // the language and namespace haven't changed. Without this, `t` is a new
+  // function identity on every render, which makes it unsafe to add to a
+  // `useEffect`/`useMemo` dependency array — an effect that unconditionally
+  // calls `setState` would re-fire (and re-render) on every render, not just
+  // on an actual language change, causing an infinite render loop. Consumers
+  // still need `t` in their dependency arrays to recompute derived text on a
+  // real language switch (see issue #1570); this makes that safe.
+  return useMemo(() => {
+    const resources = (i18n.getResourceBundle(language, "translation") ?? {}) as Record<string, unknown>;
+    const ns = namespace ? getNestedRaw(resources, namespace) : resources;
 
-  const lookup = (key: string): unknown => {
-    const v = getNestedRaw(ns, key);
-    if (v === undefined && language !== "en") {
-      // Fall back to English if the active locale is missing the key,
-      // mirroring i18next's fallbackLng behavior at a per-key level.
-      const en = i18n.getResourceBundle("en", "translation") as Record<string, unknown> | undefined;
-      const enNs = namespace ? getNestedRaw(en, namespace) : en;
-      const enV = getNestedRaw(enNs, key);
-      if (enV !== undefined) return enV;
-    }
-    return v === undefined ? (namespace ? `${namespace}.${key}` : key) : v;
-  };
-
-  const t = ((key: string, params?: Record<string, unknown>) => {
-    const raw = lookup(key);
-    const rawStr = typeof raw === "string" ? raw : namespace ? `${namespace}.${key}` : key;
-    return interpolatePlural(rawStr, params);
-  }) as TFn;
-
-  t.rich = (key: string, values?: Record<string, unknown>) => {
-    const rawVal = lookup(key);
-    const raw = typeof rawVal === "string" ? rawVal : key;
-    if (!values) return raw;
-    const parts: React.ReactNode[] = [];
-    const regex = /<(\w+)>(.*?)<\/\1>|\{(\w+)\}/g;
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-    let nodeKey = 0;
-    while ((match = regex.exec(raw)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(raw.slice(lastIndex, match.index));
+    const lookup = (key: string): unknown => {
+      const v = getNestedRaw(ns, key);
+      if (v === undefined && language !== "en") {
+        // Fall back to English if the active locale is missing the key,
+        // mirroring i18next's fallbackLng behavior at a per-key level.
+        const en = i18n.getResourceBundle("en", "translation") as Record<string, unknown> | undefined;
+        const enNs = namespace ? getNestedRaw(en, namespace) : en;
+        const enV = getNestedRaw(enNs, key);
+        if (enV !== undefined) return enV;
       }
-      if (match[1]) {
-        const fn = values[match[1]];
-        if (typeof fn === "function") {
-          parts.push(
-            React.createElement(Fragment, { key: nodeKey++ }, (fn as (chunks: string) => React.ReactNode)(match[2])),
-          );
-        } else {
-          parts.push(match[2]);
+      return v === undefined ? (namespace ? `${namespace}.${key}` : key) : v;
+    };
+
+    const t = ((key: string, params?: Record<string, unknown>) => {
+      const raw = lookup(key);
+      const rawStr = typeof raw === "string" ? raw : namespace ? `${namespace}.${key}` : key;
+      return interpolatePlural(rawStr, params);
+    }) as TFn;
+
+    t.rich = (key: string, values?: Record<string, unknown>) => {
+      const rawVal = lookup(key);
+      const raw = typeof rawVal === "string" ? rawVal : key;
+      if (!values) return raw;
+      const parts: React.ReactNode[] = [];
+      const regex = /<(\w+)>(.*?)<\/\1>|\{(\w+)\}/g;
+      let lastIndex = 0;
+      let match: RegExpExecArray | null;
+      let nodeKey = 0;
+      while ((match = regex.exec(raw)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(raw.slice(lastIndex, match.index));
         }
-      } else if (match[3]) {
-        const v = values[match[3]];
-        if (typeof v === "function") {
-          parts.push(React.createElement(Fragment, { key: nodeKey++ }, (v as () => React.ReactNode)()));
-        } else if (v != null) {
-          parts.push(String(v));
+        if (match[1]) {
+          const fn = values[match[1]];
+          if (typeof fn === "function") {
+            parts.push(
+              React.createElement(Fragment, { key: nodeKey++ }, (fn as (chunks: string) => React.ReactNode)(match[2])),
+            );
+          } else {
+            parts.push(match[2]);
+          }
+        } else if (match[3]) {
+          const v = values[match[3]];
+          if (typeof v === "function") {
+            parts.push(React.createElement(Fragment, { key: nodeKey++ }, (v as () => React.ReactNode)()));
+          } else if (v != null) {
+            parts.push(String(v));
+          }
         }
+        lastIndex = regex.lastIndex;
       }
-      lastIndex = regex.lastIndex;
-    }
-    if (lastIndex < raw.length) parts.push(raw.slice(lastIndex));
-    return React.createElement(Fragment, null, ...parts);
-  };
+      if (lastIndex < raw.length) parts.push(raw.slice(lastIndex));
+      return React.createElement(Fragment, null, ...parts);
+    };
 
-  t.raw = (key: string) => {
-    const v = getNestedRaw(ns, key);
-    return v === undefined ? key : v;
-  };
+    t.raw = (key: string) => {
+      const v = getNestedRaw(ns, key);
+      return v === undefined ? key : v;
+    };
 
-  return t;
+    return t;
+  }, [language, namespace]);
 }
 
 export function useLocale(): string {
