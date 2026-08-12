@@ -24,6 +24,21 @@ const output = path.join(siteDir, "src/css/fiestaui.generated.css");
 const src = fs.readFileSync(input, "utf8");
 const result = await postcss([tailwindcss({ optimize: true })]).process(src, { from: input });
 
+// NOTE on the "postcss-calc ... Lexical error ... infinity * 1px" warning that
+// Docusaurus's production build prints (fiestaboard#1574):
+//
+// Tailwind v4 compiles `rounded-full` etc. to a literal huge finite radius
+// (e.g. `3.40282e+38px`) right here, during this precompile step — that value
+// is never touched by the warning. The warning instead comes from the design
+// token `--radius-pill: calc(infinity * 1px);`, which Tailwind emits verbatim
+// (`infinity` is a valid CSS <calc-keyword>, just one the postcss-calc version
+// bundled in Docusaurus's css-minimizer-webpack-plugin predates and can't
+// tokenize). Confirmed empirically (see #1574) that when postcss-calc fails to
+// parse it, it leaves the declaration completely untouched — byte-for-byte
+// identical before and after minification — rather than dropping or mangling
+// it. So the warning is noise, not a lossy minification bug. Do not "fix" it
+// by rewriting this token to a finite px value.
+
 // Make FiestaUI's class-based dark mode ALSO respond to Docusaurus's native
 // `data-theme="dark"` attribute, so the theme works with zero JavaScript — no
 // `.dark` class needs to be synced. Two compiled selector forms carry dark
