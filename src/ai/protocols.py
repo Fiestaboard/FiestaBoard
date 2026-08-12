@@ -67,9 +67,18 @@ def _openai_body(
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
-        # Honored by OpenAI / OpenRouter / many local servers; ignored
-        # silently by the rest. Prompt also asks for JSON explicitly.
-        "response_format": {"type": "json_object"},
+        # "text", not "json_object" (#1560). The previous comment here
+        # assumed servers that don't implement json_object ignore it. LM
+        # Studio doesn't — it validates the field and 400s the request, so
+        # a provider this repo lists as supported was hard-blocked from
+        # page generation with no setting that could unblock it.
+        #
+        # "text" is the portable choice: the prompt asks for JSON
+        # explicitly and _extract_json_object() in generator.py recovers it
+        # from raw, fenced, or prose-wrapped output regardless. chat.py has
+        # stripped this field since it shipped, which is why chat already
+        # worked against LM Studio while generation did not.
+        "response_format": {"type": "text"},
     }
 
 
@@ -107,6 +116,13 @@ def _openai_error(api_response: dict[str, Any]) -> str | None:
         msg = err.get("message")
         if isinstance(msg, str):
             return msg
+        return None
+    # LM Studio returns a flat string — {"error": "..."} — rather than
+    # OpenAI's {"error": {"message": ...}}. Without this branch every LM
+    # Studio failure returned None here and generator.py fell back to
+    # dumping the raw response body into the user-facing message.
+    if isinstance(err, str) and err.strip():
+        return err
     return None
 
 

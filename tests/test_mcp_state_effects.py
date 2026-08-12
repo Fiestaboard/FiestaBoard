@@ -1,0 +1,447 @@
+"""MCP tools must actually change state — asserted by re-reading, not by mocks.
+
+Why this file exists
+--------------------
+
+``tests/test_mcp_server.py`` mocks every service. That is fine for checking
+argument plumbing, but it cannot answer the only question that matters to a
+user: *did anything happen?* #1559/#1561 is what that gap costs —
+``set_active_page`` and ``set_schedule_mode`` called methods that have never
+existed, caught their own AttributeError, returned it as an error string, and
+were complete no-ops in every release shipped. One of them was never even
+reported.
+
+The rule here is simple and is what makes the suite non-vacuous:
+
+    Every assertion is on state read back *after* the call, through a
+    different tool or the service itself. Never on a call record.
+
+Nothing is mocked. Real ``PageService``, ``ScheduleService``,
+``CollectionService`` and ``ConfigManager`` instances run against files in
+``tmp_path``. A tool calling a method that does not exist therefore raises
+instead of being conjured, and a tool that returns ``{"status": "ok"}``
+while writing nothing fails its re-read.
+
+Coverage floor
+--------------
+
+``test_every_tool_has_a_state_effect_case`` fails when a tool is registered
+without an entry in ``COVERED`` or ``UNCOVERED``. A new tool cannot be added
+without someone deciding, in writing, whether it gets a state-effect test.
+Tools in ``UNCOVERED`` carry a reason — that list is a to-do, not a
+permanent exemption.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+
+import pytest
+
+pytest.importorskip("mcp", reason="mcp package not installed")
+
+from src.collections.service import CollectionService
+from src.collections.storage import CollectionStorage
+from src.config_manager import ConfigManager
+from src.mcp_server import _build_mcp_server
+from src.pages.service import PageService
+from src.pages.storage import PageStorage
+from src.schedules.service import ScheduleService
+from src.schedules.storage import ScheduleStorage
+
+# ---------------------------------------------------------------------------
+# Tool coverage ledger
+# ---------------------------------------------------------------------------
+
+#: Tools with a state-effect or shape assertion in this module.
+COVERED = {
+    "list_pages",
+    "get_page",
+    "create_page",
+    "update_page",
+    "delete_page",
+    "render_page_preview",
+    "list_schedules",
+    "create_schedule",
+    "update_schedule",
+    "delete_schedule",
+    "list_collections",
+    "create_collection",
+    "update_collection",
+    "delete_collection",
+    "get_template_variables",
+    "get_system_status",
+    "get_settings_summary",
+    "list_installed_plugins",
+}
+
+#: Tools not yet covered here, each with the reason. Not an exemption list.
+UNCOVERED = {
+    "list_registry_plugins": "hits the network-backed registry; needs a fixture",
+    "install_plugin": "mutates the filesystem outside tmp_path",
+    "enable_plugin": "requires an installed plugin fixture",
+    "disable_plugin": "requires an installed plugin fixture",
+    "uninstall_plugin": "requires an installed plugin fixture",
+    "configure_plugin": "requires an installed plugin fixture",
+    "update_plugin": "requires an installed plugin fixture",
+    "get_plugin_data": "requires a live plugin instance",
+    "set_active_page": "delegates to the REST handler; needs board render wiring",
+    "set_schedule_mode": "routes through SettingsService; needs settings wiring",
+}
+
+
+# ---------------------------------------------------------------------------
+# Fixtures — real services, real files, no mocks
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def mcp():
+    instance = _build_mcp_server()
+    assert instance is not None, "mcp installed but _build_mcp_server() returned None"
+    return instance
+
+
+@pytest.fixture
+def services(tmp_path, monkeypatch):
+    """Point every service singleton at throwaway storage under tmp_path."""
+    pages = PageService(PageStorage(str(tmp_path / "pages.json")))
+    schedules = ScheduleService(ScheduleStorage(str(tmp_path / "schedules.json")))
+    collections = CollectionService(CollectionStorage(str(tmp_path / "collections.json")))
+
+    ConfigManager._instance = None  # type: ignore[attr-defined]
+    config = ConfigManager(config_path=str(tmp_path / "config.json"))
+
+    monkeypatch.setattr("src.pages.service._page_service", pages)
+    monkeypatch.setattr("src.schedules.service._schedule_service", schedules)
+    monkeypatch.setattr("src.collections.service._collection_service", collections)
+    monkeypatch.setattr("src.config_manager.ConfigManager._instance", config, raising=False)
+
+    yield {
+        "pages": pages,
+        "schedules": schedules,
+        "collections": collections,
+        "config": config,
+    }
+
+    ConfigManager._instance = None  # type: ignore[attr-defined]
+
+
+def call(mcp: Any, tool_name: str, /, **kwargs: Any) -> Any:
+    """Invoke a registered MCP tool, awaiting it if it is async.
+
+    Both leading parameters are positional-only: several tools take their
+    own ``name`` argument, which would otherwise collide with this
+    helper's signature.
+    """
+    tool = mcp._tool_manager._tools.get(tool_name)
+    if tool is None:
+        raise KeyError(f"tool {tool_name!r} is not registered; have: {sorted(mcp._tool_manager._tools)}")
+    result = tool.fn(**kwargs)
+    if asyncio.iscoroutine(result):
+        result = asyncio.run(result)
+    return result
+
+
+def assert_ok(result: Any, what: str) -> Any:
+    """Fail with the tool's own error string rather than a shape mismatch.
+
+    Tools catch their exceptions and return ``{"error": "..."}``. Without
+    this, a broken tool surfaces as a confusing KeyError three lines later.
+    """
+    if isinstance(result, dict) and result.get("error"):
+        pytest.fail(f"{what} returned an error instead of doing the work: {result['error']}")
+    return result
+
+
+FLAGSHIP_TEMPLATE = ["HELLO", "", "", "", "", ""]
+
+
+# ---------------------------------------------------------------------------
+# Coverage floor
+# ---------------------------------------------------------------------------
+
+
+def test_every_tool_has_a_state_effect_case(mcp):
+    registered = set(mcp._tool_manager._tools)
+    accounted = COVERED | set(UNCOVERED)
+    unaccounted = registered - accounted
+    assert not unaccounted, (
+        f"these MCP tools have no state-effect case and no recorded reason for not having one: {sorted(unaccounted)}"
+    )
+
+
+def test_coverage_ledger_has_no_phantom_entries(mcp):
+    """The ledger must describe the real registry, not a stale copy."""
+    registered = set(mcp._tool_manager._tools)
+    phantom = (COVERED | set(UNCOVERED)) - registered
+    assert not phantom, f"ledger names tools that are not registered: {sorted(phantom)}"
+
+
+# ---------------------------------------------------------------------------
+# Pages
+# ---------------------------------------------------------------------------
+
+
+def test_create_page_persists_and_is_visible_to_list_pages(mcp, services):
+    before = assert_ok(call(mcp, "list_pages"), "list_pages")
+    before_ids = {p["id"] for p in before}
+
+    created = assert_ok(
+        call(
+            mcp,
+            "create_page",
+            name="Harness Page",
+            template_lines=FLAGSHIP_TEMPLATE,
+            device_type="flagship",
+        ),
+        "create_page",
+    )
+
+    after = assert_ok(call(mcp, "list_pages"), "list_pages")
+    after_ids = {p["id"] for p in after}
+    new_ids = after_ids - before_ids
+
+    assert len(new_ids) == 1, "create_page did not add exactly one page"
+    assert created["page_id"] in new_ids
+    assert any(p["name"] == "Harness Page" for p in after)
+
+
+def test_create_page_writes_through_to_storage(mcp, services):
+    """Re-read from a *fresh* service over the same file.
+
+    Catches a tool that mutates the in-memory cache but never persists.
+    """
+    assert_ok(
+        call(mcp, "create_page", name="Durable", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    reloaded = PageService(PageStorage(str(services["pages"].storage.storage_file)))
+    assert any(p.name == "Durable" for p in reloaded.list_pages())
+
+
+def test_get_page_returns_the_page_that_was_created(mcp, services):
+    created = assert_ok(
+        call(mcp, "create_page", name="Fetch Me", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    fetched = assert_ok(call(mcp, "get_page", page_id=created["page_id"]), "get_page")
+    assert fetched["name"] == "Fetch Me"
+
+
+def test_update_page_changes_the_stored_name(mcp, services):
+    created = assert_ok(
+        call(mcp, "create_page", name="Before", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    page_id = created["page_id"]
+
+    assert_ok(call(mcp, "update_page", page_id=page_id, name="After"), "update_page")
+
+    refetched = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
+    assert refetched["name"] == "After", "update_page reported success but the name did not change"
+
+
+def test_update_page_name_only_does_not_wipe_the_template(mcp, services):
+    """Regression: a rename over MCP used to fail outright.
+
+    ``PageService.update_page`` merges with
+    ``model_dump(exclude_unset=True)``, where "unset" means *not passed to
+    the constructor* — an explicit ``None`` counts as set. The tool passed
+    name/template/duration unconditionally, so every partial update sent
+    ``template=None``, wiped the template, and failed validation with
+    "Template page requires template content".
+    """
+    created = assert_ok(
+        call(mcp, "create_page", name="Before", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    page_id = created["page_id"]
+
+    assert_ok(call(mcp, "update_page", page_id=page_id, name="After"), "update_page (name only)")
+
+    page = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
+    assert page["name"] == "After"
+    assert page["template"] == FLAGSHIP_TEMPLATE, "renaming a page destroyed its template"
+
+
+def test_update_page_duration_only_does_not_wipe_the_template(mcp, services):
+    created = assert_ok(
+        call(mcp, "create_page", name="Timed", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    page_id = created["page_id"]
+
+    assert_ok(call(mcp, "update_page", page_id=page_id, duration_seconds=90), "update_page (duration only)")
+
+    page = assert_ok(call(mcp, "get_page", page_id=page_id), "get_page")
+    assert page["duration_seconds"] == 90
+    assert page["template"] == FLAGSHIP_TEMPLATE, "changing duration destroyed the template"
+    assert page["name"] == "Timed", "changing duration destroyed the name"
+
+
+def test_update_page_with_no_fields_is_reported_not_silently_ignored(mcp, services):
+    created = assert_ok(
+        call(mcp, "create_page", name="Untouched", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    result = call(mcp, "update_page", page_id=created["page_id"])
+    assert isinstance(result, dict) and result.get("error"), "a no-op update should say so, not report success"
+
+
+def test_delete_page_removes_it_from_list_pages(mcp, services):
+    created = assert_ok(
+        call(mcp, "create_page", name="Doomed", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    page_id = created["page_id"]
+
+    assert_ok(call(mcp, "delete_page", page_id=page_id), "delete_page")
+
+    remaining = assert_ok(call(mcp, "list_pages"), "list_pages")
+    assert page_id not in {p["id"] for p in remaining}
+
+
+def test_render_page_preview_renders_a_template_without_saving_it(mcp, services):
+    """Preview takes raw ``template_lines``, not a saved page id.
+
+    Asserts the no-save contract too: previewing must not create a page.
+    """
+    before = assert_ok(call(mcp, "list_pages"), "list_pages")
+
+    preview = assert_ok(
+        call(mcp, "render_page_preview", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "render_page_preview",
+    )
+    assert preview, "render_page_preview returned nothing"
+
+    after = assert_ok(call(mcp, "list_pages"), "list_pages")
+    assert len(after) == len(before), "render_page_preview persisted a page; it should not"
+
+
+# ---------------------------------------------------------------------------
+# Schedules
+# ---------------------------------------------------------------------------
+
+
+def _make_page(mcp, name: str = "Scheduled") -> str:
+    created = assert_ok(
+        call(mcp, "create_page", name=name, template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    return created["page_id"]
+
+
+def test_create_schedule_persists_and_is_visible_to_list_schedules(mcp, services):
+    page_id = _make_page(mcp)
+    before = assert_ok(call(mcp, "list_schedules"), "list_schedules")
+    before_ids = {s["id"] for s in before}
+
+    assert_ok(
+        call(mcp, "create_schedule", page_id=page_id, start_time="08:00", day_pattern="all"),
+        "create_schedule",
+    )
+
+    after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
+    assert len(({s["id"] for s in after}) - before_ids) == 1
+
+
+def test_update_schedule_changes_the_stored_start_time(mcp, services):
+    page_id = _make_page(mcp)
+    created = assert_ok(
+        call(mcp, "create_schedule", page_id=page_id, start_time="08:00", day_pattern="all"),
+        "create_schedule",
+    )
+    schedule_id = created["schedule_id"]
+
+    assert_ok(call(mcp, "update_schedule", schedule_id=schedule_id, start_time="09:30"), "update_schedule")
+
+    after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
+    stored = next(s for s in after if s["id"] == schedule_id)
+    assert stored["start_time"] == "09:30", "update_schedule reported success but start_time did not change"
+
+
+def test_delete_schedule_removes_it(mcp, services):
+    page_id = _make_page(mcp)
+    created = assert_ok(
+        call(mcp, "create_schedule", page_id=page_id, start_time="08:00", day_pattern="all"),
+        "create_schedule",
+    )
+    schedule_id = created["schedule_id"]
+
+    assert_ok(call(mcp, "delete_schedule", schedule_id=schedule_id), "delete_schedule")
+
+    after = assert_ok(call(mcp, "list_schedules"), "list_schedules")
+    assert schedule_id not in {s["id"] for s in after}
+
+
+# ---------------------------------------------------------------------------
+# Collections
+# ---------------------------------------------------------------------------
+
+
+def test_create_collection_persists_and_is_visible_to_list_collections(mcp, services):
+    page_id = _make_page(mcp, "In A Collection")
+    before = assert_ok(call(mcp, "list_collections"), "list_collections")
+    before_ids = {c["id"] for c in before}
+
+    assert_ok(call(mcp, "create_collection", name="Harness Collection", page_ids=[page_id]), "create_collection")
+
+    after = assert_ok(call(mcp, "list_collections"), "list_collections")
+    assert len(({c["id"] for c in after}) - before_ids) == 1
+    assert any(c["name"] == "Harness Collection" for c in after)
+
+
+def test_update_collection_changes_the_stored_name(mcp, services):
+    page_id = _make_page(mcp, "Collected")
+    created = assert_ok(call(mcp, "create_collection", name="Before", page_ids=[page_id]), "create_collection")
+    collection_id = created["collection_id"]
+
+    assert_ok(call(mcp, "update_collection", collection_id=collection_id, name="After"), "update_collection")
+
+    after = assert_ok(call(mcp, "list_collections"), "list_collections")
+    stored = next(c for c in after if c["id"] == collection_id)
+    assert stored["name"] == "After", "update_collection reported success but the name did not change"
+
+
+def test_delete_collection_removes_it(mcp, services):
+    page_id = _make_page(mcp, "Temporary")
+    created = assert_ok(call(mcp, "create_collection", name="Doomed", page_ids=[page_id]), "create_collection")
+    collection_id = created["collection_id"]
+
+    assert_ok(call(mcp, "delete_collection", collection_id=collection_id), "delete_collection")
+
+    after = assert_ok(call(mcp, "list_collections"), "list_collections")
+    assert collection_id not in {c["id"] for c in after}
+
+
+# ---------------------------------------------------------------------------
+# Read-only tools — shape assertions
+# ---------------------------------------------------------------------------
+
+
+def test_get_template_variables_returns_a_mapping(mcp, services):
+    """Shape only.
+
+    The payload is ``{plugin_id: {variable: {...}}}`` and is legitimately
+    empty here — the fixture enables no plugins. Asserting non-emptiness
+    would be asserting on the fixture, not on the tool.
+    """
+    result = assert_ok(call(mcp, "get_template_variables"), "get_template_variables")
+    assert isinstance(result, dict)
+
+
+def test_get_system_status_returns_a_payload(mcp, services):
+    result = assert_ok(call(mcp, "get_system_status"), "get_system_status")
+    assert isinstance(result, dict) and result
+
+
+def test_get_settings_summary_returns_a_payload(mcp, services):
+    result = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
+    assert isinstance(result, dict) and result
+
+
+def test_list_installed_plugins_returns_a_list(mcp, services):
+    result = call(mcp, "list_installed_plugins")
+    assert isinstance(result, (list, dict))

@@ -116,6 +116,62 @@ async function callGenerate(
   throw new Error("callGenerate: retried but still got 429");
 }
 
+/**
+ * Switch the mock LLM into a provider personality — it then validates
+ * request bodies the way that real provider does. Default is "permissive".
+ */
+async function setMockProvider(provider: string): Promise<void> {
+  const res = await fetch(`${MOCK_LLM_CONTROL_URL}/mock/provider`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider }),
+  });
+  if (!res.ok) throw new Error(`setMockProvider(${provider}) failed: ${res.status}`);
+}
+
+/**
+ * Stage exactly what the "model" emits on the next chat completion: prose
+ * plus one fenced tool block per op. Arms the "script" scenario.
+ */
+async function setMockScript(script: { prose?: string; ops: Array<Record<string, unknown>> }): Promise<void> {
+  const res = await fetch(`${MOCK_LLM_CONTROL_URL}/mock/script`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(script),
+  });
+  if (!res.ok) throw new Error(`setMockScript failed: ${res.status}`);
+}
+
+/** One parsed SSE frame from /pages/ai/chat. */
+interface ChatFrame {
+  event: string;
+  data: Record<string, unknown>;
+}
+
+/**
+ * POST /pages/ai/chat and parse the SSE stream into frames.
+ *
+ * Playwright's APIRequestContext buffers the body, which is fine here: the
+ * mock closes the stream promptly and we assert on the whole transcript.
+ */
+async function callChat(request: APIRequestContext, body: Record<string, unknown>): Promise<ChatFrame[]> {
+  const res = await request.post(`${API_URL}/pages/ai/chat`, { data: body });
+  expect(res.status(), await res.text()).toBe(200);
+  const raw = await res.text();
+
+  const frames: ChatFrame[] = [];
+  for (const block of raw.split("\n\n")) {
+    const eventLine = block.split("\n").find((l) => l.startsWith("event: "));
+    const dataLine = block.split("\n").find((l) => l.startsWith("data: "));
+    if (!eventLine || !dataLine) continue;
+    frames.push({
+      event: eventLine.slice("event: ".length).trim(),
+      data: JSON.parse(dataLine.slice("data: ".length)),
+    });
+  }
+  return frames;
+}
+
 test.describe("AI", () => {
   test.beforeAll(async () => {
     // Sanity: confirm the mock LLM is actually reachable from the test
@@ -130,6 +186,8 @@ test.describe("AI", () => {
   });
 
   test.beforeEach(async () => {
+    // resetMock() restores scenario="ok" AND provider="permissive", so a
+    // provider-matrix test can't leak strict validation into its neighbours.
     await resetMock();
   });
 
@@ -378,6 +436,305 @@ test.describe("AI", () => {
       await expect(page.getByText(/AI Providers|AI Settings|Add provider/i).first()).toBeVisible();
       // The provider we configured via the API should appear in the list.
       await expect(page.getByText(PROVIDER_NAME, { exact: false }).first()).toBeVisible();
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // Provider conformance (Layer 2, end-to-end)
+  //
+  // tests/ai/test_provider_conformance.py checks the outbound body against
+  // emulators in-process. This runs the same idea through the real HTTP
+  // path: a mock that refuses requests the way the named provider refuses
+  // them. #1560 is the case that matters — LM Studio 400s on
+  // response_format json_object, so generation was hard-blocked there.
+  // -------------------------------------------------------------------
+  test.describe("provider conformance", () => {
+    for (const provider of ["openai", "openrouter", "lmstudio", "ollama", "vllm"]) {
+      test(`page generation succeeds against ${provider} validation`, async ({ request }) => {
+        await configureMockProvider(request);
+        await setMockProvider(provider);
+
+        const { status, data } = await callGenerate(request, {
+          prompt: `a page, generated against ${provider}`,
+          device_type: "flagship",
+        });
+
+        expect(status, JSON.stringify(data)).toBe(200);
+        expect(data.page).toBeTruthy();
+      });
+    }
+
+    test("the mock actually rejects what LM Studio rejects", async () => {
+      // Without this, every test above could be passing vacuously against a
+      // mock that says yes to everything — precisely how #1560 shipped.
+      await setMockProvider("lmstudio");
+      const res = await fetch(`${MOCK_LLM_CONTROL_URL}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "mock-model-v1",
+          messages: [{ role: "user", content: "hi" }],
+          response_format: { type: "json_object" },
+        }),
+      });
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      // LM Studio's envelope is a flat string, not {error:{message}}.
+      expect(typeof body.error).toBe("string");
+      expect(body.error).toContain("json_schema");
+    });
+
+    test("the generator does not ask for json_object mode", async ({ request }) => {
+      await configureMockProvider(request);
+      await callGenerate(request, { prompt: "check the wire format", device_type: "flagship" });
+
+      const state = await getMockState();
+      const last = state.history[state.history.length - 1];
+      expect(last, "no request reached the mock").toBeTruthy();
+      // Regression pin for #1560 at the wire level.
+      expect(last.response_format).toEqual({ type: "text" });
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // Chat streaming + tool-call grammar (Layer 4)
+  //
+  // /pages/ai/chat had no E2E coverage at all: the mock could not stream,
+  // so nothing exercised the SSE path or the fenced-tool-block parser that
+  // turns model prose into structured ops.
+  // -------------------------------------------------------------------
+  test.describe("/pages/ai/chat", () => {
+    test("streams prose as text frames and ends with done", async ({ request }) => {
+      await configureMockProvider(request);
+      await setMockScript({ prose: "Here is what I will do.", ops: [] });
+
+      const frames = await callChat(request, {
+        messages: [{ role: "user", content: "hello" }],
+        device_type: "flagship",
+        surface: "editor",
+      });
+
+      const text = frames
+        .filter((f) => f.event === "text")
+        .map((f) => f.data.delta as string)
+        .join("");
+      expect(text).toContain("Here is what I will do.");
+
+      const done = frames.find((f) => f.event === "done");
+      expect(done, "stream never emitted a done frame").toBeTruthy();
+      expect(done!.data.model_used).toBe(PROVIDER_MODEL);
+    });
+
+    test("a fenced tool block becomes a validated tool_call frame", async ({ request }) => {
+      await configureMockProvider(request);
+      await setMockScript({
+        prose: "Creating that page.",
+        ops: [
+          {
+            op: "replace_page",
+            args: {
+              name: "Scripted Page",
+              template: ["SCRIPTED", "", "", "", "", ""],
+              duration_seconds: 300,
+            },
+          },
+        ],
+      });
+
+      const frames = await callChat(request, {
+        messages: [{ role: "user", content: "make a page" }],
+        device_type: "flagship",
+        surface: "editor",
+      });
+
+      const call = frames.find((f) => f.event === "tool_call");
+      expect(call, `no tool_call frame in: ${JSON.stringify(frames)}`).toBeTruthy();
+      expect(call!.data.op).toBe("replace_page");
+      expect((call!.data.args as Record<string, unknown>).name).toBe("Scripted Page");
+    });
+
+    test("tool blocks are parsed across SSE delta boundaries", async ({ request }) => {
+      // The mock chunks content at 24 chars, so a fenced block is split
+      // across several deltas. A parser that only handled whole-chunk
+      // fences would pass the test above and fail here.
+      await configureMockProvider(request);
+      await setMockScript({
+        prose: "x".repeat(200),
+        ops: [{ op: "navigate_to_page", args: { page_id: "new" } }],
+      });
+
+      const frames = await callChat(request, {
+        messages: [{ role: "user", content: "go" }],
+        device_type: "flagship",
+        surface: "global",
+      });
+
+      expect(frames.filter((f) => f.event === "text").length).toBeGreaterThan(1);
+      const call = frames.find((f) => f.event === "tool_call");
+      expect(call, "fence split across deltas was not reassembled").toBeTruthy();
+      expect(call!.data.op).toBe("navigate_to_page");
+    });
+
+    test("an unknown op is reported as a warning, not a tool_call", async ({ request }) => {
+      await configureMockProvider(request);
+      await setMockScript({ ops: [{ op: "definitely_not_a_real_op", args: {} }] });
+
+      const frames = await callChat(request, {
+        messages: [{ role: "user", content: "do something odd" }],
+        device_type: "flagship",
+        surface: "editor",
+      });
+
+      expect(frames.find((f) => f.event === "tool_call")).toBeFalsy();
+      expect(frames.some((f) => f.event === "warning" || f.event === "error")).toBe(true);
+    });
+
+    test("a malformed op is rejected rather than passed through", async ({ request }) => {
+      // replace_page requires a non-empty name and a template.
+      await configureMockProvider(request);
+      await setMockScript({ ops: [{ op: "replace_page", args: { name: "" } }] });
+
+      const frames = await callChat(request, {
+        messages: [{ role: "user", content: "break it" }],
+        device_type: "flagship",
+        surface: "editor",
+      });
+
+      expect(frames.find((f) => f.event === "tool_call")).toBeFalsy();
+      expect(frames.some((f) => f.event === "warning" || f.event === "error")).toBe(true);
+    });
+
+    test("rejects an empty messages array", async ({ request }) => {
+      await configureMockProvider(request);
+      const res = await request.post(`${API_URL}/pages/ai/chat`, {
+        data: { messages: [], device_type: "flagship" },
+      });
+      expect(res.status()).toBe(400);
+    });
+
+    test("rejects an invalid surface", async ({ request }) => {
+      await configureMockProvider(request);
+      const res = await request.post(`${API_URL}/pages/ai/chat`, {
+        data: {
+          messages: [{ role: "user", content: "hi" }],
+          device_type: "flagship",
+          surface: "nonsense",
+        },
+      });
+      expect(res.status()).toBe(400);
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // Browser apply-loop (Layer 4)
+  //
+  // Everything above proves the backend *emits* a validated tool_call.
+  // It does not prove the browser applies it. That gap is where the
+  // labelFor() drift lived: the drawer handled all 19 ops, the editor
+  // panel handled 15, and no test looked. These drive the real drawer
+  // and assert the server state actually changed.
+  // -------------------------------------------------------------------
+  test.describe("browser apply-loop", () => {
+    /** The setup wizard holds every page behind a loader until a board exists. */
+    async function stubBoard(request: APIRequestContext): Promise<void> {
+      const res = await request.put(`${API_URL}/config/board`, {
+        data: { api_mode: "local", local_api_key: "ai-e2e-stub", host: "127.0.0.1" },
+      });
+      expect(res.ok()).toBe(true);
+    }
+
+    async function openDrawer(page: import("@playwright/test").Page): Promise<void> {
+      await page.goto("/");
+      // The trigger only renders when an AI provider is configured.
+      await page.getByRole("button", { name: "AI Assistant" }).first().click();
+      await expect(page.getByRole("dialog", { name: /FiestaBot/i })).toBeVisible();
+    }
+
+    async function sendMessage(page: import("@playwright/test").Page, text: string): Promise<void> {
+      const box = page
+        .getByRole("dialog", { name: /FiestaBot/i })
+        .getByRole("textbox")
+        .first();
+      await box.fill(text);
+      await page.getByRole("button", { name: "Send", exact: true }).click();
+    }
+
+    test("a scripted create_schedule op reaches the server", async ({ page, request }) => {
+      await configureMockProvider(request);
+      await stubBoard(request);
+
+      // A page for the schedule to point at.
+      const pageRes = await request.post(`${API_URL}/pages`, {
+        data: {
+          name: "Apply Loop Target",
+          type: "template",
+          device_type: "flagship",
+          template: ["APPLY LOOP", "", "", "", "", ""],
+          duration_seconds: 300,
+        },
+      });
+      expect(pageRes.ok(), await pageRes.text()).toBe(true);
+      // POST /pages wraps the page: {status, page: {...}}.
+      const pageId = (await pageRes.json()).page.id as string;
+      expect(pageId, "page id missing from POST /pages response").toBeTruthy();
+
+      const before = await (await request.get(`${API_URL}/schedules`)).json();
+      const beforeCount = (Array.isArray(before) ? before : before.schedules || []).length;
+
+      await setMockScript({
+        prose: "Scheduling that for you.",
+        ops: [
+          {
+            op: "create_schedule",
+            args: { page_id: pageId, start_time: "06:45", day_pattern: "all" },
+          },
+        ],
+      });
+
+      await openDrawer(page);
+      await sendMessage(page, "schedule my page for the morning");
+
+      // The drawer renders a card per applied call; wait on the effect, not
+      // the chrome, then confirm against the server.
+      await expect
+        .poll(
+          async () => {
+            const res = await request.get(`${API_URL}/schedules`);
+            const body = await res.json();
+            const list = (Array.isArray(body) ? body : body.schedules || []) as Array<Record<string, unknown>>;
+            return list.filter((s) => s.page_id === pageId && s.start_time === "06:45").length;
+          },
+          {
+            message: "the drawer never applied create_schedule to the server",
+            timeout: 15_000,
+          },
+        )
+        .toBeGreaterThan(0);
+
+      const after = await (await request.get(`${API_URL}/schedules`)).json();
+      const afterCount = (Array.isArray(after) ? after : after.schedules || []).length;
+      expect(afterCount).toBe(beforeCount + 1);
+    });
+
+    test("a tool_call card is rendered for an op the panel must label", async ({ page, request }) => {
+      // navigate_to_schedule is one of the four ops labelFor() used to fall
+      // through on, returning undefined from a function typed string.
+      await configureMockProvider(request);
+      await stubBoard(request);
+
+      await setMockScript({
+        prose: "Opening the schedule form.",
+        ops: [{ op: "navigate_to_schedule", args: { prefill: { start_time: "09:00" } } }],
+      });
+
+      await openDrawer(page);
+      await sendMessage(page, "open the schedule editor");
+
+      const dialog = page.getByRole("dialog", { name: /FiestaBot/i });
+      // The assistant's reply must render — an unlabelled op used to produce
+      // an empty card here.
+      await expect(dialog.getByText(/Opening the schedule form/i)).toBeVisible({ timeout: 15_000 });
+      await expect(dialog.getByText(/schedule/i).first()).toBeVisible();
     });
   });
 });

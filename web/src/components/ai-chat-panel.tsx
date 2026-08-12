@@ -741,12 +741,20 @@ function labelFor(call: ToolCall): string {
       return `${call.args.suggestions.length} suggestion${call.args.suggestions.length === 1 ? "" : "s"}`;
     case "navigate_to_page":
       return call.args.page_id === "new" ? "New page" : "Navigate to page";
+    case "navigate_to_schedule":
+      return "Navigate to schedule";
     case "install_plugin":
       return `Install: ${call.args.plugin_id}`;
     case "update_plugin_config":
       return `Configure: ${call.args.plugin_id}`;
     case "update_plugin":
       return `Update: ${call.args.plugin_id}`;
+    case "enable_plugin":
+      return `Enable: ${call.args.plugin_id}`;
+    case "disable_plugin":
+      return `Disable: ${call.args.plugin_id}`;
+    case "uninstall_plugin":
+      return `Uninstall: ${call.args.plugin_id}`;
     case "update_setting":
       return `Setting: ${call.args.category}`;
     case "create_collection":

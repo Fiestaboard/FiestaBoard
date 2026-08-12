@@ -65,7 +65,16 @@ def test_openai_headers_omit_auth_when_no_key():
     assert "Authorization" not in headers
 
 
-def test_openai_body_keeps_messages_unchanged_and_requests_json_object():
+def test_openai_body_keeps_messages_unchanged_and_requests_text_format():
+    """``text``, not ``json_object`` — see #1560.
+
+    This test previously asserted ``json_object``, pinning the assumption
+    that servers not implementing it would ignore it. LM Studio validates
+    the field and returns a 400, so that assumption was the defect. The
+    prompt asks for JSON and ``_extract_json_object()`` recovers it from
+    prose, so ``text`` is portable across the whole OpenAI-compatible
+    family.
+    """
     proto = PROTOCOLS["openai"]
     messages = [
         {"role": "system", "content": "be brief"},
@@ -75,7 +84,7 @@ def test_openai_body_keeps_messages_unchanged_and_requests_json_object():
     assert body["model"] == "gpt-4o-mini"
     assert body["messages"] == messages
     assert body["max_tokens"] == 100
-    assert body["response_format"] == {"type": "json_object"}
+    assert body["response_format"] == {"type": "text"}
 
 
 def test_openai_parse_content_string():
@@ -114,10 +123,23 @@ def test_openai_parse_usage():
 
 
 def test_openai_parse_error_extracts_message():
+    """Both envelope shapes in the OpenAI-compatible family.
+
+    The flat-string case previously asserted ``is None``, encoding LM
+    Studio's error format as unparseable. That is what made every LM Studio
+    failure surface as a raw ``response.text`` dump from
+    ``generator.py:391`` instead of the provider's own message.
+    """
     proto = PROTOCOLS["openai"]
+    # OpenAI / OpenRouter / vLLM
     assert proto.parse_error({"error": {"message": "bad key"}}) == "bad key"
-    assert proto.parse_error({"error": "string"}) is None
+    # LM Studio
+    assert proto.parse_error({"error": "bad key"}) == "bad key"
+    # Nothing usable
     assert proto.parse_error({}) is None
+    assert proto.parse_error({"error": {}}) is None
+    assert proto.parse_error({"error": "   "}) is None
+    assert proto.parse_error({"error": 42}) is None
 
 
 # ---------------------------------------------------------------------------
