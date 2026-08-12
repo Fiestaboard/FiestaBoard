@@ -624,4 +624,117 @@ test.describe("AI", () => {
       expect(res.status()).toBe(400);
     });
   });
+
+  // -------------------------------------------------------------------
+  // Browser apply-loop (Layer 4)
+  //
+  // Everything above proves the backend *emits* a validated tool_call.
+  // It does not prove the browser applies it. That gap is where the
+  // labelFor() drift lived: the drawer handled all 19 ops, the editor
+  // panel handled 15, and no test looked. These drive the real drawer
+  // and assert the server state actually changed.
+  // -------------------------------------------------------------------
+  test.describe("browser apply-loop", () => {
+    /** The setup wizard holds every page behind a loader until a board exists. */
+    async function stubBoard(request: APIRequestContext): Promise<void> {
+      const res = await request.put(`${API_URL}/config/board`, {
+        data: { api_mode: "local", local_api_key: "ai-e2e-stub", host: "127.0.0.1" },
+      });
+      expect(res.ok()).toBe(true);
+    }
+
+    async function openDrawer(page: import("@playwright/test").Page): Promise<void> {
+      await page.goto("/");
+      // The trigger only renders when an AI provider is configured.
+      await page.getByRole("button", { name: "AI Assistant" }).first().click();
+      await expect(page.getByRole("dialog", { name: /FiestaBot/i })).toBeVisible();
+    }
+
+    async function sendMessage(page: import("@playwright/test").Page, text: string): Promise<void> {
+      const box = page
+        .getByRole("dialog", { name: /FiestaBot/i })
+        .getByRole("textbox")
+        .first();
+      await box.fill(text);
+      await page.getByRole("button", { name: "Send", exact: true }).click();
+    }
+
+    test("a scripted create_schedule op reaches the server", async ({ page, request }) => {
+      await configureMockProvider(request);
+      await stubBoard(request);
+
+      // A page for the schedule to point at.
+      const pageRes = await request.post(`${API_URL}/pages`, {
+        data: {
+          name: "Apply Loop Target",
+          type: "template",
+          device_type: "flagship",
+          template: ["APPLY LOOP", "", "", "", "", ""],
+          duration_seconds: 300,
+        },
+      });
+      expect(pageRes.ok(), await pageRes.text()).toBe(true);
+      // POST /pages wraps the page: {status, page: {...}}.
+      const pageId = (await pageRes.json()).page.id as string;
+      expect(pageId, "page id missing from POST /pages response").toBeTruthy();
+
+      const before = await (await request.get(`${API_URL}/schedules`)).json();
+      const beforeCount = (Array.isArray(before) ? before : before.schedules || []).length;
+
+      await setMockScript({
+        prose: "Scheduling that for you.",
+        ops: [
+          {
+            op: "create_schedule",
+            args: { page_id: pageId, start_time: "06:45", day_pattern: "all" },
+          },
+        ],
+      });
+
+      await openDrawer(page);
+      await sendMessage(page, "schedule my page for the morning");
+
+      // The drawer renders a card per applied call; wait on the effect, not
+      // the chrome, then confirm against the server.
+      await expect
+        .poll(
+          async () => {
+            const res = await request.get(`${API_URL}/schedules`);
+            const body = await res.json();
+            const list = (Array.isArray(body) ? body : body.schedules || []) as Array<Record<string, unknown>>;
+            return list.filter((s) => s.page_id === pageId && s.start_time === "06:45").length;
+          },
+          {
+            message: "the drawer never applied create_schedule to the server",
+            timeout: 15_000,
+          },
+        )
+        .toBeGreaterThan(0);
+
+      const after = await (await request.get(`${API_URL}/schedules`)).json();
+      const afterCount = (Array.isArray(after) ? after : after.schedules || []).length;
+      expect(afterCount).toBe(beforeCount + 1);
+    });
+
+    test("a tool_call card is rendered for an op the panel must label", async ({ page, request }) => {
+      // navigate_to_schedule is one of the four ops labelFor() used to fall
+      // through on, returning undefined from a function typed string.
+      await configureMockProvider(request);
+      await stubBoard(request);
+
+      await setMockScript({
+        prose: "Opening the schedule form.",
+        ops: [{ op: "navigate_to_schedule", args: { prefill: { start_time: "09:00" } } }],
+      });
+
+      await openDrawer(page);
+      await sendMessage(page, "open the schedule editor");
+
+      const dialog = page.getByRole("dialog", { name: /FiestaBot/i });
+      // The assistant's reply must render — an unlabelled op used to produce
+      // an empty card here.
+      await expect(dialog.getByText(/Opening the schedule form/i)).toBeVisible({ timeout: 15_000 });
+      await expect(dialog.getByText(/schedule/i).first()).toBeVisible();
+    });
+  });
 });
