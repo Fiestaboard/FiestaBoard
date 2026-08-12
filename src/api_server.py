@@ -8737,6 +8737,9 @@ async def get_plugin(plugin_id: str):
         "author": manifest.author,
         "icon": manifest.icon,
         "category": manifest.category,
+        # "data" or "transition" -- the UI hides the enable toggle for
+        # transition plugins, which run whenever selected regardless of it.
+        "plugin_type": manifest.plugin_type,
         "enabled": registry.is_enabled(plugin_id),
         "config": config_manager._mask_sensitive(plugin_config) if plugin_config else {},
         "settings_schema": manifest.settings_schema,

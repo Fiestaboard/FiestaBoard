@@ -375,9 +375,11 @@
       "finance": "Finance",
       "home": "Smart Home",
       "transit": "Transportation",
+      "transition": "Transitions",
       "utility": "Utilities",
       "weather": "Weather & Environment"
     },
+    "transitionBadge": "Transition",
     "tabInstalled": "Installed",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Search installed plugins...",
@@ -694,7 +696,14 @@
     "retargetSurfaceSchedule": "schedule entry",
     "retargetSurfaceActivePage": "active page",
     "notesWideOption": "{count} wide",
-    "notesTallOption": "{count} tall"
+    "notesTallOption": "{count} tall",
+    "transitionMenuTitle": "Transition",
+    "transitionPickerAriaLabel": "Page transition",
+    "transitionPickerTooltip": "Transition for this page: {strategy}",
+    "transitionUseGlobalDefault": "Use global default",
+    "transitionBuiltInGroup": "Built-in",
+    "transitionPluginsGroup": "Plugins (beta)",
+    "transitionOpenLab": "Open Transition Lab"
   },
   "displaySettings": {
     "title": "Your Boards",
@@ -844,6 +853,11 @@
     "stepSizePlaceholder": "Default",
     "stepSizeDescription": "How many rows or columns animate at once. Leave empty for the board default.",
     "localApiNote": "Transitions are supported on the Local API only. If your board is configured to use the Cloud API, transition settings will have no effect. Individual pages can also override this default in the page builder.",
+    "pluginNote": "Plugin transitions are animated by FiestaBoard and sent as regular board updates, so they work on any board connection.",
+    "builtInGroup": "Built-in",
+    "pluginsGroup": "Transition Plugins",
+    "pluginsBetaBadge": "Beta",
+    "unavailablePluginNote": "This transition plugin is not currently available. Pick another option to change it.",
     "toastSaved": "Transition settings saved",
     "toastSaveFailed": "Failed to save transition settings: {error}",
     "strategies": {
@@ -1475,7 +1489,7 @@
     "setupDescription": "Pick a transition plugin, then choose the from and to pages.",
     "pluginLabel": "Transition plugin",
     "pluginPlaceholder": "Select a plugin...",
-    "noPlugins": "No transition plugins enabled. Enable one on the Integrations page.",
+    "noPlugins": "No transition plugins installed. Add one from the Integrations page.",
     "deviceLabel": "Device",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1561,6 +1575,7 @@
       "finance": "Finance",
       "home": "Smart Home",
       "transit": "Transportation",
+      "transition": "Transitions",
       "utility": "Utilities",
       "weather": "Weather & Environment"
     },

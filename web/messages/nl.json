@@ -418,9 +418,11 @@
       "finance": "Financiën",
       "home": "Slim huis",
       "transit": "Vervoer",
+      "transition": "Transities",
       "utility": "Hulpprogramma's",
       "weather": "Weer & omgeving"
     },
+    "transitionBadge": "Transitie",
     "tabInstalled": "Geïnstalleerd",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Geïnstalleerde plugins zoeken...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "schema-item",
     "retargetSurfaceActivePage": "actieve pagina",
     "notesWideOption": "{count} breed",
-    "notesTallOption": "{count} hoog"
+    "notesTallOption": "{count} hoog",
+    "transitionMenuTitle": "Overgang",
+    "transitionPickerAriaLabel": "Paginaovergang",
+    "transitionPickerTooltip": "Overgang voor deze pagina: {strategy}",
+    "transitionUseGlobalDefault": "Globale standaard gebruiken",
+    "transitionBuiltInGroup": "Ingebouwd",
+    "transitionPluginsGroup": "Plugins (bèta)",
+    "transitionOpenLab": "Transitielab openen"
   },
   "displaySettings": {
     "title": "Je borden",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "Standaard",
     "stepSizeDescription": "Hoeveel rijen of kolommen tegelijk animeren. Laat leeg voor de standaardwaarde van het bord.",
     "localApiNote": "Overgangen worden alleen ondersteund via de lokale API. Als je bord is geconfigureerd voor de Cloud API, hebben overgangsinstellingen geen effect. Individuele pagina's kunnen deze standaard ook overschrijven in de paginabouwer.",
+    "pluginNote": "Pluginovergangen worden door FiestaBoard geanimeerd en als gewone bordupdates verstuurd, dus ze werken met elke bordverbinding.",
+    "builtInGroup": "Ingebouwd",
+    "pluginsGroup": "Transitieplugins",
+    "pluginsBetaBadge": "Bèta",
+    "unavailablePluginNote": "Deze transitieplugin is momenteel niet beschikbaar. Kies een andere optie om dit te wijzigen.",
     "toastSaved": "Overgangsinstellingen opgeslagen",
     "toastSaveFailed": "Overgangsinstellingen opslaan mislukt: {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "Kies een overgangsplugin en daarna de van- en naar-pagina's.",
     "pluginLabel": "Transitieplugin",
     "pluginPlaceholder": "Selecteer een plugin...",
-    "noPlugins": "Geen transitieplugins ingeschakeld. Schakel er een in op de Integraties-pagina.",
+    "noPlugins": "Geen transitieplugins geïnstalleerd. Voeg er een toe via de Integraties-pagina.",
     "deviceLabel": "Apparaat",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1604,6 +1618,7 @@
       "finance": "Financiën",
       "home": "Smart home",
       "transit": "Vervoer",
+      "transition": "Transities",
       "utility": "Hulpprogramma's",
       "weather": "Weer & omgeving"
     },

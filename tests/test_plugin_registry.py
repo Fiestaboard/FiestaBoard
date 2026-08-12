@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.plugins.base import PluginBase, PluginResult
-from src.plugins.manifest import PluginManifest
+from src.plugins.manifest import PluginManifest, load_manifest
 from src.plugins.previews import BoardPreview
 from src.plugins.registry import (
     PluginRegistry,
@@ -14,6 +14,8 @@ from src.plugins.registry import (
     reset_plugin_registry,
 )
 from src.plugins.sources import PluginSource, PluginUpdateCheck, RegistryEntry
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
@@ -453,6 +455,34 @@ def test_list_plugins_returns_sorted_info(registry, mock_loader, mock_plugin, mo
     assert info["enabled"] is False
     assert info["icon"] == "puzzle"
     assert info["category"] == "utility"
+
+
+def test_list_plugins_reports_transition_plugin_type(registry, mock_loader, mock_plugin):
+    """A transition plugin's manifest plugin_type reaches the UI via list_plugins."""
+    manifest, errors = load_manifest(REPO_ROOT / "plugins" / "typewriter" / "manifest.json")
+    assert manifest is not None, errors
+    mock_plugin.plugin_id = "typewriter"
+    mock_loader.load_all_plugins.return_value = {"typewriter": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "typewriter" else None
+    registry.initialize()
+
+    info = registry.list_plugins()[0]
+
+    assert info["plugin_type"] == "transition"
+
+
+def test_list_plugins_reports_data_plugin_type(registry, mock_loader, mock_plugin):
+    """A plugin whose manifest omits plugin_type is reported as a data plugin."""
+    manifest, errors = load_manifest(REPO_ROOT / "plugins" / "date_time" / "manifest.json")
+    assert manifest is not None, errors
+    mock_plugin.plugin_id = "date_time"
+    mock_loader.load_all_plugins.return_value = {"date_time": mock_plugin}
+    mock_loader.get_manifest.side_effect = lambda pid: manifest if pid == "date_time" else None
+    registry.initialize()
+
+    info = registry.list_plugins()[0]
+
+    assert info["plugin_type"] == "data"
 
 
 def test_list_plugins_sorted_by_name(registry, mock_loader, mock_plugin, mock_manifest):

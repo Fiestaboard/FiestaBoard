@@ -61,6 +61,7 @@ export default function PluginDetailPage() {
     finance: t("categories.finance"),
     home: t("categories.home"),
     transit: t("categories.transit"),
+    transition: t("categories.transition"),
     utility: t("categories.utility"),
     weather: t("categories.weather"),
   };

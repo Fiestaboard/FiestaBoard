@@ -418,9 +418,11 @@
       "finance": "金融",
       "home": "智能家居",
       "transit": "交通出行",
+      "transition": "过渡效果",
       "utility": "实用工具",
       "weather": "天气与环境"
     },
+    "transitionBadge": "过渡效果",
     "tabInstalled": "已安装",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "搜索已安装的插件...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "排程条目",
     "retargetSurfaceActivePage": "活动页面",
     "notesWideOption": "横向 {count} 块",
-    "notesTallOption": "纵向 {count} 块"
+    "notesTallOption": "纵向 {count} 块",
+    "transitionMenuTitle": "过渡效果",
+    "transitionPickerAriaLabel": "页面过渡效果",
+    "transitionPickerTooltip": "此页面的过渡效果：{strategy}",
+    "transitionUseGlobalDefault": "使用全局默认设置",
+    "transitionBuiltInGroup": "内置",
+    "transitionPluginsGroup": "插件（测试版）",
+    "transitionOpenLab": "打开过渡实验室"
   },
   "displaySettings": {
     "title": "您的看板",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "默认",
     "stepSizeDescription": "每次同时执行动画的行或列数。留空使用看板默认值。",
     "localApiNote": "过渡效果仅在本地 API 上支持。如果您的看板配置为使用云端 API，过渡效果设置将不会生效。单个页面也可以在页面编辑器中覆盖此默认设置。",
+    "pluginNote": "插件过渡效果由 FiestaBoard 生成动画，并作为普通的看板更新发送，因此适用于任何看板连接方式。",
+    "builtInGroup": "内置",
+    "pluginsGroup": "过渡插件",
+    "pluginsBetaBadge": "测试版",
+    "unavailablePluginNote": "此过渡插件当前不可用。请选择其他选项进行更改。",
     "toastSaved": "过渡效果设置已保存",
     "toastSaveFailed": "保存过渡效果设置失败：{error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "选择一个过渡插件，然后选择起始页面和目标页面。",
     "pluginLabel": "过渡插件",
     "pluginPlaceholder": "选择插件...",
-    "noPlugins": "没有已启用的过渡插件。请在集成页面启用一个。",
+    "noPlugins": "尚未安装过渡插件。请从集成页面添加。",
     "deviceLabel": "设备",
     "deviceFlagship": "Flagship（6×22）",
     "deviceNote": "Note（3×15）",
@@ -1604,6 +1618,7 @@
       "finance": "金融",
       "home": "智能家居",
       "transit": "交通",
+      "transition": "过渡效果",
       "utility": "实用工具",
       "weather": "天气与环境"
     },

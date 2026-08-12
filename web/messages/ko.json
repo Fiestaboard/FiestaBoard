@@ -418,9 +418,11 @@
       "finance": "금융",
       "home": "스마트 홈",
       "transit": "교통",
+      "transition": "전환 효과",
       "utility": "유틸리티",
       "weather": "날씨 및 환경"
     },
+    "transitionBadge": "전환 효과",
     "tabInstalled": "설치됨",
     "tabMarketplace": "마켓플레이스",
     "searchInstalledPlaceholder": "설치된 플러그인 검색...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "일정 항목",
     "retargetSurfaceActivePage": "활성 페이지",
     "notesWideOption": "가로 {count}개",
-    "notesTallOption": "세로 {count}개"
+    "notesTallOption": "세로 {count}개",
+    "transitionMenuTitle": "전환 효과",
+    "transitionPickerAriaLabel": "페이지 전환 효과",
+    "transitionPickerTooltip": "이 페이지의 전환 효과: {strategy}",
+    "transitionUseGlobalDefault": "전역 기본값 사용",
+    "transitionBuiltInGroup": "기본 제공",
+    "transitionPluginsGroup": "플러그인 (베타)",
+    "transitionOpenLab": "전환 실험실 열기"
   },
   "displaySettings": {
     "title": "내 보드",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "기본값",
     "stepSizeDescription": "한 번에 애니메이션되는 행 또는 열의 수입니다. 보드 기본값을 사용하려면 비워 두세요.",
     "localApiNote": "전환 효과는 로컬 API에서만 지원됩니다. 보드가 클라우드 API를 사용하도록 설정된 경우 전환 설정은 효과가 없습니다. 개별 페이지에서 페이지 빌더를 통해 이 기본값을 재정의할 수도 있습니다.",
+    "pluginNote": "플러그인 전환 효과는 FiestaBoard가 애니메이션을 만들어 일반 보드 업데이트로 전송하므로 어떤 보드 연결에서도 작동합니다.",
+    "builtInGroup": "기본 제공",
+    "pluginsGroup": "전환 플러그인",
+    "pluginsBetaBadge": "베타",
+    "unavailablePluginNote": "이 전환 플러그인은 현재 사용할 수 없습니다. 변경하려면 다른 옵션을 선택하세요.",
     "toastSaved": "전환 설정이 저장되었습니다",
     "toastSaveFailed": "전환 설정 저장에 실패했습니다: {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "전환 플러그인을 선택한 다음 시작 페이지와 대상 페이지를 선택하세요.",
     "pluginLabel": "전환 플러그인",
     "pluginPlaceholder": "플러그인 선택...",
-    "noPlugins": "활성화된 전환 플러그인이 없습니다. 통합 페이지에서 활성화하세요.",
+    "noPlugins": "설치된 전환 플러그인이 없습니다. 연동 페이지에서 추가하세요.",
     "deviceLabel": "기기",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1604,6 +1618,7 @@
       "finance": "금융",
       "home": "스마트 홈",
       "transit": "교통",
+      "transition": "전환 효과",
       "utility": "유틸리티",
       "weather": "날씨 및 환경"
     },

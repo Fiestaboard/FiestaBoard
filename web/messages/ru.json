@@ -418,9 +418,11 @@
       "finance": "Финансы",
       "home": "Умный дом",
       "transit": "Транспорт",
+      "transition": "Переходы",
       "utility": "Утилиты",
       "weather": "Погода и окружающая среда"
     },
+    "transitionBadge": "Переход",
     "tabInstalled": "Установленные",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Искать установленные плагины...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "запись расписания",
     "retargetSurfaceActivePage": "активная страница",
     "notesWideOption": "{count} в ширину",
-    "notesTallOption": "{count} в высоту"
+    "notesTallOption": "{count} в высоту",
+    "transitionMenuTitle": "Переход",
+    "transitionPickerAriaLabel": "Переход страницы",
+    "transitionPickerTooltip": "Переход для этой страницы: {strategy}",
+    "transitionUseGlobalDefault": "Использовать глобальное значение по умолчанию",
+    "transitionBuiltInGroup": "Встроенные",
+    "transitionPluginsGroup": "Плагины (бета)",
+    "transitionOpenLab": "Открыть лабораторию переходов"
   },
   "displaySettings": {
     "title": "Ваши доски",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "По умолчанию",
     "stepSizeDescription": "Сколько строк или столбцов анимируются одновременно. Оставьте пустым для значения по умолчанию.",
     "localApiNote": "Переходы поддерживаются только через локальный API. Если ваша доска настроена на облачный API, настройки переходов не будут применяться. Отдельные страницы также могут переопределить эти настройки в редакторе страниц.",
+    "pluginNote": "Переходы из плагинов анимируются самим FiestaBoard и отправляются как обычные обновления доски, поэтому работают при любом типе подключения.",
+    "builtInGroup": "Встроенные",
+    "pluginsGroup": "Плагины переходов",
+    "pluginsBetaBadge": "Бета",
+    "unavailablePluginNote": "Этот плагин перехода сейчас недоступен. Выберите другой вариант, чтобы изменить переход.",
     "toastSaved": "Настройки переходов сохранены",
     "toastSaveFailed": "Не удалось сохранить настройки переходов: {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "Выберите плагин перехода, затем начальную и конечную страницы.",
     "pluginLabel": "Плагин перехода",
     "pluginPlaceholder": "Выберите плагин...",
-    "noPlugins": "Нет включённых плагинов переходов. Включите один на странице «Интеграции».",
+    "noPlugins": "Плагины переходов не установлены. Добавьте плагин на странице «Интеграции».",
     "deviceLabel": "Устройство",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1604,6 +1618,7 @@
       "finance": "Финансы",
       "home": "Умный дом",
       "transit": "Транспорт",
+      "transition": "Переходы",
       "utility": "Утилиты",
       "weather": "Погода и окружающая среда"
     },

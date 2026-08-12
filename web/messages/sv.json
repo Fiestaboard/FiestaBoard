@@ -418,9 +418,11 @@
       "finance": "Finans",
       "home": "Smart hem",
       "transit": "Transport",
+      "transition": "Övergångar",
       "utility": "Verktyg",
       "weather": "Väder och miljö"
     },
+    "transitionBadge": "Övergång",
     "tabInstalled": "Installerade",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Sök installerade plugins...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "schemapost",
     "retargetSurfaceActivePage": "aktiv sida",
     "notesWideOption": "{count} bred",
-    "notesTallOption": "{count} hög"
+    "notesTallOption": "{count} hög",
+    "transitionMenuTitle": "Övergång",
+    "transitionPickerAriaLabel": "Sidövergång",
+    "transitionPickerTooltip": "Övergång för den här sidan: {strategy}",
+    "transitionUseGlobalDefault": "Använd global standard",
+    "transitionBuiltInGroup": "Inbyggda",
+    "transitionPluginsGroup": "Plugins (beta)",
+    "transitionOpenLab": "Öppna övergångslabbet"
   },
   "displaySettings": {
     "title": "Dina tavlor",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "Standard",
     "stepSizeDescription": "Hur många rader eller kolumner som animeras samtidigt. Lämna tomt för tavlans standard.",
     "localApiNote": "Övergångar stöds bara via lokalt API. Om din tavla är konfigurerad att använda moln-API kommer övergångsinställningar inte att ha någon effekt. Enskilda sidor kan också åsidosätta denna standard i sidredigeraren.",
+    "pluginNote": "Pluginövergångar animeras av FiestaBoard och skickas som vanliga uppdateringar av tavlan, så de fungerar med alla typer av anslutningar.",
+    "builtInGroup": "Inbyggda",
+    "pluginsGroup": "Övergångsplugins",
+    "pluginsBetaBadge": "Beta",
+    "unavailablePluginNote": "Det här övergångspluginet är inte tillgängligt just nu. Välj ett annat alternativ för att ändra övergången.",
     "toastSaved": "Övergångsinställningar sparade",
     "toastSaveFailed": "Kunde inte spara övergångsinställningar: {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "Välj ett övergångsplugin och sedan från- och till-sidorna.",
     "pluginLabel": "Övergångsplugin",
     "pluginPlaceholder": "Välj en plugin...",
-    "noPlugins": "Inga övergångsplugins aktiverade. Aktivera en på sidan Integrationer.",
+    "noPlugins": "Inga övergångsplugins installerade. Lägg till ett från sidan Integrationer.",
     "deviceLabel": "Enhet",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1604,6 +1618,7 @@
       "finance": "Finans",
       "home": "Smart Home",
       "transit": "Transport",
+      "transition": "Övergångar",
       "utility": "Verktyg",
       "weather": "Väder & miljö"
     },

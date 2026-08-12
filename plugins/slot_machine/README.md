@@ -10,7 +10,7 @@ A transition plugin where each column "spins" through random characters like a s
 
 Slot Machine is a transition plugin -- it doesn't display its own content. When the active page changes, each column of the board spins through a sequence of random tile codes (mimicking a flap reel cycling) and then locks on the target. The stagger setting controls how much later each column starts locking than the previous one, producing a left-to-right cascade.
 
-This plugin plays to the unique nature of the Vestaboard's split-flap mechanism: where hardware transitions like "wave" or "edges-to-center" simply *move* the final state into place, Slot Machine animates the *flaps themselves* as if the board were a row of mechanical reels.
+This plugin plays to the unique nature of the Vestaboard's split-flap mechanism: where the built-in strategies like Wave or Edges to Center simply *move* the final state into place, Slot Machine animates the *flaps themselves* as if the board were a row of mechanical reels. Those built-in strategies are Local API features; Slot Machine is drawn frame by frame by FiestaBoard and sent as ordinary board updates, so it runs on any board connection.
 
 ## Template Variables
 
@@ -18,7 +18,9 @@ None. Transition plugins don't expose template variables.
 
 ## Example Templates
 
-Select Slot Machine from a page's Transition picker or set it as the global default in Settings → Board Transitions.
+Slot Machine isn't referenced from a template. With the **Transition Plugins** beta on (Settings → Advanced → Beta Features), select it from the **Transition** dropdown in the page editor's toolbar for one page, or from Settings → Behavior → Board Transitions for every page. The per-page choice wins; "Use global default" clears it.
+
+Pages store the choice as `transition_strategy = "plugin:slot_machine"`.
 
 ## Configuration
 
@@ -34,6 +36,7 @@ Select Slot Machine from a page's Transition picker or set it as the global defa
 - Visually striking flap-reel effect that plays to the Vestaboard's mechanical character
 - Tunable cascade pattern via `column_stagger`
 - Random spin per run (or seeded for predictable previews)
+- Works on any board connection, Local API or Cloud
 - Bounded: capped at 300 frames / 60 seconds runtime
 - Interruptible: a new page or trigger cancels the in-flight spin cleanly
 

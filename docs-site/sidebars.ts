@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
         "plugins/overview",
         "plugins/configuration",
         "features/page-editor",
+        "features/transitions",
         "setup/ai-providers",
         "features/schedule",
         "features/silence-schedule",

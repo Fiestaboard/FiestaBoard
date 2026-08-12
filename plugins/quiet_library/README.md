@@ -18,7 +18,7 @@ None. Transition plugins do not expose template variables; they are selected as 
 
 ## Example Templates
 
-Not applicable — enable the **Transition Plugins** beta in Settings → Advanced → Beta Features, then pick *Quiet Library* as a page's transition (or preview it on the Transition Lab page).
+Not applicable — Quiet Library is chosen, not written into a template. Enable the **Transition Plugins** beta in Settings → Advanced → Beta Features, then pick *Quiet Library* from the **Transition** dropdown in the page editor's toolbar for one page, or under Settings → Behavior → Board Transitions for every page. The per-page choice wins over the global default, and "Use global default" gives the page back to it. Preview it first on the **Transition Lab** page.
 
 ## Configuration
 
@@ -35,7 +35,7 @@ Runtime caps (from `transition_settings`): interruptible, ≤512 frames, ≤30 m
 - Micro-batching (default ≤6 tiles per step) to soften the flap sound
 - Long inter-step delay tuned to the hardware's flap debounce timer
 - Trailing/leading blank cleanup rides along with the adjacent word
-- Works on Flagship, Note, and W×H note-array boards
+- Works on Flagship, Note, and W×H note-array boards, on Local API or Cloud connections (the built-in strategies are Local API only)
 
 ## Author
 

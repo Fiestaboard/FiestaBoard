@@ -418,9 +418,11 @@
       "finance": "Finans",
       "home": "Akıllı Ev",
       "transit": "Ulaşım",
+      "transition": "Geçişler",
       "utility": "Araçlar",
       "weather": "Hava Durumu ve Çevre"
     },
+    "transitionBadge": "Geçiş",
     "tabInstalled": "Kurulu",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Kurulu eklentileri ara...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "zamanlama girdisi",
     "retargetSurfaceActivePage": "etkin sayfa",
     "notesWideOption": "{count} genişlik",
-    "notesTallOption": "{count} yükseklik"
+    "notesTallOption": "{count} yükseklik",
+    "transitionMenuTitle": "Geçiş",
+    "transitionPickerAriaLabel": "Sayfa geçişi",
+    "transitionPickerTooltip": "Bu sayfanın geçişi: {strategy}",
+    "transitionUseGlobalDefault": "Genel varsayılanı kullan",
+    "transitionBuiltInGroup": "Yerleşik",
+    "transitionPluginsGroup": "Eklentiler (beta)",
+    "transitionOpenLab": "Geçiş Laboratuvarını aç"
   },
   "displaySettings": {
     "title": "Panolarınız",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "Varsayılan",
     "stepSizeDescription": "Aynı anda kaç satır veya sütunun animasyon yapacağı. Pano varsayılanı için boş bırakın.",
     "localApiNote": "Geçişler yalnızca Yerel API üzerinde desteklenir. Panonuz Bulut API kullanacak şekilde yapılandırılmışsa geçiş ayarlarının bir etkisi olmaz. Sayfa oluşturucuda her sayfa bu varsayılanı ayrıca geçersiz kılabilir.",
+    "pluginNote": "Eklenti geçişleri FiestaBoard tarafından canlandırılır ve normal pano güncellemeleri olarak gönderilir, bu yüzden her pano bağlantısında çalışır.",
+    "builtInGroup": "Yerleşik",
+    "pluginsGroup": "Geçiş Eklentileri",
+    "pluginsBetaBadge": "Beta",
+    "unavailablePluginNote": "Bu geçiş eklentisi şu anda kullanılamıyor. Değiştirmek için başka bir seçenek seçin.",
     "toastSaved": "Geçiş ayarları kaydedildi",
     "toastSaveFailed": "Geçiş ayarları kaydedilemedi: {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "Bir geçiş eklentisi seçin, ardından başlangıç ve hedef sayfaları seçin.",
     "pluginLabel": "Geçiş eklentisi",
     "pluginPlaceholder": "Bir eklenti seçin...",
-    "noPlugins": "Etkin geçiş eklentisi yok. Entegrasyonlar sayfasından birini etkinleştirin.",
+    "noPlugins": "Kurulu geçiş eklentisi yok. Entegrasyonlar sayfasından bir tane ekleyin.",
     "deviceLabel": "Cihaz",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1604,6 +1618,7 @@
       "finance": "Finans",
       "home": "Akıllı Ev",
       "transit": "Ulaşım",
+      "transition": "Geçişler",
       "utility": "Yardımcı Programlar",
       "weather": "Hava ve Çevre"
     },

@@ -852,17 +852,29 @@ function ColorRulesEditor({
   );
 }
 
-// Category labels
-const CATEGORY_LABELS: Record<string, string> = {
-  art: "Display Art",
-  data: "Data & Information",
-  entertainment: "Entertainment",
-  finance: "Finance",
-  home: "Smart Home",
-  transit: "Transportation",
-  utility: "Utilities",
-  weather: "Weather & Environment",
-};
+// Category ids that have a translated label. Anything else falls back to the
+// raw manifest category string at the call site.
+const CATEGORY_KEYS = [
+  "art",
+  "data",
+  "entertainment",
+  "finance",
+  "home",
+  "transit",
+  "transition",
+  "utility",
+  "weather",
+] as const;
+
+/**
+ * Category id → display label, sourced from `integrations.categories` so the
+ * chips, the sort keys and the marketplace section headings all read the same
+ * translated string.
+ */
+function useCategoryLabels(): Record<string, string> {
+  const t = useTranslations("integrations");
+  return Object.fromEntries(CATEGORY_KEYS.map((key) => [key, t(`categories.${key}`)]));
+}
 
 // Resolve the live value of a template variable from a plugin's raw display data.
 // Variable names come in two shapes:
@@ -996,10 +1008,18 @@ function InstalledPluginRow({
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const queryClient = useQueryClient();
+  const t = useTranslations("integrations");
+  const categoryLabels = useCategoryLabels();
 
   const isExternal = plugin.source?.source_type !== "builtin";
   const hasUpdate = plugin.update_available === true;
   const isInstance = !!plugin.instance_label;
+  // Transitions have no polling loop, so `PluginRegistry.get_transition_plugin()`
+  // runs any installed one whether or not it is "enabled". Offering a toggle
+  // here would promise control the backend does not honour, so the row shows a
+  // type badge instead of a switch and instead of an enabled/disabled status.
+  const isTransition = plugin.plugin_type === "transition";
+  const isActive = plugin.enabled || isTransition;
 
   // Fetch plugin details when opening config
   const { data: pluginDetails, isLoading: isLoadingDetails } = useQuery({
@@ -1175,7 +1195,7 @@ function InstalledPluginRow({
   const isCore = sourceType === "builtin";
   const isMarketplace = sourceType === "registry" || sourceType === "external";
   const isGitExternal = sourceType === "git";
-  const categoryLabel = CATEGORY_LABELS[plugin.category || "utility"] || plugin.category || "Utility";
+  const categoryLabel = categoryLabels[plugin.category || "utility"] || plugin.category || categoryLabels.utility;
 
   function handleCreateInstance() {
     if (!instanceLabel.trim()) return;
@@ -1475,7 +1495,7 @@ function InstalledPluginRow({
       <TableRow
         className={cn(
           "border-b last:border-b-0 transition-colors",
-          plugin.enabled ? "hover:bg-muted/30" : "opacity-60 hover:opacity-80 hover:bg-muted/20",
+          isActive ? "hover:bg-muted/30" : "opacity-60 hover:opacity-80 hover:bg-muted/20",
         )}
       >
         {/* Name column: icon + name + version + source badges */}
@@ -1484,7 +1504,7 @@ function InstalledPluginRow({
             <Box
               className={cn(
                 "p-1.5 rounded-md shrink-0",
-                plugin.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+                isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
               )}
             >
               <Icon className="h-4 w-4" />
@@ -1541,9 +1561,18 @@ function InstalledPluginRow({
           {categoryLabel}
         </TableCell>
 
-        {/* Status column */}
+        {/* Status column — transitions have no enabled state to report, so the
+            cell carries the plugin type instead. */}
         <TableCell className="px-4 py-2.5 whitespace-nowrap hidden md:table-cell">
-          {plugin.enabled ? (
+          {isTransition ? (
+            <Badge
+              variant="outline"
+              className="text-[10px] gap-1 px-1.5 py-0 h-5 border-violet-300 text-violet-600 dark:text-violet-400 dark:border-violet-700"
+            >
+              <Wand2 className="h-2.5 w-2.5" />
+              {t("transitionBadge")}
+            </Badge>
+          ) : plugin.enabled ? (
             plugin.configured ? (
               <Badge variant="default" className="text-[10px] gap-1 px-1.5 py-0 h-5">
                 <CheckCircle className="h-2.5 w-2.5" />
@@ -1566,12 +1595,14 @@ function InstalledPluginRow({
         {/* Actions column: toggle + configure + overflow */}
         <TableCell className="px-4 py-2.5">
           <Flex align="center" justify="end" gap="0.5">
-            <Switch
-              checked={plugin.enabled}
-              onCheckedChange={(checked) => onToggle(plugin.id, checked)}
-              disabled={isToggling}
-              aria-label={`Toggle ${plugin.name}`}
-            />
+            {!isTransition && (
+              <Switch
+                checked={plugin.enabled}
+                onCheckedChange={(checked) => onToggle(plugin.id, checked)}
+                disabled={isToggling}
+                aria-label={t("toggleAriaLabel", { pluginName: plugin.name })}
+              />
+            )}
             {configSheet}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1590,14 +1621,16 @@ function InstalledPluginRow({
                     Add Instance
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
-                  {plugin.enabled ? (
-                    <XCircle className="h-3.5 w-3.5 mr-2" />
-                  ) : (
-                    <CheckCircle className="h-3.5 w-3.5 mr-2" />
-                  )}
-                  {plugin.enabled ? "Disable" : "Enable"}
-                </DropdownMenuItem>
+                {!isTransition && (
+                  <DropdownMenuItem onClick={() => onToggle(plugin.id, !plugin.enabled)} disabled={isToggling}>
+                    {plugin.enabled ? (
+                      <XCircle className="h-3.5 w-3.5 mr-2" />
+                    ) : (
+                      <CheckCircle className="h-3.5 w-3.5 mr-2" />
+                    )}
+                    {plugin.enabled ? "Disable" : "Enable"}
+                  </DropdownMenuItem>
+                )}
                 {hasUpdate && onUpdate && (
                   <>
                     <DropdownMenuSeparator />
@@ -1807,6 +1840,7 @@ function RegistryPluginRow({
   isInstalled?: boolean;
 }) {
   const t = useTranslations("integrations");
+  const categoryLabels = useCategoryLabels();
   const Icon = getPluginIcon(entry.icon);
   return (
     <TableRow className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
@@ -1836,7 +1870,7 @@ function RegistryPluginRow({
         </Link>
       </TableCell>
       <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
-        {CATEGORY_LABELS[entry.category || "utility"] || entry.category || "Utility"}
+        {categoryLabels[entry.category || "utility"] || entry.category || categoryLabels.utility}
       </TableCell>
       <TableCell className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{entry.author}</TableCell>
       <TableCell className="px-4 py-2.5 text-right">
@@ -1860,6 +1894,7 @@ function RegistryPluginRow({
 export default function IntegrationsPage() {
   const t = useTranslations("integrations");
   const tCommon = useTranslations("common");
+  const categoryLabels = useCategoryLabels();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
@@ -2103,7 +2138,7 @@ export default function IntegrationsPage() {
   );
 
   const marketplaceCategories = Object.keys(groupedRegistry).sort((a, b) =>
-    (CATEGORY_LABELS[a] || a).localeCompare(CATEGORY_LABELS[b] || b),
+    (categoryLabels[a] || a).localeCompare(categoryLabels[b] || b),
   );
 
   const availableCount = allRegistryEntries.length;
@@ -2116,8 +2151,8 @@ export default function IntegrationsPage() {
       valA = a.name;
       valB = b.name;
     } else if (marketplaceSort.key === "category") {
-      valA = CATEGORY_LABELS[a.category || "utility"] || a.category || "";
-      valB = CATEGORY_LABELS[b.category || "utility"] || b.category || "";
+      valA = categoryLabels[a.category || "utility"] || a.category || "";
+      valB = categoryLabels[b.category || "utility"] || b.category || "";
     } else if (marketplaceSort.key === "author") {
       valA = a.author || "";
       valB = b.author || "";
@@ -2144,8 +2179,8 @@ export default function IntegrationsPage() {
       valA = a.name;
       valB = b.name;
     } else if (installedSort.key === "category") {
-      valA = CATEGORY_LABELS[a.category || "utility"] || a.category || "";
-      valB = CATEGORY_LABELS[b.category || "utility"] || b.category || "";
+      valA = categoryLabels[a.category || "utility"] || a.category || "";
+      valB = categoryLabels[b.category || "utility"] || b.category || "";
     } else if (installedSort.key === "status") {
       const statusRank = (p: PluginInfo) => (!p.enabled ? 2 : p.configured ? 0 : 1);
       return installedSort.dir === "asc" ? statusRank(a) - statusRank(b) : statusRank(b) - statusRank(a);
@@ -2503,7 +2538,7 @@ export default function IntegrationsPage() {
                           repeat the heading verbatim N times. Cards in the public
                           directory carry it because that grid is flat. */}
                       <Heading level={2} size="sm" className="mb-3 flex items-center gap-2">
-                        <PluginCategoryBadge category={category} label={CATEGORY_LABELS[category] || category} />
+                        <PluginCategoryBadge category={category} label={categoryLabels[category] || category} />
                         <Text as="span" size="xs" tone="muted" className="normal-case tracking-normal">
                           ({entries.length})
                         </Text>

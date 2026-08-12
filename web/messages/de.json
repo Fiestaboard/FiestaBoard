@@ -418,9 +418,11 @@
       "finance": "Finanzen",
       "home": "Smart Home",
       "transit": "Verkehr",
+      "transition": "Übergänge",
       "utility": "Dienstprogramme",
       "weather": "Wetter & Umwelt"
     },
+    "transitionBadge": "Übergang",
     "tabInstalled": "Installiert",
     "tabMarketplace": "Marktplatz",
     "searchInstalledPlaceholder": "Installierte Plugins suchen...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "Zeitplaneintrag",
     "retargetSurfaceActivePage": "aktive Seite",
     "notesWideOption": "{count} breit",
-    "notesTallOption": "{count} hoch"
+    "notesTallOption": "{count} hoch",
+    "transitionMenuTitle": "Übergang",
+    "transitionPickerAriaLabel": "Seitenübergang",
+    "transitionPickerTooltip": "Übergang für diese Seite: {strategy}",
+    "transitionUseGlobalDefault": "Globalen Standard verwenden",
+    "transitionBuiltInGroup": "Integriert",
+    "transitionPluginsGroup": "Plugins (Beta)",
+    "transitionOpenLab": "Übergangs-Labor öffnen"
   },
   "displaySettings": {
     "title": "Ihre Boards",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "Standard",
     "stepSizeDescription": "Wie viele Zeilen oder Spalten gleichzeitig animiert werden. Leer lassen für den Board-Standard.",
     "localApiNote": "Übergänge werden nur von der lokalen API unterstützt. Wenn Ihr Board für die Cloud API konfiguriert ist, haben Übergangseinstellungen keine Wirkung. Einzelne Seiten können diesen Standard auch im Seiteneditor überschreiben.",
+    "pluginNote": "Plugin-Übergänge werden von FiestaBoard animiert und als normale Board-Aktualisierungen gesendet, funktionieren also mit jeder Board-Verbindung.",
+    "builtInGroup": "Integriert",
+    "pluginsGroup": "Übergangs-Plugins",
+    "pluginsBetaBadge": "Beta",
+    "unavailablePluginNote": "Dieses Übergangs-Plugin ist derzeit nicht verfügbar. Wählen Sie eine andere Option, um es zu ändern.",
     "toastSaved": "Übergangseinstellungen gespeichert",
     "toastSaveFailed": "Übergangseinstellungen konnten nicht gespeichert werden: {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "Wähle ein Übergangs-Plugin und dann die Von- und Nach-Seiten.",
     "pluginLabel": "Übergangs-Plugin",
     "pluginPlaceholder": "Plugin auswählen...",
-    "noPlugins": "Keine Übergangs-Plugins aktiviert. Aktiviere eines auf der Integrationen-Seite.",
+    "noPlugins": "Keine Übergangs-Plugins installiert. Füge eines auf der Integrationen-Seite hinzu.",
     "deviceLabel": "Gerät",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1604,6 +1618,7 @@
       "finance": "Finanzen",
       "home": "Smart Home",
       "transit": "Verkehr",
+      "transition": "Übergänge",
       "utility": "Dienstprogramme",
       "weather": "Wetter & Umwelt"
     },

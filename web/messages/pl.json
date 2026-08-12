@@ -418,9 +418,11 @@
       "finance": "Finanse",
       "home": "Inteligentny dom",
       "transit": "Transport",
+      "transition": "Przejścia",
       "utility": "Narzędzia",
       "weather": "Pogoda i środowisko"
     },
+    "transitionBadge": "Przejście",
     "tabInstalled": "Zainstalowane",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Szukaj zainstalowanych wtyczek...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "wpis harmonogramu",
     "retargetSurfaceActivePage": "aktywna strona",
     "notesWideOption": "{count} wszerz",
-    "notesTallOption": "{count} wzwyż"
+    "notesTallOption": "{count} wzwyż",
+    "transitionMenuTitle": "Przejście",
+    "transitionPickerAriaLabel": "Przejście strony",
+    "transitionPickerTooltip": "Przejście dla tej strony: {strategy}",
+    "transitionUseGlobalDefault": "Użyj domyślnego ustawienia globalnego",
+    "transitionBuiltInGroup": "Wbudowane",
+    "transitionPluginsGroup": "Wtyczki (beta)",
+    "transitionOpenLab": "Otwórz laboratorium przejść"
   },
   "displaySettings": {
     "title": "Twoje tablice",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "Domyślny",
     "stepSizeDescription": "Ile wierszy lub kolumn animuje się jednocześnie. Pozostaw puste, aby użyć domyślnej wartości tablicy.",
     "localApiNote": "Przejścia są obsługiwane tylko przez Local API. Jeśli Twoja tablica jest skonfigurowana z Cloud API, ustawienia przejść nie będą miały efektu. Poszczególne strony mogą również nadpisać to domyślne ustawienie w edytorze stron.",
+    "pluginNote": "Przejścia wtyczek są animowane przez FiestaBoard i wysyłane jako zwykłe aktualizacje tablicy, więc działają przy każdym rodzaju połączenia.",
+    "builtInGroup": "Wbudowane",
+    "pluginsGroup": "Wtyczki przejść",
+    "pluginsBetaBadge": "Beta",
+    "unavailablePluginNote": "Ta wtyczka przejścia jest obecnie niedostępna. Wybierz inną opcję, aby ją zmienić.",
     "toastSaved": "Ustawienia przejść zapisane",
     "toastSaveFailed": "Nie udało się zapisać ustawień przejść: {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "Wybierz wtyczkę przejścia, a następnie strony początkową i docelową.",
     "pluginLabel": "Wtyczka przejścia",
     "pluginPlaceholder": "Wybierz wtyczkę...",
-    "noPlugins": "Brak włączonych wtyczek przejść. Włącz jedną na stronie Integracje.",
+    "noPlugins": "Brak zainstalowanych wtyczek przejść. Dodaj jedną na stronie Integracje.",
     "deviceLabel": "Urządzenie",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1604,6 +1618,7 @@
       "finance": "Finanse",
       "home": "Smart Home",
       "transit": "Transport",
+      "transition": "Przejścia",
       "utility": "Narzędzia",
       "weather": "Pogoda i środowisko"
     },

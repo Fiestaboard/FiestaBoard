@@ -59,6 +59,7 @@ def mock_plugin_with_sensitive_config():
         manifest.author = "Test"
         manifest.icon = "puzzle"
         manifest.category = "utility"
+        manifest.plugin_type = "data"
         manifest.settings_schema = {
             "type": "object",
             "properties": {

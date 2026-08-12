@@ -418,9 +418,11 @@
       "finance": "Finanza",
       "home": "Casa intelligente",
       "transit": "Trasporti",
+      "transition": "Transizioni",
       "utility": "Utilità",
       "weather": "Meteo e ambiente"
     },
+    "transitionBadge": "Transizione",
     "tabInstalled": "Installati",
     "tabMarketplace": "Marketplace",
     "searchInstalledPlaceholder": "Cerca plugin installati...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "voce della pianificazione",
     "retargetSurfaceActivePage": "pagina attiva",
     "notesWideOption": "{count} in larghezza",
-    "notesTallOption": "{count} in altezza"
+    "notesTallOption": "{count} in altezza",
+    "transitionMenuTitle": "Transizione",
+    "transitionPickerAriaLabel": "Transizione della pagina",
+    "transitionPickerTooltip": "Transizione di questa pagina: {strategy}",
+    "transitionUseGlobalDefault": "Usa il valore predefinito globale",
+    "transitionBuiltInGroup": "Integrate",
+    "transitionPluginsGroup": "Plugin (beta)",
+    "transitionOpenLab": "Apri il laboratorio transizioni"
   },
   "displaySettings": {
     "title": "Le tue bacheche",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "Predefinito",
     "stepSizeDescription": "Quante righe o colonne si animano contemporaneamente. Lascia vuoto per il valore predefinito della bacheca.",
     "localApiNote": "Le transizioni sono supportate solo con l'API locale. Se la tua bacheca è configurata per usare l'API cloud, le impostazioni di transizione non avranno effetto. Le singole pagine possono anche sovrascrivere questo valore predefinito nel generatore di pagine.",
+    "pluginNote": "Le transizioni dei plugin sono animate da FiestaBoard e inviate come normali aggiornamenti della bacheca, quindi funzionano con qualsiasi connessione.",
+    "builtInGroup": "Integrate",
+    "pluginsGroup": "Plugin di transizione",
+    "pluginsBetaBadge": "Beta",
+    "unavailablePluginNote": "Questo plugin di transizione non è attualmente disponibile. Scegli un'altra opzione per cambiarla.",
     "toastSaved": "Impostazioni di transizione salvate",
     "toastSaveFailed": "Impossibile salvare le impostazioni di transizione: {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "Scegli un plugin di transizione, poi le pagine di partenza e di arrivo.",
     "pluginLabel": "Plugin di transizione",
     "pluginPlaceholder": "Seleziona un plugin...",
-    "noPlugins": "Nessun plugin di transizione attivo. Attivane uno nella pagina Integrazioni.",
+    "noPlugins": "Nessun plugin di transizione installato. Aggiungine uno dalla pagina Integrazioni.",
     "deviceLabel": "Dispositivo",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1604,6 +1618,7 @@
       "finance": "Finanza",
       "home": "Smart Home",
       "transit": "Trasporti",
+      "transition": "Transizioni",
       "utility": "Utilità",
       "weather": "Meteo e ambiente"
     },

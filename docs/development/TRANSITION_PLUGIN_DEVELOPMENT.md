@@ -1,13 +1,14 @@
 # Transition Plugin Development Guide
 
 > ⚠️ **Beta / Experimental.** Transition plugins ship behind the
-> ``beta.transition_plugins_enabled`` settings flag (Settings → Beta).
+> ``beta.transition_plugins_enabled`` settings flag
+> (Settings → Advanced → Beta Features → Transition Plugins).
 > The SDK contract is not yet stable -- method signatures, manifest
 > fields, and runtime semantics may change in future releases before
 > general availability. Use it, build with it, send feedback, but don't
 > treat your plugin's interface as locked in yet.
 
-Transition plugins drive **frame-by-frame board animations** that change one display state into another. Unlike Vestaboard's built-in hardware transitions (column wave, edges-to-center, etc.), a transition plugin emits a sequence of intermediate board grids and the runtime sends them as separate frames -- enabling typewriter reveals, slot-machine spins, dissolves, and anything else that needs custom per-frame control.
+Transition plugins drive **frame-by-frame board animations** that change one display state into another. Unlike Vestaboard's built-in strategies (column wave, edges-to-center, etc.), which are Local API features the board performs on its own, a transition plugin emits a sequence of intermediate board grids and the runtime sends each one as a separate ordinary board update -- enabling typewriter reveals, slot-machine spins, dissolves, and anything else that needs custom per-frame control. Because the frames are just normal sends, plugin transitions run on Cloud connections too.
 
 This is a different plugin type from the data plugins documented in [PLUGIN_DEVELOPMENT.md](./PLUGIN_DEVELOPMENT.md). Data plugins fetch information and expose template variables; transition plugins shape *how* a board update happens, not *what* it shows.
 
@@ -27,7 +28,7 @@ This is a different plugin type from the data plugins documented in [PLUGIN_DEVE
 3. Implement `generate_frames()` in `plugins/my_transition/__init__.py`.
 4. Add tests under `plugins/my_transition/tests/` aiming for >80% coverage.
 5. Run `python scripts/run_plugin_tests.py --plugin=my_transition` to verify.
-6. Open Transition Lab in the web UI (`/transitions`) to preview your plugin against arbitrary from/to text.
+6. Turn on Settings → Advanced → Beta Features → **Transition Plugins**, then open **Transition Lab** (`/transitions`) to preview your plugin frame by frame between two pages.
 
 ## The Plugin Class
 
@@ -128,21 +129,27 @@ Choose conservatively. A transition with `max_frames: 5000` and `min_interval_ms
 
 ## Selecting a transition plugin
 
-Once your plugin is installed it is ready to use — unlike data plugins, transition plugins don't need to be enabled on the Integrations page; installing one is opting in. (The `beta.transition_plugins_enabled` flag above still gates the feature as a whole.) Users select it from:
+Once your plugin is installed it is ready to use. Unlike data plugins, transition plugins are not gated on the Integrations page's enabled toggle — `PluginRegistry.get_transition_plugin()` never consults it, because a transition has no polling loop or background cost. Installing is opting in. (The `beta.transition_plugins_enabled` flag above still gates the feature as a whole; with it off, `BoardClient.render()` logs and snaps to the target grid.) Users select your plugin from:
 
-- A specific page's Transition picker in the page editor
-- The global default in Settings → Board Transitions
+- The **Transition** dropdown in the page editor's toolbar, which sets that one page's transition
+- Settings → Behavior → Board Transitions, which sets the default for every page
+
+A page's own transition wins over the global default; the dropdown's "Use global default" option clears the page-level override.
 
 Pages store the choice as `transition_strategy = "plugin:my_transition"`. The runtime parses the `plugin:` prefix and routes the send through `TransitionRunner`.
 
 ## Visual testing
 
-The **Transition Lab** at `/transitions` lets you preview any installed transition plugin against arbitrary from/to text without a real board. It uses `POST /transitions/preview` under the hood, which calls your `generate_frames()` and returns the resulting grids as JSON. Use the timeline scrubber to step through frames and verify each intermediate state.
+The **Transition Lab** at `/transitions` (sidebar entry, visible once the beta is on) previews any installed transition plugin between two of your real pages without touching the board. It uses `POST /transitions/preview` under the hood, which calls your `generate_frames()` and returns the resulting grids as JSON. Use the timeline scrubber to step through frames and verify each intermediate state.
+
+The Lab's config box is seeded with the plugin's saved config and passed straight through to `generate_frames()`, so you can try values without saving them — the fastest way to sanity-check `validate_config()` and your defaults.
+
+When you're ready to see it on hardware, **Test live** runs the transition once on the real board and **Restore** puts the active page back (the display loop restores it on its own as well).
 
 ## Performance & rate limits
 
 - The Vestaboard hardware has internal timing constraints. Sending frames faster than the flap mechanism can settle (~14s for a full revolution under heavy update) will cause the board to drop requests.
-- The Cloud API has stricter rate limits than the Local API. Transition plugins are the *only* way to animate on Cloud-mode boards (hardware strategies are ignored), but the practical frame rate is much lower.
+- The Cloud API has stricter rate limits than the Local API. Transition plugins are the *only* way to animate on Cloud-mode boards (the built-in strategies are Local API features and are ignored there), but the practical frame rate is much lower.
 - Cloud **note arrays** are throttled to one send per 15 seconds. The runner automatically paces your frames (and the final snap) to the board client's `min_send_interval_ms`, so your plugin still works — it just runs no faster than that floor. Slow, deliberate transitions are the natural fit there.
 - Use `min_interval_ms` to protect users from runaway loops in your own plugin.
 
@@ -156,4 +163,4 @@ External plugins follow the same registry mechanism as data plugins (see [PLUGIN
 - **Runner**: `src/transitions/runner.py` → `TransitionRunner`
 - **Send chokepoint**: `src/board_client.py` → `BoardClient.render()`
 - **API endpoints**: `GET /transitions/plugins`, `POST /transitions/preview` in `src/api_server.py`
-- **First-party examples**: `plugins/typewriter`, `plugins/simple_dissolve`, `plugins/slot_machine`
+- **First-party examples**: `plugins/typewriter`, `plugins/simple_dissolve`, `plugins/slot_machine`, `plugins/quiet_library`

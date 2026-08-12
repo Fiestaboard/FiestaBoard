@@ -418,9 +418,11 @@
       "finance": "Finanzas",
       "home": "Hogar inteligente",
       "transit": "Transporte",
+      "transition": "Transiciones",
       "utility": "Utilidades",
       "weather": "Clima y medio ambiente"
     },
+    "transitionBadge": "Transición",
     "tabInstalled": "Instalados",
     "tabMarketplace": "Mercado",
     "searchInstalledPlaceholder": "Buscar plugins instalados...",
@@ -737,7 +739,14 @@
     "retargetSurfaceSchedule": "entrada de horario",
     "retargetSurfaceActivePage": "página activa",
     "notesWideOption": "{count} de ancho",
-    "notesTallOption": "{count} de alto"
+    "notesTallOption": "{count} de alto",
+    "transitionMenuTitle": "Transición",
+    "transitionPickerAriaLabel": "Transición de la página",
+    "transitionPickerTooltip": "Transición de esta página: {strategy}",
+    "transitionUseGlobalDefault": "Usar el valor predeterminado global",
+    "transitionBuiltInGroup": "Integradas",
+    "transitionPluginsGroup": "Plugins (beta)",
+    "transitionOpenLab": "Abrir el laboratorio de transiciones"
   },
   "displaySettings": {
     "title": "Tus tableros",
@@ -887,6 +896,11 @@
     "stepSizePlaceholder": "Predeterminado",
     "stepSizeDescription": "Cuántas filas o columnas se animan a la vez. Deja vacío para el valor predeterminado del tablero.",
     "localApiNote": "Las transiciones solo son compatibles con la API local. Si tu tablero está configurado para usar la API en la nube, los ajustes de transición no tendrán efecto. Las páginas individuales también pueden anular este valor predeterminado en el editor de páginas.",
+    "pluginNote": "Las transiciones de plugin las anima FiestaBoard y se envían como actualizaciones normales del tablero, así que funcionan con cualquier conexión de tablero.",
+    "builtInGroup": "Integradas",
+    "pluginsGroup": "Plugins de transición",
+    "pluginsBetaBadge": "Beta",
+    "unavailablePluginNote": "Este plugin de transición no está disponible actualmente. Elige otra opción para cambiarla.",
     "toastSaved": "Ajustes de transición guardados",
     "toastSaveFailed": "Error al guardar los ajustes de transición: {error}",
     "strategies": {
@@ -1518,7 +1532,7 @@
     "setupDescription": "Elige un plugin de transición y luego las páginas de origen y destino.",
     "pluginLabel": "Plugin de transición",
     "pluginPlaceholder": "Selecciona un plugin...",
-    "noPlugins": "No hay plugins de transición activados. Activa uno en la página de Integraciones.",
+    "noPlugins": "No hay plugins de transición instalados. Añade uno desde la página de Integraciones.",
     "deviceLabel": "Dispositivo",
     "deviceFlagship": "Flagship (6×22)",
     "deviceNote": "Note (3×15)",
@@ -1604,6 +1618,7 @@
       "finance": "Finanzas",
       "home": "Hogar inteligente",
       "transit": "Transporte",
+      "transition": "Transiciones",
       "utility": "Utilidades",
       "weather": "Clima y medio ambiente"
     },

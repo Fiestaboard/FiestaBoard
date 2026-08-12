@@ -98,8 +98,8 @@ When creating or updating a page, the following fields are available:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/settings/all` | Get all settings in a single call |
-| `GET` | `/settings/transitions` | Get transition animation settings |
-| `PUT` | `/settings/transitions` | Update transition settings |
+| `GET` | `/settings/transitions` | Get transition animation settings and the built-in strategy list |
+| `PUT` | `/settings/transitions` | Update transition settings. `strategy` accepts a built-in name (`column`, `reverse-column`, `edges-to-center`, `row`, `diagonal`, `random`), `"plugin:<id>"` to drive a [transition plugin](/docs/features/transitions), or `null` for no animation |
 | `GET` | `/settings/output` | Get output target settings |
 | `PUT` | `/settings/output` | Update output target |
 | `GET` | `/settings/board` | Get board configuration |
@@ -158,6 +158,42 @@ pickers filter to the boards they're compatible with (see
 | `enabled` | boolean | Whether this board is active |
 | `schedule_enabled` | boolean | Whether this board follows its schedule (vs. manual mode) |
 | `paused` | boolean | Whether this board's output is paused |
+
+## Transition Plugin Endpoints
+
+These endpoints back the **Transition Lab** and the transition pickers in the UI. They are gated behind the Transition Plugins beta flag (**Settings → Advanced → Beta Features**) and return `404` while it is off. See [Transitions](/docs/features/transitions) for the feature itself.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/transitions/plugins` | List installed transition plugins with their settings schema, runtime caps, and `plugin:<id>` strategy string |
+| `POST` | `/transitions/preview` | Run a transition plugin in-process and return its frame sequence — nothing is sent to a board |
+| `POST` | `/transitions/test-live` | Run a transition plugin once on the real board |
+| `POST` | `/transitions/restore` | Snap a board back to its active page after a live test |
+
+### `POST /transitions/preview` — request body fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `plugin_id` | string | Transition plugin to drive (required) |
+| `to_text` | string | Text rendered into the target grid |
+| `from_text` | string | Optional. Text rendered into the starting grid. Default: blank |
+| `config` | object | Optional. Per-run overrides for the plugin's settings fields |
+| `device_type` | string | Optional. `"flagship"` (default), `"note"`, or `"note_array"` |
+| `notes_wide` / `notes_tall` | number | Optional. Note-array geometry (1–8 each) |
+
+The response is `{"frames": [{"grid": [[...]], "delay_ms": n}, ...], "total_delay_ms": n, "capped": bool, "plugin_id": "..."}`. `capped` is `true` when the plugin hit its `max_frames` or `max_runtime_seconds` limit and the sequence was truncated.
+
+### `POST /transitions/test-live` — request body fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `plugin_id` | string | Transition plugin to drive (required) |
+| `to_page_id` | string | Page the transition lands on (required) |
+| `from_page_id` | string | Optional. Page snapped to the board first, so the transition visibly starts from it |
+| `config` | object | Optional. Per-run overrides for the plugin's settings fields |
+| `board_id` | string | Optional. Omitted → primary board |
+
+Live tests respect silence mode and board pause, returning `409` rather than writing to a quiet or paused board. The board is left showing the target page — call `POST /transitions/restore` (body: optional `board_id`) to return it to its active page, or wait for the normal display loop.
 
 ## Example Requests
 

@@ -265,6 +265,7 @@ def mock_plugin_registry():
         manifest.author = "Test"
         manifest.icon = "cloud"
         manifest.category = "weather"
+        manifest.plugin_type = "data"
         manifest.settings_schema = {}
         manifest.raw = {"variables": {"temperature": "number"}}
         manifest.max_lengths = {"temperature": 5}
