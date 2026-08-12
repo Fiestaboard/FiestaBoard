@@ -1027,11 +1027,25 @@ async def root():
     return {"name": "FiestaBoard Display API", "version": "1.0.0", "status": "running"}
 
 
-@app.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
+@app.get("/health", response_model=HealthResponse)
 async def health():
     """Health check endpoint."""
     service = get_service()
     return HealthResponse(status="ok", service_running=_service_running and service is not None, version=__version__)
+
+
+@app.head("/health", response_model=HealthResponse)
+async def health_head():
+    """Health check endpoint (HEAD).
+
+    Split from `health()` above into its own handler with a distinct name so
+    each HTTP method gets its own APIRoute and its own OpenAPI operationId.
+    A single @app.api_route(methods=["GET", "HEAD"]) produces one APIRoute
+    whose unique_id is derived from `list(route.methods)[0]` — since
+    route.methods is a set, that pick is non-deterministic, and FastAPI emits
+    the same operationId for both the GET and HEAD operations (see #1572).
+    """
+    return await health()
 
 
 @app.get("/mqtt/status")
