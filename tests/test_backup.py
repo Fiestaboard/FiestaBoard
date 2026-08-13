@@ -242,6 +242,30 @@ def test_reinstall_plugins_records_failures(tmp_path):
     assert result["failed"] and result["failed"][0]["plugin_id"] == "weather"
 
 
+def test_reinstall_plugins_does_not_leak_install_error_text(tmp_path):
+    """Install errors embed git/loader exception text (URLs, paths, stderr).
+    They belong in the server log, not in the API response (CodeQL
+    py/stack-trace-exposure, alert #64)."""
+    fake_registry = MagicMock()
+    fake_registry.get_plugin.return_value = None
+    fake_registry.install_from_registry.return_value = ["git clone failed: SECRET_INTERNAL_XYZ /root/.ssh detail"]
+
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
+        result = BackupService._reinstall_plugins(
+            [
+                {
+                    "plugin_id": "weather",
+                    "source_type": "registry",
+                    "repository_url": "https://example.com/p.git",
+                }
+            ]
+        )
+
+    assert result["failed"] and result["failed"][0]["plugin_id"] == "weather"
+    assert "SECRET_INTERNAL_XYZ" not in repr(result)
+    assert result["failed"][0]["error"] == "install failed (see server logs)"
+
+
 def test_reinstall_plugins_installs_registry_plugin(tmp_path):
     """A registry plugin not yet present should be installed and appear in
     the 'installed' list."""
@@ -388,3 +412,31 @@ def test_import_endpoint_rejects_invalid_payload(client_with_data_dir):
 
     assert response.status_code == 400
     assert "marker" in response.json()["detail"].lower()
+
+
+def test_import_endpoint_does_not_leak_plugin_install_errors(client_with_data_dir):
+    """The import summary is returned verbatim to the browser, so a failed
+    plugin reinstall must not carry raw git/loader exception text (CodeQL
+    py/stack-trace-exposure, alert #64)."""
+    client, _ = client_with_data_dir
+
+    backup = client.get("/backup/export").json()
+    backup["installed_plugins"] = [
+        {
+            "plugin_id": "weather",
+            "source_type": "registry",
+            "repository_url": "https://example.com/p.git",
+        }
+    ]
+
+    fake_registry = MagicMock()
+    fake_registry.get_plugin.return_value = None
+    fake_registry.install_from_registry.return_value = ["git clone failed: SECRET_INTERNAL_XYZ /root/.ssh detail"]
+
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
+        response = client.post("/backup/import", json=backup)
+
+    assert response.status_code == 200
+    assert "SECRET_INTERNAL_XYZ" not in response.text
+    body = response.json()
+    assert body["plugins"]["failed"] and body["plugins"]["failed"][0]["plugin_id"] == "weather"
