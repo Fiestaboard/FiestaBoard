@@ -4,6 +4,7 @@ import { Box, Text } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
+import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot } from "@/lib/ai-chat-types";
 import { api, type DeviceType } from "@/lib/api";
 
@@ -41,6 +42,7 @@ export interface InlineBoardPreviewProps {
  * snapshots dedupe across multiple tool calls in the same session.
  */
 export function InlineBoardPreview({ snapshot, deviceType, size = "sm", className }: InlineBoardPreviewProps) {
+  const t = useTranslations("aiChatPanel");
   const { data, isLoading, isError } = useQuery({
     queryKey: ["inline-preview-render", deviceType, snapshot.template, snapshot.line_metadata],
     queryFn: () => api.renderTemplate(snapshot.template, snapshot.line_metadata, deviceType),
@@ -56,7 +58,7 @@ export function InlineBoardPreview({ snapshot, deviceType, size = "sm", classNam
     // back to a quiet hint. The card still has a useful summary.
     return (
       <Text tone="muted" className="text-[10px] italic">
-        (preview unavailable)
+        {t("previewUnavailable")}
       </Text>
     );
   }

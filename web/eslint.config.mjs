@@ -1,5 +1,9 @@
 import prettierConfig from "eslint-config-prettier";
 import i18nextPlugin from "eslint-plugin-i18next";
+// The rule shallow-merges its option object over its own defaults, so a bare
+// `words: { exclude: [...] }` REPLACES the plugin's default excludes instead of
+// extending them. Import the defaults and spread them back in.
+import i18nextDefaults from "eslint-plugin-i18next/lib/options/defaults.js";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactPlugin from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -92,20 +96,52 @@ const eslintConfig = [
     },
   },
   {
-    // i18n: catch hardcoded user-facing strings in JSX that should be translated
+    // i18n: catch hardcoded user-facing strings in JSX that should be translated.
+    // Errors, not warnings — every string rendered to a user has to exist in all
+    // 14 locale files under messages/ (issue #1567).
     plugins: {
       i18next: i18nextPluginFlatConfigAdapter,
     },
+    // Storybook stories and unit tests are developer-facing fixtures that never
+    // render to an end user, so their copy is deliberately untranslated. They are
+    // already exempted from other app-only rules further down this config.
+    ignores: ["**/*.stories.{ts,tsx}", "**/__tests__/**", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "tests/**"],
     rules: {
       "i18next/no-literal-string": [
-        "warn",
+        "error",
         {
           mode: "jsx-text-only",
+          // NOTE: inert under `jsx-text-only` — that mode only visits literals
+          // whose direct parent is a JSXElement/JSXFragment, so attribute
+          // values are never reached. Kept so the intent survives if the mode
+          // is ever widened to "jsx-only". The literal `aria-label` / `title`
+          // values that existed when #1567 landed were translated by hand;
+          // enforcing them needs "jsx-only", which also pulls in every string
+          // inside a JSX expression container (ternaries, toasts) — a separate
+          // sweep.
           "jsx-attributes": {
             include: ["title", "placeholder", "alt", "aria-label"],
           },
+          "jsx-components": {
+            // `Code` / `CodeChip` render shell commands, file paths, env var
+            // names and template syntax. Those are literal by definition and
+            // must NOT be translated, so their children are exempt.
+            exclude: [...i18nextDefaults["jsx-components"].exclude, "Code", "CodeChip"],
+          },
           words: {
-            exclude: ["FiestaBoard", "Vestaboard", "•", "&middot;"],
+            exclude: [
+              ...i18nextDefaults.words.exclude,
+              // Brand names are identical in every locale.
+              "FiestaBoard",
+              "Vestaboard",
+              // Runs of punctuation / symbols / whitespace with no letters in
+              // them — "*", "(", ")", "—", "·", "×", "→", "⌘↵". These are
+              // typography around a neighbouring {t(...)} call, not copy. The
+              // plugin's own ASCII-only default misses the non-ASCII ones.
+              /^[\p{P}\p{S}\s]+$/u,
+              // Emoji sequences (ZWJ + variation selectors), e.g. "🏳️‍🌈".
+              /^[\p{Emoji}‍️\s]+$/u,
+            ],
           },
           "should-validate-template": false,
         },

@@ -822,8 +822,7 @@ export default function CollectionsPage() {
                         )}
                       </CardTitle>
                       <CardDescription className="text-xs">
-                        {collection.page_ids.length} page
-                        {collection.page_ids.length !== 1 ? "s" : ""} &middot; {describeMode(collection)}
+                        {tc("pageCount", { count: collection.page_ids.length })} &middot; {describeMode(collection)}
                       </CardDescription>
                     </Box>
                   </Flex>

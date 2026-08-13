@@ -539,12 +539,12 @@ export function ActivePageDisplay() {
                 className="text-xs gap-1 animate-pulse pr-1 cursor-pointer hover:opacity-90 focus-within:ring-2 focus-within:ring-ring"
               >
                 <Radio className="h-3 w-3" aria-hidden="true" />
-                Live Mode
+                {t("liveModeBadge")}
                 <button
                   type="button"
                   onClick={handleDisableLiveMode}
-                  aria-label="Turn off Live Mode"
-                  title="Turn off Live Mode"
+                  aria-label={t("turnOffLiveModeAriaLabel")}
+                  title={t("turnOffLiveModeAriaLabel")}
                   className="ml-0.5 inline-flex items-center justify-center rounded-sm hover:bg-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <X className="h-3 w-3" aria-hidden="true" />

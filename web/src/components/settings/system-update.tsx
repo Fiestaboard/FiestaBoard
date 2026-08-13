@@ -94,7 +94,7 @@ export function SystemUpdate() {
               {t("updateAvailable")}
             </Text>
             <Badge variant="secondary" className="text-xs">
-              v{updateCheck.latest_version}
+              {tCommon("versionShort", { version: updateCheck.latest_version })}
             </Badge>
             <Text as="span" tone="muted">
               {t("youAreRunning", { currentVersion: updateCheck.current_version })}
@@ -143,11 +143,7 @@ export function SystemUpdate() {
       {!sidecarReady && (
         <Text size="xs" tone="muted" className="mt-2 ml-1">
           {t.rich("oneClickHint", {
-            profile: () => (
-              <Text as="span" size="xs" tone="muted" className="font-mono">
-                COMPOSE_PROFILES=fiestaupdater
-              </Text>
-            ),
+            profile: () => <Code>COMPOSE_PROFILES=fiestaupdater</Code>,
             envFile: () => <Code>.env</Code>,
             command: () => <Code>docker compose up -d</Code>,
           })}
@@ -162,7 +158,7 @@ export function SystemUpdate() {
               {t.rich("dialogDescription", {
                 version: () => (
                   <Text as="span" weight="semibold" tone="muted">
-                    v{updateCheck.latest_version}
+                    {tCommon("versionShort", { version: updateCheck.latest_version })}
                   </Text>
                 ),
               })}

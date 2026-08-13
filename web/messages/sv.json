@@ -50,7 +50,8 @@
     "pageCount": "{count, plural, one {# sida} other {# sidor}}",
     "unknownError": "Okänt fel",
     "opensInNewTab": "(öppnas i en ny flik)",
-    "notificationsRegionLabel": "Aviseringar"
+    "notificationsRegionLabel": "Aviseringar",
+    "versionShort": "v{version}"
   },
   "metadata": {
     "appTitle": "FiestaBoard-styrning",
@@ -81,7 +82,8 @@
     "boardSelector": "Välj tavla att hantera",
     "selectBoard": "Välj tavla",
     "unnamedBoard": "Namnlös tavla",
-    "transitions": "Övergångslabb"
+    "transitions": "Övergångslabb",
+    "prideCelebration": "Glad Pride!"
   },
   "network": {
     "title": "Wi-Fi",
@@ -330,7 +332,11 @@
       "validationOneOffDateRequired": "Please pick a date",
       "validationEndDateBeforeStart": "End date must be on or after start date",
       "collectionSizeWarning": "{count} av {total} sidor i den här samlingen passar inte den här tavlans storlek och hoppas över.",
-      "incompatiblePageWarning": "Den här sidan matchar inte den här tavlans storlek och kanske inte visas korrekt."
+      "incompatiblePageWarning": "Den här sidan matchar inte den här tavlans storlek och kanske inte visas korrekt.",
+      "monthAriaLabel": "Månad",
+      "dayAriaLabel": "Dag",
+      "endMonthAriaLabel": "Slutmånad",
+      "endDayAriaLabel": "Slutdag"
     },
     "descriptionWithTimezone": "Automatisera sidrotation efter tid och dag · {timezone}",
     "gapDefaultPlaceholder": "Standard för lucka…",
@@ -472,7 +478,37 @@
     "toastNoUpdates": "Alla plugins är uppdaterade",
     "toastCheckFailed": "Kunde inte söka efter uppdateringar: {error}",
     "installAction": "Installera",
-    "installedBadge": "Installerad"
+    "installedBadge": "Installerad",
+    "valueUnavailable": "Ej tillgängligt",
+    "enablePluginForLiveValues": "Aktivera pluginen för att se livevärden.",
+    "liveValuesUnavailable": "Livevärden är inte tillgängliga.",
+    "liveValuesUnavailableWithError": "Livevärden är inte tillgängliga: {error}",
+    "currentValueColumn": "Aktuellt värde",
+    "refreshingValues": "uppdaterar…",
+    "sourceCoreBadge": "Kärna",
+    "sourceMarketplaceBadge": "Marketplace",
+    "sourceExternalBadge": "Extern",
+    "updateAvailableBadge": "Uppdatering",
+    "moreOptionsAriaLabel": "Fler alternativ",
+    "addInstanceAction": "Lägg till instans",
+    "instanceNameInlineLabel": "Instansnamn:",
+    "addInstanceInlineHelp": "Skapar en ny oberoende instans av denna plugin med egen konfiguration. Använd alfanumeriska tecken, bindestreck eller understreck (1–40 tecken).",
+    "deleteInstanceConfirmTitle": "Ta bort instansen ”{label}”?",
+    "deletePluginConfirmTitle": "Ta bort ”{name}”?",
+    "deleteInstanceConfirmDescription": "Detta tar bort denna instans och dess konfiguration permanent. Denna åtgärd kan inte ångras.",
+    "deletePluginConfirmDescription": "Detta tar bort pluginen och alla dess instanser permanent. Denna åtgärd kan inte ångras.",
+    "demoPage": {
+      "title": "Demosida",
+      "alreadyExists": "Det finns redan en demosida för denna plugin.",
+      "createDescription": "Skapa en färdig sida som visar upp denna plugin.",
+      "recreateButton": "Skapa om",
+      "recreateConfirmTitle": "Skapa om demosidan?",
+      "recreateConfirmDescription": "Detta tar bort den befintliga demosidan och skapar en ny med standardinställningar. Denna åtgärd kan inte ångras.",
+      "creating": "Skapar...",
+      "createAction": "Skapa demosida",
+      "recreateAction": "Skapa om demosidan",
+      "requirementsWarning": "Konfigurera de obligatoriska inställningarna nedan innan du skapar en demosida."
+    }
   },
   "settings": {
     "title": "Inställningar",
@@ -496,7 +532,43 @@
     "sectionAccount": "Konto",
     "sectionAccountDescription": "Användarnamn, lösenord och logga ut",
     "sectionNetwork": "Nätverk",
-    "sectionNetworkDescription": "Hantera Wi-Fi och anslutning"
+    "sectionNetworkDescription": "Hantera Wi-Fi och anslutning",
+    "ai": {
+      "removeProviderAriaLabel": "Ta bort leverantör",
+      "cardTitle": "AI-leverantörer",
+      "cardDescription": "Konfigurera OpenAI-kompatibla LLM:er för sidgeneratorn ”Gen AI”. BYO-LLM: FiestaBoard levererar aldrig med en nyckel.",
+      "privacyNotice": "Dina prompts och variabellistan för dina aktiverade plugins skickas direkt till leverantören du konfigurerar. API-nycklar lagras på den här enheten och skickas aldrig någon annanstans.",
+      "emptyState": "Inga leverantörer konfigurerade än.",
+      "addProviderButton": "Lägg till leverantör",
+      "discardButton": "Förkasta",
+      "saveChangesButton": "Spara ändringar",
+      "defaultBadge": "Standard",
+      "anthropicBadge": "Anthropic",
+      "makeDefaultButton": "Gör till standard",
+      "nameLabel": "Namn",
+      "protocolLabel": "Protokoll",
+      "protocolOpenaiOption": "OpenAI-kompatibel (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolAnthropicOption": "Anthropic (Messages API)",
+      "baseUrlLabel": "Bas-URL",
+      "quickPresetsLabel": "Snabbval",
+      "apiKeyLabel": "API-nyckel",
+      "modelsLabel": "Modeller",
+      "defaultModelLabel": "Standardmodell",
+      "testConnectionButton": "Testa anslutning"
+    },
+    "backup": {
+      "cardTitle": "Säkerhetskopiering & återställning",
+      "cardDescription": "Exportera hela din FiestaBoard-konfiguration — tavelinställningar, sidor, karuseller, scheman och pluginkonfiguration — som en enda JSON-fil. Ladda upp filen igen på en ny instans för att migrera eller återställa efter en uppgradering.",
+      "exportButton": "Exportera säkerhetskopia",
+      "importButton": "Importera säkerhetskopia…",
+      "reinstallPluginsLabel": "Installera om externa plugins efter import",
+      "reinstallPluginsDescription": "När detta är aktiverat försöker FiestaBoard klona alla externa plugins i säkerhetskopian som inte redan är installerade på denna instans. Deras konfiguration återställs från säkerhetskopian oavsett.",
+      "sensitiveNote": "Obs: säkerhetskopior innehåller känsliga värden som API-nycklar och inloggningsuppgifter till tavlan i klartext. Förvara filen säkert och dela den inte offentligt.",
+      "confirmTitle": "Ersätta nuvarande konfiguration?",
+      "confirmDescription": "Du håller på att återställa <file></file>. Dina befintliga sidor, karuseller, scheman och din konfiguration skrivs över. En kopia med tidsstämpel av varje befintlig fil sparas bredvid den nya, så att du kan rulla tillbaka manuellt vid behov.",
+      "restoringButton": "Återställer…",
+      "restoreButton": "Återställ säkerhetskopia"
+    }
   },
   "offline": {
     "youreOffline": "Du är offline",
@@ -581,7 +653,10 @@
       "passwordPlaceholder": "DittLösenord",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "(inget lösenord)"
+      "noPassword": "(inget lösenord)",
+      "addMoreHint": "Du kan lägga till fler när som helst från sidan <link>Integrationer</link>.",
+      "builtInBadge": "Inbyggd",
+      "previewLabel": "Förhandsvisning:"
     },
     "welcome": {
       "setupComplete": "Installationen är klar!",
@@ -639,7 +714,9 @@
     "changeModeDisableTitle": "Stäng av schemaläge",
     "changeModeDisableDescription": "Inaktivera schemat och styr board manuellt.",
     "changeModeDisableSuccess": "Schemaläge inaktiverat",
-    "collectionSizeWarning": "{count} av {total} sidor i den här samlingen passar inte den här tavlans storlek och hoppas över."
+    "collectionSizeWarning": "{count} av {total} sidor i den här samlingen passar inte den här tavlans storlek och hoppas över.",
+    "turnOffLiveModeAriaLabel": "Stäng av liveläge",
+    "liveModeBadge": "Liveläge"
   },
   "forceSetDialog": {
     "title": "Tvinga inställning av board",
@@ -882,7 +959,10 @@
     "updateNow": "Uppdatera nu",
     "oneClickHint": "Vill du ha en ett-klicks ”Uppdatera nu”-knapp här? Ange <profile></profile> i din <envFile></envFile> och kör sedan <command></command>.",
     "dialogTitle": "Uppdatera FiestaBoard?",
-    "dialogDescription": "Detta hämtar <version></version> och startar om FiestaBoard. Board-displayen pausar i cirka 30 sekunder och denna sida laddas om automatiskt."
+    "dialogDescription": "Detta hämtar <version></version> och startar om FiestaBoard. Board-displayen pausar i cirka 30 sekunder och denna sida laddas om automatiskt.",
+    "intervalSelectAriaLabel": "Frekvens för uppdateringssökning",
+    "intervalCardDescription": "Hur ofta FiestaBoard ska leta efter en ny version i bakgrunden. Du ser en banner här när en hittas.",
+    "lastChecked": "Senast kontrollerad: {time}"
   },
   "transitionSettings": {
     "title": "Tavlans övergångar",
@@ -1008,7 +1088,8 @@
       "Numbers": "Siffror",
       "Symbols": "Symboler",
       "Colors": "Färger"
-    }
+    },
+    "latencyMs": "{ms} ms"
   },
   "generalSettings": {
     "title": "Allmänna inställningar",
@@ -1376,7 +1457,8 @@
     "flapSpeed_relaxedHint": "{ms} ms — en långsam, medveten vändning för stämningsskärmar.",
     "flapSpeedPreviewLabel": "Förhandsvisning",
     "flapSpeedInactive": "Board-animationer är avstängda, så vändhastigheten spelar ingen roll.",
-    "flapSpeedScreenOnlyNote": "Detta ändrar bara board-förhandsvisningen på skärmen. Takten för din fysiska Vestaboards egna övergångar ställs in separat, under Beteende → Board-övergångar."
+    "flapSpeedScreenOnlyNote": "Detta ändrar bara board-förhandsvisningen på skärmen. Takten för din fysiska Vestaboards egna övergångar ställs in separat, under Beteende → Board-övergångar.",
+    "updateAvailableBadge": "v{version} tillgänglig"
   },
   "monitor": {
     "title": "Monitor",
@@ -1648,7 +1730,8 @@
     "whiteBoard": "Vit tavla",
     "deviceFlagship": "Flagship",
     "deviceNote": "Note",
-    "deviceNoteArray": "Note-matris {w}×{h}"
+    "deviceNoteArray": "Note-matris {w}×{h}",
+    "githubLink": "GitHub"
   },
   "boardDisplay": {
     "loading": "Laddar board-display",
@@ -1737,7 +1820,12 @@
     "remoteOptionsSearchPlaceholder": "Sök…",
     "remoteOptionsCustomLabel": "Eget värde",
     "remoteOptionsCustomPlaceholder": "Ange ett värde som inte finns i listan",
-    "remoteOptionsCustomAdd": "Lägg till eget värde"
+    "remoteOptionsCustomAdd": "Lägg till eget värde",
+    "addItemLabel": "Lägg till {label}",
+    "unknownType": "Okänd typ: {type}",
+    "pagePickerNone": "Ingen (ingen åsidosättning)",
+    "pagePickerLoading": "Laddar sidor…",
+    "pagePickerPlaceholder": "Välj en sida…"
   },
   "filterPicker": {
     "noFiltersAvailable": "Inga filter tillgängliga",
@@ -1745,7 +1833,8 @@
     "filterDescWrap": "Bryter lång text över flera rader",
     "filterDescPad": "Fyller text till angiven bredd",
     "filterDescTruncate": "Trunkerar text till angiven längd",
-    "wrapInstruction": "|wrap: Bryter lång text. Lämna tomma rader nedan så text kan flöda in."
+    "wrapInstruction": "Bryter lång text. Lämna tomma rader nedan så text kan flöda in.",
+    "exampleLabel": "Exempel: {example}"
   },
   "formattingPicker": {
     "noFormattingAvailable": "Inga formateringsalternativ tillgängliga",
@@ -1806,7 +1895,25 @@
     "alignRight": "Högerjustera",
     "syncFromBoardTooltip": "Fyll mall från det som visas på board just nu",
     "syncFromBoard": "Synka från aktuell board-display",
-    "alignment": "Justering:"
+    "alignment": "Justering:",
+    "undoAriaLabel": "Ångra",
+    "redoAriaLabel": "Gör om",
+    "cutAriaLabel": "Klipp ut",
+    "copyAriaLabel": "Kopiera",
+    "pasteAriaLabel": "Klistra in",
+    "removeWrappedTextAriaLabel": "Ta bort radbruten text",
+    "colorPickerAriaLabel": "Färgväljare",
+    "heartCharacterAriaLabel": "Hjärttecken",
+    "lineCount": "{used} / {max} rader",
+    "overLineLimit": " — överskrider tavlans gräns på {max} rader",
+    "currentLine": "(Rad {line})",
+    "heartLabel": "hjärta",
+    "insertHeartTooltip": "Infoga hjärttecken (endast Note)",
+    "colorTileTooltip": "{color}-ruta (kod {code}) - dra för att flytta, backsteg för att ta bort",
+    "fillSpaceTooltip": "Fyllutrymme - expanderar för att fylla resten av radens bredd",
+    "fillSpaceRepeatTooltip": "Fyllutrymme upprepar: {char}",
+    "variableFilterTooltip": "Filter: {filter}",
+    "variableMaxLengthTooltip": "Maxlängd: {maxLength} tecken"
   },
   "variablePicker": {
     "noVariablesAvailable": "Inga variabler tillgängliga",
@@ -1816,7 +1923,8 @@
     "searchPlaceholder": "Sök variabler...",
     "indexLabel": "Index: {index}",
     "configureHint": "Konfigurera {arrayName} i Inställningar för att se indexerade variabler här.",
-    "configureExample": "Exempel:"
+    "configureExample": "Exempel:",
+    "noMatchingVariables": "Inga matchande variabler hittades."
   },
   "login": {
     "signInTitle": "Logga in på FiestaBoard",
@@ -1874,11 +1982,62 @@
     "taskStatusAriaLabel": "Uppgiftsförlopp",
     "taskProgressAriaLabel": "AI-uppgifters förlopp",
     "clearConversationAriaLabel": "Rensa konversation",
-    "closePanelAriaLabel": "Stäng FiestaBot (Beta)"
+    "closePanelAriaLabel": "Stäng FiestaBot (Beta)",
+    "providerSelectAriaLabel": "Leverantör",
+    "modelSelectAriaLabel": "Modell",
+    "showBoardTooltip": "Visa board-förhandsvisning",
+    "hideBoardTooltip": "Dölj board-förhandsvisning",
+    "undoTooltip": "Ångra senaste AI-ändringen",
+    "panelTitle": "FiestaBot (Beta)",
+    "retryButton": "Försök igen",
+    "messageLabel": "Meddelande",
+    "stopButton": "Stoppa",
+    "sendButton": "Skicka",
+    "tasksHeading": "Uppgifter ({done}/{total})",
+    "emptyStateTitle": "Hur kan jag hjälpa till?",
+    "emptyStateDescription": "Beskriv vad du vill bygga eller ändra.",
+    "showBoardButton": "Visa board",
+    "undoButton": "Ångra",
+    "renameSummary": "→ byt namn till ”{name}”",
+    "previewUnavailable": "(förhandsvisning inte tillgänglig)"
   },
   "boardSizeIndicator": {
     "custom": "Anpassad",
     "ariaLabel": "{rows} rader gånger {cols} kolumner",
     "ariaLabelWithLayout": "{rows} rader gånger {cols} kolumner, {layout}"
+  },
+  "mcpSettings": {
+    "title": "MCP / externa klienter",
+    "description": "En fördelad token som låter Claude Desktop, Claude Code och andra MCP-klienter prata med denna FiestaBoard. Token autentiserar som en enda principal — begränsad till enbart slutpunkten {endpoint} — så den kan inte redigera sidor eller andra inställningar. Se <link>Konfigurera MCP-klienter</link> för klientspecifika egenheter (Desktop behöver en stdio-proxy; Connectors i claude.ai-webben kräver publik HTTPS och OAuth och når därför inte en värd i LAN).",
+    "statusLabel": "Status:",
+    "pinnedByEnvBadge": "Låst av {envVar}",
+    "configuredBadge": "Konfigurerad",
+    "pinnedByEnvDescription": "Den aktiva token sätts av miljövariabeln {envVar}. Ta bort den från din {envFile} och starta om containern innan du hanterar token från detta gränssnitt.",
+    "noTokenDescription": "Ingen token är konfigurerad. Externa MCP-klienter faller tillbaka på cookie-autentisering, som Claude Desktop / Claude Code inte stöder — deras registrering misslyckas då med ett intetsägande fel. Generera en token för att låsa upp dem.",
+    "activeTokenDescription": "En token är konfigurerad och aktiv. Rotera den för att ogiltigförklara den föregående (klienter som fortfarande använder den gamla token börjar få 401), eller återkalla den helt för att falla tillbaka på enbart cookie-autentisering.",
+    "rotateTokenButton": "Rotera token",
+    "generateTokenButton": "Generera token",
+    "revokeTokenButton": "Återkalla token",
+    "rotateConfirmTitle": "Rotera MCP-token?",
+    "generateConfirmTitle": "Generera MCP-token?",
+    "rotateConfirmDescription": "Alla klienter som fortfarande använder den föregående token nekas med 401 + Bearer-challenge vid nästa förfrågan. Du ser den nya token en enda gång — spara den på ett säkert ställe (den går inte att läsa från gränssnittet igen).",
+    "generateConfirmDescription": "Du ser token en enda gång — spara den på ett säkert ställe (den går inte att läsa från gränssnittet igen). Externa MCP-klienter använder den för att autentisera mot {endpoint}.",
+    "rotateConfirmButton": "Rotera",
+    "generateConfirmButton": "Generera",
+    "revokeConfirmTitle": "Återkalla MCP-token?",
+    "revokeConfirmDescription": "Externa MCP-klienter börjar få 401 vid nästa förfrågan. Du kan alltid generera en ny token senare.",
+    "revokeConfirmButton": "Återkalla",
+    "revealTitle": "Spara denna token",
+    "revealDescription": "FiestaBoard sparar bara det som behövs för att verifiera framtida förfrågningar — det här är enda gången värdet visas i klartext. Kopiera det till din MCP-klient nu.",
+    "tokenLabel": "Token",
+    "copyButton": "Kopiera",
+    "copiedButton": "Kopierad",
+    "configSnippetLabel": "Claude Desktop-konfigurationsutdrag",
+    "configSnippetDescription": "Klistra in detta i {configPath} och slå ihop det med det som redan finns där. Avsluta sedan Claude Desktop helt och starta om det (⌘Q — att stänga fönstret räcker inte). Claude Desktop stöder bara stdio-MCP-servrar, så det här utdraget anropar {mcpRemoteLink} via {npx} som proxy — Node 18+ måste vara installerat och {npx} nåbart från Claude Desktops PATH. Om det ger felet {commandNotFound}, ersätt {npxQuoted} med den absoluta sökvägen från {whichNpx}.",
+    "claudeCodeDescription": "<label>Claude Code (CLI):</label> pratar HTTP direkt — ingen proxy behövs.",
+    "claudeWebDescription": "<label>claude.ai web (Connectors):</label> stöds inte för självhostad FiestaBoard. Connectors-flödet kräver en publik HTTPS-URL och dynamisk OAuth 2.1-klientregistrering, och en värd i LAN kan inte tillhandahålla något av detta. Använd Desktop eller Code i stället.",
+    "savedItButton": "Jag har sparat den",
+    "toastTokenRevoked": "MCP-token återkallad",
+    "toastCopyFailed": "Kunde inte kopiera till urklipp"
   }
 }
