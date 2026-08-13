@@ -269,6 +269,7 @@ import { toast } from "sonner";
 
 import { SchemaForm } from "@/components/plugin-settings";
 import Link from "@/components/smart-link";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
 import { useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -1051,8 +1052,10 @@ function InstalledPluginRow({
   // for any keys the saved config doesn't already set, so fields with a
   // declared `default` (e.g. refresh_seconds) show their value instead of
   // appearing blank. Saved config always wins over defaults.
-  useEffect(() => {
-    if (!pluginDetails) return;
+  // Done during render rather than in an effect, so the config dialog's fields
+  // are populated in its first commit instead of flashing empty
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([pluginDetails]) && pluginDetails) {
     const schema = pluginDetails.settings_schema as { properties?: Record<string, { default?: unknown }> } | undefined;
     const defaults: Record<string, unknown> = {};
     for (const [key, prop] of Object.entries(schema?.properties ?? {})) {
@@ -1061,7 +1064,7 @@ function InstalledPluginRow({
       }
     }
     setConfigValues({ ...defaults, ...(pluginDetails.config ?? {}) });
-  }, [pluginDetails]);
+  }
 
   const handleSaveConfig = async () => {
     setIsSaving(true);
