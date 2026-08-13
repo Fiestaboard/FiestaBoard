@@ -1,5 +1,6 @@
 """Extended tests for template engine - covering additional code paths."""
 
+import time
 from unittest.mock import Mock, patch
 
 import pytest
@@ -259,6 +260,106 @@ class TestRenderWithWrap:
         context = {"test": {"val": "SHORT"}}
         result = engine._render_with_wrap("{{test.val}} some extra text here now", context, max_lines=2)
         assert len(result) >= 1
+
+
+# ---------------------------------------------------------------------------
+# Wrap-filter detection: parity + linear time (CodeQL alert #65)
+# ---------------------------------------------------------------------------
+
+
+class TestWrapDetectionParity:
+    """Pin the exact matching semantics of the |wrap detection.
+
+    These lock in which ``{{...}}`` expression triggers variable-level wrap
+    (and which spellings do NOT), so the linear-time replacement for the
+    former backtracking regex (CodeQL alert #65, py/polynomial-redos)
+    cannot drift from the original behavior. The variable-wrap path keeps
+    the suffix on the FIRST line; the line-level path wraps the fully
+    rendered template so the suffix lands on the LAST line — that
+    difference makes each assertion sensitive to the detection outcome.
+    """
+
+    CTX = {"test": {"val": "AAAA BBBB CCCC DDDD EEEE", "plain": "HI"}}
+
+    def test_variable_wrap_exact_output(self, engine):
+        result = engine._render_with_wrap("{{test.val|wrap}}", self.CTX, max_lines=3)
+        assert result == ["AAAA BBBB CCCC DDDD", "EEEE"]
+
+    def test_wrap_followed_by_another_filter(self, engine):
+        result = engine._render_with_wrap("{{test.val|wrap|upper}}", self.CTX, max_lines=3)
+        assert result == ["AAAA BBBB CCCC DDDD", "EEEE"]
+
+    def test_another_filter_before_wrap(self, engine):
+        result = engine._render_with_wrap("{{test.val|upper|wrap}}", self.CTX, max_lines=3)
+        assert result == ["AAAA BBBB CCCC DDDD", "EEEE"]
+
+    def test_prefix_suffix_take_variable_wrap_path(self, engine):
+        result = engine._render_with_wrap("X:{{test.val|wrap}}:Y", self.CTX, max_lines=3)
+        assert result == ["X:AAAA BBBB CCCC:Y", "DDDD EEEE"]
+
+    def test_whitespace_around_wrap_is_line_level(self, engine):
+        # "{{ x | wrap }}" never matched the old regex (space between the
+        # pipe and "wrap"), so it must keep taking the line-level path.
+        result = engine._render_with_wrap("X:{{ test.val | wrap }}:Y", self.CTX, max_lines=3)
+        assert result == ["X:AAAA BBBB CCCC DDDD", "EEEE:Y"]
+
+    def test_uppercase_wrap_is_line_level(self, engine):
+        # Detection was case-sensitive in the old regex.
+        result = engine._render_with_wrap("X:{{test.val|WRAP}}:Y", self.CTX, max_lines=3)
+        assert result == ["X:AAAA BBBB CCCC DDDD", "EEEE:Y"]
+
+    def test_wrap_prefixed_filter_name_is_line_level(self, engine):
+        # "wrapx" is not the wrap filter.
+        result = engine._render_with_wrap("X:{{test.val|wrapx}}:Y", self.CTX, max_lines=3)
+        assert result == ["X:AAAA BBBB CCCC DDDD", "EEEE:Y"]
+
+    def test_template_without_wrap_is_line_level(self, engine):
+        result = engine._render_with_wrap("NO WRAP {{test.plain}} HERE", self.CTX, max_lines=2)
+        assert result == ["NO WRAP HI HERE"]
+
+    def test_plain_variable_before_wrap_variable(self, engine):
+        # The first {{...}} has no |wrap; detection must skip it and pick
+        # {{test.val|wrap}}, leaving the rendered plain variable as prefix.
+        result = engine._render_with_wrap("{{test.plain}} {{test.val|wrap}}", self.CTX, max_lines=3)
+        assert result == ["HI AAAA BBBB CCCC DDDD", "EEEE"]
+
+    def test_render_lines_wrap_prefix_exact_rows(self, engine):
+        lines = ["{wrap}{{test.val}}", "", "", "", "", ""]
+        result = engine.render_lines(lines, self.CTX).split("\n")
+        assert [row.rstrip() for row in result] == ["AAAA BBBB CCCC DDDD", "EEEE", "", "", "", ""]
+
+    def test_render_lines_pipe_wrap_exact_rows(self, engine):
+        lines = ["{{test.val|wrap}}", "", "", "", "", ""]
+        result = engine.render_lines(lines, self.CTX).split("\n")
+        assert [row.rstrip() for row in result] == ["AAAA BBBB CCCC DDDD", "EEEE", "", "", "", ""]
+
+
+class TestWrapDetectionLinearTime:
+    """Adversarial templates must not trigger polynomial backtracking.
+
+    CodeQL alert #65 (py/polynomial-redos): the former detection regex
+    ``\\{\\{([^}]+\\|wrap(?:\\|[^}]*)?)\\}\\}`` was quadratic on unclosed
+    ``{{`` runs. Templates are user-authored (pages/API), so these inputs
+    are reachable. At the committed sizes the old code took tens of
+    seconds; the linear scanner finishes in milliseconds.
+    """
+
+    BOUND_SECONDS = 2.0
+
+    def _assert_fast(self, engine, template):
+        start = time.perf_counter()
+        engine._render_with_wrap(template, {}, max_lines=1)
+        elapsed = time.perf_counter() - start
+        assert elapsed < self.BOUND_SECONDS, f"wrap detection took {elapsed:.2f}s (bound {self.BOUND_SECONDS}s)"
+
+    def test_unclosed_brace_pipe_runs_are_linear(self, engine):
+        self._assert_fast(engine, "{{" + "{{|" * 100_000)
+
+    def test_unclosed_wrap_pipe_runs_are_linear(self, engine):
+        self._assert_fast(engine, "{{||wrap|" + "||wrap|" * 30_000)
+
+    def test_long_unclosed_variable_is_linear(self, engine):
+        self._assert_fast(engine, "{{" + "a" * 50_000)
 
 
 # ---------------------------------------------------------------------------

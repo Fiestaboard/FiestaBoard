@@ -419,6 +419,49 @@ class TemplateEngine:
 
         return "\n".join(rendered)
 
+    @staticmethod
+    def _find_wrap_expression(template: str) -> tuple[int, int, str] | None:
+        """Find the first ``{{...}}`` whose filter chain contains ``|wrap``.
+
+        Linear-time replacement for the former regex
+        ``\\{\\{([^}]+\\|wrap(?:\\|[^}]*)?)\\}\\}``, which backtracked
+        polynomially on adversarial user-authored templates (CodeQL alert
+        #65, py/polynomial-redos). The matching semantics are preserved
+        exactly: the expression is everything between ``{{`` and the first
+        following ``}`` (which must itself be followed by another ``}``),
+        and it qualifies when splitting on ``|`` yields a segment equal to
+        ``wrap`` (lowercase, unstripped — same as the old regex) that is
+        preceded by at least one character.
+
+        Args:
+            template: Template string to scan
+
+        Returns:
+            ``(start, end, expr)`` for the first qualifying ``{{expr}}``
+            (``start``/``end`` span the braces), or ``None``.
+        """
+        pos = 0
+        while True:
+            start = template.find("{{", pos)
+            if start == -1:
+                return None
+            close = template.find("}", start + 2)
+            if close == -1:
+                return None
+            if template[close + 1 : close + 2] != "}":
+                # "{{...}" without a second "}": nothing can match at or
+                # before this "}", so resume scanning right after it.
+                pos = close + 1
+                continue
+            expr = template[start + 2 : close]
+            segments = expr.split("|")
+            for idx in range(1, len(segments)):
+                # idx > 1 or a non-empty first segment mirrors the old
+                # regex's [^}]+ requirement of ≥1 char before "|wrap".
+                if segments[idx] == "wrap" and (idx > 1 or segments[0]):
+                    return (start, close + 2, expr)
+            pos = close + 2
+
     def _render_with_wrap(
         self, template: str, context: dict[str, Any], max_lines: int = 1, board_width: int = 22
     ) -> list[str]:
@@ -438,13 +481,12 @@ class TemplateEngine:
             List of rendered lines (up to max_lines)
         """
         # First, check if there's a variable with |wrap filter (variable-level wrap)
-        wrap_pattern = re.compile(r"\{\{([^}]+\|wrap(?:\|[^}]*)?)\}\}")
-        match = wrap_pattern.search(template)
+        wrap_match = self._find_wrap_expression(template)
 
-        if match:
+        if wrap_match:
             # Variable-level wrap: wrap only the variable with |wrap filter
             # Get the variable expression (without |wrap)
-            expr = match.group(1)
+            match_start, match_end, expr = wrap_match
             # Remove |wrap from the filter chain
             parts = expr.split("|")
             var_part = parts[0].strip()
@@ -458,8 +500,8 @@ class TemplateEngine:
                 value = self._apply_filter(value, f)
 
             # Get prefix and suffix around the variable
-            prefix = template[: match.start()]
-            suffix = template[match.end() :]
+            prefix = template[:match_start]
+            suffix = template[match_end:]
 
             # Render prefix and suffix (they may have other variables)
             prefix = self.render(prefix, context)
