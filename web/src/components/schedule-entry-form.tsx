@@ -198,10 +198,11 @@ export function ScheduleEntryForm({
     return null;
   }, [currentBoard, pageId, collections, pages, t]);
 
-  // Validation
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
-
-  useEffect(() => {
+  // Validation. Computed during render rather than pushed into state from an
+  // effect: the errors are a pure function of the form fields, and the effect
+  // version left the submit button enabled for one render after an edit made
+  // the form invalid (react-hooks/set-state-in-effect, issue #1568).
+  const validationErrors = useMemo(() => {
     const errors: string[] = [];
 
     if (!pageId) {
@@ -245,7 +246,7 @@ export function ScheduleEntryForm({
       }
     }
 
-    setValidationErrors(errors);
+    return errors;
   }, [
     pageId,
     startTime,
