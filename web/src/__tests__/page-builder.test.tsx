@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
@@ -40,6 +40,17 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+// PageBuilder renders the TipTap editor — which owns the toolbar and its Sync
+// from Board button — behind lazy() + Suspense. Resolving that chunk at first
+// render costs ~450ms locally, which the assertions below would otherwise have
+// to absorb inside waitFor's 1s default; on a loaded CI runner that overruns
+// and the suite fails for a reason that has nothing to do with the behavior
+// under test. Warm the chunk once so the waits below measure rendering, not
+// module resolution.
+beforeAll(async () => {
+  await import("@/components/tiptap-template-editor/TipTapTemplateEditor");
+});
+
 describe("PageBuilder — Sync from Board", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,10 +69,10 @@ describe("PageBuilder — Sync from Board", () => {
       wrapper: TestWrapper,
     });
 
-    // Wait for the page data to load
-    await waitFor(() => {
-      expect(screen.queryByText("Syncing...")).not.toBeInTheDocument();
-    });
+    // Wait for the editor toolbar itself to mount. Without this the assertion
+    // below passes vacuously — before the lazy editor renders, *no* toolbar
+    // button exists, so "sync button absent" is trivially true.
+    await screen.findByRole("button", { name: "Align right" });
 
     // The button must not be present in edit mode
     expect(screen.queryByRole("button", { name: "Sync from current board display" })).not.toBeInTheDocument();
