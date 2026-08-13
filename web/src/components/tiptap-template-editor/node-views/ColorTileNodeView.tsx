@@ -4,24 +4,21 @@
  * Can be dragged and dropped, deleted with backspace, and copied/pasted
  */
 import { Box, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
 
-interface ColorTileNodeViewProps {
-  node: {
-    attrs: {
-      color: string;
-      code: number;
-    };
-  };
-  deleteNode: () => void;
+/** Attributes ColorTileNode declares (see extensions/color-tile-node.ts). */
+interface ColorTileAttrs {
+  color: string;
+  code: number;
 }
 
-export function ColorTileNodeView({ node, deleteNode: _deleteNode }: ColorTileNodeViewProps) {
-  const { color, code } = node.attrs;
+export function ColorTileNodeView({ node }: ReactNodeViewProps) {
+  const { color, code } = node.attrs as ColorTileAttrs;
   const colorKey = color.toLowerCase() as keyof typeof FIESTABOARD_COLORS;
   const bgColor = FIESTABOARD_COLORS[colorKey] || FIESTABOARD_COLORS.red;
 

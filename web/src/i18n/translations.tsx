@@ -55,9 +55,20 @@ function interpolatePlural(input: string, params?: Record<string, unknown>): str
   return out;
 }
 
+/**
+ * A single `t.rich` substitution.
+ *
+ * Functions cover both placeholder forms the renderer understands:
+ * `<tag>chunks</tag>` calls the function with the wrapped text, and
+ * `{name}` calls it with no argument (a zero-arity arrow is assignable
+ * here, so both spellings get `chunks` contextually typed). Non-function
+ * values are stringified in place.
+ */
+export type RichTranslationValue = ((chunks: string) => React.ReactNode) | string | number | boolean | null | undefined;
+
 type TFn = {
   (key: string, params?: Record<string, unknown>): string;
-  rich: (key: string, values?: Record<string, unknown>) => React.ReactNode;
+  rich: (key: string, values?: Record<string, RichTranslationValue>) => React.ReactNode;
   raw: (key: string) => unknown;
 };
 
@@ -98,7 +109,7 @@ export function useTranslations(namespace?: string): TFn {
       return interpolatePlural(rawStr, params);
     }) as TFn;
 
-    t.rich = (key: string, values?: Record<string, unknown>) => {
+    t.rich = (key: string, values?: Record<string, RichTranslationValue>) => {
       const rawVal = lookup(key);
       const raw = typeof rawVal === "string" ? rawVal : key;
       if (!values) return raw;
@@ -114,16 +125,14 @@ export function useTranslations(namespace?: string): TFn {
         if (match[1]) {
           const fn = values[match[1]];
           if (typeof fn === "function") {
-            parts.push(
-              React.createElement(Fragment, { key: nodeKey++ }, (fn as (chunks: string) => React.ReactNode)(match[2])),
-            );
+            parts.push(React.createElement(Fragment, { key: nodeKey++ }, fn(match[2])));
           } else {
             parts.push(match[2]);
           }
         } else if (match[3]) {
           const v = values[match[3]];
           if (typeof v === "function") {
-            parts.push(React.createElement(Fragment, { key: nodeKey++ }, (v as () => React.ReactNode)()));
+            parts.push(React.createElement(Fragment, { key: nodeKey++ }, v("")));
           } else if (v != null) {
             parts.push(String(v));
           }

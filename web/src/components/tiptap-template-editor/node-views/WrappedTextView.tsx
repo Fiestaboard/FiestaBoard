@@ -2,23 +2,20 @@
  * React NodeView for Wrapped Text nodes
  * Displays text that will be wrapped with visual indicator
  */
+import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import { WrapText, X } from "lucide-react";
 import React from "react";
 
 import { cn } from "@/lib/utils";
 
-interface WrappedTextViewProps {
-  node: {
-    attrs: {
-      text: string;
-    };
-  };
-  deleteNode: () => void;
+/** Attributes WrappedTextNode declares (see extensions/wrapped-text-node.ts). */
+interface WrappedTextAttrs {
+  text: string;
 }
 
-export function WrappedTextView({ node, deleteNode }: WrappedTextViewProps) {
-  const { text } = node.attrs;
+export function WrappedTextView({ node, deleteNode }: ReactNodeViewProps) {
+  const { text } = node.attrs as WrappedTextAttrs;
 
   return (
     <NodeViewWrapper

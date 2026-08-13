@@ -618,7 +618,10 @@ export function GlobalAiChatDrawer() {
         case "polling": {
           const interval = (args.values as { interval_seconds?: number }).interval_seconds;
           if (typeof interval === "number") {
-            await api.updatePollingSettings(interval);
+            // PUT /settings/polling takes an object of settings keys; passing
+            // the bare number serialized the body as `5` and the endpoint
+            // rejected it (issue #1586).
+            await api.updatePollingSettings({ interval_seconds: interval });
             await queryClient.invalidateQueries({ queryKey: ["polling-settings"] });
           }
           break;

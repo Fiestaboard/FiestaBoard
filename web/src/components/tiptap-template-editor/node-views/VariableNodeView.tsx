@@ -3,23 +3,20 @@
  * Displays {{plugin.field}} as an interactive badge with filters
  */
 import { Badge, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
-interface VariableNodeViewProps {
-  node: {
-    attrs: {
-      pluginId: string;
-      field: string;
-      filters: Array<{ name: string; arg?: string }>;
-      maxLength?: number;
-    };
-  };
-  deleteNode: () => void;
+/** Attributes VariableNode declares (see extensions/variable-node.ts). */
+interface VariableAttrs {
+  pluginId: string;
+  field: string;
+  filters: Array<{ name: string; arg?: string }>;
+  maxLength?: number;
 }
 
-export function VariableNodeView({ node, deleteNode: _deleteNode }: VariableNodeViewProps) {
-  const { pluginId, field, filters, maxLength } = node.attrs;
+export function VariableNodeView({ node }: ReactNodeViewProps) {
+  const { pluginId, field, filters, maxLength } = node.attrs as VariableAttrs;
 
   return (
     <NodeViewWrapper

@@ -106,7 +106,7 @@ const PageButtonPreview = memo(
     preview: PagePreviewResponse | null;
     isLoading: boolean;
     boardType?: "black" | "white" | null;
-    deviceType?: "flagship" | "note";
+    deviceType?: DeviceType;
   }) {
     const t = useTranslations("pageGridSelector");
     const ref = useRef<HTMLDivElement>(null);
@@ -244,7 +244,7 @@ const PageButton = memo(
             preview={preview}
             isLoading={isLoadingPreview}
             boardType={boardType}
-            deviceType={(page.device_type as DeviceType) || "flagship"}
+            deviceType={page.device_type || "flagship"}
           />
         </Box>
 
@@ -595,9 +595,14 @@ export function PageGridSelector({
 
           if (mounted && result.previews) {
             const newCachedPreviews = { ...cachedPreviews };
+            // Entries that failed to render carry only `{ error, available:
+            // false }` — keep them out of both the cache and the render map
+            // instead of storing a message-less object.
+            const rendered: Record<string, PagePreviewResponse> = {};
 
             for (const [pageId, preview] of Object.entries(result.previews)) {
               if (preview.available) {
+                rendered[pageId] = preview;
                 const page = pages.find((p) => p.id === pageId);
                 if (page) {
                   newCachedPreviews[pageId] = {
@@ -613,7 +618,7 @@ export function PageGridSelector({
 
             setPreviews((prev) => ({
               ...prev,
-              ...result.previews,
+              ...rendered,
             }));
             setLoadingPreviews(false);
           }

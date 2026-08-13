@@ -227,7 +227,7 @@ export function JsonPathMapperField({ property, value, onChange, disabled, allVa
       )}
 
       {/* Response tree browser */}
-      {previewData && (
+      {previewData != null && (
         <Box className="border rounded-lg p-3 bg-muted/20 sm:max-h-64 sm:overflow-auto">
           <Text size="xs" weight="medium" tone="muted" className="mb-2">
             {t("responseClickToAdd")}
