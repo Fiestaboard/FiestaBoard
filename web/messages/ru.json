@@ -1368,6 +1368,7 @@
     "flapSpeed_hardware": "Как у устройства",
     "flapSpeed_quick": "Быстрая",
     "flapSpeed_standard": "Стандартная",
+    "flapSpeed_standardWithDefault": "Стандартная (по умолчанию)",
     "flapSpeed_relaxed": "Спокойная",
     "flapSpeed_hardwareHint": "{ms} мс — темп настоящего устройства. Примерно один кадр на символ, поэтому во время смены board выглядит размытым, а не как переворачивающиеся буквы.",
     "flapSpeed_quickHint": "{ms} мс — быстрее стандартной, символы всё ещё читаются во время переворота.",

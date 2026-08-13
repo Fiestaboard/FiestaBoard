@@ -1368,6 +1368,7 @@
     "flapSpeed_hardware": "Hardware",
     "flapSpeed_quick": "Schnell",
     "flapSpeed_standard": "Standard",
+    "flapSpeed_standardWithDefault": "Standard (Voreinstellung)",
     "flapSpeed_relaxed": "Gemächlich",
     "flapSpeed_hardwareHint": "{ms} ms – das Tempo des echten Geräts. Etwa ein Bild pro Zeichen, ein einlaufendes Board wirkt daher verschwommen statt lesbar.",
     "flapSpeed_quickHint": "{ms} ms – schneller als der Standard, Zeichen bleiben während des Umklappens lesbar.",

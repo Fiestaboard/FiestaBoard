@@ -1368,6 +1368,7 @@
     "flapSpeed_hardware": "Sprzętowa",
     "flapSpeed_quick": "Szybka",
     "flapSpeed_standard": "Standardowa",
+    "flapSpeed_standardWithDefault": "Standardowa (domyślna)",
     "flapSpeed_relaxed": "Spokojna",
     "flapSpeed_hardwareHint": "{ms} ms — tempo prawdziwego urządzenia. Około jednej klatki na znak, więc ustawiający się board wygląda jak rozmycie, a nie jak obracające się litery.",
     "flapSpeed_quickHint": "{ms} ms — szybciej niż domyślnie, znaki nadal czytelne w trakcie obrotu.",

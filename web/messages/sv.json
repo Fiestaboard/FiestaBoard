@@ -1368,6 +1368,7 @@
     "flapSpeed_hardware": "Hårdvara",
     "flapSpeed_quick": "Snabb",
     "flapSpeed_standard": "Standard",
+    "flapSpeed_standardWithDefault": "Standard (standardval)",
     "flapSpeed_relaxed": "Lugn",
     "flapSpeed_hardwareHint": "{ms} ms — den riktiga enhetens eget tempo. Ungefär en bildruta per tecken, så en board som landar ser suddig ut i stället för läsbar.",
     "flapSpeed_quickHint": "{ms} ms — snabbare än standard, tecknen går fortfarande att läsa under vändningen.",

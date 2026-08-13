@@ -1368,6 +1368,7 @@
     "flapSpeed_hardware": "Hardware",
     "flapSpeed_quick": "Rápida",
     "flapSpeed_standard": "Estándar",
+    "flapSpeed_standardWithDefault": "Estándar (predeterminada)",
     "flapSpeed_relaxed": "Pausada",
     "flapSpeed_hardwareHint": "{ms} ms: el ritmo del aparato real. Aproximadamente un fotograma por carácter, así que la pantalla se ve borrosa en vez de mostrar letras girando.",
     "flapSpeed_quickHint": "{ms} ms: más rápida que la predeterminada, con los caracteres aún legibles durante el giro.",

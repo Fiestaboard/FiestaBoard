@@ -1368,6 +1368,7 @@
     "flapSpeed_hardware": "硬件",
     "flapSpeed_quick": "快速",
     "flapSpeed_standard": "标准",
+    "flapSpeed_standardWithDefault": "标准（默认）",
     "flapSpeed_relaxed": "舒缓",
     "flapSpeed_hardwareHint": "{ms} 毫秒 — 实机本身的速度。每个字符大约只有一帧，因此正在稳定的 board 看起来是一片模糊，而不是逐个翻动的字母。",
     "flapSpeed_quickHint": "{ms} 毫秒 — 比默认更快，翻转过程中字符仍可辨认。",

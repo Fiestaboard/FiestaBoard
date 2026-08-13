@@ -1368,6 +1368,7 @@
     "flapSpeed_hardware": "Hardware",
     "flapSpeed_quick": "Rapida",
     "flapSpeed_standard": "Standard",
+    "flapSpeed_standardWithDefault": "Standard (predefinita)",
     "flapSpeed_relaxed": "Rilassata",
     "flapSpeed_hardwareHint": "{ms} ms — la cadenza dell'apparecchio reale. Circa un fotogramma per carattere, quindi un board che si assesta appare sfocato anziché leggibile.",
     "flapSpeed_quickHint": "{ms} ms — più veloce del valore predefinito, con i caratteri ancora leggibili durante il ribaltamento.",

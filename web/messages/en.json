@@ -1305,6 +1305,7 @@
     "flapSpeed_hardware": "Hardware",
     "flapSpeed_quick": "Quick",
     "flapSpeed_standard": "Standard",
+    "flapSpeed_standardWithDefault": "Standard (default)",
     "flapSpeed_relaxed": "Relaxed",
     "flapSpeed_hardwareHint": "{ms}ms — the physical unit's own rate. About one frame per character, so a settling board reads as a blur rather than as letters turning over.",
     "flapSpeed_quickHint": "{ms}ms — faster than the default, with characters still readable mid-flip.",
