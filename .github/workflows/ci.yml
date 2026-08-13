@@ -338,6 +338,15 @@ jobs:
       working-directory: web
       run: npm run lint
 
+    # Same reasoning as the docs-site Typecheck step below, for the app: Vite
+    # transpiles without typechecking, so a wrong call signature or a dropped
+    # export builds clean and only fails when that code path runs. Without
+    # this step 137 errors accumulated on main unnoticed (issue #1586),
+    # including three live runtime defects.
+    - name: Typecheck
+      working-directory: web
+      run: npm run typecheck
+
     - name: Prettier check
       working-directory: web
       run: npm run format:check
