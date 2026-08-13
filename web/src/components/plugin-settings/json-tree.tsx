@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Flex, Stack, Text } from "@fiestaboard/ui";
+import { Box, Code, Flex, Stack, Text } from "@fiestaboard/ui";
 import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react";
 import React, { useState } from "react";
 
@@ -31,9 +31,9 @@ export function JsonTree({ data, path, onSelect, defaultExpanded = false }: Json
 
   if (data === null || data === undefined) {
     return (
-      <Text as="span" size="xs" tone="muted" className="italic">
-        null
-      </Text>
+      // `null` is the JSON value itself, not copy — rendered through Code so it
+      // stays verbatim in every locale.
+      <Code className="bg-transparent px-0 py-0 text-xs italic text-muted-foreground">null</Code>
     );
   }
 

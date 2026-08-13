@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 
 import { PageBuilder } from "@/components/page-builder";
 import { useViewTransition } from "@/hooks/use-view-transition";
+import { useTranslations } from "@/i18n/translations";
 
 export default function EditPage() {
+  const tCommon = useTranslations("common");
   const { push } = useViewTransition();
   const [pageId, setPageId] = useState<string | null>(null);
 
@@ -34,7 +36,7 @@ export default function EditPage() {
     return (
       <PageLayout>
         <Text tone="muted" className="text-center">
-          Loading...
+          {tCommon("loading")}
         </Text>
       </PageLayout>
     );

@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 
 export function VersionDisplay() {
   const t = useTranslations("versionDisplay");
+  const tCommon = useTranslations("common");
   const managedExternally = useIsManagedExternally();
   const { data: version } = useQuery({
     queryKey: ["version"],
@@ -31,7 +32,7 @@ export function VersionDisplay() {
     <Flex align="center" gap="2" className="text-xs text-muted-foreground">
       <Package className="h-3 w-3" />
       <Text as="span" size="xs" tone="muted" suppressHydrationWarning>
-        v{version.package_version}
+        {tCommon("versionShort", { version: version.package_version })}
         {version.is_dev && ` ${t("devSuffix")}`}
       </Text>
       {!managedExternally && updateCheck?.update_available && (

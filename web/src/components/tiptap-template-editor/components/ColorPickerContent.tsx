@@ -7,6 +7,7 @@ import { Box, Grid, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigg
 import { Heart } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const COLOR_MAP: Record<string, { bg: string; needsDarkText: boolean }> = {
 const COLOR_ORDER = ["red", "orange", "yellow", "green", "blue", "violet", "white", "black"] as const;
 
 export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentProps) {
+  const t = useTranslations("templateEditor");
   const isNote = deviceType === "note";
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLElement>(null);
@@ -155,7 +157,7 @@ export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentP
         className={cn("p-2", !isNote && "pb-1")}
         tabIndex={0}
         role="listbox"
-        aria-label="Color picker"
+        aria-label={t("colorPickerAriaLabel")}
       >
         <Grid cols="4" gap="2" className="w-64">
           {COLOR_ORDER.map((colorName, index) => {
@@ -207,18 +209,18 @@ export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentP
                     "flex items-center justify-center gap-1.5 focus:outline-none",
                     "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20",
                   )}
-                  aria-label="Heart character"
+                  aria-label={t("heartCharacterAriaLabel")}
                   role="option"
                   aria-selected={false}
                 >
                   <Heart className="w-4 h-4 fill-current" />
                   <Text as="span" weight="medium" className="text-red-500">
-                    heart
+                    {t("heartLabel")}
                   </Text>
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <Text>Insert heart character (Note only)</Text>
+                <Text>{t("insertHeartTooltip")}</Text>
               </TooltipContent>
             </Tooltip>
           </Box>

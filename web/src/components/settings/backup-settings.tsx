@@ -26,6 +26,7 @@ import { AlertTriangle, Database, Download, Loader2, Upload } from "lucide-react
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 interface PendingImport {
@@ -34,6 +35,8 @@ interface PendingImport {
 }
 
 export function BackupSettings() {
+  const t = useTranslations("settings.backup");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [reinstallPlugins, setReinstallPlugins] = useState(true);
@@ -131,19 +134,15 @@ export function BackupSettings() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Database className="h-4 w-4" />
-            Backup &amp; Restore
+            {t("cardTitle")}
           </CardTitle>
-          <CardDescription>
-            Export all of your FiestaBoard configuration — board settings, pages, collections, schedules and plugin
-            configuration — as a single JSON file. Re-upload that file on a new instance to migrate or recover after an
-            upgrade.
-          </CardDescription>
+          <CardDescription>{t("cardDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <Flex direction="col" gap="3" className="sm:flex-row">
             <Button variant="default" className="gap-2" onClick={handleExport} disabled={importMutation.isPending}>
               <Download className="h-4 w-4" />
-              Export backup
+              {t("exportButton")}
             </Button>
             <Button
               variant="outline"
@@ -152,7 +151,7 @@ export function BackupSettings() {
               disabled={importMutation.isPending}
             >
               {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              Import backup…
+              {t("importButton")}
             </Button>
             <input
               ref={fileInputRef}
@@ -167,18 +166,16 @@ export function BackupSettings() {
             <Switch id="backup-reinstall-plugins" checked={reinstallPlugins} onCheckedChange={setReinstallPlugins} />
             <Stack gap="1">
               <Label htmlFor="backup-reinstall-plugins" className="cursor-pointer">
-                Reinstall external plugins after import
+                {t("reinstallPluginsLabel")}
               </Label>
               <Text size="xs" tone="muted">
-                When enabled, FiestaBoard will attempt to clone any external plugins recorded in the backup that are not
-                yet installed on this instance. Their configuration is restored from the backup either way.
+                {t("reinstallPluginsDescription")}
               </Text>
             </Stack>
           </Flex>
 
           <Text size="xs" tone="muted">
-            Note: backups contain sensitive values such as API keys and board credentials in plain text. Store the file
-            securely and do not share it publicly.
+            {t("sensitiveNote")}
           </Text>
         </CardContent>
       </Card>
@@ -193,27 +190,28 @@ export function BackupSettings() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Replace current configuration?
+              {t("confirmTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to restore{" "}
-              <Text as="span" weight="medium" tone="muted">
-                {pending?.fileName}
-              </Text>
-              . Your existing pages, collections, schedules and configuration will be overwritten. A timestamped copy of
-              each existing file is kept alongside the new one so you can roll back manually if needed.
+              {t.rich("confirmDescription", {
+                file: () => (
+                  <Text as="span" weight="medium" tone="muted">
+                    {pending?.fileName}
+                  </Text>
+                ),
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={importMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={importMutation.isPending}>{tCommon("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmImport} disabled={importMutation.isPending}>
               {importMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Restoring…
+                  {t("restoringButton")}
                 </>
               ) : (
-                "Restore backup"
+                t("restoreButton")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

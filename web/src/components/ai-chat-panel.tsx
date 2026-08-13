@@ -201,7 +201,7 @@ export function AiChatPanel({
           <Flex align="center" gap="2" className="min-w-0">
             <Sparkles className="h-4 w-4 shrink-0 text-brand-emphasis" />
             <Text as="span" size="sm" weight="semibold" className="truncate">
-              FiestaBot (Beta)
+              {t("panelTitle")}
             </Text>
             {status === "streaming" && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
           </Flex>
@@ -271,7 +271,7 @@ export function AiChatPanel({
                   <Box className="mt-1.5">
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={retryLast}>
                       <RotateCcw className="mr-1 h-3 w-3" />
-                      Retry
+                      {t("retryButton")}
                     </Button>
                   </Box>
                 </AlertDescription>
@@ -288,7 +288,7 @@ export function AiChatPanel({
          *  well in narrow chat-pane widths. */}
         <Flex direction="col" gap="2" className="flex-shrink-0 border-t bg-card px-4 py-4">
           <Label htmlFor="ai-chat-input" className="sr-only">
-            Message
+            {t("messageLabel")}
           </Label>
           <Textarea
             id="ai-chat-input"
@@ -317,14 +317,14 @@ export function AiChatPanel({
                 model={effectiveModel}
                 onModelChange={setModel}
               />
-              <Text as="span" tone="muted" className="text-[10px]">
-                ⌘/Ctrl+Enter
-              </Text>
+              {/* Keyboard shortcut glyphs are never translated. `Code` keeps them
+                  exempt from i18next/no-literal-string without a disable comment. */}
+              <Code className="bg-transparent px-0 py-0 text-[10px] text-muted-foreground">⌘/Ctrl+Enter</Code>
             </Flex>
             {status === "streaming" ? (
               <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={cancel}>
                 <Square className="h-3 w-3" />
-                Stop
+                {t("stopButton")}
               </Button>
             ) : (
               <Button
@@ -336,7 +336,7 @@ export function AiChatPanel({
                 disabled={!draft.trim() || blocked}
               >
                 <Send className="h-3 w-3" />
-                Send
+                {t("sendButton")}
               </Button>
             )}
           </Flex>
@@ -392,7 +392,7 @@ function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
     >
       <Flex align="center" justify="between" className="mb-1.5">
         <Text as="span" weight="medium" tone="muted" className="text-[10px] uppercase tracking-wide">
-          Tasks ({doneCount}/{tasks.length})
+          {t("tasksHeading", { done: doneCount, total: tasks.length })}
         </Text>
         <Box
           role="progressbar"
@@ -459,6 +459,7 @@ function GradientSparkles({ className }: { className?: string }) {
 }
 
 function EmptyState({ blocked, aiDisabled }: { blocked: boolean; aiDisabled: boolean }) {
+  const t = useTranslations("aiChatPanel");
   if (blocked) {
     return (
       <Alert variant="destructive" className="text-xs">
@@ -475,9 +476,9 @@ function EmptyState({ blocked, aiDisabled }: { blocked: boolean; aiDisabled: boo
     <Flex direction="col" align="center" gap="5" className="px-2 py-6 text-center">
       <GradientSparkles className="h-8 w-8" />
       <Box>
-        <Text weight="medium">How can I help?</Text>
+        <Text weight="medium">{t("emptyStateTitle")}</Text>
         <Text size="xs" tone="muted" className="mt-1">
-          Describe what you&apos;d like to build or change.
+          {t("emptyStateDescription")}
         </Text>
       </Box>
       <Stack gap="2" className="w-full text-left text-xs">
@@ -520,6 +521,7 @@ function ModelPill({
   model: string;
   onModelChange: (m: string) => void;
 }) {
+  const t = useTranslations("aiChatPanel");
   const onlyOneProvider = providers.length <= 1;
   const shortModel = model ? model.split("/").slice(-1)[0] || model : "Default";
   return (
@@ -528,7 +530,7 @@ function ModelPill({
         <Select value={providerId} onValueChange={onProviderChange}>
           <SelectTrigger
             className="h-6 gap-1 rounded-full border-border/60 bg-muted/40 px-2 text-[11px] shadow-none hover:bg-muted/70"
-            aria-label="Provider"
+            aria-label={t("providerSelectAriaLabel")}
           >
             <SelectValue placeholder="Default" />
           </SelectTrigger>
@@ -544,7 +546,7 @@ function ModelPill({
       <Select value={model} onValueChange={onModelChange} disabled={models.length === 0}>
         <SelectTrigger
           className="h-6 max-w-[180px] gap-1 truncate rounded-full border-border/60 bg-muted/40 px-2 font-mono text-[11px] shadow-none hover:bg-muted/70"
-          aria-label="Model"
+          aria-label={t("modelSelectAriaLabel")}
           title={model}
         >
           <SelectValue>
@@ -676,6 +678,7 @@ function ToolCallCard({
   boardVisible: boolean;
   onToggleBoard: () => void;
 }) {
+  const t = useTranslations("aiChatPanel");
   const deviceType = call.deviceType ?? "flagship";
   const hasBoard = !!call.appliedSnapshot;
   return (
@@ -692,10 +695,10 @@ function ToolCallCard({
               variant="ghost"
               className="h-6 gap-1 px-1.5 text-[11px] text-muted-foreground"
               onClick={onToggleBoard}
-              title="Show board preview"
+              title={t("showBoardTooltip")}
             >
               <Eye className="h-3 w-3" />
-              Show board
+              {t("showBoardButton")}
             </Button>
           )}
           {hasBoard && boardVisible && !showUndo && (
@@ -705,7 +708,7 @@ function ToolCallCard({
               variant="ghost"
               className="h-6 gap-1 px-1.5 text-[11px] text-muted-foreground"
               onClick={onToggleBoard}
-              title="Hide board preview"
+              title={t("hideBoardTooltip")}
             >
               <EyeOff className="h-3 w-3" />
             </Button>
@@ -717,10 +720,10 @@ function ToolCallCard({
               variant="ghost"
               className="h-6 gap-1 px-1.5 text-[11px]"
               onClick={onUndo}
-              title="Undo last AI change"
+              title={t("undoTooltip")}
             >
               <Undo2 className="h-3 w-3" />
-              Undo
+              {t("undoButton")}
             </Button>
           )}
         </Flex>
@@ -775,6 +778,7 @@ function labelFor(call: ToolCall): string {
 }
 
 function ToolCallSummary({ call }: { call: ToolCall }) {
+  const t = useTranslations("aiChatPanel");
   // `replace_page` is fully described by the inline board preview
   // above; rendering a JSON line-dump here would just duplicate the
   // visual. Keep the card lean.
@@ -796,7 +800,7 @@ function ToolCallSummary({ call }: { call: ToolCall }) {
             </ListItem>
           ))}
           {call.args.rename && (
-            <ListItem className="break-all font-mono">→ rename to &quot;{call.args.rename}&quot;</ListItem>
+            <ListItem className="break-all font-mono">{t("renameSummary", { name: call.args.rename })}</ListItem>
           )}
         </List>
       </PatchDetailDisclosure>

@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { Badge, Box, Flex, Stack, Text } from "@fiestaboard/ui";
+import { Badge, Box, Code, Flex, Stack, Text } from "@fiestaboard/ui";
 import type { Editor } from "@tiptap/react";
 import { AlertCircle } from "lucide-react";
 
@@ -198,13 +198,13 @@ export function FilterPickerContent({ filters, editor, onInsert }: FilterPickerC
       </Stack>
       <Stack gap="1" className="mt-3 pt-3 border-t text-xs text-muted-foreground">
         <Text size="xs" tone="muted">
-          Example: {"{{weather.temperature|pad:3}}"}
+          {/* The template snippet is syntax — it stays verbatim in every locale. */}
+          {t("exampleLabel", { example: "{{weather.temperature|pad:3}}" })}
         </Text>
         <Text tone="muted" className="text-[10px]">
-          <Text as="span" weight="semibold" tone="muted" className="text-[10px]">
-            |wrap
-          </Text>
-          : {t("wrapInstruction")}
+          {/* Filter name, not copy. */}
+          <Code className="bg-transparent px-0 py-0 text-[10px] font-semibold text-muted-foreground">|wrap</Code>:{" "}
+          {t("wrapInstruction")}
         </Text>
       </Stack>
     </Box>

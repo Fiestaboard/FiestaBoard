@@ -4,6 +4,7 @@ import {
   Badge,
   Box,
   Button,
+  Code,
   Flex,
   Select,
   SelectContent,
@@ -168,16 +169,22 @@ export function VariableRuleRow({
                 <Text size="xs" weight="medium" className="mb-1">
                   {t("variableRuleHelpOperatorsTitle")}
                 </Text>
+                {/* Operator cheat-sheet: formula syntax, identical in every locale. */}
                 <Text size="xs" tone="muted" className="font-mono">
-                  ==, =, !=, &lt;&gt;, &lt;, &gt;, &lt;=, &gt;= · AND OR NOT (or &amp;&amp; || !) · + - * / %
+                  <Code className="bg-transparent px-0 py-0 text-xs text-muted-foreground">
+                    ==, =, !=, &lt;&gt;, &lt;, &gt;, &lt;=, &gt;= · AND OR NOT (or &amp;&amp; || !) · + - * / %
+                  </Code>
                 </Text>
               </Box>
               <Box>
                 <Text size="xs" weight="medium" className="mb-1">
                   {t("variableRuleHelpFunctionsTitle")}
                 </Text>
+                {/* Function cheat-sheet: formula syntax, identical in every locale. */}
                 <Text size="xs" tone="muted" className="font-mono">
-                  IF(cond, then, else) · AND(a, b) · OR(a, b) · CONTAINS(s, sub) · STARTSWITH · LEN · UPPER · LOWER
+                  <Code className="bg-transparent px-0 py-0 text-xs text-muted-foreground">
+                    IF(cond, then, else) · AND(a, b) · OR(a, b) · CONTAINS(s, sub) · STARTSWITH · LEN · UPPER · LOWER
+                  </Code>
                 </Text>
               </Box>
               <Box>
