@@ -22,8 +22,16 @@
 # otherwise make the check flaky.
 accept = ["200..=299", "403", "429"]
 
-max_retries = 2
-retry_wait_time = 2
+# Transport-level failures need a bigger retry budget than HTTP statuses do.
+# GitHub-hosted runners intermittently fail github.com requests with
+# "HTTP/2 protocol error. Server may not support HTTP/2 properly" — not a
+# status code, so no `accept` entry can cover it (same shape as the
+# docs.vestaboard.com timeout excluded below). Observed transient: the same
+# six github.com URLs passed on a PR run and failed in the merge-queue run of
+# the identical commit ~20 minutes later. lychee exposes no flag to force
+# HTTP/1.1, so retries are the only lever.
+max_retries = 5
+retry_wait_time = 5
 timeout = 20
 no_progress = true
 
