@@ -68,3 +68,25 @@ class TestNetworkDiagnosticsEndpoint:
         assert response.status_code == 500
         data = response.json()
         assert data["detail"] == "Network diagnostics failed"
+
+    @patch("src.network_diagnostics.requests.get")
+    @patch("src.network_diagnostics.requests.head")
+    @patch("src.network_diagnostics.socket.gethostbyname")
+    def test_check_failures_do_not_leak_exception_text(self, mock_resolve, mock_head, mock_get, client):
+        """Raw exception text from failed checks must never reach the HTTP
+        response (CodeQL py/stack-trace-exposure, alert #63)."""
+        import socket
+
+        import requests as req
+
+        mock_resolve.side_effect = socket.gaierror("SECRET_INTERNAL_XYZ resolver detail")
+        mock_head.side_effect = req.exceptions.ConnectionError("SECRET_INTERNAL_XYZ proxy detail")
+        mock_get.side_effect = req.exceptions.ConnectionError("SECRET_INTERNAL_XYZ api detail")
+
+        response = client.get("/debug/network-diagnostics")
+
+        assert response.status_code == 200
+        assert "SECRET_INTERNAL_XYZ" not in response.text
+        data = response.json()["diagnostics"]
+        assert data["dns"]["error"] == "DNS lookup failed"
+        assert data["internet"]["error"] == "Could not connect"

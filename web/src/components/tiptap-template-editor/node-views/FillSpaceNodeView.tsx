@@ -7,6 +7,8 @@ import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
+import { useTranslations } from "@/i18n/translations";
+
 /** Attributes FillSpaceNode declares (see extensions/fill-space-node.ts). */
 interface FillSpaceAttrs {
   id: string;
@@ -14,6 +16,7 @@ interface FillSpaceAttrs {
 }
 
 export function FillSpaceNodeView({ node }: ReactNodeViewProps) {
+  const t = useTranslations("templateEditor");
   const { repeatChar } = node.attrs as FillSpaceAttrs;
   const hasRepeatChar = repeatChar && repeatChar !== " ";
 
@@ -38,18 +41,14 @@ export function FillSpaceNodeView({ node }: ReactNodeViewProps) {
                   contentEditable. <Text as="span"> would emit text-foreground,
                   overriding the Badge's inherited success tint, and text-[11px]
                   is sub-xs grid geometry. Kept raw for correctness. */}
-              {/* eslint-disable-next-line react/forbid-elements -- span inside a colored Badge in TipTap contentEditable; Text as="span" would override the Badge's inherited tint and text-[11px] is sub-xs grid geometry */}
+              {/* eslint-disable-next-line react/forbid-elements, i18next/no-literal-string -- span inside a colored Badge in TipTap contentEditable; Text as="span" would override the Badge's inherited tint and text-[11px] is sub-xs grid geometry, and Code would add its own bg/padding/size. The text is the `fill_space` template token, which is syntax and stays verbatim in every locale. */}
               <span className="font-mono text-[11px] leading-none">
                 fill_space{hasRepeatChar && `_repeat:${repeatChar}`}
               </span>
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
-            <Text>
-              {hasRepeatChar
-                ? `Fill space repeating: ${repeatChar}`
-                : "Fill space - expands to fill remaining line width"}
-            </Text>
+            <Text>{hasRepeatChar ? t("fillSpaceRepeatTooltip", { char: repeatChar }) : t("fillSpaceTooltip")}</Text>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

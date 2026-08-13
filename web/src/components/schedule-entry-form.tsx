@@ -575,7 +575,7 @@ export function ScheduleEntryForm({
             <Label>{t("scheduleEntryForm.annualDateLabel")}</Label>
             <Flex gap="2">
               <Select value={annualMonth} onValueChange={setAnnualMonth}>
-                <SelectTrigger className="flex-1" aria-label="Month">
+                <SelectTrigger className="flex-1" aria-label={t("scheduleEntryForm.monthAriaLabel")}>
                   <SelectValue placeholder="MM" />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
@@ -587,7 +587,7 @@ export function ScheduleEntryForm({
                 </SelectContent>
               </Select>
               <Select value={annualDay} onValueChange={setAnnualDay}>
-                <SelectTrigger className="flex-1" aria-label="Day">
+                <SelectTrigger className="flex-1" aria-label={t("scheduleEntryForm.dayAriaLabel")}>
                   <SelectValue placeholder="DD" />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
@@ -613,7 +613,7 @@ export function ScheduleEntryForm({
               <Label>{t("scheduleEntryForm.annualEndDateLabel")}</Label>
               <Flex gap="2">
                 <Select value={annualEndMonth} onValueChange={setAnnualEndMonth}>
-                  <SelectTrigger className="flex-1" aria-label="End month">
+                  <SelectTrigger className="flex-1" aria-label={t("scheduleEntryForm.endMonthAriaLabel")}>
                     <SelectValue placeholder="MM" />
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
@@ -625,7 +625,7 @@ export function ScheduleEntryForm({
                   </SelectContent>
                 </Select>
                 <Select value={annualEndDay} onValueChange={setAnnualEndDay}>
-                  <SelectTrigger className="flex-1" aria-label="End day">
+                  <SelectTrigger className="flex-1" aria-label={t("scheduleEntryForm.endDayAriaLabel")}>
                     <SelectValue placeholder="DD" />
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
@@ -687,9 +687,9 @@ export function ScheduleEntryForm({
       <Flex align="center" justify="between" className="rounded-lg border p-4">
         <Stack gap="0.5">
           <Label htmlFor="enabled" className="text-base">
-            Enabled
+            {t("scheduleEntryForm.enabledLabel")}
           </Label>
-          <Text tone="muted">Schedule will be active when enabled</Text>
+          <Text tone="muted">{t("scheduleEntryForm.enabledDescription")}</Text>
         </Stack>
         <Switch id="enabled" checked={enabled} onCheckedChange={setEnabled} />
       </Flex>

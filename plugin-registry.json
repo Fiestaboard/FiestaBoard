@@ -115,7 +115,8 @@
       "icon": "database",
       "category": "data"
     },
-    {      "id": "generative_ai_art",
+    {
+      "id": "generative_ai_art",
       "name": "Generative AI Art",
       "description": "Generate full-screen abstract art for your split-flap display using an LLM. Each piece is a unique, thought-out composition using the board's 8-color palette.",
       "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--generative-ai-art",
@@ -124,7 +125,8 @@
       "icon": "palette",
       "category": "art"
     },
-    {      "id": "guest_wifi",
+    {
+      "id": "guest_wifi",
       "name": "Guest WiFi",
       "description": "Display guest WiFi credentials on your board",
       "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--guest-wifi",
@@ -271,6 +273,16 @@
       "author": "FiestaBoard Team",
       "fiestaboard_version": ">=4.2.0",
       "icon": "shield",
+      "category": "utility"
+    },
+    {
+      "id": "price_list",
+      "name": "Price List",
+      "description": "Display a styled price list or menu sign with your own items, prices, and colors, plus automatic page rotation for longer menus.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--price-list",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=4.2.0",
+      "icon": "tags",
       "category": "utility"
     },
     {

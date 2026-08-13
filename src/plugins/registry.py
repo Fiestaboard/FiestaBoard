@@ -1306,6 +1306,7 @@ class PluginRegistry:
                     "fiestaboard_version": e.fiestaboard_version,
                     "icon": e.icon,
                     "category": e.category,
+                    "plugin_type": e.plugin_type,
                     "installed": installed,
                     "teaser": teaser,
                     "previews": previews,

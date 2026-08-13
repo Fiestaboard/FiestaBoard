@@ -22,6 +22,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { useCurrentBoard } from "@/components/current-board-context";
+import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import Link from "@/components/smart-link";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
@@ -141,16 +142,23 @@ const PageButtonPreview = memo(
     }
 
     return (
-      <Box
-        ref={ref}
-        className="w-full hover-stable overflow-hidden -mr-3"
-        style={{
-          maskImage: "linear-gradient(to right, black 60%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to right, black 60%, transparent 100%)",
-        }}
-      >
+      // `overflow-hidden` stays: it is what ScaledBoardDisplay walks up to find
+      // when it measures the slot the board has to fit into. The right-fade
+      // mask and the `-mr-3` bleed that used to sit here are gone — they
+      // existed only to disguise a board that never fitted this card, and with
+      // the board now scaled to fit they would fade a board that is fully
+      // visible.
+      <Box ref={ref} className="w-full hover-stable overflow-hidden">
         {isVisible ? (
-          <StaticBoardDisplay
+          // ScaledBoardDisplay, not StaticBoardDisplay: a 22-column flagship
+          // board is ~349px at the `sm` tile scale and this card is ~315px on a
+          // 390px phone, so without a scale transform the grid overflows and
+          // the first character of every row is cut off (#1597 review). Tiles
+          // are fixed-pixel and `shrink-0`, so nothing else can make it fit.
+          // `isStatic` keeps the cheap zero-hooks-per-tile render path that
+          // made this a StaticBoardDisplay in the first place.
+          <ScaledBoardDisplay
+            isStatic
             message={preview?.message || null}
             size="sm"
             boardType={boardType ?? "black"}
@@ -452,6 +460,16 @@ const CollectionButton = memo(
                       boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
                     }}
                   >
+                    {/* Still StaticBoardDisplay, unlike PageButtonPreview above.
+                        These cards are absolutely positioned and deliberately
+                        bleed off the right of the 160px frame — that overlap IS
+                        the cascade. Each card starts flush with the frame's left
+                        edge, so nothing is cut off at the start of a row, which
+                        is the defect scaling exists to prevent. Wrapping these
+                        in ScaledBoardDisplay would also measure a slot that has
+                        no definite width (they are `position: absolute`) and
+                        would add its Fit / Actual toggle to a thumbnail for any
+                        note-array page. */}
                     <StaticBoardDisplay
                       message={preview?.message || null}
                       size="sm"

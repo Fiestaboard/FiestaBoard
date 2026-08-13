@@ -735,7 +735,7 @@ function ArrayField({ name, property, value, onChange, disabled, itemSchema }: A
       {canAdd && (
         <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={disabled} className="w-full">
           <Plus className="h-4 w-4 mr-2" />
-          Add {property.title || name}
+          {t("addItemLabel", { label: property.title || name })}
         </Button>
       )}
     </Stack>
@@ -886,7 +886,7 @@ function FormField({
       }
       return <Text tone="muted">{t("objectTypeNoProperties")}</Text>;
     default:
-      return <Text tone="muted">Unknown type: {property.type}</Text>;
+      return <Text tone="muted">{t("unknownType", { type: property.type })}</Text>;
   }
 }
 

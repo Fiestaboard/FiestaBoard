@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 
 import { useRouter } from "@/hooks/use-router";
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ interface SidebarAccountProps {
 }
 
 export function SidebarAccount({ collapsed = false, variant = "desktop" }: SidebarAccountProps) {
+  const t = useTranslations("accountSection");
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -60,7 +62,7 @@ export function SidebarAccount({ collapsed = false, variant = "desktop" }: Sideb
   );
 
   const button = (
-    <button type="button" onClick={handleSignOut} aria-label="Sign out" className={className}>
+    <button type="button" onClick={handleSignOut} aria-label={t("signOut.button")} className={className}>
       <LogOut className="h-5 w-5 flex-shrink-0" />
       <Text
         as="span"
@@ -71,7 +73,7 @@ export function SidebarAccount({ collapsed = false, variant = "desktop" }: Sideb
           collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-48 delay-150",
         )}
       >
-        Sign out
+        {t("signOut.button")}
       </Text>
     </button>
   );
@@ -82,7 +84,7 @@ export function SidebarAccount({ collapsed = false, variant = "desktop" }: Sideb
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
       <TooltipContent side="right" className="font-medium">
-        Sign out
+        {t("signOut.button")}
       </TooltipContent>
     </Tooltip>
   );

@@ -373,7 +373,11 @@ class BackupService:
                 continue
 
             if errors:
-                result["failed"].append({"plugin_id": safe_plugin_id, "error": "; ".join(errors)})
+                # Install errors embed git/loader exception text (URLs, paths,
+                # stderr) — keep the detail in the server log and return a
+                # static message (CodeQL py/stack-trace-exposure).
+                logger.warning("Plugin reinstall for '%s' failed: %s", safe_plugin_id, "; ".join(errors))
+                result["failed"].append({"plugin_id": safe_plugin_id, "error": "install failed (see server logs)"})
             else:
                 result["installed"].append(safe_plugin_id)
 

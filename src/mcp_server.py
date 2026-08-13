@@ -197,7 +197,26 @@ def _build_mcp_server() -> Any:
 
     # -----------------------------------------------------------------------
     # Plugin tools
+    #
+    # The mutating ones delegate to the REST handlers in ``api_server``
+    # rather than driving ``PluginRegistry`` directly. Enabling or
+    # configuring a plugin is two writes, not one: the registry holds the
+    # live state, ConfigManager holds ``config.json``. #1588 is what going
+    # straight to the registry costs — every setting made over MCP looked
+    # fine until the container was recreated, then came back gone, because
+    # nothing had ever been written to disk.
     # -----------------------------------------------------------------------
+
+    def _rest_detail(exc: Any) -> str:
+        """Flatten an HTTPException detail into a single message.
+
+        The plugin-config endpoint raises ``detail={"errors": [...]}``; the
+        rest raise a plain string.
+        """
+        detail = getattr(exc, "detail", exc)
+        if isinstance(detail, dict) and detail.get("errors"):
+            return "; ".join(str(e) for e in detail["errors"])
+        return str(detail)
 
     @mcp.tool()
     def list_installed_plugins() -> list[dict[str, Any]] | dict[str, Any]:
@@ -245,7 +264,7 @@ def _build_mcp_server() -> Any:
             return _err(str(exc))
 
     @mcp.tool()
-    def install_plugin(plugin_id: str, auto_enable: bool = True) -> dict[str, Any]:
+    async def install_plugin(plugin_id: str, auto_enable: bool = True) -> dict[str, Any]:
         """Install a plugin from the official FiestaBoard registry and optionally enable it.
 
         Args:
@@ -255,36 +274,50 @@ def _build_mcp_server() -> Any:
         After installing, use configure_plugin() to set API keys and other settings.
         Use get_template_variables() to discover the variables the plugin exposes.
         """
-        try:
-            from .plugins import get_plugin_registry
+        from fastapi import HTTPException
 
-            registry = get_plugin_registry()
-            registry.install_from_registry(plugin_id)
-            if auto_enable:
-                registry.enable_plugin(plugin_id)
-            state = "installed and enabled" if auto_enable else "installed (disabled)"
-            return _ok(f"Plugin '{plugin_id}' {state} successfully.", plugin_id=plugin_id, enabled=auto_enable)
+        from .api_server import install_registry_plugin as _rest_install_registry_plugin
+
+        try:
+            await _rest_install_registry_plugin(plugin_id)
+        except HTTPException as exc:
+            return _err(f"Error installing plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
             return _err(f"Error installing plugin '{plugin_id}': {exc}")
 
+        if auto_enable:
+            enabled = await enable_plugin(plugin_id)
+            if enabled.get("status") == "error":
+                return _err(f"Plugin '{plugin_id}' was installed but could not be enabled: {enabled['error']}")
+
+        state = "installed and enabled" if auto_enable else "installed (disabled)"
+        return _ok(f"Plugin '{plugin_id}' {state} successfully.", plugin_id=plugin_id, enabled=auto_enable)
+
     @mcp.tool()
-    def enable_plugin(plugin_id: str) -> dict[str, Any]:
+    async def enable_plugin(plugin_id: str) -> dict[str, Any]:
         """Enable an installed but currently-disabled plugin.
+
+        The plugin must already be installed — use install_plugin() first for
+        anything from list_registry_plugins().
 
         Args:
             plugin_id: The plugin identifier (from list_installed_plugins()).
         """
-        try:
-            from .plugins import get_plugin_registry
+        from fastapi import HTTPException
 
-            registry = get_plugin_registry()
-            registry.enable_plugin(plugin_id)
-            return _ok(f"Plugin '{plugin_id}' enabled successfully.", plugin_id=plugin_id)
+        from .api_server import enable_plugin as _rest_enable_plugin
+
+        try:
+            await _rest_enable_plugin(plugin_id)
+        except HTTPException as exc:
+            return _err(f"Error enabling plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
             return _err(f"Error enabling plugin '{plugin_id}': {exc}")
 
+        return _ok(f"Plugin '{plugin_id}' enabled successfully.", plugin_id=plugin_id)
+
     @mcp.tool()
-    def disable_plugin(plugin_id: str) -> dict[str, Any]:
+    async def disable_plugin(plugin_id: str) -> dict[str, Any]:
         """Disable an installed plugin without uninstalling it.
 
         The plugin can be re-enabled later with enable_plugin().
@@ -292,17 +325,21 @@ def _build_mcp_server() -> Any:
         Args:
             plugin_id: The plugin identifier (from list_installed_plugins()).
         """
-        try:
-            from .plugins import get_plugin_registry
+        from fastapi import HTTPException
 
-            registry = get_plugin_registry()
-            registry.disable_plugin(plugin_id)
-            return _ok(f"Plugin '{plugin_id}' disabled successfully.", plugin_id=plugin_id)
+        from .api_server import disable_plugin as _rest_disable_plugin
+
+        try:
+            await _rest_disable_plugin(plugin_id)
+        except HTTPException as exc:
+            return _err(f"Error disabling plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
             return _err(f"Error disabling plugin '{plugin_id}': {exc}")
 
+        return _ok(f"Plugin '{plugin_id}' disabled successfully.", plugin_id=plugin_id)
+
     @mcp.tool()
-    def uninstall_plugin(plugin_id: str) -> dict[str, Any]:
+    async def uninstall_plugin(plugin_id: str) -> dict[str, Any]:
         """Permanently remove an installed plugin.
 
         WARNING: This is irreversible. The plugin and all its configuration
@@ -312,21 +349,29 @@ def _build_mcp_server() -> Any:
         Args:
             plugin_id: The plugin identifier (from list_installed_plugins()).
         """
-        try:
-            from .plugins import get_plugin_registry
+        from fastapi import HTTPException
 
-            registry = get_plugin_registry()
-            registry.uninstall_external_plugin(plugin_id)
-            return _ok(f"Plugin '{plugin_id}' uninstalled successfully.", plugin_id=plugin_id)
+        from .api_server import uninstall_external_plugin as _rest_uninstall_external_plugin
+
+        try:
+            await _rest_uninstall_external_plugin(plugin_id)
+        except HTTPException as exc:
+            return _err(f"Error uninstalling plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
             return _err(f"Error uninstalling plugin '{plugin_id}': {exc}")
 
+        return _ok(f"Plugin '{plugin_id}' uninstalled successfully.", plugin_id=plugin_id)
+
     @mcp.tool()
-    def configure_plugin(plugin_id: str, config: dict[str, Any]) -> dict[str, Any]:
+    async def configure_plugin(plugin_id: str, config: dict[str, Any]) -> dict[str, Any]:
         """Update configuration settings for an installed plugin.
 
         Use list_installed_plugins() to see the settings_schema for a plugin,
         which shows all valid config keys, their types, and which are required.
+
+        Settings are merged into the plugin's existing configuration and saved
+        to disk, so they survive a restart. A config the plugin rejects is
+        reported as an error and nothing is saved.
 
         IMPORTANT: Never guess API keys — only set values the user has provided.
         Sensitive fields (api_key, password, etc.) must be provided explicitly.
@@ -336,23 +381,26 @@ def _build_mcp_server() -> Any:
             config: Dictionary of configuration key-value pairs to update.
                     Only include keys you want to change.
         """
-        try:
-            from .config_manager import get_config_manager
-            from .plugins import get_plugin_registry
+        from fastapi import HTTPException
 
-            registry = get_plugin_registry()
-            cm = get_config_manager()
-            existing = cm.get_plugin_config(plugin_id) or {}
+        from .api_server import PluginConfigRequest
+        from .api_server import update_plugin_config as _rest_update_plugin_config
+        from .config_manager import get_config_manager
+
+        try:
+            existing = get_config_manager().get_plugin_config(plugin_id) or {}
             merged = {**existing, **config}
-            registry.set_plugin_config(plugin_id, merged)
-            updated = cm.get_plugin_config(plugin_id) or {}
-            return _ok(
-                f"Configuration updated for '{plugin_id}'.",
-                plugin_id=plugin_id,
-                config=_serialize(cm._mask_sensitive(updated)),
-            )
+            response = await _rest_update_plugin_config(plugin_id, PluginConfigRequest(config=merged))
+        except HTTPException as exc:
+            return _err(f"Error configuring plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
             return _err(f"Error configuring plugin '{plugin_id}': {exc}")
+
+        return _ok(
+            f"Configuration updated for '{plugin_id}'.",
+            plugin_id=plugin_id,
+            config=_serialize(response.get("config", {})),
+        )
 
     @mcp.tool()
     def update_plugin(plugin_id: str) -> dict[str, Any]:

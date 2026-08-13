@@ -50,7 +50,8 @@
     "pageCount": "{count, plural, one {# ページ} other {# ページ}}",
     "unknownError": "不明なエラー",
     "opensInNewTab": "(新しいタブで開きます)",
-    "notificationsRegionLabel": "通知"
+    "notificationsRegionLabel": "通知",
+    "versionShort": "v{version}"
   },
   "metadata": {
     "appTitle": "FiestaBoard コントロール",
@@ -81,7 +82,8 @@
     "boardSelector": "管理するボードを選択",
     "selectBoard": "ボードを選択",
     "unnamedBoard": "名前のないボード",
-    "transitions": "トランジションラボ"
+    "transitions": "トランジションラボ",
+    "prideCelebration": "ハッピープライド！"
   },
   "network": {
     "title": "Wi-Fi",
@@ -330,7 +332,11 @@
       "validationOneOffDateRequired": "Please pick a date",
       "validationEndDateBeforeStart": "End date must be on or after start date",
       "collectionSizeWarning": "このコレクションの{total}ページ中{count}ページがこのボードのサイズに合わないため、スキップされます。",
-      "incompatiblePageWarning": "このページはこのボードのサイズに合わないため、正しく表示されない可能性があります。"
+      "incompatiblePageWarning": "このページはこのボードのサイズに合わないため、正しく表示されない可能性があります。",
+      "monthAriaLabel": "月",
+      "dayAriaLabel": "日",
+      "endMonthAriaLabel": "終了月",
+      "endDayAriaLabel": "終了日"
     },
     "descriptionWithTimezone": "時刻と曜日でページの切り替えを自動化 · {timezone}",
     "gapDefaultPlaceholder": "空き時間のデフォルト…",
@@ -472,7 +478,37 @@
     "toastNoUpdates": "すべてのプラグインは最新です",
     "toastCheckFailed": "更新の確認に失敗: {error}",
     "installAction": "インストール",
-    "installedBadge": "インストール済み"
+    "installedBadge": "インストール済み",
+    "valueUnavailable": "利用不可",
+    "enablePluginForLiveValues": "ライブの値を確認するにはプラグインを有効にしてください。",
+    "liveValuesUnavailable": "ライブの値を利用できません。",
+    "liveValuesUnavailableWithError": "ライブの値を利用できません: {error}",
+    "currentValueColumn": "現在の値",
+    "refreshingValues": "更新中…",
+    "sourceCoreBadge": "コア",
+    "sourceMarketplaceBadge": "マーケットプレイス",
+    "sourceExternalBadge": "外部",
+    "updateAvailableBadge": "更新あり",
+    "moreOptionsAriaLabel": "その他のオプション",
+    "addInstanceAction": "インスタンスを追加",
+    "instanceNameInlineLabel": "インスタンス名:",
+    "addInstanceInlineHelp": "独自の設定を持つ、このプラグインの新しい独立したインスタンスを作成します。英数字、ハイフン、アンダースコアを使用してください (1〜40 文字)。",
+    "deleteInstanceConfirmTitle": "インスタンス「{label}」を削除しますか？",
+    "deletePluginConfirmTitle": "「{name}」を削除しますか？",
+    "deleteInstanceConfirmDescription": "このインスタンスとその設定を完全に削除します。この操作は取り消せません。",
+    "deletePluginConfirmDescription": "このプラグインとそのすべてのインスタンスを完全に削除します。この操作は取り消せません。",
+    "demoPage": {
+      "title": "デモページ",
+      "alreadyExists": "このプラグインのデモページは既に存在します。",
+      "createDescription": "このプラグインを紹介する、すぐに使えるページを作成します。",
+      "recreateButton": "再作成",
+      "recreateConfirmTitle": "デモページを再作成しますか？",
+      "recreateConfirmDescription": "既存のデモページを削除し、デフォルト設定で新しく作成します。この操作は取り消せません。",
+      "creating": "作成中...",
+      "createAction": "デモページを作成",
+      "recreateAction": "デモページを再作成",
+      "requirementsWarning": "デモページを作成する前に、下の必須設定を構成してください。"
+    }
   },
   "settings": {
     "title": "設定",
@@ -496,7 +532,43 @@
     "sectionAccount": "アカウント",
     "sectionAccountDescription": "ユーザー名、パスワード、サインアウト",
     "sectionNetwork": "ネットワーク",
-    "sectionNetworkDescription": "Wi-Fi と接続を管理"
+    "sectionNetworkDescription": "Wi-Fi と接続を管理",
+    "ai": {
+      "removeProviderAriaLabel": "プロバイダーを削除",
+      "cardTitle": "AI プロバイダー",
+      "cardDescription": "「Gen AI」ページジェネレーター用に OpenAI 互換の LLM を設定します。BYO-LLM 方式のため、FiestaBoard がキーを同梱することはありません。",
+      "privacyNotice": "入力したプロンプトと有効なプラグインの変数一覧は、設定したプロバイダーに直接送信されます。API キーはこのデバイスに保存され、他のどこにも送信されません。",
+      "emptyState": "プロバイダーはまだ設定されていません。",
+      "addProviderButton": "プロバイダーを追加",
+      "discardButton": "破棄",
+      "saveChangesButton": "変更を保存",
+      "defaultBadge": "デフォルト",
+      "anthropicBadge": "Anthropic",
+      "makeDefaultButton": "デフォルトにする",
+      "nameLabel": "名前",
+      "protocolLabel": "プロトコル",
+      "protocolOpenaiOption": "OpenAI 互換 (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolAnthropicOption": "Anthropic (Messages API)",
+      "baseUrlLabel": "ベース URL",
+      "quickPresetsLabel": "クイックプリセット",
+      "apiKeyLabel": "API キー",
+      "modelsLabel": "モデル",
+      "defaultModelLabel": "デフォルトモデル",
+      "testConnectionButton": "接続テスト"
+    },
+    "backup": {
+      "cardTitle": "バックアップと復元",
+      "cardDescription": "FiestaBoard のすべての設定 — ボード設定、ページ、カルーセル、スケジュール、プラグイン設定 — を 1 つの JSON ファイルとしてエクスポートします。新しいインスタンスでそのファイルをアップロードすれば、移行やアップグレード後の復旧ができます。",
+      "exportButton": "バックアップをエクスポート",
+      "importButton": "バックアップをインポート…",
+      "reinstallPluginsLabel": "インポート後に外部プラグインを再インストール",
+      "reinstallPluginsDescription": "有効にすると、FiestaBoard はバックアップに記録された外部プラグインのうち、このインスタンスにまだインストールされていないものをクローンしようとします。いずれの場合も、それらの設定はバックアップから復元されます。",
+      "sensitiveNote": "注意: バックアップには API キーやボードの認証情報などの機密情報が平文で含まれます。ファイルは安全に保管し、公開しないでください。",
+      "confirmTitle": "現在の設定を置き換えますか？",
+      "confirmDescription": "<file></file> を復元しようとしています。既存のページ、カルーセル、スケジュール、設定は上書きされます。既存の各ファイルはタイムスタンプ付きのコピーが新しいファイルと並べて保持されるため、必要に応じて手動で元に戻せます。",
+      "restoringButton": "復元中…",
+      "restoreButton": "バックアップを復元"
+    }
   },
   "offline": {
     "youreOffline": "オフラインです",
@@ -581,7 +653,10 @@
       "passwordPlaceholder": "YourPassword",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "（パスワードなし）"
+      "noPassword": "（パスワードなし）",
+      "addMoreHint": "<link>連携</link>ページからいつでも追加できます。",
+      "builtInBadge": "組み込み",
+      "previewLabel": "プレビュー:"
     },
     "welcome": {
       "setupComplete": "セットアップ完了！",
@@ -639,7 +714,9 @@
     "changeModeDisableTitle": "スケジュールモードをオフ",
     "changeModeDisableDescription": "スケジュールを無効化し、ボードを手動で操作します。",
     "changeModeDisableSuccess": "スケジュールモードを無効化しました",
-    "collectionSizeWarning": "このコレクションの{total}ページ中{count}ページがこのボードのサイズに合わないため、スキップされます。"
+    "collectionSizeWarning": "このコレクションの{total}ページ中{count}ページがこのボードのサイズに合わないため、スキップされます。",
+    "turnOffLiveModeAriaLabel": "ライブモードをオフにする",
+    "liveModeBadge": "ライブモード"
   },
   "forceSetDialog": {
     "title": "ボードを強制設定",
@@ -882,7 +959,10 @@
     "updateNow": "今すぐ更新",
     "oneClickHint": "ここにワンクリックの「今すぐ更新」ボタンが欲しいですか? <envFile></envFile> に <profile></profile> を設定して、<command></command> を実行してください。",
     "dialogTitle": "FiestaBoard を更新しますか?",
-    "dialogDescription": "<version></version> をプルして FiestaBoard を再起動します。ボード表示は約 30 秒停止し、このページは自動的に再読み込みされます。"
+    "dialogDescription": "<version></version> をプルして FiestaBoard を再起動します。ボード表示は約 30 秒停止し、このページは自動的に再読み込みされます。",
+    "intervalSelectAriaLabel": "アップデート確認の頻度",
+    "intervalCardDescription": "FiestaBoard がバックグラウンドで新しいリリースを確認する頻度です。見つかるとここにバナーが表示されます。",
+    "lastChecked": "最終確認: {time}"
   },
   "transitionSettings": {
     "title": "ボードトランジション",
@@ -1008,7 +1088,8 @@
       "Numbers": "数字",
       "Symbols": "記号",
       "Colors": "色"
-    }
+    },
+    "latencyMs": "{ms} ms"
   },
   "generalSettings": {
     "title": "一般設定",
@@ -1368,6 +1449,7 @@
     "flapSpeed_hardware": "ハードウェア",
     "flapSpeed_quick": "速い",
     "flapSpeed_standard": "標準",
+    "flapSpeed_standardWithDefault": "標準（デフォルト）",
     "flapSpeed_relaxed": "ゆっくり",
     "flapSpeed_hardwareHint": "{ms} ミリ秒 — 実機と同じ速さ。1 文字あたりおよそ 1 フレームなので、切り替わり中のボードは文字ではなくぼやけて見えます。",
     "flapSpeed_quickHint": "{ms} ミリ秒 — 標準より速く、反転中でも文字を読み取れます。",
@@ -1375,7 +1457,8 @@
     "flapSpeed_relaxedHint": "{ms} ミリ秒 — アンビエント表示向けの、ゆっくりとした反転。",
     "flapSpeedPreviewLabel": "プレビュー",
     "flapSpeedInactive": "ボードアニメーションがオフのため、反転速度は影響しません。",
-    "flapSpeedScreenOnlyNote": "これは画面上のボードプレビューだけを変更します。実機の Vestaboard の切り替え速度は、動作 → ボードトランジションで別に設定します。"
+    "flapSpeedScreenOnlyNote": "これは画面上のボードプレビューだけを変更します。実機の Vestaboard の切り替え速度は、動作 → ボードトランジションで別に設定します。",
+    "updateAvailableBadge": "v{version} が利用可能"
   },
   "monitor": {
     "title": "モニター",
@@ -1647,7 +1730,8 @@
     "whiteBoard": "ホワイトボード",
     "deviceFlagship": "Flagship",
     "deviceNote": "Note",
-    "deviceNoteArray": "Note アレイ {w}×{h}"
+    "deviceNoteArray": "Note アレイ {w}×{h}",
+    "githubLink": "GitHub"
   },
   "boardDisplay": {
     "loading": "ボード表示を読み込み中",
@@ -1736,7 +1820,12 @@
     "remoteOptionsSearchPlaceholder": "検索…",
     "remoteOptionsCustomLabel": "カスタム値",
     "remoteOptionsCustomPlaceholder": "一覧にない値を入力",
-    "remoteOptionsCustomAdd": "カスタム値を追加"
+    "remoteOptionsCustomAdd": "カスタム値を追加",
+    "addItemLabel": "{label}を追加",
+    "unknownType": "不明な型: {type}",
+    "pagePickerNone": "なし（上書きなし）",
+    "pagePickerLoading": "ページを読み込み中…",
+    "pagePickerPlaceholder": "ページを選択…"
   },
   "filterPicker": {
     "noFiltersAvailable": "利用可能なフィルターがありません",
@@ -1744,7 +1833,8 @@
     "filterDescWrap": "長いテキストを複数行に折り返します",
     "filterDescPad": "テキストを指定幅まで埋めます",
     "filterDescTruncate": "テキストを指定長まで切り詰めます",
-    "wrapInstruction": "|wrap: 長いテキストを折り返します。下に空行を残しておくと、テキストがそこに流れ込みます。"
+    "wrapInstruction": "長いテキストを折り返します。下に空行を残しておくと、テキストがそこに流れ込みます。",
+    "exampleLabel": "例: {example}"
   },
   "formattingPicker": {
     "noFormattingAvailable": "利用可能なフォーマットオプションがありません",
@@ -1805,7 +1895,25 @@
     "alignRight": "右揃え",
     "syncFromBoardTooltip": "現在ボードに表示されている内容からテンプレートを設定",
     "syncFromBoard": "現在のボード表示から同期",
-    "alignment": "配置:"
+    "alignment": "配置:",
+    "undoAriaLabel": "元に戻す",
+    "redoAriaLabel": "やり直し",
+    "cutAriaLabel": "切り取り",
+    "copyAriaLabel": "コピー",
+    "pasteAriaLabel": "貼り付け",
+    "removeWrappedTextAriaLabel": "折り返しテキストを削除",
+    "colorPickerAriaLabel": "カラーピッカー",
+    "heartCharacterAriaLabel": "ハート文字",
+    "lineCount": "{used} / {max} 行",
+    "overLineLimit": " — ボードの {max} 行制限を超えています",
+    "currentLine": "（{line} 行目）",
+    "heartLabel": "ハート",
+    "insertHeartTooltip": "ハート文字を挿入（Note のみ）",
+    "colorTileTooltip": "{color} タイル（コード {code}）— ドラッグで移動、Backspace で削除",
+    "fillSpaceTooltip": "スペース埋め — 行の残りの幅いっぱいに広がります",
+    "fillSpaceRepeatTooltip": "スペースを繰り返して埋める: {char}",
+    "variableFilterTooltip": "フィルター: {filter}",
+    "variableMaxLengthTooltip": "最大長: {maxLength} 文字"
   },
   "variablePicker": {
     "noVariablesAvailable": "利用可能な変数がありません",
@@ -1815,7 +1923,8 @@
     "searchPlaceholder": "変数を検索...",
     "indexLabel": "インデックス: {index}",
     "configureHint": "ここにインデックス付き変数を表示するには、設定で {arrayName} を構成してください。",
-    "configureExample": "例:"
+    "configureExample": "例:",
+    "noMatchingVariables": "一致する変数が見つかりません。"
   },
   "login": {
     "signInTitle": "FiestaBoard にサインイン",
@@ -1873,11 +1982,62 @@
     "taskStatusAriaLabel": "タスクの進捗",
     "taskProgressAriaLabel": "AI タスクの進行状況",
     "clearConversationAriaLabel": "会話をクリア",
-    "closePanelAriaLabel": "FiestaBot (Beta) を閉じる"
+    "closePanelAriaLabel": "FiestaBot (Beta) を閉じる",
+    "providerSelectAriaLabel": "プロバイダー",
+    "modelSelectAriaLabel": "モデル",
+    "showBoardTooltip": "ボードプレビューを表示",
+    "hideBoardTooltip": "ボードプレビューを非表示",
+    "undoTooltip": "AI による最後の変更を元に戻す",
+    "panelTitle": "FiestaBot (Beta)",
+    "retryButton": "再試行",
+    "messageLabel": "メッセージ",
+    "stopButton": "停止",
+    "sendButton": "送信",
+    "tasksHeading": "タスク ({done}/{total})",
+    "emptyStateTitle": "何かお手伝いできますか？",
+    "emptyStateDescription": "作成または変更したい内容を説明してください。",
+    "showBoardButton": "ボードを表示",
+    "undoButton": "元に戻す",
+    "renameSummary": "→ 「{name}」に名前を変更",
+    "previewUnavailable": "（プレビューを利用できません）"
   },
   "boardSizeIndicator": {
     "custom": "カスタム",
     "ariaLabel": "{rows}行×{cols}列",
     "ariaLabelWithLayout": "{rows}行×{cols}列、{layout}"
+  },
+  "mcpSettings": {
+    "title": "MCP / 外部クライアント",
+    "description": "Claude Desktop、Claude Code、その他の MCP クライアントがこの FiestaBoard と通信できるようにする事前共有トークンです。このトークンは単一のプリンシパルとして認証され、{endpoint} エンドポイントのみに限定されるため、ページやその他の設定を編集することはできません。クライアント固有の注意点については <link>MCP クライアントのセットアップ</link> を参照してください（Desktop には stdio プロキシが必要です。claude.ai web の Connectors は公開 HTTPS と OAuth が必要なため、LAN 上のホストには接続できません）。",
+    "statusLabel": "ステータス:",
+    "pinnedByEnvBadge": "{envVar} で固定",
+    "configuredBadge": "設定済み",
+    "pinnedByEnvDescription": "有効なトークンは環境変数 {envVar} で設定されています。この UI からトークンを管理するには、{envFile} でその設定を解除し、コンテナを再起動してください。",
+    "noTokenDescription": "トークンが設定されていません。外部の MCP クライアントは cookie 認証にフォールバックしますが、Claude Desktop と Claude Code はこれをサポートしていないため、原因のわかりにくいエラーで登録に失敗します。トークンを生成して利用できるようにしてください。",
+    "activeTokenDescription": "トークンが設定され、有効になっています。ローテーションすると以前のトークンは無効になり（古いトークンを使い続けているクライアントは 401 を受け取るようになります）、完全に失効させると cookie のみの認証に戻ります。",
+    "rotateTokenButton": "トークンをローテーション",
+    "generateTokenButton": "トークンを生成",
+    "revokeTokenButton": "トークンを失効",
+    "rotateConfirmTitle": "MCP トークンをローテーションしますか？",
+    "generateConfirmTitle": "MCP トークンを生成しますか？",
+    "rotateConfirmDescription": "以前のトークンを使い続けているクライアントは、次のリクエストで 401 と Bearer チャレンジによって拒否されます。新しいトークンが表示されるのは一度だけです — 安全な場所に保管してください（UI から再度読み取ることはできません）。",
+    "generateConfirmDescription": "トークンが表示されるのは一度だけです — 安全な場所に保管してください（UI から再度読み取ることはできません）。外部の MCP クライアントはこのトークンを使って {endpoint} に認証します。",
+    "rotateConfirmButton": "ローテーション",
+    "generateConfirmButton": "生成",
+    "revokeConfirmTitle": "MCP トークンを失効させますか？",
+    "revokeConfirmDescription": "外部の MCP クライアントは次のリクエストから 401 を受け取るようになります。新しいトークンは後でいつでも生成できます。",
+    "revokeConfirmButton": "失効",
+    "revealTitle": "このトークンを保存してください",
+    "revealDescription": "FiestaBoard は今後のリクエストを検証するために必要な情報のみを保存します — 平文の値が表示されるのはこの一度だけです。今のうちに MCP クライアントにコピーしてください。",
+    "tokenLabel": "トークン",
+    "copyButton": "コピー",
+    "copiedButton": "コピーしました",
+    "configSnippetLabel": "Claude Desktop の設定スニペット",
+    "configSnippetDescription": "これを {configPath} に貼り付け、既にある内容とマージしてから、Claude Desktop を完全に終了して再起動してください（⌘Q — ウィンドウを閉じるだけでは不十分です）。Claude Desktop は stdio の MCP サーバーのみをサポートするため、このスニペットはプロキシとして {npx} 経由で {mcpRemoteLink} を実行します — Node 18 以上がインストールされ、Claude Desktop の PATH から {npx} に到達できる必要があります。{commandNotFound} というエラーになる場合は、{npxQuoted} を {whichNpx} で得られる絶対パスに置き換えてください。",
+    "claudeCodeDescription": "<label>Claude Code (CLI):</label> HTTP で直接通信します — プロキシは不要です。",
+    "claudeWebDescription": "<label>claude.ai web (Connectors):</label> セルフホストの FiestaBoard ではサポートされていません。Connectors のフローには公開 HTTPS の URL と OAuth 2.1 の動的クライアント登録が必要ですが、LAN 上のホストはどちらも提供できません。代わりに Desktop または Code をご利用ください。",
+    "savedItButton": "保存しました",
+    "toastTokenRevoked": "MCP トークンを失効しました",
+    "toastCopyFailed": "クリップボードにコピーできませんでした"
   }
 }

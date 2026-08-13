@@ -996,6 +996,35 @@ def test_get_registry_entries_marks_installed(mock_load, registry, mock_loader, 
     assert entries[0]["installed"] is True
 
 
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_includes_plugin_type(mock_load, registry):
+    """The marketplace payload carries plugin_type so transitions aren't shown as data plugins."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="typewriter",
+            name="Typewriter",
+            repository="https://github.com/Org/fiestaboard-plugin--typewriter",
+            plugin_type="transition",
+        ),
+    ]
+    entries = registry.get_registry_entries()
+    assert entries[0]["plugin_type"] == "transition"
+
+
+@patch("src.plugins.registry.load_registry")
+def test_get_registry_entries_defaults_plugin_type_to_data(mock_load, registry):
+    """Entries that never declared a type surface as data plugins."""
+    mock_load.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        ),
+    ]
+    entries = registry.get_registry_entries()
+    assert entries[0]["plugin_type"] == "data"
+
+
 # --- get_registry_entries: board previews ---
 
 

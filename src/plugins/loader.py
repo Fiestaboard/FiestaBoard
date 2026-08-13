@@ -26,6 +26,20 @@ logger = logging.getLogger(__name__)
 # Default plugins directory (relative to project root)
 DEFAULT_PLUGINS_DIR = "plugins"
 
+# Plugin directory names are plugin ids: a single path segment of lowercase
+# letters, digits, and underscores (the manifest contract).  Anything else --
+# ``..``, path separators, absolute paths, empty strings -- can never name a
+# plugin and must not reach a filesystem path expression.  Plugin names arrive
+# from user-controlled API input (settings / install / reload endpoints), so
+# this is a security barrier, not just hygiene (CodeQL py/path-injection).
+_SAFE_PLUGIN_NAME_RE = re.compile(r"^[a-z0-9_]+$")
+
+
+def is_safe_plugin_dir_name(plugin_name: str) -> bool:
+    """Return True when *plugin_name* is safe to use as a single path segment."""
+    return isinstance(plugin_name, str) and _SAFE_PLUGIN_NAME_RE.fullmatch(plugin_name) is not None
+
+
 # ---------------------------------------------------------------------------
 # FiestaBoard version compatibility helpers
 # ---------------------------------------------------------------------------
@@ -218,14 +232,27 @@ class PluginLoader:
         """Find the on-disk directory for *plugin_name*.
 
         Checks built-in first, then external directories.
-        """
-        # Built-in takes precedence
-        candidate = self.plugins_dir / plugin_name
-        if candidate.is_dir():
-            return candidate
 
-        for ext_dir in self._external_dirs:
-            candidate = ext_dir / plugin_name
+        ``plugin_name`` is user-controlled (plugin ids arrive through the
+        HTTP API), so it must pass :func:`is_safe_plugin_dir_name` and the
+        joined path is resolved and confirmed to still live inside the base
+        directory before any filesystem access.  Names failing either check
+        behave exactly like a nonexistent plugin (returns ``None``).
+        """
+        if not is_safe_plugin_dir_name(plugin_name):
+            return None
+
+        # Built-in takes precedence over external directories.
+        for base in (self.plugins_dir, *self._external_dirs):
+            base_resolved = base.resolve()
+            # Containment barrier: resolve the joined path and reject
+            # anything that escapes the base directory (e.g. a symlinked
+            # plugin dir pointing outside it).  Defense in depth on top of
+            # the name allow-list above, and the sanitizer CodeQL
+            # recognises for py/path-injection.
+            candidate = (base_resolved / plugin_name).resolve()
+            if not candidate.is_relative_to(base_resolved):
+                continue
             if candidate.is_dir():
                 return candidate
 
@@ -234,14 +261,17 @@ class PluginLoader:
     def _source_for_dir(self, plugin_dir: Path) -> PluginSource:
         """Determine the :class:`PluginSource` for a plugin directory."""
         for ext_dir in self._external_dirs:
-            try:
-                plugin_dir.relative_to(ext_dir)
-                return PluginSource(
-                    source_type="external",
-                    local_path=str(plugin_dir),
-                )
-            except ValueError:
-                continue
+            # _resolve_plugin_dir returns fully resolved paths, so compare
+            # against both the raw and the resolved external dir.
+            for ext_base in (ext_dir, ext_dir.resolve()):
+                try:
+                    plugin_dir.relative_to(ext_base)
+                    return PluginSource(
+                        source_type="external",
+                        local_path=str(plugin_dir),
+                    )
+                except ValueError:
+                    continue
         return PluginSource(source_type="builtin", local_path=str(plugin_dir))
 
     # ── loading ──────────────────────────────────────────────────────────
@@ -307,7 +337,11 @@ class PluginLoader:
         #   2. Package layout: <plugin_dir>/plugins/<id>/__init__.py        (newer repos)
         init_path = plugin_dir / "__init__.py"
         if not init_path.exists():
-            subdir_path = plugin_dir / "plugins" / plugin_name / "__init__.py"
+            # plugin_dir was resolved from the validated plugin name, so its
+            # final component equals that name.  Derive the package-layout
+            # path from the sanitized plugin_dir instead of re-joining the
+            # user-provided plugin_name into a path expression.
+            subdir_path = plugin_dir / "plugins" / plugin_dir.name / "__init__.py"
             if subdir_path.exists():
                 init_path = subdir_path
                 logger.debug("Using package layout for plugin %s: %s", plugin_name, init_path)

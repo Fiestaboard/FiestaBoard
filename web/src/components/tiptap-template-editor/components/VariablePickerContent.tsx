@@ -295,7 +295,7 @@ function renderArraySection(
     return (
       <Box className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground">
         <Text size="xs" tone="muted">
-          No matching variables found.
+          {t ? t("noMatchingVariables") : "No matching variables found."}
         </Text>
       </Box>
     );

@@ -7,6 +7,8 @@ import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
+import { useTranslations } from "@/i18n/translations";
+
 /** Attributes VariableNode declares (see extensions/variable-node.ts). */
 interface VariableAttrs {
   pluginId: string;
@@ -16,6 +18,7 @@ interface VariableAttrs {
 }
 
 export function VariableNodeView({ node }: ReactNodeViewProps) {
+  const t = useTranslations("templateEditor");
   const { pluginId, field, filters, maxLength } = node.attrs as VariableAttrs;
 
   return (
@@ -57,8 +60,9 @@ export function VariableNodeView({ node }: ReactNodeViewProps) {
                   </TooltipTrigger>
                   <TooltipContent>
                     <Text>
-                      Filter: {filter.name}
-                      {filter.arg ? `:${filter.arg}` : ""}
+                      {t("variableFilterTooltip", {
+                        filter: `${filter.name}${filter.arg ? `:${filter.arg}` : ""}`,
+                      })}
                     </Text>
                   </TooltipContent>
                 </Tooltip>
@@ -73,7 +77,7 @@ export function VariableNodeView({ node }: ReactNodeViewProps) {
                 <span className="hidden group-hover:inline text-[10px] leading-none">~{maxLength}</span>
               </TooltipTrigger>
               <TooltipContent>
-                <Text>Max length: {maxLength} characters</Text>
+                <Text>{t("variableMaxLengthTooltip", { maxLength })}</Text>
               </TooltipContent>
             </Tooltip>
           )}

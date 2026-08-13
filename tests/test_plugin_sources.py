@@ -73,6 +73,16 @@ class TestRegistryEntry:
         assert entry.repository == ""
         assert entry.branch == ""
 
+    def test_from_dict_carries_declared_plugin_type(self):
+        """A registry entry declaring a transition plugin stays a transition plugin."""
+        entry = RegistryEntry.from_dict({"id": "typewriter", "name": "Typewriter", "plugin_type": "transition"})
+        assert entry.plugin_type == "transition"
+
+    def test_from_dict_defaults_plugin_type_to_data(self):
+        """Existing entries omit plugin_type entirely; they are data plugins."""
+        entry = RegistryEntry.from_dict({"id": "foo", "name": "Foo"})
+        assert entry.plugin_type == "data"
+
 
 # ── Naming convention ────────────────────────────────────────────────────────
 

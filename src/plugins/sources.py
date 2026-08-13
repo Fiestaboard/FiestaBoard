@@ -115,6 +115,10 @@ class RegistryEntry:
     #: Plugin category.
     category: str = "utility"
 
+    #: "data" or "transition".  Registry entries predating transition plugins
+    #: omit the key entirely, so the default has to be the data plugin.
+    plugin_type: str = "data"
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "RegistryEntry":
         return cls(
@@ -127,6 +131,7 @@ class RegistryEntry:
             fiestaboard_version=data.get("fiestaboard_version", ""),
             icon=data.get("icon", "puzzle"),
             category=data.get("category", "utility"),
+            plugin_type=data.get("plugin_type", "data"),
         )
 
 

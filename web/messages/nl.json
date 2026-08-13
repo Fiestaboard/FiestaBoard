@@ -50,7 +50,8 @@
     "pageCount": "{count, plural, one {# pagina} other {# pagina's}}",
     "unknownError": "Onbekende fout",
     "opensInNewTab": "(opent in een nieuw tabblad)",
-    "notificationsRegionLabel": "Meldingen"
+    "notificationsRegionLabel": "Meldingen",
+    "versionShort": "v{version}"
   },
   "metadata": {
     "appTitle": "FiestaBoard-bediening",
@@ -81,7 +82,8 @@
     "boardSelector": "Te beheren board selecteren",
     "selectBoard": "Board selecteren",
     "unnamedBoard": "Naamloos board",
-    "transitions": "Transitielab"
+    "transitions": "Transitielab",
+    "prideCelebration": "Fijne Pride!"
   },
   "network": {
     "title": "Wi-Fi",
@@ -330,7 +332,11 @@
       "validationOneOffDateRequired": "Please pick a date",
       "validationEndDateBeforeStart": "End date must be on or after start date",
       "collectionSizeWarning": "{count} van de {total} pagina's in deze collectie passen niet bij het formaat van dit bord en worden overgeslagen.",
-      "incompatiblePageWarning": "Deze pagina past niet bij het formaat van dit bord en wordt mogelijk niet correct weergegeven."
+      "incompatiblePageWarning": "Deze pagina past niet bij het formaat van dit bord en wordt mogelijk niet correct weergegeven.",
+      "monthAriaLabel": "Maand",
+      "dayAriaLabel": "Dag",
+      "endMonthAriaLabel": "Eindmaand",
+      "endDayAriaLabel": "Einddag"
     },
     "descriptionWithTimezone": "Automatiseer paginarotatie op tijd en dag · {timezone}",
     "gapDefaultPlaceholder": "Standaard bij gat…",
@@ -472,7 +478,37 @@
     "toastNoUpdates": "Alle plugins zijn up-to-date",
     "toastCheckFailed": "Updates controleren mislukt: {error}",
     "installAction": "Installeren",
-    "installedBadge": "Geïnstalleerd"
+    "installedBadge": "Geïnstalleerd",
+    "valueUnavailable": "Niet beschikbaar",
+    "enablePluginForLiveValues": "Schakel de plugin in om live waarden te zien.",
+    "liveValuesUnavailable": "Live waarden zijn niet beschikbaar.",
+    "liveValuesUnavailableWithError": "Live waarden zijn niet beschikbaar: {error}",
+    "currentValueColumn": "Huidige waarde",
+    "refreshingValues": "vernieuwen…",
+    "sourceCoreBadge": "Kern",
+    "sourceMarketplaceBadge": "Marketplace",
+    "sourceExternalBadge": "Extern",
+    "updateAvailableBadge": "Update",
+    "moreOptionsAriaLabel": "Meer opties",
+    "addInstanceAction": "Instantie toevoegen",
+    "instanceNameInlineLabel": "Instantienaam:",
+    "addInstanceInlineHelp": "Maakt een nieuwe onafhankelijke instantie van deze plugin met een eigen configuratie. Gebruik alfanumerieke tekens, koppeltekens of underscores (1–40 tekens).",
+    "deleteInstanceConfirmTitle": "Instantie \"{label}\" verwijderen?",
+    "deletePluginConfirmTitle": "\"{name}\" verwijderen?",
+    "deleteInstanceConfirmDescription": "Hiermee worden deze instantie en de bijbehorende configuratie definitief verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
+    "deletePluginConfirmDescription": "Hiermee worden de plugin en al zijn instanties definitief verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
+    "demoPage": {
+      "title": "Demopagina",
+      "alreadyExists": "Er bestaat al een demopagina voor deze plugin.",
+      "createDescription": "Maak een direct bruikbare pagina die deze plugin laat zien.",
+      "recreateButton": "Opnieuw aanmaken",
+      "recreateConfirmTitle": "Demopagina opnieuw aanmaken?",
+      "recreateConfirmDescription": "Hiermee wordt de bestaande demopagina verwijderd en een nieuwe met standaardinstellingen aangemaakt. Deze actie kan niet ongedaan worden gemaakt.",
+      "creating": "Maken...",
+      "createAction": "Demopagina aanmaken",
+      "recreateAction": "Demopagina opnieuw aanmaken",
+      "requirementsWarning": "Configureer hieronder de vereiste instellingen voordat je een demopagina aanmaakt."
+    }
   },
   "settings": {
     "title": "Instellingen",
@@ -496,7 +532,43 @@
     "sectionAccount": "Account",
     "sectionAccountDescription": "Gebruikersnaam, wachtwoord en uitloggen",
     "sectionNetwork": "Netwerk",
-    "sectionNetworkDescription": "Wi-Fi en verbinding beheren"
+    "sectionNetworkDescription": "Wi-Fi en verbinding beheren",
+    "ai": {
+      "removeProviderAriaLabel": "Provider verwijderen",
+      "cardTitle": "AI-providers",
+      "cardDescription": "Configureer OpenAI-compatibele LLM's voor de paginagenerator \"Gen AI\". BYO-LLM: FiestaBoard levert nooit een sleutel mee.",
+      "privacyNotice": "Je prompts en de variabelenlijst van je ingeschakelde plugins worden rechtstreeks naar de provider verzonden die je configureert. API-sleutels worden op dit apparaat opgeslagen en nooit ergens anders naartoe gestuurd.",
+      "emptyState": "Nog geen providers geconfigureerd.",
+      "addProviderButton": "Provider toevoegen",
+      "discardButton": "Verwerpen",
+      "saveChangesButton": "Wijzigingen opslaan",
+      "defaultBadge": "Standaard",
+      "anthropicBadge": "Anthropic",
+      "makeDefaultButton": "Als standaard instellen",
+      "nameLabel": "Naam",
+      "protocolLabel": "Protocol",
+      "protocolOpenaiOption": "OpenAI-compatibel (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolAnthropicOption": "Anthropic (Messages API)",
+      "baseUrlLabel": "Basis-URL",
+      "quickPresetsLabel": "Snelle presets",
+      "apiKeyLabel": "API-sleutel",
+      "modelsLabel": "Modellen",
+      "defaultModelLabel": "Standaardmodel",
+      "testConnectionButton": "Verbinding testen"
+    },
+    "backup": {
+      "cardTitle": "Back-up & herstel",
+      "cardDescription": "Exporteer je volledige FiestaBoard-configuratie — bordinstellingen, pagina's, carrousels, planningen en pluginconfiguratie — als één JSON-bestand. Upload dat bestand op een nieuwe instantie om te migreren of te herstellen na een upgrade.",
+      "exportButton": "Back-up exporteren",
+      "importButton": "Back-up importeren…",
+      "reinstallPluginsLabel": "Externe plugins opnieuw installeren na import",
+      "reinstallPluginsDescription": "Indien ingeschakeld probeert FiestaBoard alle externe plugins uit de back-up te klonen die nog niet op deze instantie zijn geïnstalleerd. Hun configuratie wordt hoe dan ook uit de back-up hersteld.",
+      "sensitiveNote": "Let op: back-ups bevatten gevoelige waarden zoals API-sleutels en bordgegevens in platte tekst. Bewaar het bestand veilig en deel het niet publiekelijk.",
+      "confirmTitle": "Huidige configuratie vervangen?",
+      "confirmDescription": "Je staat op het punt <file></file> terug te zetten. Je bestaande pagina's, carrousels, planningen en configuratie worden overschreven. Van elk bestaand bestand wordt een kopie met tijdstempel bewaard naast het nieuwe, zodat je zo nodig handmatig kunt terugdraaien.",
+      "restoringButton": "Terugzetten…",
+      "restoreButton": "Back-up terugzetten"
+    }
   },
   "offline": {
     "youreOffline": "Je bent offline",
@@ -581,7 +653,10 @@
       "passwordPlaceholder": "JeWachtwoord",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "(geen wachtwoord)"
+      "noPassword": "(geen wachtwoord)",
+      "addMoreHint": "Je kunt er altijd meer toevoegen via de pagina <link>Integraties</link>.",
+      "builtInBadge": "Ingebouwd",
+      "previewLabel": "Voorbeeld:"
     },
     "welcome": {
       "setupComplete": "Installatie voltooid!",
@@ -639,7 +714,9 @@
     "changeModeDisableTitle": "Roostermodus uitschakelen",
     "changeModeDisableDescription": "Schakel het rooster uit en bedien het board handmatig.",
     "changeModeDisableSuccess": "Roostermodus uitgeschakeld",
-    "collectionSizeWarning": "{count} van de {total} pagina's in deze collectie passen niet bij het formaat van dit bord en worden overgeslagen."
+    "collectionSizeWarning": "{count} van de {total} pagina's in deze collectie passen niet bij het formaat van dit bord en worden overgeslagen.",
+    "turnOffLiveModeAriaLabel": "Live-modus uitschakelen",
+    "liveModeBadge": "Live-modus"
   },
   "forceSetDialog": {
     "title": "Board forceren",
@@ -882,7 +959,10 @@
     "updateNow": "Nu bijwerken",
     "oneClickHint": "Wil je hier een één-klik \"Nu bijwerken\"-knop? Stel <profile></profile> in je <envFile></envFile> in en voer dan <command></command> uit.",
     "dialogTitle": "FiestaBoard bijwerken?",
-    "dialogDescription": "Dit haalt <version></version> op en herstart FiestaBoard. De board-weergave pauzeert ongeveer 30 seconden en deze pagina laadt automatisch opnieuw."
+    "dialogDescription": "Dit haalt <version></version> op en herstart FiestaBoard. De board-weergave pauzeert ongeveer 30 seconden en deze pagina laadt automatisch opnieuw.",
+    "intervalSelectAriaLabel": "Frequentie van updatecontrole",
+    "intervalCardDescription": "Hoe vaak FiestaBoard op de achtergrond naar een nieuwe release moet zoeken. Je ziet hier een banner zodra er een is gevonden.",
+    "lastChecked": "Laatst gecontroleerd: {time}"
   },
   "transitionSettings": {
     "title": "Bordovergangen",
@@ -1008,7 +1088,8 @@
       "Numbers": "Cijfers",
       "Symbols": "Symbolen",
       "Colors": "Kleuren"
-    }
+    },
+    "latencyMs": "{ms} ms"
   },
   "generalSettings": {
     "title": "Algemene instellingen",
@@ -1368,6 +1449,7 @@
     "flapSpeed_hardware": "Hardware",
     "flapSpeed_quick": "Snel",
     "flapSpeed_standard": "Standaard",
+    "flapSpeed_standardWithDefault": "Standaard (standaardinstelling)",
     "flapSpeed_relaxed": "Rustig",
     "flapSpeed_hardwareHint": "{ms} ms — het tempo van het echte apparaat. Ongeveer één frame per teken, dus een board dat tot rust komt oogt wazig in plaats van leesbaar.",
     "flapSpeed_quickHint": "{ms} ms — sneller dan standaard, tekens blijven tijdens het omklappen leesbaar.",
@@ -1375,7 +1457,8 @@
     "flapSpeed_relaxedHint": "{ms} ms — een traag, bedachtzaam omklappen voor sfeerschermen.",
     "flapSpeedPreviewLabel": "Voorbeeld",
     "flapSpeedInactive": "Board-animaties staan uit, dus de omklapsnelheid heeft geen effect.",
-    "flapSpeedScreenOnlyNote": "Dit wijzigt alleen het board-voorbeeld op het scherm. Het tempo van de overgangen op je fysieke Vestaboard stel je apart in, onder Gedrag → Board-overgangen."
+    "flapSpeedScreenOnlyNote": "Dit wijzigt alleen het board-voorbeeld op het scherm. Het tempo van de overgangen op je fysieke Vestaboard stel je apart in, onder Gedrag → Board-overgangen.",
+    "updateAvailableBadge": "v{version} beschikbaar"
   },
   "monitor": {
     "title": "Monitor",
@@ -1647,7 +1730,8 @@
     "whiteBoard": "Wit bord",
     "deviceFlagship": "Flagship",
     "deviceNote": "Note",
-    "deviceNoteArray": "Note-array {w}×{h}"
+    "deviceNoteArray": "Note-array {w}×{h}",
+    "githubLink": "GitHub"
   },
   "boardDisplay": {
     "loading": "Board-weergave laden",
@@ -1736,7 +1820,12 @@
     "remoteOptionsSearchPlaceholder": "Zoeken…",
     "remoteOptionsCustomLabel": "Aangepaste waarde",
     "remoteOptionsCustomPlaceholder": "Voer een waarde in die niet in de lijst staat",
-    "remoteOptionsCustomAdd": "Aangepaste waarde toevoegen"
+    "remoteOptionsCustomAdd": "Aangepaste waarde toevoegen",
+    "addItemLabel": "{label} toevoegen",
+    "unknownType": "Onbekend type: {type}",
+    "pagePickerNone": "Geen (geen override)",
+    "pagePickerLoading": "Pagina's laden…",
+    "pagePickerPlaceholder": "Kies een pagina…"
   },
   "filterPicker": {
     "noFiltersAvailable": "Geen filters beschikbaar",
@@ -1744,7 +1833,8 @@
     "filterDescWrap": "Laat lange tekst over meerdere regels lopen",
     "filterDescPad": "Vult tekst aan tot de opgegeven breedte",
     "filterDescTruncate": "Kapt tekst af tot de opgegeven lengte",
-    "wrapInstruction": "|wrap: Laat lange tekst doorlopen. Laat lege regels eronder zodat tekst erin kan stromen."
+    "wrapInstruction": "Laat lange tekst doorlopen. Laat lege regels eronder zodat tekst erin kan stromen.",
+    "exampleLabel": "Voorbeeld: {example}"
   },
   "formattingPicker": {
     "noFormattingAvailable": "Geen opmaakopties beschikbaar",
@@ -1805,7 +1895,25 @@
     "alignRight": "Rechts uitlijnen",
     "syncFromBoardTooltip": "Vul sjabloon in vanaf wat momenteel op het board wordt getoond",
     "syncFromBoard": "Synchroniseren vanaf huidige board-weergave",
-    "alignment": "Uitlijning:"
+    "alignment": "Uitlijning:",
+    "undoAriaLabel": "Ongedaan maken",
+    "redoAriaLabel": "Opnieuw",
+    "cutAriaLabel": "Knippen",
+    "copyAriaLabel": "Kopiëren",
+    "pasteAriaLabel": "Plakken",
+    "removeWrappedTextAriaLabel": "Omgeslagen tekst verwijderen",
+    "colorPickerAriaLabel": "Kleurkiezer",
+    "heartCharacterAriaLabel": "Hartteken",
+    "lineCount": "{used} / {max} regels",
+    "overLineLimit": " — overschrijdt de bordlimiet van {max} regels",
+    "currentLine": "(Regel {line})",
+    "heartLabel": "hart",
+    "insertHeartTooltip": "Hartteken invoegen (alleen Note)",
+    "colorTileTooltip": "{color}-tegel (code {code}) - sleep om te verplaatsen, backspace om te verwijderen",
+    "fillSpaceTooltip": "Vulruimte - vult de resterende regelbreedte",
+    "fillSpaceRepeatTooltip": "Vulruimte herhaalt: {char}",
+    "variableFilterTooltip": "Filter: {filter}",
+    "variableMaxLengthTooltip": "Maximale lengte: {maxLength} tekens"
   },
   "variablePicker": {
     "noVariablesAvailable": "Geen variabelen beschikbaar",
@@ -1815,7 +1923,8 @@
     "searchPlaceholder": "Variabelen zoeken...",
     "indexLabel": "Index: {index}",
     "configureHint": "Configureer {arrayName} in Instellingen om geïndexeerde variabelen hier te zien.",
-    "configureExample": "Voorbeeld:"
+    "configureExample": "Voorbeeld:",
+    "noMatchingVariables": "Geen overeenkomende variabelen gevonden."
   },
   "login": {
     "signInTitle": "Inloggen bij FiestaBoard",
@@ -1873,11 +1982,62 @@
     "taskStatusAriaLabel": "Taakvoortgang",
     "taskProgressAriaLabel": "Voortgang AI-taken",
     "clearConversationAriaLabel": "Gesprek wissen",
-    "closePanelAriaLabel": "FiestaBot (Beta) sluiten"
+    "closePanelAriaLabel": "FiestaBot (Beta) sluiten",
+    "providerSelectAriaLabel": "Provider",
+    "modelSelectAriaLabel": "Model",
+    "showBoardTooltip": "Board-voorbeeld tonen",
+    "hideBoardTooltip": "Board-voorbeeld verbergen",
+    "undoTooltip": "Laatste AI-wijziging ongedaan maken",
+    "panelTitle": "FiestaBot (Beta)",
+    "retryButton": "Opnieuw proberen",
+    "messageLabel": "Bericht",
+    "stopButton": "Stoppen",
+    "sendButton": "Verzenden",
+    "tasksHeading": "Taken ({done}/{total})",
+    "emptyStateTitle": "Waarmee kan ik helpen?",
+    "emptyStateDescription": "Beschrijf wat je wilt bouwen of wijzigen.",
+    "showBoardButton": "Board tonen",
+    "undoButton": "Ongedaan maken",
+    "renameSummary": "→ hernoemen naar \"{name}\"",
+    "previewUnavailable": "(voorbeeld niet beschikbaar)"
   },
   "boardSizeIndicator": {
     "custom": "Aangepast",
     "ariaLabel": "{rows} rijen bij {cols} kolommen",
     "ariaLabelWithLayout": "{rows} rijen bij {cols} kolommen, {layout}"
+  },
+  "mcpSettings": {
+    "title": "MCP / externe clients",
+    "description": "Een vooraf gedeeld token waarmee Claude Desktop, Claude Code en andere MCP-clients met deze FiestaBoard kunnen communiceren. Het token authenticeert als één principal — alleen met toegang tot het {endpoint}-eindpunt — en kan dus geen pagina's of andere instellingen bewerken. Zie <link>MCP-client instellen</link> voor client-specifieke eigenaardigheden (Desktop heeft een stdio-proxy nodig; Connectors op claude.ai web vereisen publieke HTTPS en OAuth en bereiken dus geen host in het LAN).",
+    "statusLabel": "Status:",
+    "pinnedByEnvBadge": "Vastgezet door {envVar}",
+    "configuredBadge": "Geconfigureerd",
+    "pinnedByEnvDescription": "Het actieve token wordt ingesteld door de omgevingsvariabele {envVar}. Verwijder deze uit je {envFile} en herstart de container voordat je het token via deze interface beheert.",
+    "noTokenDescription": "Er is geen token geconfigureerd. Externe MCP-clients vallen terug op cookie-authenticatie, die Claude Desktop / Claude Code niet ondersteunen — hun registratie mislukt dan met een nietszeggende foutmelding. Genereer een token om ze te deblokkeren.",
+    "activeTokenDescription": "Er is een token geconfigureerd en actief. Roteer het om het vorige ongeldig te maken (elke client die het oude token nog gebruikt, krijgt vanaf dan 401), of trek het volledig in om terug te vallen op alleen cookie-authenticatie.",
+    "rotateTokenButton": "Token roteren",
+    "generateTokenButton": "Token genereren",
+    "revokeTokenButton": "Token intrekken",
+    "rotateConfirmTitle": "MCP-token roteren?",
+    "generateConfirmTitle": "MCP-token genereren?",
+    "rotateConfirmDescription": "Elke client die het vorige token nog gebruikt, wordt bij zijn volgende verzoek geweigerd met 401 + Bearer-challenge. Je ziet het nieuwe token één keer — bewaar het op een veilige plek (het is later niet meer uit te lezen via de interface).",
+    "generateConfirmDescription": "Je ziet het token één keer — bewaar het op een veilige plek (het is later niet meer uit te lezen via de interface). Externe MCP-clients gebruiken het om zich te authenticeren bij {endpoint}.",
+    "rotateConfirmButton": "Roteren",
+    "generateConfirmButton": "Genereren",
+    "revokeConfirmTitle": "MCP-token intrekken?",
+    "revokeConfirmDescription": "Externe MCP-clients krijgen bij hun volgende verzoek 401. Je kunt later altijd een nieuw token genereren.",
+    "revokeConfirmButton": "Intrekken",
+    "revealTitle": "Bewaar dit token",
+    "revealDescription": "FiestaBoard slaat alleen op wat nodig is om toekomstige verzoeken te verifiëren — dit is de enige keer dat de waarde in platte tekst wordt getoond. Kopieer hem nu naar je MCP-client.",
+    "tokenLabel": "Token",
+    "copyButton": "Kopiëren",
+    "copiedButton": "Gekopieerd",
+    "configSnippetLabel": "Claude Desktop-configuratiefragment",
+    "configSnippetDescription": "Plak dit in {configPath} en voeg het samen met wat er al staat. Sluit Claude Desktop daarna volledig af en start het opnieuw (⌘Q — het venster sluiten is niet genoeg). Claude Desktop ondersteunt alleen stdio-MCP-servers, dus dit fragment roept {mcpRemoteLink} aan via {npx} als proxy — Node 18+ moet geïnstalleerd zijn en {npx} bereikbaar via het PATH van Claude Desktop. Krijg je {commandNotFound}, vervang dan {npxQuoted} door het absolute pad uit {whichNpx}.",
+    "claudeCodeDescription": "<label>Claude Code (CLI):</label> communiceert rechtstreeks via HTTP — geen proxy nodig.",
+    "claudeWebDescription": "<label>claude.ai web (Connectors):</label> wordt niet ondersteund voor een zelf gehoste FiestaBoard. De Connectors-flow vereist een publieke HTTPS-URL en dynamische OAuth 2.1-clientregistratie, en geen van beide kan een host in het LAN bieden. Gebruik in plaats daarvan Desktop of Code.",
+    "savedItButton": "Ik heb het opgeslagen",
+    "toastTokenRevoked": "MCP-token ingetrokken",
+    "toastCopyFailed": "Kopiëren naar klembord mislukt"
   }
 }

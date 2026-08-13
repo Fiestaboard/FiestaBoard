@@ -8,6 +8,7 @@ import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
+import { useTranslations } from "@/i18n/translations";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ interface ColorTileAttrs {
 }
 
 export function ColorTileNodeView({ node }: ReactNodeViewProps) {
+  const t = useTranslations("templateEditor");
   const { color, code } = node.attrs as ColorTileAttrs;
   const colorKey = color.toLowerCase() as keyof typeof FIESTABOARD_COLORS;
   const bgColor = FIESTABOARD_COLORS[colorKey] || FIESTABOARD_COLORS.red;
@@ -94,9 +96,7 @@ export function ColorTileNodeView({ node }: ReactNodeViewProps) {
           </NodeViewWrapper>
         </TooltipTrigger>
         <TooltipContent>
-          <Text>
-            {color} tile (code {code}) - drag to move, backspace to delete
-          </Text>
+          <Text>{t("colorTileTooltip", { color, code })}</Text>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

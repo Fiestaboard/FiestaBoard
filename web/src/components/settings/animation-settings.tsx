@@ -217,7 +217,12 @@ export function AnimationSettings() {
                           : "border-muted hover:border-brand/50 text-foreground"
                       }`}
                     >
-                      {t(`flapSpeed_${option}`)}
+                      {/* The per-preset hint below the group names the default,
+                          but only for whatever is selected — so a user on
+                          "Relaxed" cannot tell what they moved away from. One
+                          combined string rather than an appended "(default)"
+                          so translators own the whole label. */}
+                      {t(option === "standard" ? "flapSpeed_standardWithDefault" : `flapSpeed_${option}`)}
                     </button>
                   );
                 })}

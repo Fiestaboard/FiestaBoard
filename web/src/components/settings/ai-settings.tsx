@@ -43,6 +43,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { useTranslations } from "@/i18n/translations";
 import type { AIProvider, AISettings } from "@/lib/api";
 import { api } from "@/lib/api";
 
@@ -108,6 +109,7 @@ function ProviderRow({
   onRemove,
   onMakeDefault,
 }: ProviderRowProps) {
+  const t = useTranslations("settings.ai");
   const [showKey, setShowKey] = useState(false);
   const [modelInput, setModelInput] = useState("");
   const [testing, setTesting] = useState(false);
@@ -175,12 +177,12 @@ function ProviderRow({
           </Text>
           {isDefault && (
             <Badge variant="default" className="h-5 text-[10px] shrink-0">
-              Default
+              {t("defaultBadge")}
             </Badge>
           )}
           {provider.protocol === "anthropic" && (
             <Badge variant="outline" className="h-5 text-[10px] shrink-0">
-              Anthropic
+              {t("anthropicBadge")}
             </Badge>
           )}
           <Text as="span" tone="muted" className="text-[11px] shrink-0">
@@ -198,7 +200,7 @@ function ProviderRow({
               disabled={provider.models.length === 0}
               title={provider.models.length === 0 ? "Add at least one model first" : "Make this the default provider"}
             >
-              Make default
+              {t("makeDefaultButton")}
             </Button>
           )}
           <Button
@@ -207,7 +209,7 @@ function ProviderRow({
             variant="ghost"
             className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
             onClick={onRemove}
-            aria-label="Remove provider"
+            aria-label={t("removeProviderAriaLabel")}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
@@ -218,7 +220,7 @@ function ProviderRow({
         <Stack gap="3" className="border-t p-3">
           <Stack gap="1.5">
             <Label htmlFor={`name-${provider.id}`} className="text-xs">
-              Name
+              {t("nameLabel")}
             </Label>
             <Input
               id={`name-${provider.id}`}
@@ -231,7 +233,7 @@ function ProviderRow({
 
           <Stack gap="1.5">
             <Label htmlFor={`protocol-${provider.id}`} className="text-xs">
-              Protocol
+              {t("protocolLabel")}
             </Label>
             <Select
               value={provider.protocol ?? "openai"}
@@ -246,18 +248,15 @@ function ProviderRow({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">
-                  OpenAI-compatible (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM
-                  Studio, vLLM, …)
-                </SelectItem>
-                <SelectItem value="anthropic">Anthropic (Messages API)</SelectItem>
+                <SelectItem value="openai">{t("protocolOpenaiOption")}</SelectItem>
+                <SelectItem value="anthropic">{t("protocolAnthropicOption")}</SelectItem>
               </SelectContent>
             </Select>
           </Stack>
 
           <Stack gap="1.5">
             <Label htmlFor={`url-${provider.id}`} className="text-xs">
-              Base URL
+              {t("baseUrlLabel")}
             </Label>
             <Input
               id={`url-${provider.id}`}
@@ -268,7 +267,7 @@ function ProviderRow({
             />
             <Stack gap="1" className="rounded-md border border-dashed bg-muted/30 p-2">
               <Text weight="medium" tone="muted" className="text-[10px] uppercase tracking-wide">
-                Quick presets
+                {t("quickPresetsLabel")}
               </Text>
               {(["cloud", "local"] as const).map((group) => {
                 const presets = PROVIDER_PRESETS.filter((p) => p.group === group);
@@ -306,7 +305,7 @@ function ProviderRow({
 
           <Stack gap="1.5">
             <Label htmlFor={`key-${provider.id}`} className="text-xs">
-              API Key
+              {t("apiKeyLabel")}
             </Label>
             <Box className="relative">
               <KeyRound className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -332,7 +331,7 @@ function ProviderRow({
           </Stack>
 
           <Stack gap="1.5">
-            <Label className="text-xs">Models</Label>
+            <Label className="text-xs">{t("modelsLabel")}</Label>
             <Flex gap="1.5">
               <Input
                 value={modelInput}
@@ -373,7 +372,7 @@ function ProviderRow({
           {provider.models.length > 0 && (
             <Stack gap="1.5">
               <Label htmlFor={`default-${provider.id}`} className="text-xs">
-                Default model
+                {t("defaultModelLabel")}
               </Label>
               <Select
                 value={provider.default_model || provider.models[0]}
@@ -404,7 +403,7 @@ function ProviderRow({
             >
               {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
               <Text as="span" size="xs">
-                Test connection
+                {t("testConnectionButton")}
               </Text>
             </Button>
             {testResult && (
@@ -423,6 +422,8 @@ function ProviderRow({
 }
 
 export function AiSettings() {
+  const t = useTranslations("settings.ai");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery<AISettings>({
@@ -517,16 +518,13 @@ export function AiSettings() {
           <Box>
             <CardTitle className="text-base flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
-              AI Providers
+              {t("cardTitle")}
             </CardTitle>
-            <CardDescription>
-              Configure OpenAI-compatible LLMs for the &ldquo;Gen AI&rdquo; page generator. BYO-LLM: FiestaBoard never
-              bundles a key.
-            </CardDescription>
+            <CardDescription>{t("cardDescription")}</CardDescription>
           </Box>
           <Flex align="center" gap="2" className="pt-1">
             <Label htmlFor="ai-enabled" className="text-xs">
-              {current.enabled ? "Enabled" : "Disabled"}
+              {current.enabled ? tCommon("enabled") : tCommon("disabled")}
             </Label>
             <Switch
               id="ai-enabled"
@@ -539,15 +537,12 @@ export function AiSettings() {
       </CardHeader>
       <CardContent className="space-y-3">
         <Alert>
-          <AlertDescription className="text-xs">
-            Your prompts and the variable list of your enabled plugins are sent directly to the provider you configure.
-            API keys are stored on this device and never sent anywhere else.
-          </AlertDescription>
+          <AlertDescription className="text-xs">{t("privacyNotice")}</AlertDescription>
         </Alert>
 
         {current.providers.length === 0 ? (
           <Text tone="muted" className="rounded-md border border-dashed p-6 text-center">
-            No providers configured yet.
+            {t("emptyState")}
           </Text>
         ) : (
           <Stack gap="3">
@@ -569,12 +564,12 @@ export function AiSettings() {
         <Flex wrap align="center" justify="between" gap="2" className="pt-1">
           <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addProvider}>
             <Plus className="h-3.5 w-3.5" />
-            Add provider
+            {t("addProviderButton")}
           </Button>
           {hasDraft && (
             <Flex gap="2">
               <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(null)}>
-                Discard
+                {t("discardButton")}
               </Button>
               <Button
                 type="button"
@@ -583,7 +578,7 @@ export function AiSettings() {
                 onClick={() => saveMutation.mutate(current)}
                 disabled={saveMutation.isPending}
               >
-                {saveMutation.isPending ? "Saving..." : "Save changes"}
+                {saveMutation.isPending ? tCommon("saving") : t("saveChangesButton")}
               </Button>
             </Flex>
           )}

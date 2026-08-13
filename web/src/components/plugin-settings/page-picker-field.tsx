@@ -3,6 +3,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 
+import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 interface PagePickerFieldProps {
@@ -17,6 +18,7 @@ interface PagePickerFieldProps {
 const NONE_VALUE = "__none__";
 
 export function PagePickerField({ id, value, onChange, disabled }: PagePickerFieldProps) {
+  const t = useTranslations("schemaForm");
   const { data: pagesData, isLoading } = useQuery({
     queryKey: ["pages"],
     queryFn: api.getPages,
@@ -33,10 +35,10 @@ export function PagePickerField({ id, value, onChange, disabled }: PagePickerFie
       modal={false}
     >
       <SelectTrigger id={id}>
-        <SelectValue placeholder={isLoading ? "Loading pages…" : "Choose a page…"} />
+        <SelectValue placeholder={isLoading ? t("pagePickerLoading") : t("pagePickerPlaceholder")} />
       </SelectTrigger>
       <SelectContent className="max-h-[300px] z-[120]">
-        <SelectItem value={NONE_VALUE}>None (no override)</SelectItem>
+        <SelectItem value={NONE_VALUE}>{t("pagePickerNone")}</SelectItem>
         {pages.map((page) => (
           <SelectItem key={page.id} value={page.id}>
             {page.name}

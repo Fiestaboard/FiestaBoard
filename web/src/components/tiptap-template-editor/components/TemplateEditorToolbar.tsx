@@ -338,7 +338,7 @@ export function TemplateEditorToolbar({
                   canUndo ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
                   "border-r border-border",
                 )}
-                aria-label="Undo"
+                aria-label={t("undoAriaLabel")}
               >
                 <Undo2 className="w-4 h-4" />
               </button>
@@ -358,7 +358,7 @@ export function TemplateEditorToolbar({
                   "px-2 py-1.5 transition-colors",
                   canRedo ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
                 )}
-                aria-label="Redo"
+                aria-label={t("redoAriaLabel")}
               >
                 <Redo2 className="w-4 h-4" />
               </button>
@@ -478,7 +478,7 @@ export function TemplateEditorToolbar({
                       hasSelection ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
                       "border-r border-border",
                     )}
-                    aria-label="Cut"
+                    aria-label={t("cutAriaLabel")}
                   >
                     <Scissors className="w-4 h-4" />
                   </button>
@@ -499,7 +499,7 @@ export function TemplateEditorToolbar({
                       hasSelection ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
                       "border-r border-border",
                     )}
-                    aria-label="Copy"
+                    aria-label={t("copyAriaLabel")}
                   >
                     <Copy className="w-4 h-4" />
                   </button>
@@ -519,7 +519,7 @@ export function TemplateEditorToolbar({
                       "px-2 py-1.5 transition-colors",
                       hasClipboardContent ? "hover:bg-muted/50" : "opacity-60 cursor-not-allowed",
                     )}
-                    aria-label="Paste"
+                    aria-label={t("pasteAriaLabel")}
                   >
                     <ClipboardPaste className="w-4 h-4" />
                   </button>

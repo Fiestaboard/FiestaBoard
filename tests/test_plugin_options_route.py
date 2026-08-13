@@ -216,6 +216,35 @@ def test_an_unexpected_plugin_exception_is_a_502(registry, client):
     assert response.status_code == 502
 
 
+def test_an_unexpected_plugin_exception_does_not_leak_its_text(registry, client):
+    """Plugin tracebacks carry keys/URLs/paths. The 502 detail is a static
+    message; the real exception goes to the server log only (CodeQL
+    py/stack-trace-exposure, alert #72)."""
+    registry.result = _raises(RuntimeError("SECRET_INTERNAL_XYZ token=abc123"))
+
+    response = _post(client)
+
+    assert response.status_code == 502
+    assert "SECRET_INTERNAL_XYZ" not in response.text
+    assert response.json()["detail"] == "Options provider failed"
+
+
+def test_a_stale_fallback_does_not_leak_the_new_failures_text(registry, client):
+    """The stale payload's ``error`` field is shown inline in the widget — it
+    must describe the failure without echoing the raw exception (CodeQL
+    py/stack-trace-exposure, alert #72)."""
+    _post(client)
+    registry.result = _raises(RuntimeError("SECRET_INTERNAL_XYZ token=abc123"))
+
+    response = _post(client, refresh=True)
+
+    assert response.status_code == 200
+    assert "SECRET_INTERNAL_XYZ" not in response.text
+    payload = response.json()
+    assert payload["stale"] is True
+    assert payload["error"] == "Options provider failed"
+
+
 def _blocking_provider(release: threading.Event, seconds: float = 1.0):
     """A plugin behaviour that hangs until *release* is set (or *seconds* pass).
 
