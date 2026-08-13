@@ -340,26 +340,66 @@ class TestWrapDetectionLinearTime:
     CodeQL alert #65 (py/polynomial-redos): the former detection regex
     ``\\{\\{([^}]+\\|wrap(?:\\|[^}]*)?)\\}\\}`` was quadratic on unclosed
     ``{{`` runs. Templates are user-authored (pages/API), so these inputs
-    are reachable. At the committed sizes the old code took tens of
-    seconds; the linear scanner finishes in milliseconds.
+    are reachable.
+
+    Rather than an absolute wall-clock bound (flaky on slow shared CI
+    runners), these assert the growth property itself: a 4x larger input
+    may not take quadratically (~16x) longer. Quadratic code fails at any
+    machine speed; linear code passes at any machine speed — on a fast
+    machine via the FAST_ENOUGH short-circuit, on a slow one via the
+    ratio. Measured on the old regex (repo test container): the "||wrap|"
+    shape grew 1.28s -> 20.63s (16.1x) end to end, and the "{{|" shape
+    grew 1.17s -> 18.74s (16.1x) at the detection step; the linear
+    scanner handles both large inputs in milliseconds.
+
+    The "{{|" brace-flood shape is asserted at the detection level only:
+    the downstream ``_split_into_tokens``/``_count_tiles`` tile scan does
+    ``text.find("}", i)`` per "{" and is therefore quadratic on "}"-free
+    brace floods — a pre-existing issue independent of alert #65, so
+    end-to-end growth cannot be asserted on that shape.
     """
 
-    BOUND_SECONDS = 2.0
+    GROWTH_LIMIT = 8.0  # quadratic growth is ~16x for a 4x input
+    FAST_ENOUGH = 1.0  # seconds; below this, growth rate is irrelevant
+    NOISE_FLOOR = 0.05  # seconds; keeps the ratio denominator meaningful
 
-    def _assert_fast(self, engine, template):
+    @staticmethod
+    def _timed(fn):
         start = time.perf_counter()
-        engine._render_with_wrap(template, {}, max_lines=1)
-        elapsed = time.perf_counter() - start
-        assert elapsed < self.BOUND_SECONDS, f"wrap detection took {elapsed:.2f}s (bound {self.BOUND_SECONDS}s)"
+        fn()
+        return time.perf_counter() - start
 
-    def test_unclosed_brace_pipe_runs_are_linear(self, engine):
-        self._assert_fast(engine, "{{" + "{{|" * 100_000)
+    def _assert_linear_growth(self, run, make_template, n):
+        small = self._timed(lambda: run(make_template(n)))
+        large = self._timed(lambda: run(make_template(4 * n)))
+        if large < self.FAST_ENOUGH:
+            return
+        ratio = large / max(small, self.NOISE_FLOOR)
+        assert ratio < self.GROWTH_LIMIT, (
+            f"4x input grew {ratio:.1f}x ({small:.2f}s -> {large:.2f}s); "
+            f"expected < {self.GROWTH_LIMIT}x for linear-time wrap detection"
+        )
 
-    def test_unclosed_wrap_pipe_runs_are_linear(self, engine):
-        self._assert_fast(engine, "{{||wrap|" + "||wrap|" * 30_000)
+    def test_wrap_pipe_flood_renders_in_linear_time(self, engine):
+        self._assert_linear_growth(
+            lambda t: engine._render_with_wrap(t, {}, max_lines=1),
+            lambda n: "{{||wrap|" + "||wrap|" * n,
+            7_500,
+        )
 
-    def test_long_unclosed_variable_is_linear(self, engine):
-        self._assert_fast(engine, "{{" + "a" * 50_000)
+    def test_long_unclosed_variable_renders_in_linear_time(self, engine):
+        self._assert_linear_growth(
+            lambda t: engine._render_with_wrap(t, {}, max_lines=1),
+            lambda n: "{{" + "a" * n,
+            12_500,
+        )
+
+    def test_brace_pipe_flood_detection_is_linear(self, engine):
+        self._assert_linear_growth(
+            engine._find_wrap_expression,
+            lambda n: "{{" + "{{|" * n,
+            25_000,
+        )
 
 
 # ---------------------------------------------------------------------------
