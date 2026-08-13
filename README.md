@@ -165,6 +165,7 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 | [On This Day](https://github.com/Fiestaboard/fiestaboard-plugin--on-this-day) | Historical event from today's date | No |
 | [Pet Facts](https://github.com/Fiestaboard/fiestaboard-plugin--pet-facts) | Random cat or dog fact | No |
 | [Pi-hole Stats](https://github.com/Fiestaboard/fiestaboard-plugin--pihole) | DNS query stats from local Pi-hole | No |
+| [Price List](https://github.com/Fiestaboard/fiestaboard-plugin--price-list) | Styled price list or menu sign with page rotation | No |
 | [Quote of the Day](https://github.com/Fiestaboard/fiestaboard-plugin--quote-of-day) | Daily inspirational quote | No |
 | [Random](./plugins/random/README.md) | Randomly selected values from a custom list, coin flip, or board color | No |
 | [Reddit Hot](https://github.com/Fiestaboard/fiestaboard-plugin--reddit-hot) | Top post from any subreddit | No |
