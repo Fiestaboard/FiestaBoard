@@ -23,11 +23,12 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Moon } from "lucide-react";
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { TimePicker } from "@/components/ui/time-picker";
 import { usePages } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 import { localTimeToUTC, utcToLocalTime } from "@/lib/timezone-utils";
@@ -56,10 +57,15 @@ export function SilenceSchedule() {
   const generalConfig = allSettings?.general;
   const silenceConfig = allSettings?.silence_schedule;
   const deferredSilenceConfig = useDeferredValue(silenceConfig);
-  const initializedRef = useRef(false);
+  // Seed the form from the saved schedule exactly once, during render rather
+  // than from an effect, so the stored times are in the first commit instead
+  // of replacing 20:00/07:00 a render later (react-hooks/set-state-in-effect,
+  // issue #1568). The "once" guard is state, not a ref, because refs must not
+  // be read during render either.
+  const [initialized, setInitialized] = useState(false);
+  const configChanged = useDepsChanged([deferredSilenceConfig, generalConfig?.timezone]);
 
-  useEffect(() => {
-    if (initializedRef.current) return;
+  if (configChanged && !initialized) {
     const rawConfig = (deferredSilenceConfig as { config?: Record<string, unknown> } | undefined)?.config;
     if (rawConfig && generalConfig?.timezone) {
       const userTimezone = generalConfig.timezone ?? "America/Los_Angeles";
@@ -81,9 +87,9 @@ export function SilenceSchedule() {
       setSilenceIndicatorPosition(((config.indicator_position as string) ?? "") || "center");
 
       setHasChanges(false);
-      initializedRef.current = true;
+      setInitialized(true);
     }
-  }, [deferredSilenceConfig, generalConfig?.timezone]);
+  }
 
   const updateSilenceMutation = useMutation({
     mutationFn: (data: Parameters<typeof api.updateSilenceSchedule>[0]) => api.updateSilenceSchedule(data),

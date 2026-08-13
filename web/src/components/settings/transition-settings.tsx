@@ -21,6 +21,7 @@ import { Info, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type { TransitionSettings as TransitionSettingsType } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -78,15 +79,15 @@ export function TransitionSettings() {
   const [stepSize, setStepSize] = useState<number | "">("");
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Sync local state when settings load
-  useEffect(() => {
-    if (transitions) {
-      setStrategy(transitions.strategy);
-      setStepIntervalMs(transitions.step_interval_ms ?? "");
-      setStepSize(transitions.step_size ?? "");
-      setHasChanges(false);
-    }
-  }, [transitions]);
+  // Sync local state when settings load. Done during render rather than in an
+  // effect so the stored strategy is selected in the first commit
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([transitions]) && transitions) {
+    setStrategy(transitions.strategy);
+    setStepIntervalMs(transitions.step_interval_ms ?? "");
+    setStepSize(transitions.step_size ?? "");
+    setHasChanges(false);
+  }
 
   const updateMutation = useMutation({
     mutationFn: (settings: Partial<TransitionSettingsType>) => api.updateTransitionSettings(settings),

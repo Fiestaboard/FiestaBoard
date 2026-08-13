@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Flex, Stack, Switch, Text } from "@fiestaboard/ui";
 import { Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 import { HIDE_FESTIVE_COOKIE } from "@/lib/pride";
@@ -35,11 +35,12 @@ function writeCookie(hide: boolean) {
  */
 export function FestiveMonthsSettings() {
   const t = useTranslations("festiveMonthsSettings");
-  const [hide, setHide] = useState(false);
-
-  useEffect(() => {
-    setHide(readCookie());
-  }, []);
+  // Read the cookie in the state initializer, not a mount effect: an effect
+  // would render the switch off and flip it a render later
+  // (react-hooks/set-state-in-effect, issue #1568). This mirrors what
+  // `app/root.tsx::Layout` already does with the same cookie, and `readCookie`
+  // is SSR-safe on its own.
+  const [hide, setHide] = useState(readCookie);
 
   const onToggle = (checked: boolean) => {
     setHide(checked);
