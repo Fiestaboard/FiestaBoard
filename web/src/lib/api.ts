@@ -1360,6 +1360,12 @@ export interface RegistryEntry {
   category: string;
   installed: boolean;
   /**
+   * "data" (a plugin that publishes template variables) or "transition" (a
+   * frame-by-frame board animation). Absent on registry payloads that predate
+   * the field — treat missing as "data".
+   */
+  plugin_type?: "data" | "transition";
+  /**
    * One-line board strip for the marketplace card, at most 15 tiles. Empty for
    * plugins that predate the previews contract.
    */
