@@ -50,7 +50,8 @@
     "pageCount": "{count, plural, one {# sayfa} other {# sayfa}}",
     "unknownError": "Bilinmeyen hata",
     "opensInNewTab": "(yeni sekmede açılır)",
-    "notificationsRegionLabel": "Bildirimler"
+    "notificationsRegionLabel": "Bildirimler",
+    "versionShort": "v{version}"
   },
   "metadata": {
     "appTitle": "FiestaBoard Kontrol",
@@ -81,7 +82,8 @@
     "boardSelector": "Yönetilecek panoyu seçin",
     "selectBoard": "Pano seçin",
     "unnamedBoard": "Adsız pano",
-    "transitions": "Geçiş Laboratuvarı"
+    "transitions": "Geçiş Laboratuvarı",
+    "prideCelebration": "Mutlu Onurlar!"
   },
   "network": {
     "title": "Wi-Fi",
@@ -330,7 +332,11 @@
       "validationOneOffDateRequired": "Please pick a date",
       "validationEndDateBeforeStart": "End date must be on or after start date",
       "collectionSizeWarning": "Bu koleksiyondaki {total} sayfadan {count} tanesi bu panonun boyutuna uymuyor ve atlanacak.",
-      "incompatiblePageWarning": "Bu sayfa bu panonun boyutuyla eşleşmiyor ve doğru görüntülenmeyebilir."
+      "incompatiblePageWarning": "Bu sayfa bu panonun boyutuyla eşleşmiyor ve doğru görüntülenmeyebilir.",
+      "monthAriaLabel": "Ay",
+      "dayAriaLabel": "Gün",
+      "endMonthAriaLabel": "Bitiş ayı",
+      "endDayAriaLabel": "Bitiş günü"
     },
     "descriptionWithTimezone": "Sayfa rotasyonunu saat ve güne göre otomatikleştir · {timezone}",
     "gapDefaultPlaceholder": "Boşluk varsayılanı…",
@@ -472,7 +478,37 @@
     "toastNoUpdates": "Tüm eklentiler güncel",
     "toastCheckFailed": "Güncellemeler kontrol edilemedi: {error}",
     "installAction": "Kur",
-    "installedBadge": "Kuruldu"
+    "installedBadge": "Kuruldu",
+    "valueUnavailable": "Kullanılamıyor",
+    "enablePluginForLiveValues": "Canlı değerleri görmek için eklentiyi etkinleştirin.",
+    "liveValuesUnavailable": "Canlı değerler kullanılamıyor.",
+    "liveValuesUnavailableWithError": "Canlı değerler kullanılamıyor: {error}",
+    "currentValueColumn": "Mevcut Değer",
+    "refreshingValues": "yenileniyor…",
+    "sourceCoreBadge": "Yerleşik",
+    "sourceMarketplaceBadge": "Marketplace",
+    "sourceExternalBadge": "Harici",
+    "updateAvailableBadge": "Güncelleme",
+    "moreOptionsAriaLabel": "Diğer seçenekler",
+    "addInstanceAction": "Örnek Ekle",
+    "instanceNameInlineLabel": "Örnek adı:",
+    "addInstanceInlineHelp": "Bu eklentinin kendi yapılandırmasına sahip yeni ve bağımsız bir örneğini oluşturur. Alfasayısal karakterler, tireler veya alt çizgiler kullanın (1-40 karakter).",
+    "deleteInstanceConfirmTitle": "\"{label}\" örneği silinsin mi?",
+    "deletePluginConfirmTitle": "\"{name}\" silinsin mi?",
+    "deleteInstanceConfirmDescription": "Bu, bu örneği ve yapılandırmasını kalıcı olarak kaldırır. Bu işlem geri alınamaz.",
+    "deletePluginConfirmDescription": "Bu, eklentiyi ve tüm örneklerini kalıcı olarak kaldırır. Bu işlem geri alınamaz.",
+    "demoPage": {
+      "title": "Demo Sayfası",
+      "alreadyExists": "Bu eklenti için zaten bir demo sayfası var.",
+      "createDescription": "Bu eklentiyi tanıtan, kullanıma hazır bir sayfa oluşturun.",
+      "recreateButton": "Yeniden oluştur",
+      "recreateConfirmTitle": "Demo sayfası yeniden oluşturulsun mu?",
+      "recreateConfirmDescription": "Bu, mevcut demo sayfasını silip varsayılan ayarlarla yenisini oluşturur. Bu işlem geri alınamaz.",
+      "creating": "Oluşturuluyor...",
+      "createAction": "Demo Sayfası Oluştur",
+      "recreateAction": "Demo Sayfasını Yeniden Oluştur",
+      "requirementsWarning": "Demo sayfası oluşturmadan önce aşağıdaki zorunlu ayarları yapılandırın."
+    }
   },
   "settings": {
     "title": "Ayarlar",
@@ -496,7 +532,43 @@
     "sectionAccount": "Hesap",
     "sectionAccountDescription": "Kullanıcı adı, şifre ve çıkış",
     "sectionNetwork": "Ağ",
-    "sectionNetworkDescription": "Wi-Fi ve bağlantıyı yönet"
+    "sectionNetworkDescription": "Wi-Fi ve bağlantıyı yönet",
+    "ai": {
+      "removeProviderAriaLabel": "Sağlayıcıyı kaldır",
+      "cardTitle": "Yapay Zeka Sağlayıcıları",
+      "cardDescription": "\"Gen AI\" sayfa oluşturucusu için OpenAI uyumlu LLM'leri yapılandırın. BYO-LLM: FiestaBoard hiçbir zaman hazır anahtar içermez.",
+      "privacyNotice": "İstemleriniz ve etkin eklentilerinizin değişken listesi doğrudan yapılandırdığınız sağlayıcıya gönderilir. API anahtarları bu cihazda saklanır ve başka hiçbir yere gönderilmez.",
+      "emptyState": "Henüz sağlayıcı yapılandırılmadı.",
+      "addProviderButton": "Sağlayıcı ekle",
+      "discardButton": "Vazgeç",
+      "saveChangesButton": "Değişiklikleri kaydet",
+      "defaultBadge": "Varsayılan",
+      "anthropicBadge": "Anthropic",
+      "makeDefaultButton": "Varsayılan yap",
+      "nameLabel": "Ad",
+      "protocolLabel": "Protokol",
+      "protocolOpenaiOption": "OpenAI uyumlu (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolAnthropicOption": "Anthropic (Messages API)",
+      "baseUrlLabel": "Temel URL",
+      "quickPresetsLabel": "Hızlı önayarlar",
+      "apiKeyLabel": "API Anahtarı",
+      "modelsLabel": "Modeller",
+      "defaultModelLabel": "Varsayılan model",
+      "testConnectionButton": "Bağlantıyı test et"
+    },
+    "backup": {
+      "cardTitle": "Yedekleme ve Geri Yükleme",
+      "cardDescription": "FiestaBoard yapılandırmanızın tamamını — board ayarları, sayfalar, döngüler, zamanlamalar ve eklenti yapılandırması — tek bir JSON dosyası olarak dışa aktarın. Taşımak veya bir yükseltmeden sonra kurtarmak için bu dosyayı yeni bir örneğe yeniden yükleyin.",
+      "exportButton": "Yedeği dışa aktar",
+      "importButton": "Yedeği içe aktar…",
+      "reinstallPluginsLabel": "İçe aktarmadan sonra harici eklentileri yeniden kur",
+      "reinstallPluginsDescription": "Etkinleştirildiğinde FiestaBoard, yedekte kayıtlı olup bu örneğe henüz kurulmamış harici eklentileri klonlamayı dener. Yapılandırmaları her durumda yedekten geri yüklenir.",
+      "sensitiveNote": "Not: yedekler, API anahtarları ve board kimlik bilgileri gibi hassas değerleri düz metin olarak içerir. Dosyayı güvenli bir yerde saklayın ve herkese açık şekilde paylaşmayın.",
+      "confirmTitle": "Mevcut yapılandırma değiştirilsin mi?",
+      "confirmDescription": "<file></file> dosyasını geri yüklemek üzeresiniz. Mevcut sayfalarınızın, döngülerinizin, zamanlamalarınızın ve yapılandırmanızın üzerine yazılacak. Gerekirse elle geri dönebilmeniz için her mevcut dosyanın zaman damgalı bir kopyası yenisinin yanında saklanır.",
+      "restoringButton": "Geri yükleniyor…",
+      "restoreButton": "Yedeği geri yükle"
+    }
   },
   "offline": {
     "youreOffline": "Çevrimdışısınız",
@@ -581,7 +653,10 @@
       "passwordPlaceholder": "SifrenizBurada",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "ŞİFRE: {password}",
-      "noPassword": "(şifresiz)"
+      "noPassword": "(şifresiz)",
+      "addMoreHint": "Dilediğiniz zaman <link>Entegrasyonlar</link> sayfasından daha fazlasını ekleyebilirsiniz.",
+      "builtInBadge": "Yerleşik",
+      "previewLabel": "Önizleme:"
     },
     "welcome": {
       "setupComplete": "Kurulum Tamamlandı!",
@@ -639,7 +714,9 @@
     "changeModeDisableTitle": "Zamanlama modunu kapat",
     "changeModeDisableDescription": "Zamanlamayı devre dışı bırakıp board'u manuel olarak kontrol edin.",
     "changeModeDisableSuccess": "Zamanlama modu devre dışı bırakıldı",
-    "collectionSizeWarning": "Bu koleksiyondaki {total} sayfadan {count} tanesi bu panonun boyutuna uymuyor ve atlanacak."
+    "collectionSizeWarning": "Bu koleksiyondaki {total} sayfadan {count} tanesi bu panonun boyutuna uymuyor ve atlanacak.",
+    "turnOffLiveModeAriaLabel": "Canlı Modu kapat",
+    "liveModeBadge": "Canlı Mod"
   },
   "forceSetDialog": {
     "title": "Board'u Zorla Ayarla",
@@ -882,7 +959,10 @@
     "updateNow": "Şimdi Güncelle",
     "oneClickHint": "Burada tek tıkla \"Şimdi Güncelle\" düğmesi mi istiyorsunuz? <envFile></envFile> dosyanızda <profile></profile> ayarlayın, ardından <command></command> komutunu çalıştırın.",
     "dialogTitle": "FiestaBoard güncellensin mi?",
-    "dialogDescription": "Bu, <version></version> sürümünü çekip FiestaBoard'u yeniden başlatır. Board ekranı yaklaşık 30 saniye duraklar ve bu sayfa otomatik olarak yeniden yüklenir."
+    "dialogDescription": "Bu, <version></version> sürümünü çekip FiestaBoard'u yeniden başlatır. Board ekranı yaklaşık 30 saniye duraklar ve bu sayfa otomatik olarak yeniden yüklenir.",
+    "intervalSelectAriaLabel": "Güncelleme kontrol sıklığı",
+    "intervalCardDescription": "FiestaBoard'un arka planda ne sıklıkla yeni sürüm arayacağı. Bir sürüm bulunduğunda burada bir bildirim şeridi görürsünüz.",
+    "lastChecked": "Son kontrol: {time}"
   },
   "transitionSettings": {
     "title": "Pano Geçişleri",
@@ -1008,7 +1088,8 @@
       "Numbers": "Sayılar",
       "Symbols": "Semboller",
       "Colors": "Renkler"
-    }
+    },
+    "latencyMs": "{ms} ms"
   },
   "generalSettings": {
     "title": "Genel Ayarlar",
@@ -1375,7 +1456,8 @@
     "flapSpeed_relaxedHint": "{ms} ms — ortam ekranları için yavaş, ölçülü bir çevirme.",
     "flapSpeedPreviewLabel": "Önizleme",
     "flapSpeedInactive": "Board animasyonları kapalı, bu yüzden çevirme hızının etkisi yok.",
-    "flapSpeedScreenOnlyNote": "Bu yalnızca ekrandaki board önizlemesini değiştirir. Fiziksel Vestaboard'unuzun kendi geçiş hızı ayrı olarak Davranış → Board geçişleri altında ayarlanır."
+    "flapSpeedScreenOnlyNote": "Bu yalnızca ekrandaki board önizlemesini değiştirir. Fiziksel Vestaboard'unuzun kendi geçiş hızı ayrı olarak Davranış → Board geçişleri altında ayarlanır.",
+    "updateAvailableBadge": "v{version} mevcut"
   },
   "monitor": {
     "title": "Monitör",
@@ -1647,7 +1729,8 @@
     "whiteBoard": "Beyaz pano",
     "deviceFlagship": "Flagship",
     "deviceNote": "Note",
-    "deviceNoteArray": "Note dizisi {w}×{h}"
+    "deviceNoteArray": "Note dizisi {w}×{h}",
+    "githubLink": "GitHub"
   },
   "boardDisplay": {
     "loading": "Board ekranı yükleniyor",
@@ -1736,7 +1819,12 @@
     "remoteOptionsSearchPlaceholder": "Ara…",
     "remoteOptionsCustomLabel": "Özel değer",
     "remoteOptionsCustomPlaceholder": "Listede olmayan bir değer girin",
-    "remoteOptionsCustomAdd": "Özel değer ekle"
+    "remoteOptionsCustomAdd": "Özel değer ekle",
+    "addItemLabel": "{label} ekle",
+    "unknownType": "Bilinmeyen tür: {type}",
+    "pagePickerNone": "Yok (geçersiz kılma yok)",
+    "pagePickerLoading": "Sayfalar yükleniyor…",
+    "pagePickerPlaceholder": "Bir sayfa seçin…"
   },
   "filterPicker": {
     "noFiltersAvailable": "Kullanılabilir filtre yok",
@@ -1744,7 +1832,8 @@
     "filterDescWrap": "Uzun metni birden çok satıra kaydırır",
     "filterDescPad": "Metni belirtilen genişliğe doldurur",
     "filterDescTruncate": "Metni belirtilen uzunluğa kırpar",
-    "wrapInstruction": "|wrap: Uzun metni kaydırır. Metnin akabilmesi için aşağıda boş satırlar bırakın."
+    "wrapInstruction": "Uzun metni kaydırır. Metnin akabilmesi için aşağıda boş satırlar bırakın.",
+    "exampleLabel": "Örnek: {example}"
   },
   "formattingPicker": {
     "noFormattingAvailable": "Kullanılabilir biçimlendirme seçeneği yok",
@@ -1805,7 +1894,25 @@
     "alignRight": "Sağa hizala",
     "syncFromBoardTooltip": "Şablonu şu anda board'da gösterilenden doldur",
     "syncFromBoard": "Mevcut board ekranından senkronize et",
-    "alignment": "Hizalama:"
+    "alignment": "Hizalama:",
+    "undoAriaLabel": "Geri al",
+    "redoAriaLabel": "Yinele",
+    "cutAriaLabel": "Kes",
+    "copyAriaLabel": "Kopyala",
+    "pasteAriaLabel": "Yapıştır",
+    "removeWrappedTextAriaLabel": "Kaydırılan metni kaldır",
+    "colorPickerAriaLabel": "Renk seçici",
+    "heartCharacterAriaLabel": "Kalp karakteri",
+    "lineCount": "{used} / {max} satır",
+    "overLineLimit": " — {max} satırlık board sınırını aşıyor",
+    "currentLine": "(Satır {line})",
+    "heartLabel": "kalp",
+    "insertHeartTooltip": "Kalp karakteri ekle (yalnızca Note)",
+    "colorTileTooltip": "{color} karesi (kod {code}) - taşımak için sürükleyin, silmek için backspace",
+    "fillSpaceTooltip": "Boşluğu doldur - satırın kalan genişliğini dolduracak şekilde genişler",
+    "fillSpaceRepeatTooltip": "Boşluğu doldur, tekrarlanan: {char}",
+    "variableFilterTooltip": "Filtre: {filter}",
+    "variableMaxLengthTooltip": "Maksimum uzunluk: {maxLength} karakter"
   },
   "variablePicker": {
     "noVariablesAvailable": "Kullanılabilir değişken yok",
@@ -1815,7 +1922,8 @@
     "searchPlaceholder": "Değişken ara...",
     "indexLabel": "Dizin: {index}",
     "configureHint": "Burada dizinlenmiş değişkenleri görmek için Ayarlar'da {arrayName} öğesini yapılandırın.",
-    "configureExample": "Örnek:"
+    "configureExample": "Örnek:",
+    "noMatchingVariables": "Eşleşen değişken bulunamadı."
   },
   "login": {
     "signInTitle": "FiestaBoard'a giriş yap",
@@ -1873,11 +1981,62 @@
     "taskStatusAriaLabel": "Görev ilerlemesi",
     "taskProgressAriaLabel": "AI görev ilerlemesi",
     "clearConversationAriaLabel": "Konuşmayı temizle",
-    "closePanelAriaLabel": "FiestaBot (Beta)'yı kapat"
+    "closePanelAriaLabel": "FiestaBot (Beta)'yı kapat",
+    "providerSelectAriaLabel": "Sağlayıcı",
+    "modelSelectAriaLabel": "Model",
+    "showBoardTooltip": "Board önizlemesini göster",
+    "hideBoardTooltip": "Board önizlemesini gizle",
+    "undoTooltip": "Son yapay zeka değişikliğini geri al",
+    "panelTitle": "FiestaBot (Beta)",
+    "retryButton": "Yeniden dene",
+    "messageLabel": "Mesaj",
+    "stopButton": "Durdur",
+    "sendButton": "Gönder",
+    "tasksHeading": "Görevler ({done}/{total})",
+    "emptyStateTitle": "Nasıl yardımcı olabilirim?",
+    "emptyStateDescription": "Ne oluşturmak veya değiştirmek istediğinizi anlatın.",
+    "showBoardButton": "Board'u göster",
+    "undoButton": "Geri al",
+    "renameSummary": "→ \"{name}\" olarak yeniden adlandır",
+    "previewUnavailable": "(önizleme kullanılamıyor)"
   },
   "boardSizeIndicator": {
     "custom": "Özel",
     "ariaLabel": "{rows} satır {cols} sütun",
     "ariaLabelWithLayout": "{rows} satır {cols} sütun, {layout}"
+  },
+  "mcpSettings": {
+    "title": "MCP / harici istemciler",
+    "description": "Claude Desktop, Claude Code ve diğer MCP istemcilerinin bu FiestaBoard ile konuşmasını sağlayan, önceden paylaşılmış bir token. Token tek bir kimlik olarak doğrulanır — yalnızca {endpoint} uç noktasıyla sınırlıdır — bu yüzden sayfaları veya diğer ayarları düzenleyemez. İstemciye özgü ayrıntılar için <link>MCP istemci kurulumu</link> bölümüne bakın (Desktop bir stdio proxy'si ister; claude.ai web Connectors herkese açık HTTPS ve OAuth gerektirdiğinden bir LAN sunucusuna ulaşamaz).",
+    "statusLabel": "Durum:",
+    "pinnedByEnvBadge": "{envVar} ile sabitlendi",
+    "configuredBadge": "Yapılandırıldı",
+    "pinnedByEnvDescription": "Etkin token, {envVar} ortam değişkeni tarafından belirleniyor. Token'ı bu arayüzden yönetmeden önce {envFile} dosyanızdaki bu değişkeni kaldırın ve container'ı yeniden başlatın.",
+    "noTokenDescription": "Yapılandırılmış token yok. Harici MCP istemcileri çerez tabanlı kimlik doğrulamaya geri döner; Claude Desktop / Claude Code bunu desteklemediği için kayıt anlaşılmaz bir hatayla başarısız olur. Onların çalışabilmesi için bir token oluşturun.",
+    "activeTokenDescription": "Yapılandırılmış ve etkin bir token var. Öncekini geçersiz kılmak için yenileyin (eski token'ı hâlâ kullanan istemciler 401 almaya başlar) veya yalnızca çerez tabanlı kimlik doğrulamaya dönmek için tamamen iptal edin.",
+    "rotateTokenButton": "Token'ı yenile",
+    "generateTokenButton": "Token oluştur",
+    "revokeTokenButton": "Token'ı iptal et",
+    "rotateConfirmTitle": "MCP token'ı yenilensin mi?",
+    "generateConfirmTitle": "MCP token'ı oluşturulsun mu?",
+    "rotateConfirmDescription": "Önceki token'ı hâlâ kullanan istemciler bir sonraki isteklerinde 401 + Bearer sorgusuyla reddedilir. Yeni token'ı yalnızca bir kez göreceksiniz — güvenli bir yerde saklayın (arayüzden tekrar okunamaz).",
+    "generateConfirmDescription": "Token'ı yalnızca bir kez göreceksiniz — güvenli bir yerde saklayın (arayüzden tekrar okunamaz). Harici MCP istemcileri {endpoint} adresinde kimlik doğrulamak için bunu kullanır.",
+    "rotateConfirmButton": "Yenile",
+    "generateConfirmButton": "Oluştur",
+    "revokeConfirmTitle": "MCP token'ı iptal edilsin mi?",
+    "revokeConfirmDescription": "Harici MCP istemcileri bir sonraki isteklerinde 401 almaya başlar. Daha sonra istediğiniz zaman yeni bir token oluşturabilirsiniz.",
+    "revokeConfirmButton": "İptal et",
+    "revealTitle": "Bu token'ı kaydedin",
+    "revealDescription": "FiestaBoard yalnızca gelecekteki istekleri doğrulamak için gerekli olanı saklar — düz metin değer yalnızca bu bir kez gösterilir. Şimdi MCP istemcinize kopyalayın.",
+    "tokenLabel": "Token",
+    "copyButton": "Kopyala",
+    "copiedButton": "Kopyalandı",
+    "configSnippetLabel": "Claude Desktop yapılandırma parçacığı",
+    "configSnippetDescription": "Bunu {configPath} dosyasına, orada zaten bulunanlarla birleştirerek yapıştırın, ardından Claude Desktop'tan tamamen çıkıp yeniden başlatın (⌘Q — pencereyi kapatmak yeterli değildir). Claude Desktop yalnızca stdio MCP sunucularını desteklediğinden bu parçacık, proxy olarak {npx} aracılığıyla {mcpRemoteLink} çağırır — Node 18+ kurulu olmalı ve {npx}, Claude Desktop'ın PATH'inden erişilebilir olmalıdır. {commandNotFound} hatası verirse {npxQuoted} yerine {whichNpx} çıktısındaki mutlak yolu yazın.",
+    "claudeCodeDescription": "<label>Claude Code (CLI):</label> doğrudan HTTP konuşur — proxy gerekmez.",
+    "claudeWebDescription": "<label>claude.ai web (Connectors):</label> kendi barındırdığınız FiestaBoard için desteklenmez. Connectors akışı herkese açık bir HTTPS adresi ve OAuth 2.1 dinamik istemci kaydı gerektirir; bir LAN sunucusu bunların ikisini de sağlayamaz. Bunun yerine Desktop veya Code kullanın.",
+    "savedItButton": "Kaydettim",
+    "toastTokenRevoked": "MCP token'ı iptal edildi",
+    "toastCopyFailed": "Kopyalanamadı"
   }
 }

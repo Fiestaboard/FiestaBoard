@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 
 export function AboutCard() {
   const t = useTranslations("profile");
+  const tCommon = useTranslations("common");
 
   const { data: versionData, isLoading: isLoadingVersion } = useQuery({
     queryKey: ["version"],
@@ -92,7 +93,7 @@ export function AboutCard() {
                 <Flex align="center" gap="2">
                   <Package className="h-3.5 w-3.5 text-muted-foreground" />
                   <Text as="span" className="font-mono tabular-nums">
-                    v{versionData.package_version}
+                    {tCommon("versionShort", { version: versionData.package_version })}
                   </Text>
                   {versionData.is_dev && (
                     <Badge variant="secondary" className="text-xs">
@@ -101,7 +102,7 @@ export function AboutCard() {
                   )}
                   {!managedExternally && updateCheck?.update_available && (
                     <Badge variant="outline" className="text-xs text-warning border-warning/50">
-                      v{updateCheck.latest_version} available
+                      {t("updateAvailableBadge", { version: updateCheck.latest_version })}
                     </Badge>
                   )}
                 </Flex>

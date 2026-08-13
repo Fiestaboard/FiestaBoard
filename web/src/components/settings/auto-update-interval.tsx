@@ -122,10 +122,7 @@ export function AutoUpdateIntervalCard() {
           <CalendarClock className="h-4 w-4" />
           {t("checkForUpdates")}
         </CardTitle>
-        <CardDescription>
-          How often FiestaBoard should look for a new release in the background. You&apos;ll see a banner here when one
-          is found.
-        </CardDescription>
+        <CardDescription>{t("intervalCardDescription")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <Flex wrap align="center" gap="3">
@@ -134,7 +131,7 @@ export function AutoUpdateIntervalCard() {
             onValueChange={(v) => mutation.mutate(v as AutoUpdateInterval)}
             disabled={mutation.isPending}
           >
-            <SelectTrigger className="w-[180px]" aria-label="Update check frequency">
+            <SelectTrigger className="w-[180px]" aria-label={t("intervalSelectAriaLabel")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -146,7 +143,7 @@ export function AutoUpdateIntervalCard() {
             </SelectContent>
           </Select>
           <Text as="span" size="xs" tone="muted">
-            Last checked: {formatLastCheck(status.last_check)}
+            {t("lastChecked", { time: formatLastCheck(status.last_check) })}
           </Text>
           <Button
             variant="outline"

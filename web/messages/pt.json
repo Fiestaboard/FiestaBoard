@@ -50,7 +50,8 @@
     "pageCount": "{count, plural, one {# página} other {# páginas}}",
     "unknownError": "Erro desconhecido",
     "opensInNewTab": "(abre numa nova aba)",
-    "notificationsRegionLabel": "Notificações"
+    "notificationsRegionLabel": "Notificações",
+    "versionShort": "v{version}"
   },
   "metadata": {
     "appTitle": "Painel FiestaBoard",
@@ -81,7 +82,8 @@
     "boardSelector": "Selecionar quadro a gerir",
     "selectBoard": "Selecionar quadro",
     "unnamedBoard": "Quadro sem nome",
-    "transitions": "Laboratório de transições"
+    "transitions": "Laboratório de transições",
+    "prideCelebration": "Feliz Orgulho!"
   },
   "network": {
     "title": "Wi-Fi",
@@ -330,7 +332,11 @@
       "validationOneOffDateRequired": "Please pick a date",
       "validationEndDateBeforeStart": "End date must be on or after start date",
       "collectionSizeWarning": "{count} de {total} páginas desta coleção não se ajustam ao tamanho deste quadro e serão ignoradas.",
-      "incompatiblePageWarning": "Esta página não corresponde ao tamanho deste quadro e pode não ser exibida corretamente."
+      "incompatiblePageWarning": "Esta página não corresponde ao tamanho deste quadro e pode não ser exibida corretamente.",
+      "monthAriaLabel": "Mês",
+      "dayAriaLabel": "Dia",
+      "endMonthAriaLabel": "Mês de fim",
+      "endDayAriaLabel": "Dia de fim"
     },
     "descriptionWithTimezone": "Automatize a rotação de páginas por hora e dia · {timezone}",
     "gapDefaultPlaceholder": "Predefinida para intervalo…",
@@ -472,7 +478,37 @@
     "toastNoUpdates": "Todos os plugins estão atualizados",
     "toastCheckFailed": "Falha ao procurar atualizações: {error}",
     "installAction": "Instalar",
-    "installedBadge": "Instalado"
+    "installedBadge": "Instalado",
+    "valueUnavailable": "Indisponível",
+    "enablePluginForLiveValues": "Ative o plugin para ver valores em tempo real.",
+    "liveValuesUnavailable": "Os valores em tempo real estão indisponíveis.",
+    "liveValuesUnavailableWithError": "Os valores em tempo real estão indisponíveis: {error}",
+    "currentValueColumn": "Valor atual",
+    "refreshingValues": "a atualizar…",
+    "sourceCoreBadge": "Integrado",
+    "sourceMarketplaceBadge": "Marketplace",
+    "sourceExternalBadge": "Externo",
+    "updateAvailableBadge": "Atualização",
+    "moreOptionsAriaLabel": "Mais opções",
+    "addInstanceAction": "Adicionar instância",
+    "instanceNameInlineLabel": "Nome da instância:",
+    "addInstanceInlineHelp": "Cria uma nova instância independente deste plugin, com a sua própria configuração. Use caracteres alfanuméricos, hífenes ou underscores (1-40 caracteres).",
+    "deleteInstanceConfirmTitle": "Eliminar a instância «{label}»?",
+    "deletePluginConfirmTitle": "Eliminar «{name}»?",
+    "deleteInstanceConfirmDescription": "Isto irá remover permanentemente esta instância e a sua configuração. Esta ação não pode ser anulada.",
+    "deletePluginConfirmDescription": "Isto irá remover permanentemente o plugin e todas as suas instâncias. Esta ação não pode ser anulada.",
+    "demoPage": {
+      "title": "Página de demonstração",
+      "alreadyExists": "Já existe uma página de demonstração para este plugin.",
+      "createDescription": "Crie uma página pronta a usar que mostra este plugin.",
+      "recreateButton": "Recriar",
+      "recreateConfirmTitle": "Recriar a página de demonstração?",
+      "recreateConfirmDescription": "Isto irá eliminar a página de demonstração existente e criar uma nova com as definições predefinidas. Esta ação não pode ser anulada.",
+      "creating": "A criar...",
+      "createAction": "Criar página de demonstração",
+      "recreateAction": "Recriar página de demonstração",
+      "requirementsWarning": "Configure as definições obrigatórias abaixo antes de criar uma página de demonstração."
+    }
   },
   "settings": {
     "title": "Configurações",
@@ -496,7 +532,43 @@
     "sectionAccount": "Conta",
     "sectionAccountDescription": "Nome de usuário, senha e sair",
     "sectionNetwork": "Rede",
-    "sectionNetworkDescription": "Gerenciar Wi-Fi e conectividade"
+    "sectionNetworkDescription": "Gerenciar Wi-Fi e conectividade",
+    "ai": {
+      "removeProviderAriaLabel": "Remover fornecedor",
+      "cardTitle": "Fornecedores de IA",
+      "cardDescription": "Configure LLMs compatíveis com a OpenAI para o gerador de páginas «Gen AI». BYO-LLM: o FiestaBoard nunca inclui uma chave.",
+      "privacyNotice": "Os seus prompts e a lista de variáveis dos plugins ativados são enviados diretamente para o fornecedor que configurar. As chaves API são guardadas neste dispositivo e nunca são enviadas para mais lado nenhum.",
+      "emptyState": "Ainda não há fornecedores configurados.",
+      "addProviderButton": "Adicionar fornecedor",
+      "discardButton": "Descartar",
+      "saveChangesButton": "Guardar alterações",
+      "defaultBadge": "Predefinido",
+      "anthropicBadge": "Anthropic",
+      "makeDefaultButton": "Tornar predefinido",
+      "nameLabel": "Nome",
+      "protocolLabel": "Protocolo",
+      "protocolOpenaiOption": "Compatível com OpenAI (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolAnthropicOption": "Anthropic (Messages API)",
+      "baseUrlLabel": "URL base",
+      "quickPresetsLabel": "Predefinições rápidas",
+      "apiKeyLabel": "Chave API",
+      "modelsLabel": "Modelos",
+      "defaultModelLabel": "Modelo predefinido",
+      "testConnectionButton": "Testar ligação"
+    },
+    "backup": {
+      "cardTitle": "Backup e restauro",
+      "cardDescription": "Exporte toda a configuração do seu FiestaBoard — definições do board, páginas, carrosséis, agendamentos e configuração de plugins — num único ficheiro JSON. Carregue esse ficheiro noutra instância para migrar ou recuperar depois de uma atualização.",
+      "exportButton": "Exportar backup",
+      "importButton": "Importar backup…",
+      "reinstallPluginsLabel": "Reinstalar plugins externos após a importação",
+      "reinstallPluginsDescription": "Quando ativado, o FiestaBoard tentará clonar os plugins externos registados no backup que ainda não estejam instalados nesta instância. A configuração deles é restaurada a partir do backup em qualquer dos casos.",
+      "sensitiveNote": "Nota: os backups contêm valores sensíveis, como chaves API e credenciais do board, em texto simples. Guarde o ficheiro em segurança e não o partilhe publicamente.",
+      "confirmTitle": "Substituir a configuração atual?",
+      "confirmDescription": "Está prestes a restaurar <file></file>. As suas páginas, carrosséis, agendamentos e configuração existentes serão substituídos. É guardada uma cópia com data e hora de cada ficheiro existente junto ao novo, para poder reverter manualmente se for necessário.",
+      "restoringButton": "A restaurar…",
+      "restoreButton": "Restaurar backup"
+    }
   },
   "offline": {
     "youreOffline": "Você Está Offline",
@@ -581,7 +653,10 @@
       "passwordPlaceholder": "SuaSenha",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "SENHA: {password}",
-      "noPassword": "(sem senha)"
+      "noPassword": "(sem senha)",
+      "addMoreHint": "Pode adicionar mais a qualquer momento na página <link>Integrações</link>.",
+      "builtInBadge": "Integrado",
+      "previewLabel": "Pré-visualização:"
     },
     "welcome": {
       "setupComplete": "Configuração Concluída!",
@@ -639,7 +714,9 @@
     "changeModeDisableTitle": "Desativar modo de agendamento",
     "changeModeDisableDescription": "Desativar o agendamento e controlar o board manualmente.",
     "changeModeDisableSuccess": "Modo de agendamento desativado",
-    "collectionSizeWarning": "{count} de {total} páginas desta coleção não se ajustam ao tamanho deste quadro e serão ignoradas."
+    "collectionSizeWarning": "{count} de {total} páginas desta coleção não se ajustam ao tamanho deste quadro e serão ignoradas.",
+    "turnOffLiveModeAriaLabel": "Desativar o modo ao vivo",
+    "liveModeBadge": "Modo ao vivo"
   },
   "forceSetDialog": {
     "title": "Forçar board",
@@ -882,7 +959,10 @@
     "updateNow": "Atualizar agora",
     "oneClickHint": "Quer aqui um botão de «Atualizar agora» com um clique? Defina <profile></profile> no seu <envFile></envFile>, depois execute <command></command>.",
     "dialogTitle": "Atualizar FiestaBoard?",
-    "dialogDescription": "Isto irá obter <version></version> e reiniciar o FiestaBoard. O ecrã do board ficará em pausa cerca de 30 segundos e esta página será recarregada automaticamente."
+    "dialogDescription": "Isto irá obter <version></version> e reiniciar o FiestaBoard. O ecrã do board ficará em pausa cerca de 30 segundos e esta página será recarregada automaticamente.",
+    "intervalSelectAriaLabel": "Frequência de verificação de atualizações",
+    "intervalCardDescription": "Com que frequência o FiestaBoard deve procurar uma nova versão em segundo plano. Verá aqui um aviso quando for encontrada.",
+    "lastChecked": "Última verificação: {time}"
   },
   "transitionSettings": {
     "title": "Transições do Painel",
@@ -1008,7 +1088,8 @@
       "Numbers": "Números",
       "Symbols": "Símbolos",
       "Colors": "Cores"
-    }
+    },
+    "latencyMs": "{ms} ms"
   },
   "generalSettings": {
     "title": "Configurações Gerais",
@@ -1375,7 +1456,8 @@
     "flapSpeed_relaxedHint": "{ms} ms — uma viragem lenta e deliberada para ecrãs de ambiente.",
     "flapSpeedPreviewLabel": "Pré-visualização",
     "flapSpeedInactive": "As animações do board estão desligadas, por isso a velocidade de viragem não tem efeito.",
-    "flapSpeedScreenOnlyNote": "Isto altera apenas a pré-visualização do board no ecrã. O ritmo das transições do seu Vestaboard físico define-se à parte, em Comportamento → Transições do board."
+    "flapSpeedScreenOnlyNote": "Isto altera apenas a pré-visualização do board no ecrã. O ritmo das transições do seu Vestaboard físico define-se à parte, em Comportamento → Transições do board.",
+    "updateAvailableBadge": "v{version} disponível"
   },
   "monitor": {
     "title": "Monitor",
@@ -1647,7 +1729,8 @@
     "whiteBoard": "Painel branco",
     "deviceFlagship": "Flagship",
     "deviceNote": "Note",
-    "deviceNoteArray": "Matriz Note {w}×{h}"
+    "deviceNoteArray": "Matriz Note {w}×{h}",
+    "githubLink": "GitHub"
   },
   "boardDisplay": {
     "loading": "A carregar visualização do board",
@@ -1736,7 +1819,12 @@
     "remoteOptionsSearchPlaceholder": "Pesquisar…",
     "remoteOptionsCustomLabel": "Valor personalizado",
     "remoteOptionsCustomPlaceholder": "Introduza um valor que não esteja na lista",
-    "remoteOptionsCustomAdd": "Adicionar valor personalizado"
+    "remoteOptionsCustomAdd": "Adicionar valor personalizado",
+    "addItemLabel": "Adicionar {label}",
+    "unknownType": "Tipo desconhecido: {type}",
+    "pagePickerNone": "Nenhuma (sem substituição)",
+    "pagePickerLoading": "A carregar páginas…",
+    "pagePickerPlaceholder": "Escolha uma página…"
   },
   "filterPicker": {
     "noFiltersAvailable": "Nenhum filtro disponível",
@@ -1744,7 +1832,8 @@
     "filterDescWrap": "Quebra texto longo em várias linhas",
     "filterDescPad": "Preenche texto até à largura especificada",
     "filterDescTruncate": "Trunca o texto ao comprimento especificado",
-    "wrapInstruction": "|wrap: Quebra texto longo. Deixe linhas vazias abaixo para o texto fluir."
+    "wrapInstruction": "Quebra texto longo. Deixe linhas vazias abaixo para o texto fluir.",
+    "exampleLabel": "Exemplo: {example}"
   },
   "formattingPicker": {
     "noFormattingAvailable": "Nenhuma opção de formatação disponível",
@@ -1805,7 +1894,25 @@
     "alignRight": "Alinhar à direita",
     "syncFromBoardTooltip": "Preencher o modelo com o que está atualmente no board",
     "syncFromBoard": "Sincronizar do ecrã atual do board",
-    "alignment": "Alinhamento:"
+    "alignment": "Alinhamento:",
+    "undoAriaLabel": "Anular",
+    "redoAriaLabel": "Refazer",
+    "cutAriaLabel": "Cortar",
+    "copyAriaLabel": "Copiar",
+    "pasteAriaLabel": "Colar",
+    "removeWrappedTextAriaLabel": "Remover texto quebrado",
+    "colorPickerAriaLabel": "Seletor de cores",
+    "heartCharacterAriaLabel": "Carácter de coração",
+    "lineCount": "{used} / {max} linhas",
+    "overLineLimit": " — excede o limite de {max} linhas do board",
+    "currentLine": "(Linha {line})",
+    "heartLabel": "coração",
+    "insertHeartTooltip": "Inserir carácter de coração (apenas Note)",
+    "colorTileTooltip": "Bloco {color} (código {code}) - arraste para mover, backspace para eliminar",
+    "fillSpaceTooltip": "Preencher espaço - expande-se para ocupar a largura restante da linha",
+    "fillSpaceRepeatTooltip": "Preencher espaço repetindo: {char}",
+    "variableFilterTooltip": "Filtro: {filter}",
+    "variableMaxLengthTooltip": "Comprimento máximo: {maxLength} caracteres"
   },
   "variablePicker": {
     "noVariablesAvailable": "Nenhuma variável disponível",
@@ -1815,7 +1922,8 @@
     "searchPlaceholder": "Pesquisar variáveis...",
     "indexLabel": "Índice: {index}",
     "configureHint": "Configure {arrayName} em Definições para ver aqui variáveis indexadas.",
-    "configureExample": "Exemplo:"
+    "configureExample": "Exemplo:",
+    "noMatchingVariables": "Não foram encontradas variáveis correspondentes."
   },
   "login": {
     "signInTitle": "Entrar no FiestaBoard",
@@ -1873,11 +1981,62 @@
     "taskStatusAriaLabel": "Progresso das tarefas",
     "taskProgressAriaLabel": "Progresso das tarefas de IA",
     "clearConversationAriaLabel": "Limpar conversa",
-    "closePanelAriaLabel": "Fechar FiestaBot (Beta)"
+    "closePanelAriaLabel": "Fechar FiestaBot (Beta)",
+    "providerSelectAriaLabel": "Fornecedor",
+    "modelSelectAriaLabel": "Modelo",
+    "showBoardTooltip": "Mostrar pré-visualização do board",
+    "hideBoardTooltip": "Ocultar pré-visualização do board",
+    "undoTooltip": "Anular a última alteração da IA",
+    "panelTitle": "FiestaBot (Beta)",
+    "retryButton": "Tentar novamente",
+    "messageLabel": "Mensagem",
+    "stopButton": "Parar",
+    "sendButton": "Enviar",
+    "tasksHeading": "Tarefas ({done}/{total})",
+    "emptyStateTitle": "Como posso ajudar?",
+    "emptyStateDescription": "Descreva o que quer criar ou alterar.",
+    "showBoardButton": "Mostrar board",
+    "undoButton": "Anular",
+    "renameSummary": "→ renomear para «{name}»",
+    "previewUnavailable": "(pré-visualização indisponível)"
   },
   "boardSizeIndicator": {
     "custom": "Personalizado",
     "ariaLabel": "{rows} linhas por {cols} colunas",
     "ariaLabelWithLayout": "{rows} linhas por {cols} colunas, {layout}"
+  },
+  "mcpSettings": {
+    "title": "MCP / clientes externos",
+    "description": "Um token pré-partilhado que permite ao Claude Desktop, ao Claude Code e a outros clientes MCP comunicar com este FiestaBoard. O token autentica-se como uma única identidade — limitada apenas ao endpoint {endpoint} — pelo que não pode editar páginas nem outras definições. Consulte a <link>configuração de clientes MCP</link> para conhecer as particularidades de cada cliente (o Desktop precisa de um proxy stdio; os Connectors do claude.ai web exigem HTTPS público e OAuth, por isso não chegam a um host na LAN).",
+    "statusLabel": "Estado:",
+    "pinnedByEnvBadge": "Fixado por {envVar}",
+    "configuredBadge": "Configurado",
+    "pinnedByEnvDescription": "O token ativo é definido pela variável de ambiente {envVar}. Remova-a do seu {envFile} e reinicie o contentor antes de gerir o token a partir desta interface.",
+    "noTokenDescription": "Não há nenhum token configurado. Os clientes MCP externos recorrerão à autenticação por cookie, que o Claude Desktop / Claude Code não suportam — o registo falhará com um erro pouco claro. Gere um token para os desbloquear.",
+    "activeTokenDescription": "Existe um token configurado e ativo. Renove-o para invalidar o anterior (qualquer cliente que continue a usar o token antigo começará a receber 401) ou revogue-o por completo para voltar à autenticação apenas por cookie.",
+    "rotateTokenButton": "Renovar token",
+    "generateTokenButton": "Gerar token",
+    "revokeTokenButton": "Revogar token",
+    "rotateConfirmTitle": "Renovar o token MCP?",
+    "generateConfirmTitle": "Gerar token MCP?",
+    "rotateConfirmDescription": "Qualquer cliente que continue a usar o token anterior será recusado com um 401 + desafio Bearer no próximo pedido. Verá o novo token apenas uma vez — guarde-o num local seguro (não é possível voltar a lê-lo na interface).",
+    "generateConfirmDescription": "Verá o token apenas uma vez — guarde-o num local seguro (não é possível voltar a lê-lo na interface). Os clientes MCP externos vão usá-lo para se autenticarem em {endpoint}.",
+    "rotateConfirmButton": "Renovar",
+    "generateConfirmButton": "Gerar",
+    "revokeConfirmTitle": "Revogar o token MCP?",
+    "revokeConfirmDescription": "Os clientes MCP externos começarão a receber 401 no próximo pedido. Pode sempre gerar um novo token mais tarde.",
+    "revokeConfirmButton": "Revogar",
+    "revealTitle": "Guarde este token",
+    "revealDescription": "O FiestaBoard guarda apenas o necessário para verificar pedidos futuros — esta é a única vez que o valor é mostrado em texto simples. Copie-o agora para o seu cliente MCP.",
+    "tokenLabel": "Token",
+    "copyButton": "Copiar",
+    "copiedButton": "Copiado",
+    "configSnippetLabel": "Excerto de configuração do Claude Desktop",
+    "configSnippetDescription": "Cole isto em {configPath}, juntando ao que já lá estiver, e depois saia por completo do Claude Desktop e volte a abri-lo (⌘Q — fechar a janela não chega). O Claude Desktop só suporta servidores MCP stdio, por isso este excerto invoca {mcpRemoteLink} através de {npx} como proxy — tem de ter o Node 18+ instalado e o {npx} acessível a partir do PATH do Claude Desktop. Se der o erro {commandNotFound}, substitua {npxQuoted} pelo caminho absoluto indicado por {whichNpx}.",
+    "claudeCodeDescription": "<label>Claude Code (CLI):</label> comunica diretamente por HTTP — não é preciso proxy.",
+    "claudeWebDescription": "<label>claude.ai web (Connectors):</label> não é suportado num FiestaBoard alojado por si. O fluxo dos Connectors exige um URL HTTPS público e registo dinâmico de clientes OAuth 2.1, e um host na LAN não fornece nenhum dos dois. Use antes o Desktop ou o Code.",
+    "savedItButton": "Já o guardei",
+    "toastTokenRevoked": "Token MCP revogado",
+    "toastCopyFailed": "Não foi possível copiar para a área de transferência"
   }
 }

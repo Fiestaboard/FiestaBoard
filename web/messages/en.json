@@ -50,7 +50,8 @@
     "pageCount": "{count, plural, one {# page} other {# pages}}",
     "unknownError": "Unknown error",
     "opensInNewTab": "(opens in new tab)",
-    "notificationsRegionLabel": "Notifications"
+    "notificationsRegionLabel": "Notifications",
+    "versionShort": "v{version}"
   },
   "metadata": {
     "appTitle": "FiestaBoard Control",
@@ -81,7 +82,8 @@
     "boardSelector": "Select board to manage",
     "selectBoard": "Select board",
     "unnamedBoard": "Unnamed board",
-    "transitions": "Transition Lab"
+    "transitions": "Transition Lab",
+    "prideCelebration": "Happy Pride!"
   },
   "home": {
     "title": "Dashboard",
@@ -287,7 +289,11 @@
       "validationOneOffDateRequired": "Please pick a date",
       "validationEndDateBeforeStart": "End date must be on or after start date",
       "collectionSizeWarning": "{count} of {total} pages in this collection don't fit this board's size and will be skipped.",
-      "incompatiblePageWarning": "This page doesn't match this board's size and may not display correctly."
+      "incompatiblePageWarning": "This page doesn't match this board's size and may not display correctly.",
+      "monthAriaLabel": "Month",
+      "dayAriaLabel": "Day",
+      "endMonthAriaLabel": "End month",
+      "endDayAriaLabel": "End day"
     },
     "descriptionWithTimezone": "Automate page rotation by time and day · {timezone}",
     "gapDefaultPlaceholder": "Gap default…",
@@ -429,7 +435,37 @@
     "toastNoUpdates": "All plugins are up to date",
     "toastCheckFailed": "Couldn't check for updates: {error}",
     "installAction": "Install",
-    "installedBadge": "Installed"
+    "installedBadge": "Installed",
+    "valueUnavailable": "Unavailable",
+    "enablePluginForLiveValues": "Enable the plugin to see live values.",
+    "liveValuesUnavailable": "Live values are unavailable.",
+    "liveValuesUnavailableWithError": "Live values are unavailable: {error}",
+    "currentValueColumn": "Current Value",
+    "refreshingValues": "refreshing…",
+    "sourceCoreBadge": "Core",
+    "sourceMarketplaceBadge": "Marketplace",
+    "sourceExternalBadge": "External",
+    "updateAvailableBadge": "Update",
+    "moreOptionsAriaLabel": "More options",
+    "addInstanceAction": "Add Instance",
+    "instanceNameInlineLabel": "Instance name:",
+    "addInstanceInlineHelp": "Creates a new independent instance of this plugin with its own configuration. Use alphanumeric characters, hyphens, or underscores (1-40 chars).",
+    "deleteInstanceConfirmTitle": "Delete instance “{label}”?",
+    "deletePluginConfirmTitle": "Delete “{name}”?",
+    "deleteInstanceConfirmDescription": "This will permanently remove this instance and its configuration. This action cannot be undone.",
+    "deletePluginConfirmDescription": "This will permanently remove the plugin and all its instances. This action cannot be undone.",
+    "demoPage": {
+      "title": "Demo Page",
+      "alreadyExists": "A demo page already exists for this plugin.",
+      "createDescription": "Create a ready-to-use page that showcases this plugin.",
+      "recreateButton": "Recreate",
+      "recreateConfirmTitle": "Recreate Demo Page?",
+      "recreateConfirmDescription": "This will delete the existing demo page and create a fresh one with default settings. This action cannot be undone.",
+      "creating": "Creating...",
+      "createAction": "Create Demo Page",
+      "recreateAction": "Recreate Demo Page",
+      "requirementsWarning": "Configure the required settings below before creating a demo page."
+    }
   },
   "settings": {
     "title": "Settings",
@@ -453,7 +489,43 @@
     "sectionAccount": "Account",
     "sectionAccountDescription": "Username, password, and sign out",
     "sectionNetwork": "Network",
-    "sectionNetworkDescription": "Manage Wi-Fi and connectivity"
+    "sectionNetworkDescription": "Manage Wi-Fi and connectivity",
+    "ai": {
+      "removeProviderAriaLabel": "Remove provider",
+      "cardTitle": "AI Providers",
+      "cardDescription": "Configure OpenAI-compatible LLMs for the “Gen AI” page generator. BYO-LLM: FiestaBoard never bundles a key.",
+      "privacyNotice": "Your prompts and the variable list of your enabled plugins are sent directly to the provider you configure. API keys are stored on this device and never sent anywhere else.",
+      "emptyState": "No providers configured yet.",
+      "addProviderButton": "Add provider",
+      "discardButton": "Discard",
+      "saveChangesButton": "Save changes",
+      "defaultBadge": "Default",
+      "anthropicBadge": "Anthropic",
+      "makeDefaultButton": "Make default",
+      "nameLabel": "Name",
+      "protocolLabel": "Protocol",
+      "protocolOpenaiOption": "OpenAI-compatible (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolAnthropicOption": "Anthropic (Messages API)",
+      "baseUrlLabel": "Base URL",
+      "quickPresetsLabel": "Quick presets",
+      "apiKeyLabel": "API Key",
+      "modelsLabel": "Models",
+      "defaultModelLabel": "Default model",
+      "testConnectionButton": "Test connection"
+    },
+    "backup": {
+      "cardTitle": "Backup & Restore",
+      "cardDescription": "Export all of your FiestaBoard configuration — board settings, pages, collections, schedules and plugin configuration — as a single JSON file. Re-upload that file on a new instance to migrate or recover after an upgrade.",
+      "exportButton": "Export backup",
+      "importButton": "Import backup…",
+      "reinstallPluginsLabel": "Reinstall external plugins after import",
+      "reinstallPluginsDescription": "When enabled, FiestaBoard will attempt to clone any external plugins recorded in the backup that are not yet installed on this instance. Their configuration is restored from the backup either way.",
+      "sensitiveNote": "Note: backups contain sensitive values such as API keys and board credentials in plain text. Store the file securely and do not share it publicly.",
+      "confirmTitle": "Replace current configuration?",
+      "confirmDescription": "You are about to restore <file></file>. Your existing pages, collections, schedules and configuration will be overwritten. A timestamped copy of each existing file is kept alongside the new one so you can roll back manually if needed.",
+      "restoringButton": "Restoring…",
+      "restoreButton": "Restore backup"
+    }
   },
   "offline": {
     "youreOffline": "You're Offline",
@@ -538,7 +610,10 @@
       "passwordPlaceholder": "YourPassword",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "(no password)"
+      "noPassword": "(no password)",
+      "addMoreHint": "You can add more from the <link>Integrations</link> page at any time.",
+      "builtInBadge": "Built-in",
+      "previewLabel": "Preview:"
     },
     "welcome": {
       "setupComplete": "Setup Complete!",
@@ -596,7 +671,9 @@
     "changeModeDisableTitle": "Turn off schedule mode",
     "changeModeDisableDescription": "Disable the schedule and control the board manually.",
     "changeModeDisableSuccess": "Schedule mode disabled",
-    "collectionSizeWarning": "{count} of {total} pages in this collection don't fit this board's size and will be skipped."
+    "collectionSizeWarning": "{count} of {total} pages in this collection don't fit this board's size and will be skipped.",
+    "turnOffLiveModeAriaLabel": "Turn off Live Mode",
+    "liveModeBadge": "Live Mode"
   },
   "forceSetDialog": {
     "title": "Force Set Board",
@@ -839,7 +916,10 @@
     "updateNow": "Update Now",
     "oneClickHint": "Want a one-click \"Update Now\" button here? Set <profile></profile> in your <envFile></envFile>, then run <command></command>.",
     "dialogTitle": "Update FiestaBoard?",
-    "dialogDescription": "This will pull <version></version> and restart FiestaBoard. The board display will pause for about 30 seconds and this page will reload automatically."
+    "dialogDescription": "This will pull <version></version> and restart FiestaBoard. The board display will pause for about 30 seconds and this page will reload automatically.",
+    "intervalSelectAriaLabel": "Update check frequency",
+    "intervalCardDescription": "How often FiestaBoard should look for a new release in the background. You'll see a banner here when one is found.",
+    "lastChecked": "Last checked: {time}"
   },
   "transitionSettings": {
     "title": "Board Transitions",
@@ -965,7 +1045,8 @@
       "Numbers": "Numbers",
       "Symbols": "Symbols",
       "Colors": "Colors"
-    }
+    },
+    "latencyMs": "{ms}ms"
   },
   "generalSettings": {
     "title": "Schedule & Automation",
@@ -1332,7 +1413,8 @@
     "statusStopped": "Stopped",
     "devBuild": "Development build",
     "viewDocs": "View documentation",
-    "timezoneLabel": "Timezone"
+    "timezoneLabel": "Timezone",
+    "updateAvailableBadge": "v{version} available"
   },
   "monitor": {
     "title": "Monitor",
@@ -1604,7 +1686,8 @@
     "whiteBoard": "White Board",
     "deviceFlagship": "Flagship",
     "deviceNote": "Note",
-    "deviceNoteArray": "Note Array {w}×{h}"
+    "deviceNoteArray": "Note Array {w}×{h}",
+    "githubLink": "GitHub"
   },
   "boardDisplay": {
     "loading": "Loading board display",
@@ -1693,7 +1776,12 @@
     "remoteOptionsSearchPlaceholder": "Search…",
     "remoteOptionsCustomLabel": "Custom value",
     "remoteOptionsCustomPlaceholder": "Enter a value not in the list",
-    "remoteOptionsCustomAdd": "Add custom value"
+    "remoteOptionsCustomAdd": "Add custom value",
+    "addItemLabel": "Add {label}",
+    "unknownType": "Unknown type: {type}",
+    "pagePickerNone": "None (no override)",
+    "pagePickerLoading": "Loading pages…",
+    "pagePickerPlaceholder": "Choose a page…"
   },
   "filterPicker": {
     "noFiltersAvailable": "No filters available",
@@ -1701,7 +1789,8 @@
     "filterDescWrap": "Wraps long text across multiple lines",
     "filterDescPad": "Pads text to specified width",
     "filterDescTruncate": "Truncates text to specified length",
-    "wrapInstruction": "|wrap: Wraps long text. Leave empty lines below for text to flow into."
+    "wrapInstruction": "Wraps long text. Leave empty lines below for text to flow into.",
+    "exampleLabel": "Example: {example}"
   },
   "formattingPicker": {
     "noFormattingAvailable": "No formatting options available",
@@ -1762,7 +1851,25 @@
     "alignRight": "Align right",
     "syncFromBoardTooltip": "Populate template from what's currently displayed on the board",
     "syncFromBoard": "Sync from current board display",
-    "alignment": "Alignment:"
+    "alignment": "Alignment:",
+    "undoAriaLabel": "Undo",
+    "redoAriaLabel": "Redo",
+    "cutAriaLabel": "Cut",
+    "copyAriaLabel": "Copy",
+    "pasteAriaLabel": "Paste",
+    "removeWrappedTextAriaLabel": "Remove wrapped text",
+    "colorPickerAriaLabel": "Color picker",
+    "heartCharacterAriaLabel": "Heart character",
+    "lineCount": "{used} / {max} lines",
+    "overLineLimit": " — exceeds the {max}-line board limit",
+    "currentLine": "(Line {line})",
+    "heartLabel": "heart",
+    "insertHeartTooltip": "Insert heart character (Note only)",
+    "colorTileTooltip": "{color} tile (code {code}) - drag to move, backspace to delete",
+    "fillSpaceTooltip": "Fill space - expands to fill remaining line width",
+    "fillSpaceRepeatTooltip": "Fill space repeating: {char}",
+    "variableFilterTooltip": "Filter: {filter}",
+    "variableMaxLengthTooltip": "Max length: {maxLength} characters"
   },
   "variablePicker": {
     "noVariablesAvailable": "No variables available",
@@ -1772,7 +1879,8 @@
     "searchPlaceholder": "Search variables...",
     "indexLabel": "Index: {index}",
     "configureHint": "Configure {arrayName} in Settings to see indexed variables here.",
-    "configureExample": "Example:"
+    "configureExample": "Example:",
+    "noMatchingVariables": "No matching variables found."
   },
   "network": {
     "title": "Wi-Fi",
@@ -1873,11 +1981,62 @@
     "taskStatusAriaLabel": "Task progress",
     "taskProgressAriaLabel": "AI task progress",
     "clearConversationAriaLabel": "Clear conversation",
-    "closePanelAriaLabel": "Close FiestaBot (Beta)"
+    "closePanelAriaLabel": "Close FiestaBot (Beta)",
+    "providerSelectAriaLabel": "Provider",
+    "modelSelectAriaLabel": "Model",
+    "showBoardTooltip": "Show board preview",
+    "hideBoardTooltip": "Hide board preview",
+    "undoTooltip": "Undo last AI change",
+    "panelTitle": "FiestaBot (Beta)",
+    "retryButton": "Retry",
+    "messageLabel": "Message",
+    "stopButton": "Stop",
+    "sendButton": "Send",
+    "tasksHeading": "Tasks ({done}/{total})",
+    "emptyStateTitle": "How can I help?",
+    "emptyStateDescription": "Describe what you'd like to build or change.",
+    "showBoardButton": "Show board",
+    "undoButton": "Undo",
+    "renameSummary": "→ rename to \"{name}\"",
+    "previewUnavailable": "(preview unavailable)"
   },
   "boardSizeIndicator": {
     "custom": "Custom",
     "ariaLabel": "{rows} rows by {cols} columns",
     "ariaLabelWithLayout": "{rows} rows by {cols} columns, {layout}"
+  },
+  "mcpSettings": {
+    "title": "MCP / external clients",
+    "description": "A pre-shared token that lets Claude Desktop, Claude Code, and other MCP clients talk to this FiestaBoard. The token authenticates as a single principal — scoped to the {endpoint} endpoint only — so it can't edit pages or other settings. See <link>MCP client setup</link> for client-specific quirks (Desktop needs an stdio proxy; claude.ai web Connectors require public HTTPS and OAuth, so they won't reach a LAN host).",
+    "statusLabel": "Status:",
+    "pinnedByEnvBadge": "Pinned by {envVar}",
+    "configuredBadge": "Configured",
+    "pinnedByEnvDescription": "The active token is set by the {envVar} environment variable. Unset it in your {envFile} and restart the container before managing the token from this UI.",
+    "noTokenDescription": "No token is configured. External MCP clients will fall back to cookie auth, which Claude Desktop / Claude Code don't support — they'll fail registration with an opaque error. Generate a token to unblock them.",
+    "activeTokenDescription": "A token is configured and active. Rotate it to invalidate the previous one (any client still using the old token will start receiving 401), or revoke it entirely to fall back to cookie-only auth.",
+    "rotateTokenButton": "Rotate token",
+    "generateTokenButton": "Generate token",
+    "revokeTokenButton": "Revoke token",
+    "rotateConfirmTitle": "Rotate MCP token?",
+    "generateConfirmTitle": "Generate MCP token?",
+    "rotateConfirmDescription": "Any client still using the previous token will be denied with a 401 + Bearer challenge on its next request. You'll see the new token once — store it somewhere safe (it's not readable from the UI again).",
+    "generateConfirmDescription": "You'll see the token once — store it somewhere safe (it's not readable from the UI again). External MCP clients will use it to authenticate to {endpoint}.",
+    "rotateConfirmButton": "Rotate",
+    "generateConfirmButton": "Generate",
+    "revokeConfirmTitle": "Revoke MCP token?",
+    "revokeConfirmDescription": "External MCP clients will start receiving 401 on their next request. You can always generate a new token later.",
+    "revokeConfirmButton": "Revoke",
+    "revealTitle": "Save this token",
+    "revealDescription": "FiestaBoard stores only what's needed to verify future requests — this is the only time the plaintext value is shown. Copy it into your MCP client now.",
+    "tokenLabel": "Token",
+    "copyButton": "Copy",
+    "copiedButton": "Copied",
+    "configSnippetLabel": "Claude Desktop config snippet",
+    "configSnippetDescription": "Paste this into {configPath}, merging with anything that's already there, then fully quit and relaunch Claude Desktop (⌘Q — closing the window isn't enough). Claude Desktop only supports stdio MCP servers, so this snippet shells out to {mcpRemoteLink} via {npx} as a proxy — Node 18+ must be installed and {npx} reachable from Claude Desktop's PATH. If it errors with {commandNotFound}, replace {npxQuoted} with the absolute path from {whichNpx}.",
+    "claudeCodeDescription": "<label>Claude Code (CLI):</label> talks HTTP directly — no proxy needed.",
+    "claudeWebDescription": "<label>claude.ai web (Connectors):</label> not supported for self-hosted FiestaBoard. The Connectors flow requires a public HTTPS URL and OAuth 2.1 dynamic client registration, neither of which a LAN host can provide. Use Desktop or Code instead.",
+    "savedItButton": "I've saved it",
+    "toastTokenRevoked": "MCP token revoked",
+    "toastCopyFailed": "Couldn't copy to clipboard"
   }
 }

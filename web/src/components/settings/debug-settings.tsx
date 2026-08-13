@@ -426,7 +426,7 @@ export function DebugSettings() {
                   ) : (
                     <Info className="h-4 w-4" />
                   )}
-                  Show Debug Info on Board
+                  {t("showDebugInfoOnBoard")}
                 </Button>
                 <Text size="xs" tone="muted">
                   {t("showDebugInfoDescription")}
@@ -450,7 +450,7 @@ export function DebugSettings() {
                   ) : (
                     <Database className="h-4 w-4" />
                   )}
-                  Clear Message Cache
+                  {t("clearMessageCache")}
                 </Button>
                 <Text size="xs" tone="muted">
                   {t("clearCacheDescription")}
@@ -510,7 +510,7 @@ export function DebugSettings() {
                             {t("versionLabel")}
                           </Text>
                           <Text size="xs" className="font-mono">
-                            v{systemInfo.version}
+                            {tCommon("versionShort", { version: systemInfo.version })}
                           </Text>
 
                           <Text size="xs" weight="medium" tone="muted">
@@ -639,6 +639,7 @@ function DiagnosticRow({
   result: { ok: boolean; latency_ms?: number };
   detail: string;
 }) {
+  const t = useTranslations("debugSettings");
   return (
     <Flex align="start" gap="2" className="p-2.5 text-xs">
       <DiagnosticStatusIcon ok={result.ok} />
@@ -648,7 +649,7 @@ function DiagnosticRow({
           {label}
           {result.latency_ms != null && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-mono">
-              {result.latency_ms}ms
+              {t("latencyMs", { ms: result.latency_ms })}
             </Badge>
           )}
         </Flex>
@@ -709,7 +710,7 @@ function VestaboardDiagnosticRow({
             {t("vestaboardCloudApiLabel")}
             {cloud?.latency_ms != null && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-mono">
-                {cloud.latency_ms}ms
+                {t("latencyMs", { ms: cloud.latency_ms })}
               </Badge>
             )}
           </Flex>
@@ -768,7 +769,7 @@ function VestaboardDiagnosticRow({
                 </Text>
                 {step.latency_ms != null && (
                   <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0 h-3.5 font-mono">
-                    {step.latency_ms}ms
+                    {t("latencyMs", { ms: step.latency_ms })}
                   </Badge>
                 )}
                 {step.ok ? (

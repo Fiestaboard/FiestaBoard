@@ -188,11 +188,13 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
         {t("description")}
       </Text>
       <Text size="xs" tone="muted" className="mb-4">
-        You can add more from the{" "}
-        <Link href="/integrations" className="underline hover:text-foreground">
-          Integrations
-        </Link>{" "}
-        page at any time.
+        {t.rich("addMoreHint", {
+          link: (chunks: string) => (
+            <Link href="/integrations" className="underline hover:text-foreground">
+              {chunks}
+            </Link>
+          ),
+        })}
       </Text>
 
       <Stack gap="3">
@@ -221,7 +223,7 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
                         )}
                         {plugin.builtin && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground">
-                            Built-in
+                            {t("builtInBadge")}
                           </Badge>
                         )}
                       </CardTitle>
@@ -256,7 +258,7 @@ export function StepEasyPlugins({ config, onConfigChange, onValidChange }: StepE
                     />
                   </Stack>
                   <Text tone="muted" className="bg-muted/50 p-2 rounded">
-                    Preview:{" "}
+                    {t("previewLabel")}{" "}
                     <Text as="span" tone="muted" className="font-mono">
                       {currentTime}
                     </Text>

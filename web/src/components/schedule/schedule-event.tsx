@@ -30,6 +30,7 @@ export function ScheduleEvent({ event }: ScheduleEventProps) {
 }
 
 function RegularScheduleEvent({ event }: { event: ScheduleCalendarEvent }) {
+  const tCommon = useTranslations("common");
   const { resource } = event;
 
   // Generate consistent color based on schedule ID (so each schedule entry has unique color)
@@ -106,7 +107,7 @@ function RegularScheduleEvent({ event }: { event: ScheduleCalendarEvent }) {
         )}
         {!resource.enabled && (
           <Badge variant="secondary" className="w-fit text-[10px] px-1 py-0 h-3.5">
-            Off
+            {tCommon("off")}
           </Badge>
         )}
         {resource.dayPattern !== "all" && (

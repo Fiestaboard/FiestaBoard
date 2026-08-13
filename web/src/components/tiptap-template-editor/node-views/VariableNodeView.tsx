@@ -6,6 +6,8 @@ import { Badge, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger }
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
+import { useTranslations } from "@/i18n/translations";
+
 interface VariableNodeViewProps {
   node: {
     attrs: {
@@ -19,6 +21,7 @@ interface VariableNodeViewProps {
 }
 
 export function VariableNodeView({ node, deleteNode: _deleteNode }: VariableNodeViewProps) {
+  const t = useTranslations("templateEditor");
   const { pluginId, field, filters, maxLength } = node.attrs;
 
   return (
@@ -60,8 +63,9 @@ export function VariableNodeView({ node, deleteNode: _deleteNode }: VariableNode
                   </TooltipTrigger>
                   <TooltipContent>
                     <Text>
-                      Filter: {filter.name}
-                      {filter.arg ? `:${filter.arg}` : ""}
+                      {t("variableFilterTooltip", {
+                        filter: `${filter.name}${filter.arg ? `:${filter.arg}` : ""}`,
+                      })}
                     </Text>
                   </TooltipContent>
                 </Tooltip>
@@ -76,7 +80,7 @@ export function VariableNodeView({ node, deleteNode: _deleteNode }: VariableNode
                 <span className="hidden group-hover:inline text-[10px] leading-none">~{maxLength}</span>
               </TooltipTrigger>
               <TooltipContent>
-                <Text>Max length: {maxLength} characters</Text>
+                <Text>{t("variableMaxLengthTooltip", { maxLength })}</Text>
               </TooltipContent>
             </Tooltip>
           )}

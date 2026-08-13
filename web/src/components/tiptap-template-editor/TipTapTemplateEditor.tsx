@@ -1313,8 +1313,8 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
             size="xs"
             className={cn("mt-1", isOverLineLimit ? "text-warning font-medium" : "text-muted-foreground")}
           >
-            {editorLineCount} / {boardLines} lines
-            {isOverLineLimit && ` — exceeds the ${boardLines}-line board limit`}
+            {t("lineCount", { used: editorLineCount, max: boardLines })}
+            {isOverLineLimit && t("overLineLimit", { max: boardLines })}
           </Text>
 
           {/* Alignment controls - only show if toolbar is hidden */}
@@ -1379,7 +1379,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
                 </Flex>
                 {currentLineIndex !== null && (
                   <Text as="span" size="xs" tone="muted">
-                    (Line {currentLineIndex + 1})
+                    {t("currentLine", { line: currentLineIndex + 1 })}
                   </Text>
                 )}
               </Flex>

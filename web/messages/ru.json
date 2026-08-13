@@ -50,7 +50,8 @@
     "pageCount": "{count, plural, one {# страница} few {# страницы} many {# страниц} other {# страниц}}",
     "unknownError": "Неизвестная ошибка",
     "opensInNewTab": "(откроется в новой вкладке)",
-    "notificationsRegionLabel": "Уведомления"
+    "notificationsRegionLabel": "Уведомления",
+    "versionShort": "v{version}"
   },
   "metadata": {
     "appTitle": "Управление FiestaBoard",
@@ -81,7 +82,8 @@
     "boardSelector": "Выберите доску для управления",
     "selectBoard": "Выберите доску",
     "unnamedBoard": "Доска без названия",
-    "transitions": "Лаборатория переходов"
+    "transitions": "Лаборатория переходов",
+    "prideCelebration": "С месяцем гордости!"
   },
   "network": {
     "title": "Wi-Fi",
@@ -330,7 +332,11 @@
       "validationOneOffDateRequired": "Please pick a date",
       "validationEndDateBeforeStart": "End date must be on or after start date",
       "collectionSizeWarning": "{count} из {total} страниц в этой коллекции не подходят под размер этой доски и будут пропущены.",
-      "incompatiblePageWarning": "Эта страница не подходит под размер этой доски и может отображаться некорректно."
+      "incompatiblePageWarning": "Эта страница не подходит под размер этой доски и может отображаться некорректно.",
+      "monthAriaLabel": "Месяц",
+      "dayAriaLabel": "День",
+      "endMonthAriaLabel": "Месяц окончания",
+      "endDayAriaLabel": "День окончания"
     },
     "descriptionWithTimezone": "Автоматизация смены страниц по времени и дню · {timezone}",
     "gapDefaultPlaceholder": "По умолчанию для пропуска…",
@@ -472,7 +478,37 @@
     "toastNoUpdates": "Все плагины актуальны",
     "toastCheckFailed": "Не удалось проверить обновления: {error}",
     "installAction": "Установить",
-    "installedBadge": "Установлено"
+    "installedBadge": "Установлено",
+    "valueUnavailable": "Недоступно",
+    "enablePluginForLiveValues": "Включите плагин, чтобы видеть текущие значения.",
+    "liveValuesUnavailable": "Текущие значения недоступны.",
+    "liveValuesUnavailableWithError": "Текущие значения недоступны: {error}",
+    "currentValueColumn": "Текущее значение",
+    "refreshingValues": "обновление…",
+    "sourceCoreBadge": "Базовый",
+    "sourceMarketplaceBadge": "Marketplace",
+    "sourceExternalBadge": "Внешний",
+    "updateAvailableBadge": "Обновление",
+    "moreOptionsAriaLabel": "Другие параметры",
+    "addInstanceAction": "Добавить экземпляр",
+    "instanceNameInlineLabel": "Имя экземпляра:",
+    "addInstanceInlineHelp": "Создаёт новый независимый экземпляр этого плагина с собственной конфигурацией. Используйте буквенно-цифровые символы, дефисы или подчёркивания (1–40 символов).",
+    "deleteInstanceConfirmTitle": "Удалить экземпляр «{label}»?",
+    "deletePluginConfirmTitle": "Удалить «{name}»?",
+    "deleteInstanceConfirmDescription": "Этот экземпляр и его конфигурация будут безвозвратно удалены. Это действие нельзя отменить.",
+    "deletePluginConfirmDescription": "Плагин и все его экземпляры будут безвозвратно удалены. Это действие нельзя отменить.",
+    "demoPage": {
+      "title": "Демо-страница",
+      "alreadyExists": "Для этого плагина уже есть демо-страница.",
+      "createDescription": "Создайте готовую страницу, которая демонстрирует этот плагин.",
+      "recreateButton": "Пересоздать",
+      "recreateConfirmTitle": "Пересоздать демо-страницу?",
+      "recreateConfirmDescription": "Существующая демо-страница будет удалена, а вместо неё создана новая с настройками по умолчанию. Это действие нельзя отменить.",
+      "creating": "Создание...",
+      "createAction": "Создать демо-страницу",
+      "recreateAction": "Пересоздать демо-страницу",
+      "requirementsWarning": "Настройте обязательные параметры ниже, прежде чем создавать демо-страницу."
+    }
   },
   "settings": {
     "title": "Настройки",
@@ -496,7 +532,43 @@
     "sectionAccount": "Учётная запись",
     "sectionAccountDescription": "Имя пользователя, пароль и выход",
     "sectionNetwork": "Сеть",
-    "sectionNetworkDescription": "Управление Wi-Fi и подключением"
+    "sectionNetworkDescription": "Управление Wi-Fi и подключением",
+    "ai": {
+      "removeProviderAriaLabel": "Удалить провайдера",
+      "cardTitle": "ИИ-провайдеры",
+      "cardDescription": "Настройте OpenAI-совместимые LLM для генератора страниц «Gen AI». BYO-LLM: FiestaBoard никогда не поставляется с ключом.",
+      "privacyNotice": "Ваши запросы и список переменных включённых плагинов отправляются напрямую тому провайдеру, которого вы настроили. API-ключи хранятся на этом устройстве и никуда больше не отправляются.",
+      "emptyState": "Провайдеры ещё не настроены.",
+      "addProviderButton": "Добавить провайдера",
+      "discardButton": "Отменить",
+      "saveChangesButton": "Сохранить изменения",
+      "defaultBadge": "По умолчанию",
+      "anthropicBadge": "Anthropic",
+      "makeDefaultButton": "Сделать основным",
+      "nameLabel": "Название",
+      "protocolLabel": "Протокол",
+      "protocolOpenaiOption": "OpenAI-совместимый (OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Ollama, LM Studio, vLLM, …)",
+      "protocolAnthropicOption": "Anthropic (Messages API)",
+      "baseUrlLabel": "Базовый URL",
+      "quickPresetsLabel": "Быстрые пресеты",
+      "apiKeyLabel": "API-ключ",
+      "modelsLabel": "Модели",
+      "defaultModelLabel": "Модель по умолчанию",
+      "testConnectionButton": "Проверить подключение"
+    },
+    "backup": {
+      "cardTitle": "Резервное копирование и восстановление",
+      "cardDescription": "Экспортируйте всю конфигурацию FiestaBoard — настройки доски, страницы, карусели, расписания и конфигурацию плагинов — в один файл JSON. Загрузите этот файл на новом экземпляре, чтобы перенести данные или восстановить их после обновления.",
+      "exportButton": "Экспортировать резервную копию",
+      "importButton": "Импортировать резервную копию…",
+      "reinstallPluginsLabel": "Переустановить внешние плагины после импорта",
+      "reinstallPluginsDescription": "Если включено, FiestaBoard попытается клонировать те внешние плагины из резервной копии, которые ещё не установлены в этом экземпляре. Их конфигурация восстанавливается из резервной копии в любом случае.",
+      "sensitiveNote": "Примечание: резервные копии содержат конфиденциальные данные, такие как API-ключи и учётные данные доски, в открытом виде. Храните файл в надёжном месте и не публикуйте его.",
+      "confirmTitle": "Заменить текущую конфигурацию?",
+      "confirmDescription": "Сейчас будет восстановлен файл <file></file>. Ваши текущие страницы, карусели, расписания и конфигурация будут перезаписаны. Рядом с новым файлом сохраняется копия каждого существующего файла с меткой времени, чтобы при необходимости вы могли откатиться вручную.",
+      "restoringButton": "Восстановление…",
+      "restoreButton": "Восстановить из резервной копии"
+    }
   },
   "offline": {
     "youreOffline": "Вы не в сети",
@@ -581,7 +653,10 @@
       "passwordPlaceholder": "ВашПароль",
       "wifiPreview": "WIFI: {ssid}",
       "passPreview": "PASS: {password}",
-      "noPassword": "(без пароля)"
+      "noPassword": "(без пароля)",
+      "addMoreHint": "Вы можете в любой момент добавить ещё на странице <link>Интеграции</link>.",
+      "builtInBadge": "Встроенный",
+      "previewLabel": "Предпросмотр:"
     },
     "welcome": {
       "setupComplete": "Настройка завершена!",
@@ -639,7 +714,9 @@
     "changeModeDisableTitle": "Отключить режим расписания",
     "changeModeDisableDescription": "Отключите расписание и управляйте board вручную.",
     "changeModeDisableSuccess": "Режим расписания отключён",
-    "collectionSizeWarning": "{count} из {total} страниц в этой коллекции не подходят под размер этой доски и будут пропущены."
+    "collectionSizeWarning": "{count} из {total} страниц в этой коллекции не подходят под размер этой доски и будут пропущены.",
+    "turnOffLiveModeAriaLabel": "Отключить живой режим",
+    "liveModeBadge": "Живой режим"
   },
   "forceSetDialog": {
     "title": "Принудительно установить board",
@@ -882,7 +959,10 @@
     "updateNow": "Обновить сейчас",
     "oneClickHint": "Хотите кнопку «Обновить сейчас» одним нажатием? Установите <profile></profile> в вашем <envFile></envFile>, затем выполните <command></command>.",
     "dialogTitle": "Обновить FiestaBoard?",
-    "dialogDescription": "Это загрузит <version></version> и перезапустит FiestaBoard. Дисплей board остановится примерно на 30 секунд, и эта страница автоматически перезагрузится."
+    "dialogDescription": "Это загрузит <version></version> и перезапустит FiestaBoard. Дисплей board остановится примерно на 30 секунд, и эта страница автоматически перезагрузится.",
+    "intervalSelectAriaLabel": "Частота проверки обновлений",
+    "intervalCardDescription": "Как часто FiestaBoard должен искать новый релиз в фоновом режиме. Когда релиз найдётся, здесь появится баннер.",
+    "lastChecked": "Последняя проверка: {time}"
   },
   "transitionSettings": {
     "title": "Переходы доски",
@@ -1008,7 +1088,8 @@
       "Numbers": "Цифры",
       "Symbols": "Символы",
       "Colors": "Цвета"
-    }
+    },
+    "latencyMs": "{ms} мс"
   },
   "generalSettings": {
     "title": "Общие настройки",
@@ -1375,7 +1456,8 @@
     "flapSpeed_relaxedHint": "{ms} мс — медленный, размеренный переворот для фоновых дисплеев.",
     "flapSpeedPreviewLabel": "Предпросмотр",
     "flapSpeedInactive": "Анимации board отключены, поэтому скорость переворота ни на что не влияет.",
-    "flapSpeedScreenOnlyNote": "Это меняет только предпросмотр board на экране. Темп переходов физического Vestaboard настраивается отдельно, в разделе «Поведение → Переходы board»."
+    "flapSpeedScreenOnlyNote": "Это меняет только предпросмотр board на экране. Темп переходов физического Vestaboard настраивается отдельно, в разделе «Поведение → Переходы board».",
+    "updateAvailableBadge": "Доступна v{version}"
   },
   "monitor": {
     "title": "Монитор",
@@ -1647,7 +1729,8 @@
     "whiteBoard": "Белое табло",
     "deviceFlagship": "Flagship",
     "deviceNote": "Note",
-    "deviceNoteArray": "Массив Note {w}×{h}"
+    "deviceNoteArray": "Массив Note {w}×{h}",
+    "githubLink": "GitHub"
   },
   "boardDisplay": {
     "loading": "Загрузка дисплея board",
@@ -1736,7 +1819,12 @@
     "remoteOptionsSearchPlaceholder": "Поиск…",
     "remoteOptionsCustomLabel": "Своё значение",
     "remoteOptionsCustomPlaceholder": "Введите значение, которого нет в списке",
-    "remoteOptionsCustomAdd": "Добавить своё значение"
+    "remoteOptionsCustomAdd": "Добавить своё значение",
+    "addItemLabel": "Добавить {label}",
+    "unknownType": "Неизвестный тип: {type}",
+    "pagePickerNone": "Нет (без переопределения)",
+    "pagePickerLoading": "Загрузка страниц…",
+    "pagePickerPlaceholder": "Выберите страницу…"
   },
   "filterPicker": {
     "noFiltersAvailable": "Нет доступных фильтров",
@@ -1744,7 +1832,8 @@
     "filterDescWrap": "Переносит длинный текст на несколько строк",
     "filterDescPad": "Дополняет текст до заданной ширины",
     "filterDescTruncate": "Обрезает текст до заданной длины",
-    "wrapInstruction": "|wrap: Переносит длинный текст. Оставьте пустые строки ниже, чтобы текст мог в них перетекать."
+    "wrapInstruction": "Переносит длинный текст. Оставьте пустые строки ниже, чтобы текст мог в них перетекать.",
+    "exampleLabel": "Пример: {example}"
   },
   "formattingPicker": {
     "noFormattingAvailable": "Нет доступных опций форматирования",
@@ -1805,7 +1894,25 @@
     "alignRight": "Выровнять по правому краю",
     "syncFromBoardTooltip": "Заполнить шаблон из того, что сейчас отображается на board",
     "syncFromBoard": "Синхронизировать из текущего дисплея board",
-    "alignment": "Выравнивание:"
+    "alignment": "Выравнивание:",
+    "undoAriaLabel": "Отменить",
+    "redoAriaLabel": "Повторить",
+    "cutAriaLabel": "Вырезать",
+    "copyAriaLabel": "Копировать",
+    "pasteAriaLabel": "Вставить",
+    "removeWrappedTextAriaLabel": "Удалить перенесённый текст",
+    "colorPickerAriaLabel": "Выбор цвета",
+    "heartCharacterAriaLabel": "Символ сердца",
+    "lineCount": "{used} / {max} строк",
+    "overLineLimit": " — превышает лимит доски в {max} строк",
+    "currentLine": "(Строка {line})",
+    "heartLabel": "сердце",
+    "insertHeartTooltip": "Вставить символ сердца (только Note)",
+    "colorTileTooltip": "Плитка «{color}» (код {code}) — перетащите, чтобы переместить, backspace, чтобы удалить",
+    "fillSpaceTooltip": "Заполнение пробела — растягивается на оставшуюся ширину строки",
+    "fillSpaceRepeatTooltip": "Заполнение пробела повторением: {char}",
+    "variableFilterTooltip": "Фильтр: {filter}",
+    "variableMaxLengthTooltip": "Максимальная длина: {maxLength} символов"
   },
   "variablePicker": {
     "noVariablesAvailable": "Нет доступных переменных",
@@ -1815,7 +1922,8 @@
     "searchPlaceholder": "Поиск переменных...",
     "indexLabel": "Индекс: {index}",
     "configureHint": "Настройте {arrayName} в Настройках, чтобы видеть здесь индексированные переменные.",
-    "configureExample": "Пример:"
+    "configureExample": "Пример:",
+    "noMatchingVariables": "Подходящих переменных не найдено."
   },
   "login": {
     "signInTitle": "Войти в FiestaBoard",
@@ -1873,11 +1981,62 @@
     "taskStatusAriaLabel": "Ход выполнения задач",
     "taskProgressAriaLabel": "Прогресс задач ИИ",
     "clearConversationAriaLabel": "Очистить разговор",
-    "closePanelAriaLabel": "Закрыть FiestaBot (Beta)"
+    "closePanelAriaLabel": "Закрыть FiestaBot (Beta)",
+    "providerSelectAriaLabel": "Провайдер",
+    "modelSelectAriaLabel": "Модель",
+    "showBoardTooltip": "Показать предпросмотр доски",
+    "hideBoardTooltip": "Скрыть предпросмотр доски",
+    "undoTooltip": "Отменить последнее изменение ИИ",
+    "panelTitle": "FiestaBot (Beta)",
+    "retryButton": "Повторить",
+    "messageLabel": "Сообщение",
+    "stopButton": "Остановить",
+    "sendButton": "Отправить",
+    "tasksHeading": "Задачи ({done}/{total})",
+    "emptyStateTitle": "Чем я могу помочь?",
+    "emptyStateDescription": "Опишите, что вы хотите создать или изменить.",
+    "showBoardButton": "Показать доску",
+    "undoButton": "Отменить",
+    "renameSummary": "→ переименовать в «{name}»",
+    "previewUnavailable": "(предпросмотр недоступен)"
   },
   "boardSizeIndicator": {
     "custom": "Пользовательский",
     "ariaLabel": "{rows} строк на {cols} столбцов",
     "ariaLabelWithLayout": "{rows} строк на {cols} столбцов, {layout}"
+  },
+  "mcpSettings": {
+    "title": "MCP / внешние клиенты",
+    "description": "Предварительно выданный токен, который позволяет Claude Desktop, Claude Code и другим клиентам MCP обращаться к этому FiestaBoard. Токен аутентифицируется как единый субъект — только в рамках конечной точки {endpoint} — поэтому он не может изменять страницы или другие настройки. См. <link>настройку клиента MCP</link>, чтобы узнать об особенностях конкретных клиентов (Desktop требует stdio-прокси; Connectors в claude.ai web требуют публичного HTTPS и OAuth, поэтому не смогут подключиться к хосту в LAN).",
+    "statusLabel": "Статус:",
+    "pinnedByEnvBadge": "Задан через {envVar}",
+    "configuredBadge": "Настроено",
+    "pinnedByEnvDescription": "Активный токен задан переменной окружения {envVar}. Удалите её из {envFile} и перезапустите контейнер, прежде чем управлять токеном из этого интерфейса.",
+    "noTokenDescription": "Токен не настроен. Внешние клиенты MCP перейдут к аутентификации по cookie, которую Claude Desktop и Claude Code не поддерживают — их регистрация завершится непонятной ошибкой. Сгенерируйте токен, чтобы разблокировать их.",
+    "activeTokenDescription": "Токен настроен и активен. Смените его, чтобы аннулировать предыдущий (любой клиент, всё ещё использующий старый токен, начнёт получать 401), либо отзовите его полностью, чтобы вернуться к аутентификации только по cookie.",
+    "rotateTokenButton": "Сменить токен",
+    "generateTokenButton": "Сгенерировать токен",
+    "revokeTokenButton": "Отозвать токен",
+    "rotateConfirmTitle": "Сменить токен MCP?",
+    "generateConfirmTitle": "Сгенерировать токен MCP?",
+    "rotateConfirmDescription": "Любому клиенту, всё ещё использующему предыдущий токен, при следующем запросе будет отказано с ответом 401 и запросом Bearer. Новый токен будет показан только один раз — сохраните его в надёжном месте (прочитать его в интерфейсе повторно не получится).",
+    "generateConfirmDescription": "Токен будет показан только один раз — сохраните его в надёжном месте (прочитать его в интерфейсе повторно не получится). Внешние клиенты MCP будут использовать его для аутентификации в {endpoint}.",
+    "rotateConfirmButton": "Сменить",
+    "generateConfirmButton": "Сгенерировать",
+    "revokeConfirmTitle": "Отозвать токен MCP?",
+    "revokeConfirmDescription": "Внешние клиенты MCP начнут получать 401 при следующем запросе. Вы всегда сможете сгенерировать новый токен позже.",
+    "revokeConfirmButton": "Отозвать",
+    "revealTitle": "Сохраните этот токен",
+    "revealDescription": "FiestaBoard хранит только то, что нужно для проверки будущих запросов, — значение в открытом виде показывается только сейчас. Скопируйте его в свой клиент MCP.",
+    "tokenLabel": "Токен",
+    "copyButton": "Копировать",
+    "copiedButton": "Скопировано",
+    "configSnippetLabel": "Фрагмент конфигурации Claude Desktop",
+    "configSnippetDescription": "Вставьте это в {configPath}, объединив с тем, что там уже есть, затем полностью закройте и заново запустите Claude Desktop (⌘Q — закрыть окно недостаточно). Claude Desktop поддерживает только stdio-серверы MCP, поэтому этот фрагмент запускает {mcpRemoteLink} через {npx} в качестве прокси — необходимо установить Node 18+, а {npx} должен быть доступен в PATH Claude Desktop. Если возникает ошибка {commandNotFound}, замените {npxQuoted} на абсолютный путь из {whichNpx}.",
+    "claudeCodeDescription": "<label>Claude Code (CLI):</label> общается по HTTP напрямую — прокси не нужен.",
+    "claudeWebDescription": "<label>claude.ai web (Connectors):</label> не поддерживается для самостоятельно размещённого FiestaBoard. Процесс Connectors требует публичного HTTPS-адреса и динамической регистрации клиента OAuth 2.1, а хост в LAN не может обеспечить ни того, ни другого. Используйте вместо этого Desktop или Code.",
+    "savedItButton": "Я сохранил его",
+    "toastTokenRevoked": "Токен MCP отозван",
+    "toastCopyFailed": "Не удалось скопировать в буфер обмена"
   }
 }

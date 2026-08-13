@@ -220,7 +220,7 @@ export default function PluginDetailPage() {
                   {/* eslint-disable-next-line react/forbid-elements -- single Slot child of Button asChild; the Button merges its chrome onto this anchor and TextLink would layer conflicting link styling */}
                   <a href={entry.repository} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                    GitHub
+                    {t("githubLink")}
                   </a>
                 </Button>
               )}
@@ -382,9 +382,7 @@ export default function PluginDetailPage() {
       <Dialog open={addInstanceOpen} onOpenChange={setAddInstanceOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {t("addInstance")} of {entry?.name ?? pluginId}
-            </DialogTitle>
+            <DialogTitle>{t("addInstanceOfTitle", { name: entry?.name ?? pluginId })}</DialogTitle>
             <DialogDescription>{t("addInstanceDescription")}</DialogDescription>
           </DialogHeader>
           <Stack gap="2" className="py-2">

@@ -684,7 +684,7 @@ function ColorRulesEditor({
               type="text"
               value={newFieldName}
               onChange={(e) => setNewFieldName(e.target.value)}
-              placeholder="Field name (e.g., temperature)"
+              placeholder={t("colorRules.fieldPlaceholder")}
               className="flex-1 h-8 px-2 text-xs rounded border bg-background"
             />
             <Button size="sm" className="h-8 text-xs" onClick={handleAddField}>
@@ -698,7 +698,7 @@ function ColorRulesEditor({
 
         {fieldNames.length === 0 ? (
           <Text size="xs" tone="muted" className="py-2">
-            No color rules configured. Add a field to create dynamic colors.
+            {t("colorRules.noRulesConfigured")}
           </Text>
         ) : (
           <Stack gap="3">
@@ -713,7 +713,7 @@ function ColorRulesEditor({
                         {pluginId}.{fieldName}
                       </CodeChip>
                       <Text as="span" size="xs" tone="muted">
-                        → color based on value
+                        {t("colorRules.colorBasedOnValue")}
                       </Text>
                     </Flex>
                     <Flex align="center" gap="1">
@@ -790,7 +790,7 @@ function ColorRulesEditor({
                           </select>
 
                           <Text as="span" size="xs" tone="muted" className="shrink-0">
-                            when
+                            {t("colorRules.when")}
                           </Text>
 
                           {/* Condition picker */}
@@ -819,7 +819,7 @@ function ColorRulesEditor({
                               });
                             }}
                             className="w-20 h-7 px-2 rounded border bg-background text-xs font-mono"
-                            placeholder="value"
+                            placeholder={t("colorRules.valuePlaceholder")}
                           />
 
                           {/* Delete button */}
@@ -1015,6 +1015,7 @@ function InstalledPluginRow({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const queryClient = useQueryClient();
   const t = useTranslations("integrations");
+  const tCommon = useTranslations("common");
   const categoryLabels = useCategoryLabels();
 
   const isExternal = plugin.source?.source_type !== "builtin";
@@ -1160,7 +1161,7 @@ function InstalledPluginRow({
             <Skeleton className="h-3 w-16" />
           ) : rawDisplay && rawDisplay.available === false ? (
             <Text as="span" tone="muted" className="italic">
-              Unavailable
+              {t("valueUnavailable")}
             </Text>
           ) : resolved && resolved.short !== "" ? (
             <Tooltip>
@@ -1240,7 +1241,7 @@ function InstalledPluginRow({
   const configSheet = (
     <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Configure">
+        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("configureButton")}>
           <Settings className="h-3.5 w-3.5" />
         </Button>
       </SheetTrigger>
@@ -1250,7 +1251,7 @@ function InstalledPluginRow({
             <Icon className="h-5 w-5" />
             {plugin.name}
           </SheetTitle>
-          <SheetDescription>Configure settings for this integration</SheetDescription>
+          <SheetDescription>{t("configureDescription")}</SheetDescription>
         </SheetHeader>
         <Stack gap="6" className="py-6">
           {isLoadingDetails ? (
@@ -1267,12 +1268,10 @@ function InstalledPluginRow({
                   <Flex align="center" justify="between">
                     <Box>
                       <Heading level={4} size="sm" className="font-medium">
-                        Demo Page
+                        {t("demoPage.title")}
                       </Heading>
                       <Text size="xs" tone="muted" className="mt-0.5">
-                        {pluginDetails.demo_page_id
-                          ? "A demo page already exists for this plugin."
-                          : "Create a ready-to-use page that showcases this plugin."}
+                        {pluginDetails.demo_page_id ? t("demoPage.alreadyExists") : t("demoPage.createDescription")}
                       </Text>
                     </Box>
                     {pluginDetails.demo_page_id ? (
@@ -1280,23 +1279,20 @@ function InstalledPluginRow({
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm" disabled={!areDemoRequirementsMet() || isCreatingDemo}>
                             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                            Recreate
+                            {t("demoPage.recreateButton")}
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Recreate Demo Page?</DialogTitle>
-                            <DialogDescription>
-                              This will delete the existing demo page and create a fresh one with default settings. This
-                              action cannot be undone.
-                            </DialogDescription>
+                            <DialogTitle>{t("demoPage.recreateConfirmTitle")}</DialogTitle>
+                            <DialogDescription>{t("demoPage.recreateConfirmDescription")}</DialogDescription>
                           </DialogHeader>
                           <DialogFooter>
                             <Button variant="outline" onClick={() => setShowDemoConfirm(false)}>
-                              Cancel
+                              {tCommon("cancel")}
                             </Button>
                             <Button onClick={handleCreateDemoPage} disabled={isCreatingDemo}>
-                              {isCreatingDemo ? "Creating..." : "Recreate Demo Page"}
+                              {isCreatingDemo ? t("demoPage.creating") : t("demoPage.recreateAction")}
                             </Button>
                           </DialogFooter>
                         </DialogContent>
@@ -1309,13 +1305,13 @@ function InstalledPluginRow({
                         disabled={!areDemoRequirementsMet() || isCreatingDemo}
                       >
                         <Play className="h-3.5 w-3.5 mr-1.5" />
-                        {isCreatingDemo ? "Creating..." : "Create Demo Page"}
+                        {isCreatingDemo ? t("demoPage.creating") : t("demoPage.createAction")}
                       </Button>
                     )}
                   </Flex>
                   {!areDemoRequirementsMet() && (
                     <Text size="xs" tone="warning">
-                      Configure the required settings below before creating a demo page.
+                      {t("demoPage.requirementsWarning")}
                     </Text>
                   )}
                 </Stack>
@@ -1326,7 +1322,7 @@ function InstalledPluginRow({
                 Object.keys(pluginDetails.settings_schema.properties || {}).length > 0 && (
                   <Stack gap="4">
                     <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                      Settings
+                      {t("settingsSection")}
                     </Heading>
                     <SchemaForm
                       schema={pluginDetails.settings_schema}
@@ -1345,37 +1341,42 @@ function InstalledPluginRow({
                 <TooltipProvider delayDuration={200}>
                   <Stack gap="3">
                     <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                      Template Variables
+                      {t("templateVariablesSection")}
                       <Text as="span" size="xs" tone="muted" className="ml-2">
-                        (click to copy)
+                        ({t("templateVariablesClickToCopy")})
                       </Text>
                     </Heading>
                     {!plugin.enabled && (
                       <Text size="xs" tone="muted" className="italic">
-                        Enable the plugin to see live values.
+                        {t("enablePluginForLiveValues")}
                       </Text>
                     )}
                     {plugin.enabled && rawDisplay && rawDisplay.available === false && (
                       <Text size="xs" tone="warning">
-                        Live values are unavailable
-                        {rawDisplay.error ? `: ${rawDisplay.error}` : "."}
+                        {rawDisplay.error
+                          ? t("liveValuesUnavailableWithError", { error: rawDisplay.error })
+                          : t("liveValuesUnavailable")}
                       </Text>
                     )}
                     <Box className="rounded-md border overflow-hidden">
                       <Table className="text-xs">
                         <TableHeader className="bg-muted/50">
                           <TableRow>
-                            <TableHead className="text-left px-3 py-2 font-medium h-auto">Variable</TableHead>
-                            <TableHead className="text-left px-3 py-2 font-medium h-auto">Description</TableHead>
                             <TableHead className="text-left px-3 py-2 font-medium h-auto">
-                              Current Value
+                              {t("variableColumn")}
+                            </TableHead>
+                            <TableHead className="text-left px-3 py-2 font-medium h-auto">
+                              {t("descriptionColumn")}
+                            </TableHead>
+                            <TableHead className="text-left px-3 py-2 font-medium h-auto">
+                              {t("currentValueColumn")}
                               {plugin.enabled && isFetchingRawDisplay && !isLoadingRawDisplay && (
                                 <Text as="span" size="xs" tone="muted" className="ml-1.5 text-[10px] font-normal">
-                                  (refreshing…)
+                                  ({t("refreshingValues")})
                                 </Text>
                               )}
                             </TableHead>
-                            <TableHead className="text-center px-3 py-2 font-medium h-auto">Max</TableHead>
+                            <TableHead className="text-center px-3 py-2 font-medium h-auto">{t("maxColumn")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody className="divide-y">
@@ -1399,8 +1400,11 @@ function InstalledPluginRow({
                       </Table>
                     </Box>
                     <Text size="xs" tone="muted">
-                      Use in templates as{" "}
-                      <CodeChip className="bg-muted px-1 py-0 rounded">{`{{${plugin.id}.variable}}`}</CodeChip>
+                      {t.rich("useInTemplates", {
+                        example: () => (
+                          <CodeChip className="bg-muted px-1 py-0 rounded">{`{{${plugin.id}.variable}}`}</CodeChip>
+                        ),
+                      })}
                     </Text>
                   </Stack>
                 </TooltipProvider>
@@ -1410,15 +1414,21 @@ function InstalledPluginRow({
               {pluginDetails?.env_vars && pluginDetails.env_vars.length > 0 && (
                 <Stack gap="3">
                   <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                    Environment Variables
+                    {t("environmentVariablesSection")}
                   </Heading>
                   <Box className="rounded-md border overflow-hidden">
                     <Table className="text-xs">
                       <TableHeader className="bg-muted/50">
                         <TableRow>
-                          <TableHead className="text-left px-3 py-2 font-medium h-auto">Variable</TableHead>
-                          <TableHead className="text-left px-3 py-2 font-medium h-auto">Description</TableHead>
-                          <TableHead className="text-center px-3 py-2 font-medium h-auto">Required</TableHead>
+                          <TableHead className="text-left px-3 py-2 font-medium h-auto">
+                            {t("variableColumn")}
+                          </TableHead>
+                          <TableHead className="text-left px-3 py-2 font-medium h-auto">
+                            {t("descriptionColumn")}
+                          </TableHead>
+                          <TableHead className="text-center px-3 py-2 font-medium h-auto">
+                            {t("requiredBadge")}
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody className="divide-y">
@@ -1431,11 +1441,11 @@ function InstalledPluginRow({
                             <TableCell className="px-3 py-2 text-center">
                               {envVar.required ? (
                                 <Badge variant="destructive" className="text-[10px]">
-                                  Required
+                                  {t("requiredBadge")}
                                 </Badge>
                               ) : (
                                 <Badge variant="outline" className="text-[10px]">
-                                  Optional
+                                  {t("optionalBadge")}
                                 </Badge>
                               )}
                             </TableCell>
@@ -1461,9 +1471,7 @@ function InstalledPluginRow({
               {/* No config message */}
               {(!pluginDetails?.settings_schema ||
                 Object.keys(pluginDetails.settings_schema.properties || {}).length === 0) &&
-                variableRows.length === 0 && (
-                  <Text tone="muted">No configuration options available for this plugin.</Text>
-                )}
+                variableRows.length === 0 && <Text tone="muted">{t("noConfigOptions")}</Text>}
             </>
           )}
         </Stack>
@@ -1485,7 +1493,7 @@ function InstalledPluginRow({
           )}
           <SheetClose asChild>
             <Button variant="outline" disabled={isSaving}>
-              Cancel
+              {tCommon("cancel")}
             </Button>
           </SheetClose>
           <Button onClick={handleSaveConfig} disabled={isSaving || isLoadingDetails}>
@@ -1520,7 +1528,7 @@ function InstalledPluginRow({
                 {plugin.name}
               </Text>
               <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 h-4 shrink-0">
-                v{plugin.version}
+                {tCommon("versionShort", { version: plugin.version })}
               </Badge>
               {isCore && (
                 <Badge
@@ -1528,7 +1536,7 @@ function InstalledPluginRow({
                   className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-orange-300 text-orange-600 dark:text-orange-400 dark:border-orange-700"
                 >
                   <BoxIcon className="h-2.5 w-2.5" />
-                  Core
+                  {t("sourceCoreBadge")}
                 </Badge>
               )}
               {isMarketplace && (
@@ -1537,7 +1545,7 @@ function InstalledPluginRow({
                   className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-sky-300 text-sky-600 dark:text-sky-400 dark:border-sky-700"
                 >
                   <Package className="h-2.5 w-2.5" />
-                  Marketplace
+                  {t("sourceMarketplaceBadge")}
                 </Badge>
               )}
               {isGitExternal && (
@@ -1546,7 +1554,7 @@ function InstalledPluginRow({
                   className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 border-purple-300 text-purple-600 dark:text-purple-400 dark:border-purple-700"
                 >
                   <GitBranch className="h-2.5 w-2.5" />
-                  External
+                  {t("sourceExternalBadge")}
                 </Badge>
               )}
               {hasUpdate && (
@@ -1555,7 +1563,7 @@ function InstalledPluginRow({
                   className="text-[10px] gap-1 font-normal px-1.5 py-0 h-4 shrink-0 text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950 dark:text-amber-400"
                 >
                   <ArrowDownToLine className="h-2.5 w-2.5" />
-                  Update
+                  {t("updateAvailableBadge")}
                 </Badge>
               )}
             </Flex>
@@ -1582,18 +1590,18 @@ function InstalledPluginRow({
             plugin.configured ? (
               <Badge variant="default" className="text-[10px] gap-1 px-1.5 py-0 h-5">
                 <CheckCircle className="h-2.5 w-2.5" />
-                Configured
+                {t("configuredBadge")}
               </Badge>
             ) : (
               <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 h-5">
                 <AlertCircle className="h-2.5 w-2.5" />
-                Setup Required
+                {t("setupRequiredBadge")}
               </Badge>
             )
           ) : (
             <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 h-5">
               <XCircle className="h-2.5 w-2.5" />
-              Disabled
+              {t("disabledBadge")}
             </Badge>
           )}
         </TableCell>
@@ -1612,19 +1620,19 @@ function InstalledPluginRow({
             {configSheet}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="More options">
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("moreOptionsAriaLabel")}>
                   <MoreHorizontal className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setIsConfigOpen(true)}>
                   <Settings className="h-3.5 w-3.5 mr-2" />
-                  Configure
+                  {t("configureButton")}
                 </DropdownMenuItem>
                 {!isInstance && (
                   <DropdownMenuItem onClick={() => setShowAddInstance(true)}>
                     <CopyPlus className="h-3.5 w-3.5 mr-2" />
-                    Add Instance
+                    {t("addInstanceAction")}
                   </DropdownMenuItem>
                 )}
                 {!isTransition && (
@@ -1654,7 +1662,7 @@ function InstalledPluginRow({
                       className="text-destructive focus:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5 mr-2" />
-                      Delete
+                      {tCommon("delete")}
                     </DropdownMenuItem>
                   </>
                 )}
@@ -1681,7 +1689,7 @@ function InstalledPluginRow({
           <TableCell colSpan={4} className="px-4 py-3">
             <Flex align="center" gap="3" className="max-w-md">
               <Label htmlFor={`instance-label-${plugin.id}`} className="text-sm whitespace-nowrap">
-                Instance name:
+                {t("instanceNameInlineLabel")}
               </Label>
               <Input
                 id={`instance-label-${plugin.id}`}
@@ -1717,12 +1725,11 @@ function InstalledPluginRow({
                   setInstanceLabel("");
                 }}
               >
-                Cancel
+                {tCommon("cancel")}
               </Button>
             </Flex>
             <Text size="xs" tone="muted" className="mt-1.5">
-              Creates a new independent instance of this plugin with its own configuration. Use alphanumeric characters,
-              hyphens, or underscores (1-40 chars).
+              {t("addInstanceInlineHelp")}
             </Text>
           </TableCell>
         </TableRow>
@@ -1736,18 +1743,16 @@ function InstalledPluginRow({
       <AlertDialogContent>
         <AlertDialogHeader>
           {isInstance ? (
-            <AlertDialogTitle>Delete instance &ldquo;{plugin.instance_label}&rdquo;?</AlertDialogTitle>
+            <AlertDialogTitle>{t("deleteInstanceConfirmTitle", { label: plugin.instance_label })}</AlertDialogTitle>
           ) : (
-            <AlertDialogTitle>Delete &ldquo;{plugin.name}&rdquo;?</AlertDialogTitle>
+            <AlertDialogTitle>{t("deletePluginConfirmTitle", { name: plugin.name })}</AlertDialogTitle>
           )}
           <AlertDialogDescription>
-            {isInstance
-              ? "This will permanently remove this instance and its configuration. This action cannot be undone."
-              : "This will permanently remove the plugin and all its instances. This action cannot be undone."}
+            {isInstance ? t("deleteInstanceConfirmDescription") : t("deletePluginConfirmDescription")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={
               isInstance
@@ -1759,7 +1764,7 @@ function InstalledPluginRow({
             }
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Delete
+            {tCommon("delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

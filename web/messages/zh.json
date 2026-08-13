@@ -50,7 +50,8 @@
     "pageCount": "{count, plural, one {# 个页面} other {# 个页面}}",
     "unknownError": "未知错误",
     "opensInNewTab": "（在新标签页中打开）",
-    "notificationsRegionLabel": "通知"
+    "notificationsRegionLabel": "通知",
+    "versionShort": "v{version}"
   },
   "metadata": {
     "appTitle": "FiestaBoard 控制台",
@@ -81,7 +82,8 @@
     "boardSelector": "选择要管理的板",
     "selectBoard": "选择板",
     "unnamedBoard": "未命名的板",
-    "transitions": "过渡实验室"
+    "transitions": "过渡实验室",
+    "prideCelebration": "骄傲月快乐！"
   },
   "network": {
     "title": "Wi-Fi",
@@ -330,7 +332,11 @@
       "validationOneOffDateRequired": "Please pick a date",
       "validationEndDateBeforeStart": "End date must be on or after start date",
       "collectionSizeWarning": "此合集中的 {total} 个页面中有 {count} 个不适合此板的尺寸，将被跳过。",
-      "incompatiblePageWarning": "此页面与此板的尺寸不匹配，可能无法正确显示。"
+      "incompatiblePageWarning": "此页面与此板的尺寸不匹配，可能无法正确显示。",
+      "monthAriaLabel": "月",
+      "dayAriaLabel": "日",
+      "endMonthAriaLabel": "结束月",
+      "endDayAriaLabel": "结束日"
     },
     "descriptionWithTimezone": "按时间和日期自动轮换页面 · {timezone}",
     "gapDefaultPlaceholder": "空隙默认…",
@@ -472,7 +478,37 @@
     "toastNoUpdates": "所有插件均为最新",
     "toastCheckFailed": "无法检查更新:{error}",
     "installAction": "安装",
-    "installedBadge": "已安装"
+    "installedBadge": "已安装",
+    "valueUnavailable": "不可用",
+    "enablePluginForLiveValues": "启用该插件以查看实时值。",
+    "liveValuesUnavailable": "实时值不可用。",
+    "liveValuesUnavailableWithError": "实时值不可用：{error}",
+    "currentValueColumn": "当前值",
+    "refreshingValues": "刷新中…",
+    "sourceCoreBadge": "核心",
+    "sourceMarketplaceBadge": "Marketplace",
+    "sourceExternalBadge": "外部",
+    "updateAvailableBadge": "更新",
+    "moreOptionsAriaLabel": "更多选项",
+    "addInstanceAction": "添加实例",
+    "instanceNameInlineLabel": "实例名称：",
+    "addInstanceInlineHelp": "创建此插件的一个新的独立实例，它拥有自己的配置。使用字母数字字符、连字符或下划线（1-40 个字符）。",
+    "deleteInstanceConfirmTitle": "删除实例“{label}”？",
+    "deletePluginConfirmTitle": "删除“{name}”？",
+    "deleteInstanceConfirmDescription": "这将永久移除此实例及其配置。此操作无法撤销。",
+    "deletePluginConfirmDescription": "这将永久移除该插件及其所有实例。此操作无法撤销。",
+    "demoPage": {
+      "title": "演示页面",
+      "alreadyExists": "此插件已存在演示页面。",
+      "createDescription": "创建一个可直接使用的页面来展示此插件。",
+      "recreateButton": "重新创建",
+      "recreateConfirmTitle": "重新创建演示页面？",
+      "recreateConfirmDescription": "这将删除现有的演示页面，并使用默认设置创建一个新的。此操作无法撤销。",
+      "creating": "创建中...",
+      "createAction": "创建演示页面",
+      "recreateAction": "重新创建演示页面",
+      "requirementsWarning": "创建演示页面前，请先配置下方的必填设置。"
+    }
   },
   "settings": {
     "title": "设置",
@@ -496,7 +532,43 @@
     "sectionAccount": "账户",
     "sectionAccountDescription": "用户名、密码和退出登录",
     "sectionNetwork": "网络",
-    "sectionNetworkDescription": "管理 Wi-Fi 和连接"
+    "sectionNetworkDescription": "管理 Wi-Fi 和连接",
+    "ai": {
+      "removeProviderAriaLabel": "移除提供商",
+      "cardTitle": "AI 提供商",
+      "cardDescription": "为“Gen AI”页面生成器配置兼容 OpenAI 的 LLM。自带 LLM：FiestaBoard 从不内置密钥。",
+      "privacyNotice": "您的提示词以及已启用插件的变量列表会直接发送给您所配置的提供商。API 密钥保存在本设备上，绝不会发送到其他任何地方。",
+      "emptyState": "尚未配置任何提供商。",
+      "addProviderButton": "添加提供商",
+      "discardButton": "放弃更改",
+      "saveChangesButton": "保存更改",
+      "defaultBadge": "默认",
+      "anthropicBadge": "Anthropic",
+      "makeDefaultButton": "设为默认",
+      "nameLabel": "名称",
+      "protocolLabel": "协议",
+      "protocolOpenaiOption": "兼容 OpenAI（OpenAI、OpenRouter、Groq、DeepSeek、Mistral、Together、Fireworks、Ollama、LM Studio、vLLM、…）",
+      "protocolAnthropicOption": "Anthropic (Messages API)",
+      "baseUrlLabel": "基础 URL",
+      "quickPresetsLabel": "快速预设",
+      "apiKeyLabel": "API 密钥",
+      "modelsLabel": "模型",
+      "defaultModelLabel": "默认模型",
+      "testConnectionButton": "测试连接"
+    },
+    "backup": {
+      "cardTitle": "备份与恢复",
+      "cardDescription": "将您全部的 FiestaBoard 配置 — 看板设置、页面、轮播、日程和插件配置 — 导出为单个 JSON 文件。在新实例上重新上传该文件即可迁移，或在升级后恢复。",
+      "exportButton": "导出备份",
+      "importButton": "导入备份…",
+      "reinstallPluginsLabel": "导入后重新安装外部插件",
+      "reinstallPluginsDescription": "启用后，FiestaBoard 会尝试克隆备份中记录、但此实例上尚未安装的外部插件。无论是否启用，它们的配置都会从备份中恢复。",
+      "sensitiveNote": "注意：备份中以明文形式包含 API 密钥和看板凭据等敏感值。请妥善保管该文件，不要公开分享。",
+      "confirmTitle": "替换当前配置？",
+      "confirmDescription": "您即将恢复 <file></file>。您现有的页面、轮播、日程和配置将被覆盖。每个现有文件都会保留一份带时间戳的副本，与新文件放在一起，必要时可手动回滚。",
+      "restoringButton": "恢复中…",
+      "restoreButton": "恢复备份"
+    }
   },
   "offline": {
     "youreOffline": "您已离线",
@@ -581,7 +653,10 @@
       "passwordPlaceholder": "YourPassword",
       "wifiPreview": "WIFI：{ssid}",
       "passPreview": "密码：{password}",
-      "noPassword": "（无密码）"
+      "noPassword": "（无密码）",
+      "addMoreHint": "您随时可以从<link>集成</link>页面添加更多。",
+      "builtInBadge": "内置",
+      "previewLabel": "预览："
     },
     "welcome": {
       "setupComplete": "设置完成！",
@@ -639,7 +714,9 @@
     "changeModeDisableTitle": "关闭计划模式",
     "changeModeDisableDescription": "禁用计划并手动控制 board。",
     "changeModeDisableSuccess": "计划模式已禁用",
-    "collectionSizeWarning": "此合集中的 {total} 个页面中有 {count} 个不适合此板的尺寸，将被跳过。"
+    "collectionSizeWarning": "此合集中的 {total} 个页面中有 {count} 个不适合此板的尺寸，将被跳过。",
+    "turnOffLiveModeAriaLabel": "关闭实时模式",
+    "liveModeBadge": "实时模式"
   },
   "forceSetDialog": {
     "title": "强制设置 Board",
@@ -882,7 +959,10 @@
     "updateNow": "立即更新",
     "oneClickHint": "想在这里有一个一键 \"立即更新\" 按钮吗?在您的 <envFile></envFile> 中设置 <profile></profile>,然后运行 <command></command>。",
     "dialogTitle": "更新 FiestaBoard?",
-    "dialogDescription": "这将拉取 <version></version> 并重启 FiestaBoard。Board 显示将暂停约 30 秒,此页面将自动重新加载。"
+    "dialogDescription": "这将拉取 <version></version> 并重启 FiestaBoard。Board 显示将暂停约 30 秒,此页面将自动重新加载。",
+    "intervalSelectAriaLabel": "更新检查频率",
+    "intervalCardDescription": "FiestaBoard 在后台检查新版本的频率。发现新版本时，这里会显示横幅。",
+    "lastChecked": "上次检查：{time}"
   },
   "transitionSettings": {
     "title": "看板过渡效果",
@@ -1008,7 +1088,8 @@
       "Numbers": "数字",
       "Symbols": "符号",
       "Colors": "颜色"
-    }
+    },
+    "latencyMs": "{ms} 毫秒"
   },
   "generalSettings": {
     "title": "通用设置",
@@ -1375,7 +1456,8 @@
     "flapSpeed_relaxedHint": "{ms} 毫秒 — 缓慢而从容的翻转，适合氛围展示。",
     "flapSpeedPreviewLabel": "预览",
     "flapSpeedInactive": "board 动画已关闭，因此翻转速度不起作用。",
-    "flapSpeedScreenOnlyNote": "这只会改变屏幕上的 board 预览。实体 Vestaboard 自身的过渡节奏另在「行为 → Board 过渡」中设置。"
+    "flapSpeedScreenOnlyNote": "这只会改变屏幕上的 board 预览。实体 Vestaboard 自身的过渡节奏另在「行为 → Board 过渡」中设置。",
+    "updateAvailableBadge": "v{version} 可用"
   },
   "monitor": {
     "title": "监视器",
@@ -1647,7 +1729,8 @@
     "whiteBoard": "白色显示屏",
     "deviceFlagship": "Flagship",
     "deviceNote": "Note",
-    "deviceNoteArray": "Note 阵列 {w}×{h}"
+    "deviceNoteArray": "Note 阵列 {w}×{h}",
+    "githubLink": "GitHub"
   },
   "boardDisplay": {
     "loading": "加载 board 显示中",
@@ -1736,7 +1819,12 @@
     "remoteOptionsSearchPlaceholder": "搜索…",
     "remoteOptionsCustomLabel": "自定义值",
     "remoteOptionsCustomPlaceholder": "输入列表中没有的值",
-    "remoteOptionsCustomAdd": "添加自定义值"
+    "remoteOptionsCustomAdd": "添加自定义值",
+    "addItemLabel": "添加{label}",
+    "unknownType": "未知类型：{type}",
+    "pagePickerNone": "无（不覆盖）",
+    "pagePickerLoading": "正在加载页面…",
+    "pagePickerPlaceholder": "选择页面…"
   },
   "filterPicker": {
     "noFiltersAvailable": "没有可用的筛选器",
@@ -1744,7 +1832,8 @@
     "filterDescWrap": "将长文本换行到多行",
     "filterDescPad": "将文本填充到指定宽度",
     "filterDescTruncate": "将文本截断到指定长度",
-    "wrapInstruction": "|wrap:换行长文本。在下方留空行,以便文本流入。"
+    "wrapInstruction": "换行长文本。在下方留空行,以便文本流入。",
+    "exampleLabel": "示例：{example}"
   },
   "formattingPicker": {
     "noFormattingAvailable": "没有可用的格式化选项",
@@ -1805,7 +1894,25 @@
     "alignRight": "右对齐",
     "syncFromBoardTooltip": "从当前 board 上显示的内容填充模板",
     "syncFromBoard": "从当前 board 显示同步",
-    "alignment": "对齐:"
+    "alignment": "对齐:",
+    "undoAriaLabel": "撤销",
+    "redoAriaLabel": "重做",
+    "cutAriaLabel": "剪切",
+    "copyAriaLabel": "复制",
+    "pasteAriaLabel": "粘贴",
+    "removeWrappedTextAriaLabel": "移除换行文本",
+    "colorPickerAriaLabel": "颜色选择器",
+    "heartCharacterAriaLabel": "心形字符",
+    "lineCount": "{used} / {max} 行",
+    "overLineLimit": " — 超出 {max} 行的看板上限",
+    "currentLine": "（第 {line} 行）",
+    "heartLabel": "心形",
+    "insertHeartTooltip": "插入心形字符（仅限 Note）",
+    "colorTileTooltip": "{color} 色块（代码 {code}）- 拖动可移动，按 backspace 删除",
+    "fillSpaceTooltip": "填充空间 - 扩展以填满该行剩余宽度",
+    "fillSpaceRepeatTooltip": "重复填充空间：{char}",
+    "variableFilterTooltip": "筛选器：{filter}",
+    "variableMaxLengthTooltip": "最大长度：{maxLength} 个字符"
   },
   "variablePicker": {
     "noVariablesAvailable": "没有可用的变量",
@@ -1815,7 +1922,8 @@
     "searchPlaceholder": "搜索变量...",
     "indexLabel": "索引:{index}",
     "configureHint": "在设置中配置 {arrayName} 以在此查看索引变量。",
-    "configureExample": "示例:"
+    "configureExample": "示例:",
+    "noMatchingVariables": "未找到匹配的变量。"
   },
   "login": {
     "signInTitle": "登录 FiestaBoard",
@@ -1873,11 +1981,62 @@
     "taskStatusAriaLabel": "任务进度",
     "taskProgressAriaLabel": "AI 任务进度",
     "clearConversationAriaLabel": "清除对话",
-    "closePanelAriaLabel": "关闭 FiestaBot (Beta)"
+    "closePanelAriaLabel": "关闭 FiestaBot (Beta)",
+    "providerSelectAriaLabel": "提供商",
+    "modelSelectAriaLabel": "模型",
+    "showBoardTooltip": "显示看板预览",
+    "hideBoardTooltip": "隐藏看板预览",
+    "undoTooltip": "撤销上一次 AI 更改",
+    "panelTitle": "FiestaBot (Beta)",
+    "retryButton": "重试",
+    "messageLabel": "消息",
+    "stopButton": "停止",
+    "sendButton": "发送",
+    "tasksHeading": "任务（{done}/{total}）",
+    "emptyStateTitle": "需要什么帮助？",
+    "emptyStateDescription": "描述您想要构建或更改的内容。",
+    "showBoardButton": "显示看板",
+    "undoButton": "撤销",
+    "renameSummary": "→ 重命名为“{name}”",
+    "previewUnavailable": "（预览不可用）"
   },
   "boardSizeIndicator": {
     "custom": "自定义",
     "ariaLabel": "{rows}行×{cols}列",
     "ariaLabelWithLayout": "{rows}行×{cols}列，{layout}"
+  },
+  "mcpSettings": {
+    "title": "MCP / 外部客户端",
+    "description": "一个预共享令牌，让 Claude Desktop、Claude Code 及其他 MCP 客户端能够与此 FiestaBoard 通信。该令牌以单一主体身份认证 — 仅限 {endpoint} 端点 — 因此无法编辑页面或其他设置。客户端相关的注意事项请参阅 <link>MCP 客户端设置</link>（Desktop 需要 stdio 代理；claude.ai 网页版 Connectors 需要公网 HTTPS 和 OAuth，因此无法访问 LAN 主机）。",
+    "statusLabel": "状态：",
+    "pinnedByEnvBadge": "由 {envVar} 固定",
+    "configuredBadge": "已配置",
+    "pinnedByEnvDescription": "当前令牌由 {envVar} 环境变量设置。请先在 {envFile} 中取消设置该变量并重启容器，然后再从此界面管理令牌。",
+    "noTokenDescription": "尚未配置令牌。外部 MCP 客户端将退回到 Cookie 认证，而 Claude Desktop / Claude Code 并不支持它 — 它们会以一个含义不明的错误注册失败。生成一个令牌即可解除阻塞。",
+    "activeTokenDescription": "已配置并启用令牌。轮换令牌会使上一个令牌失效（仍在使用旧令牌的客户端将开始收到 401），也可以将其完全吊销，退回到仅 Cookie 认证。",
+    "rotateTokenButton": "轮换令牌",
+    "generateTokenButton": "生成令牌",
+    "revokeTokenButton": "吊销令牌",
+    "rotateConfirmTitle": "轮换 MCP 令牌？",
+    "generateConfirmTitle": "生成 MCP 令牌？",
+    "rotateConfirmDescription": "仍在使用旧令牌的客户端在下一次请求时会被拒绝，并收到 401 + Bearer 质询。新令牌只会显示一次 — 请妥善保管（之后无法再从界面中查看）。",
+    "generateConfirmDescription": "令牌只会显示一次 — 请妥善保管（之后无法再从界面中查看）。外部 MCP 客户端将使用它向 {endpoint} 认证。",
+    "rotateConfirmButton": "轮换",
+    "generateConfirmButton": "生成",
+    "revokeConfirmTitle": "吊销 MCP 令牌？",
+    "revokeConfirmDescription": "外部 MCP 客户端在下一次请求时将开始收到 401。您随时可以再生成新的令牌。",
+    "revokeConfirmButton": "吊销",
+    "revealTitle": "保存此令牌",
+    "revealDescription": "FiestaBoard 只保存验证后续请求所需的内容 — 这是唯一一次显示明文值。请立即将它复制到您的 MCP 客户端。",
+    "tokenLabel": "令牌",
+    "copyButton": "复制",
+    "copiedButton": "已复制",
+    "configSnippetLabel": "Claude Desktop 配置代码片段",
+    "configSnippetDescription": "将此内容粘贴到 {configPath}，与已有内容合并，然后完全退出并重新启动 Claude Desktop（⌘Q — 仅关闭窗口是不够的）。Claude Desktop 仅支持 stdio MCP 服务器，因此此代码片段会通过 {npx} 调用 {mcpRemoteLink} 作为代理 — 必须安装 Node 18+，并且能从 Claude Desktop 的 PATH 中访问到 {npx}。如果报错 {commandNotFound}，请将 {npxQuoted} 替换为 {whichNpx} 输出的绝对路径。",
+    "claudeCodeDescription": "<label>Claude Code (CLI)：</label>直接使用 HTTP 通信 — 无需代理。",
+    "claudeWebDescription": "<label>claude.ai 网页版（Connectors）：</label>自托管的 FiestaBoard 不支持。Connectors 流程需要公网 HTTPS URL 和 OAuth 2.1 动态客户端注册，而 LAN 主机两者都无法提供。请改用 Desktop 或 Code。",
+    "savedItButton": "我已保存",
+    "toastTokenRevoked": "MCP 令牌已吊销",
+    "toastCopyFailed": "无法复制到剪贴板"
   }
 }

@@ -6,6 +6,7 @@ import { NodeViewWrapper } from "@tiptap/react";
 import { WrapText, X } from "lucide-react";
 import React from "react";
 
+import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 
 interface WrappedTextViewProps {
@@ -19,6 +20,7 @@ interface WrappedTextViewProps {
 
 export function WrappedTextView({ node, deleteNode }: WrappedTextViewProps) {
   const { text } = node.attrs;
+  const t = useTranslations("templateEditor");
 
   return (
     <NodeViewWrapper
@@ -59,7 +61,7 @@ export function WrappedTextView({ node, deleteNode }: WrappedTextViewProps) {
         }}
         className="rounded-full hover:bg-black/10 dark:hover:bg-white/10 p-0.5 -mr-1 ml-0.5 transition-colors"
         tabIndex={-1}
-        aria-label="Remove wrapped text"
+        aria-label={t("removeWrappedTextAriaLabel")}
       >
         <X className="w-3 h-3" />
       </button>

@@ -180,7 +180,6 @@ export function NetworkSettings() {
               {status?.signal != null && (
                 <>
                   <dt className="text-muted-foreground">{t("signalLabel")}</dt>
-                  {/* eslint-disable-next-line i18next/no-literal-string */}
                   <dd>{status.signal}%</dd>
                 </>
               )}
