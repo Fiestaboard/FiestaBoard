@@ -9,9 +9,20 @@ name: 'Claude: PR Changelog'
 # Also supports manual workflow_dispatch with a `pr_number` input — useful
 # for retroactively summarizing a PR that merged before this workflow
 # existed, or for re-running a failed summary.
+#
+# `pull_request_target`, not `pull_request`, so that merged FORK PRs get a
+# changelog line too. A `pull_request` run whose head is a fork receives no
+# repo secrets and a read-only GITHUB_TOKEN, so this job would fail twice
+# over on an outside contribution — empty `CLAUDE_CODE_OAUTH_TOKEN`, then a
+# 403 on `gh pr comment` — and the release notes would silently lose the
+# entry. `pull_request_target` is safe here: it evaluates this file from the
+# base ref, the checkout below takes the base ref (never PR head code), and
+# `--allowed-tools` is three read-only `gh` verbs plus the comment post.
+# The actor is whoever merged the PR — a maintainer — so the action's actor
+# permission gate passes.
 
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
     branches:
       - main
@@ -27,7 +38,7 @@ jobs:
     name: Summarize merged PR
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+      (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,7 +48,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
+          # No `ref:` — on `pull_request_target` this resolves to the base
+          # branch, which is what we want. Never check out PR head code in
+          # a job that holds secrets (CodeQL `actions/untrusted-checkout`).
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
@@ -45,6 +60,15 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Required now that the trigger is `pull_request_target`: without
+          # an explicit token the action tries the OIDC→claude[bot] App
+          # exchange, which returns `401 Invalid OIDC token` on
+          # pull_request_target subs (same finding as claude-docs-review.yml).
+          # Passing a token skips the exchange. The cost is the comment
+          # badge — `github-actions[bot]` instead of `claude[bot]` — which
+          # nothing depends on: release.yml harvests these by the
+          # `<!-- claude-changelog -->` marker, never by author.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: '--model claude-sonnet-4-6 --allowed-tools "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"'
           prompt: |
             You are writing one line of a FiestaBoard changelog. FiestaBoard is

@@ -55,9 +55,15 @@ jobs:
     # On `pull_request_target.closed`, only fire for unmerged a11y-pipeline
     # branches. Draft and ready-for-review PRs both fire `closed`. The script
     # itself refuses to log a merged PR, so manual backfill stays safe.
+    #
+    # Same-repo only. A head ref is just a branch name: anyone can open a
+    # fork PR from a branch called `a11y-audit/x`, close it, and steer
+    # this `contents: write` job into committing their PR's text to the
+    # rejection log on main. The pipeline's own PRs are always same-repo.
     if: >-
       ${{ github.event_name == 'workflow_dispatch' ||
           (github.event.pull_request.merged == false &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
            (startsWith(github.event.pull_request.head.ref, 'a11y/issue-') ||
             startsWith(github.event.pull_request.head.ref, 'a11y-audit/'))) }}
     permissions:

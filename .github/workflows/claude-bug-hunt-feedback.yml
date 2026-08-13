@@ -50,9 +50,15 @@ jobs:
     # On `pull_request_target.closed`, only fire for unmerged bug-hunt fix
     # branches. Draft and ready-for-review PRs both fire `closed`. The script
     # itself refuses to log a merged PR, so manual backfill stays safe.
+    #
+    # Same-repo only. A head ref is just a branch name: anyone can open a
+    # fork PR from a branch called `bug-hunt/issue-1`, close it, and steer
+    # this `contents: write` job into committing their PR's text to the
+    # rejection log on main. The loop's own PRs are always same-repo.
     if: >-
       ${{ github.event_name == 'workflow_dispatch' ||
           (github.event.pull_request.merged == false &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
            startsWith(github.event.pull_request.head.ref, 'bug-hunt/issue-')) }}
     permissions:
       contents: write

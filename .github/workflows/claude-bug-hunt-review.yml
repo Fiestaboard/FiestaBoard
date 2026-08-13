@@ -42,9 +42,17 @@ jobs:
     timeout-minutes: 15
     # Only the loop's own fix PRs (draft or not). Skip Dependabot (read-only
     # token can't post a review).
+    #
+    # The same-repo check is what makes the branch-prefix gate mean
+    # anything: a head ref is just a branch name, and anyone can open a
+    # fork PR from a branch called `bug-hunt/issue-1`. The loop's own PRs
+    # are always same-repo, so this costs nothing and stops a fork from
+    # summoning a secrets-bearing job. It also avoids the red X — the
+    # action's actor gate rejects fork contributors outright (#1593).
     if: >-
       github.event.pull_request.user.login != 'dependabot[bot]'
       && startsWith(github.event.pull_request.head.ref, 'bug-hunt/issue-')
+      && github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: read
       pull-requests: write

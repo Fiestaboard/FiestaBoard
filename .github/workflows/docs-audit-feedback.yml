@@ -66,9 +66,16 @@ jobs:
     # draft-state gate here. `workflow_dispatch` always proceeds — the
     # script itself refuses to log a merged PR, so manual backfill
     # remains safe.
+    #
+    # Same-repo only. A head ref is just a branch name: anyone can open a
+    # fork PR from a branch called `docs-audit/x`, close it, and steer
+    # this `contents: write` job into committing their PR's text to the
+    # rejection log on main. The audit cron's own PRs are always
+    # same-repo, so the check costs nothing.
     if: >-
       ${{ github.event_name == 'workflow_dispatch' ||
           (github.event.pull_request.merged == false &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
            (startsWith(github.event.pull_request.head.ref, 'docs-audit/') ||
             startsWith(github.event.pull_request.head.ref, 'docs/issue-'))) }}
     permissions:

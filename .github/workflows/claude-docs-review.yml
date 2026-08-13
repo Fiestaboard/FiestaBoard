@@ -24,6 +24,16 @@ name: 'Claude: Docs Auto-Review'
 # Draft PRs are skipped — a draft signals "not ready for review yet."
 # The trigger includes `ready_for_review` so the review fires when the
 # author flips draft → ready.
+#
+# FORK PRs ARE SKIPPED. `claude-code-action` gates every run on the
+# ACTOR's repo permission, and a fork contributor has `read` — so the job
+# died at "Actor does not have write permissions to the repository"
+# before reading a line of the diff, painting a red X on every outside
+# contribution that touched a markdown file (#1593). There is no input
+# that bypasses that gate, so the honest move is not to fire at all.
+# Maintainers who still want the review run it from the Actions tab via
+# `workflow_dispatch` with the PR number: the actor is then a maintainer,
+# the gate passes, and the review posts exactly as it would have.
 # =============================================================================
 
 on:
@@ -34,6 +44,12 @@ on:
       - 'plugins/*/docs/**'
       - 'docs/**'
       - 'docs-site/**'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review. Use this for fork PRs — the automatic trigger skips them.'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -41,7 +57,7 @@ permissions:
 # Cancel a prior review for the same PR if a new push comes in — only the
 # latest diff matters and we don't want two reviews racing the same comment.
 concurrency:
-  group: claude-docs-review-${{ github.event.pull_request.number }}
+  group: claude-docs-review-${{ github.event.pull_request.number || inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
@@ -53,15 +69,59 @@ jobs:
     # touch docs in a way this review can usefully critique. The job also
     # can't post a review on them: Dependabot PRs receive a read-only
     # GITHUB_TOKEN, so the gh api review POST 403s every time.
+    #
+    # Skip fork PRs — the action's actor permission gate fails them (see
+    # the header). `workflow_dispatch` is the maintainer-run path and is
+    # never gated here: the dispatcher already needs write access, and
+    # dispatch carries no `pull_request` context to test.
     if: >-
-      github.event.pull_request.draft == false
-      && github.event.pull_request.user.login != 'dependabot[bot]'
+      github.event_name == 'workflow_dispatch'
+      || (github.event.pull_request.draft == false
+          && github.event.pull_request.user.login != 'dependabot[bot]'
+          && github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
       contents: read
       pull-requests: write
       id-token: write
       actions: read
     steps:
+      # One source of truth for the PR coordinates, so the rest of the job
+      # doesn't branch on event type. On `pull_request_target` they come
+      # from the event payload; on `workflow_dispatch` only a number was
+      # supplied, so ask the API for the head SHA and base ref. All three
+      # values are repo metadata (never PR file content) — safe to expand
+      # into later expressions.
+      - name: Resolve PR coordinates
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_NUMBER: ${{ inputs.pr_number }}
+          EVENT_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            number="$INPUT_NUMBER"
+            # Fail loudly on a typo'd number rather than running the
+            # review against an empty head SHA.
+            meta=$(gh pr view "$number" --json headRefOid,baseRefName)
+            head_sha=$(printf '%s' "$meta" | jq -er .headRefOid)
+            base_ref=$(printf '%s' "$meta" | jq -er .baseRefName)
+          else
+            number="$EVENT_NUMBER"
+            head_sha="$EVENT_HEAD_SHA"
+            base_ref="$EVENT_BASE_REF"
+          fi
+          {
+            echo "number=$number"
+            echo "head_sha=$head_sha"
+            echo "base_ref=$base_ref"
+          } >> "$GITHUB_OUTPUT"
+          echo "Reviewing PR #$number (head $head_sha, base $base_ref)"
+
       - name: Checkout base ref (trusted)
         uses: actions/checkout@v7
         with:
@@ -73,7 +133,7 @@ jobs:
           # for voice/format comparison. PR head content is read read-only
           # via `gh api .../contents/<path>?ref=<head_sha>` from inside
           # the prompt — data piped through Claude, never executed.
-          ref: ${{ github.event.pull_request.base.ref }}
+          ref: ${{ steps.pr.outputs.base_ref }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -106,7 +166,7 @@ jobs:
             --allowed-tools "Read,Glob,Grep,Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(python3:*),Bash(jq:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*)"
           prompt: |
             You are the FiestaBoard docs reviewer. Review PR
-            #${{ github.event.pull_request.number }} — only the docs changes
+            #${{ steps.pr.outputs.number }} — only the docs changes
             it makes. Skim any non-docs changes for context but don't review
             them; another workflow handles code review.
 
@@ -118,13 +178,13 @@ jobs:
             content. PR-head content is read on-demand via:
 
                 gh api \
-                  "repos/${{ github.repository }}/contents/<path>?ref=${{ github.event.pull_request.head.sha }}" \
+                  "repos/${{ github.repository }}/contents/<path>?ref=${{ steps.pr.outputs.head_sha }}" \
                   -H "Accept: application/vnd.github.raw"
 
             That returns raw file bytes (data only — never executed). Use
             this whenever you need the PR's version of a file.
 
-            1. Run `gh pr diff ${{ github.event.pull_request.number }}` to
+            1. Run `gh pr diff ${{ steps.pr.outputs.number }}` to
                see the exact diff. Focus on `*.md` files and files under
                `plugins/*/docs/`, `docs/`, or `docs-site/`.
             2. Read the root `CLAUDE.md` and `plugins/CLAUDE.md` (if
@@ -172,7 +232,7 @@ jobs:
 
             Inline comments only attach to lines in the PR diff (added
             `+` lines and surrounding context). Run
-            `gh pr diff ${{ github.event.pull_request.number }}` to see
+            `gh pr diff ${{ steps.pr.outputs.number }}` to see
             what's eligible. For each finding, you need:
               - `path` — file path relative to the repo root
               - `line` — the RIGHT-side line number (the line as it
@@ -223,7 +283,7 @@ jobs:
             Build the JSON in python3 and pipe to gh api:
 
                 python3 <<'PY' | gh api \
-                  "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
+                  "repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/reviews" \
                   --method POST --input -
                 import json
                 payload = {
@@ -291,7 +351,7 @@ jobs:
                     ),
                 }))
                 " | gh api \
-                  "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
+                  "repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/reviews" \
                   --method POST --input -
 
             Don't manufacture findings to look thorough.
