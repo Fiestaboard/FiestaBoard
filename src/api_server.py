@@ -6738,9 +6738,11 @@ async def update_beta_settings(request: dict):
             # persisting the user's preference, but we surface the error.
             try:
                 await asyncio.to_thread(https_certs.generate_cert)
-            except Exception as e:  # noqa: BLE001 - report to caller
-                logger.error("Failed to generate HTTPS certificate: %s", e)
-                cert_error = str(e)
+            except Exception:  # noqa: BLE001 - report to caller
+                # Full detail stays in the server log; the raw exception can
+                # carry paths/config internals (CodeQL py/stack-trace-exposure).
+                logger.exception("Failed to generate HTTPS certificate")
+                cert_error = "Certificate generation failed — check the server logs for details."
         elif previous and not requested:
             # User just turned HTTPS off -> remove the cert so nginx
             # falls back to HTTP on next restart.
@@ -9330,11 +9332,14 @@ async def get_plugin_options_endpoint(plugin_id: str, options_id: str, body: Plu
         # inline next to the field instead of a failed-request toast.
         return _envelope(error=str(e))
     except Exception as e:
+        # The traceback (with the plugin's raw error text) is already in the
+        # server log; the client gets a static message so plugin exceptions
+        # cannot leak keys/URLs/paths (CodeQL py/stack-trace-exposure).
         logger.exception("Options provider '%s' failed for plugin '%s'", options_id, plugin_id)
-        stale = _stale_options_payload(cache_key, reason=f"Options provider failed: {e}")
+        stale = _stale_options_payload(cache_key, reason="Options provider failed")
         if stale is not None:
             return stale
-        raise HTTPException(status_code=502, detail=f"Options provider failed: {e}") from e
+        raise HTTPException(status_code=502, detail="Options provider failed") from e
 
     options, truncated = _serialise_options(result.options, limit, plugin_id, options_id)
     payload = _fit_options_payload(

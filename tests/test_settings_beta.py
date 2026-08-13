@@ -123,10 +123,34 @@ def test_put_beta_cert_generation_failure_returns_warning(tmp_path, monkeypatch)
     assert response.status_code == 200
     body = response.json()
     # The setting still toggles (we don't hide the user's intent), but
-    # we surface the cert error so the UI can show it.
+    # we surface a cert error so the UI can show it.
     assert body["status"] == "warning"
     assert body["settings"]["https_enabled"] is True
-    assert "openssl exploded" in body["cert_error"]
+    assert body["cert_error"]
+    _reset_beta_state()
+
+
+def test_put_beta_cert_generation_failure_does_not_leak_exception_text(tmp_path, monkeypatch):
+    """The raw exception may carry paths/config internals (CodeQL
+    py/stack-trace-exposure, alert #62) — the client gets a static message."""
+    _reset_beta_state()
+    monkeypatch.setenv("FIESTABOARD_CERT_DIR", str(tmp_path))
+
+    with (
+        patch(
+            "src.system.https_certs.generate_cert",
+            side_effect=RuntimeError("SECRET_INTERNAL_XYZ /etc/ssl/private/key.pem"),
+        ),
+        patch("src.api_server._updater_token", return_value=""),
+        patch("src.api_server._updater_probe", return_value=False),
+    ):
+        response = client.put("/settings/beta", json={"https_enabled": True})
+
+    assert response.status_code == 200
+    assert "SECRET_INTERNAL_XYZ" not in response.text
+    body = response.json()
+    assert body["status"] == "warning"
+    assert body["cert_error"] == "Certificate generation failed — check the server logs for details."
     _reset_beta_state()
 
 
