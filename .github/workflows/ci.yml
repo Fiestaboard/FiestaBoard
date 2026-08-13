@@ -34,6 +34,7 @@ jobs:
       plugins: ${{ steps.filter.outputs.plugins }}
       shared: ${{ steps.filter.outputs.shared }}
       docs: ${{ steps.filter.outputs.docs }}
+      markdown: ${{ steps.filter.outputs.markdown }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
