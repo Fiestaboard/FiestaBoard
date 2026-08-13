@@ -677,6 +677,56 @@
         }
       ]
     },
+    "price_list": {
+      "teaser": "LATTE ... $4.50",
+      "previews": [
+        {
+          "label": "Coffee Shop",
+          "device_type": "flagship",
+          "rows": [
+            "    {65} DAILY BREW {65}",
+            "",
+            "LATTE............$4.50",
+            "CAPPUCCINO.......$4.25",
+            "DRIP COFFEE......$3.00",
+            "{66} COLD BREW......$4.75"
+          ]
+        },
+        {
+          "label": "Brewery Tap List",
+          "device_type": "flagship",
+          "rows": [
+            "  {64} TAPROOM DRAFTS {64}",
+            "{65} HAZY IPA.......$7.00",
+            "WEST COAST IPA...$6.50",
+            "{63} AMBER ALE......$6.00",
+            "PILSNER..........$5.50",
+            "STOUT NITRO......$7.50"
+          ]
+        },
+        {
+          "label": "Happy Hour",
+          "device_type": "flagship",
+          "rows": [
+            "    {68} HAPPY HOUR {68}",
+            "",
+            "{63} HOUSE RED      $6.00",
+            "{65} DRAFT PINT     $4.00",
+            "WELL DRINKS      $5.00",
+            "{64} WINGS          $7.50"
+          ]
+        },
+        {
+          "label": "Note",
+          "device_type": "note",
+          "rows": [
+            "DAILY BREW",
+            "LATTE.....$4.50",
+            "DRIP......$3.00"
+          ]
+        }
+      ]
+    },
     "quote_of_day": {
       "teaser": "DAILY QUOTE",
       "previews": [
