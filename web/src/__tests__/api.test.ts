@@ -1,89 +1,18 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { PageCreate, RotationCreate, RowConfig } from "@/lib/api";
+import type { PageCreate, RowConfig } from "@/lib/api";
 import { api } from "@/lib/api";
 
 import { requestStore } from "./mocks/handlers";
 
 // Reset request store before each test
 beforeEach(() => {
-  requestStore.lastRotationCreate = undefined;
   requestStore.lastPageCreate = undefined;
   requestStore.lastTransitionUpdate = undefined;
   requestStore.lastOutputUpdate = undefined;
 });
 
 describe("API Contract Tests", () => {
-  describe.skip("Rotation API", () => {
-    it("createRotation sends correct payload structure", async () => {
-      const rotation: RotationCreate = {
-        name: "Test Rotation",
-        pages: [{ page_id: "page-1" }, { page_id: "page-2", duration_override: 120 }],
-        default_duration: 300,
-        enabled: true,
-      };
-
-      const result = await api.createRotation(rotation);
-
-      expect(result.status).toBe("success");
-      expect(result.rotation).toBeDefined();
-      expect(result.rotation.name).toBe("Test Rotation");
-
-      // Verify request was sent correctly
-      expect(requestStore.lastRotationCreate).toEqual(rotation);
-      expect(requestStore.lastRotationCreate?.pages).toHaveLength(2);
-      expect(requestStore.lastRotationCreate?.pages[0].page_id).toBe("page-1");
-      expect(requestStore.lastRotationCreate?.pages[1].duration_override).toBe(120);
-    });
-
-    it("createRotation with minimal payload", async () => {
-      const rotation: RotationCreate = {
-        name: "Minimal Rotation",
-        pages: [{ page_id: "page-1" }],
-      };
-
-      const result = await api.createRotation(rotation);
-
-      expect(result.status).toBe("success");
-      expect(requestStore.lastRotationCreate).toEqual(rotation);
-      // Optional fields should not be present
-      expect(requestStore.lastRotationCreate?.default_duration).toBeUndefined();
-      expect(requestStore.lastRotationCreate?.enabled).toBeUndefined();
-    });
-
-    it("getRotations returns correct structure", async () => {
-      const result = await api.getRotations();
-
-      expect(result.rotations).toBeDefined();
-      expect(Array.isArray(result.rotations)).toBe(true);
-      expect(result.total).toBeGreaterThanOrEqual(0);
-      expect(typeof result.active_rotation_id).toBe("string");
-    });
-
-    it("getActiveRotation returns rotation state", async () => {
-      const result = await api.getActiveRotation();
-
-      expect(typeof result.active).toBe("boolean");
-      expect(result.rotation_id).toBeDefined();
-      expect(result.rotation_name).toBeDefined();
-      expect(typeof result.current_page_index).toBe("number");
-    });
-
-    it("activateRotation returns success with state", async () => {
-      const result = await api.activateRotation("rot-1");
-
-      expect(result.status).toBe("success");
-      expect(result.message).toContain("activated");
-      expect(result.state).toBeDefined();
-    });
-
-    it("deactivateRotation returns success", async () => {
-      const result = await api.deactivateRotation();
-
-      expect(result.status).toBe("success");
-    });
-  });
-
   describe("Page API", () => {
     it("createPage with single type sends correct structure", async () => {
       const page: PageCreate = {

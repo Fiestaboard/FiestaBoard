@@ -106,6 +106,34 @@ export interface MockBoardState {
 }
 
 /**
+ * The most recent message the mock board received, with its optional fields
+ * resolved. Throws (failing the test with a readable reason) when nothing was
+ * delivered, instead of letting an index into an absent history explode.
+ */
+export function lastMockMessage(state: MockBoardState): {
+  characters: number[][];
+  dimensions: number[];
+  strategy?: string;
+} {
+  const last = (state.history ?? []).at(-1);
+  if (!last?.characters) {
+    throw new Error(`mock board received no message with characters (history length: ${state.history?.length ?? 0})`);
+  }
+  return { characters: last.characters, dimensions: last.dimensions ?? [], strategy: last.strategy };
+}
+
+/**
+ * The grid currently shown on the mock board. Throws when the board never
+ * received anything.
+ */
+export function mockBoardGrid(state: MockBoardState): number[][] {
+  if (!state.current_message) {
+    throw new Error("mock board has no current_message - nothing was sent to it");
+  }
+  return state.current_message;
+}
+
+/**
  * Read the mock board's internal state (message history, etc.).
  *
  * Each mock board port is its own HTTP listener, so the base URL alone

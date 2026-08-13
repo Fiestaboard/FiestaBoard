@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PageBuilder } from "@/components/page-builder";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { ThemeProvider } from "@/hooks/use-theme";
+import type { Page } from "@/lib/api";
 import { api } from "@/lib/api";
 
 // Mock the api module
@@ -62,20 +63,22 @@ describe("PageBuilder", () => {
     });
     vi.mocked(api.renderTemplate).mockResolvedValue({
       rendered: "test preview",
-      valid: true,
+      lines: ["test preview"],
+      line_count: 1,
     });
-    vi.mocked(api.createPage).mockResolvedValue({
+    // Both endpoints answer with a `{ status, page }` envelope, not a bare
+    // page — the old fixtures asserted a shape the API never returns.
+    const savedPage: Page = {
       id: "test-page-id",
       name: "Test Page",
       type: "template",
+      device_type: "flagship",
       template: ["", "", "", "", "", ""],
-    });
-    vi.mocked(api.updatePage).mockResolvedValue({
-      id: "test-page-id",
-      name: "Test Page",
-      type: "template",
-      template: ["", "", "", "", "", ""],
-    });
+      duration_seconds: 300,
+      created_at: "2024-01-01T00:00:00Z",
+    };
+    vi.mocked(api.createPage).mockResolvedValue({ status: "success", page: savedPage });
+    vi.mocked(api.updatePage).mockResolvedValue({ status: "success", page: savedPage });
   });
 
   afterEach(() => {
@@ -380,7 +383,8 @@ describe("PageBuilder", () => {
       const saveCall = vi.mocked(api.createPage).mock.calls[0][0];
       expect(saveCall.name).toBe("My Test Page");
       // textboxes[0] is page name, textboxes[1] is first template line (templateLines[0])
-      expect(saveCall.template[0]).toBe("Template content");
+      expect(saveCall.template).toBeDefined();
+      expect(saveCall.template?.[0]).toBe("Template content");
     });
   });
 });

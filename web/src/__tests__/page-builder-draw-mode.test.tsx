@@ -284,8 +284,11 @@ describe("PageBuilder draw mode undo restores line metadata", () => {
       () => {
         const last = vi.mocked(api.renderTemplate).mock.calls.at(-1);
         expect(last).toBeTruthy();
-        expect(last![0][0]).toBe(line0);
-        expect(last![1][0]).toEqual({ alignment, wrap });
+        const [template, lineMetadata] = last!;
+        expect(template[0]).toBe(line0);
+        // `lineMetadata` is optional on renderTemplate; the builder must send it.
+        expect(lineMetadata).toBeDefined();
+        expect(lineMetadata?.[0]).toEqual({ alignment, wrap });
       },
       { timeout: 4000 },
     );

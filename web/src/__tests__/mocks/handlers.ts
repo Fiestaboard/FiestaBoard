@@ -8,18 +8,12 @@ import type {
   DisplaySettings,
   DisplaysResponse,
   GeneralConfig,
-  LogEntry,
-  LogsResponse,
   OutputSettings,
   Page,
   PageCreate,
   PagesResponse,
-  PluginDetailsResponse,
+  PluginDetailResponse,
   PreviewResponse,
-  Rotation,
-  RotationCreate,
-  RotationsResponse,
-  RotationStateResponse,
   SilenceStatus,
   StatusResponse,
   TemplateRenderResponse,
@@ -229,90 +223,12 @@ export const mockTemplateVariables: TemplateVariables = {
   },
 };
 
-export const mockRotation: Rotation = {
-  id: "rot-1",
-  name: "Main Rotation",
-  pages: [{ page_id: "page-1" }, { page_id: "page-2", duration_override: 120 }],
-  default_duration: 300,
-  enabled: true,
-  created_at: "2024-01-01T00:00:00Z",
-};
-
-export const mockRotations: RotationsResponse = {
-  rotations: [mockRotation],
-  total: 1,
-  active_rotation_id: "rot-1",
-};
-
-export const mockRotationState: RotationStateResponse = {
-  active: true,
-  rotation_id: "rot-1",
-  rotation_name: "Main Rotation",
-  current_page_index: 0,
-  current_page_id: "page-1",
-  time_on_page: 45,
-  page_duration: 300,
-  total_pages: 2,
-};
-
 export const mockCacheStatus = {
   cached: true,
   last_message_hash: "abc123",
   last_sent_at: "2024-01-01T12:00:00Z",
   cache_hits: 5,
   total_sends: 10,
-};
-
-// Mock log entries
-export const mockLogEntries: LogEntry[] = [
-  {
-    timestamp: "2025-12-25T10:00:00",
-    level: "INFO",
-    logger: "src.api_server",
-    message: "API server starting up...",
-  },
-  {
-    timestamp: "2025-12-25T10:00:01",
-    level: "INFO",
-    logger: "src.main",
-    message: "Initializing FiestaBoard Display Service...",
-  },
-  {
-    timestamp: "2025-12-25T10:00:02",
-    level: "DEBUG",
-    logger: "src.board_client",
-    message: "Connecting to board at 192.168.1.100",
-  },
-  {
-    timestamp: "2025-12-25T10:00:03",
-    level: "WARNING",
-    logger: "src.data_sources.weather",
-    message: "Weather API rate limit approaching",
-  },
-  {
-    timestamp: "2025-12-25T10:00:04",
-    level: "ERROR",
-    logger: "src.displays.service",
-    message: "Failed to render display: timeout",
-  },
-  {
-    timestamp: "2025-12-25T10:00:05",
-    level: "INFO",
-    logger: "src.api_server",
-    message: "Background service auto-started",
-  },
-];
-
-export const mockLogsResponse: LogsResponse = {
-  logs: mockLogEntries,
-  total: mockLogEntries.length,
-  limit: 50,
-  offset: 0,
-  has_more: false,
-  filters: {
-    level: null,
-    search: null,
-  },
 };
 
 // General config mock
@@ -333,7 +249,7 @@ export const mockSilenceStatus: SilenceStatus = {
 };
 
 // Plugin config mock for silence_schedule
-export const mockSilenceSchedulePlugin: PluginDetailsResponse = {
+export const mockSilenceSchedulePlugin: PluginDetailResponse = {
   id: "silence_schedule",
   name: "Silence Schedule",
   version: "1.0.0",
@@ -359,11 +275,12 @@ export const mockSilenceSchedulePlugin: PluginDetailsResponse = {
   max_lengths: {},
   env_vars: [],
   documentation: "",
+  has_demo: false,
+  demo_page_id: null,
 };
 
 // Store for tracking request bodies in tests
 export const requestStore: {
-  lastRotationCreate?: RotationCreate;
   lastPageCreate?: PageCreate;
   lastTransitionUpdate?: Partial<TransitionSettings>;
   lastOutputUpdate?: { target: string };
@@ -773,77 +690,6 @@ export const handlers = [
     });
   }),
 
-  // Rotation endpoints
-  http.get(`${API_BASE}/rotations`, () => {
-    return HttpResponse.json(mockRotations);
-  }),
-
-  http.get(`${API_BASE}/rotations/active`, () => {
-    return HttpResponse.json(mockRotationState);
-  }),
-
-  http.get(`${API_BASE}/rotations/:id`, ({ params }) => {
-    const { id } = params;
-    return HttpResponse.json({
-      ...mockRotation,
-      id: String(id),
-      missing_pages: [],
-    });
-  }),
-
-  http.post(`${API_BASE}/rotations`, async ({ request }) => {
-    const body = (await request.json()) as RotationCreate;
-    requestStore.lastRotationCreate = body;
-
-    const newRotation: Rotation = {
-      id: "new-rot-" + Date.now(),
-      name: body.name,
-      pages: body.pages,
-      default_duration: body.default_duration ?? 300,
-      enabled: body.enabled ?? true,
-      created_at: new Date().toISOString(),
-    };
-    return HttpResponse.json({
-      status: "success",
-      rotation: newRotation,
-    });
-  }),
-
-  http.put(`${API_BASE}/rotations/:id`, async ({ request, params }) => {
-    const body = (await request.json()) as Partial<Rotation>;
-    const { id } = params;
-    const updatedRotation: Rotation = {
-      ...mockRotation,
-      id: String(id),
-      ...body,
-      updated_at: new Date().toISOString(),
-    };
-    return HttpResponse.json({
-      status: "success",
-      rotation: updatedRotation,
-    });
-  }),
-
-  http.delete(`${API_BASE}/rotations/:id`, () => {
-    return HttpResponse.json({ status: "success", message: "Rotation deleted" });
-  }),
-
-  http.post(`${API_BASE}/rotations/:id/activate`, ({ params }) => {
-    const { id } = params;
-    return HttpResponse.json({
-      status: "success",
-      message: "Rotation activated",
-      state: { ...mockRotationState, rotation_id: String(id) },
-    });
-  }),
-
-  http.post(`${API_BASE}/rotations/deactivate`, () => {
-    return HttpResponse.json({
-      status: "success",
-      message: "Rotation deactivated",
-    });
-  }),
-
   // Cache endpoints
   http.get(`${API_BASE}/cache-status`, () => {
     return HttpResponse.json(mockCacheStatus);
@@ -861,47 +707,6 @@ export const handlers = [
       status: "success",
       message: "Display force-refreshed",
     });
-  }),
-
-  // Logs endpoint
-  http.get(`${API_BASE}/logs`, ({ request }) => {
-    const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get("limit") || "50");
-    const offset = parseInt(url.searchParams.get("offset") || "0");
-    const level = url.searchParams.get("level")?.toUpperCase();
-    const search = url.searchParams.get("search")?.toLowerCase();
-
-    let filteredLogs = [...mockLogEntries];
-
-    // Filter by level
-    if (level) {
-      filteredLogs = filteredLogs.filter((log) => log.level === level);
-    }
-
-    // Filter by search
-    if (search) {
-      filteredLogs = filteredLogs.filter(
-        (log) => log.message.toLowerCase().includes(search) || log.logger.toLowerCase().includes(search),
-      );
-    }
-
-    const total = filteredLogs.length;
-    const paginatedLogs = filteredLogs.slice(offset, offset + limit);
-    const hasMore = offset + limit < total;
-
-    const response: LogsResponse = {
-      logs: paginatedLogs,
-      total,
-      limit,
-      offset,
-      has_more: hasMore,
-      filters: {
-        level: level as LogsResponse["filters"]["level"],
-        search: search || null,
-      },
-    };
-
-    return HttpResponse.json(response);
   }),
 
   // General config endpoints
