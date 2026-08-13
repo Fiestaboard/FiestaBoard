@@ -484,9 +484,27 @@ jobs:
       # publish step below already tolerates a missing summary file, so any
       # transient API failure just ships the release without AI bullets
       # instead of blocking the release entirely.
+      #
+      # Pinned to a SHA rather than @beta: the `beta` tag still points at
+      # e8132bc, whose nested `actions/setup-node@v4.4.0` and
+      # `oven-sh/setup-bun@v2.0.2` both declare `runs.using: node20`. The
+      # runner now executes those on Node 24 anyway and prints a deprecation
+      # notice; the only opt-out is literally named
+      # ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION. The mirror has not cut a tag
+      # since v0.0.63 (Aug 2025) but `main` still syncs daily, and this SHA
+      # pins setup-node v6.4.0 + setup-bun v2.2.0 — both node24. Re-point at
+      # an immutable tag if upstream ever tags again. See issue #1577.
+      #
+      # This also fixes a silent no-op: e8132bc predates `claude_args`, so
+      # every release since logged "Unexpected input(s) 'claude_args'" and
+      # ran without the --model and --allowed-tools below.
       - name: Generate AI summary with Claude
         continue-on-error: true
-        uses: anthropics/claude-code-base-action@beta
+        uses: anthropics/claude-code-base-action@f1b5c5c49125f0e6adc48c1203ebd77f83ea9adb
+        env:
+          # The action defaults the CLI's runtime to 18.x; align it with the
+          # Node 24 the rest of this repo's workflows use.
+          NODE_VERSION: '24'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: '--model claude-sonnet-4-6 --allowed-tools "Read,Write"'
