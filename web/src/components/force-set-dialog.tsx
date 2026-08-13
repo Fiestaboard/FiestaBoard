@@ -17,9 +17,10 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Timer } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type { SetTemporaryOverrideRequest } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -46,13 +47,14 @@ export function ForceSetDialog({ open, onOpenChange, pageId, pageName }: ForceSe
   const [customMinutes, setCustomMinutes] = useState<string>("");
   const [isCustom, setIsCustom] = useState(false);
 
-  useEffect(() => {
-    if (open) {
-      setDurationMinutes(5);
-      setCustomMinutes("");
-      setIsCustom(false);
-    }
-  }, [open]);
+  // Reset the duration picker each time the dialog opens. Done during render
+  // so the dialog's first painted frame already shows the defaults instead of
+  // last time's selection (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([open]) && open) {
+    setDurationMinutes(5);
+    setCustomMinutes("");
+    setIsCustom(false);
+  }
 
   const effectiveDuration = isCustom ? Math.max(1, Math.min(480, parseInt(customMinutes, 10) || 1)) : durationMinutes;
 

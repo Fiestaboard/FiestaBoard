@@ -6,6 +6,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 
@@ -37,8 +38,10 @@ export function TimePicker({
   const containerRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLElement>(null);
 
-  // Parse value on mount and when value changes
-  useEffect(() => {
+  // Parse `value` on mount and whenever it changes. Done during render rather
+  // than in an effect so the picker never commits 00:00 before the real time
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([value])) {
     if (value) {
       const [h, m] = value.split(":");
       if (h && m) {
@@ -49,7 +52,7 @@ export function TimePicker({
       setHours("00");
       setMinutes("00");
     }
-  }, [value]);
+  }
 
   // Close on outside click
   useEffect(() => {
