@@ -49,7 +49,11 @@ SCANNED_MODULES = [
 # these modules changes such that the analyzer stops recognizing it, this floor
 # fails and tells us the test went blind rather than quietly finding nothing.
 MIN_RESOLVED_CALLS = {
-    "src/mcp_server.py": 35,
+    # Dropped 35 -> 34 in #1588: the mutating plugin tools now delegate to the
+    # REST handlers instead of calling PluginRegistry themselves, so there is
+    # one fewer directly-resolvable service call in this module. Lower this
+    # only alongside a change that genuinely removes a direct service call.
+    "src/mcp_server.py": 34,
     "src/mqtt/commands.py": 15,
 }
 
