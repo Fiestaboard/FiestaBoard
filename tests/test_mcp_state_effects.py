@@ -35,6 +35,9 @@ permanent exemption.
 from __future__ import annotations
 
 import asyncio
+import json
+import shutil
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -47,6 +50,8 @@ from src.config_manager import ConfigManager
 from src.mcp_server import _build_mcp_server
 from src.pages.service import PageService
 from src.pages.storage import PageStorage
+from src.plugins.loader import PluginLoader
+from src.plugins.registry import PluginRegistry
 from src.schedules.service import ScheduleService
 from src.schedules.storage import ScheduleStorage
 
@@ -74,18 +79,18 @@ COVERED = {
     "get_system_status",
     "get_settings_summary",
     "list_installed_plugins",
+    "install_plugin",
+    "enable_plugin",
+    "disable_plugin",
+    "uninstall_plugin",
+    "configure_plugin",
+    "get_plugin_data",
 }
 
 #: Tools not yet covered here, each with the reason. Not an exemption list.
 UNCOVERED = {
     "list_registry_plugins": "hits the network-backed registry; needs a fixture",
-    "install_plugin": "mutates the filesystem outside tmp_path",
-    "enable_plugin": "requires an installed plugin fixture",
-    "disable_plugin": "requires an installed plugin fixture",
-    "uninstall_plugin": "requires an installed plugin fixture",
-    "configure_plugin": "requires an installed plugin fixture",
-    "update_plugin": "requires an installed plugin fixture",
-    "get_plugin_data": "requires a live plugin instance",
+    "update_plugin": "reload_plugin() re-clones from git; needs a local git fixture",
     "set_active_page": "delegates to the REST handler; needs board render wiring",
     "set_schedule_mode": "routes through SettingsService; needs settings wiring",
 }
@@ -126,6 +131,166 @@ def services(tmp_path, monkeypatch):
     }
 
     ConfigManager._instance = None  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# Plugin fixture — a real plugin package on disk, loaded by the real loader
+# ---------------------------------------------------------------------------
+
+#: Installed by the fixture before each test.
+PLUGIN_ID = "harness_tide"
+
+#: Staged but *not* installed, so install_plugin() has something to install.
+UNINSTALLED_PLUGIN_ID = "harness_surf"
+
+
+def _manifest(plugin_id: str) -> dict[str, Any]:
+    return {
+        "id": plugin_id,
+        "name": plugin_id.replace("_", " ").title(),
+        "version": "1.0.0",
+        "description": "Fixture plugin for MCP state-effect tests.",
+        "author": "FiestaBoard Tests",
+        "icon": "puzzle",
+        "category": "utility",
+        "settings_schema": {
+            "type": "object",
+            "properties": {
+                "station_id": {"type": "string", "title": "Station ID"},
+                "api_key": {"type": "string", "title": "API Key", "ui:widget": "password"},
+                "enabled": {"type": "boolean", "title": "Enabled", "default": False},
+            },
+            "required": ["station_id"],
+        },
+        "variables": {
+            "simple": {
+                "next_high": {
+                    "description": "Time of the next high tide",
+                    "type": "string",
+                    "max_length": 5,
+                    "example": "06:12",
+                }
+            }
+        },
+    }
+
+
+#: ``station_id`` is required by ``validate_config``, which is what makes
+#: "configure_plugin swallows validation errors" testable.
+_PLUGIN_SOURCE = '''\
+"""Fixture plugin for tests/test_mcp_state_effects.py."""
+
+from src.plugins.base import PluginBase, PluginResult
+
+
+class HarnessPlugin(PluginBase):
+    @property
+    def plugin_id(self) -> str:
+        return "{plugin_id}"
+
+    def validate_config(self, config):
+        if not config.get("station_id"):
+            return ["station_id is required"]
+        return []
+
+    def fetch_data(self) -> PluginResult:
+        return PluginResult(available=True, data={{"next_high": "06:12"}})
+'''
+
+
+def _write_plugin(directory: Path, plugin_id: str) -> None:
+    """Write a real, loadable plugin package to *directory*."""
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "manifest.json").write_text(json.dumps(_manifest(plugin_id)), encoding="utf-8")
+    (directory / "__init__.py").write_text(_PLUGIN_SOURCE.format(plugin_id=plugin_id), encoding="utf-8")
+
+
+class _LocalRegistry(PluginRegistry):
+    """A real registry whose "registry install" copies from a local staging dir.
+
+    Everything after the copy is the production code path: the real
+    ``PluginLoader`` imports the package, and the real bookkeeping runs. Only
+    the git clone is replaced, so ``install_plugin`` can be exercised without
+    the network.
+    """
+
+    def __init__(self, plugins_dir: Path, external_dir: Path, staging_dir: Path):
+        super().__init__(plugins_dir=plugins_dir)
+        self._loader = PluginLoader(plugins_dir=plugins_dir, external_dirs=[external_dir])
+        self._external_dir = external_dir
+        self._staging_dir = staging_dir
+
+    def install_from_registry(self, plugin_id: str) -> list[str]:
+        staged = self._staging_dir / plugin_id
+        if not staged.is_dir():
+            return [f"Plugin '{plugin_id}' not found in the registry"]
+
+        shutil.copytree(staged, self._external_dir / plugin_id, dirs_exist_ok=True)
+
+        plugin = self._loader.load_plugin(plugin_id)
+        if plugin is None:
+            return self._loader.load_errors.get(plugin_id, []) or [f"Failed to load plugin: {plugin_id}"]
+
+        manifest = self._loader.get_manifest(plugin_id)
+        assert manifest is not None
+        self._plugins[plugin_id] = plugin
+        self._manifests[plugin_id] = manifest
+        self._enabled[plugin_id] = False
+        self._clear_removed_tombstone(plugin_id)
+        return []
+
+
+@pytest.fixture
+def plugins(services, tmp_path, monkeypatch):
+    """Install ``harness_tide`` into a real registry wired to the singleton.
+
+    ``harness_surf`` is staged but left uninstalled so ``install_plugin`` has
+    a target. Both live under ``tmp_path``; nothing touches the repo's own
+    ``plugins/`` or ``external_plugins/`` directories.
+    """
+    builtin_dir = tmp_path / "builtin_plugins"
+    builtin_dir.mkdir()
+    external_dir = tmp_path / "external_plugins"
+    external_dir.mkdir()
+    staging_dir = tmp_path / "staged_plugins"
+
+    _write_plugin(staging_dir / PLUGIN_ID, PLUGIN_ID)
+    _write_plugin(staging_dir / UNINSTALLED_PLUGIN_ID, UNINSTALLED_PLUGIN_ID)
+
+    def build_registry() -> _LocalRegistry:
+        registry = _LocalRegistry(builtin_dir, external_dir, staging_dir)
+        registry.initialize()
+        monkeypatch.setattr("src.plugins.registry._registry", registry)
+        return registry
+
+    registry = build_registry()
+    assert not registry.install_from_registry(PLUGIN_ID), "fixture failed to install the harness plugin"
+
+    yield {
+        "registry": registry,
+        "config_path": str(tmp_path / "config.json"),
+        # Rebuild the registry and ConfigManager from the same files — what
+        # `docker compose up -d` does to a container.
+        "restart": lambda: (_restart_config_manager(str(tmp_path / "config.json")), build_registry())[1],
+    }
+
+    monkeypatch.setattr("src.plugins.registry._registry", None, raising=False)
+
+
+def _restart_config_manager(config_path: str) -> ConfigManager:
+    """Drop the ConfigManager singleton and re-read the file from disk."""
+    ConfigManager._instance = None  # type: ignore[attr-defined]
+    return ConfigManager(config_path=config_path)
+
+
+def stored_plugin_config(config_path: str, plugin_id: str) -> dict[str, Any] | None:
+    """Read a plugin's config straight out of ``config.json``.
+
+    Deliberately bypasses ConfigManager: the whole bug is that the in-memory
+    copy looked right while the file had nothing in it.
+    """
+    raw = json.loads(Path(config_path).read_text(encoding="utf-8"))
+    return raw.get("plugins", {}).get(plugin_id)
 
 
 def call(mcp: Any, tool_name: str, /, **kwargs: Any) -> Any:
@@ -445,3 +610,197 @@ def test_get_settings_summary_returns_a_payload(mcp, services):
 def test_list_installed_plugins_returns_a_list(mcp, services):
     result = call(mcp, "list_installed_plugins")
     assert isinstance(result, (list, dict))
+
+
+# ---------------------------------------------------------------------------
+# Plugins — #1588
+#
+# Every one of these tools mutated only the in-memory registry and never
+# ConfigManager, so the settings evaporated the next time the container was
+# recreated. The assertions below read `config.json` off disk rather than
+# asking the registry, because the registry is exactly what lied.
+# ---------------------------------------------------------------------------
+
+
+def test_configure_plugin_writes_the_settings_to_config_json(mcp, plugins):
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+
+    stored = stored_plugin_config(plugins["config_path"], PLUGIN_ID)
+    assert stored is not None, "configure_plugin reported success but wrote nothing to config.json"
+    assert stored["station_id"] == "9447427"
+
+
+def test_configure_plugin_returns_the_config_it_saved(mcp, plugins):
+    """An empty ``config`` echo was the only hint the write never happened."""
+    result = assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+    assert result["config"].get("station_id") == "9447427"
+
+
+def test_configure_plugin_masks_sensitive_values_in_its_response(mcp, plugins):
+    result = assert_ok(
+        call(
+            mcp,
+            "configure_plugin",
+            plugin_id=PLUGIN_ID,
+            config={"station_id": "9447427", "api_key": "test_secret"},
+        ),
+        "configure_plugin",
+    )
+    assert result["config"]["api_key"] == "***", "an API key was echoed back in the clear"
+    assert stored_plugin_config(plugins["config_path"], PLUGIN_ID)["api_key"] == "test_secret"
+
+
+def test_configure_plugin_merges_with_the_existing_stored_config(mcp, plugins):
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"api_key": "test_secret"}),
+        "configure_plugin (partial)",
+    )
+
+    stored = stored_plugin_config(plugins["config_path"], PLUGIN_ID)
+    assert stored["station_id"] == "9447427", "a partial update dropped a previously-set field"
+    assert stored["api_key"] == "test_secret"
+
+
+def test_configure_plugin_reports_validation_errors_instead_of_success(mcp, plugins):
+    """``registry.set_plugin_config()`` returns errors; the tool discarded them."""
+    result = call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": ""})
+
+    assert result.get("status") == "error", "an invalid config was reported as a successful update"
+    assert "station_id" in str(result.get("error", "")), (
+        f"the plugin's own validation message was not surfaced: {result}"
+    )
+
+
+def test_configure_plugin_does_not_overwrite_a_good_config_with_a_rejected_one(mcp, plugins):
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+
+    call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": ""})
+
+    stored = stored_plugin_config(plugins["config_path"], PLUGIN_ID)
+    assert stored["station_id"] == "9447427", "a rejected config was persisted over a valid one"
+
+
+def test_configure_plugin_reports_an_error_for_an_unknown_plugin(mcp, plugins):
+    result = call(mcp, "configure_plugin", plugin_id="not_a_plugin", config={"station_id": "1"})
+    assert result.get("status") == "error"
+    assert stored_plugin_config(plugins["config_path"], "not_a_plugin") is None
+
+
+def test_enable_plugin_persists_enabled_true(mcp, plugins):
+    assert_ok(call(mcp, "enable_plugin", plugin_id=PLUGIN_ID), "enable_plugin")
+
+    stored = stored_plugin_config(plugins["config_path"], PLUGIN_ID)
+    assert stored is not None, "enable_plugin reported success but wrote nothing to config.json"
+    assert stored["enabled"] is True
+
+
+def test_disable_plugin_persists_enabled_false(mcp, plugins):
+    assert_ok(call(mcp, "enable_plugin", plugin_id=PLUGIN_ID), "enable_plugin")
+
+    assert_ok(call(mcp, "disable_plugin", plugin_id=PLUGIN_ID), "disable_plugin")
+
+    stored = stored_plugin_config(plugins["config_path"], PLUGIN_ID)
+    assert stored["enabled"] is False, "disable_plugin reported success but config.json still says enabled"
+
+
+def test_enable_plugin_reports_an_error_for_an_unknown_plugin(mcp, plugins):
+    """``registry.enable_plugin()`` returns False here; the tool ignored it."""
+    result = call(mcp, "enable_plugin", plugin_id="not_a_plugin")
+    assert result.get("status") == "error", "enabling a plugin that does not exist reported success"
+
+
+def test_disable_plugin_reports_an_error_for_an_unknown_plugin(mcp, plugins):
+    result = call(mcp, "disable_plugin", plugin_id="not_a_plugin")
+    assert result.get("status") == "error", "disabling a plugin that does not exist reported success"
+
+
+def test_enable_plugin_does_not_disturb_the_stored_settings(mcp, plugins):
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+
+    assert_ok(call(mcp, "enable_plugin", plugin_id=PLUGIN_ID), "enable_plugin")
+
+    stored = stored_plugin_config(plugins["config_path"], PLUGIN_ID)
+    assert stored["station_id"] == "9447427", "enabling the plugin wiped its settings"
+    assert stored["enabled"] is True
+
+
+def test_install_plugin_with_auto_enable_persists_enabled(mcp, plugins):
+    assert_ok(call(mcp, "install_plugin", plugin_id=UNINSTALLED_PLUGIN_ID), "install_plugin")
+
+    stored = stored_plugin_config(plugins["config_path"], UNINSTALLED_PLUGIN_ID)
+    assert stored is not None, "install_plugin(auto_enable=True) never recorded the plugin in config.json"
+    assert stored["enabled"] is True
+
+
+def test_install_plugin_without_auto_enable_does_not_enable_it(mcp, plugins):
+    assert_ok(
+        call(mcp, "install_plugin", plugin_id=UNINSTALLED_PLUGIN_ID, auto_enable=False),
+        "install_plugin",
+    )
+
+    stored = stored_plugin_config(plugins["config_path"], UNINSTALLED_PLUGIN_ID)
+    assert not (stored or {}).get("enabled"), "auto_enable=False still enabled the plugin"
+
+
+def test_uninstall_plugin_purges_the_persisted_config(mcp, plugins):
+    """A leftover entry is what resurrects a deliberately removed plugin (#937)."""
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+
+    assert_ok(call(mcp, "uninstall_plugin", plugin_id=PLUGIN_ID), "uninstall_plugin")
+
+    assert stored_plugin_config(plugins["config_path"], PLUGIN_ID) is None, (
+        "uninstall left the plugin's config behind, so a later boot can reinstall it"
+    )
+
+
+def test_get_plugin_data_returns_the_live_values(mcp, plugins):
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+    assert_ok(call(mcp, "enable_plugin", plugin_id=PLUGIN_ID), "enable_plugin")
+
+    result = assert_ok(call(mcp, "get_plugin_data", plugin_id=PLUGIN_ID), "get_plugin_data")
+    assert result["data"]["next_high"] == "06:12"
+
+
+def test_plugin_configured_over_mcp_survives_a_container_recreate(mcp, plugins):
+    """The reported bug, end to end.
+
+    Configure and enable over MCP, throw the process away, and bring a fresh
+    registry up from the same ``config.json``. Before the fix the plugin came
+    back disabled and unconfigured, and every template variable rendered
+    ``#REF``.
+    """
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+    assert_ok(call(mcp, "enable_plugin", plugin_id=PLUGIN_ID), "enable_plugin")
+
+    restarted = plugins["restart"]()
+
+    assert restarted.is_enabled(PLUGIN_ID), "the plugin came back disabled after a restart"
+    assert restarted.get_plugin_config(PLUGIN_ID).get("station_id") == "9447427", (
+        "the plugin came back unconfigured after a restart"
+    )
+    assert PLUGIN_ID in restarted.get_all_variables(), "the plugin's template variables did not come back"

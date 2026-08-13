@@ -94,6 +94,14 @@ def mock_registry():
             "condition": {"description": "Weather condition", "example": "Sunny"},
         }
     }
+    # These four return a list of error strings; an empty list means success.
+    # autospec would otherwise hand back a truthy MagicMock, which every
+    # caller reads as "it failed".
+    registry.set_plugin_config.return_value = []
+    registry.install_from_registry.return_value = []
+    registry.uninstall_external_plugin.return_value = []
+    registry.enable_plugin.return_value = True
+    registry.disable_plugin.return_value = True
     return registry
 
 
@@ -392,112 +400,165 @@ class TestListRegistryPlugins:
         assert "stocks" in ids
 
 
+@pytest.fixture
+def plugin_services(mock_registry, mock_config_manager):
+    """Patch the services the plugin tools reach through.
+
+    The mutating plugin tools delegate to the REST handlers in
+    ``api_server`` (#1588), so the registry and ConfigManager have to be
+    patched where *that* module resolves them, not where the tools used to
+    look them up.
+    """
+    with (
+        patch("src.api_server.get_plugin_registry", return_value=mock_registry),
+        patch("src.api_server.get_config_manager", return_value=mock_config_manager),
+        patch("src.config_manager.get_config_manager", return_value=mock_config_manager),
+        patch("src.plugins.get_plugin_registry", return_value=mock_registry),
+    ):
+        yield mock_registry, mock_config_manager
+
+
 class TestInstallPlugin:
-    def test_install_and_enable(self, mcp, mock_registry):
-        with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
-            result = _call_tool(mcp, "install_plugin", plugin_id="stocks")
+    def test_install_and_enable(self, mcp, plugin_services):
+        registry, config_manager = plugin_services
+        result = _call_tool(mcp, "install_plugin", plugin_id="stocks")
         assert result["status"] == "success"
         assert "installed and enabled" in result["message"]
-        mock_registry.install_from_registry.assert_called_once_with("stocks")
-        mock_registry.enable_plugin.assert_called_once_with("stocks")
+        registry.install_from_registry.assert_called_once_with("stocks")
+        registry.enable_plugin.assert_called_once_with("stocks")
+        # The half that #1588 was missing: without this the plugin comes back
+        # disabled the next time the container is recreated.
+        config_manager.enable_plugin.assert_called_once_with("stocks")
 
-    def test_install_without_enable(self, mcp, mock_registry):
-        with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
-            result = _call_tool(mcp, "install_plugin", plugin_id="stocks", auto_enable=False)
+    def test_install_without_enable(self, mcp, plugin_services):
+        registry, config_manager = plugin_services
+        result = _call_tool(mcp, "install_plugin", plugin_id="stocks", auto_enable=False)
         assert "installed (disabled)" in result["message"]
-        mock_registry.enable_plugin.assert_not_called()
+        registry.enable_plugin.assert_not_called()
+        config_manager.enable_plugin.assert_not_called()
 
-    def test_install_error(self, mcp):
-        mock_reg = MagicMock()
-        mock_reg.install_from_registry.side_effect = ValueError("Not in registry")
-        with patch("src.plugins.get_plugin_registry", return_value=mock_reg):
-            result = _call_tool(mcp, "install_plugin", plugin_id="unknown")
+    def test_install_error(self, mcp, plugin_services):
+        registry, _ = plugin_services
+        registry.install_from_registry.return_value = ["Plugin 'unknown' not found in the registry"]
+        result = _call_tool(mcp, "install_plugin", plugin_id="unknown")
         assert result["status"] == "error"
-        assert "Not in registry" in result["error"]
+        assert "not found in the registry" in result["error"]
+
+    def test_install_reports_a_failed_enable(self, mcp, plugin_services):
+        """Installed-but-not-enabled must not be reported as fully successful."""
+        registry, _ = plugin_services
+        registry.get_plugin.return_value = None
+        result = _call_tool(mcp, "install_plugin", plugin_id="stocks")
+        assert result["status"] == "error"
+        assert "installed but could not be enabled" in result["error"]
 
 
 class TestEnablePlugin:
-    def test_enable_success(self, mcp, mock_registry):
-        with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
-            result = _call_tool(mcp, "enable_plugin", plugin_id="openweather")
+    def test_enable_success(self, mcp, plugin_services):
+        registry, config_manager = plugin_services
+        result = _call_tool(mcp, "enable_plugin", plugin_id="openweather")
         assert result["status"] == "success"
         assert "enabled successfully" in result["message"]
+        registry.enable_plugin.assert_called_once_with("openweather")
+        config_manager.enable_plugin.assert_called_once_with("openweather")
 
-    def test_enable_error(self, mcp):
-        mock_reg = MagicMock()
-        mock_reg.enable_plugin.side_effect = KeyError("openweather not found")
-        with patch("src.plugins.get_plugin_registry", return_value=mock_reg):
-            result = _call_tool(mcp, "enable_plugin", plugin_id="openweather")
+    def test_enable_unknown_plugin_is_an_error(self, mcp, plugin_services):
+        registry, config_manager = plugin_services
+        registry.get_plugin.return_value = None
+        result = _call_tool(mcp, "enable_plugin", plugin_id="nope")
+        assert result["status"] == "error"
+        config_manager.enable_plugin.assert_not_called()
+
+    def test_enable_error(self, mcp, plugin_services):
+        registry, _ = plugin_services
+        registry.enable_plugin.side_effect = KeyError("openweather not found")
+        result = _call_tool(mcp, "enable_plugin", plugin_id="openweather")
         assert result["status"] == "error"
 
 
 class TestDisablePlugin:
-    def test_disable_success(self, mcp, mock_registry):
-        with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
-            result = _call_tool(mcp, "disable_plugin", plugin_id="openweather")
+    def test_disable_success(self, mcp, plugin_services):
+        registry, config_manager = plugin_services
+        result = _call_tool(mcp, "disable_plugin", plugin_id="openweather")
         assert "disabled successfully" in result["message"]
+        registry.disable_plugin.assert_called_once_with("openweather")
+        config_manager.disable_plugin.assert_called_once_with("openweather")
+
+    def test_disable_unknown_plugin_is_an_error(self, mcp, plugin_services):
+        registry, config_manager = plugin_services
+        registry.get_plugin.return_value = None
+        result = _call_tool(mcp, "disable_plugin", plugin_id="nope")
+        assert result["status"] == "error"
+        config_manager.disable_plugin.assert_not_called()
 
 
 class TestUninstallPlugin:
-    def test_uninstall_success(self, mcp, mock_registry):
-        with patch("src.plugins.get_plugin_registry", return_value=mock_registry):
-            result = _call_tool(mcp, "uninstall_plugin", plugin_id="openweather")
+    def test_uninstall_success(self, mcp, plugin_services):
+        registry, config_manager = plugin_services
+        result = _call_tool(mcp, "uninstall_plugin", plugin_id="openweather")
         assert "uninstalled successfully" in result["message"]
-        mock_registry.uninstall_external_plugin.assert_called_once_with("openweather")
+        registry.uninstall_external_plugin.assert_called_once_with("openweather")
+        config_manager.delete_plugin_config.assert_any_call("openweather")
+
+    def test_uninstall_builtin_is_an_error(self, mcp, plugin_services):
+        registry, _ = plugin_services
+        registry.uninstall_external_plugin.return_value = ["Cannot uninstall a built-in plugin"]
+        result = _call_tool(mcp, "uninstall_plugin", plugin_id="date_time")
+        assert result["status"] == "error"
+        assert "built-in" in result["error"]
 
 
 class TestConfigurePlugin:
-    def test_merges_with_existing_config(self, mcp, mock_registry, mock_config_manager):
-        with (
-            patch("src.plugins.get_plugin_registry", return_value=mock_registry),
-            patch("src.config_manager.get_config_manager", return_value=mock_config_manager),
-        ):
-            result = _call_tool(
-                mcp,
-                "configure_plugin",
-                plugin_id="openweather",
-                config={"api_key": "new-key"},
-            )
-        data = result
-        assert data["status"] == "success"
-        assert data["plugin_id"] == "openweather"
-        # Should have called set_plugin_config with merged dict
-        mock_registry.set_plugin_config.assert_called_once()
-        call_args = mock_registry.set_plugin_config.call_args[0]
-        assert call_args[0] == "openweather"
-        # The merged config should include both existing "units" and new "api_key"
-        merged = call_args[1]
-        assert "api_key" in merged
+    def test_merges_with_existing_config(self, mcp, plugin_services):
+        registry, config_manager = plugin_services
+        result = _call_tool(
+            mcp,
+            "configure_plugin",
+            plugin_id="openweather",
+            config={"api_key": "new-key"},
+        )
+        assert result["status"] == "success"
+        assert result["plugin_id"] == "openweather"
+        registry.set_plugin_config.assert_called_once()
+        plugin_id, merged = registry.set_plugin_config.call_args[0]
+        assert plugin_id == "openweather"
+        # Both the newly-set key and the previously-stored one.
+        assert merged["api_key"] == "new-key"
+        assert merged["units"] == "imperial"
+        # And it reaches disk, which is the whole of #1588.
+        config_manager.set_plugin_config.assert_called_once_with("openweather", merged)
 
-    def test_returns_masked_config(self, mcp, mock_registry, mock_config_manager):
-        with (
-            patch("src.plugins.get_plugin_registry", return_value=mock_registry),
-            patch("src.config_manager.get_config_manager", return_value=mock_config_manager),
-        ):
-            result = _call_tool(
-                mcp,
-                "configure_plugin",
-                plugin_id="openweather",
-                config={"api_key": "new-key"},
-            )
-        data = result
-        # Sensitive value should be masked
-        assert data["config"]["api_key"] == "***"
+    def test_returns_masked_config(self, mcp, plugin_services):
+        result = _call_tool(
+            mcp,
+            "configure_plugin",
+            plugin_id="openweather",
+            config={"api_key": "new-key"},
+        )
+        assert result["config"]["api_key"] == "***"
 
-    def test_configure_error(self, mcp):
-        mock_reg = MagicMock()
-        mock_cm = MagicMock()
-        mock_cm.get_plugin_config.side_effect = KeyError("plugin not found")
-        with (
-            patch("src.plugins.get_plugin_registry", return_value=mock_reg),
-            patch("src.config_manager.get_config_manager", return_value=mock_cm),
-        ):
-            result = _call_tool(
-                mcp,
-                "configure_plugin",
-                plugin_id="nonexistent",
-                config={"api_key": "x"},
-            )
+    def test_validation_errors_are_reported_not_swallowed(self, mcp, plugin_services):
+        registry, config_manager = plugin_services
+        registry.set_plugin_config.return_value = ["station_id is required"]
+        result = _call_tool(
+            mcp,
+            "configure_plugin",
+            plugin_id="openweather",
+            config={"station_id": ""},
+        )
+        assert result["status"] == "error"
+        assert "station_id is required" in result["error"]
+        config_manager.set_plugin_config.assert_not_called()
+
+    def test_configure_error(self, mcp, plugin_services):
+        registry, config_manager = plugin_services
+        config_manager.get_plugin_config.side_effect = KeyError("plugin not found")
+        result = _call_tool(
+            mcp,
+            "configure_plugin",
+            plugin_id="nonexistent",
+            config={"api_key": "x"},
+        )
         assert result["status"] == "error"
 
 
