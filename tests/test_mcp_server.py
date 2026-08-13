@@ -551,7 +551,7 @@ class TestConfigurePlugin:
         config_manager.set_plugin_config.assert_not_called()
 
     def test_configure_error(self, mcp, plugin_services):
-        registry, config_manager = plugin_services
+        _, config_manager = plugin_services
         config_manager.get_plugin_config.side_effect = KeyError("plugin not found")
         result = _call_tool(
             mcp,
