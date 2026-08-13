@@ -487,7 +487,7 @@
       "id": "word_clock",
       "name": "Word Clock",
       "description": "Tell the time in words, QLOCKTWO style, in German, English, Spanish or French.",
-      "repository": "https://github.com/rummeyer/fiestaboard-plugin--word-clock",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--word-clock",
       "author": "Oliver Rummeyer",
       "fiestaboard_version": ">=7.9.5",
       "icon": "clock",
