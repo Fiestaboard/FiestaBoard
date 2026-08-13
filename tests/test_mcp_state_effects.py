@@ -241,13 +241,25 @@ class _LocalRegistry(PluginRegistry):
 
 
 @pytest.fixture
-def plugins(services, tmp_path, monkeypatch):
+def plugins(services, tmp_path):
     """Install ``harness_tide`` into a real registry wired to the singleton.
 
     ``harness_surf`` is staged but left uninstalled so ``install_plugin`` has
     a target. Both live under ``tmp_path``; nothing touches the repo's own
     ``plugins/`` or ``external_plugins/`` directories.
+
+    Teardown is hand-rolled rather than left to ``monkeypatch`` because the
+    order matters. The REST handlers these tools delegate to call
+    ``reset_template_engine()``, and ``TemplateEngine.reset_cache()`` binds
+    ``get_plugin_registry()`` onto the long-lived engine singleton. Restoring
+    ``_registry`` alone would leave that engine holding this throwaway
+    registry — which knows only about the harness plugins — and every later
+    test in the session would find ``date_time`` and friends missing. So the
+    registry is put back first, and only then is the engine rebound to it.
     """
+    import src.plugins.registry as registry_module
+    import src.templates.engine as engine_module
+
     builtin_dir = tmp_path / "builtin_plugins"
     builtin_dir.mkdir()
     external_dir = tmp_path / "external_plugins"
@@ -257,24 +269,29 @@ def plugins(services, tmp_path, monkeypatch):
     _write_plugin(staging_dir / PLUGIN_ID, PLUGIN_ID)
     _write_plugin(staging_dir / UNINSTALLED_PLUGIN_ID, UNINSTALLED_PLUGIN_ID)
 
+    original_registry = registry_module._registry
+
     def build_registry() -> _LocalRegistry:
         registry = _LocalRegistry(builtin_dir, external_dir, staging_dir)
         registry.initialize()
-        monkeypatch.setattr("src.plugins.registry._registry", registry)
+        registry_module._registry = registry
         return registry
 
     registry = build_registry()
     assert not registry.install_from_registry(PLUGIN_ID), "fixture failed to install the harness plugin"
 
-    yield {
-        "registry": registry,
-        "config_path": str(tmp_path / "config.json"),
-        # Rebuild the registry and ConfigManager from the same files — what
-        # `docker compose up -d` does to a container.
-        "restart": lambda: (_restart_config_manager(str(tmp_path / "config.json")), build_registry())[1],
-    }
-
-    monkeypatch.setattr("src.plugins.registry._registry", None, raising=False)
+    try:
+        yield {
+            "registry": registry,
+            "config_path": str(tmp_path / "config.json"),
+            # Rebuild the registry and ConfigManager from the same files —
+            # what `docker compose up -d` does to a container.
+            "restart": lambda: (_restart_config_manager(str(tmp_path / "config.json")), build_registry())[1],
+        }
+    finally:
+        registry_module._registry = original_registry
+        if engine_module._template_engine is not None:
+            engine_module.reset_template_engine()
 
 
 def _restart_config_manager(config_path: str) -> ConfigManager:
