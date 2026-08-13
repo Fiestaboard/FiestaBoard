@@ -17,6 +17,7 @@ import {
 import { AlertCircle, Check, GripVertical, HelpCircle, Pencil, Sparkles, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import type { VariableRule } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -77,10 +78,12 @@ export function VariableRuleRow({
   const [knownVariables, setKnownVariables] = useState<Set<string>>(new Set());
   const [helpOpen, setHelpOpen] = useState(false);
 
-  // When entering edit mode, snapshot the rule into the draft.
-  useEffect(() => {
-    if (isEditing) setDraft(rule);
-  }, [isEditing, rule]);
+  // When entering edit mode, snapshot the rule into the draft. Done during
+  // render so the editor opens on the rule's values instead of the previous
+  // row's for a frame (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([isEditing, rule]) && isEditing) {
+    setDraft(rule);
+  }
 
   // Report dirty state to parent so it can prompt before switching rules.
   useEffect(() => {

@@ -269,6 +269,7 @@ import { toast } from "sonner";
 
 import { asJSONSchema, SchemaForm } from "@/components/plugin-settings";
 import Link from "@/components/smart-link";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
 import { useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
@@ -1056,8 +1057,10 @@ function InstalledPluginRow({
   // so both the defaults seeding below and <SchemaForm> read the same shape.
   const settingsSchema = useMemo(() => asJSONSchema(pluginDetails?.settings_schema), [pluginDetails]);
 
-  useEffect(() => {
-    if (!pluginDetails) return;
+  // Done during render rather than in an effect, so the config dialog's fields
+  // are populated in its first commit instead of flashing empty
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([pluginDetails]) && pluginDetails) {
     const defaults: Record<string, unknown> = {};
     for (const [key, prop] of Object.entries(settingsSchema.properties)) {
       if (prop && prop.default !== undefined) {
@@ -1065,7 +1068,7 @@ function InstalledPluginRow({
       }
     }
     setConfigValues({ ...defaults, ...(pluginDetails.config ?? {}) });
-  }, [pluginDetails, settingsSchema]);
+  }
 
   const handleSaveConfig = async () => {
     setIsSaving(true);

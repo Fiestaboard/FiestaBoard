@@ -6,6 +6,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { ALL_TIMEZONES } from "@/lib/timezone-utils";
 import { cn } from "@/lib/utils";
@@ -51,10 +52,17 @@ export function TimezonePicker({ value, onChange, className, disabled, onValidat
     );
   }, [searchQuery]);
 
-  // Reset highlighted index when filtered results change
-  useEffect(() => {
+  // Reset highlighted index when filtered results change. Done during render
+  // so the highlight can never point at a row from the previous result set
+  // for a frame (react-hooks/set-state-in-effect, issue #1568).
+  //
+  // No dedicated test: every user-reachable path that changes the filter also
+  // resets the highlight inline already (`handleInputChange`, the outside-click
+  // handler, `handleSelect`, Escape), so this reset is unobservable and the
+  // conversion is behaviour-identical by construction.
+  if (useDepsChanged([filteredTimezones])) {
     setHighlightedIndex(-1);
-  }, [filteredTimezones]);
+  }
 
   // Check if current value is valid
   const isValid = useMemo(() => {
@@ -67,17 +75,14 @@ export function TimezonePicker({ value, onChange, className, disabled, onValidat
     onValidationChange?.(isValid);
   }, [isValid, onValidationChange]);
 
-  // Update search query when value changes externally
-  useEffect(() => {
-    if (value && !isOpen) {
-      const tz = ALL_TIMEZONES.find((t) => t.value === value);
-      if (tz) {
-        setSearchQuery(tz.label);
-      } else {
-        setSearchQuery(value);
-      }
-    }
-  }, [value, isOpen]);
+  // Update search query when value changes externally. Done during render so
+  // the closed input shows the selected zone's label in the first commit
+  // rather than briefly showing the previous one
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([value, isOpen]) && value && !isOpen) {
+    const tz = ALL_TIMEZONES.find((t) => t.value === value);
+    setSearchQuery(tz ? tz.label : value);
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {

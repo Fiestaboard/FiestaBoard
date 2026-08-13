@@ -40,9 +40,14 @@ export function ToolbarDropdown({
   // so a wide picker anchored to a right-side toolbar button runs off narrow
   // (mobile) viewports. Measure after open/content changes and shift it back
   // into view.
+  // The reset on close used to live in this effect. It is redundant: the panel
+  // is only rendered while open, and `clamp()` below runs synchronously in the
+  // same layout effect that opening triggers — before paint — so a shift left
+  // over from the previous open is always overwritten before it can be seen.
+  // Dropping it removes a setState from the effect body
+  // (react-hooks/set-state-in-effect, issue #1568).
   useLayoutEffect(() => {
     if (!isOpen) {
-      setPanelShift(0);
       return;
     }
     const clamp = () => {

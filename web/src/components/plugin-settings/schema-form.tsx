@@ -21,6 +21,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { TimezonePicker } from "@/components/ui/timezone-picker";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 
@@ -389,12 +390,13 @@ function NumberField(props: NumberFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   // Keep the local text in sync with external value changes (e.g. the
-  // "use my location" button) when the user is not actively editing.
-  useEffect(() => {
-    if (!isFocused) {
-      setText(value !== undefined && value !== null ? String(value) : "");
-    }
-  }, [value, isFocused]);
+  // "use my location" button) when the user is not actively editing. Done
+  // during render so the new value is in the first commit rather than
+  // replacing the old one a render later
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([value, isFocused]) && !isFocused) {
+    setText(value !== undefined && value !== null ? String(value) : "");
+  }
 
   if (hasNumericEnum) {
     return <NumberEnumField {...props} />;

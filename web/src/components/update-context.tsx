@@ -105,21 +105,17 @@ function markAwaitingBoot(fromVersion?: string) {
 // ---------------------------------------------------------------------------
 
 export function UpdateProvider({ children }: { children: React.ReactNode }) {
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [currentVersion, setCurrentVersion] = useState<string | undefined>(undefined);
-  const [awaitingPostUpdateBoot, setAwaitingPostUpdateBoot] = useState(false);
-
-  // On mount: pick up whatever the previous page life left behind.
-  useEffect(() => {
-    const persisted = readPersisted();
-    if (!persisted) return;
-    setCurrentVersion(persisted.fromVersion);
-    if (persisted.awaitingBoot) {
-      setAwaitingPostUpdateBoot(true);
-    } else {
-      setIsUpdating(true);
-    }
-  }, []);
+  // Pick up whatever the previous page life left behind, in the state
+  // initializers rather than a mount effect. The effect version rendered the
+  // whole app once in the "no update in progress" state before the update
+  // overlay appeared (react-hooks/set-state-in-effect, issue #1568). Safe
+  // because the app is a static SPA (`ssr: false`) — no server render to
+  // mismatch. `useState(readPersisted)` reads localStorage exactly once, on
+  // the first render, which is what the mount effect did.
+  const [persisted] = useState(readPersisted);
+  const [isUpdating, setIsUpdating] = useState(() => persisted !== null && !persisted.awaitingBoot);
+  const [currentVersion, setCurrentVersion] = useState<string | undefined>(() => persisted?.fromVersion);
+  const [awaitingPostUpdateBoot, setAwaitingPostUpdateBoot] = useState(() => persisted?.awaitingBoot === true);
 
   const startUpdate = useCallback((version?: string) => {
     writePersisted({ fromVersion: version, startedAt: Date.now() });

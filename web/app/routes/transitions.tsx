@@ -43,6 +43,7 @@ import { Cast, FlaskConical, Pause, Play, RotateCcw, SkipBack, SkipForward, Undo
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { TransitionGridDisplay } from "@/components/transitions/transition-grid-display";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType, TransitionPreviewResponse } from "@/lib/api";
@@ -99,23 +100,22 @@ export default function TransitionsLabPage() {
 
   const pages = useMemo(() => pagesQuery.data?.pages ?? [], [pagesQuery.data]);
 
-  // Pick the first plugin once loaded so the page isn't empty.
-  useEffect(() => {
-    if (!selectedPluginId && plugins.length > 0) {
-      setSelectedPluginId(plugins[0].id);
-    }
-  }, [plugins, selectedPluginId]);
+  // Pick the first plugin once loaded so the page isn't empty. Done during
+  // render rather than in an effect, so the pickers are populated in the same
+  // commit the lists arrive (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([plugins]) && !selectedPluginId && plugins.length > 0) {
+    setSelectedPluginId(plugins[0].id);
+  }
 
   // Default the from/to pickers to the first two pages once loaded.
-  useEffect(() => {
-    if (pages.length === 0) return;
+  if (useDepsChanged([pages]) && pages.length > 0) {
     if (!fromPageId) {
       setFromPageId(pages[0].id);
     }
     if (!toPageId) {
       setToPageId((pages[1] ?? pages[0]).id);
     }
-  }, [pages, fromPageId, toPageId]);
+  }
 
   const selectedPlugin = useMemo(
     () => plugins.find((p) => p.id === selectedPluginId) ?? null,
@@ -125,25 +125,22 @@ export default function TransitionsLabPage() {
   // Seed the config editor with the plugin's current config when the
   // selection changes, so authors aren't staring at an empty `{}` when
   // a plugin already has defaults.
-  useEffect(() => {
-    if (selectedPlugin) {
-      setConfigJson(JSON.stringify(selectedPlugin.config ?? {}, null, 2));
-    }
-  }, [selectedPlugin]);
+  if (useDepsChanged([selectedPlugin]) && selectedPlugin) {
+    setConfigJson(JSON.stringify(selectedPlugin.config ?? {}, null, 2));
+  }
 
   const toPage = useMemo(() => pages.find((p) => p.id === toPageId) ?? null, [pages, toPageId]);
 
   // Match the preview canvas to the target page's geometry — a transition
   // on a real board always runs at the dimensions of the page being shown.
   // The device picker stays editable so authors can still experiment.
-  useEffect(() => {
-    if (!toPage) return;
+  if (useDepsChanged([toPage]) && toPage) {
     setDeviceType(toPage.device_type);
     if (toPage.device_type === "note_array") {
       setNotesWide(toPage.notes_wide ?? 1);
       setNotesTall(toPage.notes_tall ?? 1);
     }
-  }, [toPage]);
+  }
 
   const stopPlayback = useCallback(() => {
     if (playTimerRef.current) {
@@ -155,12 +152,17 @@ export default function TransitionsLabPage() {
 
   // Drive playback: each frame schedules the next based on its delay_ms
   // (clamped so a long per-frame step delay doesn't stall the preview).
+  // Reaching the last frame stops playback. Done during render so the play
+  // button flips back in the same commit the last frame is shown
+  // (react-hooks/set-state-in-effect, issue #1568).
+  const atLastFrame = preview !== null && frameIdx >= preview.frames.length - 1;
+  if (useDepsChanged([isPlaying, frameIdx, preview]) && isPlaying && atLastFrame) {
+    setIsPlaying(false);
+  }
+
   useEffect(() => {
     if (!isPlaying || !preview) return;
-    if (frameIdx >= preview.frames.length - 1) {
-      setIsPlaying(false);
-      return;
-    }
+    if (frameIdx >= preview.frames.length - 1) return;
     const rawDelay = preview.frames[frameIdx]?.delay_ms ?? 100;
     const playbackDelay = Math.min(rawDelay, 2000);
     playTimerRef.current = setTimeout(() => {
@@ -174,14 +176,14 @@ export default function TransitionsLabPage() {
     };
   }, [isPlaying, frameIdx, preview]);
 
-  // When a new preview lands, reset playback to the first frame and
-  // autoplay if it has frames.  Autoplay must happen HERE, not in
-  // runPreview — this effect runs after the setPreview render, so a
-  // setIsPlaying(true) in runPreview would be immediately reverted.
-  useEffect(() => {
+  // When a new preview lands, reset playback to the first frame and autoplay
+  // if it has frames. This has to run off `preview` rather than inside
+  // runPreview: it must win over the "stop at the last frame" reset above,
+  // which is evaluated in the same render, and it must not be undone by it.
+  if (useDepsChanged([preview])) {
     setFrameIdx(0);
     setIsPlaying(Boolean(preview && preview.frames.length > 0));
-  }, [preview]);
+  }
 
   const runPreview = useCallback(async () => {
     if (!selectedPluginId || !fromPageId || !toPageId) return;

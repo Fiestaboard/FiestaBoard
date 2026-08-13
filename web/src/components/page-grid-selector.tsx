@@ -27,7 +27,7 @@ import Link from "@/components/smart-link";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
-import type { Collection, DeviceType, Page, PagePreviewResponse } from "@/lib/api";
+import type { Collection, DeviceType, Page, PagePreviewBatchEntry, PagePreviewResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
@@ -111,13 +111,16 @@ const PageButtonPreview = memo(
   }) {
     const t = useTranslations("pageGridSelector");
     const ref = useRef<HTMLDivElement>(null);
-    const [isVisible, setIsVisible] = useState(false);
+    // Environments without IntersectionObserver (jsdom, very old browsers)
+    // render everything eagerly. Decided in the initializer rather than a
+    // mount effect, which cost a whole extra render pass per tile there
+    // (react-hooks/set-state-in-effect, issue #1568).
+    const [isVisible, setIsVisible] = useState(() => typeof IntersectionObserver === "undefined");
 
     useEffect(() => {
       const el = ref.current;
       if (!el) return;
       if (typeof IntersectionObserver === "undefined") {
-        setIsVisible(true);
         return;
       }
       const observer = new IntersectionObserver(
@@ -570,93 +573,101 @@ export function PageGridSelector({
     return result;
   }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard]);
 
-  // State for batch preview data
-  const [previews, setPreviews] = useState<Record<string, PagePreviewResponse>>({});
-  const [loadingPreviews, setLoadingPreviews] = useState(true);
+  // State for batch preview data — only what the network produced. Both
+  // outcomes are kept: a failed entry is still an answer for that page, and
+  // `previewsPending` below asks "did every requested id come back?".
+  const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, PagePreviewBatchEntry>>({});
+  const [fetchFailed, setFetchFailed] = useState(false);
 
-  // Fetch batch previews when pages change (only in grid mode)
-  useEffect(() => {
+  // Splitting the cache lookup out of the effect is what removes the
+  // set-state-in-effect warnings here (issue #1568): reading localStorage is
+  // synchronous, so the cached previews and the "which ones must we fetch"
+  // list are plain derived values. Only the network result — which arrives in
+  // an async callback, where setState is fine — still needs state.
+  const { cachedPreviews, initialPreviews, pagesToFetch } = useMemo(() => {
     if (viewMode === "list" || pages.length === 0) {
-      setLoadingPreviews(false);
+      return { cachedPreviews: {}, initialPreviews: {}, pagesToFetch: [] as string[] };
+    }
+    const cached = getCachedPreviews();
+    const initial: Record<string, PagePreviewResponse> = {};
+    const toFetch: string[] = [];
+    for (const page of pages) {
+      const entry = cached[page.id];
+      if (isCacheValid(entry, page.updated_at || "")) {
+        initial[page.id] = entry.preview;
+      } else {
+        toFetch.push(page.id);
+      }
+    }
+    return { cachedPreviews: cached, initialPreviews: initial, pagesToFetch: toFetch };
+  }, [pages, viewMode]);
+
+  // Cache hits render instantly; anything fetched since layers on top. Entries
+  // that failed to render carry only `{ error, available: false }` — they stay
+  // out of the render map instead of being spread in as message-less previews.
+  const previews = useMemo(() => {
+    const merged: Record<string, PagePreviewResponse> = { ...initialPreviews };
+    for (const [pageId, preview] of Object.entries(fetchedPreviews)) {
+      if (preview.available) {
+        merged[pageId] = preview;
+      }
+    }
+    return merged;
+  }, [initialPreviews, fetchedPreviews]);
+
+  // Still waiting only while a page we need has neither a cache hit nor a
+  // fetched result, and the fetch hasn't given up.
+  const previewsPending = pagesToFetch.some((id) => !(id in fetchedPreviews)) && !fetchFailed;
+
+  // Fetch missing previews in batch
+  useEffect(() => {
+    if (pagesToFetch.length === 0) {
       return;
     }
 
-    // Check cache first for instant render
-    const cachedPreviews = getCachedPreviews();
-    const initialPreviews: Record<string, PagePreviewResponse> = {};
-    const pagesToFetch: string[] = [];
+    let mounted = true;
 
-    for (const page of pages) {
-      const cached = cachedPreviews[page.id];
-      const pageUpdatedAt = page.updated_at || "";
+    const fetchBatchPreviews = async () => {
+      try {
+        const result = await api.previewPagesBatch(pagesToFetch);
 
-      if (isCacheValid(cached, pageUpdatedAt)) {
-        initialPreviews[page.id] = cached.preview;
-      } else {
-        pagesToFetch.push(page.id);
-      }
-    }
+        if (mounted && result.previews) {
+          const newCachedPreviews = { ...cachedPreviews };
 
-    // Set cached previews immediately for instant render
-    if (Object.keys(initialPreviews).length > 0) {
-      setPreviews(initialPreviews);
-      setLoadingPreviews(pagesToFetch.length > 0);
-    }
-
-    // Fetch missing previews in batch
-    if (pagesToFetch.length > 0) {
-      let mounted = true;
-
-      const fetchBatchPreviews = async () => {
-        try {
-          const result = await api.previewPagesBatch(pagesToFetch);
-
-          if (mounted && result.previews) {
-            const newCachedPreviews = { ...cachedPreviews };
-            // Entries that failed to render carry only `{ error, available:
-            // false }` — keep them out of both the cache and the render map
-            // instead of storing a message-less object.
-            const rendered: Record<string, PagePreviewResponse> = {};
-
-            for (const [pageId, preview] of Object.entries(result.previews)) {
-              if (preview.available) {
-                rendered[pageId] = preview;
-                const page = pages.find((p) => p.id === pageId);
-                if (page) {
-                  newCachedPreviews[pageId] = {
-                    preview,
-                    pageUpdatedAt: page.updated_at || "",
-                    cachedAt: new Date().toISOString(),
-                  };
-                }
+          for (const [pageId, preview] of Object.entries(result.previews)) {
+            if (preview.available) {
+              const page = pages.find((p) => p.id === pageId);
+              if (page) {
+                newCachedPreviews[pageId] = {
+                  preview,
+                  pageUpdatedAt: page.updated_at || "",
+                  cachedAt: new Date().toISOString(),
+                };
               }
             }
-
-            setCachedPreviews(newCachedPreviews);
-
-            setPreviews((prev) => ({
-              ...prev,
-              ...rendered,
-            }));
-            setLoadingPreviews(false);
           }
-        } catch (error) {
-          console.error("Failed to fetch batch previews:", error);
-          if (mounted) {
-            setLoadingPreviews(false);
-          }
+
+          setCachedPreviews(newCachedPreviews);
+
+          setFetchedPreviews((prev) => ({
+            ...prev,
+            ...result.previews,
+          }));
         }
-      };
+      } catch (error) {
+        console.error("Failed to fetch batch previews:", error);
+        if (mounted) {
+          setFetchFailed(true);
+        }
+      }
+    };
 
-      fetchBatchPreviews();
+    fetchBatchPreviews();
 
-      return () => {
-        mounted = false;
-      };
-    } else {
-      setLoadingPreviews(false);
-    }
-  }, [pages, viewMode]);
+    return () => {
+      mounted = false;
+    };
+  }, [pagesToFetch, cachedPreviews, pages]);
 
   if (isLoadingPages) {
     return (
@@ -770,7 +781,7 @@ export function PageGridSelector({
             key={page.id}
             page={page}
             preview={previews[page.id] || null}
-            isLoadingPreview={loadingPreviews}
+            isLoadingPreview={previewsPending}
             isActive={page.id === activePageId}
             isPending={isPending}
             onSelect={onSelectPage}
@@ -789,7 +800,7 @@ export function PageGridSelector({
           collection={collection}
           pages={allPages}
           previews={previews}
-          loadingPreviews={loadingPreviews}
+          loadingPreviews={previewsPending}
           isActive={collection.id === activePageId}
           isPending={isPending}
           onSelect={onSelectPage}

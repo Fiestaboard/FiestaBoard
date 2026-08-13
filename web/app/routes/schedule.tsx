@@ -99,6 +99,41 @@ function ScheduleCalendarView(props: React.ComponentProps<typeof ScheduleCalenda
 type ViewMode = "list" | "calendar";
 
 const SCHEDULE_VIEW_MODE_KEY = "schedule-view-mode";
+
+/** Pre-fill for the entry form, from a calendar slot, the AI drawer, or the URL. */
+interface PrefillData {
+  startTime?: string;
+  endTime?: string;
+  dayPattern?: DayPattern;
+  customDays?: string[];
+  pageId?: string;
+}
+
+/**
+ * Read the `prefill_*` query params the AI drawer sets when it navigates here
+ * from another page. Returns null when there is nothing to prefill.
+ */
+function readUrlPrefill(searchParams: URLSearchParams): PrefillData | null {
+  const pageId = searchParams.get("prefill_page_id");
+  const startTime = searchParams.get("prefill_start");
+  if (!pageId && !startTime) return null;
+
+  const rawDayPattern = searchParams.get("prefill_days");
+  const dayPattern: DayPattern | undefined =
+    rawDayPattern === "all" ||
+    rawDayPattern === "weekdays" ||
+    rawDayPattern === "weekends" ||
+    rawDayPattern === "custom"
+      ? rawDayPattern
+      : undefined;
+
+  return {
+    pageId: pageId ?? undefined,
+    startTime: startTime ?? undefined,
+    endTime: searchParams.get("prefill_end") ?? undefined,
+    dayPattern,
+  };
+}
 const NO_DEFAULT_PAGE = "__none__";
 
 export default function SchedulePage() {
@@ -121,7 +156,15 @@ export default function SchedulePage() {
   useEffect(() => {
     localStorage.setItem(SCHEDULE_VIEW_MODE_KEY, viewMode);
   }, [viewMode]);
-  const [showForm, setShowForm] = useState(false);
+  // Handle URL params set by the AI drawer when navigating from outside. Read
+  // once, in a state initializer rather than a mount effect: the effect version
+  // rendered the page without the form and then popped it open
+  // (react-hooks/set-state-in-effect, issue #1568).
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [urlPrefill] = useState(() => readUrlPrefill(searchParams));
+
+  const [showForm, setShowForm] = useState(urlPrefill !== null);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEntry | null>(null);
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null);
 
@@ -133,13 +176,7 @@ export default function SchedulePage() {
   const effectiveBoardId = boards.length > 1 ? currentBoardId || undefined : undefined;
 
   // Pre-fill data when creating from calendar slot selection or AI navigation
-  const [prefillData, setPrefillData] = useState<{
-    startTime?: string;
-    endTime?: string;
-    dayPattern?: DayPattern;
-    customDays?: string[];
-    pageId?: string;
-  } | null>(null);
+  const [prefillData, setPrefillData] = useState<PrefillData | null>(urlPrefill);
 
   // Register with the schedule editor bridge so the AI drawer can open the
   // form directly when the user is already on this page.
@@ -163,35 +200,15 @@ export default function SchedulePage() {
     return () => unregister();
   }, [register, unregister]);
 
-  // Handle URL params set by the AI drawer when navigating from outside.
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const urlParamsHandled = useRef(false);
+  // The AI drawer navigates here with prefill_* query params. `urlPrefill` was
+  // read in the state initializer above; all that is left is scrubbing the
+  // params from the URL, which has to stay in an effect because navigating
+  // during render is not allowed.
   useEffect(() => {
-    if (urlParamsHandled.current) return;
-    const pageId = searchParams.get("prefill_page_id");
-    const startTime = searchParams.get("prefill_start");
-    const endTime = searchParams.get("prefill_end");
-    const rawDayPattern = searchParams.get("prefill_days");
-    const dayPattern: DayPattern | undefined =
-      rawDayPattern === "all" ||
-      rawDayPattern === "weekdays" ||
-      rawDayPattern === "weekends" ||
-      rawDayPattern === "custom"
-        ? rawDayPattern
-        : undefined;
-    if (pageId || startTime) {
-      urlParamsHandled.current = true;
-      setPrefillData({
-        pageId: pageId ?? undefined,
-        startTime: startTime ?? undefined,
-        endTime: endTime ?? undefined,
-        dayPattern,
-      });
-      setShowForm(true);
+    if (urlPrefill) {
       router.replace("/schedule", { scroll: false });
     }
-  }, [searchParams, router]);
+  }, [urlPrefill, router]);
 
   // Fetch schedules (scoped by board when multi-board). keepPreviousData holds
   // the outgoing board's list on screen while the new board's loads, so

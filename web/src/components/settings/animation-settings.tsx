@@ -22,6 +22,7 @@ import { toast } from "sonner";
 
 import { BoardDisplay } from "@/components/board-display";
 import { useBoardAnimationsEnabled } from "@/hooks/use-board-animations";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { api, type BoardAnimationsMode, type DisplaySettings, type SiteAnimationsMode } from "@/lib/api";
 
@@ -101,19 +102,20 @@ export function AnimationSettings() {
   const [siteMode, setSiteMode] = useState<SiteAnimationsMode>("on");
   const [flapSpeed, setFlapSpeed] = useState<FlapSpeedPreset>("standard");
 
-  useEffect(() => {
-    const display = allSettings?.display;
-    if (display) {
-      setBoardMode(display.board_animations ?? "on");
-      setSiteMode(display.site_animations ?? "on");
-      const stored = display.board_flap_speed;
-      // A raw millisecond count (the API's escape hatch) has no radio to
-      // select; leave the group showing the default rather than inventing one.
-      if (typeof stored === "string" && stored in FLAP_SPEED_PRESETS) {
-        setFlapSpeed(stored as FlapSpeedPreset);
-      }
+  // Mirror the stored values into the radio groups during render rather than
+  // from an effect, so the right option is checked in the first commit
+  // (react-hooks/set-state-in-effect, issue #1568).
+  const display = allSettings?.display;
+  if (useDepsChanged([display]) && display) {
+    setBoardMode(display.board_animations ?? "on");
+    setSiteMode(display.site_animations ?? "on");
+    const stored = display.board_flap_speed;
+    // A raw millisecond count (the API's escape hatch) has no radio to
+    // select; leave the group showing the default rather than inventing one.
+    if (typeof stored === "string" && stored in FLAP_SPEED_PRESETS) {
+      setFlapSpeed(stored as FlapSpeedPreset);
     }
-  }, [allSettings?.display]);
+  }
 
   const updateMutation = useMutation({
     mutationFn: (settings: Partial<DisplaySettings>) => api.updateDisplaySettings(settings),

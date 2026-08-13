@@ -284,19 +284,15 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
 
   // ─── Debounced validation ─────────────────────────────────────────────────
 
-  const validate = useCallback((expression: string) => {
+  /**
+   * Schedule the debounced round-trip to the validator. Contains no
+   * synchronous state update, so it is safe to call from an effect.
+   */
+  const scheduleValidation = useCallback((expression: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     const trimmed = expression.trim();
-    if (!trimmed) {
-      lastValidExprRef.current = null;
-      setLastValidExpr(null);
-      setValidationState("idle");
-      setErrors([]);
-      return;
-    }
-
-    setValidationState("validating");
+    if (!trimmed) return;
 
     debounceRef.current = setTimeout(async () => {
       if (latestExprRef.current.trim() !== trimmed) return;
@@ -323,12 +319,37 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
     }, 300);
   }, []);
 
+  /**
+   * Full validation pass for a new expression: flip the indicator immediately,
+   * then schedule the network check. Called from the CodeMirror update
+   * handler — the single funnel every doc change goes through — instead of
+   * from an effect on `expr` (react-hooks/set-state-in-effect, issue #1568).
+   */
+  const validate = useCallback(
+    (expression: string) => {
+      if (!expression.trim()) {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        lastValidExprRef.current = null;
+        setLastValidExpr(null);
+        setValidationState("idle");
+        setErrors([]);
+        return;
+      }
+      setValidationState("validating");
+      scheduleValidation(expression);
+    },
+    [scheduleValidation],
+  );
+
+  // Validate whatever the panel opened with. `validationState` already starts
+  // at "validating" for a non-empty initialExpr, so only the network half is
+  // needed here — no synchronous state update in the effect body.
   useEffect(() => {
-    validate(expr);
+    scheduleValidation(initialExpr);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [expr, validate]);
+  }, [initialExpr, scheduleValidation]);
 
   // ─── CodeMirror initialisation ────────────────────────────────────────────
 
@@ -362,6 +383,10 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
             if (!update.docChanged) return;
             const raw = unformatFormula(update.state.doc.toString());
             setExpr(raw);
+            // Every path that changes the document — typing, the function
+            // scaffold button, the variable picker — dispatches through here,
+            // so this is the one place validation has to be kicked from.
+            validate(raw);
           }),
           EditorView.domEventHandlers({
             // Prevent clicks inside the editor from bubbling up to the pill/editor

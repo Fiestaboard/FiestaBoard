@@ -48,6 +48,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChainingModePicker } from "@/components/chaining-mode-picker";
 import { ChatMarkdown } from "@/components/chat-markdown";
 import { InlineBoardPreview } from "@/components/inline-board-preview";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type {
   ChainingMode,
@@ -367,18 +368,22 @@ function TaskListPanel({ tasks }: { tasks: TaskItem[] }) {
   const t = useTranslations("aiChatPanel");
   const allDone = tasks.length > 0 && tasks.every((task) => task.status === "done" || task.status === "failed");
   const doneCount = tasks.filter((task) => task.status === "done").length;
-  const [visible, setVisible] = useState(true);
+  // The panel auto-hides 3s after everything finishes, and comes back when new
+  // work starts. Only the hide is a timer; the un-hide is a render-phase reset
+  // rather than a setState in the effect body
+  // (react-hooks/set-state-in-effect, issue #1568).
+  const [hidden, setHidden] = useState(false);
+  if (useDepsChanged([allDone]) && !allDone) {
+    setHidden(false);
+  }
 
   useEffect(() => {
-    if (allDone) {
-      const timer = setTimeout(() => setVisible(false), 3000);
-      return () => clearTimeout(timer);
-    } else {
-      setVisible(true);
-    }
+    if (!allDone) return;
+    const timer = setTimeout(() => setHidden(true), 3000);
+    return () => clearTimeout(timer);
   }, [allDone]);
 
-  if (!visible) return null;
+  if (hidden) return null;
 
   const pct = tasks.length > 0 ? (doneCount / tasks.length) * 100 : 0;
 

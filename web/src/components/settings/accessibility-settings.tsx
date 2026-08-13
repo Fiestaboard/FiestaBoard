@@ -14,9 +14,10 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Accessibility } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
@@ -31,10 +32,13 @@ export function AccessibilitySettings() {
     queryFn: api.getAllSettings,
   });
 
-  useEffect(() => {
-    const display = allSettings?.display;
-    if (display) setReduceMotion(display.reduce_motion ?? false);
-  }, [allSettings?.display]);
+  // Mirror the server value into the switch during render, not in an effect:
+  // an effect would commit the default `false` first and flip the switch in a
+  // second render (react-hooks/set-state-in-effect, issue #1568).
+  const display = allSettings?.display;
+  if (useDepsChanged([display]) && display) {
+    setReduceMotion(display.reduce_motion ?? false);
+  }
 
   const updateDisplayMutation = useMutation({
     mutationFn: (settings: { reduce_motion: boolean }) => api.updateDisplaySettings(settings),

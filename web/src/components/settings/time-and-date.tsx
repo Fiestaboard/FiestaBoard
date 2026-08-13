@@ -20,10 +20,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatInTimeZone } from "date-fns-tz";
 import { Clock } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { TimezonePicker } from "@/components/ui/timezone-picker";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
@@ -43,14 +44,15 @@ export function TimeAndDateCard() {
     queryFn: api.getAllSettings,
   });
 
-  useEffect(() => {
-    const general = allSettings?.general;
-    if (general) {
-      setTimezone(general.timezone ?? "America/Los_Angeles");
-      setTimeFormat((general.time_format as TimeFormat) ?? "12h");
-      setDateFormat((general.date_format as DateFormat) ?? "MM/DD/YYYY");
-    }
-  }, [allSettings?.general]);
+  // Mirror the server values into the three controls during render rather than
+  // from an effect, so they are correct in the first commit instead of
+  // flashing defaults (react-hooks/set-state-in-effect, issue #1568).
+  const general = allSettings?.general;
+  if (useDepsChanged([general]) && general) {
+    setTimezone(general.timezone ?? "America/Los_Angeles");
+    setTimeFormat((general.time_format as TimeFormat) ?? "12h");
+    setDateFormat((general.date_format as DateFormat) ?? "MM/DD/YYYY");
+  }
 
   const updateMutation = useMutation({
     mutationFn: api.updateGeneralConfig,

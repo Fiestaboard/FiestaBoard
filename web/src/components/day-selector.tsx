@@ -1,8 +1,9 @@
 "use client";
 
 import { Badge, Box, Flex, Text } from "@fiestaboard/ui";
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, useRef, useState } from "react";
 
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type { DayPattern } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,10 @@ interface DaySelectorProps {
   className?: string;
 }
 
+// Stable identity for the default: the customDays sync compares by identity,
+// and a fresh `[]` literal per render would re-fire it every render.
+const NO_CUSTOM_DAYS: string[] = [];
+
 const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"];
 const WEEKENDS = ["saturday", "sunday"];
 const ALL_DAYS = [...WEEKDAYS, ...WEEKENDS];
@@ -24,7 +29,7 @@ const ALL_DAYS = [...WEEKDAYS, ...WEEKENDS];
 // (Flex layout via <Flex wrap justify="end" gap="1"> at each usage.)
 const CHIP_ROW_CLASS = "ml-auto min-w-0";
 
-export function DaySelector({ value, customDays = [], onChange, className }: DaySelectorProps) {
+export function DaySelector({ value, customDays = NO_CUSTOM_DAYS, onChange, className }: DaySelectorProps) {
   const t = useTranslations("daySelector");
   const dayLabels = t.raw("dayLabels") as Record<string, string>;
   const [selectedCustomDays, setSelectedCustomDays] = useState<string[]>(customDays);
@@ -56,10 +61,12 @@ export function DaySelector({ value, customDays = [], onChange, className }: Day
     radioRefs.current[nextPattern]?.focus();
   };
 
-  // Update selectedCustomDays when customDays prop changes
-  useEffect(() => {
+  // Update selectedCustomDays when the customDays prop changes. Done during
+  // render so the checkboxes are right in the first commit
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([customDays])) {
     setSelectedCustomDays(customDays);
-  }, [customDays]);
+  }
 
   const handlePatternChange = (pattern: DayPattern) => {
     if (pattern === "custom") {

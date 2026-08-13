@@ -29,6 +29,7 @@ import {
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { HomeAssistantEntityPicker } from "@/components/home-assistant-entity-picker";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -147,11 +148,18 @@ export function TemplateEditorToolbar({
     [],
   );
 
+  // Clearing the toolbar when the editor goes away is a render-phase reset,
+  // not a setState in the effect body (react-hooks/set-state-in-effect,
+  // issue #1568) — so the buttons can never stay enabled for a frame after the
+  // editor they act on has been torn down.
+  if (useDepsChanged([editor]) && !editor) {
+    setCanUndo(false);
+    setCanRedo(false);
+    setHasSelection(false);
+  }
+
   useEffect(() => {
     if (!editor) {
-      setCanUndo(false);
-      setCanRedo(false);
-      setHasSelection(false);
       return;
     }
 

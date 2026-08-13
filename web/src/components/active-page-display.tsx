@@ -63,6 +63,7 @@ import {
   usePages,
   useSetActivePage,
 } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardCurrentMessageResponse, Collection, SilenceStatus } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
@@ -117,18 +118,22 @@ export function ActivePageDisplay() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Handle showing content after animation completes
+  // Handle showing content after animation completes. Hiding on close is a
+  // render-phase reset, not a setState in the effect body
+  // (react-hooks/set-state-in-effect, issue #1568) — and it stays synchronous
+  // with the close, where an effect would have let the content linger for a
+  // frame.
+  if (useDepsChanged([isSheetOpen]) && !isSheetOpen) {
+    setShowSheetContent(false);
+  }
+
   useEffect(() => {
-    if (isSheetOpen) {
-      // Wait for slide animation to complete (400ms) before revealing content
-      const timer = setTimeout(() => {
-        setShowSheetContent(true);
-      }, 420); // Slightly after animation (400ms + buffer)
-      return () => clearTimeout(timer);
-    } else {
-      // Hide immediately when closing
-      setShowSheetContent(false);
-    }
+    if (!isSheetOpen) return;
+    // Wait for slide animation to complete (400ms) before revealing content
+    const timer = setTimeout(() => {
+      setShowSheetContent(true);
+    }, 420); // Slightly after animation (400ms + buffer)
+    return () => clearTimeout(timer);
   }, [isSheetOpen]);
 
   // Fetch schedule status and active page in a single request.
