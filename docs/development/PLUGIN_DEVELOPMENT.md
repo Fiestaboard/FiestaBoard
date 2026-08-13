@@ -679,7 +679,7 @@ the plugin whose settings are open, not from a fixed name.
 
 ### What is rejected
 
-The left-hand side of both blocks is *core's* vocabulary, so an unrecognised
+The left-hand side of both blocks is *core's* vocabulary, so an unrecognized
 entry there cannot be grammar from a newer core — it is a typo, and the field
 would silently probe with that part missing. These fail the whole manifest:
 
