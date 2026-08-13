@@ -97,6 +97,8 @@ const eslintConfig = [
   },
   {
     // i18n: catch hardcoded user-facing strings in JSX that should be translated.
+    // Errors, not warnings — every string rendered to a user has to exist in all
+    // 14 locale files under messages/ (issue #1567).
     plugins: {
       i18next: i18nextPluginFlatConfigAdapter,
     },
@@ -106,7 +108,7 @@ const eslintConfig = [
     ignores: ["**/*.stories.{ts,tsx}", "**/__tests__/**", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "tests/**"],
     rules: {
       "i18next/no-literal-string": [
-        "warn",
+        "error",
         {
           mode: "jsx-text-only",
           // NOTE: inert under `jsx-text-only` — that mode only visits literals
