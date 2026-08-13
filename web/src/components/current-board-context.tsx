@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { flushSync } from "react-dom";
 
 import { useBoardSettings } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import type { BoardInstance } from "@/lib/api";
 
 const STORAGE_KEY = "fiestaboard_current_board";
@@ -95,8 +96,12 @@ export function CurrentBoardProvider({ children }: { children: React.ReactNode }
   // Reconcile the selected board against the live board list. The default is
   // the PRIMARY board (boards[0]); a stored id is honored only if it still
   // maps to an existing board, otherwise it's dropped in favor of the primary.
-  useEffect(() => {
-    if (boards.length === 0) return;
+  //
+  // Done during render rather than in an effect (react-hooks/set-state-in-effect,
+  // issue #1568): the reconciled id is then in the same commit as the board
+  // list it was reconciled against, so consumers never see the empty-string
+  // placeholder alongside a populated `boards`.
+  if (useDepsChanged([boards]) && boards.length > 0) {
     const primaryId = boards[0].id;
 
     setCurrentBoardIdState((prev) => {
@@ -108,7 +113,7 @@ export function CurrentBoardProvider({ children }: { children: React.ReactNode }
 
       return primaryId;
     });
-  }, [boards]);
+  }
 
   // Refs so setCurrentBoardId can compute the switch direction without
   // changing identity every time the selection or board list updates.

@@ -17,10 +17,11 @@ import {
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, LocateFixed, MapPin } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { queryKeys } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type { LocationSettings } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -40,13 +41,14 @@ export function LocationSettingsCard() {
   const [isDirty, setIsDirty] = useState(false);
   const [isGeolocating, setIsGeolocating] = useState(false);
 
-  useEffect(() => {
-    if (location) {
-      setLatitude(location.latitude != null ? String(location.latitude) : "");
-      setLongitude(location.longitude != null ? String(location.longitude) : "");
-      setIsDirty(false);
-    }
-  }, [location]);
+  // Mirror the stored coordinates into the inputs during render rather than
+  // from an effect, so they are populated in the first commit
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([location]) && location) {
+    setLatitude(location.latitude != null ? String(location.latitude) : "");
+    setLongitude(location.longitude != null ? String(location.longitude) : "");
+    setIsDirty(false);
+  }
 
   const mutation = useMutation({
     mutationFn: (settings: Partial<LocationSettings>) => api.updateLocationSettings(settings),

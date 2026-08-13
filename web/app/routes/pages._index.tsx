@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import type { ViewMode } from "@/components/page-grid-selector";
 import { useBoardSettings, usePages } from "@/hooks/use-board";
 import { queryKeys } from "@/hooks/use-board";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useViewTransition } from "@/hooks/use-view-transition";
 import { useTranslations } from "@/i18n/translations";
 import type { DeviceType } from "@/lib/api";
@@ -71,9 +72,12 @@ export function ImportPageDialog({ open, onOpenChange }: { open: boolean; onOpen
   const [shareString, setShareString] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (!open) setShareString("");
-  }, [open]);
+  // Clear the pasted share string when the dialog closes. Done during render
+  // so a reopen can never flash the previous paste
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([open]) && !open) {
+    setShareString("");
+  }
 
   const importMutation = useMutation({
     mutationFn: () => api.importPage(shareString.trim()),
@@ -147,13 +151,22 @@ export default function PagesPage() {
   // demo pages on a note-only setup) are still reachable via the secondary
   // tab. After the user has chosen a tab we only override if their pick
   // is no longer available.
+  //
+  // Done during render rather than in an effect, so the tab strip renders on
+  // the right device the first time instead of switching under the user
+  // (react-hooks/set-state-in-effect, issue #1568). `activeTab` is not a dep:
+  // the user picking a tab can never invalidate it, so re-running on that
+  // would only ever be a no-op.
   const settingsLoaded = boardSettings !== undefined;
-  useEffect(() => {
-    if (!settingsLoaded || availableDevices.length === 0) return;
-    if (activeTab && availableDevices.includes(activeTab)) return;
+  if (
+    useDepsChanged([settingsLoaded, availableDevices, configuredDevices]) &&
+    settingsLoaded &&
+    availableDevices.length > 0 &&
+    !(activeTab && availableDevices.includes(activeTab))
+  ) {
     const preferred = configuredDevices.find((d) => availableDevices.includes(d));
     setActiveTab(preferred ?? availableDevices[0]);
-  }, [settingsLoaded, availableDevices, configuredDevices, activeTab]);
+  }
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);

@@ -6,6 +6,7 @@ import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useUpdate } from "@/components/update-context";
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { apiUrl } from "@/lib/base-path";
 
@@ -60,11 +61,17 @@ export function BootGate({ children }: { children: React.ReactNode }) {
     enabled: !hasConnected,
   });
 
-  // Mark connected on first successful response. This is also what retires a
-  // post-update marker: the new container answered, so the update is over.
+  // Mark connected on first successful response. Done during render so the
+  // splash clears in the same commit the health check lands
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([data]) && data) {
+    setHasConnected(true);
+  }
+
+  // Retiring the post-update marker touches the UpdateProvider's state, which
+  // is a different component — that has to stay in an effect.
   useEffect(() => {
     if (!data) return;
-    setHasConnected(true);
     markPostUpdateBootComplete();
   }, [data, markPostUpdateBootComplete]);
 

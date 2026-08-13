@@ -1,29 +1,29 @@
 import { Box, Flex, List, ListItem, Stack, Text } from "@fiestaboard/ui";
 import { RefreshCw, WifiOff } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 
+/** `navigator.onLine` is an external store — subscribe to it as one. */
+function subscribeToOnlineStatus(onChange: () => void) {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+}
+
 export default function OfflinePage() {
-  const [isOnline, setIsOnline] = useState(false);
+  // Was a mount effect that called setIsOnline(navigator.onLine), i.e. always
+  // one render of "offline" before the truth arrived
+  // (react-hooks/set-state-in-effect, issue #1568).
+  const isOnline = useSyncExternalStore(
+    subscribeToOnlineStatus,
+    () => navigator.onLine,
+    () => false,
+  );
   const t = useTranslations("offline");
-
-  useEffect(() => {
-    // Check initial online status
-    setIsOnline(navigator.onLine);
-
-    // Listen for online/offline events
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
 
   const handleRetry = () => {
     if (navigator.onLine) {

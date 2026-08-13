@@ -25,6 +25,7 @@ import { AlertCircle, Check, Eye, EyeOff, Key, KeyRound, Loader2, Monitor, Searc
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardConfig, DiscoveredBoard } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -50,13 +51,14 @@ export function BoardSettings() {
     queryFn: api.getBoardConfig,
   });
 
-  // Initialize form
-  useEffect(() => {
-    if (configData?.config) {
-      setFormData(configData.config);
-      setHasChanges(false);
-    }
-  }, [configData]);
+  // Initialize form. Done during render rather than in an effect so the saved
+  // connection details are in the first commit, and so the auto-save effect
+  // below never observes an intermediate empty formData
+  // (react-hooks/set-state-in-effect, issue #1568).
+  if (useDepsChanged([configData]) && configData?.config) {
+    setFormData(configData.config);
+    setHasChanges(false);
+  }
 
   // Update mutation
   const updateMutation = useMutation({

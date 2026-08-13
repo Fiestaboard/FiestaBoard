@@ -27,7 +27,15 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const router = useRouter();
   const t = useTranslations("wizard");
   const tc = useTranslations("common");
-  const [currentStep, setCurrentStep] = useState(1);
+  // Restore saved progress in the state initializers rather than a mount
+  // effect. The effect version rendered step 1 with empty fields and then
+  // jumped to the saved step, which also made the "save progress" effect below
+  // fire once with the empty defaults (react-hooks/set-state-in-effect, issue
+  // #1568). Safe because the app is a static SPA (`ssr: false`).
+  // `useState(getWizardProgress)` reads localStorage exactly once.
+  const [saved] = useState(getWizardProgress);
+
+  const [currentStep, setCurrentStep] = useState(() => saved?.currentStep ?? 1);
   const [isLoading, setIsLoading] = useState(false);
   const [canProceed, setCanProceed] = useState(false);
 
@@ -40,46 +48,22 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     connectionVerified: boolean;
     device_type: "flagship" | "note";
     board_color: "black" | "white";
-  }>({
-    api_mode: "cloud",
-    local_api_key: "",
-    cloud_key: "",
-    host: "",
+  }>(() => ({
+    api_mode: saved?.boardConfig?.api_mode ?? "cloud",
+    local_api_key: saved?.boardConfig?.local_api_key || "",
+    cloud_key: saved?.boardConfig?.cloud_key || "",
+    host: saved?.boardConfig?.host || "",
     connectionVerified: false,
-    device_type: "flagship",
-    board_color: "black",
-  });
+    device_type: saved?.boardConfig?.device_type || "flagship",
+    board_color: saved?.boardConfig?.board_color || "black",
+  }));
 
   // Plugin config state
-  const [pluginConfig, setPluginConfig] = useState<WizardPluginConfig>({
+  const [pluginConfig, setPluginConfig] = useState<WizardPluginConfig>(() => ({
     date_time: { enabled: true, timezone: "America/Los_Angeles" },
     registry_selected: [],
-  });
-
-  // Restore progress on mount
-  useEffect(() => {
-    const saved = getWizardProgress();
-    if (saved) {
-      setCurrentStep(saved.currentStep);
-      if (saved.boardConfig) {
-        setBoardConfig((prev) => ({
-          ...prev,
-          api_mode: saved.boardConfig!.api_mode,
-          local_api_key: saved.boardConfig!.local_api_key || "",
-          cloud_key: saved.boardConfig!.cloud_key || "",
-          host: saved.boardConfig!.host || "",
-          device_type: saved.boardConfig!.device_type || "flagship",
-          board_color: saved.boardConfig!.board_color || "black",
-        }));
-      }
-      if (saved.plugins) {
-        setPluginConfig((prev) => ({
-          ...prev,
-          ...saved.plugins,
-        }));
-      }
-    }
-  }, []);
+    ...saved?.plugins,
+  }));
 
   // Save progress on change
   useEffect(() => {
