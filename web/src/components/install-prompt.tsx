@@ -11,16 +11,23 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+function isRunningStandalone(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches;
+}
+
 export function InstallPrompt() {
   const t = useTranslations("installPrompt");
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+  // Read display-mode in the initializer rather than a mount effect, so an
+  // installed app never renders the "not installed" branch first
+  // (react-hooks/set-state-in-effect, issue #1568). Safe because the app is a
+  // static SPA (`ssr: false`) — there is no server render to mismatch.
+  const [isInstalled, setIsInstalled] = useState(isRunningStandalone);
 
   useEffect(() => {
-    // Check if app is already installed
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsInstalled(true);
+    // Already installed: nothing to listen for.
+    if (isInstalled) {
       return;
     }
 
@@ -62,7 +69,7 @@ export function InstallPrompt() {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
-  }, []);
+  }, [isInstalled]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
