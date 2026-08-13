@@ -264,10 +264,10 @@ import {
   Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { SchemaForm } from "@/components/plugin-settings";
+import { asJSONSchema, SchemaForm } from "@/components/plugin-settings";
 import Link from "@/components/smart-link";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
@@ -1053,13 +1053,16 @@ function InstalledPluginRow({
   // for any keys the saved config doesn't already set, so fields with a
   // declared `default` (e.g. refresh_seconds) show their value instead of
   // appearing blank. Saved config always wins over defaults.
+  // `settings_schema` is raw manifest JSON on the wire; narrow it once here
+  // so both the defaults seeding below and <SchemaForm> read the same shape.
+  const settingsSchema = useMemo(() => asJSONSchema(pluginDetails?.settings_schema), [pluginDetails]);
+
   // Done during render rather than in an effect, so the config dialog's fields
   // are populated in its first commit instead of flashing empty
   // (react-hooks/set-state-in-effect, issue #1568).
   if (useDepsChanged([pluginDetails]) && pluginDetails) {
-    const schema = pluginDetails.settings_schema as { properties?: Record<string, { default?: unknown }> } | undefined;
     const defaults: Record<string, unknown> = {};
-    for (const [key, prop] of Object.entries(schema?.properties ?? {})) {
+    for (const [key, prop] of Object.entries(settingsSchema.properties)) {
       if (prop && prop.default !== undefined) {
         defaults[key] = prop.default;
       }
@@ -1321,23 +1324,22 @@ function InstalledPluginRow({
               )}
 
               {/* Settings Section */}
-              {pluginDetails?.settings_schema &&
-                Object.keys(pluginDetails.settings_schema.properties || {}).length > 0 && (
-                  <Stack gap="4">
-                    <Heading level={4} size="sm" className="font-medium text-muted-foreground">
-                      {t("settingsSection")}
-                    </Heading>
-                    <SchemaForm
-                      schema={pluginDetails.settings_schema}
-                      values={configValues}
-                      onChange={setConfigValues}
-                      disabled={isSaving}
-                      // Lets `remote-options` fields ask this plugin — and only
-                      // this plugin — for their catalogs.
-                      pluginId={plugin.id}
-                    />
-                  </Stack>
-                )}
+              {Object.keys(settingsSchema.properties).length > 0 && (
+                <Stack gap="4">
+                  <Heading level={4} size="sm" className="font-medium text-muted-foreground">
+                    {t("settingsSection")}
+                  </Heading>
+                  <SchemaForm
+                    schema={settingsSchema}
+                    values={configValues}
+                    onChange={setConfigValues}
+                    disabled={isSaving}
+                    // Lets `remote-options` fields ask this plugin — and only
+                    // this plugin — for their catalogs.
+                    pluginId={plugin.id}
+                  />
+                </Stack>
+              )}
 
               {/* Template Variables Section */}
               {variableRows.length > 0 && (

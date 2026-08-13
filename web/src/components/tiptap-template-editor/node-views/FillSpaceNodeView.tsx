@@ -3,24 +3,21 @@
  * Displays {{fill_space}} as an expandable ruler with estimated expansion
  */
 import { Badge, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@fiestaboard/ui";
+import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 
 import { useTranslations } from "@/i18n/translations";
 
-interface FillSpaceNodeViewProps {
-  node: {
-    attrs: {
-      id: string;
-      repeatChar?: string;
-    };
-  };
-  deleteNode: () => void;
+/** Attributes FillSpaceNode declares (see extensions/fill-space-node.ts). */
+interface FillSpaceAttrs {
+  id: string;
+  repeatChar?: string;
 }
 
-export function FillSpaceNodeView({ node, deleteNode: _deleteNode }: FillSpaceNodeViewProps) {
+export function FillSpaceNodeView({ node }: ReactNodeViewProps) {
   const t = useTranslations("templateEditor");
-  const { repeatChar } = node.attrs;
+  const { repeatChar } = node.attrs as FillSpaceAttrs;
   const hasRepeatChar = repeatChar && repeatChar !== " ";
 
   return (

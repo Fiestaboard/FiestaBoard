@@ -67,11 +67,14 @@ describe("AiSettings", () => {
       ),
     );
 
-    let receivedBody: Record<string, unknown> | null = null;
+    // Collected rather than held in a `let`: TypeScript cannot see the
+    // closure assignment and would narrow a nullable local back to `null`.
+    const receivedBodies: Record<string, unknown>[] = [];
     server.use(
       http.put(`${API_BASE}/settings/ai`, async ({ request }) => {
-        receivedBody = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(receivedBody);
+        const body = (await request.json()) as Record<string, unknown>;
+        receivedBodies.push(body);
+        return HttpResponse.json(body);
       }),
     );
 
@@ -90,11 +93,11 @@ describe("AiSettings", () => {
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() => {
-      expect(receivedBody).not.toBeNull();
+      expect(receivedBodies).toHaveLength(1);
     });
     // The masked api_key MUST be sent back as-is so the backend
     // preserves the stored secret.
-    const providers = (receivedBody as Record<string, unknown>)["providers"] as Array<{
+    const providers = receivedBodies[0]["providers"] as Array<{
       api_key: string;
       name: string;
     }>;

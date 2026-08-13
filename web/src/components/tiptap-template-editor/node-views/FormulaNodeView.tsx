@@ -20,6 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@fiestaboard/ui";
+import type { ReactNodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
 import { SquareFunction } from "lucide-react";
 import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
@@ -35,18 +36,13 @@ const FormulaEditorPanel = lazy(() =>
   import("../components/FormulaEditorPanel").then((m) => ({ default: m.FormulaEditorPanel })),
 );
 
-interface FormulaNodeViewProps {
-  node: {
-    attrs: {
-      expression: string;
-      autoOpen: boolean;
-    };
-  };
-  updateAttributes: (attrs: Partial<{ expression: string; autoOpen: boolean }>) => void;
-  deleteNode: () => void;
+/** Attributes FormulaNode declares (see extensions/formula-node.ts). */
+interface FormulaAttrs {
+  expression: string;
+  autoOpen: boolean;
 }
 
-export function FormulaNodeView({ node, updateAttributes, deleteNode }: FormulaNodeViewProps) {
+export function FormulaNodeView({ node, updateAttributes, deleteNode }: ReactNodeViewProps) {
   const t = useTranslations("formulaEditor");
   const { expression, autoOpen } = node.attrs;
   const [open, setOpen] = useState(false);

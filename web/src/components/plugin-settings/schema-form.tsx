@@ -36,7 +36,13 @@ interface SchemaProperty {
   title?: string;
   description?: string;
   default?: unknown;
-  enum?: unknown[];
+  /**
+   * Normally a JSON Schema `enum` array, but plugin manifests are
+   * user-authored JSON: a bare string or an `{ values: [...] }` wrapper both
+   * turn up in the wild, and StringField normalizes all three. Typed to match
+   * what the runtime actually handles rather than the well-formed case only.
+   */
+  enum?: unknown[] | string | Record<string, unknown>;
   enumNames?: string[];
   minimum?: number;
   maximum?: number;
@@ -54,6 +60,25 @@ interface JSONSchema {
   type: "object";
   properties: Record<string, SchemaProperty>;
   required?: string[];
+}
+
+/**
+ * Narrow an untyped `settings_schema` blob (it arrives as raw manifest JSON
+ * over the wire) to the subset this form reads. Only checked to the depth the
+ * renderer relies on — individual field shapes are already handled
+ * defensively by each widget.
+ */
+export function asJSONSchema(value: Record<string, unknown> | undefined | null): JSONSchema {
+  const properties = value?.properties;
+  const required = value?.required;
+  return {
+    type: "object",
+    properties:
+      properties && typeof properties === "object" && !Array.isArray(properties)
+        ? (properties as Record<string, SchemaProperty>)
+        : {},
+    required: Array.isArray(required) ? required.filter((name): name is string => typeof name === "string") : undefined,
+  };
 }
 
 /** Property name → its display title (falling back to the raw key). */

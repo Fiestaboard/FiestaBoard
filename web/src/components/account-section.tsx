@@ -373,28 +373,29 @@ function DisableAuthDialog({ username }: { username: string }) {
             <ShieldAlert className="h-5 w-5 text-destructive" />
             {t("disableLogin.dialogTitle")}
           </AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <Stack gap="3" className="text-sm">
-              <Text tone="muted">
-                {t.rich("disableLogin.dialogBody1", {
-                  name: () => (
-                    <Text as="span" tone="muted" className="font-mono">
-                      {username}
-                    </Text>
-                  ),
-                })}
-              </Text>
-              <Text tone="muted">
-                {t.rich("disableLogin.dialogBody2", {
-                  strong: (chunks: ReactNode) => (
-                    <Text as="span" weight="semibold" tone="muted">
-                      {chunks}
-                    </Text>
-                  ),
-                })}
-              </Text>
-              <Text tone="muted">{t("disableLogin.dialogBody3")}</Text>
-            </Stack>
+          {/* Base UI's Description takes `render`, not Radix's `asChild`. The
+              `asChild` prop was inert, so the description rendered a <p> with
+              a <div> Stack inside it — invalid nesting the browser reflows. */}
+          <AlertDialogDescription render={<Stack gap="3" className="text-sm" />}>
+            <Text tone="muted">
+              {t.rich("disableLogin.dialogBody1", {
+                name: () => (
+                  <Text as="span" tone="muted" className="font-mono">
+                    {username}
+                  </Text>
+                ),
+              })}
+            </Text>
+            <Text tone="muted">
+              {t.rich("disableLogin.dialogBody2", {
+                strong: (chunks: ReactNode) => (
+                  <Text as="span" weight="semibold" tone="muted">
+                    {chunks}
+                  </Text>
+                ),
+              })}
+            </Text>
+            <Text tone="muted">{t("disableLogin.dialogBody3")}</Text>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <Box as="form" onSubmit={onConfirm} className="space-y-3">

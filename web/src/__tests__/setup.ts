@@ -159,36 +159,37 @@ vi.mock("react-router", async () => {
   // "Cannot destructure property 'basename' of React.useContext(...)" when
   // rendered without a router ancestor. Substitute plain anchor renderers
   // so individual component tests don't need to wrap in `<MemoryRouter>`.
-  const LinkStub = React.forwardRef<
-    HTMLAnchorElement,
-    Record<string, unknown> & { to?: unknown; children?: React.ReactNode }
-  >(function LinkStub({ to, children, replace: _replace, prefetch: _prefetch, viewTransition: _vt, ...rest }, ref) {
+  type AnchorProps = Omit<React.ComponentProps<"a">, "href">;
+  type LinkStubProps = AnchorProps & {
+    to?: unknown;
+    replace?: unknown;
+    prefetch?: unknown;
+    viewTransition?: unknown;
+  };
+  /** NavLink additionally accepts render-prop children/className/style. */
+  type NavLinkStubProps = Omit<AnchorProps, "children" | "className" | "style"> & {
+    to?: unknown;
+    children?: React.ReactNode | ((p: { isActive: boolean }) => React.ReactNode);
+    className?: string | ((p: { isActive: boolean }) => string);
+    style?: React.CSSProperties | ((p: { isActive: boolean }) => React.CSSProperties);
+  };
+
+  const LinkStub = React.forwardRef<HTMLAnchorElement, LinkStubProps>(function LinkStub(
+    { to, children, replace: _replace, prefetch: _prefetch, viewTransition: _vt, ...rest },
+    ref,
+  ) {
     const href = typeof to === "string" ? to : "#";
     return React.createElement("a", { ref, href, ...rest }, children);
   });
-  const NavLinkStub = React.forwardRef<
-    HTMLAnchorElement,
-    Record<string, unknown> & {
-      to?: unknown;
-      children?: React.ReactNode | ((p: { isActive: boolean }) => React.ReactNode);
-    }
-  >(function NavLinkStub({ to, children, className, style, ...rest }, ref) {
+  const NavLinkStub = React.forwardRef<HTMLAnchorElement, NavLinkStubProps>(function NavLinkStub(
+    { to, children, className, style, ...rest },
+    ref,
+  ) {
     const href = typeof to === "string" ? to : "#";
     const isActive = href === "/";
-    const renderedChildren =
-      typeof children === "function"
-        ? (children as (p: { isActive: boolean }) => React.ReactNode)({
-            isActive,
-          })
-        : children;
-    const resolvedClass =
-      typeof className === "function" ? (className as (p: { isActive: boolean }) => string)({ isActive }) : className;
-    const resolvedStyle =
-      typeof style === "function"
-        ? (style as (p: { isActive: boolean }) => React.CSSProperties)({
-            isActive,
-          })
-        : style;
+    const renderedChildren = typeof children === "function" ? children({ isActive }) : children;
+    const resolvedClass = typeof className === "function" ? className({ isActive }) : className;
+    const resolvedStyle = typeof style === "function" ? style({ isActive }) : style;
     return React.createElement(
       "a",
       { ref, href, className: resolvedClass, style: resolvedStyle, ...rest },
@@ -220,7 +221,9 @@ process.emitWarning = (warning: string | Error, ...args: unknown[]) => {
   if (warningString.includes("--localstorage-file")) {
     return; // Suppress this specific warning
   }
-  return originalEmitWarning.call(process, warning, ...(args as [never, never]));
+  // `process.emitWarning` is a four-overload signature; no single typed
+  // `.call` forwards an arbitrary tail of it.
+  return Reflect.apply(originalEmitWarning, process, [warning, ...args]);
 };
 
 // Mock localStorage to avoid jsdom warnings

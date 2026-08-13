@@ -41,6 +41,23 @@ interface VariablePickerContentProps {
   className?: string;
 }
 
+/**
+ * Plugin display payloads arrive as untyped JSON, so array-valued fields have
+ * to be narrowed before they can be indexed or measured. Returns undefined for
+ * anything that is not an array, which every caller already treats as
+ * "nothing configured".
+ */
+function asItemArray(value: unknown): Record<string, unknown>[] | undefined {
+  return Array.isArray(value) ? (value as Record<string, unknown>[]) : undefined;
+}
+
+/** Same narrowing for a sub-array, which the schema models as a keyed map. */
+function asItemMap(value: unknown): Record<string, Record<string, unknown>> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, Record<string, unknown>>)
+    : undefined;
+}
+
 function resolveIcon(iconName: string | undefined): LucideIcon | null {
   if (!iconName) return null;
   const pascalName = iconName
@@ -140,19 +157,21 @@ function renderSubArraySection(
   const keyField = subArraySchema.key_field;
   const labelField = subArraySchema.label_field;
 
-  const getItemLabel = (itemData: Record<string, unknown>) =>
-    (labelField && itemData[labelField]) || (keyField && itemData[keyField]) || itemData[itemFields[0]];
+  const getItemLabel = (itemData: Record<string, unknown>): string => {
+    const raw = (labelField && itemData[labelField]) || (keyField && itemData[keyField]) || itemData[itemFields[0]];
+    return raw == null || raw === "" ? "" : String(raw);
+  };
 
   const filteredEntries = showAll
     ? Object.entries(subArrayData)
     : Object.entries(subArrayData).filter(([key, itemData]) => {
         if (!searchQuery.trim()) return true;
         const displayKey = keyType === "dynamic" && keyField ? String(itemData[keyField] ?? key) : key;
-        const displayValue = getItemLabel(itemData) ?? displayKey;
+        const displayValue = getItemLabel(itemData) || displayKey;
         return (
           matchesSearch(subArrayName, searchQuery) ||
           matchesSearch(displayKey, searchQuery) ||
-          matchesSearch(String(displayValue), searchQuery) ||
+          matchesSearch(displayValue, searchQuery) ||
           itemFields.some((field: string) => matchesSearch(field, searchQuery))
         );
       });
@@ -168,7 +187,7 @@ function renderSubArraySection(
       <Accordion type="single" collapsible className="w-full">
         {filteredEntries.map(([key, itemData]) => {
           const displayKey = keyType === "dynamic" && keyField ? String(itemData[keyField] ?? key) : key;
-          const itemLabel = getItemLabel(itemData) ?? displayKey;
+          const itemLabel = getItemLabel(itemData) || displayKey;
           const filteredFields = showAll
             ? itemFields
             : itemFields.filter((field: string) => !searchQuery.trim() || matchesSearch(field, searchQuery));
@@ -286,7 +305,7 @@ function renderArraySection(
     <ScrollArea className="max-h-[400px] pr-1">
       <Accordion type="single" collapsible className="w-full">
         {filteredArrayData.map(({ item, index }) => {
-          const itemLabel = item[labelField] || item.name || `Item ${index}`;
+          const itemLabel = String(item[labelField] || item.name || `Item ${index}`);
 
           const filteredItemFields = showAll
             ? itemFields.filter((field: string) => !field.includes("."))
@@ -346,7 +365,7 @@ function renderArraySection(
                   )}
 
                   {filteredSubArrays.map(([subArrayName]) => {
-                    const subArrayData = item[subArrayName];
+                    const subArrayData = asItemMap(item[subArrayName]);
                     if (!subArrayData) return null;
                     return (
                       <Box key={subArrayName}>
@@ -491,11 +510,11 @@ export function VariablePickerContent({
     if (arrayNames.some((a) => matchesSearch(a, searchQuery))) return true;
 
     for (const arrayName of arrayNames) {
-      const arrayData = deferredPluginData[category]?.[arrayName];
+      const arrayData = asItemArray(deferredPluginData[category]?.[arrayName]);
       if (arrayData && arrayData.length > 0) {
         const arraySchema = manifest?.variables?.arrays?.[arrayName];
         if (arraySchema) {
-          const hasMatch = (arrayData as Record<string, unknown>[]).some((item) => {
+          const hasMatch = arrayData.some((item) => {
             const itemLabel = String(item[arraySchema.label_field || "name"] || "");
             return (
               matchesSearch(itemLabel, searchQuery) ||
@@ -568,11 +587,11 @@ export function VariablePickerContent({
                   arrayNames.some((arrayName) => {
                     if (!searchQuery.trim() || categoryMatches) return true;
                     if (matchesSearch(arrayName, searchQuery)) return true;
-                    const arrayData = deferredPluginData[category]?.[arrayName];
+                    const arrayData = asItemArray(deferredPluginData[category]?.[arrayName]);
                     if (!arrayData || arrayData.length === 0) return false;
                     const arraySchema = manifest?.variables?.arrays?.[arrayName];
                     if (!arraySchema) return false;
-                    return (arrayData as Record<string, unknown>[]).some((item) => {
+                    return arrayData.some((item) => {
                       const label = String(item[arraySchema.label_field || "name"] || "");
                       return (
                         matchesSearch(label, searchQuery) ||
@@ -660,7 +679,7 @@ export function VariablePickerContent({
 
                     {/* Array Sections -- iterate all arrays */}
                     {arrayNames.map((arrayName) => {
-                      const arrayData = deferredPluginData[category]?.[arrayName];
+                      const arrayData = asItemArray(deferredPluginData[category]?.[arrayName]);
                       const shouldShow =
                         !searchQuery.trim() ||
                         categoryMatches ||

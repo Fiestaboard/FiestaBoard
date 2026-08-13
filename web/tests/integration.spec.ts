@@ -23,6 +23,7 @@ import {
   configureBoard,
   expect,
   getMockBoardState,
+  mockBoardGrid,
   resetToSingleBoard,
   suppressWizard,
   test,
@@ -37,8 +38,9 @@ test.describe("Infrastructure", () => {
   test("mock board server is running and responsive", async () => {
     const state = await getMockBoardState();
     expect(state).toHaveProperty("current_message");
-    expect(state.current_message).toHaveLength(6);
-    expect(state.current_message[0]).toHaveLength(22);
+    const grid = mockBoardGrid(state);
+    expect(grid).toHaveLength(6);
+    expect(grid[0]).toHaveLength(22);
   });
 
   test("API health check responds OK", async () => {

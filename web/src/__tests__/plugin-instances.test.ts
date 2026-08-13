@@ -29,17 +29,22 @@ describe("Plugin Instance API", () => {
         http.get(`${API_BASE}/plugins/:pluginId/instances`, ({ params }) => {
           return HttpResponse.json({
             plugin_id: params.pluginId,
+            // Mirrors PluginRegistry.list_instances(): label / key / enabled /
+            // has_config. The fixture previously invented `id` +
+            // `instance_label`, fields the endpoint has never returned.
             instances: [
-              { id: "weather:sf", instance_label: "sf", enabled: false },
-              { id: "weather:nyc", instance_label: "nyc", enabled: true },
+              { label: "sf", key: "weather:sf", enabled: false, has_config: true },
+              { label: "nyc", key: "weather:nyc", enabled: true, has_config: false },
             ],
           });
         }),
       );
       const result = await api.listPluginInstances("weather");
       expect(result.instances).toHaveLength(2);
-      expect(result.instances[0].instance_label).toBe("sf");
-      expect(result.instances[1].instance_label).toBe("nyc");
+      expect(result.instances[0].label).toBe("sf");
+      expect(result.instances[0].key).toBe("weather:sf");
+      expect(result.instances[1].label).toBe("nyc");
+      expect(result.instances[1].key).toBe("weather:nyc");
     });
 
     it("throws on error response", async () => {

@@ -27,7 +27,7 @@ import Link from "@/components/smart-link";
 import { StaticBoardDisplay } from "@/components/static-board-display";
 import { getEffectiveBoardColor, useBoardSettings, useCollections, usePages } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
-import type { Collection, DeviceType, Page, PagePreviewResponse } from "@/lib/api";
+import type { Collection, DeviceType, Page, PagePreviewBatchEntry, PagePreviewResponse } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
 import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 
@@ -107,7 +107,7 @@ const PageButtonPreview = memo(
     preview: PagePreviewResponse | null;
     isLoading: boolean;
     boardType?: "black" | "white" | null;
-    deviceType?: "flagship" | "note";
+    deviceType?: DeviceType;
   }) {
     const t = useTranslations("pageGridSelector");
     const ref = useRef<HTMLDivElement>(null);
@@ -255,7 +255,7 @@ const PageButton = memo(
             preview={preview}
             isLoading={isLoadingPreview}
             boardType={boardType}
-            deviceType={(page.device_type as DeviceType) || "flagship"}
+            deviceType={page.device_type || "flagship"}
           />
         </Box>
 
@@ -573,8 +573,10 @@ export function PageGridSelector({
     return result;
   }, [allPages, deviceTypeFilter, filterByCurrentBoardSize, currentBoard]);
 
-  // State for batch preview data — only what the network produced.
-  const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, PagePreviewResponse>>({});
+  // State for batch preview data — only what the network produced. Both
+  // outcomes are kept: a failed entry is still an answer for that page, and
+  // `previewsPending` below asks "did every requested id come back?".
+  const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, PagePreviewBatchEntry>>({});
   const [fetchFailed, setFetchFailed] = useState(false);
 
   // Splitting the cache lookup out of the effect is what removes the
@@ -600,8 +602,18 @@ export function PageGridSelector({
     return { cachedPreviews: cached, initialPreviews: initial, pagesToFetch: toFetch };
   }, [pages, viewMode]);
 
-  // Cache hits render instantly; anything fetched since layers on top.
-  const previews = useMemo(() => ({ ...initialPreviews, ...fetchedPreviews }), [initialPreviews, fetchedPreviews]);
+  // Cache hits render instantly; anything fetched since layers on top. Entries
+  // that failed to render carry only `{ error, available: false }` — they stay
+  // out of the render map instead of being spread in as message-less previews.
+  const previews = useMemo(() => {
+    const merged: Record<string, PagePreviewResponse> = { ...initialPreviews };
+    for (const [pageId, preview] of Object.entries(fetchedPreviews)) {
+      if (preview.available) {
+        merged[pageId] = preview;
+      }
+    }
+    return merged;
+  }, [initialPreviews, fetchedPreviews]);
 
   // Still waiting only while a page we need has neither a cache hit nor a
   // fetched result, and the fetch hasn't given up.

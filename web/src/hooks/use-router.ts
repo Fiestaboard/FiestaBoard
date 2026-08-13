@@ -1,9 +1,19 @@
 import { useMemo } from "react";
 import { useLocation, useNavigate, useParams as useRRParams, useSearchParams as useRRSearchParams } from "react-router";
 
+/**
+ * Mirrors the Next.js navigation options this codebase already passes.
+ * `scroll: false` maps to React Router's `preventScrollReset`, which is
+ * what keeps <ScrollRestoration> (mounted in root.tsx) from yanking the
+ * viewport back to the top on an in-page URL update.
+ */
+export type NavigateOptions = {
+  scroll?: boolean;
+};
+
 type Router = {
-  push: (href: string) => void;
-  replace: (href: string) => void;
+  push: (href: string, options?: NavigateOptions) => void;
+  replace: (href: string, options?: NavigateOptions) => void;
   back: () => void;
   forward: () => void;
 };
@@ -12,8 +22,8 @@ export function useRouter(): Router {
   const navigate = useNavigate();
   return useMemo<Router>(
     () => ({
-      push: (href) => navigate(href),
-      replace: (href) => navigate(href, { replace: true }),
+      push: (href, options) => navigate(href, { preventScrollReset: options?.scroll === false }),
+      replace: (href, options) => navigate(href, { replace: true, preventScrollReset: options?.scroll === false }),
       back: () => navigate(-1),
       forward: () => navigate(1),
     }),

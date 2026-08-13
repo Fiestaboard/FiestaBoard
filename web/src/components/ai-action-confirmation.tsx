@@ -33,7 +33,22 @@ import type {
   UpdateSettingArgs,
 } from "@/lib/ai-chat-types";
 
-type ConfirmableOp = Exclude<ToolCall["op"], "replace_page" | "apply_patch" | "suggest_variables" | "navigate_to_page">;
+/**
+ * Ops this card can present for approval. Everything excluded here is either
+ * applied straight to the page editor, or is pure navigation / status
+ * bookkeeping that the AI drawer runs without asking. Keeping the two
+ * navigation ops and `update_task_list` in the union left the label and
+ * description switches below silently non-exhaustive.
+ */
+type ConfirmableOp = Exclude<
+  ToolCall["op"],
+  | "replace_page"
+  | "apply_patch"
+  | "suggest_variables"
+  | "navigate_to_page"
+  | "navigate_to_schedule"
+  | "update_task_list"
+>;
 
 type ActionState = "pending" | "running" | "done" | "denied";
 

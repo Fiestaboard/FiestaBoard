@@ -342,8 +342,16 @@ export interface PagePreviewResponse {
   raw: Record<string, unknown>;
 }
 
+/**
+ * One entry of a batch preview. The batch endpoint tags both outcomes with
+ * `available` (the single-page endpoint does not), which makes this a proper
+ * discriminated union — without the `available: true` arm, narrowing a
+ * successful entry was impossible.
+ */
+export type PagePreviewBatchEntry = (PagePreviewResponse & { available: true }) | { error: string; available: false };
+
 export interface PagePreviewBatchResponse {
-  previews: Record<string, PagePreviewResponse | { error: string; available: false }>;
+  previews: Record<string, PagePreviewBatchEntry>;
   total: number;
   successful: number;
 }
@@ -1061,8 +1069,14 @@ export interface FullConfig {
   board: BoardConfig;
   general: GeneralConfig;
   plugins: Record<string, Record<string, unknown>>;
-  // Backward compatibility alias (in case API returns old key)
-  board?: BoardConfig;
+  /**
+   * Pre-migration key still present in `config.json` on older installs;
+   * `/config/full` echoes the raw config, so it can surface here.
+   * `ConfigManager.get_board()` falls back to it (see config_manager.py).
+   * This redeclared `board` — shadowing the required field above rather than
+   * describing the legacy one.
+   */
+  board_legacy?: BoardConfig;
 }
 
 export interface ConfigValidationResponse {

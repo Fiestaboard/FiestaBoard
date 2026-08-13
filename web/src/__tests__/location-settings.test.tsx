@@ -54,8 +54,16 @@ function mockPosition(latitude: number, longitude: number): GeolocationPosition 
       altitudeAccuracy: null,
       heading: null,
       speed: null,
+      // lib.dom models GeolocationCoordinates as a live interface, so the
+      // literal has to carry its serializer too.
+      toJSON() {
+        return { latitude, longitude, accuracy: 10 };
+      },
     },
     timestamp: Date.now(),
+    toJSON() {
+      return { timestamp: this.timestamp };
+    },
   };
 }
 

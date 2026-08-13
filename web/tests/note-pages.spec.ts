@@ -18,6 +18,7 @@ import {
   deleteAllPages,
   expect,
   getMockBoardState,
+  lastMockMessage,
   MOCK_BOARD_URL,
   test,
 } from "./helpers";
@@ -245,7 +246,7 @@ test.describe("Note pages – Send to Board", () => {
     const state = await getMockBoardState();
     expect(state.message_count).toBeGreaterThanOrEqual(1);
 
-    const lastMessage = state.history[state.history.length - 1];
+    const lastMessage = lastMockMessage(state);
     expect(lastMessage.dimensions).toEqual([3, 15]);
     expect(lastMessage.characters).toHaveLength(3);
     for (const row of lastMessage.characters) {
@@ -269,7 +270,7 @@ test.describe("Note pages – Send to Board", () => {
     const state = await getMockBoardState();
     expect(state.message_count).toBeGreaterThanOrEqual(1);
 
-    const lastMessage = state.history[state.history.length - 1];
+    const lastMessage = lastMockMessage(state);
     expect(lastMessage.dimensions).toEqual([6, 22]);
     expect(lastMessage.characters).toHaveLength(6);
     for (const row of lastMessage.characters) {
@@ -331,7 +332,7 @@ test.describe("Note pages – Send to Board", () => {
     expect((await sendRes.json()).sent_to_board).toBe(true);
 
     const state = await getMockBoardState();
-    const row0 = state.history[state.history.length - 1].characters[0];
+    const row0 = lastMockMessage(state).characters[0];
     expect(row0[0]).toBe(1); // A
     expect(row0[1]).toBe(37); // !
     expect(row0[2]).toBe(38); // @
@@ -357,7 +358,7 @@ test.describe("Note pages – Heart / Degree character", () => {
     expect((await sendRes.json()).sent_to_board).toBe(true);
 
     const state = await getMockBoardState();
-    const row0 = state.history[state.history.length - 1].characters[0];
+    const row0 = lastMockMessage(state).characters[0];
     expect(row0[0]).toBe(1); // A
     expect(row0[1]).toBe(62); // ° -> code 62 (heart on Note)
     expect(row0[2]).toBe(2); // B

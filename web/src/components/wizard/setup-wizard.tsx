@@ -145,7 +145,9 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     <Box className="fixed inset-0 z-50 bg-background overflow-y-auto">
       {/* Aurora background - fixed so it stays in place while content scrolls */}
       <Box className="fixed inset-0 pointer-events-none">
-        <Aurora colorStops={["#f8e71c", "#eb4034", "#AA00FF", "#9b59b6"]} blend={0.5} amplitude={1.0} speed={0.5} />
+        {/* Aurora's shader ramps exactly three stops (uColorStops[3]); a
+            fourth was passed here and silently ignored. */}
+        <Aurora colorStops={["#f8e71c", "#eb4034", "#AA00FF"]} blend={0.5} amplitude={1.0} speed={0.5} />
       </Box>
 
       {/* Content container */}

@@ -214,11 +214,9 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           bold: false,
           italic: false,
           strike: false,
-          history: true,
           document: false, // Using SingleParagraphDoc instead to prevent splitBlock
-          text: true,
-          paragraph: true,
-          hardBreak: true,
+          // text / paragraph / hardBreak / undo-redo are on by default in
+          // StarterKit v3 — the option value only exists to switch them off.
         }),
         VariableNode,
         ColorTileNode,
@@ -1060,8 +1058,12 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
           // useEffect, which React 19 forbids.
           queueMicrotask(() => {
             if (!editor || editor.isDestroyed) return;
-            editor.commands.setContent(parseTemplateSimple(value || "", boardLines), false, {
-              preserveWhitespace: true,
+            // TipTap v3 signature: setContent(content, options). The v2
+            // three-argument form silently dropped both `emitUpdate: false`
+            // and `parseOptions`, echoing this sync back out as an edit.
+            editor.commands.setContent(parseTemplateSimple(value || "", boardLines), {
+              emitUpdate: false,
+              parseOptions: { preserveWhitespace: true },
             });
           });
         }
@@ -1388,7 +1390,11 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
         </Box>
 
         {/* Placeholder styling */}
-        <style jsx global>{`
+        {/* Plain global <style>. The `jsx`/`global` attributes here were a
+            styled-jsx (Next.js) leftover: with no styled-jsx compiler in the
+            React Router build they reached the DOM as unknown attributes and
+            React logged a warning on every render. */}
+        <style>{`
           /* Ensure ProseMirror container looks like a single textarea */
           .ProseMirror {
             margin: 0;

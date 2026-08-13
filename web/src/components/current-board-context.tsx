@@ -11,11 +11,6 @@ const STORAGE_KEY = "fiestaboard_current_board";
 
 type BoardSwitchDirection = "forward" | "backward";
 
-/** Minimal typing for the View Transitions API (not yet in lib.dom). */
-interface DocumentWithViewTransition extends Document {
-  startViewTransition?: (update: () => void) => { finished: Promise<void> };
-}
-
 function motionDisabled(): boolean {
   const html = document.documentElement;
   if (html.classList.contains("reduce-motion") || html.classList.contains("site-animations-off")) return true;
@@ -33,7 +28,9 @@ function motionDisabled(): boolean {
  * instant-switch path runs immediately.
  */
 function runBoardSwitchTransition(direction: BoardSwitchDirection, update: () => void, onSettled: () => void) {
-  const doc = document as DocumentWithViewTransition;
+  const doc = document;
+  // lib.dom declares startViewTransition unconditionally; browsers that predate
+  // the View Transitions API (and jsdom) still don't ship it, so probe at runtime.
   if (typeof doc.startViewTransition !== "function" || motionDisabled()) {
     update();
     onSettled();

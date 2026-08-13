@@ -91,6 +91,7 @@ import type {
   PageCreate,
   PageType,
   PageUpdate,
+  PageUpdateResponse,
 } from "@/lib/api";
 import { api } from "@/lib/api";
 import { MAX_NOTES_PER_AXIS, resolveDimensions } from "@/lib/board-dimensions";
@@ -379,8 +380,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   /** Apply one structured AI tool call to the editor state. */
   const applyToolCall = useCallback(
     (call: ToolCall) => {
-      if (call.op === "suggest_variables") {
-        // Read-only — surfaced in the chat UI, no editor mutation.
+      // `suggest_variables` is read-only (surfaced in the chat UI); every
+      // other op is handled by the global AI drawer (navigation, plugins,
+      // schedules) and must never fall through to the apply_patch branch
+      // below, which would read `.changes` off the wrong args shape.
+      if (call.op !== "replace_page" && call.op !== "apply_patch") {
         return;
       }
       pushUndoSnapshot();
@@ -948,7 +952,9 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Save mutation
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    // Create and update share the `{ status, page }` envelope; only update can
+    // carry `incompatible_references`, which is optional on the shared type.
+    mutationFn: async (): Promise<PageUpdateResponse> => {
       const { cleanedLines, metadata } = processLinesWithPrefixes(templateLines, lineAlignments, lineWrapEnabled);
       if (pageId) {
         const payload: PageUpdate = {
@@ -977,8 +983,14 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       }
     },
     onSuccess: (data) => {
+      // Both POST /pages and PUT /pages/{id} answer with `{ status, page }`,
+      // so the saved id is `data.page.id` — reading `data.id` here was always
+      // undefined and silently skipped every id-keyed cleanup below when
+      // creating a new page (issue #1586).
+      const targetPageId = pageId || data.page.id;
+
       // Clear draft on successful save
-      const draftKey = getDraftKey(pageId || data.id);
+      const draftKey = getDraftKey(targetPageId);
       localStorage.removeItem(draftKey);
       // Also clear the 'new' draft if this was a new page
       if (!pageId) {
@@ -986,7 +998,6 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       }
 
       // Clear preview cache for this page
-      const targetPageId = pageId || data.id;
       if (targetPageId) {
         clearPreviewCacheForPage(targetPageId);
       }
@@ -1013,7 +1024,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
       // list the schedules / active pages now pointing this page at a board
       // it no longer fits. Non-blocking — the save already succeeded and
       // nothing is auto-removed.
-      const incompatibleRefs = "incompatible_references" in data ? data.incompatible_references : undefined;
+      const incompatibleRefs = data.incompatible_references;
       if (incompatibleRefs && incompatibleRefs.length > 0) {
         const list = incompatibleRefs
           .map(

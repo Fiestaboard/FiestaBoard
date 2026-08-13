@@ -45,11 +45,8 @@ describe("LineNavigation Extension (Enter key)", () => {
           bold: false,
           italic: false,
           strike: false,
-          history: true,
-          document: true,
-          text: true,
-          paragraph: true,
-          hardBreak: true,
+          // document / text / paragraph / hardBreak / undo-redo are on by
+          // default in StarterKit v3 — the option only exists to disable them.
         }),
         LineNavigation,
       ],
@@ -155,11 +152,8 @@ describe("3-line mode (Note device)", () => {
           bold: false,
           italic: false,
           strike: false,
-          history: true,
-          document: true,
-          text: true,
-          paragraph: true,
-          hardBreak: true,
+          // document / text / paragraph / hardBreak / undo-redo are on by
+          // default in StarterKit v3 — the option only exists to disable them.
         }),
         LineNavigation,
       ],
