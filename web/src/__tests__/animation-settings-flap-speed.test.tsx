@@ -57,11 +57,22 @@ describe("AnimationSettings — board flip speed", () => {
 
     const group = await screen.findByRole("radiogroup", { name: "Flip speed" });
     const options = Array.from(group.querySelectorAll('[role="radio"]')).map((el) => el.textContent);
-    expect(options).toEqual(["Hardware", "Quick", "Standard", "Relaxed"]);
+    expect(options).toEqual(["Hardware", "Quick", "Standard (default)", "Relaxed"]);
 
     await waitFor(() => {
       expect(screen.getByRole("radio", { name: "Quick" })).toHaveAttribute("aria-checked", "true");
     });
+  });
+
+  it("marks Standard as the default even when another preset is selected", async () => {
+    // The per-preset hint below the group says "the default" — but only for
+    // whichever preset is currently selected, so a user on Relaxed has no way
+    // to tell which one they moved away from. The marker belongs on the option.
+    withDisplaySettings({ board_flap_speed: "relaxed" });
+    render(<AnimationSettings />, { wrapper: TestWrapper });
+
+    const standard = await screen.findByRole("radio", { name: "Standard (default)" });
+    expect(standard).toHaveAttribute("aria-checked", "false");
   });
 
   it("falls back to Standard when the stored value is a raw millisecond count", async () => {
@@ -70,7 +81,7 @@ describe("AnimationSettings — board flip speed", () => {
     withDisplaySettings({ board_flap_speed: 42 });
     render(<AnimationSettings />, { wrapper: TestWrapper });
 
-    const standard = await screen.findByRole("radio", { name: "Standard" });
+    const standard = await screen.findByRole("radio", { name: "Standard (default)" });
     expect(standard).toHaveAttribute("aria-checked", "true");
   });
 

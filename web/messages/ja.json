@@ -1368,6 +1368,7 @@
     "flapSpeed_hardware": "ハードウェア",
     "flapSpeed_quick": "速い",
     "flapSpeed_standard": "標準",
+    "flapSpeed_standardWithDefault": "標準（デフォルト）",
     "flapSpeed_relaxed": "ゆっくり",
     "flapSpeed_hardwareHint": "{ms} ミリ秒 — 実機と同じ速さ。1 文字あたりおよそ 1 フレームなので、切り替わり中のボードは文字ではなくぼやけて見えます。",
     "flapSpeed_quickHint": "{ms} ミリ秒 — 標準より速く、反転中でも文字を読み取れます。",

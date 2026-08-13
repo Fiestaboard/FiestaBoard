@@ -1368,6 +1368,7 @@
     "flapSpeed_hardware": "Matériel",
     "flapSpeed_quick": "Rapide",
     "flapSpeed_standard": "Standard",
+    "flapSpeed_standardWithDefault": "Standard (par défaut)",
     "flapSpeed_relaxed": "Posée",
     "flapSpeed_hardwareHint": "{ms} ms — la cadence de l'appareil réel. Environ une image par caractère : un board en cours de stabilisation apparaît flou plutôt que lisible.",
     "flapSpeed_quickHint": "{ms} ms — plus rapide que la valeur par défaut, les caractères restent lisibles pendant le basculement.",

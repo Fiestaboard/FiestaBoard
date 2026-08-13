@@ -1368,6 +1368,7 @@
     "flapSpeed_hardware": "Hardware",
     "flapSpeed_quick": "Rápida",
     "flapSpeed_standard": "Padrão",
+    "flapSpeed_standardWithDefault": "Padrão (predefinida)",
     "flapSpeed_relaxed": "Calma",
     "flapSpeed_hardwareHint": "{ms} ms — o ritmo do aparelho real. Cerca de um fotograma por carácter, pelo que um board a estabilizar aparece desfocado em vez de legível.",
     "flapSpeed_quickHint": "{ms} ms — mais rápida do que a predefinição, com os caracteres ainda legíveis durante a viragem.",

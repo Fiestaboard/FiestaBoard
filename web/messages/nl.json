@@ -1368,6 +1368,7 @@
     "flapSpeed_hardware": "Hardware",
     "flapSpeed_quick": "Snel",
     "flapSpeed_standard": "Standaard",
+    "flapSpeed_standardWithDefault": "Standaard (standaardinstelling)",
     "flapSpeed_relaxed": "Rustig",
     "flapSpeed_hardwareHint": "{ms} ms — het tempo van het echte apparaat. Ongeveer één frame per teken, dus een board dat tot rust komt oogt wazig in plaats van leesbaar.",
     "flapSpeed_quickHint": "{ms} ms — sneller dan standaard, tekens blijven tijdens het omklappen leesbaar.",
