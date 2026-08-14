@@ -1,0 +1,53 @@
+[
+  { "path": "/docs/intro", "expect": "page" },
+  { "path": "/docs/setup/quick-start", "expect": "page" },
+  { "path": "/docs/features/page-editor", "expect": "page" },
+  { "path": "/docs/plugins/overview", "expect": "page" },
+  { "path": "/docs/development/contributing", "expect": "page" },
+  { "path": "/docs/deployment/production", "expect": "page" },
+  { "path": "/docs/reference/api-endpoints", "expect": "page" },
+  { "path": "/docs/troubleshooting", "expect": "page" },
+
+  { "path": "/docs/8.26/intro", "expect": "page", "fullBuildOnly": true },
+  { "path": "/docs/8.20/setup/quick-start", "expect": "page", "fullBuildOnly": true },
+  { "path": "/docs/8.15/intro", "expect": "page", "fullBuildOnly": true },
+  { "path": "/docs/8.26", "expect": "redirect", "target": "/docs/8.26/intro", "fullBuildOnly": true },
+
+  { "path": "/docs/8.14/intro", "expect": "redirect", "target": "/docs/intro" },
+  { "path": "/docs/8.12/plugins/overview", "expect": "redirect", "target": "/docs/plugins/overview" },
+  { "path": "/docs/2.5/setup/quick-start", "expect": "redirect", "target": "/docs/setup/quick-start" },
+
+  { "path": "/docs", "expect": "redirect", "target": "/docs/intro" },
+  { "path": "/docs/latest", "expect": "redirect", "target": "/docs/intro" },
+  { "path": "/docs/next", "expect": "redirect", "target": "/docs/intro" },
+  { "path": "/docs/latest/intro", "expect": "redirect", "target": "/docs/intro" },
+  { "path": "/docs/next/setup/quick-start", "expect": "redirect", "target": "/docs/setup/quick-start" },
+
+  { "path": "/docs/category/setup", "expect": "redirect", "target": "/docs/setup/quick-start" },
+  { "path": "/docs/category/plugins", "expect": "redirect", "target": "/docs/plugins/overview" },
+  { "path": "/docs/category/features", "expect": "redirect", "target": "/docs/features/page-editor" },
+  { "path": "/docs/category/development", "expect": "redirect", "target": "/docs/development/contributing" },
+  { "path": "/docs/category/deployment", "expect": "redirect", "target": "/docs/deployment/production" },
+  { "path": "/docs/category/reference", "expect": "redirect", "target": "/docs/reference/api-endpoints" },
+
+  { "path": "/docs/setup/split-flap-display-software", "expect": "redirect", "target": "/docs/intro" },
+
+  { "path": "/", "expect": "page" },
+  { "path": "/plugins", "expect": "page" },
+  { "path": "/plugins/detail", "expect": "page" },
+  { "path": "/blog", "expect": "page" },
+  { "path": "/blog/introducing-fiestaboard", "expect": "page" },
+  { "path": "/blog/note-arrays-home-assistant-local-arrays", "expect": "page" },
+  { "path": "/stats", "expect": "page" },
+  { "path": "/versions", "expect": "page" },
+  { "path": "/search", "expect": "page" },
+
+  { "path": "/llms.txt", "expect": "file", "contains": "FiestaBoard" },
+  { "path": "/llms-full.txt", "expect": "file" },
+  { "path": "/search-index.json", "expect": "file" },
+  { "path": "/plugin-stats.json", "expect": "file" },
+  { "path": "/robots.txt", "expect": "file" },
+  { "path": "/CNAME", "expect": "file", "contains": "fiestaboard.app" },
+  { "path": "/404.html", "expect": "file" },
+  { "path": "/.nojekyll", "expect": "file" }
+]
