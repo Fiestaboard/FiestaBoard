@@ -5,8 +5,15 @@
  * scripts/sync_plugin_previews.py — manifest teaser/previews win, seed
  * entries are the fallback).
  */
+import type { BoardPreviewEntry } from "@fiestaboard/ui";
+
 import previewsSeed from "../../plugin-previews.json";
 import registry from "../../plugin-registry.json";
+
+// The preview contract (types + label/message helpers) is shared with the app
+// marketplace through the design system; re-export for local call sites.
+export { previewLabel, previewLabels, previewMessage } from "@fiestaboard/ui";
+export type { BoardPreviewEntry } from "@fiestaboard/ui";
 
 export interface PluginEntry {
   id: string;
@@ -23,16 +30,6 @@ export interface PluginEntry {
 
 export const plugins: PluginEntry[] = registry.plugins as PluginEntry[];
 
-/** One literal board, at one shape, from plugin-previews.json. */
-export interface BoardPreviewEntry {
-  /** Human tab label; when absent, derive one with `previewLabel()`. */
-  label?: string;
-  device_type?: "flagship" | "note" | "note_array";
-  notes_wide?: number;
-  notes_tall?: number;
-  rows: string[];
-}
-
 export interface PluginPreviewEntry {
   /** One-line directory-card strip, at most 15 tiles. */
   teaser: string;
@@ -44,20 +41,6 @@ export const pluginPreviews: Record<string, PluginPreviewEntry> = previewsSeed.p
   string,
   PluginPreviewEntry
 >;
-
-/** Tab label for a preview: its declared label, or one derived from the shape. */
-export function previewLabel(preview: BoardPreviewEntry): string {
-  if (preview.label) return preview.label;
-  if (preview.device_type === "note_array") {
-    return `Note Array ${preview.notes_wide ?? 1}×${preview.notes_tall ?? 1}`;
-  }
-  return preview.device_type === "note" ? "Note" : "Flagship";
-}
-
-/** The newline-joined message `StaticBoardDisplay` renders. */
-export function previewMessage(preview: BoardPreviewEntry): string {
-  return preview.rows.join("\n");
-}
 
 export const CATEGORY_LABELS: Record<string, string> = {
   art: "Display Art",

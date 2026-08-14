@@ -1,80 +1,34 @@
 import Link from "@docusaurus/Link";
 import { useColorMode } from "@docusaurus/theme-common";
-import { Badge, BoardTeaser, Box, Button, EmptyState, Flex, Heading, Input, Text } from "@fiestaboard/ui";
+import { Box, Button, EmptyState, Flex, Input, PluginCard, Text } from "@fiestaboard/ui";
 import type { PluginEntry } from "@site/src/plugin-data";
 import { CATEGORIES, CATEGORY_LABELS, pluginPreviews, plugins } from "@site/src/plugin-data";
 import Layout from "@theme/Layout";
 import clsx from "clsx";
 import { SearchX } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 
 import styles from "./index.module.css";
 
-function CategoryBadge({ category }: { category: string }) {
-  const label = CATEGORY_LABELS[category] ?? category;
-  return (
-    <Badge variant="secondary" className={clsx(styles.categoryBadge, styles[`category_${category}`])}>
-      {label}
-    </Badge>
-  );
-}
-
-/**
- * Scales the fixed-size BoardTeaser strip up to the card's available width
- * (viewport breakpoints can't see card width, so this measures instead).
- * `transform` doesn't affect layout, so the wrapper height tracks the scale.
- */
-function ScaledTeaser({ teaser, boardType }: { teaser: string; boardType: "black" | "white" }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    const strip = container?.firstElementChild as HTMLElement | null;
-    if (!container || !strip) return;
-    const compute = () => {
-      // offsetWidth ignores the transform, so this is the intrinsic width.
-      if (strip.offsetWidth > 0) {
-        setScale(Math.min(1.5, Math.max(0.85, container.clientWidth / strip.offsetWidth)));
-      }
-    };
-    compute();
-    const observer = new ResizeObserver(compute);
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <Box ref={containerRef} className={styles.teaserScaler} style={{ height: `${18 * scale}px` }}>
-      <Box style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}>
-        <BoardTeaser teaser={teaser} boardType={boardType} />
-      </Box>
-    </Box>
-  );
-}
-
-function PluginCard({ plugin }: { plugin: PluginEntry }) {
+function DirectoryCard({ plugin }: { plugin: PluginEntry }) {
   const { colorMode } = useColorMode();
   const teaser = pluginPreviews[plugin.id]?.teaser ?? plugin.name;
 
   return (
-    <Link to={`/plugins/detail?id=${plugin.id}`} className={styles.pluginCard}>
-      <Box className={styles.pluginCardBody}>
-        <Box className={styles.pluginCardHeader}>
-          <Heading level={3} className={styles.pluginCardTitle}>
-            {plugin.name}
-          </Heading>
-          <CategoryBadge category={plugin.category} />
-        </Box>
-        <Text className={styles.pluginCardDescription}>{plugin.description}</Text>
-        <Text as="span" className={styles.pluginCardAuthor}>
-          by {plugin.author}
-        </Text>
-      </Box>
-      <Box className={styles.pluginCardTeaser}>
-        <ScaledTeaser teaser={teaser} boardType={colorMode === "dark" ? "black" : "white"} />
-      </Box>
-    </Link>
+    <PluginCard
+      name={plugin.name}
+      description={plugin.description}
+      authorLabel={`by ${plugin.author}`}
+      category={plugin.category}
+      categoryLabel={CATEGORY_LABELS[plugin.category] ?? plugin.category}
+      teaser={teaser}
+      boardType={colorMode === "dark" ? "black" : "white"}
+      renderLink={({ className, children }) => (
+        <Link to={`/plugins/detail?id=${plugin.id}`} className={className}>
+          {children}
+        </Link>
+      )}
+    />
   );
 }
 
@@ -150,7 +104,7 @@ export default function PluginDirectory(): ReactNode {
           {filtered.length > 0 ? (
             <Box className={styles.pluginGrid}>
               {filtered.map((plugin) => (
-                <PluginCard key={plugin.id} plugin={plugin} />
+                <DirectoryCard key={plugin.id} plugin={plugin} />
               ))}
             </Box>
           ) : (
