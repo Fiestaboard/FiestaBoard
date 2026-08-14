@@ -365,7 +365,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v7
       with:
-        node-version: '20'
+        node-version: '24'
         cache: 'npm'
         cache-dependency-path: docs-site/package-lock.json
 
@@ -1155,7 +1155,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v7
       with:
-        node-version: '20'
+        node-version: '24'
         cache: 'npm'
         cache-dependency-path: docs-site/package-lock.json
 
@@ -1219,7 +1219,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v7
       with:
-        node-version: '22'
+        node-version: '24'
         cache: 'npm'
         cache-dependency-path: package-lock.json
 
@@ -1262,10 +1262,30 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # `@docusaurus/mdx-loader` sizes every Markdown-referenced image with
+  # `image-size`, whose ICNS/JXL/HEIF parsers have two high-severity
+  # infinite-loop advisories and no patched version — the project was
+  # archived with the affected 2.0.2 as its final release. A crafted image
+  # would hang the docs build rather than fail it, so those formats are
+  # refused at the gate instead. See issue #1578.
+  #
+  # Deliberately unconditional: an image can be added under any path filter
+  # (docs/, docs-site/, plugins/*/docs/), and the check is a few seconds.
+  check-image-formats:
+    name: Check Image Formats
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Reject ICNS/HEIF/JXL content
+      run: python3 scripts/check_image_formats.py
+
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, lint-docs, test-ui, a11y-tests, build-test-image, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, ingress-e2e-tests, build, build-docs, lint-markdown, link-check]
+    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, lint-docs, test-ui, a11y-tests, build-test-image, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, ingress-e2e-tests, build, build-docs, lint-markdown, link-check, check-image-formats]
     if: always()
     steps:
       - name: Check all jobs passed or were skipped
@@ -1291,6 +1311,7 @@ jobs:
             build-docs
             lint-markdown
             link-check
+            check-image-formats
           RESULTS: ${{ toJSON(needs.*.result) }}
         run: |
           python3 - <<'PY'
