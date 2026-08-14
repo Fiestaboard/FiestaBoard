@@ -188,8 +188,11 @@ For user-facing setup instructions (API key registration, configuration):
 
 When modifying platform/core functionality:
 - Update `README.md` for significant platform changes
-- Update `docs/development/PLUGIN_DEVELOPMENT.md` for plugin system changes
-- Document new platform features in appropriate `docs/` subdirectory
+- Update `docs/internal/development/PLUGIN_DEVELOPMENT.md` for plugin system changes
+- Document new platform features in the appropriate docs tree: `docs/` is the
+  **published** documentation (rendered on fiestaboard.app by `docs-site/`);
+  `docs/internal/` is internal engineering documentation that is never
+  published
 
 ### Environment Variables
 
@@ -247,11 +250,11 @@ Instead, put documentation in the appropriate place:
 **For permanent documentation:**
 - **Plugin developer docs**: `plugins/PLUGIN_NAME/README.md` - How the plugin works
 - **Plugin setup guides**: `plugins/PLUGIN_NAME/docs/SETUP.md` - User-facing setup instructions
-- **Plugin development**: `docs/development/PLUGIN_DEVELOPMENT.md` - How to create plugins
+- **Plugin development**: `docs/internal/development/PLUGIN_DEVELOPMENT.md` - How to create plugins
 - **Deployment**: `docs/deployment/*.md` - Deployment and infrastructure docs
-- **Reference**: `docs/reference/*.md` - Technical reference material
-- **Setup**: `docs/setup/*.md` - Development environment setup
-- **Architecture**: Add to `README.md` or create `docs/reference/ARCHITECTURE.md`
+- **Reference**: `docs/internal/reference/*.md` - Technical reference material
+- **Setup**: `docs/internal/setup/*.md` - Development environment setup
+- **Architecture**: Add to `README.md` or create `docs/internal/reference/ARCHITECTURE.md`
 - **Web UI features**: `web/src/components/README.md` or component-specific docs in `web/`
 
 **For temporary notes during development:**

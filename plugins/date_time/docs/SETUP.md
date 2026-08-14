@@ -56,7 +56,7 @@ docker compose down
 docker compose up -d
 ```
 
-> **Note:** Typing the bare assignment in your terminal shell has no effect on the container. The variable must be in the container environment — either in `.env`, under the `environment:` key in your compose file, or as a CLI prefix (`TIMEZONE=America/New_York docker compose up`). For the development setup, see [Local Development](../../../docs/setup/LOCAL_DEVELOPMENT.md).
+> **Note:** Typing the bare assignment in your terminal shell has no effect on the container. The variable must be in the container environment — either in `.env`, under the `environment:` key in your compose file, or as a CLI prefix (`TIMEZONE=America/New_York docker compose up`). For the development setup, see [Local Development](../../../docs/internal/setup/LOCAL_DEVELOPMENT.md).
 
 ### 3. Add date/time variables to a page
 

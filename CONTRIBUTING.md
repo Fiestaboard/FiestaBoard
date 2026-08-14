@@ -16,7 +16,7 @@ Thank you for your interest in contributing to FiestaBoard. This document explai
 
 ## Getting started
 
-- **Set up your environment**: See [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md) for Docker-based development. We use Docker for all development and testing. Please do not run the API or web UI directly on the host.
+- **Set up your environment**: See [Local Development](./docs/internal/setup/LOCAL_DEVELOPMENT.md) for Docker-based development. We use Docker for all development and testing. Please do not run the API or web UI directly on the host.
 - **Explore the project**: The [README](./README.md) describes features, plugins, and quick start. Core code lives in `src/`; each integration is a plugin under `plugins/`.
 
 ---
@@ -118,7 +118,7 @@ If the repo is set to “Squash and merge” on GitHub, the maintainer can squas
 
 ## Code and documentation standards
 
-- **Docker-first**: Do not run `python -m src.api_server` or `npm run dev` on the host. Use `docker compose` as in [Local Development](./docs/setup/LOCAL_DEVELOPMENT.md).
+- **Docker-first**: Do not run `python -m src.api_server` or `npm run dev` on the host. Use `docker compose` as in [Local Development](./docs/internal/setup/LOCAL_DEVELOPMENT.md).
 - **No secrets**: Never commit `.env`, API keys, or real credentials. Use `env.example` and placeholders in docs.
 - **Privacy**: Do not use real personal data (addresses, coordinates, phone numbers, etc.) in code, tests, or docs. Use generic examples (e.g. `example@example.com`, well-known public coordinates).
 - **Python**: The project uses pylint (see `.pylintrc`) and expects platform tests to pass. New platform code should be covered by tests.
@@ -129,7 +129,7 @@ If the repo is set to “Squash and merge” on GitHub, the maintainer can squas
 
 ## Plugins
 
-- **Adding a new plugin**: Use a **feature branch** (e.g. `feat-my-plugin`). Follow the [Plugin Development Guide](./docs/development/PLUGIN_DEVELOPMENT.md): copy `plugins/_template`, implement the plugin, add tests (≥80% coverage), and add the plugin to the “Available Plugins” list in the main [README](./README.md).
+- **Adding a new plugin**: Use a **feature branch** (e.g. `feat-my-plugin`). Follow the [Plugin Development Guide](./docs/internal/development/PLUGIN_DEVELOPMENT.md): copy `plugins/_template`, implement the plugin, add tests (≥80% coverage), and add the plugin to the “Available Plugins” list in the main [README](./README.md).
 - **Changing an existing plugin**: Use a branch (e.g. `fix-weather-api` or `feat-plugin-name-feature`). Update the plugin’s own README and docs; update the main README only when adding a *new* plugin.
 
 ---

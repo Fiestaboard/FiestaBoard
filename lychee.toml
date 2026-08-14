@@ -1,15 +1,18 @@
 # lychee configuration for FiestaBoard's markdown link check.
 #
 # Division of responsibility for link checking:
-#   - The published Docusaurus site (docs-site/docs/**) is validated by the
-#     docs build (`onBrokenLinks: "throw"` in docusaurus.config.ts), which is
-#     the only checker that understands Docusaurus routing (route paths like
-#     `/docs/plugins/overview`, the static/ asset dir, extension stripping).
-#     lychee can't model that, so docs-site is excluded here.
-#   - lychee covers the markdown the site build never sees: the internal dev
-#     guides under docs/**, every plugin's README + docs/, and the root *.md
-#     files. For those it verifies external URLs AND relative file links
-#     against the filesystem.
+#   - The published site's Docusaurus-specific link semantics (route paths
+#     like `/docs/plugins/overview`, the static/ asset dir, extension
+#     stripping) are validated by the docs build (`onBrokenLinks: "throw"`
+#     in docs-site/docusaurus.config.ts) — lychee can't model routing, so
+#     server-absolute paths are excluded below and docs-site/ (versioned
+#     snapshots, site code) is skipped entirely.
+#   - lychee covers the markdown the site build never sees: the internal
+#     dev guides under docs/internal/**, every plugin's README + docs/, and
+#     the root *.md files. The published docs source (docs/**, outside
+#     internal/) is NOT scanned — its links use Docusaurus route semantics
+#     that only the site build can validate (ci.yml scopes the lychee args
+#     accordingly).
 #
 # Together the two checkers give repo-wide link coverage.
 
@@ -66,6 +69,5 @@ exclude = [
 exclude_path = [
   "node_modules",
   "docs-site",
-  "docs/superpowers",
   ".claude",
 ]

@@ -1,8 +1,9 @@
 {
-  // Markdownlint config for FiestaBoard's repository markdown: the internal
-  // dev guides under docs/**, the published Docusaurus site under
-  // docs-site/docs/**, every plugin's README + docs/, and the root-level
-  // markdown (README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, DOCKERHUB).
+  // Markdownlint config for FiestaBoard's repository markdown: the
+  // published Docusaurus site source under docs/** (with internal dev
+  // guides at docs/internal/**), every plugin's README + docs/, and the
+  // root-level markdown (README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT,
+  // DOCKERHUB).
   //
   // Rules are tuned to the conventions already used across these files:
   //   - Headings use ATX style (`#`), lists use `-`, code fences carry a
@@ -43,8 +44,7 @@
   },
   "globs": [
     "docs/**/*.md",
-    "docs-site/docs/**/*.md",
-    "docs-site/docs/**/*.mdx",
+    "docs/**/*.mdx",
     "plugins/*/README.md",
     "plugins/*/docs/**/*.md",
     "README.md",
@@ -58,7 +58,6 @@
     "docs-site/build/**",
     "docs-site/.docusaurus/**",
     "docs-site/versioned_docs/**",
-    "docs/superpowers/**",
     "CLAUDE.md",
     ".claude/**"
   ]
