@@ -19,7 +19,7 @@ from playwright.sync_api import sync_playwright
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = REPO_ROOT / "scripts"
-OUTPUT_DIR = REPO_ROOT / "docs-site" / "static" / "img" / "branding"
+OUTPUT_DIR = REPO_ROOT / "assets" / "img" / "branding"
 
 PORT = 18923
 

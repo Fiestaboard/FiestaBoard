@@ -1,8 +1,8 @@
 <h1 align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs-site/static/img/branding/logo-lockup-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs-site/static/img/branding/logo-lockup-light.png">
-    <img alt="FiestaBoard" src="docs-site/static/img/branding/logo-lockup-light.png" width="320">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/img/branding/logo-lockup-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="assets/img/branding/logo-lockup-light.png">
+    <img alt="FiestaBoard" src="assets/img/branding/logo-lockup-light.png" width="320">
   </picture>
 </h1>
 

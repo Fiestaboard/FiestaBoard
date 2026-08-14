@@ -47,6 +47,12 @@ const config: Config = {
   tagline: "Turn your split-flap display into a living dashboard",
   favicon: "img/favicon.ico",
 
+  // Brand lockups are canonical in the product repo (assets/img/branding/ —
+  // the root README renders them and scripts/export-brand-assets.py
+  // regenerates them there). Serving ../assets keeps them available at
+  // /img/branding/* (navbar logo below) without a copy that would drift.
+  staticDirectories: ["static", "../assets"],
+
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
     v4: true, // Improve compatibility with the upcoming Docusaurus v4
