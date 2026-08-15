@@ -1,14 +1,14 @@
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import Link from "@docusaurus/Link";
 import {
-  Badge,
+  BoardShowcase,
   Box,
   Button,
   EmptyState,
   Flex,
   Heading,
+  PluginCategoryBadge,
   Skeleton,
-  StaticBoardDisplay,
   Table,
   TableCell,
   TableHead,
@@ -18,14 +18,7 @@ import {
 } from "@fiestaboard/ui";
 import { fetchPluginReadme, rewriteMarkdownImageUrls, rewriteMarkdownRepoLinks } from "@site/src/lib/github-readme";
 import type { PluginEntry } from "@site/src/plugin-data";
-import {
-  CATEGORY_LABELS,
-  pluginBoardImagePath,
-  pluginPreviews,
-  plugins,
-  previewLabel,
-  previewMessage,
-} from "@site/src/plugin-data";
+import { CATEGORY_LABELS, pluginBoardImagePath, pluginPreviews, plugins } from "@site/src/plugin-data";
 import Layout from "@theme/Layout";
 import clsx from "clsx";
 import { PackageX } from "lucide-react";
@@ -180,8 +173,9 @@ function ReadmeContent({ markdown }: { markdown: string }) {
 /* ── Detail page content (uses browser APIs) ── */
 
 function DetailContent() {
+  // Only the legacy screenshot fallback needs page-owned colour state;
+  // BoardShowcase owns shape tabs and the colour toggle itself.
   const [boardColor, setBoardColor] = useState<"black" | "white">("black");
-  const [activePreview, setActivePreview] = useState(0);
   const [readme, setReadme] = useState<string | null>(null);
   const [loadingReadme, setLoadingReadme] = useState(true);
 
@@ -239,14 +233,6 @@ function DetailContent() {
 
   const categoryLabel = CATEGORY_LABELS[plugin.category] ?? plugin.category;
   const previews = pluginPreviews[plugin.id]?.previews ?? [];
-  const preview = previews[Math.min(activePreview, previews.length - 1)];
-  // Authors may declare several previews of the same shape ("Flagship" twice);
-  // number the repeats so every tab has a distinct accessible name.
-  const tabLabels = previews.map((entry, index) => {
-    const label = previewLabel(entry);
-    const repeat = previews.slice(0, index).filter((other) => previewLabel(other) === label).length;
-    return repeat > 0 ? `${label} ${repeat + 1}` : label;
-  });
 
   return (
     <>
@@ -257,79 +243,52 @@ function DetailContent() {
         </Link>
       </Box>
 
-      {/* Board preview: one board mounted at a time, tabs across previews[] */}
-      {preview && (
+      {/* Board preview: shape tabs + colour toggle live inside BoardShowcase */}
+      {previews.length > 0 ? (
         <Box className={styles.heroBoard}>
-          {previews.length > 1 && (
-            <Box className={styles.deviceTabs} role="tablist" aria-label="Board shape">
-              {tabLabels.map((label, index) => (
-                <Button
-                  key={label}
-                  type="button"
-                  variant="ghost"
-                  role="tab"
-                  aria-selected={index === activePreview}
-                  className={clsx(styles.deviceTab, index === activePreview && styles.deviceTabActive)}
-                  onClick={() => setActivePreview(index)}
-                >
-                  {label}
-                </Button>
-              ))}
-            </Box>
-          )}
-          <Box className={styles.heroBoardDisplay}>
-            <StaticBoardDisplay
-              message={previewMessage(preview)}
-              size="md"
-              boardType={boardColor}
-              deviceType={preview.device_type ?? "flagship"}
-              notesWide={preview.notes_wide ?? 1}
-              notesTall={preview.notes_tall ?? 1}
-              previewLabel={`${plugin.name} displayed on a split-flap board`}
-            />
-          </Box>
-        </Box>
-      )}
-
-      {/* Backwards compat: plugins with no previews entry yet keep their
-          legacy screenshot hero (hidden if the image doesn't exist either) */}
-      {!preview && (
-        <Box className={styles.heroImage}>
-          <img
-            src={pluginBoardImagePath(plugin, boardColor === "white" ? "light" : "dark")}
-            alt={`${plugin.name} displayed on a split-flap board`}
-            onError={(e) => {
-              (e.target as HTMLImageElement).parentElement!.style.display = "none";
-            }}
+          <BoardShowcase
+            previews={previews}
+            size="md"
+            previewLabel={`${plugin.name} displayed on a split-flap board`}
           />
         </Box>
+      ) : (
+        <>
+          {/* Backwards compat: plugins with no previews entry yet keep their
+              legacy screenshot hero (hidden if the image doesn't exist either) */}
+          <Box className={styles.heroImage}>
+            <img
+              src={pluginBoardImagePath(plugin, boardColor === "white" ? "light" : "dark")}
+              alt={`${plugin.name} displayed on a split-flap board`}
+              onError={(e) => {
+                (e.target as HTMLImageElement).parentElement!.style.display = "none";
+              }}
+            />
+          </Box>
+          <Box className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
+            {(["black", "white"] as const).map((color) => (
+              <Button
+                key={color}
+                type="button"
+                variant="ghost"
+                role="radio"
+                className={clsx(styles.boardColorOption, boardColor === color && styles.boardColorOptionActive)}
+                onClick={() => setBoardColor(color)}
+                aria-checked={boardColor === color}
+              >
+                {color === "black" ? "Black Board" : "White Board"}
+              </Button>
+            ))}
+          </Box>
+        </>
       )}
-
-      {/* Board color toggle */}
-      <Box className={styles.boardColorToggle} role="radiogroup" aria-label="Board color">
-        {(["black", "white"] as const).map((color) => (
-          <Button
-            key={color}
-            type="button"
-            variant="ghost"
-            role="radio"
-            className={clsx(styles.boardColorOption, boardColor === color && styles.boardColorOptionActive)}
-            onClick={() => setBoardColor(color)}
-            aria-checked={boardColor === color}
-          >
-            {color === "black" ? "Black Board" : "White Board"}
-          </Button>
-        ))}
-      </Box>
 
       {/* Plugin header */}
       <Box className={styles.pluginHeader}>
         <Box className={styles.pluginMeta}>
           <Box className={styles.pluginTitleRow}>
             <h1 className={styles.pluginName}>{plugin.name}</h1>
-            <Badge variant="secondary" className={clsx(styles.categoryBadge, styles[`category_${plugin.category}`])}>
-              {categoryLabel}
-            </Badge>
+            <PluginCategoryBadge category={plugin.category} label={categoryLabel} />
           </Box>
           <Text className={styles.pluginDescription}>{plugin.description}</Text>
           <Flex align="center" gap="2" wrap className={styles.pluginDetails}>

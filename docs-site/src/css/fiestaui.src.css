@@ -21,6 +21,11 @@
 /* FiestaUI design tokens, `.dark` variant, fonts, and seasonal palettes. */
 @import "@fiestaboard/ui/theme.css";
 
+/* Geist @font-face registrations became opt-in after v1.5.0 (theme.css no
+   longer registers them) — without this import the token font stacks fall
+   back to system fonts. */
+@import "@fiestaboard/ui/fonts.css";
+
 /* Generate utilities for the class strings inside the FiestaUI package... */
 @source "../../node_modules/@fiestaboard/ui/dist";
 /* ...and for any Tailwind utilities used directly in the site's own source. */
