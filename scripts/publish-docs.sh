@@ -90,7 +90,8 @@ mirror_dir() {
   shift 2
   if [ -d "$src" ]; then
     mkdir -p "$dst"
-    rsync -a --delete "$@" "$src/" "$dst/"
+    # --checksum: size+mtime quick-check can miss same-size edits when both writes land in the same whole second (mtime granularity)
+    rsync -a --checksum --delete "$@" "$src/" "$dst/"
   elif [ -d "$dst" ]; then
     echo "==> source $src absent; removing target subtree $dst"
     rm -rf "$dst"
