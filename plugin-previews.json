@@ -1230,6 +1230,30 @@
         }
       ]
     },
+    "word_clock": {
+      "teaser": "IT IS HALF PAST",
+      "previews": [
+        {
+          "device_type": "flagship",
+          "rows": [
+            "                      ",
+            "                      ",
+            "IT IS QUARTER PAST TEN",
+            "                      ",
+            "                      ",
+            "                      "
+          ]
+        },
+        {
+          "device_type": "note",
+          "rows": [
+            "IT IS HALF PAST",
+            "     NINE      ",
+            "               "
+          ]
+        }
+      ]
+    },
     "word_of_day": {
       "teaser": "EPHEMERAL",
       "previews": [

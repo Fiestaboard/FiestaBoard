@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-15T16:51:02Z",
+  "generated_at": "2026-08-15T18:28:32Z",
   "window_days": 14,
   "plugins": [
     {
@@ -142,7 +142,7 @@
       "description": "Generate full-screen abstract art for your split-flap display using an LLM. Each piece is a unique, thought-out composition using the board's 8-color palette.",
       "version": "1.4.2",
       "created_at": "2026-05-02T18:33:00Z",
-      "updated_at": "2026-08-14T01:37:11Z",
+      "updated_at": "2026-08-15T16:51:08Z",
       "clones_14d_count": 52,
       "clones_14d_uniques": 38
     },
@@ -589,6 +589,18 @@
       "updated_at": "2026-08-14T01:36:52Z",
       "clones_14d_count": 41,
       "clones_14d_uniques": 26
+    },
+    {
+      "id": "word_clock",
+      "repo": "fiestaboard-plugin--word-clock",
+      "name": "Word Clock",
+      "category": "utility",
+      "description": "Tell the time in words, QLOCKTWO style, in German, English, Spanish or French.",
+      "version": "1.4.1",
+      "created_at": "2026-08-12T06:24:08Z",
+      "updated_at": "2026-08-14T20:09:51Z",
+      "clones_14d_count": 121,
+      "clones_14d_uniques": 46
     },
     {
       "id": "word_of_day",
