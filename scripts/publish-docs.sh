@@ -111,10 +111,12 @@ copy_file() {
 
 echo "==> syncing allowlisted content"
 # docs/** minus docs/internal/**. Excluded paths are protected from --delete,
-# so .source-sha (rewritten below) and any stray target-side internal/ are
-# never copied; internal/ is additionally purged in case it ever leaked.
+# so .source-sha (rewritten below), the site repo's generated /README.md
+# banner (no such file exists on the source side), and any stray target-side
+# internal/ are never copied; internal/ is additionally purged in case it
+# ever leaked.
 mirror_dir "$SRC_ROOT/docs" "$TARGET_DIR/docs" \
-  --exclude='/internal/' --exclude='/.source-sha'
+  --exclude='/internal/' --exclude='/.source-sha' --exclude='/README.md'
 rm -rf "$TARGET_DIR/docs/internal"
 
 copy_file "$SRC_ROOT/plugin-registry.json" "$TARGET_DIR/data/plugin-registry.json"
