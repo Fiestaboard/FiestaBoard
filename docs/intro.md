@@ -117,4 +117,4 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 | **[Troubleshooting](/docs/troubleshooting)** | Common issues and solutions |
 | **[Plugin Development](/docs/development/plugin-guide)** | Creating your own plugins |
 
-<!-- sync-canary: rehearsal A, 2026-08-15 -->
+<!-- sync-canary: cutover round trip, 2026-08-15 -->
