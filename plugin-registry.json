@@ -496,6 +496,16 @@
       "category": "data"
     },
     {
+      "id": "word_clock",
+      "name": "Word Clock",
+      "description": "Tell the time in words, QLOCKTWO style, in German, English, Spanish or French.",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--word-clock",
+      "author": "Oliver Rummeyer",
+      "fiestaboard_version": ">=7.9.5",
+      "icon": "clock",
+      "category": "utility"
+    },
+    {
       "id": "word_of_day",
       "name": "Word of the Day",
       "description": "Display a word, its pronunciation, and definition.",
