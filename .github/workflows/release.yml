@@ -7,7 +7,6 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - 'docs-site/**'
       - '.github/**'
       - '.devcontainer/**'
       - '.cursor/**'
@@ -42,8 +41,8 @@ jobs:
         env:
           COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
-          # Skip when head commit is our version-bump or docs-snapshot (avoids loop when push uses RELEASE_PAT and actor is not github-actions[bot])
-          if echo "$COMMIT_MSG" | head -1 | grep -qE '^(chore: bump version to |docs: snapshot version )'; then
+          # Skip when head commit is our version-bump (avoids loop when push uses RELEASE_PAT and actor is not github-actions[bot])
+          if echo "$COMMIT_MSG" | head -1 | grep -qE '^chore: bump version to '; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "Skipping: trigger commit is a version-bump commit."
           else
@@ -421,10 +420,7 @@ jobs:
                 // Fallback context — raw commit titles
                 const commitMessages = comparison.commits
                   .map(c => c.commit.message.split('\n')[0])
-                  .filter(msg =>
-                    !msg.startsWith('chore: bump version to ') &&
-                    !msg.startsWith('docs: snapshot version ')
-                  )
+                  .filter(msg => !msg.startsWith('chore: bump version to '))
                   .slice(0, 50);
                 if (commitMessages.length > 0) {
                   changesContext += `All commits in range:\n${commitMessages.map(m => `- ${m}`).join('\n')}\n\n`;
@@ -437,7 +433,7 @@ jobs:
                     if (parts[0] === 'plugins') areas.add(`${parts[1]} plugin`);
                     else if (parts[0] === 'web') areas.add('frontend');
                     else if (parts[0] === 'src') areas.add('backend');
-                    else if (parts[0] === 'docs-site') areas.add('documentation');
+                    else if (parts[0] === 'docs') areas.add('documentation');
                   }
                   if (areas.size > 0) {
                     changesContext += `Areas affected: ${[...areas].join(', ')}\n`;
@@ -642,17 +638,18 @@ jobs:
             
             console.log(`Created release: ${release.html_url}`)
 
-      # The release above is created with GITHUB_TOKEN, whose events do
-      # not trigger other workflows.  Explicitly dispatch the Deploy Docs
-      # workflow with the release tag so it can create a Docusaurus version
-      # snapshot and deploy the updated site in a single run.
-      - name: Trigger docs versioning and deploy
+      # The docs site now lives in Fiestaboard/fiestaboard.github.io, whose
+      # release-snapshot.yml listens for a `release` repository_dispatch and
+      # snapshots + deploys fiestaboard.app for this tag. GITHUB_TOKEN cannot
+      # dispatch cross-repo, so this uses RELEASE_PAT.
+      - name: Notify docs site repo of release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          TAG: v${{ needs.prep.outputs.version }}
         run: |
-          gh workflow run docs.yml \
-            --repo "${{ github.repository }}" \
-            -f tag="v${{ needs.prep.outputs.version }}"
+          gh api repos/Fiestaboard/fiestaboard.github.io/dispatches \
+            -f event_type=release \
+            -f "client_payload[tag]=${TAG}"
 
   dockerhub-description:
     name: Update Docker Hub Description

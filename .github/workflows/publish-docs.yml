@@ -12,7 +12,7 @@ on:
       - "docs/**"
       - "plugin-registry.json"
       - "plugin-previews.json"
-      - "assets/branding/**"
+      - "assets/img/branding/**"
   workflow_dispatch: {}
 
 concurrency:

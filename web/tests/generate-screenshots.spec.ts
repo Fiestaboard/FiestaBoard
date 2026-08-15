@@ -22,9 +22,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_URL = process.env.BASE_URL ? `${process.env.BASE_URL}/api` : "http://localhost:4420/api";
 const BOARD_HOST = process.env.MOCK_BOARD_HOST || "fiestaboard-mock-board";
 
-const DOCS_IMG = path.resolve(__dirname, "../../docs-site/static/img");
-const GUIDES_IMG = path.resolve(__dirname, "../../docs-site/static/img/guides");
-const FEATURES_IMG = path.resolve(__dirname, "../../docs-site/static/img/features");
+// The docs site now lives in a separate repo
+// (Fiestaboard/fiestaboard.github.io). Set DOCS_SITE_DIR to a local checkout
+// of it to write screenshots straight into that repo's static/img; without
+// it they land in web/screenshots-output/ (gitignored) for manual copying.
+const SITE_ROOT = process.env.DOCS_SITE_DIR
+  ? path.resolve(process.env.DOCS_SITE_DIR)
+  : path.resolve(__dirname, "../screenshots-output");
+const DOCS_IMG = path.join(SITE_ROOT, "static/img");
+const GUIDES_IMG = path.join(SITE_ROOT, "static/img/guides");
+const FEATURES_IMG = path.join(SITE_ROOT, "static/img/features");
 const PLUGINS_DIR = path.resolve(__dirname, "../../plugins");
 const ROOT_IMG = path.resolve(__dirname, "../../images");
 
@@ -278,7 +285,7 @@ async function screenshotElement(page: Page, selector: string, baseFilePath: str
 }
 
 /**
- * Copy a docs-site screenshot to the root images/ directory (for README
+ * Copy a docs screenshot to the root images/ directory (for README
  * and DockerHub). Saves themed + default versions.
  */
 function copyToRootImages(docsFileName: string, rootFileName?: string) {
@@ -1228,7 +1235,7 @@ test.describe("Getting Started Workflow Screenshots", () => {
 // D) Homepage Feature Icon Screenshots  (dark + light)
 //
 // These are cropped element-level screenshots used as feature cards on
-// the docs-site landing page.
+// the docs site landing page (Fiestaboard/fiestaboard.github.io).
 // =========================================================================
 
 test.describe("Homepage Feature Icon Screenshots", () => {

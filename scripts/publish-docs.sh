@@ -9,7 +9,7 @@
 #   docs/**  (EXCLUDING docs/internal/**)  ->  docs/**
 #   plugin-registry.json                   ->  data/plugin-registry.json
 #   plugin-previews.json                   ->  data/plugin-previews.json
-#   assets/branding/**                     ->  static/img/branding/**
+#   assets/img/branding/**                 ->  static/img/branding/**
 #   fiestapi-latest-version.txt            ->  data/fiestapi-latest-version.txt
 #                                              (only with --with-fiestapi-version)
 #
@@ -122,7 +122,9 @@ rm -rf "$TARGET_DIR/docs/internal"
 copy_file "$SRC_ROOT/plugin-registry.json" "$TARGET_DIR/data/plugin-registry.json"
 copy_file "$SRC_ROOT/plugin-previews.json" "$TARGET_DIR/data/plugin-previews.json"
 
-mirror_dir "$SRC_ROOT/assets/branding" "$TARGET_DIR/static/img/branding"
+# NB: the brand lockups moved to assets/img/branding in #1611 — this source
+# path must match or the mirror silently deletes the target subtree.
+mirror_dir "$SRC_ROOT/assets/img/branding" "$TARGET_DIR/static/img/branding"
 
 if [ "$WITH_FIESTAPI_VERSION" -eq 1 ]; then
   copy_file "$SRC_ROOT/fiestapi-latest-version.txt" \

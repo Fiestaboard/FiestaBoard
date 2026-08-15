@@ -43,7 +43,6 @@ on:
       - '**.md'
       - 'plugins/*/docs/**'
       - 'docs/**'
-      - 'docs-site/**'
   workflow_dispatch:
     inputs:
       pr_number:
@@ -186,7 +185,7 @@ jobs:
 
             1. Run `gh pr diff ${{ steps.pr.outputs.number }}` to
                see the exact diff. Focus on `*.md` files and files under
-               `plugins/*/docs/`, `docs/`, or `docs-site/`.
+               `plugins/*/docs/` or `docs/`.
             2. Read the root `CLAUDE.md` and `plugins/CLAUDE.md` (if
                touching plugin docs) — these live at base, so plain
                `Read`/`cat` works. They contain the canonical README/SETUP
