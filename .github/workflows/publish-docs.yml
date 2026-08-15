@@ -1,0 +1,39 @@
+# Sync public docs content to the site repo (Fiestaboard/fiestaboard.github.io).
+#
+# Trigger paths include docs/** as a whole; docs/internal/** is excluded by the
+# allowlist inside scripts/publish-docs.sh, so an internal-only push produces a
+# clean no-op run (no commit on the site repo).
+name: Publish docs to site repo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "plugin-registry.json"
+      - "plugin-previews.json"
+      - "assets/branding/**"
+  workflow_dispatch: {}
+
+concurrency:
+  group: publish-docs
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync docs to site repo
+        env:
+          # RELEASE_PAT: PAT with push access to Fiestaboard/fiestaboard.github.io
+          # (GITHUB_TOKEN cannot push cross-repo).
+          RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
+          # Default target branch is sync-test until the sync is promoted;
+          # override here (e.g. to "source") when cutting over.
+          SYNC_TARGET_BRANCH: sync-test
+        run: scripts/publish-docs.sh
