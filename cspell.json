@@ -86,6 +86,7 @@
     "organise",
     "pylint",
     "pytest",
+    "QLOCKTWO",
     "rescan",
     "retags",
     "rfkill",
