@@ -10,7 +10,7 @@ keywords: [FiestaBoard Home Assistant add-on, HAOS, Home Assistant Supervisor, V
 The Home Assistant add-on is in **beta**. End-to-end install works (Ingress, MQTT auto-discovery, HA core API, backups, updates through the add-on store), but the wrapper is still maturing and we'd love to hear from you:
 
 - 🐛 **Found a bug or have a suggestion?** [Open an issue](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues) on the add-on repo.
-- 💬 **Want to chat or get help?** [Join us on Discord](https://discord.gg/JvN8y6ahaf) — there's a community of FiestaBoard users (including Home Assistant power users) happy to help.
+- 💬 **Want to chat or get help?** [Join us on Discord](https://discord.gg/2GAqKnRF6h) — there's a community of FiestaBoard users (including Home Assistant power users) happy to help.
 
 Even "it just worked" reports are useful while we're stabilizing the beta — let us know what HA install type you're on (OS / Supervised) and which features you tried.
 :::
@@ -76,7 +76,7 @@ A couple of things work differently under the add-on compared to a standalone Do
 This integration is new and we want your feedback — what works, what doesn't, what's confusing, what's missing. Two ways to reach us:
 
 - 🐛 **[Open an issue on the add-on repo](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues)** for bugs, feature requests, or anything reproducible. Please include your HA installation type (OS / Supervised), the add-on version, and the relevant snippet from the add-on **Log** tab.
-- 💬 **[Join our Discord](https://discord.gg/JvN8y6ahaf)** to chat, ask questions, share what you've built, or just say hi. There's a community of FiestaBoard users (including Home Assistant folks) happy to help.
+- 💬 **[Join our Discord](https://discord.gg/2GAqKnRF6h)** to chat, ask questions, share what you've built, or just say hi. There's a community of FiestaBoard users (including Home Assistant folks) happy to help.
 
 ### Where things live
 
@@ -85,4 +85,4 @@ This integration is new and we want your feedback — what works, what doesn't, 
 | Add-on bugs, feature requests, install issues | [`FiestaBoard-Home-Assistant-App` issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues) |
 | Add-on source and config docs | [`FiestaBoard-Home-Assistant-App`](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App) ([DOCS.md](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/blob/main/fiestaboard/DOCS.md)) |
 | FiestaBoard core (everything not HA-specific) | [`FiestaBoard` issues](https://github.com/Fiestaboard/FiestaBoard/issues) |
-| Chat, help, show-and-tell | [Discord](https://discord.gg/JvN8y6ahaf) |
+| Chat, help, show-and-tell | [Discord](https://discord.gg/2GAqKnRF6h) |

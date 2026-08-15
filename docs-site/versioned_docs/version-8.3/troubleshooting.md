@@ -246,7 +246,7 @@ Visit **http://localhost:4420/api/docs** for the Swagger UI where you can test A
 
 ### Community support
 
-- **[Discord](https://discord.gg/JvN8y6ahaf)** - Ask questions and get help from other FiestaBoard users
+- **[Discord](https://discord.gg/2GAqKnRF6h)** - Ask questions and get help from other FiestaBoard users
 - **[GitHub Issues](https://github.com/Fiestaboard/FiestaBoard/issues)** - Report bugs or request features
 
 When reporting an issue, include:

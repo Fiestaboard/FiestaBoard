@@ -142,7 +142,7 @@ If you discover a security issue, do **not** open a public issue. See [SECURITY.
 
 ## Questions?
 
-- Open a [GitHub issue](https://github.com/Fiestaboard/FiestaBoard/issues) or chat in [Discord](https://discord.gg/JvN8y6ahaf) for general questions.
+- Open a [GitHub issue](https://github.com/Fiestaboard/FiestaBoard/issues) or chat in [Discord](https://discord.gg/2GAqKnRF6h) for general questions.
 - For bugs or feature ideas, use the issue tracker and keep one topic per issue.
 
 Thanks for contributing.

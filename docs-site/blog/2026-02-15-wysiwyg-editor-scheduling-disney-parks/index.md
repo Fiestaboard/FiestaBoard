@@ -35,6 +35,6 @@ By popular request, we've added a plugin that pulls real-time queue times for Di
 
 Check it out on GitHub: https://github.com/Fiestaboard/FiestaBoard
 
-We'd love to hear what you think! If you have ideas for new plugins or features you'd like to see added to the dashboard, let us know on [GitHub](https://github.com/Fiestaboard/FiestaBoard/issues) or [Discord](https://discord.gg/JvN8y6ahaf). As always: we know there are some bugs here and there — we fix them as fast as we can in our free time.
+We'd love to hear what you think! If you have ideas for new plugins or features you'd like to see added to the dashboard, let us know on [GitHub](https://github.com/Fiestaboard/FiestaBoard/issues) or [Discord](https://discord.gg/2GAqKnRF6h). As always: we know there are some bugs here and there — we fix them as fast as we can in our free time.
 
 Happy flipping!

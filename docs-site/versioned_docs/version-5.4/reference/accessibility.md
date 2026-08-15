@@ -35,6 +35,6 @@ If you encounter an accessibility barrier in FiestaBoard, please let us know:
 
 - [Open an issue on GitHub](https://github.com/Fiestaboard/FiestaBoard/issues) with the **accessibility** label.
 - Describe the barrier, the page or component affected, and the assistive technology you were using (if applicable).
-- You can also reach out on [Discord](https://discord.gg/JvN8y6ahaf).
+- You can also reach out on [Discord](https://discord.gg/2GAqKnRF6h).
 
 We treat accessibility issues with the same priority as bugs.

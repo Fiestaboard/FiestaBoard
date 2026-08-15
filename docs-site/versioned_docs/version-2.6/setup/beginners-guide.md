@@ -263,7 +263,7 @@ Make sure Docker Desktop is open. Look for the whale icon in your menu bar (Mac)
 ### Still stuck?
 
 - Check the full [Troubleshooting Guide](/docs/troubleshooting)
-- Ask in the [Discord community](https://discord.gg/JvN8y6ahaf)
+- Ask in the [Discord community](https://discord.gg/2GAqKnRF6h)
 - [Open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) on GitHub
 
 ## Next Steps

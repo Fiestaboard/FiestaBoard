@@ -51,4 +51,4 @@ Setup guide: [Note Arrays](/docs/setup/note-arrays)
 
 Full changelog: https://github.com/Fiestaboard/FiestaBoard/releases
 
-Happy to answer questions on [GitHub](https://github.com/Fiestaboard/FiestaBoard/issues) or [Discord](https://discord.gg/JvN8y6ahaf) — and if you're on Home Assistant, genuinely curious what would make that integration better for you.
+Happy to answer questions on [GitHub](https://github.com/Fiestaboard/FiestaBoard/issues) or [Discord](https://discord.gg/2GAqKnRF6h) — and if you're on Home Assistant, genuinely curious what would make that integration better for you.

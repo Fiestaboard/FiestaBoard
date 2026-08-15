@@ -59,8 +59,8 @@ The project remains open source and a labor of love — expect a few rough edges
 
 - Repo / issues / discussions: https://github.com/Fiestaboard/FiestaBoard
 - Docs: https://fiestaboard.app
-- Discord: https://discord.gg/JvN8y6ahaf
+- Discord: https://discord.gg/2GAqKnRF6h
 
-If you build a plugin, file an issue, or just want a feature — GitHub is the best place so it's all in one spot and others can chime in. We genuinely read everything. And if you're already running FiestaBoard, drop a screenshot of what's on your board right now in [Discord](https://discord.gg/JvN8y6ahaf) — that's always the best part.
+If you build a plugin, file an issue, or just want a feature — GitHub is the best place so it's all in one spot and others can chime in. We genuinely read everything. And if you're already running FiestaBoard, drop a screenshot of what's on your board right now in [Discord](https://discord.gg/2GAqKnRF6h) — that's always the best part.
 
 Happy flipping.
