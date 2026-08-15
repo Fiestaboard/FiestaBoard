@@ -190,9 +190,28 @@ When modifying platform/core functionality:
 - Update `README.md` for significant platform changes
 - Update `docs/internal/development/PLUGIN_DEVELOPMENT.md` for plugin system changes
 - Document new platform features in the appropriate docs tree: `docs/` is the
-  **published** documentation (rendered on fiestaboard.app by `docs-site/`);
-  `docs/internal/` is internal engineering documentation that is never
-  published
+  **published** documentation (synced to the separate site repo and rendered
+  on fiestaboard.app — see "Published Docs Site" below); `docs/internal/` is
+  internal engineering documentation that is never published
+
+### Published Docs Site
+
+The documentation website (fiestaboard.app) does NOT live in this repo. The
+published docs source lives in `docs/` here (excluding `docs/internal/`) and
+is synced one-way to the separate site repo,
+[Fiestaboard/fiestaboard.github.io](https://github.com/Fiestaboard/fiestaboard.github.io),
+which builds and deploys fiestaboard.app from its `main` branch via its own
+GitHub Actions.
+
+- `.github/workflows/publish-docs.yml` (via `scripts/publish-docs.sh`) runs
+  the sync on every push to `main` touching `docs/**`,
+  `plugin-registry.json`, `plugin-previews.json`, or `assets/branding/**`.
+- On release, `release.yml` sends a `repository_dispatch` (type `release`)
+  to the site repo, which snapshots and deploys the versioned docs.
+- Never edit site code (Docusaurus config, theme, components) here — that
+  all belongs to the site repo. Edit only the markdown under `docs/`.
+- Docs merge-to-live SLA: a docs change merged to `main` here is live on
+  fiestaboard.app after the sync + site build (measured at cutover: ~4 min).
 
 ### Environment Variables
 

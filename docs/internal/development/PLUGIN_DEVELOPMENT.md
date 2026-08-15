@@ -727,7 +727,7 @@ Each plugin has two documentation layers you are responsible for:
 | Setup guide | `docs/SETUP.md` | End users | Step-by-step setup, screenshots, troubleshooting |
 
 > **Note:** The public docs site at fiestaboard.app (`docs/plugins/<name>.md`) is
-> maintained separately by the maintainer team. You do not need to create or update a docs-site
+> maintained separately by the maintainer team. You do not need to create or update a docs site
 > page as part of a plugin contribution.
 
 ### README.md Format
@@ -838,7 +838,7 @@ The `screenshots` field in `manifest.json` makes images programmatically discove
 | `caption` | No | Human-readable description |
 | `primary` | No | Exactly one screenshot should be `true` (used as hero image in galleries and the registry) |
 
-On the docs-site, the primary screenshot is served from `docs-site/static/img/<id-hyphenated>-display.png` (underscores in the plugin ID become hyphens) for use in the `<BoardScreenshot>` component — e.g. `air_fog` → `/img/air-fog-display.png`. That path is derived by `pluginImagePath()` in `docs-site/src/plugin-data.ts`, which is the source of truth. The `<BoardScreenshot>` component then looks up per-color variants in the `img/black/` and `img/white/` subdirectories.
+On the docs site (built from the separate [Fiestaboard/fiestaboard.github.io](https://github.com/Fiestaboard/fiestaboard.github.io) repo), the primary screenshot is served from `static/img/<id-hyphenated>-display.png` (underscores in the plugin ID become hyphens) for use in the `<BoardScreenshot>` component — e.g. `air_fog` → `/img/air-fog-display.png`. That path is derived by `pluginImagePath()` in the site repo's `src/plugin-data.ts`, which is the source of truth. The `<BoardScreenshot>` component then looks up per-color variants in the `img/black/` and `img/white/` subdirectories.
 
 ---
 

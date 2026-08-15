@@ -21,7 +21,14 @@ async function main() {
   await page.goto(url, { waitUntil: "networkidle" });
 
   const navbar = await page.$(".navbar");
-  const outPath = path.join(__dirname, "..", "..", "docs-site", "static", "img", "navbar-screenshot.png");
+  // Docs site lives in Fiestaboard/fiestaboard.github.io now; point
+  // DOCS_SITE_DIR at a local checkout to write into it, otherwise the
+  // screenshot lands in web/screenshots-output/ (gitignored).
+  const siteRoot = process.env.DOCS_SITE_DIR
+    ? path.resolve(process.env.DOCS_SITE_DIR)
+    : path.join(__dirname, "..", "screenshots-output");
+  const outPath = path.join(siteRoot, "static", "img", "navbar-screenshot.png");
+  // (Playwright creates missing parent directories for screenshot paths.)
   await navbar.screenshot({ path: outPath });
   console.log("Screenshot saved to", outPath);
 

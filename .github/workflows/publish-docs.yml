@@ -12,7 +12,7 @@ on:
       - "docs/**"
       - "plugin-registry.json"
       - "plugin-previews.json"
-      - "assets/branding/**"
+      - "assets/img/branding/**"
   workflow_dispatch: {}
 
 concurrency:
@@ -33,7 +33,7 @@ jobs:
           # RELEASE_PAT: PAT with push access to Fiestaboard/fiestaboard.github.io
           # (GITHUB_TOKEN cannot push cross-repo).
           RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
-          # Default target branch is sync-test until the sync is promoted;
-          # override here (e.g. to "source") when cutting over.
-          SYNC_TARGET_BRANCH: sync-test
+          # main is the production source branch on the site repo; pushes to it
+          # trigger build-deploy.yml, which builds and deploys fiestaboard.app.
+          SYNC_TARGET_BRANCH: main
         run: scripts/publish-docs.sh

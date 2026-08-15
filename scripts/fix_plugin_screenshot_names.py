@@ -3,7 +3,7 @@
 Renames board screenshots in older external plugin repos from
   docs/black/{plugin-name}-display.png
   docs/white/{plugin-name}-display.png
-to the canonical name expected by the docs-site:
+to the canonical name expected by the docs site (Fiestaboard/fiestaboard.github.io):
   docs/black/board-display.png
   docs/white/board-display.png
 
@@ -92,7 +92,7 @@ def fix_repo(name, stem):
             "-m",
             (
                 "fix: rename board screenshots to board-display.png\n\n"
-                + "The docs-site pluginBoardImagePath() now expects\n"
+                + "The docs site's pluginBoardImagePath() now expects\n"
                 + "docs/black/board-display.png and docs/white/board-display.png.\n"
                 + "Rename from the legacy {plugin-name}-display.png convention."
             ),

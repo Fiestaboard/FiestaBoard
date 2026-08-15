@@ -241,7 +241,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           # RELEASE_PAT so the state-file commit can push to main past
-          # branch protection — same pattern as the plugin-stats job.
+          # branch protection — same pattern as the plugin-previews job.
           token: ${{ secrets.RELEASE_PAT }}
           fetch-depth: 0
 
@@ -442,7 +442,7 @@ jobs:
                - Glob the repo for docs files. Include:
                  `README.md`, `docs/**/*.md`, `plugins/*/README.md`,
                  `plugins/*/docs/**/*.md`, `web/src/components/README.md`.
-                 Exclude `node_modules/`, `.git/`, `docs-site/node_modules/`,
+                 Exclude `node_modules/`, `.git/`,
                  `web/node_modules/`, `tools/`, and anything under `.claude/`.
                - Set `files_remaining` to the full glob, sorted.
                - Set `files_audited` to `[]`.

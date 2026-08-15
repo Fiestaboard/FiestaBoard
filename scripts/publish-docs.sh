@@ -9,7 +9,7 @@
 #   docs/**  (EXCLUDING docs/internal/**)  ->  docs/**
 #   plugin-registry.json                   ->  data/plugin-registry.json
 #   plugin-previews.json                   ->  data/plugin-previews.json
-#   assets/branding/**                     ->  static/img/branding/**
+#   assets/img/branding/**                 ->  static/img/branding/**
 #   fiestapi-latest-version.txt            ->  data/fiestapi-latest-version.txt
 #                                              (only with --with-fiestapi-version)
 #
@@ -111,16 +111,20 @@ copy_file() {
 
 echo "==> syncing allowlisted content"
 # docs/** minus docs/internal/**. Excluded paths are protected from --delete,
-# so .source-sha (rewritten below) and any stray target-side internal/ are
-# never copied; internal/ is additionally purged in case it ever leaked.
+# so .source-sha (rewritten below), the site repo's generated /README.md
+# banner (no such file exists on the source side), and any stray target-side
+# internal/ are never copied; internal/ is additionally purged in case it
+# ever leaked.
 mirror_dir "$SRC_ROOT/docs" "$TARGET_DIR/docs" \
-  --exclude='/internal/' --exclude='/.source-sha'
+  --exclude='/internal/' --exclude='/.source-sha' --exclude='/README.md'
 rm -rf "$TARGET_DIR/docs/internal"
 
 copy_file "$SRC_ROOT/plugin-registry.json" "$TARGET_DIR/data/plugin-registry.json"
 copy_file "$SRC_ROOT/plugin-previews.json" "$TARGET_DIR/data/plugin-previews.json"
 
-mirror_dir "$SRC_ROOT/assets/branding" "$TARGET_DIR/static/img/branding"
+# NB: the brand lockups moved to assets/img/branding in #1611 — this source
+# path must match or the mirror silently deletes the target subtree.
+mirror_dir "$SRC_ROOT/assets/img/branding" "$TARGET_DIR/static/img/branding"
 
 if [ "$WITH_FIESTAPI_VERSION" -eq 1 ]; then
   copy_file "$SRC_ROOT/fiestapi-latest-version.txt" \

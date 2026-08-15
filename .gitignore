@@ -87,11 +87,13 @@ API_KEYS.md
 # only in CI via `npm ci`, never committed)
 /node_modules/
 
-# Docs site build artifacts
-docs-site/node_modules/
-docs-site/build/
-docs-site/.docusaurus/
-docs-site/.cache-loader/
+# Scratch file written by build-fiestapi.yml for publish-docs.sh
+# --with-fiestapi-version (synced to the site repo, never committed here)
+/fiestapi-latest-version.txt
+
+# Local output of the docs screenshot tooling (web/tests/generate-screenshots
+# .spec.ts, web/scripts/screenshot-navbar.mjs) when DOCS_SITE_DIR is unset
+web/screenshots-output/
 
 # Local/dev screenshots (never referenced in docs - do not commit)
 /audit-*.png

@@ -52,4 +52,4 @@ Reference from `web/src/app/globals.css`:
 1. Create or update the lockup in a design tool (e.g., Figma) per the specs above.
 2. Export `logo-lockup-light.png` and `logo-lockup-dark.png` at 2x or 3x.
 3. Overwrite the existing files in this directory.
-4. Re-check `docs-site/src/css/custom.css`: if the new assets are aligned, you may remove or reduce the `.navbar__logo img { transform: translateY(-4px); }` rule.
+4. Re-check `src/css/custom.css` in the site repo ([Fiestaboard/fiestaboard.github.io](https://github.com/Fiestaboard/fiestaboard.github.io)): if the new assets are aligned, you may remove or reduce the `.navbar__logo img { transform: translateY(-4px); }` rule.

@@ -72,7 +72,7 @@ jobs:
               # docs/internal/development/CI_PATH_FILTERING_AUDIT.md for details.
               #
               # Workflows that own their own pipelines (build-fiestapi,
-              # build-fiestaupdater, docs, registry-scan, pr-label,
+              # build-fiestaupdater, publish-docs, registry-scan, pr-label,
               # release) are intentionally NOT listed here.
               - 'docker-compose*.yml'
               - '.github/workflows/ci.yml'
@@ -80,10 +80,10 @@ jobs:
               - 'package.json'
               - 'scripts/version-sync.js'
             docs:
-              - 'docs-site/**'
-              # Published documentation markdown (the source docusaurus reads
-              # via `path: "../docs"`). Includes docs/internal/, which the
-              # site never publishes — a rare false-positive docs build is
+              # Published documentation markdown (synced to the separate
+              # site repo, Fiestaboard/fiestaboard.github.io, which builds
+              # and deploys fiestaboard.app). Includes docs/internal/,
+              # which the site never publishes — a rare false positive is
               # preferable to a negation pattern here (see the warning in
               # `shared` above).
               - 'docs/**'
@@ -93,10 +93,14 @@ jobs:
               # own configuration changes.
               - '**/*.md'
               - '**/*.mdx'
+              # Sidebar metadata is part of the docs contract checked by
+              # lint-docs-contract.mjs, so category edits must re-run the gate.
+              - 'docs/**/_category_.json'
               - 'cspell.json'
               - '.markdownlint-cli2.jsonc'
               - 'lychee.toml'
               - 'scripts/lint-docs-frontmatter.mjs'
+              - 'scripts/lint-docs-contract.mjs'
               - 'package.json'
               - 'package-lock.json'
 
@@ -345,55 +349,16 @@ jobs:
       working-directory: web
       run: npm run lint
 
-    # Same reasoning as the docs-site Typecheck step below, for the app: Vite
-    # transpiles without typechecking, so a wrong call signature or a dropped
-    # export builds clean and only fails when that code path runs. Without
-    # this step 137 errors accumulated on main unnoticed (issue #1586),
-    # including three live runtime defects.
+    # Vite transpiles without typechecking, so a wrong call signature or a
+    # dropped export builds clean and only fails when that code path runs.
+    # Without this step 137 errors accumulated on main unnoticed (issue
+    # #1586), including three live runtime defects.
     - name: Typecheck
       working-directory: web
       run: npm run typecheck
 
     - name: Prettier check
       working-directory: web
-      run: npm run format:check
-
-  lint-docs:
-    name: Lint Docs Site
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.docs == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 5
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v7
-      with:
-        node-version: '24'
-        cache: 'npm'
-        cache-dependency-path: docs-site/package-lock.json
-
-    - name: Install docs-site dependencies
-      working-directory: docs-site
-      run: npm ci
-
-    - name: ESLint
-      working-directory: docs-site
-      run: npm run lint
-
-    # A green `Build Docs` is not proof the site runs. Docusaurus prerenders
-    # at build time, so anything inside <BrowserOnly> is never evaluated and a
-    # broken reference in one of those components ships silently (a missing
-    # `Box` import in HeroBoard took the homepage down in prod this way).
-    # tsc sees the whole tree, so it catches what the build cannot.
-    - name: Typecheck
-      working-directory: docs-site
-      run: npm run typecheck
-
-    - name: Prettier check
-      working-directory: docs-site
       run: npm run format:check
 
   test-ui:
@@ -1148,82 +1113,12 @@ jobs:
         done
         echo "✅ All plugin structures valid"
 
-  build-docs:
-    name: Build Docs
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.docs == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 10
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v7
-      with:
-        node-version: '24'
-        cache: 'npm'
-        cache-dependency-path: docs-site/package-lock.json
-
-    - name: Install dependencies
-      working-directory: docs-site
-      run: npm ci
-
-    - name: Cache Docusaurus build
-      uses: actions/cache@v6
-      with:
-        path: |
-          docs-site/.docusaurus
-          docs-site/node_modules/.cache
-        # PR-mode builds skip 40 historical version snapshots, so they
-        # have a different .docusaurus/ shape than full deploy builds.
-        # Keep their caches in separate namespaces to avoid each
-        # poisoning the other on restore.
-        key: docusaurus-pr-${{ runner.os }}-${{ hashFiles('docs-site/src/**', 'docs/**', 'docs-site/docusaurus.config.ts', 'docs-site/package-lock.json') }}
-        restore-keys: |
-          docusaurus-pr-${{ runner.os }}-
-
-    - name: Build Docusaurus site
-      working-directory: docs-site
-      env:
-        # Skip 40 historical versioned_docs snapshots on PR builds —
-        # only build the latest documented version. docs.yml (release
-        # deploy) does not set this and builds the full version matrix.
-        DOCS_PR_MODE: '1'
-      run: npm run build
-
-    # Report-only during the docs-site extraction (see the docs-site
-    # extraction plan): surfaces URL-surface drift without blocking merges.
-    # The enforced compare against tests/baseline.json runs on full deploy
-    # builds, where the version matrix matches the baseline.
-    - name: Docs URL-surface parity (report-only)
-      continue-on-error: true
-      working-directory: docs-site
-      run: |
-        node ../scripts/docs-parity.mjs build > /tmp/parity-manifest.json
-        echo "Manifest: $(node -e 'const m=require("/tmp/parity-manifest.json"); console.log(m.routes.length, "routes,", Object.keys(m.redirects).length, "redirects,", m.sitemap.length, "sitemap URLs")')"
-        node ../scripts/docs-parity.mjs build --fixture tests/routes.fixture.json --pr-mode
-
-    - name: Write build summary
-      if: always()
-      run: |
-        if [ -d docs-site/build ]; then
-          SIZE=$(du -sh docs-site/build | cut -f1)
-          FILES=$(find docs-site/build -type f | wc -l | tr -d ' ')
-          {
-            echo "## Build Docs"
-            echo ""
-            echo "| Metric | Value |"
-            echo "|---|---|"
-            echo "| Build size | ${SIZE} |"
-            echo "| Files | ${FILES} |"
-          } >> "$GITHUB_STEP_SUMMARY"
-        fi
-
-  # Docs quality gate: spell-check, markdown-lint, and frontmatter-lint over
-  # all repository markdown (config: cspell.json, .markdownlint-cli2.jsonc).
-  # Runs on its own Node 22 because cspell 10 requires Node >= 22.18, whereas
-  # the docs-site jobs (lint-docs, build-docs) pin Node 20.
+  # Docs quality gate: spell-check, markdown-lint, frontmatter-lint, and the
+  # docs contract check over all repository markdown (config: cspell.json,
+  # .markdownlint-cli2.jsonc). The contract check (lint-docs-contract.mjs)
+  # guards what the site repo's Docusaurus build depends on — this repo no
+  # longer builds the site, so without it a malformed doc would only fail
+  # two repos later. Runs on Node 24 because cspell 10 requires Node >= 22.18.
   lint-markdown:
     name: Lint Markdown
     runs-on: ubuntu-latest
@@ -1246,6 +1141,9 @@ jobs:
 
     - name: Validate docs frontmatter
       run: npm run docs:lint:frontmatter
+
+    - name: Validate docs contract
+      run: npm run docs:lint:contract
 
     - name: Lint markdown
       run: npm run docs:lint:markdown
@@ -1290,7 +1188,7 @@ jobs:
   # refused at the gate instead. See issue #1578.
   #
   # Deliberately unconditional: an image can be added under any path filter
-  # (docs/, docs-site/, plugins/*/docs/), and the check is a few seconds.
+  # (docs/, plugins/*/docs/), and the check is a few seconds.
   check-image-formats:
     name: Check Image Formats
     runs-on: ubuntu-latest
@@ -1305,7 +1203,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, lint-docs, test-ui, a11y-tests, build-test-image, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, ingress-e2e-tests, build, build-docs, lint-markdown, link-check, check-image-formats]
+    needs: [detect-changes, dependency-review, test-platform, test-plugins, lint-web, test-ui, a11y-tests, build-test-image, e2e-tests, ai-mcp-e2e-tests, auth-e2e-tests, ingress-e2e-tests, build, lint-markdown, link-check, check-image-formats]
     if: always()
     steps:
       - name: Check all jobs passed or were skipped
@@ -1319,7 +1217,6 @@ jobs:
             test-platform
             test-plugins
             lint-web
-            lint-docs
             test-ui
             a11y-tests
             build-test-image
@@ -1328,7 +1225,6 @@ jobs:
             auth-e2e-tests
             ingress-e2e-tests
             build
-            build-docs
             lint-markdown
             link-check
             check-image-formats

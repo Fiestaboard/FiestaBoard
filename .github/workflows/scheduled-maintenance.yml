@@ -6,13 +6,15 @@ name: 'Scheduled: Maintenance'
 # stays scannable.
 #
 # Jobs:
-#   - plugin-stats   : daily refresh of docs-site/static/plugin-stats.json
-#                      (was .github/workflows/plugin-stats.yml) and of
-#                      plugin-previews.json (manifest teaser/previews win,
-#                      seed entries are the fallback)
-#   - security-scan  : weekly bandit + pip-audit sweep of plugin-registry
-#                      repos, opens/updates an issue on findings
-#                      (was .github/workflows/registry-scan.yml)
+#   - plugin-previews : daily refresh of plugin-previews.json (manifest
+#                       teaser/previews win, seed entries are the fallback).
+#                       Consumed by the in-app marketplace; a push touching
+#                       it also triggers publish-docs.yml, which syncs it to
+#                       the site repo. (plugin-stats.json is owned by the
+#                       site repo's own cron since the docs-site extraction.)
+#   - security-scan   : weekly bandit + pip-audit sweep of plugin-registry
+#                       repos, opens/updates an issue on findings
+#                       (was .github/workflows/registry-scan.yml)
 #
 # Note: the Claude-driven docs audit lives in its own workflow
 # (.github/workflows/claude-docs-audit.yml) so it surfaces independently
@@ -22,7 +24,7 @@ name: 'Scheduled: Maintenance'
 on:
   schedule:
     # Each job filters on the resolved schedule via `github.event.schedule`.
-    - cron: '0 4 * * *'    # plugin stats (04:00 UTC daily)
+    - cron: '0 4 * * *'    # plugin previews (04:00 UTC daily)
     - cron: '0 0 * * 0'    # security scan (Sun 00:00 UTC)
   workflow_dispatch:
     inputs:
@@ -31,20 +33,20 @@ on:
         required: true
         default: 'all'
         type: choice
-        options: [all, plugin-stats, security-scan]
+        options: [all, plugin-previews, security-scan]
 
 permissions:
   contents: read
 
 jobs:
-  plugin-stats:
-    name: Refresh plugin stats
+  plugin-previews:
+    name: Refresh plugin previews
     runs-on: ubuntu-latest
     # Daily cron OR explicit dispatch.
     if: |
       (github.event_name == 'schedule' && github.event.schedule == '0 4 * * *') ||
       (github.event_name == 'workflow_dispatch' &&
-        (inputs.job == 'all' || inputs.job == 'plugin-stats'))
+        (inputs.job == 'all' || inputs.job == 'plugin-previews'))
     permissions:
       contents: write
     steps:
@@ -52,11 +54,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           token: ${{ secrets.RELEASE_PAT }}
-
-      - name: Fetch plugin stats
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
-        run: python3 scripts/fetch_plugin_stats.py
 
       - name: Sync plugin previews
         env:
@@ -67,15 +64,17 @@ jobs:
         run: |
           git config user.name "FiestaBoard CI"
           git config user.email "ci@fiestaboard.app"
-          git add docs-site/static/plugin-stats.json plugin-previews.json
+          git add plugin-previews.json
           if git diff --staged --quiet; then
             echo "No changes."
           else
-            # No [skip ci]: this push must trigger docs.yml so the refreshed
-            # stats actually deploy to fiestaboard.app. (With [skip ci] the
-            # live site served a stale plugin-stats.json for weeks — the
-            # daily commit landed but the site never rebuilt.)
-            git commit -m "chore: refresh plugin stats"
+            # No [skip ci]: this push must trigger publish-docs.yml (its
+            # path filter includes plugin-previews.json) so the refreshed
+            # previews actually sync to the site repo and reach
+            # fiestaboard.app. (With [skip ci] the live site once served
+            # stale generated data for weeks — the daily commit landed but
+            # nothing downstream ran.)
+            git commit -m "chore: refresh plugin previews"
             git push
           fi
 

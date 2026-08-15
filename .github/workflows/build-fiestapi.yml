@@ -326,22 +326,25 @@ jobs:
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file /tmp/release-body.md
           echo "Cleared pending banner from release $TAG."
 
-      - name: Update latest-version file in docs (tag builds only)
+      - name: Publish latest-version file to docs site repo (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+          # publish-docs.sh pushes to Fiestaboard/fiestaboard.github.io;
+          # GITHUB_TOKEN cannot push cross-repo.
+          RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
+          # Must match the target branch used by publish-docs.yml.
+          SYNC_TARGET_BRANCH: main
         run: |
-          # Checkout the main branch of FiestaBoard so we can commit to it.
+          # Sync from the tip of main so the docs content pushed alongside
+          # the version file is current (the tag checkout may be older).
           cd "$GITHUB_WORKSPACE/FiestaBoard"
-          git config user.name "FiestaBoard CI"
-          git config user.email "ci@fiestaboard.app"
           git fetch origin main
           git checkout -B main origin/main
 
-          # Write the new version so the docs site can display it.
-          echo "${{ steps.version.outputs.version }}" > docs-site/static/fiestapi-latest-version.txt
+          # Write the new version at the repo root (untracked scratch file);
+          # publish-docs.sh --with-fiestapi-version copies it to the site
+          # repo as data/fiestapi-latest-version.txt, where the site
+          # displays it.
+          echo "${{ steps.version.outputs.version }}" > fiestapi-latest-version.txt
 
-          git add docs-site/static/fiestapi-latest-version.txt
-          git diff --cached --quiet && echo "No change, skipping commit." && exit 0
-          git commit -m "chore: update FiestaPi latest version to ${{ steps.version.outputs.version }} [skip ci]"
-          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" main
+          scripts/publish-docs.sh --with-fiestapi-version

@@ -1,8 +1,8 @@
 <h1 align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/img/branding/logo-lockup-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/img/branding/logo-lockup-light.png">
-    <img alt="FiestaBoard" src="assets/img/branding/logo-lockup-light.png" width="320">
+    <source media="(prefers-color-scheme: dark)" srcset="https://fiestaboard.app/img/branding/logo-lockup-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://fiestaboard.app/img/branding/logo-lockup-light.png">
+    <img alt="FiestaBoard" src="https://fiestaboard.app/img/branding/logo-lockup-light.png" width="320">
   </picture>
 </h1>
 
@@ -117,19 +117,19 @@ FiestaBoard has a catalog of **50+ plugins** covering weather, finance, transit,
 
 **Weather** - Temperature, UV index, precipitation, high/low, sunset time
 
-![Weather Display](./docs-site/static/img/weather-display.png)
+![Weather Display](https://fiestaboard.app/img/weather-display.png)
 
 **Stocks** - Real-time prices with color-coded change indicators
 
-![Stocks Display](./docs-site/static/img/stocks-display.png)
+![Stocks Display](https://fiestaboard.app/img/stocks-display.png)
 
 **Sports Scores** - Recent match scores from NFL, Soccer, NHL, and NBA
 
-![Sports Scores Display](./docs-site/static/img/sports-scores-display.png)
+![Sports Scores Display](https://fiestaboard.app/img/sports-scores-display.png)
 
 **Nearby Aircraft** - Real-time aircraft info with call signs, altitude, and speed
 
-![Nearby Aircraft Display](./docs-site/static/img/nearby-aircraft-display.png)
+![Nearby Aircraft Display](https://fiestaboard.app/img/nearby-aircraft-display.png)
 
 ### All Available Plugins
 
@@ -443,8 +443,7 @@ FiestaBoard/
 ├── plugins/          # Plugin-based data sources (weather, stocks, etc.)
 ├── src/              # Platform core (API server, display service, plugin system)
 ├── web/              # React Router v7 + Vite web UI
-├── docs/             # Development documentation
-├── docs-site/        # Documentation website (fiestaboard.app)
+├── docs/             # Documentation markdown (synced to the site repo, which builds fiestaboard.app)
 ├── Dockerfile        # Unified container (API + Web UI + nginx)
 └── docker-compose.yml
 ```
