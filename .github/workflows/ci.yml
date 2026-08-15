@@ -1186,6 +1186,18 @@ jobs:
         DOCS_PR_MODE: '1'
       run: npm run build
 
+    # Report-only during the docs-site extraction (see the docs-site
+    # extraction plan): surfaces URL-surface drift without blocking merges.
+    # The enforced compare against tests/baseline.json runs on full deploy
+    # builds, where the version matrix matches the baseline.
+    - name: Docs URL-surface parity (report-only)
+      continue-on-error: true
+      working-directory: docs-site
+      run: |
+        node ../scripts/docs-parity.mjs build > /tmp/parity-manifest.json
+        echo "Manifest: $(node -e 'const m=require("/tmp/parity-manifest.json"); console.log(m.routes.length, "routes,", Object.keys(m.redirects).length, "redirects,", m.sitemap.length, "sitemap URLs")')"
+        node ../scripts/docs-parity.mjs build --fixture tests/routes.fixture.json --pr-mode
+
     - name: Write build summary
       if: always()
       run: |
