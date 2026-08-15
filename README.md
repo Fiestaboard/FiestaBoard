@@ -1,12 +1,8 @@
 <h1 align="center">
   <picture>
-    <!-- TODO(docs-extraction): flip these three srcset/src paths to
-         https://fiestaboard.app/img/branding/... once the branding sync
-         (publish-docs.sh, path fixed in PR 9) has landed on the site
-         repo's main — the URLs 404 until then. -->
-    <source media="(prefers-color-scheme: dark)" srcset="assets/img/branding/logo-lockup-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/img/branding/logo-lockup-light.png">
-    <img alt="FiestaBoard" src="assets/img/branding/logo-lockup-light.png" width="320">
+    <source media="(prefers-color-scheme: dark)" srcset="https://fiestaboard.app/img/branding/logo-lockup-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://fiestaboard.app/img/branding/logo-lockup-light.png">
+    <img alt="FiestaBoard" src="https://fiestaboard.app/img/branding/logo-lockup-light.png" width="320">
   </picture>
 </h1>
 
