@@ -146,3 +146,5 @@ If you discover a security issue, do **not** open a public issue. See [SECURITY.
 - For bugs or feature ideas, use the issue tracker and keep one topic per issue.
 
 Thanks for contributing.
+
+* CI drill: deliberate MD004 violation (asterisk bullet where config requires dash)
