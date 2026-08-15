@@ -93,10 +93,14 @@ jobs:
               # own configuration changes.
               - '**/*.md'
               - '**/*.mdx'
+              # Sidebar metadata is part of the docs contract checked by
+              # lint-docs-contract.mjs, so category edits must re-run the gate.
+              - 'docs/**/_category_.json'
               - 'cspell.json'
               - '.markdownlint-cli2.jsonc'
               - 'lychee.toml'
               - 'scripts/lint-docs-frontmatter.mjs'
+              - 'scripts/lint-docs-contract.mjs'
               - 'package.json'
               - 'package-lock.json'
 
@@ -1109,9 +1113,12 @@ jobs:
         done
         echo "✅ All plugin structures valid"
 
-  # Docs quality gate: spell-check, markdown-lint, and frontmatter-lint over
-  # all repository markdown (config: cspell.json, .markdownlint-cli2.jsonc).
-  # Runs on Node 24 because cspell 10 requires Node >= 22.18.
+  # Docs quality gate: spell-check, markdown-lint, frontmatter-lint, and the
+  # docs contract check over all repository markdown (config: cspell.json,
+  # .markdownlint-cli2.jsonc). The contract check (lint-docs-contract.mjs)
+  # guards what the site repo's Docusaurus build depends on — this repo no
+  # longer builds the site, so without it a malformed doc would only fail
+  # two repos later. Runs on Node 24 because cspell 10 requires Node >= 22.18.
   lint-markdown:
     name: Lint Markdown
     runs-on: ubuntu-latest
@@ -1134,6 +1141,9 @@ jobs:
 
     - name: Validate docs frontmatter
       run: npm run docs:lint:frontmatter
+
+    - name: Validate docs contract
+      run: npm run docs:lint:contract
 
     - name: Lint markdown
       run: npm run docs:lint:markdown

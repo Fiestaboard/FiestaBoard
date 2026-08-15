@@ -33,7 +33,8 @@
     "start:web": "cd web && npm run start",
     "test:web": "cd web && npm run test:run",
     "lint:web": "cd web && npm run lint",
-    "docs:lint": "npm run docs:lint:frontmatter && npm run docs:lint:markdown && npm run docs:lint:spell",
+    "docs:lint": "npm run docs:lint:frontmatter && npm run docs:lint:contract && npm run docs:lint:markdown && npm run docs:lint:spell",
+    "docs:lint:contract": "node scripts/lint-docs-contract.mjs",
     "docs:lint:frontmatter": "node scripts/lint-docs-frontmatter.mjs",
     "docs:lint:markdown": "markdownlint-cli2",
     "docs:lint:spell": "cspell lint --no-progress --no-must-find-files"
