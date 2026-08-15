@@ -6,7 +6,7 @@ keywords: [FiestaBoard quick start, FiestaPi, Docker setup, getting started, Ves
 
 # Quick Start
 
-Get FiestaBoard running in under 5 minutes. There are two supported paths:
+Get FiestaBoard up and running in under 5 minutes. There are two supported paths:
 
 1. **Flash a Raspberry Pi with FiestaPi** — the easiest route for anyone, technical or not.
 2. **Run with Docker** on a computer or home server you already own.
