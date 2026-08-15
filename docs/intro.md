@@ -116,3 +116,5 @@ If you've already got FiestaBoard installed and running, check out **[Your First
 | **[V2 Migration](/docs/setup/v2-migration)** | Upgrading from FiestaBoard V1 |
 | **[Troubleshooting](/docs/troubleshooting)** | Common issues and solutions |
 | **[Plugin Development](/docs/development/plugin-guide)** | Creating your own plugins |
+
+<!-- sync-canary: rehearsal A, 2026-08-15 -->
