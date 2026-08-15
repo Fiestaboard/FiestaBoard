@@ -27,9 +27,6 @@
   ],
   "ignorePaths": [
     "**/node_modules/**",
-    "docs-site/build/**",
-    "docs-site/.docusaurus/**",
-    "docs-site/versioned_docs/**",
     "CLAUDE.md",
     ".claude/**"
   ],
