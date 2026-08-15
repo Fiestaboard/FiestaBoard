@@ -12,8 +12,8 @@ import registry from "../../plugin-registry.json";
 
 // The preview contract (types + label/message helpers) is shared with the app
 // marketplace through the design system; re-export for local call sites.
-export { previewLabel, previewLabels, previewMessage } from "@fiestaboard/ui";
 export type { BoardPreviewEntry } from "@fiestaboard/ui";
+export { previewLabel, previewLabels, previewMessage } from "@fiestaboard/ui";
 
 export interface PluginEntry {
   id: string;
