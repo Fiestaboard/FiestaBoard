@@ -4,7 +4,7 @@ Template syntax:
 - Data binding: {{plugin_id.field}} e.g., {{weather.temperature}}, {{date_time.time}}
 - Inline formulas: {{= EXPRESSION }} - Excel-like expressions with IF/AND/OR,
   math, string functions, and COLOR(). See ``src/templates/expressions.py`` and
-  the user-facing reference docs at ``docs-site/docs/reference/template-formulas.md``.
+  the user-facing reference docs at ``docs/reference/template-formulas.md``.
 - Colors: {{red}}, {{blue}}, etc. - Single colored tile (not text wrapping)
 - Symbols: {sun}, {cloud}, {rain}
 - Formatting: {{value|pad:3}}, {{value|zeropad:2}}, {{value|upper}}, {{value|lower}}, {{value|wrap}}

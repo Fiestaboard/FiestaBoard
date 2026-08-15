@@ -16,8 +16,7 @@
   ],
   "files": [
     "docs/**/*.md",
-    "docs-site/docs/**/*.md",
-    "docs-site/docs/**/*.mdx",
+    "docs/**/*.mdx",
     "plugins/*/README.md",
     "plugins/*/docs/**/*.md",
     "README.md",
@@ -31,7 +30,6 @@
     "docs-site/build/**",
     "docs-site/.docusaurus/**",
     "docs-site/versioned_docs/**",
-    "docs/superpowers/**",
     "CLAUDE.md",
     ".claude/**"
   ],

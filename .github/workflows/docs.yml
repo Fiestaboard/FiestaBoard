@@ -18,6 +18,10 @@ on:
     branches: [main]
     paths:
       - 'docs-site/**'
+      # Published documentation markdown lives at the repo root; changes to
+      # it must redeploy the site (docs-site/docusaurus.config.ts reads it
+      # via `path: "../docs"`).
+      - 'docs/**'
   workflow_dispatch:
     inputs:
       tag:
@@ -61,7 +65,7 @@ jobs:
           path: |
             docs-site/.docusaurus
             docs-site/node_modules/.cache
-          key: docusaurus-${{ runner.os }}-${{ hashFiles('docs-site/src/**', 'docs-site/docs/**', 'docs-site/docusaurus.config.ts', 'docs-site/package-lock.json') }}
+          key: docusaurus-${{ runner.os }}-${{ hashFiles('docs-site/src/**', 'docs/**', 'docs-site/docusaurus.config.ts', 'docs-site/package-lock.json') }}
           restore-keys: |
             docusaurus-${{ runner.os }}-
 
@@ -98,7 +102,14 @@ jobs:
       - name: Create docs version snapshot
         if: inputs.tag != '' && steps.check-version.outputs.skip != 'true'
         working-directory: docs-site
-        run: npx docusaurus docs:version "${{ steps.version.outputs.docs_version }}"
+        # docs:version does an unfiltered recursive copy of the docs path
+        # (fs.copy in @docusaurus/plugin-content-docs cli). The docs path is
+        # ../docs, which contains docs/internal/ — internal engineering docs
+        # that must never be published. Prune them from the fresh snapshot
+        # before it is committed and built.
+        run: |
+          npx docusaurus docs:version "${{ steps.version.outputs.docs_version }}"
+          rm -rf "versioned_docs/version-${{ steps.version.outputs.docs_version }}/internal"
 
       # --- Build (always) ---
 

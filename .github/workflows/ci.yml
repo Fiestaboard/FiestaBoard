@@ -69,7 +69,7 @@ jobs:
               # `predicate-quantifier: some`, which makes a single negation
               # like `!foo` match every file that isn't `foo`, turning the
               # whole filter into a universal match. See
-              # docs/development/CI_PATH_FILTERING_AUDIT.md for details.
+              # docs/internal/development/CI_PATH_FILTERING_AUDIT.md for details.
               #
               # Workflows that own their own pipelines (build-fiestapi,
               # build-fiestaupdater, docs, registry-scan, pr-label,
@@ -81,6 +81,12 @@ jobs:
               - 'scripts/version-sync.js'
             docs:
               - 'docs-site/**'
+              # Published documentation markdown (the source docusaurus reads
+              # via `path: "../docs"`). Includes docs/internal/, which the
+              # site never publishes — a rare false-positive docs build is
+              # preferable to a negation pattern here (see the warning in
+              # `shared` above).
+              - 'docs/**'
             markdown:
               # Any markdown anywhere, plus the docs-lint tooling/config, so
               # the lint-markdown + link-check jobs run when prose or their
@@ -1173,7 +1179,7 @@ jobs:
         # have a different .docusaurus/ shape than full deploy builds.
         # Keep their caches in separate namespaces to avoid each
         # poisoning the other on restore.
-        key: docusaurus-pr-${{ runner.os }}-${{ hashFiles('docs-site/src/**', 'docs-site/docs/**', 'docs-site/docusaurus.config.ts', 'docs-site/package-lock.json') }}
+        key: docusaurus-pr-${{ runner.os }}-${{ hashFiles('docs-site/src/**', 'docs/**', 'docs-site/docusaurus.config.ts', 'docs-site/package-lock.json') }}
         restore-keys: |
           docusaurus-pr-${{ runner.os }}-
 
@@ -1247,10 +1253,12 @@ jobs:
     - name: Spell check
       run: npm run docs:lint:spell
 
-  # Repo-wide broken-link check for the GitHub-rendered markdown (docs/**,
-  # plugins/**, root *.md). The published Docusaurus site (docs-site/**) is
-  # excluded here and validated by build-docs (onBrokenLinks: 'throw'), the
-  # only checker that understands Docusaurus routing. Config: lychee.toml.
+  # Repo-wide broken-link check for the GitHub-rendered markdown
+  # (docs/internal/**, plugins/**, root *.md). The published docs source
+  # (docs/**, outside internal/) uses Docusaurus link semantics (route
+  # paths, extension stripping) that lychee can't model — those links are
+  # validated by the site build (onBrokenLinks: 'throw') when versions are
+  # snapshotted and built. Config: lychee.toml.
   link-check:
     name: Check Markdown Links
     runs-on: ubuntu-latest
@@ -1266,7 +1274,7 @@ jobs:
       with:
         args: >-
           --config lychee.toml
-          'docs/**/*.md'
+          'docs/internal/**/*.md'
           'plugins/*/README.md'
           'plugins/*/docs/**/*.md'
           README.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md DOCKERHUB_README.md

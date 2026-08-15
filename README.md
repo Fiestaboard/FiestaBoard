@@ -41,7 +41,7 @@ If you have (or are willing to buy) a Raspberry Pi 3B or newer, this is by far t
 
 That's it — FiestaBoard starts on every boot and updates itself with one click in Settings.
 
-**→ [Full Raspberry Pi setup guide](docs/setup/RASPBERRY_PI.md)** with detailed flashing instructions, headless Wi-Fi setup, and troubleshooting.
+**→ [Full Raspberry Pi setup guide](docs/internal/setup/RASPBERRY_PI.md)** with detailed flashing instructions, headless Wi-Fi setup, and troubleshooting.
 
 > **Why we recommend this path:** The Pi is inexpensive, low-power, runs 24/7, and is purpose-built to be a reliable always-on display controller. Even users who have never touched a Raspberry Pi before can complete this in under 15 minutes.
 
@@ -107,7 +107,7 @@ The wizard collects your board API key, starts the server, and opens the setup p
 
 > **Accessing from other devices:** From another device on the same network, open FiestaBoard at your server's IP address — for example `http://192.168.1.50:4420`. This works on a default Docker install.
 >
-> The shorter `http://fiestaboard.local:4420` only resolves when you run with host networking (`network_mode: host`, commented out in `docker-compose.yml`) *and* your host has an mDNS/Bonjour resolver — the default `docker-compose.yml` uses bridge networking (`4420:3000`) and does **not** advertise `fiestaboard.local`. The FiestaPi image ships avahi and advertises as `fiestapi.local` out of the box. See [MCP clients — Hostname tip](docs/setup/MCP_CLIENTS.md) for details.
+> The shorter `http://fiestaboard.local:4420` only resolves when you run with host networking (`network_mode: host`, commented out in `docker-compose.yml`) *and* your host has an mDNS/Bonjour resolver — the default `docker-compose.yml` uses bridge networking (`4420:3000`) and does **not** advertise `fiestaboard.local`. The FiestaPi image ships avahi and advertises as `fiestapi.local` out of the box. See [MCP clients — Hostname tip](docs/internal/setup/MCP_CLIENTS.md) for details.
 
 ---
 
@@ -206,7 +206,7 @@ Transition plugins drive **frame-by-frame board animations** that aren't possibl
 | [Slot Machine](./plugins/slot_machine/README.md) | Spins each column like a flap reel before locking left-to-right |
 | [Typewriter](./plugins/typewriter/README.md) | Reveals the message one character at a time, left-to-right |
 
-Build your own with the [Transition Plugin Development Guide](./docs/development/TRANSITION_PLUGIN_DEVELOPMENT.md).
+Build your own with the [Transition Plugin Development Guide](./docs/internal/development/TRANSITION_PLUGIN_DEVELOPMENT.md).
 
 ---
 
@@ -236,7 +236,7 @@ Create pages for both Vestaboard Flagship (22x6) and Note (15x3). The editor and
 
 Click the **Gen AI** button in the page editor, describe what you want ("commute home dashboard with weather and the next two Muni arrivals"), and an LLM drafts the page for you. You always review and click **Save** — nothing is auto-published to your board.
 
-**Bring your own provider.** FiestaBoard ships with no bundled LLM credentials and supports both **OpenAI-compatible** APIs (OpenRouter, OpenAI, Ollama, LM Studio, vLLM, llama.cpp) and the **Anthropic Messages API** (direct Claude access). See [docs/setup/AI_PROVIDERS.md](docs/setup/AI_PROVIDERS.md) for setup.
+**Bring your own provider.** FiestaBoard ships with no bundled LLM credentials and supports both **OpenAI-compatible** APIs (OpenRouter, OpenAI, Ollama, LM Studio, vLLM, llama.cpp) and the **Anthropic Messages API** (direct Claude access). See [docs/internal/setup/AI_PROVIDERS.md](docs/internal/setup/AI_PROVIDERS.md) for setup.
 
 ### More
 
@@ -287,13 +287,13 @@ Five preset sizes are available, plus a custom size up to **8 × 8 Notes**:
 
 Note arrays connect two ways: through the **Vestaboard Cloud API** using an `X-Vestaboard-Token` (from your Vestaboard Cloud API subscription — not the Read/Write key), or in **local mode**, where FiestaBoard drives each Note directly over your network with its own IP and Local API key — no cloud subscription, no rate limit, and transitions work. Configure the board type, size, and connection in **Settings → Hardware**: paste the token (cloud), or assign each Note to its slot in the tile grid (local) and use **Identify** to flash position numbers on the wall and verify the layout. **Auto-detect from board** can read the array and pick the size for you.
 
-**→ [Note Array setup guide](docs/setup/NOTE_ARRAYS.md)** for the full walkthrough, and the [Note Arrays reference](docs/reference/NOTE_ARRAYS.md) for the dimensions model and API details.
+**→ [Note Array setup guide](docs/internal/setup/NOTE_ARRAYS.md)** for the full walkthrough, and the [Note Arrays reference](docs/internal/reference/NOTE_ARRAYS.md) for the dimensions model and API details.
 
 ---
 
 ## Running on a Raspberry Pi
 
-For most users, the easiest way to run on a Pi is the pre-built **FiestaPi** image — see the [Get Started](#get-started-in-5-minutes) section above for the 4-step flash flow, or the [full Raspberry Pi setup guide](docs/setup/RASPBERRY_PI.md).
+For most users, the easiest way to run on a Pi is the pre-built **FiestaPi** image — see the [Get Started](#get-started-in-5-minutes) section above for the 4-step flash flow, or the [full Raspberry Pi setup guide](docs/internal/setup/RASPBERRY_PI.md).
 
 If you'd rather run Docker on a Pi you've already set up, the pre-built Docker image supports ARM64 out of the box — follow the same Docker Hub setup above. See the [Raspberry Pi Deployment guide](https://fiestaboard.app/docs/deployment/raspberry-pi) for advanced options.
 
@@ -406,7 +406,7 @@ The MCP server exposes 28 tools covering the full FiestaBoard API:
 | Collections | `list_collections`, `create_collection`, `update_collection`, `delete_collection` |
 | System | `get_system_status`, `get_settings_summary`, `set_active_page`, `set_schedule_mode` |
 
-The MCP server requires a bearer token for all requests. Generate one in **Settings → Integrations → MCP / external clients**. See [MCP Clients Setup](docs/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
+The MCP server requires a bearer token for all requests. Generate one in **Settings → Integrations → MCP / external clients**. See [MCP Clients Setup](docs/internal/setup/MCP_CLIENTS.md) for full setup details and troubleshooting.
 
 ---
 
@@ -428,8 +428,8 @@ Full documentation is at **[fiestaboard.app](https://fiestaboard.app)**, includi
 If you want to **contribute code** or **build plugins** (not just use FiestaBoard), see the development guides:
 
 - **[Contributing Guide](./CONTRIBUTING.md)** - Branch workflow, PR process, standards
-- **[Local Development](./docs/setup/LOCAL_DEVELOPMENT.md)** - Dev environment with hot-reload
-- **[Plugin Development](./docs/development/PLUGIN_DEVELOPMENT.md)** - Create custom plugins
+- **[Local Development](./docs/internal/setup/LOCAL_DEVELOPMENT.md)** - Dev environment with hot-reload
+- **[Plugin Development](./docs/internal/development/PLUGIN_DEVELOPMENT.md)** - Create custom plugins
 
 ```bash
 # Development environment (hot-reload for Python, volume mounts)

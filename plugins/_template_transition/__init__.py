@@ -2,7 +2,7 @@
 
 Copy this directory to ``plugins/<your_id>/`` and update the manifest
 and class below to build your own transition.  See
-``docs/development/TRANSITION_PLUGIN_DEVELOPMENT.md`` for the full guide.
+``docs/internal/development/TRANSITION_PLUGIN_DEVELOPMENT.md`` for the full guide.
 """
 
 from collections.abc import Iterator

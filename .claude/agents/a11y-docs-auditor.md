@@ -89,10 +89,10 @@ FINDINGS
 | Severity | File:line                                  | Issue                              | Snippet                              | Fix hint                                          |
 |----------|--------------------------------------------|------------------------------------|--------------------------------------|---------------------------------------------------|
 | SERIOUS  | plugins/random/README.md:3                 | Uninformative alt                  | `![image](./docs/board-display.png)` | Describe what the board shows                     |
-| SERIOUS  | docs/setup/install.md:42                   | Skipped heading level (## → ####)  | `#### Docker prerequisites`          | Use `###`                                         |
+| SERIOUS  | docs/internal/setup/install.md:42                   | Skipped heading level (## → ####)  | `#### Docker prerequisites`          | Use `###`                                         |
 | MODERATE | README.md:88                               | Bare URL as link text              | `[https://fiestaboard.app](...)`     | Use descriptive text: `[FiestaBoard homepage]`    |
-| MODERATE | docs/development/PLUGIN_DEVELOPMENT.md:120 | Color-only cue                     | "the red error banner"               | Pair with role/label: "the error banner (red)"    |
-| MINOR    | docs/setup/install.md:55                   | Code block missing language        | ` ``` `                              | Add language: ` ```bash `                         |
+| MODERATE | docs/internal/development/PLUGIN_DEVELOPMENT.md:120 | Color-only cue                     | "the red error banner"               | Pair with role/label: "the error banner (red)"    |
+| MINOR    | docs/internal/setup/install.md:55                   | Code block missing language        | ` ``` `                              | Add language: ` ```bash `                         |
 
 Executive summary: 2 serious, 2 moderate, 1 minor. Hand off to `/fix-a11y`.
 ```

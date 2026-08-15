@@ -144,7 +144,7 @@ class MyPlugin(PluginBase):
     # `"supports_triggers": true` in manifest.json — without that flag
     # this method is never called.
     #
-    # Full docs: docs/development/PLUGIN_DEVELOPMENT.md
+    # Full docs: docs/internal/development/PLUGIN_DEVELOPMENT.md
     # ("Triggering Pages from a Plugin")
     #
     # def check_triggers(self) -> list["TriggerResult"]:

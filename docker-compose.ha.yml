@@ -4,7 +4,7 @@
 # Start: docker-compose -f docker-compose.dev.yml -f docker-compose.ha.yml up -d
 # HA UI: http://localhost:8123  (from host)
 # From inside containers: http://homeassistant:8123, mqtt://mosquitto:1883
-# See docs-site/docs/setup/local-home-assistant.md
+# See docs/setup/local-home-assistant.md
 
 services:
   homeassistant:

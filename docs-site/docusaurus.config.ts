@@ -282,6 +282,13 @@ const config: Config = {
       "classic",
       {
         docs: {
+          // Current-release markdown lives at the repo root (docs/) so it
+          // stays with the code it documents; this dir is what
+          // `docusaurus docs:version` snapshots. It is NOT built directly
+          // (includeCurrentVersion: false) — the site serves snapshots only.
+          // docs/internal/ is not published: docs.yml prunes it from each
+          // new snapshot (docs:version copies the whole dir unfiltered).
+          path: "../docs",
           sidebarPath: "./sidebars.ts",
           editUrl: "https://github.com/Fiestaboard/FiestaBoard/tree/main/docs-site/",
           includeCurrentVersion: false,

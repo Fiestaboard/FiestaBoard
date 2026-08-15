@@ -38,7 +38,8 @@ FiestaBoard/
 │   └── plugins/                # Plugin system infrastructure
 ├── web/                        # Next.js web UI
 │   └── src/                    # React components and pages
-├── docs-site/                  # Docusaurus documentation
+├── docs/                       # Published documentation markdown (this site)
+├── docs-site/                  # Docusaurus site (config, theme, version snapshots)
 ├── tests/                      # Platform test suite
 ├── Dockerfile                  # Unified Dockerfile (API + Web UI + nginx in one image)
 ├── docker-compose.yml          # Production compose (single container, port 4420)
