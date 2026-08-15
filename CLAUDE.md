@@ -211,7 +211,7 @@ GitHub Actions.
 - Never edit site code (Docusaurus config, theme, components) here — that
   all belongs to the site repo. Edit only the markdown under `docs/`.
 - Docs merge-to-live SLA: a docs change merged to `main` here is live on
-  fiestaboard.app after the sync + site build (measured at cutover: ~N min).
+  fiestaboard.app after the sync + site build (measured at cutover: ~4 min).
 
 ### Environment Variables
 
