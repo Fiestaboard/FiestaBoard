@@ -1,4 +1,5 @@
 import { Box, Flex, List, ListItem, Stack, Text } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { RefreshCw, WifiOff } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 
@@ -80,7 +81,7 @@ export default function OfflinePage() {
 
         {isOnline && (
           <Flex justify="center">
-            <Box className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></Box>
+            <Spinner size="lg" className="size-8 text-primary" label={t("reconnecting")} />
           </Flex>
         )}
       </Stack>

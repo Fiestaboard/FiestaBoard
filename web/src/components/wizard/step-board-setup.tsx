@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Button, Flex, Grid, Input, Label, List, ListItem, Stack, Text } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import {
   CheckCircle,
   Cloud,
@@ -352,7 +353,7 @@ export function StepBoardSetup({
           {/* Scan results */}
           {scanStatus === "scanning" && (
             <Flex align="center" gap="2" className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner label={null} />
               <Text as="span" tone="muted">
                 {t("scanningNetwork")}
               </Text>

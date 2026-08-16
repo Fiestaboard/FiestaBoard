@@ -300,7 +300,7 @@ test.describe("regression: collections.form", () => {
    * UX node: collections.form.creating
    * Route: /collections (sheet)
    * Preconditions: create-mutation:pending
-   * Expected: Submit button shows pending state (disabled + spinner) while mutation in flight
+   * Expected: Submit button shows pending state (disabled, announced busy, spinner) while mutation in flight
    * Source refs: web/src/app/collections/page.tsx (isSubmitting branch)
    */
   test("collections.form.creating — Submit becomes disabled with spinner while POST is in flight", async ({ page }) => {
@@ -329,7 +329,13 @@ test.describe("regression: collections.form", () => {
     await submit.click();
 
     await expect(submit).toBeDisabled({ timeout: 5_000 });
-    await expect(submit.locator("svg.animate-spin")).toBeVisible();
+    // Assert the busy state the user is actually served: announced to assistive
+    // tech, and visibly indicated. Not the CSS animation class that paints it.
+    await expect(submit).toHaveAttribute("aria-busy", "true");
+    await expect(submit.locator("[data-slot='spinner']")).toBeVisible();
+    // The accessible name must survive the transition — the button must not
+    // silently rename itself to "Loading" mid-interaction.
+    await expect(submit).toHaveAccessibleName("Create Collection");
 
     release!();
     await expect(dialog).toBeHidden({ timeout: 10_000 });
@@ -384,7 +390,7 @@ test.describe("regression: collections.form", () => {
    * UX node: collections.form.updating
    * Route: /collections (sheet)
    * Preconditions: update-mutation:pending
-   * Expected: Update Collection button disabled + spinner while PUT in flight
+   * Expected: Update Collection button disabled, announced busy, spinner while PUT in flight
    * Source refs: web/src/app/collections/page.tsx (isSubmitting branch)
    */
   test("collections.form.updating — Update Collection button shows pending state while PUT is in flight", async ({
@@ -415,7 +421,11 @@ test.describe("regression: collections.form", () => {
     await submit.click();
 
     await expect(submit).toBeDisabled({ timeout: 5_000 });
-    await expect(submit.locator("svg.animate-spin")).toBeVisible();
+    // Assert the busy state the user is actually served: announced to assistive
+    // tech, and visibly indicated. Not the CSS animation class that paints it.
+    await expect(submit).toHaveAttribute("aria-busy", "true");
+    await expect(submit.locator("[data-slot='spinner']")).toBeVisible();
+    await expect(submit).toHaveAccessibleName("Update Collection");
 
     release!();
     await expect(dialog).toBeHidden({ timeout: 10_000 });

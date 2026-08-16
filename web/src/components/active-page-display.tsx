@@ -27,6 +27,7 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -780,7 +781,7 @@ export function ActivePageDisplay() {
                 className="h-10 w-10 rounded-full bg-muted flex-shrink-0 group-hover:bg-muted/80 transition-colors"
               >
                 {disableScheduleMutation.isPending ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <Spinner size="lg" className="text-muted-foreground" label={null} />
                 ) : (
                   <CalendarOff className="h-5 w-5 text-muted-foreground" />
                 )}

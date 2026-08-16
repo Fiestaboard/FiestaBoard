@@ -12,8 +12,9 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Loader2, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
@@ -622,7 +623,7 @@ function FieldNotes({
   if (query.isLoading) {
     return (
       <Flex align="center" gap="2" className="text-xs text-muted-foreground">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <Spinner size="sm" label={null} />
         {t("remoteOptionsLoading")}
       </Flex>
     );

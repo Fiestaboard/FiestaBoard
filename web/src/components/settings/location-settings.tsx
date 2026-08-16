@@ -187,8 +187,12 @@ export function LocationSettingsCard() {
                 )}
                 {isGeolocating ? t("locating") : t("useMyLocation")}
               </Button>
-              <Button onClick={handleSave} disabled={mutation.isPending || !isDirty} size="sm">
-                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button
+                onClick={handleSave}
+                loading={mutation.isPending}
+                disabled={mutation.isPending || !isDirty}
+                size="sm"
+              >
                 {tCommon("save")}
               </Button>
               {isConfigured && (

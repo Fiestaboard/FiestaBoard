@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Flex, Text } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import type { ReactNode } from "react";
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useState } from "react";
 
@@ -13,7 +14,7 @@ function WizardLoadingFallback() {
   return (
     <Flex align="center" justify="center" className="fixed inset-0 bg-background">
       <Box className="text-center">
-        <Box className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <Spinner size="lg" className="size-8 text-primary" label={null} />
         <Text tone="muted" className="mt-4">
           {t("loadingSetupWizard")}
         </Text>
@@ -113,7 +114,7 @@ export function WizardProvider({ children }: WizardProviderProps) {
     return (
       <Flex align="center" justify="center" className="fixed inset-0 bg-background">
         <Box className="text-center">
-          <Box className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          <Spinner size="lg" className="size-8 text-primary" label={null} />
           <Text tone="muted" className="mt-4">
             {t("loading")}
           </Text>

@@ -32,6 +32,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { tags } from "@lezer/highlight";
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
@@ -42,7 +43,6 @@ import {
   ChevronRight,
   GitBranch,
   Hash,
-  Loader2,
   Palette,
   Type as TypeIcon,
   XCircle,
@@ -677,7 +677,7 @@ export function FormulaEditorPanel({ initialExpr = "", mode, onConfirm, onCancel
                   ) : validationState === "invalid" ? (
                     <XCircle className="w-3.5 h-3.5 text-destructive" />
                   ) : validationState === "validating" ? (
-                    <Loader2 className="w-3.5 h-3.5 text-muted-foreground/50 animate-spin" />
+                    <Spinner size="sm" className="text-muted-foreground/50" label={null} />
                   ) : null}
                 </Text>
               </Flex>

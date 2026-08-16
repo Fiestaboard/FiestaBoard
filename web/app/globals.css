@@ -196,6 +196,27 @@
   scroll-behavior: auto !important;
 }
 
+/* Bridge FiestaUI's Spinner to the app's own motion kill switches. The
+   component swaps its animated three-quarter arc for a complete static ring
+   under `motion-reduce:`, which compiles to the OS-level
+   `prefers-reduced-motion` media query only. `.reduce-motion` and
+   `.site-animations-off` are settings-driven classes that media query never
+   sees, and the rules above merely zero the animation — which would freeze the
+   arc mid-rotation and read as a rendering glitch. Drive the same swap from
+   them instead. `data-slot` is the component's stable public hook.
+
+   The `.site-animations-off` arm carries the same `[data-board-preview]`
+   exclusion as the rule above it, so a spinner inside the board preview keeps
+   the behaviour that kill switch deliberately leaves alone. */
+.reduce-motion [data-slot="spinner-mark"],
+.site-animations-off [data-slot="spinner-mark"]:not([data-board-preview] *) {
+  display: none;
+}
+.reduce-motion [data-slot="spinner-mark-static"],
+.site-animations-off [data-slot="spinner-mark-static"]:not([data-board-preview] *) {
+  display: block;
+}
+
 /* Board animation kill switch. The board flap structure (4 layers) is
    already gated in JS so the extra DOM never renders when this is set,
    but the CSS belt-and-braces guarantees no leftover transforms animate

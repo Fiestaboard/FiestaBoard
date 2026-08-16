@@ -25,6 +25,7 @@ import {
   Text,
   Textarea,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -33,7 +34,6 @@ import {
   Circle,
   Eye,
   EyeOff,
-  Loader2,
   RotateCcw,
   Send,
   Sparkles,
@@ -204,7 +204,7 @@ export function AiChatPanel({
             <Text as="span" size="sm" weight="semibold" className="truncate">
               {t("panelTitle")}
             </Text>
-            {status === "streaming" && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            {status === "streaming" && <Spinner size="sm" className="text-muted-foreground" label={null} />}
           </Flex>
           <Flex align="center" gap="1">
             {onChainingModeChange && <ChainingModePicker mode={chainingMode} onChange={onChainingModeChange} />}
@@ -358,7 +358,7 @@ function TaskStatusIcon({ status }: { status: TaskStatus }) {
     case "failed":
       return <XCircle className="h-3 w-3 shrink-0 text-destructive" aria-hidden="true" />;
     case "in_progress":
-      return <Loader2 className="h-3 w-3 shrink-0 animate-spin text-brand-emphasis" aria-hidden="true" />;
+      return <Spinner size="sm" className="size-3 shrink-0 text-brand-emphasis" label={null} />;
     case "pending":
       return <Circle className="h-3 w-3 shrink-0 text-muted-foreground/50" aria-hidden="true" />;
   }
@@ -633,7 +633,7 @@ function MessageBubble({
         <Text as="span" weight="medium" tone="muted" className="text-[10px] uppercase tracking-wide">
           AI
         </Text>
-        {message.pending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        {message.pending && <Spinner size="sm" className="size-3 text-muted-foreground" label={null} />}
       </Flex>
       {message.content && (
         <Box className="break-words text-sm">

@@ -457,7 +457,7 @@ test.describe("regression: schedule.form", () => {
    * Preconditions: create-schedule-mutation:pending
    * Interactions: (none — pending state only)
    * Expected:
-   *   - Create button shows Loader2 spinner and is disabled while mutation pending
+   *   - Create button is disabled and announces itself busy while mutation pending
    *   - Cancel and Delete (in edit) are also disabled
    *   - On success: 'Schedule created' toast, sheet closes, prefillData cleared
    *   - On error: 'Failed to create schedule' (or backend error.message) toast
@@ -486,6 +486,7 @@ test.describe("regression: schedule.form", () => {
     if (await createBtn.isEnabled()) {
       await createBtn.click();
       await expect(createBtn).toBeDisabled({ timeout: 5_000 });
+      await expect(createBtn).toHaveAttribute("aria-busy", "true");
     }
     release();
     void pageId;
@@ -497,7 +498,7 @@ test.describe("regression: schedule.form", () => {
    * Preconditions: update-schedule-mutation:pending
    * Interactions: (none — pending state only)
    * Expected:
-   *   - Update button shows Loader2 spinner, disabled
+   *   - Update button is disabled and announces itself busy while mutation pending
    *   - On success: 'Schedule updated' toast, sheet closes, editingSchedule cleared
    *   - On error: destructive Alert with error.message rendered inside form
    * Source refs: web/src/app/schedule/page.tsx, web/src/components/schedule-entry-form.tsx
@@ -518,6 +519,7 @@ test.describe("regression: schedule.form", () => {
     if (await updateBtn.isEnabled()) {
       await updateBtn.click();
       await expect(updateBtn).toBeDisabled({ timeout: 5_000 });
+      await expect(updateBtn).toHaveAttribute("aria-busy", "true");
     }
     release();
   });

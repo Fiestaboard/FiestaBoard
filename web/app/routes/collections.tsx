@@ -41,7 +41,6 @@ import {
   FileText,
   GalleryHorizontalEnd,
   GripVertical,
-  Loader2,
   Pencil,
   Plus,
   Shuffle,
@@ -629,8 +628,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             {tc("cancel")}
           </Button>
-          <Button type="submit" disabled={!canSubmit || isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" loading={isSubmitting} disabled={!canSubmit || isSubmitting}>
             {isEdit ? t("updateCollection") : t("createCollection")}
           </Button>
         </Flex>

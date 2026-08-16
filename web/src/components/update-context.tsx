@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Button, Code, Flex, Heading, Stack, Text } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { RefreshCw } from "lucide-react";
 import { createContext, Fragment, useCallback, useContext, useEffect, useRef, useState } from "react";
 
@@ -354,8 +355,7 @@ function UpdateOverlay({ currentVersion, onDone }: { currentVersion?: string; on
   return (
     <Flex align="center" justify="center" className="fixed inset-0 z-[200] bg-black text-white">
       <Stack gap="6" className="text-center max-w-xs mx-auto px-4">
-        {/* Spinner */}
-        <Box className="h-12 w-12 mx-auto rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
+        <Spinner size="lg" className="size-12 mx-auto" label={null} />
 
         {/* Title + current phase message */}
         <Stack gap="2">
