@@ -72,6 +72,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@fiestaboard/ui";
+import { EmptyState } from "@fiestaboard/ui/components/feedback/empty-state";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -2446,27 +2447,21 @@ export default function IntegrationsPage() {
               </CardContent>
             </Card>
           ) : filteredInstalled.length === 0 ? (
-            <Box className="text-center py-16">
-              {query ? (
-                <>
-                  <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <Text tone="muted">{t("noInstalledMatch", { query: searchQuery })}</Text>
-                </>
-              ) : (
-                <>
-                  <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <Text size="base" weight="medium" className="mb-1">
-                    {t("noPluginsInstalled")}
-                  </Text>
-                  <Text tone="muted" className="mb-4">
-                    {t("headToMarketplace")}
-                  </Text>
+            query ? (
+              <EmptyState icon={Search} title={t("noInstalledMatch", { query: searchQuery })} className="py-16" />
+            ) : (
+              <EmptyState
+                icon={Puzzle}
+                title={t("noPluginsInstalled")}
+                description={t("headToMarketplace")}
+                action={
                   <Button variant="outline" onClick={() => setActiveTab("marketplace")}>
                     {t("browseMarketplace")}
                   </Button>
-                </>
-              )}
-            </Box>
+                }
+                className="py-16"
+              />
+            )
           ) : (
             <Stack gap="3">
               {updatesAvailableCount > 0 && (
@@ -2551,22 +2546,16 @@ export default function IntegrationsPage() {
         {/* ── Marketplace Tab ── */}
         <TabsContent value="marketplace" className="mt-0">
           {filteredRegistry.length === 0 ? (
-            <Box className="text-center py-16">
-              {query ? (
-                <>
-                  <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <Text tone="muted">{t("noPluginsMatch", { query: searchQuery })}</Text>
-                </>
-              ) : (
-                <>
-                  <Puzzle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                  <Text size="base" weight="medium" className="mb-1">
-                    {t("noRegistryPluginsFound")}
-                  </Text>
-                  <Text tone="muted">{t("canInstallCustomGitDescription")}</Text>
-                </>
-              )}
-            </Box>
+            query ? (
+              <EmptyState icon={Search} title={t("noPluginsMatch", { query: searchQuery })} className="py-16" />
+            ) : (
+              <EmptyState
+                icon={Puzzle}
+                title={t("noRegistryPluginsFound")}
+                description={t("canInstallCustomGitDescription")}
+                className="py-16"
+              />
+            )
           ) : marketplaceView === "card" ? (
             <Stack gap="6" className="animate-card-fade-in">
               {(() => {
