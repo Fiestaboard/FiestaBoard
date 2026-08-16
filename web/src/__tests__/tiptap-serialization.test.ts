@@ -84,3 +84,52 @@ describe("Simple serialization – 3-line mode (Note)", () => {
     });
   });
 });
+
+describe("Variable filter arguments survive the round-trip", () => {
+  it("preserves a single filter argument (|pad:3)", () => {
+    const doc = parseTemplateSimple("{{weather.temp|pad:3}}", 3);
+    const firstLine = serializeTemplateSimple(doc, 3).split("\n")[0];
+    expect(firstLine).toBe("{{weather.temp|pad:3}}");
+  });
+
+  it("preserves arguments on every filter in a chain", () => {
+    const doc = parseTemplateSimple("{{weather.temp|pad:3|truncate:5}}", 3);
+    const firstLine = serializeTemplateSimple(doc, 3).split("\n")[0];
+    expect(firstLine).toBe("{{weather.temp|pad:3|truncate:5}}");
+  });
+
+  it("preserves a filter argument on a variable surrounded by text", () => {
+    const doc = parseTemplateSimple("A {{weather.temp|pad:3}} B", 3);
+    const firstLine = serializeTemplateSimple(doc, 3).split("\n")[0];
+    expect(firstLine).toBe("A {{weather.temp|pad:3}} B");
+  });
+
+  // Guards against a wrong fix, not the bug itself: this passes before and
+  // after. It fails if someone writes an unconditional `:${f.arg}`.
+  it("emits no colon for an argument-less filter", () => {
+    const doc = parseTemplateSimple("{{weather.temp|wrap}}", 3);
+    const firstLine = serializeTemplateSimple(doc, 3).split("\n")[0];
+    expect(firstLine).toBe("{{weather.temp|wrap}}");
+  });
+
+  // Also passes before and after: it pins the legacy plural branch so a future
+  // "fix" that merely renames args -> arg cannot silently drop it.
+  it("still serializes a legacy plural-args filter attribute", () => {
+    const doc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "variable",
+              attrs: { pluginId: "weather", field: "temp", filters: [{ name: "pad", args: ["3"] }] },
+            },
+          ],
+        },
+      ],
+    };
+    const firstLine = serializeTemplateSimple(doc, 3).split("\n")[0];
+    expect(firstLine).toBe("{{weather.temp|pad:3}}");
+  });
+});
