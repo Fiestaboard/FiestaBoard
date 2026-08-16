@@ -21,7 +21,7 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ChevronDown, Eye, EyeOff, Loader2, Radio, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, Eye, EyeOff, Radio, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -223,10 +223,10 @@ export function MqttSettingsCard() {
                   size="sm"
                   variant="brand"
                   onClick={handleSave}
+                  loading={saveMutation.isPending}
                   disabled={saveMutation.isPending}
                   className="text-xs gap-1.5"
                 >
-                  {saveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {tCommon("save")}
                 </Button>
               </Flex>

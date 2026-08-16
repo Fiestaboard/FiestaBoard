@@ -19,7 +19,7 @@ import {
   Switch,
   Text,
 } from "@fiestaboard/ui";
-import { AlertCircle, AlertTriangle, GalleryHorizontalEnd, Loader2, Sunrise, Sunset, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, GalleryHorizontalEnd, Sunrise, Sunset, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
@@ -723,8 +723,7 @@ export function ScheduleEntryForm({
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             {tc("cancel")}
           </Button>
-          <Button type="submit" disabled={validationErrors.length > 0 || isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" loading={isSubmitting} disabled={validationErrors.length > 0 || isSubmitting}>
             {isEdit ? t("scheduleEntryForm.updateSchedule") : t("scheduleEntryForm.createSchedule")}
           </Button>
         </Flex>

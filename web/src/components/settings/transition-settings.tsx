@@ -2,7 +2,6 @@
 
 import {
   Badge,
-  Box,
   Card,
   CardContent,
   CardDescription,
@@ -16,6 +15,7 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -334,7 +334,7 @@ export function TransitionSettings() {
         {/* Saving indicator */}
         {updateMutation.isPending && (
           <Flex align="center" justify="center" gap="2" className="pt-2 text-xs text-muted-foreground">
-            <Box className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <Spinner size="sm" className="size-3 text-primary" label={null} />
             <Text as="span" size="xs" tone="muted">
               {tCommon("saving")}
             </Text>

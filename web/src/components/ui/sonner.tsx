@@ -1,6 +1,7 @@
 "use client";
 
-import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon } from "lucide-react";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
+import { CircleCheckIcon, InfoIcon, OctagonXIcon, TriangleAlertIcon } from "lucide-react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 import { useTheme } from "@/hooks/use-theme";
@@ -40,7 +41,7 @@ const Toaster = ({ containerAriaLabel, ...props }: ToasterProps) => {
         info: <InfoIcon className="size-4" />,
         warning: <TriangleAlertIcon className="size-4" />,
         error: <OctagonXIcon className="size-4" />,
-        loading: <Loader2Icon className="size-4 animate-spin" />,
+        loading: <Spinner label={null} />,
       }}
       style={
         {

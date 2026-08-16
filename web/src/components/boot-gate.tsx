@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, FiestaIcon, FiestaLogo, Flex, Stack, Text } from "@fiestaboard/ui";
+import { FiestaIcon, FiestaLogo, Flex, Stack, Text } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useQuery } from "@tanstack/react-query";
 import { WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -137,10 +138,7 @@ export function BootGate({ children }: { children: React.ReactNode }) {
         ) : (
           /* ── Waiting state ── */
           <>
-            <Box
-              className="h-8 w-8 rounded-full border-[2.5px] border-muted-foreground/25 border-t-muted-foreground animate-spin"
-              aria-hidden="true"
-            />
+            <Spinner size="lg" className="size-8 text-muted-foreground" label={null} />
             {awaitingPostUpdateBoot ? (
               <Stack gap="1.5">
                 <Text size="base" weight="semibold">

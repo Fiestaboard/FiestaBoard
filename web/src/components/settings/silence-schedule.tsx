@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Box,
   Card,
   CardContent,
   CardDescription,
@@ -21,6 +20,7 @@ import {
   Switch,
   Text,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Moon } from "lucide-react";
 import { useDeferredValue, useEffect, useState } from "react";
@@ -346,7 +346,7 @@ export function SilenceSchedule() {
                 gap="2"
                 className="pt-4 mt-4 border-t text-xs text-muted-foreground"
               >
-                <Box className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <Spinner size="sm" className="size-3 text-primary" label={null} />
                 <Text as="span" size="xs" tone="muted">
                   {tc("savingIndicator")}
                 </Text>

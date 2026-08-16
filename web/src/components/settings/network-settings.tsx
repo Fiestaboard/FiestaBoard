@@ -23,6 +23,7 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Lock, RefreshCw, Trash2, Unlink, Wifi, WifiOff, X } from "lucide-react";
 import { useState } from "react";
@@ -158,7 +159,7 @@ export function NetworkSettings() {
         </CardHeader>
         <CardContent className="space-y-3">
           {statusQuery.isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <Spinner className="text-muted-foreground" label={tCommon("loading")} />
           ) : !isConnected ? (
             <Text tone="muted">{t("notConnected")}</Text>
           ) : (
@@ -287,7 +288,7 @@ export function NetworkSettings() {
         </CardHeader>
         <CardContent>
           {savedQuery.isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <Spinner className="text-muted-foreground" label={tCommon("loading")} />
           ) : !savedQuery.data || savedQuery.data.length === 0 ? (
             <Text tone="muted">{t("savedEmpty")}</Text>
           ) : (

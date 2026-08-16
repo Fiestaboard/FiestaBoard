@@ -43,6 +43,7 @@ import {
   Text,
   TextLink,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { Loader2, Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
@@ -269,7 +270,11 @@ export default function LoginPage() {
 
   if (!status) {
     return (
-      <CenteredCard tCommon={tCommon} icon={<Loader2 className="h-6 w-6 animate-spin" />} title={t("loadingTitle")}>
+      <CenteredCard
+        tCommon={tCommon}
+        icon={<Spinner size="lg" className="size-6" label={null} />}
+        title={t("loadingTitle")}
+      >
         <Text tone="muted">{t("loadingDescription")}</Text>
       </CenteredCard>
     );
@@ -278,7 +283,11 @@ export default function LoginPage() {
   // While redirecting we render a placeholder rather than flashing the form.
   if (!status.enabled || status.authenticated) {
     return (
-      <CenteredCard tCommon={tCommon} icon={<Loader2 className="h-6 w-6 animate-spin" />} title={t("redirectingTitle")}>
+      <CenteredCard
+        tCommon={tCommon}
+        icon={<Spinner size="lg" className="size-6" label={null} />}
+        title={t("redirectingTitle")}
+      >
         <Text tone="muted">{t("redirectingDescription")}</Text>
       </CenteredCard>
     );

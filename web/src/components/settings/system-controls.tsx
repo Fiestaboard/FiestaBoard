@@ -18,6 +18,7 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
+import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowUpCircle, Cpu, Loader2, Power, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -314,7 +315,7 @@ function RestartingOverlay({ currentVersion }: { currentVersion?: string }) {
   return (
     <Flex align="center" justify="center" className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm">
       <Stack gap="4" className="text-center">
-        <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary" />
+        <Spinner size="lg" className="size-12 mx-auto text-primary" label={null} />
         <Heading level={2} size="xl">
           {phase === "restarting" ? t("restartingFiestaboard") : t("backOnline")}
         </Heading>
