@@ -40,6 +40,11 @@ import {
   PageLayout,
   PluginCard,
   PluginCategoryBadge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Sheet,
   SheetClose,
   SheetContent,
@@ -774,38 +779,48 @@ function ColorRulesEditor({
                           </Flex>
 
                           {/* Color picker */}
-                          <select
+                          <Select
                             value={rule.color}
-                            onChange={(e) => handleUpdateRule(fieldName, idx, { color: e.target.value })}
-                            className="h-7 px-2 rounded border text-xs font-medium"
-                            style={{
-                              backgroundColor: colorStyle.hex,
-                              color: colorStyle.text === "text-board-black" ? "#000" : "#fff",
-                            }}
+                            onValueChange={(color) => handleUpdateRule(fieldName, idx, { color })}
                           >
-                            {AVAILABLE_COLORS.map((color) => (
-                              <option key={color} value={color} className="bg-background text-foreground">
-                                {color}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger
+                              className="h-7 w-auto px-2 text-xs font-medium [&_svg]:text-current"
+                              style={{
+                                backgroundColor: colorStyle.hex,
+                                color: colorStyle.text === "text-board-black" ? "#000" : "#fff",
+                              }}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AVAILABLE_COLORS.map((color) => (
+                                <SelectItem key={color} value={color}>
+                                  {color}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
 
                           <Text as="span" size="xs" tone="muted" className="shrink-0">
                             {t("colorRules.when")}
                           </Text>
 
                           {/* Condition picker */}
-                          <select
+                          <Select
                             value={rule.condition}
-                            onChange={(e) => handleUpdateRule(fieldName, idx, { condition: e.target.value })}
-                            className="h-7 px-2 rounded border bg-background text-xs font-mono"
+                            onValueChange={(condition) => handleUpdateRule(fieldName, idx, { condition })}
                           >
-                            {AVAILABLE_CONDITIONS.map((cond) => (
-                              <option key={cond.value} value={cond.value}>
-                                {cond.value}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger className="h-7 w-auto px-2 text-xs font-mono">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AVAILABLE_CONDITIONS.map((cond) => (
+                                <SelectItem key={cond.value} value={cond.value} className="font-mono">
+                                  {cond.value}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
 
                           {/* Value input */}
                           <input

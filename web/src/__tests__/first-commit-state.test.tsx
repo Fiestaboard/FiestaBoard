@@ -83,7 +83,6 @@ describe("state that must land in the first commit", () => {
       const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       return render(
         <QueryClientProvider client={queryClient}>
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <TemplateEditorToolbar editor={editor as any} deviceType="flagship" />
         </QueryClientProvider>,
       );

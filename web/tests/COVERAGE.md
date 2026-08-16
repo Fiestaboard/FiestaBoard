@@ -91,7 +91,6 @@ Unit tests run in Node with jsdom + MSW mocks for API calls.
 | `carousel-integration.test.tsx`           | Carousel integration component                                                                                                  |
 | `carousels.test.ts`                       | `lib/carousels` utility functions                                                                                               |
 | `components.test.tsx`                     | Miscellaneous UI components                                                                                                     |
-| `config-display.test.tsx`                 | `ConfigDisplay` component: renders items, On/Off badges, toggle behavior, loading state                                         |
 | `general-settings.test.tsx`               | `GeneralSettings` component                                                                                                     |
 | `general-settings-extended.test.tsx`      | `GeneralSettings` extended coverage                                                                                             |
 | `github.test.ts`                          | `lib/github.ts` — GitHub raw/README helpers (`fetchPluginReadme`, `rewriteMarkdownImageUrls`, `rewriteMarkdownRepoLinks`, etc.) |
@@ -104,18 +103,14 @@ Unit tests run in Node with jsdom + MSW mocks for API calls.
 | `mqtt-settings.test.tsx`                  | MQTT settings component                                                                                                         |
 | `navigation-sidebar.test.tsx`             | `NavigationSidebar` active state, mobile menu, links                                                                            |
 | `new-components.test.tsx`                 | Additional UI components                                                                                                        |
-| `output-target-selector.test.tsx`         | `OutputTargetSelector` component                                                                                                |
 | `page-grid-selector.test.tsx`             | `PageGridSelector` component                                                                                                    |
-| `page-picker-dialog.test.tsx`             | `PagePickerDialog`: renders pages, selected state, onSelect callback, None option, empty state, carousels tab, accessibility    |
 | `preview-cache.test.ts`                   | `lib/preview-cache.ts`                                                                                                          |
 | `schedule-calendar.test.ts`               | `lib/schedule-calendar.ts`                                                                                                      |
 | `schedule-calendar-extended.test.ts`      | `lib/schedule-calendar.ts` extended                                                                                             |
 | `schedule-components.test.tsx`            | Schedule form components                                                                                                        |
 | `schedule-entry-form-validation.test.tsx` | Schedule entry form validation                                                                                                  |
-| `service-controls.test.tsx`               | `ServiceControls` + `ServiceStatus`: loading state, running/stopped badge, green dot indicator                                  |
+| `service-controls.test.tsx`               | `ServiceControls`: loading state, running/stopped badge                                                                         |
 | `setup-detection.test.ts`                 | `lib/setup-detection.ts`                                                                                                        |
-| `silence-mode-status.test.tsx`            | `SilenceModeStatus` component                                                                                                   |
-| `silence-mode-status-branches.test.tsx`   | `SilenceModeStatus` branch coverage                                                                                             |
 | `system-update.test.tsx`                  | `SystemUpdate` component                                                                                                        |
 | `theme-toggle.test.tsx`                   | Theme toggle component                                                                                                          |
 | `time-picker.test.tsx`                    | `TimePicker` UI component                                                                                                       |

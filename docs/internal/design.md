@@ -131,5 +131,5 @@ Hardcoded warm oklch values in `.card-interactive:hover` were replaced with achr
 ## Related files
 
 - Theme tokens: `@fiestaboard/ui/theme.css` (imported by [`web/app/globals.css`](../../web/app/globals.css))
-- Empty-state component: [`EmptyState` in FiestaUI](https://github.com/Fiestaboard/FiestaUI/blob/main/src/components/ui/empty-state.tsx)
+- Empty-state component: [`EmptyState` in FiestaUI](https://github.com/Fiestaboard/FiestaUI/blob/main/src/components/feedback/empty-state.tsx)
 - Tailwind config is inline under `@theme inline { ... }` in `@fiestaboard/ui/theme.css` (imported at the top of `globals.css`), not in `globals.css` itself (Tailwind v4 — no separate `tailwind.config.ts`). `globals.css` only `@import`s `theme.css`, declares the mandatory `@source` scan line, and holds app-only styles.

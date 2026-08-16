@@ -3,14 +3,11 @@
  *
  * Covers the collection-specific branches added to:
  * - ScheduleEntryForm (collection dropdown section)
- * - PagePickerDialog (collection section rendering)
  */
 
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { PagePickerDialog } from "@/components/page-picker-dialog";
 import { ScheduleEntryForm } from "@/components/schedule-entry-form";
 import type { Collection } from "@/lib/api";
 
@@ -123,143 +120,5 @@ describe("ScheduleEntryForm - Collection Integration", () => {
     );
 
     expect(screen.getByText("Update Schedule")).toBeInTheDocument();
-  });
-});
-
-// =============================================================================
-// PagePickerDialog with collections
-// =============================================================================
-
-describe("PagePickerDialog - Collection Integration", () => {
-  it("renders collection section when collections are provided", async () => {
-    const user = userEvent.setup();
-
-    render(
-      <PagePickerDialog
-        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        collections={mockCollections}
-        selectedPageId={null}
-        onSelect={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole("tab", { name: /Collections/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Pages/i })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("tab", { name: /Collections/i }));
-    expect(screen.getByText("Morning Rotation")).toBeInTheDocument();
-    expect(screen.getByText("Evening Rotation")).toBeInTheDocument();
-  });
-
-  it("does not render collection section when no collections", () => {
-    render(
-      <PagePickerDialog
-        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        collections={[]}
-        selectedPageId={null}
-        onSelect={vi.fn()}
-      />,
-    );
-
-    expect(screen.queryByRole("tab", { name: /Collections/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: /Pages/i })).not.toBeInTheDocument();
-    expect(screen.getByText("Page One")).toBeInTheDocument();
-  });
-
-  it("highlights selected collection", () => {
-    render(
-      <PagePickerDialog
-        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        collections={mockCollections}
-        selectedPageId="collection:c1"
-        onSelect={vi.fn()}
-      />,
-    );
-
-    // When a collection is selected, the collections tab is default
-    expect(screen.getByText("Morning Rotation")).toBeInTheDocument();
-    const button = screen.getByText("Morning Rotation").closest("button");
-    expect(button).toHaveClass("border-brand");
-  });
-
-  it("calls onSelect with collection ID when collection is clicked", async () => {
-    const onSelect = vi.fn();
-    const user = userEvent.setup();
-
-    render(
-      <PagePickerDialog
-        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        collections={mockCollections}
-        selectedPageId={null}
-        onSelect={onSelect}
-      />,
-    );
-
-    await user.click(screen.getByRole("tab", { name: /Collections/i }));
-    await user.click(screen.getByText("Morning Rotation"));
-    expect(onSelect).toHaveBeenCalledWith("collection:c1");
-  });
-
-  it("shows page count badge on collection items", async () => {
-    const user = userEvent.setup();
-
-    render(
-      <PagePickerDialog
-        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        collections={mockCollections}
-        selectedPageId={null}
-        onSelect={vi.fn()}
-      />,
-    );
-
-    await user.click(screen.getByRole("tab", { name: /Collections/i }));
-    expect(screen.getByText("2 pages")).toBeInTheDocument();
-    expect(screen.getByText("1 page")).toBeInTheDocument();
-  });
-
-  it("renders with allowNone and collections", () => {
-    render(
-      <PagePickerDialog
-        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        collections={mockCollections}
-        selectedPageId={null}
-        onSelect={vi.fn()}
-        allowNone={true}
-      />,
-    );
-
-    expect(screen.getByText("None (no default)")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Collections/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Pages/i })).toBeInTheDocument();
-  });
-
-  it("renders without collections prop (undefined)", () => {
-    render(
-      <PagePickerDialog
-        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        selectedPageId="page-1"
-        onSelect={vi.fn()}
-      />,
-    );
-
-    expect(screen.queryByRole("tab", { name: /Collections/i })).not.toBeInTheDocument();
-    expect(screen.getByText("Page One")).toBeInTheDocument();
-  });
-
-  it("calls onSelect with null when None is clicked", async () => {
-    const onSelect = vi.fn();
-    const user = userEvent.setup();
-    render(
-      <PagePickerDialog
-        pages={mockPages.map((p) => ({ ...p, type: "template" }))}
-        collections={mockCollections}
-        selectedPageId="collection:c1"
-        onSelect={onSelect}
-        allowNone={true}
-      />,
-    );
-
-    await user.click(screen.getByText("None (no default)"));
-    expect(onSelect).toHaveBeenCalledWith(null);
   });
 });

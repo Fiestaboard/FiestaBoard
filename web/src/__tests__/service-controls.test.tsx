@@ -3,7 +3,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ServiceControls } from "@/components/service-controls";
-import { ServiceStatus } from "@/components/service-status";
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({
@@ -50,45 +49,6 @@ describe("ServiceControls", () => {
       // Should show a badge (Running or Stopped)
       const badge = screen.queryByText(/running/i) || screen.queryByText(/stopped/i);
       expect(badge).toBeTruthy();
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// ServiceStatus (indicator dot)
-// ---------------------------------------------------------------------------
-
-describe("ServiceStatus", () => {
-  it("renders without crashing", () => {
-    expect(() => render(<ServiceStatus />, { wrapper: TestWrapper })).not.toThrow();
-  });
-
-  it("renders a button element with an aria-label", async () => {
-    render(<ServiceStatus />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      const btn = document.querySelector("button[aria-label]");
-      expect(btn).toBeTruthy();
-    });
-  });
-
-  it("shows a status indicator (dot) after loading", async () => {
-    render(<ServiceStatus />, { wrapper: TestWrapper });
-
-    await waitFor(() => {
-      // The indicator span should be present with a rounded-full class
-      const dots = document.querySelectorAll("span.rounded-full");
-      expect(dots.length).toBeGreaterThan(0);
-    });
-  });
-
-  it("shows a green dot when service is running", async () => {
-    render(<ServiceStatus />, { wrapper: TestWrapper });
-
-    // MSW mock returns running: true
-    await waitFor(() => {
-      const greenDot = document.querySelector("span.bg-board-green");
-      expect(greenDot).toBeTruthy();
     });
   });
 });
