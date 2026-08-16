@@ -84,7 +84,7 @@ Know your way around `docker compose`? Run FiestaBoard on a laptop, NAS, or home
 
 On Home Assistant OS or Supervised? Install FiestaBoard from the **HA Add-on Store** with one click — Ingress, MQTT auto-discovery, and HA backups all wired up.
 
-**[Home Assistant Add-on](/docs/setup/home-assistant-addon)** — currently in beta, feedback welcome via [GitHub issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues) or [Discord](https://discord.gg/JvN8y6ahaf).
+**[Home Assistant Add-on](/docs/setup/home-assistant-addon)** — currently in beta, feedback welcome via [GitHub issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues) or [Discord](https://discord.gg/2GAqKnRF6h).
 
 </div>
 </div>

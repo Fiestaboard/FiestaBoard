@@ -11,14 +11,14 @@
   <a href="https://github.com/Fiestaboard/FiestaBoard/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fiestaboard/FiestaBoard/ci.yml?label=CI" alt="CI"></a>
   <a href="https://hub.docker.com/r/fiestaboard/fiestaboard"><img src="https://img.shields.io/badge/docker-fiestaboard-blue?logo=docker" alt="Docker"></a>
   <a href="https://fiestaboard.app"><img src="https://img.shields.io/badge/docs-fiestaboard.app-orange" alt="Documentation"></a>
-  <a href="https://discord.gg/JvN8y6ahaf"><img src="https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://discord.gg/2GAqKnRF6h"><img src="https://img.shields.io/badge/Discord-Join%20us-7289da?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
 **FiestaBoard is free, open-source software for Vestaboard and split-flap displays.** It gives you a self-hosted platform with a plugin system to pull in data from the sources that matter to you - weather, stocks, transit, sports, surf conditions, and more - and display it on your board. Compatible with Vestaboard Flagship (22 × 6), Note (15 × 3), and Note arrays (multiple Notes tiled into one larger canvas).
 
 You bring the board. You bring the API keys for the services you care about. FiestaBoard handles the rest.
 
-**[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/JvN8y6ahaf)**
+**[Full Documentation](https://fiestaboard.app)** &nbsp;|&nbsp; **[Discord Community](https://discord.gg/2GAqKnRF6h)**
 
 ---
 
@@ -53,7 +53,7 @@ If you have **Home Assistant OS** or **Home Assistant Supervised**, you can inst
 
 **→ [Home Assistant Add-on setup guide](https://fiestaboard.app/docs/setup/home-assistant-addon)**
 
-> 🧪 **The HA add-on is in beta and we want your feedback.** Report bugs or feature requests at the [add-on repo issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues), or come say hi on [Discord](https://discord.gg/JvN8y6ahaf) — even "it just worked" reports help us stabilize the beta.
+> 🧪 **The HA add-on is in beta and we want your feedback.** Report bugs or feature requests at the [add-on repo issues](https://github.com/Fiestaboard/FiestaBoard-Home-Assistant-App/issues), or come say hi on [Discord](https://discord.gg/2GAqKnRF6h) — even "it just worked" reports help us stabilize the beta.
 
 ### Alternative: Run on a computer with Docker
 
@@ -355,7 +355,7 @@ Then open **http://localhost:4420** — the service starts automatically once th
 ### Still stuck?
 
 - Check the full [Troubleshooting Guide](https://fiestaboard.app/docs/troubleshooting)
-- Ask in [Discord](https://discord.gg/JvN8y6ahaf)
+- Ask in [Discord](https://discord.gg/2GAqKnRF6h)
 - [Open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) on GitHub
 
 ---
@@ -450,7 +450,7 @@ FiestaBoard/
 
 ## Accessibility
 
-FiestaBoard aims to meet [WCAG 2.2 Level AA](https://www.w3.org/TR/WCAG22/) standards. We are committed to making the web UI accessible to everyone, including users who rely on assistive technologies. If you find an accessibility issue, please [open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) or reach out on [Discord](https://discord.gg/JvN8y6ahaf).
+FiestaBoard aims to meet [WCAG 2.2 Level AA](https://www.w3.org/TR/WCAG22/) standards. We are committed to making the web UI accessible to everyone, including users who rely on assistive technologies. If you find an accessibility issue, please [open an issue](https://github.com/Fiestaboard/FiestaBoard/issues) or reach out on [Discord](https://discord.gg/2GAqKnRF6h).
 
 ---
 
