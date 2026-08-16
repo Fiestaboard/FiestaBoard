@@ -575,7 +575,7 @@ export function TileGridAssignment({
                   revealDisabled={form.localApiKey === MASKED}
                   showLabel={t("showSecretAriaLabel")}
                   hideLabel={t("hideSecretAriaLabel")}
-                  className="h-8 px-2 text-xs"
+                  className="h-8 pl-2 text-xs"
                 />
               </Stack>
             ) : (
@@ -590,7 +590,7 @@ export function TileGridAssignment({
                   placeholder={t("enablementTokenPlaceholder")}
                   showLabel={t("showSecretAriaLabel")}
                   hideLabel={t("hideSecretAriaLabel")}
-                  className="h-8 px-2 text-xs"
+                  className="h-8 pl-2 text-xs"
                 />
                 <Button
                   type="button"

@@ -269,7 +269,7 @@ function BoardConnectionForm({
                 revealDisabled={board.local_api_key === "***"}
                 showLabel={t("showSecretAriaLabel")}
                 hideLabel={t("hideSecretAriaLabel")}
-                className="h-8 px-2 text-xs"
+                className="h-8 pl-2 text-xs"
               />
               <Text tone="muted" className="text-[10px]">
                 {t.rich("localApiKeyHelp", {
@@ -298,7 +298,7 @@ function BoardConnectionForm({
                 placeholder={t("enablementTokenPlaceholder")}
                 showLabel={t("showSecretAriaLabel")}
                 hideLabel={t("hideSecretAriaLabel")}
-                className="h-8 px-2 text-xs"
+                className="h-8 pl-2 text-xs"
               />
               <Button
                 type="button"
@@ -344,7 +344,7 @@ function BoardConnectionForm({
             revealDisabled={board.cloud_key === "***"}
             showLabel={t("showSecretAriaLabel")}
             hideLabel={t("hideSecretAriaLabel")}
-            className="h-8 px-2 text-xs"
+            className="h-8 pl-2 text-xs"
           />
           <Text tone="muted" className="text-[10px]">
             {t("cloudKeyHelp")}
@@ -371,7 +371,7 @@ function BoardConnectionForm({
             revealDisabled={board.note_array_token === "***"}
             showLabel={t("showSecretAriaLabel")}
             hideLabel={t("hideSecretAriaLabel")}
-            className="h-8 px-2 text-xs"
+            className="h-8 pl-2 text-xs"
           />
           <Text tone="muted" className="text-[10px]">
             {t("noteArrayTokenHelp")}
