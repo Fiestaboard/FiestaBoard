@@ -35,6 +35,7 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
+import { EmptyState } from "@fiestaboard/ui/components/feedback/empty-state";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Clock,
@@ -765,25 +766,25 @@ export default function CollectionsPage() {
       {/* Collections list */}
       {collections.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <GalleryHorizontalEnd className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <Text tone="muted" size="base" className="mb-2">
-              {t("noCollectionsTitle")}
-            </Text>
-            <Text tone="muted" className="mb-4">
-              {t("noCollectionsDescription")}
-            </Text>
-            <Button
-              variant="brand"
-              onClick={() => {
-                setEditingCollection(null);
-                setShowForm(true);
-              }}
-              className="btn-lift"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              {t("createFirstCollection")}
-            </Button>
+          <CardContent className="py-12">
+            <EmptyState
+              icon={GalleryHorizontalEnd}
+              title={t("noCollectionsTitle")}
+              description={t("noCollectionsDescription")}
+              action={
+                <Button
+                  variant="brand"
+                  onClick={() => {
+                    setEditingCollection(null);
+                    setShowForm(true);
+                  }}
+                  className="btn-lift"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t("createFirstCollection")}
+                </Button>
+              }
+            />
           </CardContent>
         </Card>
       ) : (

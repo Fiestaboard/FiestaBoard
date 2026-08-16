@@ -12,6 +12,7 @@ import {
   Switch,
   Text,
 } from "@fiestaboard/ui";
+import { EmptyState } from "@fiestaboard/ui/components/feedback/empty-state";
 import { format } from "date-fns";
 import { Calendar, ChevronRight, Edit, GalleryHorizontalEnd, Moon, Trash2 } from "lucide-react";
 import { useMemo } from "react";
@@ -183,13 +184,12 @@ export function ScheduleListView({
       </CardHeader>
       <CardContent>
         {schedules.length === 0 && !showSilenceRow ? (
-          <Box className="text-center py-12 text-muted-foreground">
-            <Calendar className="h-12 w-12 mx-auto mb-4" />
-            <Text tone="muted">{t("noSchedulesCreated")}</Text>
-            <Text tone="muted" className="mt-1">
-              {t("useToolbarToAdd")}
-            </Text>
-          </Box>
+          <EmptyState
+            icon={Calendar}
+            title={t("noSchedulesCreated")}
+            description={t("useToolbarToAdd")}
+            className="py-12"
+          />
         ) : (
           <Stack gap="3">
             {renderSilenceRow()}
