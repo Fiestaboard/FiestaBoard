@@ -1825,7 +1825,9 @@
     "unknownType": "Onbekend type: {type}",
     "pagePickerNone": "Geen (geen override)",
     "pagePickerLoading": "Pagina's laden…",
-    "pagePickerPlaceholder": "Kies een pagina…"
+    "pagePickerPlaceholder": "Kies een pagina…",
+    "showSecret": "Waarde tonen",
+    "hideSecret": "Waarde verbergen"
   },
   "filterPicker": {
     "noFiltersAvailable": "Geen filters beschikbaar",

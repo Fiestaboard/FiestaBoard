@@ -1782,7 +1782,9 @@
     "unknownType": "Unknown type: {type}",
     "pagePickerNone": "None (no override)",
     "pagePickerLoading": "Loading pages…",
-    "pagePickerPlaceholder": "Choose a page…"
+    "pagePickerPlaceholder": "Choose a page…",
+    "showSecret": "Show value",
+    "hideSecret": "Hide value"
   },
   "filterPicker": {
     "noFiltersAvailable": "No filters available",

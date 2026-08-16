@@ -20,6 +20,7 @@ import {
   Stack,
   Text,
 } from "@fiestaboard/ui";
+import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { AlertCircle, Check, Key, KeyRound, Loader2, Plus, Radar, ScanSearch, Trash2, Wifi } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -562,9 +563,8 @@ export function TileGridAssignment({
                     *
                   </Text>
                 </label>
-                <input
+                <SecretInput
                   id={`tile-key-${board.id}`}
-                  type="password"
                   value={form.localApiKey === MASKED ? "" : form.localApiKey}
                   onChange={(e) => setForm((prev) => ({ ...prev, localApiKey: e.target.value }))}
                   placeholder={
@@ -572,7 +572,10 @@ export function TileGridAssignment({
                       ? t("localApiKeySetPlaceholder")
                       : t("localApiKeyPlaceholder")
                   }
-                  className="w-full h-8 px-2 text-xs rounded-md border bg-background font-mono"
+                  revealDisabled={form.localApiKey === MASKED}
+                  showLabel={t("showSecretAriaLabel")}
+                  hideLabel={t("hideSecretAriaLabel")}
+                  className="h-8 pl-2 text-xs"
                 />
               </Stack>
             ) : (
@@ -580,13 +583,14 @@ export function TileGridAssignment({
                 <label className="text-xs font-medium" htmlFor={`tile-token-${board.id}`}>
                   {t("enablementTokenLabel")}
                 </label>
-                <input
+                <SecretInput
                   id={`tile-token-${board.id}`}
-                  type="password"
                   value={form.enablementToken}
                   onChange={(e) => setForm((prev) => ({ ...prev, enablementToken: e.target.value }))}
                   placeholder={t("enablementTokenPlaceholder")}
-                  className="w-full h-8 px-2 text-xs rounded-md border bg-background font-mono"
+                  showLabel={t("showSecretAriaLabel")}
+                  hideLabel={t("hideSecretAriaLabel")}
+                  className="h-8 pl-2 text-xs"
                 />
                 <Button
                   type="button"

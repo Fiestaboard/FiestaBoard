@@ -20,8 +20,9 @@ import {
   Switch,
   Text,
 } from "@fiestaboard/ui";
+import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ChevronDown, Eye, EyeOff, Radio, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, Radio, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -34,7 +35,6 @@ export function MqttSettingsCard() {
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [draft, setDraft] = useState<Partial<MqttSettings>>({});
 
   const { data: settings, isLoading } = useQuery({
@@ -178,26 +178,16 @@ export function MqttSettingsCard() {
                 <Label htmlFor="mqtt-password" className="text-xs">
                   {t("password")}
                 </Label>
-                <Flex gap="1.5">
-                  <Input
-                    id="mqtt-password"
-                    type={showPassword ? "text" : "password"}
-                    value={merged.password === "***" ? "" : merged.password}
-                    onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
-                    placeholder={settings?.password === "***" ? t("passwordSet") : t("optional")}
-                    className="h-8 text-xs font-mono flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowPassword((p) => !p)}
-                    className="h-8 w-8 p-0 flex-shrink-0"
-                    aria-label={showPassword ? t("hidePassword") : t("showPassword")}
-                  >
-                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </Button>
-                </Flex>
+                <SecretInput
+                  id="mqtt-password"
+                  value={merged.password === "***" ? "" : merged.password}
+                  onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
+                  placeholder={settings?.password === "***" ? t("passwordSet") : t("optional")}
+                  revealDisabled={merged.password === "***"}
+                  showLabel={t("showPassword")}
+                  hideLabel={t("hidePassword")}
+                  className="h-8 text-xs"
+                />
               </Stack>
             </Grid>
 

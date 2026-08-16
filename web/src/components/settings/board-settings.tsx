@@ -15,14 +15,12 @@ import {
   Stack,
   Text,
   TextLink,
-  Tooltip,
-  TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
 } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
+import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Check, Eye, EyeOff, Key, KeyRound, Loader2, Monitor, Search } from "lucide-react";
+import { AlertCircle, Check, Key, KeyRound, Loader2, Monitor, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -38,7 +36,6 @@ export function BoardSettings() {
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<Partial<BoardConfig>>({});
-  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [localKeyMode, setLocalKeyMode] = useState<LocalKeyMode>("api_key");
   const [enablementToken, setEnablementToken] = useState("");
@@ -343,44 +340,24 @@ export function BoardSettings() {
 
               {localKeyMode === "api_key" ? (
                 <Stack gap="1.5">
-                  <label className="text-xs font-medium">
+                  <label className="text-xs font-medium" htmlFor="board-local-api-key">
                     {t("localApiKey")}{" "}
                     <Text as="span" size="xs" tone="destructive">
                       *
                     </Text>
                   </label>
-                  <Flex gap="2">
-                    <input
-                      type={showSecrets.local_api_key ? "text" : "password"}
-                      value={formData.local_api_key === "***" ? "" : (formData.local_api_key ?? "")}
-                      onChange={(e) => handleChange("local_api_key", e.target.value)}
-                      placeholder={hasLocalKey ? t("localApiKeySetPlaceholder") : t("localApiKeyPlaceholder")}
-                      className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
-                    />
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          aria-label={showSecrets.local_api_key ? t("hideApiKey") : t("showApiKey")}
-                          onClick={() =>
-                            setShowSecrets((prev) => ({
-                              ...prev,
-                              local_api_key: !prev.local_api_key,
-                            }))
-                          }
-                          className="h-9 w-9 p-0"
-                          disabled={formData.local_api_key === "***"}
-                        >
-                          {showSecrets.local_api_key ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <Text>{formData.local_api_key === "***" ? t("cannotReveal") : t("toggleVisibility")}</Text>
-                      </TooltipContent>
-                    </Tooltip>
-                  </Flex>
+                  <SecretInput
+                    id="board-local-api-key"
+                    value={formData.local_api_key === "***" ? "" : (formData.local_api_key ?? "")}
+                    onChange={(e) => handleChange("local_api_key", e.target.value)}
+                    placeholder={hasLocalKey ? t("localApiKeySetPlaceholder") : t("localApiKeyPlaceholder")}
+                    revealDisabled={formData.local_api_key === "***"}
+                    // The old Tooltip explaining why a server-stored value cannot be
+                    // revealed has nowhere to attach now that the toggle is internal,
+                    // so that copy becomes the disabled toggle's accessible name.
+                    showLabel={formData.local_api_key === "***" ? t("cannotReveal") : t("showApiKey")}
+                    hideLabel={t("hideApiKey")}
+                  />
                   <Text size="xs" tone="muted">
                     {t.rich("localApiSetupGuideHint", {
                       link: (chunks) => (
@@ -399,31 +376,17 @@ export function BoardSettings() {
               ) : (
                 <Stack gap="2">
                   <Stack gap="1.5">
-                    <label className="text-xs font-medium">{t("enablementToken")}</label>
-                    <Flex gap="2">
-                      <input
-                        type={showSecrets.enablement_token ? "text" : "password"}
-                        value={enablementToken}
-                        onChange={(e) => setEnablementToken(e.target.value)}
-                        placeholder={t("enablementTokenPlaceholder")}
-                        className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={showSecrets.enablement_token ? t("hideToken") : t("showToken")}
-                        onClick={() =>
-                          setShowSecrets((prev) => ({
-                            ...prev,
-                            enablement_token: !prev.enablement_token,
-                          }))
-                        }
-                        className="h-9 w-9 p-0"
-                      >
-                        {showSecrets.enablement_token ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </Flex>
+                    <label className="text-xs font-medium" htmlFor="board-enablement-token">
+                      {t("enablementToken")}
+                    </label>
+                    <SecretInput
+                      id="board-enablement-token"
+                      value={enablementToken}
+                      onChange={(e) => setEnablementToken(e.target.value)}
+                      placeholder={t("enablementTokenPlaceholder")}
+                      showLabel={t("showToken")}
+                      hideLabel={t("hideToken")}
+                    />
                     <Text size="xs" tone="muted">
                       {t.rich("enablementTokenHint", {
                         link: (chunks) => (
@@ -464,44 +427,21 @@ export function BoardSettings() {
           {/* Cloud API Fields */}
           {apiMode === "cloud" && (
             <Stack gap="1.5">
-              <label className="text-xs font-medium">
+              <label className="text-xs font-medium" htmlFor="board-cloud-key">
                 {t("readWriteApiKey")}{" "}
                 <Text as="span" size="xs" tone="destructive">
                   *
                 </Text>
               </label>
-              <Flex gap="2">
-                <input
-                  type={showSecrets.cloud_key ? "text" : "password"}
-                  value={formData.cloud_key === "***" ? "" : (formData.cloud_key ?? "")}
-                  onChange={(e) => handleChange("cloud_key", e.target.value)}
-                  placeholder={hasCloudKey ? t("cloudKeySetPlaceholder") : t("cloudKeyPlaceholder")}
-                  className="flex-1 h-9 px-3 text-sm rounded-md border bg-background font-mono"
-                />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      aria-label={showSecrets.cloud_key ? t("hideCloudKey") : t("showCloudKey")}
-                      onClick={() =>
-                        setShowSecrets((prev) => ({
-                          ...prev,
-                          cloud_key: !prev.cloud_key,
-                        }))
-                      }
-                      className="h-9 w-9 p-0"
-                      disabled={formData.cloud_key === "***"}
-                    >
-                      {showSecrets.cloud_key ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <Text>{formData.cloud_key === "***" ? t("cannotReveal") : t("toggleVisibility")}</Text>
-                  </TooltipContent>
-                </Tooltip>
-              </Flex>
+              <SecretInput
+                id="board-cloud-key"
+                value={formData.cloud_key === "***" ? "" : (formData.cloud_key ?? "")}
+                onChange={(e) => handleChange("cloud_key", e.target.value)}
+                placeholder={hasCloudKey ? t("cloudKeySetPlaceholder") : t("cloudKeyPlaceholder")}
+                revealDisabled={formData.cloud_key === "***"}
+                showLabel={formData.cloud_key === "***" ? t("cannotReveal") : t("showCloudKey")}
+                hideLabel={t("hideCloudKey")}
+              />
               <Text size="xs" tone="muted">
                 {t("cloudKeyHint")}
               </Text>

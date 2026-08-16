@@ -28,14 +28,13 @@ import {
   Text,
   TextLink,
 } from "@fiestaboard/ui";
+import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   Check,
   ChevronDown,
   ChevronRight,
-  Eye,
-  EyeOff,
   Key,
   KeyRound,
   LayoutGrid,
@@ -100,7 +99,6 @@ function BoardConnectionForm({
   onUpdate: (boardId: string, updates: Partial<BoardInstance>) => void;
 }) {
   const t = useTranslations("displaySettings");
-  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [localKeyMode, setLocalKeyMode] = useState<"api_key" | "enablement_token">("api_key");
   const [enablementToken, setEnablementToken] = useState("");
   const [isEnabling, setIsEnabling] = useState(false);
@@ -252,37 +250,27 @@ function BoardConnectionForm({
 
           {localKeyMode === "api_key" ? (
             <Stack gap="1">
-              <label className="text-xs font-medium">
+              <label className="text-xs font-medium" htmlFor={`local-api-key-${board.id}`}>
                 {t("localApiKeyLabel")}{" "}
                 <Text as="span" size="xs" tone="destructive">
                   *
                 </Text>
               </label>
-              <Flex gap="1.5">
-                <input
-                  type={showSecrets.local_api_key ? "text" : "password"}
-                  defaultValue={board.local_api_key === "***" ? "" : (board.local_api_key ?? "")}
-                  onBlur={(e) => {
-                    const val = e.target.value;
-                    if (val && val !== "***" && val !== board.local_api_key) {
-                      onUpdate(board.id, { local_api_key: val });
-                    }
-                  }}
-                  placeholder={hasLocalKey ? t("localApiKeySetPlaceholder") : t("localApiKeyPlaceholder")}
-                  className="flex-1 h-8 px-2 text-xs rounded-md border bg-background font-mono"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowSecrets((prev) => ({ ...prev, local_api_key: !prev.local_api_key }))}
-                  aria-label={showSecrets.local_api_key ? t("hideSecretAriaLabel") : t("showSecretAriaLabel")}
-                  className="h-8 w-8 p-0"
-                  disabled={board.local_api_key === "***"}
-                >
-                  {showSecrets.local_api_key ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                </Button>
-              </Flex>
+              <SecretInput
+                id={`local-api-key-${board.id}`}
+                defaultValue={board.local_api_key === "***" ? "" : (board.local_api_key ?? "")}
+                onBlur={(e) => {
+                  const val = e.target.value;
+                  if (val && val !== "***" && val !== board.local_api_key) {
+                    onUpdate(board.id, { local_api_key: val });
+                  }
+                }}
+                placeholder={hasLocalKey ? t("localApiKeySetPlaceholder") : t("localApiKeyPlaceholder")}
+                revealDisabled={board.local_api_key === "***"}
+                showLabel={t("showSecretAriaLabel")}
+                hideLabel={t("hideSecretAriaLabel")}
+                className="h-8 pl-2 text-xs"
+              />
               <Text tone="muted" className="text-[10px]">
                 {t.rich("localApiKeyHelp", {
                   link: (chunks) => (
@@ -300,26 +288,18 @@ function BoardConnectionForm({
             </Stack>
           ) : (
             <Stack gap="1.5">
-              <label className="text-xs font-medium">{t("enablementTokenLabel")}</label>
-              <Flex gap="1.5">
-                <input
-                  type={showSecrets.enablement_token ? "text" : "password"}
-                  value={enablementToken}
-                  onChange={(e) => setEnablementToken(e.target.value)}
-                  placeholder={t("enablementTokenPlaceholder")}
-                  className="flex-1 h-8 px-2 text-xs rounded-md border bg-background font-mono"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowSecrets((prev) => ({ ...prev, enablement_token: !prev.enablement_token }))}
-                  aria-label={showSecrets.enablement_token ? t("hideSecretAriaLabel") : t("showSecretAriaLabel")}
-                  className="h-8 w-8 p-0"
-                >
-                  {showSecrets.enablement_token ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                </Button>
-              </Flex>
+              <label className="text-xs font-medium" htmlFor={`enablement-token-${board.id}`}>
+                {t("enablementTokenLabel")}
+              </label>
+              <SecretInput
+                id={`enablement-token-${board.id}`}
+                value={enablementToken}
+                onChange={(e) => setEnablementToken(e.target.value)}
+                placeholder={t("enablementTokenPlaceholder")}
+                showLabel={t("showSecretAriaLabel")}
+                hideLabel={t("hideSecretAriaLabel")}
+                className="h-8 pl-2 text-xs"
+              />
               <Button
                 type="button"
                 variant="secondary"
@@ -345,37 +325,27 @@ function BoardConnectionForm({
       {/* Cloud API Fields (single boards — arrays use the token below) */}
       {apiMode === "cloud" && !isArray && (
         <Stack gap="1">
-          <label className="text-xs font-medium">
+          <label className="text-xs font-medium" htmlFor={`cloud-key-${board.id}`}>
             {t("cloudKeyLabel")}{" "}
             <Text as="span" size="xs" tone="destructive">
               *
             </Text>
           </label>
-          <Flex gap="1.5">
-            <input
-              type={showSecrets.cloud_key ? "text" : "password"}
-              defaultValue={board.cloud_key === "***" ? "" : (board.cloud_key ?? "")}
-              onBlur={(e) => {
-                const val = e.target.value;
-                if (val && val !== "***" && val !== board.cloud_key) {
-                  onUpdate(board.id, { cloud_key: val });
-                }
-              }}
-              placeholder={hasCloudKey ? t("cloudKeySetPlaceholder") : t("cloudKeyPlaceholder")}
-              className="flex-1 h-8 px-2 text-xs rounded-md border bg-background font-mono"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSecrets((prev) => ({ ...prev, cloud_key: !prev.cloud_key }))}
-              aria-label={showSecrets.cloud_key ? t("hideSecretAriaLabel") : t("showSecretAriaLabel")}
-              className="h-8 w-8 p-0"
-              disabled={board.cloud_key === "***"}
-            >
-              {showSecrets.cloud_key ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            </Button>
-          </Flex>
+          <SecretInput
+            id={`cloud-key-${board.id}`}
+            defaultValue={board.cloud_key === "***" ? "" : (board.cloud_key ?? "")}
+            onBlur={(e) => {
+              const val = e.target.value;
+              if (val && val !== "***" && val !== board.cloud_key) {
+                onUpdate(board.id, { cloud_key: val });
+              }
+            }}
+            placeholder={hasCloudKey ? t("cloudKeySetPlaceholder") : t("cloudKeyPlaceholder")}
+            revealDisabled={board.cloud_key === "***"}
+            showLabel={t("showSecretAriaLabel")}
+            hideLabel={t("hideSecretAriaLabel")}
+            className="h-8 pl-2 text-xs"
+          />
           <Text tone="muted" className="text-[10px]">
             {t("cloudKeyHelp")}
           </Text>
@@ -388,32 +358,21 @@ function BoardConnectionForm({
           <label className="text-xs font-medium" htmlFor={`note-array-token-${board.id}`}>
             {t("noteArrayTokenLabel")}
           </label>
-          <Flex gap="1.5">
-            <input
-              id={`note-array-token-${board.id}`}
-              type={showSecrets.note_array_token ? "text" : "password"}
-              defaultValue={board.note_array_token === "***" ? "" : (board.note_array_token ?? "")}
-              onBlur={(e) => {
-                const val = e.target.value;
-                if (val && val !== "***" && val !== board.note_array_token) {
-                  onUpdate(board.id, { note_array_token: val });
-                }
-              }}
-              placeholder={hasNoteArrayToken ? t("noteArrayTokenSetPlaceholder") : t("noteArrayTokenPlaceholder")}
-              className="flex-1 h-8 px-2 text-xs rounded-md border bg-background font-mono"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSecrets((prev) => ({ ...prev, note_array_token: !prev.note_array_token }))}
-              aria-label={showSecrets.note_array_token ? t("hideSecretAriaLabel") : t("showSecretAriaLabel")}
-              className="h-8 w-8 p-0"
-              disabled={board.note_array_token === "***"}
-            >
-              {showSecrets.note_array_token ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            </Button>
-          </Flex>
+          <SecretInput
+            id={`note-array-token-${board.id}`}
+            defaultValue={board.note_array_token === "***" ? "" : (board.note_array_token ?? "")}
+            onBlur={(e) => {
+              const val = e.target.value;
+              if (val && val !== "***" && val !== board.note_array_token) {
+                onUpdate(board.id, { note_array_token: val });
+              }
+            }}
+            placeholder={hasNoteArrayToken ? t("noteArrayTokenSetPlaceholder") : t("noteArrayTokenPlaceholder")}
+            revealDisabled={board.note_array_token === "***"}
+            showLabel={t("showSecretAriaLabel")}
+            hideLabel={t("hideSecretAriaLabel")}
+            className="h-8 pl-2 text-xs"
+          />
           <Text tone="muted" className="text-[10px]">
             {t("noteArrayTokenHelp")}
           </Text>

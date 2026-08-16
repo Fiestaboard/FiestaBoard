@@ -1825,7 +1825,9 @@
     "unknownType": "未知类型：{type}",
     "pagePickerNone": "无（不覆盖）",
     "pagePickerLoading": "正在加载页面…",
-    "pagePickerPlaceholder": "选择页面…"
+    "pagePickerPlaceholder": "选择页面…",
+    "showSecret": "显示值",
+    "hideSecret": "隐藏值"
   },
   "filterPicker": {
     "noFiltersAvailable": "没有可用的筛选器",

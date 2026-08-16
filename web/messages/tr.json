@@ -1825,7 +1825,9 @@
     "unknownType": "Bilinmeyen tür: {type}",
     "pagePickerNone": "Yok (geçersiz kılma yok)",
     "pagePickerLoading": "Sayfalar yükleniyor…",
-    "pagePickerPlaceholder": "Bir sayfa seçin…"
+    "pagePickerPlaceholder": "Bir sayfa seçin…",
+    "showSecret": "Değeri göster",
+    "hideSecret": "Değeri gizle"
   },
   "filterPicker": {
     "noFiltersAvailable": "Kullanılabilir filtre yok",

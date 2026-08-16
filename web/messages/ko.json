@@ -1825,7 +1825,9 @@
     "unknownType": "알 수 없는 타입: {type}",
     "pagePickerNone": "없음 (재정의 안 함)",
     "pagePickerLoading": "페이지를 불러오는 중…",
-    "pagePickerPlaceholder": "페이지 선택…"
+    "pagePickerPlaceholder": "페이지 선택…",
+    "showSecret": "값 표시",
+    "hideSecret": "값 숨기기"
   },
   "filterPicker": {
     "noFiltersAvailable": "사용 가능한 필터가 없습니다",
