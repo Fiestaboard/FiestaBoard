@@ -286,6 +286,8 @@ const eslintConfig = [
             { element: "footer", message: 'Use Box as="footer" (@fiestaboard/ui)' },
             { element: "nav", message: 'Use Box as="nav" (@fiestaboard/ui)' },
             { element: "form", message: 'Use Box as="form" (@fiestaboard/ui)' },
+            { element: "textarea", message: "Use Textarea (@fiestaboard/ui)" },
+            { element: "select", message: "Use Select/SelectTrigger/SelectContent/SelectItem (@fiestaboard/ui)" },
             { element: "table", message: "Use Table (@fiestaboard/ui)" },
             { element: "thead", message: "Use TableHeader (@fiestaboard/ui)" },
             { element: "tbody", message: "Use TableBody (@fiestaboard/ui)" },
@@ -295,6 +297,13 @@ const eslintConfig = [
             { element: "a", message: "Use TextLink, or the router Link for navigation (@fiestaboard/ui)" },
             { element: "code", message: "Use Code (@fiestaboard/ui)" },
             { element: "strong", message: 'Use Text as="span" weight="semibold" (@fiestaboard/ui)' },
+            // NEXT UP: button, input, label. Deliberately not forbidden yet —
+            // the remaining raw usages (~120 button / ~21 input / ~29 label)
+            // are not all replaceable with today's primitives. They need
+            // ToggleCard (button-as-selectable-card) and SecretInput
+            // (input + label + reveal toggle), which are being promoted into
+            // FiestaUI on a separate branch. Add all three here once those
+            // ship in a published @fiestaboard/ui and the call sites migrate.
           ],
         },
       ],

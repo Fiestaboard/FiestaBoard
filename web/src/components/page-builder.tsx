@@ -42,6 +42,7 @@ import {
   Stack,
   Switch,
   Text,
+  Textarea,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -2183,11 +2184,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             <DialogDescription>{t("exportDialogDescription")}</DialogDescription>
           </DialogHeader>
           <Box className="relative">
-            <textarea
+            <Textarea
               readOnly
               value={exportShareString}
               aria-label={t("exportStringAriaLabel")}
-              className="w-full h-28 px-3 py-2 pr-10 text-xs font-mono rounded-md border bg-muted resize-none focus-visible:outline-none"
+              className="h-28 pr-10 text-xs font-mono bg-muted resize-none"
               onFocus={(e) => e.target.select()}
             />
             <button

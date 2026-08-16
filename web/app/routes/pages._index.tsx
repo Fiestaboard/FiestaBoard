@@ -17,6 +17,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  Textarea,
 } from "@fiestaboard/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, FileText, LayoutGrid, List, Plus } from "lucide-react";
@@ -99,12 +100,12 @@ export function ImportPageDialog({ open, onOpenChange }: { open: boolean; onOpen
           <DialogTitle>{t("importDialogTitle")}</DialogTitle>
           <DialogDescription>{t("importDialogDescription")}</DialogDescription>
         </DialogHeader>
-        <textarea
+        <Textarea
           ref={textareaRef}
           value={shareString}
           onChange={(e) => setShareString(e.target.value)}
           placeholder={t("importDialogPlaceholder")}
-          className="w-full h-28 px-3 py-2 text-xs font-mono rounded-md border bg-background resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="h-28 text-xs font-mono resize-none"
           spellCheck={false}
           autoFocus
         />

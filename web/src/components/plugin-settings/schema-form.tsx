@@ -15,6 +15,7 @@ import {
   Stack,
   Switch,
   Text,
+  Textarea,
 } from "@fiestaboard/ui";
 import { Eye, EyeOff, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -23,7 +24,6 @@ import { toast } from "sonner";
 import { TimezonePicker } from "@/components/ui/timezone-picker";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
-import { cn } from "@/lib/utils";
 
 import { FieldScopeContext, SchemaFormPluginContext, useFieldScope } from "./field-context";
 import { isJsonPathMapper, JsonPathMapperField, type JsonPathMapperUiOptions } from "./json-path-mapper-field";
@@ -260,19 +260,14 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
 
   if (isTextarea) {
     return (
-      <textarea
+      <Textarea
         id={name}
         value={String(value || "")}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
         placeholder={property["ui:placeholder"] || property.description}
         disabled={disabled}
         required={required}
-        className={cn(
-          "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2",
-          "text-sm ring-offset-background placeholder:text-muted-foreground",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          "disabled:cursor-not-allowed disabled:opacity-50",
-        )}
+        className="min-h-[80px]"
       />
     );
   }
