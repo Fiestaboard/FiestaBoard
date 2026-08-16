@@ -1825,7 +1825,9 @@
     "unknownType": "Tipo desconhecido: {type}",
     "pagePickerNone": "Nenhuma (sem substituição)",
     "pagePickerLoading": "A carregar páginas…",
-    "pagePickerPlaceholder": "Escolha uma página…"
+    "pagePickerPlaceholder": "Escolha uma página…",
+    "showSecret": "Mostrar valor",
+    "hideSecret": "Ocultar valor"
   },
   "filterPicker": {
     "noFiltersAvailable": "Nenhum filtro disponível",

@@ -1825,7 +1825,9 @@
     "unknownType": "Неизвестный тип: {type}",
     "pagePickerNone": "Нет (без переопределения)",
     "pagePickerLoading": "Загрузка страниц…",
-    "pagePickerPlaceholder": "Выберите страницу…"
+    "pagePickerPlaceholder": "Выберите страницу…",
+    "showSecret": "Показать значение",
+    "hideSecret": "Скрыть значение"
   },
   "filterPicker": {
     "noFiltersAvailable": "Нет доступных фильтров",

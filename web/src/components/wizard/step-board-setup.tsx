@@ -1,20 +1,9 @@
 "use client";
 
-import { Box, Button, Flex, Grid, Input, Label, List, ListItem, Stack, Text } from "@fiestaboard/ui";
+import { Button, Flex, Grid, Input, Label, List, ListItem, Stack, Text } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
-import {
-  CheckCircle,
-  Cloud,
-  Eye,
-  EyeOff,
-  HelpCircle,
-  Key,
-  KeyRound,
-  Loader2,
-  Search,
-  Wifi,
-  XCircle,
-} from "lucide-react";
+import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
+import { CheckCircle, Cloud, HelpCircle, Key, KeyRound, Loader2, Search, Wifi, XCircle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
@@ -65,7 +54,6 @@ export function StepBoardSetup({
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState("");
   const [troubleshootingSteps, setTroubleshootingSteps] = useState<string[]>([]);
-  const [showApiKey, setShowApiKey] = useState(false);
   const [localKeyMode, setLocalKeyMode] = useState<LocalKeyMode>("api_key");
   const [enablementToken, setEnablementToken] = useState("");
   const [enablementStatus, setEnablementStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -277,31 +265,21 @@ export function StepBoardSetup({
         <Stack gap="4">
           <Stack gap="2">
             <Label htmlFor="cloud_key">{t("readWriteApiKey")}</Label>
-            <Box className="relative">
-              <Input
-                id="cloud_key"
-                type={showApiKey ? "text" : "password"}
-                placeholder={t("cloudKeyPlaceholder")}
-                value={config.cloud_key}
-                onChange={(e) => {
-                  onConfigChange({
-                    ...config,
-                    cloud_key: e.target.value,
-                    connectionVerified: false,
-                  });
-                  setTestStatus("idle");
-                }}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowApiKey(!showApiKey)}
-                aria-label={showApiKey ? tbs("hideApiKey") : tbs("showApiKey")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-              >
-                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </Box>
+            <SecretInput
+              id="cloud_key"
+              placeholder={t("cloudKeyPlaceholder")}
+              value={config.cloud_key}
+              onChange={(e) => {
+                onConfigChange({
+                  ...config,
+                  cloud_key: e.target.value,
+                  connectionVerified: false,
+                });
+                setTestStatus("idle");
+              }}
+              showLabel={tbs("showApiKey")}
+              hideLabel={tbs("hideApiKey")}
+            />
             <Text size="xs" tone="muted" className="flex items-center gap-1">
               <HelpCircle className="h-3 w-3" />
               {t("cloudKeyHelp")}
@@ -441,31 +419,21 @@ export function StepBoardSetup({
           {localKeyMode === "api_key" ? (
             <Stack gap="2">
               <Label htmlFor="local_api_key">{t("localApiKey")}</Label>
-              <Box className="relative">
-                <Input
-                  id="local_api_key"
-                  type={showApiKey ? "text" : "password"}
-                  placeholder={t("localApiKeyPlaceholder")}
-                  value={config.local_api_key}
-                  onChange={(e) => {
-                    onConfigChange({
-                      ...config,
-                      local_api_key: e.target.value,
-                      connectionVerified: false,
-                    });
-                    setTestStatus("idle");
-                  }}
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  aria-label={showApiKey ? tbs("hideApiKey") : tbs("showApiKey")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                >
-                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </Box>
+              <SecretInput
+                id="local_api_key"
+                placeholder={t("localApiKeyPlaceholder")}
+                value={config.local_api_key}
+                onChange={(e) => {
+                  onConfigChange({
+                    ...config,
+                    local_api_key: e.target.value,
+                    connectionVerified: false,
+                  });
+                  setTestStatus("idle");
+                }}
+                showLabel={tbs("showApiKey")}
+                hideLabel={tbs("hideApiKey")}
+              />
               <Text size="xs" tone="muted" className="flex items-center gap-1">
                 <HelpCircle className="h-3 w-3" />
                 {t("localApiKeyHelp")}
@@ -475,27 +443,17 @@ export function StepBoardSetup({
             <Stack gap="3">
               <Stack gap="2">
                 <Label htmlFor="enablement_token">{t("enablementToken")}</Label>
-                <Box className="relative">
-                  <Input
-                    id="enablement_token"
-                    type={showApiKey ? "text" : "password"}
-                    placeholder={t("enablementTokenPlaceholder")}
-                    value={enablementToken}
-                    onChange={(e) => {
-                      setEnablementToken(e.target.value);
-                      setEnablementStatus("idle");
-                    }}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    aria-label={showApiKey ? tbs("hideToken") : tbs("showToken")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                  >
-                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </Box>
+                <SecretInput
+                  id="enablement_token"
+                  placeholder={t("enablementTokenPlaceholder")}
+                  value={enablementToken}
+                  onChange={(e) => {
+                    setEnablementToken(e.target.value);
+                    setEnablementStatus("idle");
+                  }}
+                  showLabel={tbs("showToken")}
+                  hideLabel={tbs("hideToken")}
+                />
                 <Text size="xs" tone="muted" className="flex items-center gap-1">
                   <HelpCircle className="h-3 w-3" />
                   {t("enablementTokenHelp")}

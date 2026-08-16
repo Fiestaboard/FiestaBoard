@@ -17,7 +17,8 @@ import {
   Text,
   Textarea,
 } from "@fiestaboard/ui";
-import { Eye, EyeOff, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
+import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -189,7 +190,7 @@ function EnumSelectField({
 }
 
 function StringField({ name, property, value, onChange, required, disabled }: FieldProps) {
-  const [showPassword, setShowPassword] = useState(false);
+  const tSecret = useTranslations("schemaForm");
   const [_timezoneValid, setTimezoneValid] = useState(true);
   const isPassword = property["ui:widget"] === "password";
   const isTextarea = property["ui:widget"] === "textarea";
@@ -288,35 +289,31 @@ function StringField({ name, property, value, onChange, required, disabled }: Fi
     return <PagePickerField id={name} value={String(value || "")} onChange={onChange} disabled={disabled} />;
   }
 
-  return (
-    <Box className="relative">
-      <Input
+  if (isPassword) {
+    return (
+      <SecretInput
         id={name}
-        type={isPassword && !showPassword ? "password" : "text"}
         value={String(value || "")}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
         placeholder={property["ui:placeholder"] || property.description}
         disabled={disabled}
         required={required}
-        className={isPassword ? "pr-10" : undefined}
+        showLabel={tSecret("showSecret")}
+        hideLabel={tSecret("hideSecret")}
       />
-      {isPassword && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-          onClick={() => setShowPassword(!showPassword)}
-          tabIndex={-1}
-        >
-          {showPassword ? (
-            <EyeOff className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <Eye className="h-4 w-4 text-muted-foreground" />
-          )}
-        </Button>
-      )}
-    </Box>
+    );
+  }
+
+  return (
+    <Input
+      id={name}
+      type="text"
+      value={String(value || "")}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+      placeholder={property["ui:placeholder"] || property.description}
+      disabled={disabled}
+      required={required}
+    />
   );
 }
 

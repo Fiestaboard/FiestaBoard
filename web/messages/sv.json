@@ -1825,7 +1825,9 @@
     "unknownType": "Okänd typ: {type}",
     "pagePickerNone": "Ingen (ingen åsidosättning)",
     "pagePickerLoading": "Laddar sidor…",
-    "pagePickerPlaceholder": "Välj en sida…"
+    "pagePickerPlaceholder": "Välj en sida…",
+    "showSecret": "Visa värde",
+    "hideSecret": "Dölj värde"
   },
   "filterPicker": {
     "noFiltersAvailable": "Inga filter tillgängliga",

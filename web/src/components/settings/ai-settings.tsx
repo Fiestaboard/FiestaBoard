@@ -27,19 +27,9 @@ import {
   Switch,
   Text,
 } from "@fiestaboard/ui";
+import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  CheckCircle2,
-  ChevronDown,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Loader2,
-  Plus,
-  Sparkles,
-  Trash2,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, ChevronDown, KeyRound, Loader2, Plus, Sparkles, Trash2, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -110,7 +100,6 @@ function ProviderRow({
   onMakeDefault,
 }: ProviderRowProps) {
   const t = useTranslations("settings.ai");
-  const [showKey, setShowKey] = useState(false);
   const [modelInput, setModelInput] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -309,24 +298,15 @@ function ProviderRow({
             </Label>
             <Box className="relative">
               <KeyRound className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
+              <SecretInput
                 id={`key-${provider.id}`}
-                type={showKey ? "text" : "password"}
                 value={provider.api_key}
                 onChange={(e) => onChange({ ...provider, api_key: e.target.value })}
                 placeholder="sk-..."
-                className="h-8 pl-7 pr-8 font-mono text-xs"
+                showLabel="Show API key"
+                hideLabel="Hide API key"
+                className="h-8 pl-7 text-xs"
               />
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="absolute right-0 top-0 h-8 w-8"
-                onClick={() => setShowKey((v) => !v)}
-                aria-label={showKey ? "Hide API key" : "Show API key"}
-              >
-                {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              </Button>
             </Box>
           </Stack>
 
