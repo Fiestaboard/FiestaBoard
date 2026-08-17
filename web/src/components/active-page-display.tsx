@@ -398,8 +398,7 @@ export function ActivePageDisplay() {
   // is temporarily replaced. Surface THAT page in the header so the name and
   // edit link match what's on the display instead of pointing at the page
   // silence overrode.
-  const silencePageId =
-    silenceStatus?.active && silenceStatus.mode === "page" ? (silenceStatus.page_id ?? null) : null;
+  const silencePageId = silenceStatus?.active && silenceStatus.mode === "page" ? (silenceStatus.page_id ?? null) : null;
   const silencePage = useMemo(() => {
     if (!silencePageId) return null;
     return pages.find((p) => p.id === silencePageId) || null;
