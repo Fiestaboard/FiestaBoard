@@ -78,12 +78,10 @@
     "secondaryNavigation": "サブナビゲーション",
     "picks": "スタッフのおすすめ",
     "skipToMainContent": "メインコンテンツへスキップ",
-    "prideCelebrationAriaLabel": "プライド月間を祝う",
     "boardSelector": "管理するボードを選択",
     "selectBoard": "ボードを選択",
     "unnamedBoard": "名前のないボード",
-    "transitions": "トランジションラボ",
-    "prideCelebration": "ハッピープライド！"
+    "transitions": "トランジションラボ"
   },
   "network": {
     "title": "Wi-Fi",
@@ -587,6 +585,7 @@
     "progressConnect": "接続",
     "progressCustomize": "カスタマイズ",
     "progressFinish": "完了",
+    "progressLabel": "セットアップの進行状況",
     "stepOf": "ステップ {current} / {total}",
     "skipForNow": "今はスキップ",
     "stepTitles": {
@@ -1574,12 +1573,6 @@
     "toastUpdatesFound": "{count, plural, one {# 件のプラグイン更新あり} other {# 件のプラグイン更新あり}}",
     "toastNoUpdates": "すべてのプラグインは最新です",
     "toastCheckFailed": "更新の確認に失敗: {error}"
-  },
-  "festiveMonthsSettings": {
-    "title": "フェスティブマンス",
-    "description": "月ごとに変わる UI 装飾 — 現在はプライド月間（6 月）の間、ロゴ、サイドバー、ページヘッダーのアイコンにレインボーが表示されます。",
-    "hideLabel": "フェスティブマンスを非表示",
-    "hideHint": "Web UI 全体の季節装飾をオフにします。ボードへの送信内容には影響しません。"
   },
   "betaSettings": {
     "title": "ベータ機能",

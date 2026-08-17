@@ -78,12 +78,10 @@
     "secondaryNavigation": "Navegação secundária",
     "picks": "Seleções da equipa",
     "skipToMainContent": "Pular para o conteúdo principal",
-    "prideCelebrationAriaLabel": "Celebrar o Mês do Orgulho",
     "boardSelector": "Selecionar quadro a gerir",
     "selectBoard": "Selecionar quadro",
     "unnamedBoard": "Quadro sem nome",
-    "transitions": "Laboratório de transições",
-    "prideCelebration": "Feliz Orgulho!"
+    "transitions": "Laboratório de transições"
   },
   "network": {
     "title": "Wi-Fi",
@@ -587,6 +585,7 @@
     "progressConnect": "Conectar",
     "progressCustomize": "Personalizar",
     "progressFinish": "Finalizar",
+    "progressLabel": "Progresso da configuração",
     "stepOf": "Passo {current} de {total}",
     "skipForNow": "Pular por enquanto",
     "stepTitles": {
@@ -1574,12 +1573,6 @@
     "toastUpdatesFound": "{count, plural, one {# atualização de plugin disponível} other {# atualizações de plugins disponíveis}}",
     "toastNoUpdates": "Todos os plugins estão atualizados",
     "toastCheckFailed": "Falha ao procurar atualizações: {error}"
-  },
-  "festiveMonthsSettings": {
-    "title": "Meses festivos",
-    "description": "Detalhes da interface temáticos por mês — atualmente um arco-íris no logo, na barra lateral e nos ícones do cabeçalho durante o Mês do Orgulho (junho).",
-    "hideLabel": "Ocultar meses festivos",
-    "hideHint": "Desativa as decorações sazonais em toda a interface web. Não afeta o que é enviado para a sua placa."
   },
   "betaSettings": {
     "title": "Funcionalidades Beta",

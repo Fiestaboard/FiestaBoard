@@ -78,12 +78,10 @@
     "secondaryNavigation": "Дополнительная навигация",
     "picks": "Подборка команды",
     "skipToMainContent": "Перейти к основному содержимому",
-    "prideCelebrationAriaLabel": "Отпраздновать месяц гордости",
     "boardSelector": "Выберите доску для управления",
     "selectBoard": "Выберите доску",
     "unnamedBoard": "Доска без названия",
-    "transitions": "Лаборатория переходов",
-    "prideCelebration": "С месяцем гордости!"
+    "transitions": "Лаборатория переходов"
   },
   "network": {
     "title": "Wi-Fi",
@@ -587,6 +585,7 @@
     "progressConnect": "Подключение",
     "progressCustomize": "Настройка",
     "progressFinish": "Готово",
+    "progressLabel": "Ход настройки",
     "stepOf": "Шаг {current} из {total}",
     "skipForNow": "Пропустить",
     "stepTitles": {
@@ -1574,12 +1573,6 @@
     "toastUpdatesFound": "{count, plural, one {Доступно # обновление плагина} few {Доступно # обновления плагинов} many {Доступно # обновлений плагинов} other {Доступно # обновлений плагинов}}",
     "toastNoUpdates": "Все плагины актуальны",
     "toastCheckFailed": "Не удалось проверить обновления: {error}"
-  },
-  "festiveMonthsSettings": {
-    "title": "Праздничные месяцы",
-    "description": "Тематические элементы интерфейса по месяцам — сейчас радуга на логотипе, боковой панели и значках заголовка во время Месяца гордости (июнь).",
-    "hideLabel": "Скрыть праздничные месяцы",
-    "hideHint": "Отключить сезонные украшения во всём веб-интерфейсе. Не влияет на то, что отправляется на ваше табло."
   },
   "betaSettings": {
     "title": "Бета-функции",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Button, DecryptedText, Flex, Heading, Stack, Text } from "@fiestaboard/ui";
+import { Box, Button, Flex, Heading, Stack, Text } from "@fiestaboard/ui";
 import { CheckCircle, Clock, Loader2, PartyPopper, Puzzle, Send, XCircle } from "lucide-react";
 import { useState } from "react";
 
@@ -106,7 +106,7 @@ export function StepWelcome({ boardConfig, pluginConfig, onComplete, isLoading, 
           <PartyPopper className="h-8 w-8 text-primary" />
         </Flex>
         <Heading level={3} className="text-xl">
-          <DecryptedText text={t("setupComplete")} speed={60} sequential animateOn="view" revealDirection="start" />
+          {t("setupComplete")}
         </Heading>
         <Text tone="muted">{t("boardReady")}</Text>
       </Stack>

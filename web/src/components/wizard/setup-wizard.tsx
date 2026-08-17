@@ -1,6 +1,6 @@
 "use client";
 
-import { Aurora, Box, Button, Flex, Heading, Text } from "@fiestaboard/ui";
+import { Box, Button, Flex, Text, WizardShell } from "@fiestaboard/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -10,7 +10,6 @@ import { useTranslations } from "@/i18n/translations";
 import { appUrl } from "@/lib/base-path";
 import type { WizardProgress } from "@/lib/setup-detection";
 import { clearWizardProgress, getWizardProgress, markWizardComplete, saveWizardProgress } from "@/lib/setup-detection";
-import { cn } from "@/lib/utils";
 
 import { StepBoardSetup } from "./step-board-setup";
 import type { WizardPluginConfig } from "./step-easy-plugins";
@@ -22,6 +21,21 @@ interface SetupWizardProps {
 }
 
 const TOTAL_STEPS = 3;
+
+// Decorative split-flap field behind the wizard card. BoardBackdrop renders
+// aria-hidden, so these are not user-facing copy and deliberately stay
+// untranslated — they are sample board output, in the fixed-width uppercase
+// vocabulary the hardware actually flips.
+const BACKDROP_PHRASES = [
+  "WELCOME",
+  "LETS GET STARTED",
+  "72 AND CLEAR",
+  "N JUDAH 4 MIN",
+  "SUNSET 8 04",
+  "GOOD MORNING",
+  "BOARD CONNECTED",
+  "HELLO WORLD",
+];
 
 export function SetupWizard({ onComplete }: SetupWizardProps) {
   const router = useRouter();
@@ -142,115 +156,58 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   ];
 
   return (
-    <Box className="fixed inset-0 z-50 bg-background overflow-y-auto">
-      {/* Aurora background - fixed so it stays in place while content scrolls */}
-      <Box className="fixed inset-0 pointer-events-none">
-        {/* Aurora's shader ramps exactly three stops (uColorStops[3]); a
-            fourth was passed here and silently ignored. */}
-        <Aurora colorStops={["#f8e71c", "#eb4034", "#AA00FF"]} blend={0.5} amplitude={1.0} speed={0.5} />
-      </Box>
+    <WizardShell
+      icon={
+        <img
+          src={appUrl("/icons/icon-96x96.png")}
+          alt=""
+          width={48}
+          height={48}
+          className="h-10 w-10 sm:h-12 sm:w-12"
+        />
+      }
+      title={t("welcomeTitle")}
+      description={t("welcomeSubtitle")}
+      aside={<LanguageSelector />}
+      steps={[t("progressConnect"), t("progressCustomize"), t("progressFinish")]}
+      current={currentStep}
+      progressLabel={t("progressLabel")}
+      stepTitle={stepTitles[currentStep - 1]}
+      stepDescription={stepDescriptions[currentStep - 1]}
+      backdropPhrases={BACKDROP_PHRASES}
+      footer={
+        <>
+          <Box>
+            {currentStep > 1 && (
+              <Button variant="ghost" onClick={handleBack} disabled={isLoading} size="lg">
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                {tc("back")}
+              </Button>
+            )}
+          </Box>
 
-      {/* Content container */}
-      <Flex align="start" justify="center" className="relative min-h-full py-6 sm:py-10 px-4 sm:px-6">
-        <Box className="w-full max-w-lg bg-background/75 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-6 sm:p-8">
-          {/* Header */}
-          <Box as="header" className="text-center pb-4">
-            <Flex align="center" justify="between" className="mb-4">
-              <Box />
-              <Flex
-                inline
-                align="center"
-                justify="center"
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 overflow-hidden"
-              >
-                <img
-                  src={appUrl("/icons/icon-96x96.png")}
-                  alt=""
-                  width={48}
-                  height={48}
-                  className="w-10 h-10 sm:w-12 sm:h-12"
-                />
-              </Flex>
-              <LanguageSelector />
-            </Flex>
-            {/* eslint-disable-next-line react/forbid-elements -- wizard hero <h1>: Heading has no level=1 and PageHeader renders an icon+card layout unfit for this centered hero title */}
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("welcomeTitle")}</h1>
-            <Text tone="muted" className="mt-2 text-sm sm:text-base">
-              {t("welcomeSubtitle")}
+          <Flex align="center" gap="3">
+            <Text as="span" tone="muted">
+              {t("stepOf", { current: currentStep, total: TOTAL_STEPS })}
             </Text>
-          </Box>
 
-          {/* Progress indicator */}
-          <Box className="pb-4">
-            <Flex align="center" gap="2">
-              {[1, 2, 3].map((step) => (
-                <Box
-                  key={step}
-                  className={cn(
-                    "flex-1 h-2 rounded-full transition-all duration-500",
-                    step <= currentStep ? "bg-primary" : "bg-muted",
-                  )}
-                />
-              ))}
-            </Flex>
-            <Flex justify="between" className="mt-2 text-xs text-muted-foreground">
-              <Text as="span" size="xs" tone="muted">
-                {t("progressConnect")}
-              </Text>
-              <Text as="span" size="xs" tone="muted">
-                {t("progressCustomize")}
-              </Text>
-              <Text as="span" size="xs" tone="muted">
-                {t("progressFinish")}
-              </Text>
-            </Flex>
-          </Box>
+            {currentStep === 1 && (
+              <Button variant="ghost" onClick={handleComplete} disabled={isLoading} size="lg">
+                {t("skipForNow")}
+              </Button>
+            )}
 
-          {/* Step header */}
-          <Box className="mb-6">
-            <Heading level={2} className="text-xl sm:text-2xl">
-              {stepTitles[currentStep - 1]}
-            </Heading>
-            <Text tone="muted" className="mt-1">
-              {stepDescriptions[currentStep - 1]}
-            </Text>
-          </Box>
-
-          {/* Step content */}
-          {renderStep()}
-
-          {/* Navigation */}
-          <Flex align="center" justify="between" className="mt-8 pt-6 border-t border-border">
-            <Box>
-              {currentStep > 1 && (
-                <Button variant="ghost" onClick={handleBack} disabled={isLoading} size="lg">
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  {tc("back")}
-                </Button>
-              )}
-            </Box>
-
-            <Flex align="center" gap="3">
-              <Text as="span" tone="muted">
-                {t("stepOf", { current: currentStep, total: TOTAL_STEPS })}
-              </Text>
-
-              {currentStep === 1 && (
-                <Button variant="ghost" onClick={handleComplete} disabled={isLoading} size="lg">
-                  {t("skipForNow")}
-                </Button>
-              )}
-
-              {currentStep < TOTAL_STEPS && (
-                <Button onClick={handleNext} disabled={!canProceed || isLoading} size="lg">
-                  {tc("next")}
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              )}
-            </Flex>
+            {currentStep < TOTAL_STEPS && (
+              <Button onClick={handleNext} disabled={!canProceed || isLoading} size="lg">
+                {tc("next")}
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
           </Flex>
-        </Box>
-      </Flex>
-    </Box>
+        </>
+      }
+    >
+      {renderStep()}
+    </WizardShell>
   );
 }

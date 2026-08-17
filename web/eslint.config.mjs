@@ -244,7 +244,11 @@ const eslintConfig = [
             { name: "clsx", message: "Use cn from @fiestaboard/ui (or @/lib/utils)." },
             { name: "tailwind-merge", message: "Use cn from @fiestaboard/ui (or @/lib/utils)." },
             { name: "class-variance-authority", message: "Variants belong in the FiestaUI design system." },
-            { name: "ogl", message: "WebGL visuals belong in the FiestaUI design system (Aurora)." },
+            {
+              name: "ogl",
+              message:
+                "WebGL visuals belong in the FiestaUI design system — and 4.0.0 retired the last one (Aurora). A page backdrop is BoardBackdrop.",
+            },
             { name: "react-resizable-panels", message: "No longer a direct dependency." },
           ],
           patterns: [

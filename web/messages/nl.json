@@ -78,12 +78,10 @@
     "secondaryNavigation": "Subnavigatie",
     "picks": "Aanbevolen",
     "skipToMainContent": "Naar hoofdinhoud",
-    "prideCelebrationAriaLabel": "Vier Pride Month",
     "boardSelector": "Te beheren board selecteren",
     "selectBoard": "Board selecteren",
     "unnamedBoard": "Naamloos board",
-    "transitions": "Transitielab",
-    "prideCelebration": "Fijne Pride!"
+    "transitions": "Transitielab"
   },
   "network": {
     "title": "Wi-Fi",
@@ -587,6 +585,7 @@
     "progressConnect": "Verbinden",
     "progressCustomize": "Aanpassen",
     "progressFinish": "Afronden",
+    "progressLabel": "Installatievoortgang",
     "stepOf": "Stap {current} van {total}",
     "skipForNow": "Voorlopig overslaan",
     "stepTitles": {
@@ -1574,12 +1573,6 @@
     "toastUpdatesFound": "{count, plural, one {# plugin-update beschikbaar} other {# plugin-updates beschikbaar}}",
     "toastNoUpdates": "Alle plugins zijn up-to-date",
     "toastCheckFailed": "Updates controleren mislukt: {error}"
-  },
-  "festiveMonthsSettings": {
-    "title": "Feestelijke maanden",
-    "description": "Maandgebonden UI-accenten — momenteel een regenboog op het logo, de zijbalk en de pagina-koppictogrammen tijdens Pride Month (juni).",
-    "hideLabel": "Feestelijke maanden verbergen",
-    "hideHint": "Schakel seizoensdecoraties in de webinterface uit. Heeft geen invloed op wat naar je board wordt gestuurd."
   },
   "betaSettings": {
     "title": "Bèta-functies",

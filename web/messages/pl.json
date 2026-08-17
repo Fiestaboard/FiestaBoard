@@ -78,12 +78,10 @@
     "secondaryNavigation": "Nawigacja drugorzędna",
     "picks": "Polecane",
     "skipToMainContent": "Przejdź do treści głównej",
-    "prideCelebrationAriaLabel": "Świętuj Miesiąc Dumy",
     "boardSelector": "Wybierz tablicę do zarządzania",
     "selectBoard": "Wybierz tablicę",
     "unnamedBoard": "Tablica bez nazwy",
-    "transitions": "Laboratorium przejść",
-    "prideCelebration": "Szczęśliwego Miesiąca Dumy!"
+    "transitions": "Laboratorium przejść"
   },
   "network": {
     "title": "Wi-Fi",
@@ -587,6 +585,7 @@
     "progressConnect": "Połącz",
     "progressCustomize": "Dostosuj",
     "progressFinish": "Zakończ",
+    "progressLabel": "Postęp konfiguracji",
     "stepOf": "Krok {current} z {total}",
     "skipForNow": "Pomiń na razie",
     "stepTitles": {
@@ -1574,12 +1573,6 @@
     "toastUpdatesFound": "{count, plural, one {# aktualizacja wtyczki dostępna} few {# aktualizacje wtyczek dostępne} many {# aktualizacji wtyczek dostępnych} other {# aktualizacji wtyczek dostępnych}}",
     "toastNoUpdates": "Wszystkie wtyczki są aktualne",
     "toastCheckFailed": "Nie udało się sprawdzić aktualizacji: {error}"
-  },
-  "festiveMonthsSettings": {
-    "title": "Miesiące świąteczne",
-    "description": "Motywy interfejsu zależne od miesiąca — obecnie tęcza na logo, pasku bocznym i ikonach nagłówka strony w Miesiącu Dumy (czerwiec).",
-    "hideLabel": "Ukryj miesiące świąteczne",
-    "hideHint": "Wyłącza sezonowe dekoracje w całym interfejsie webowym. Nie wpływa na to, co jest wysyłane do twojej tablicy."
   },
   "betaSettings": {
     "title": "Funkcje beta",

@@ -78,12 +78,10 @@
     "secondaryNavigation": "Navigation secondaire",
     "picks": "Sélections de l'équipe",
     "skipToMainContent": "Aller au contenu principal",
-    "prideCelebrationAriaLabel": "Célébrer le Mois des Fiertés",
     "boardSelector": "Sélectionner le tableau à gérer",
     "selectBoard": "Sélectionner un tableau",
     "unnamedBoard": "Tableau sans nom",
-    "transitions": "Labo des transitions",
-    "prideCelebration": "Joyeuses Fiertés !"
+    "transitions": "Labo des transitions"
   },
   "network": {
     "title": "Wi-Fi",
@@ -587,6 +585,7 @@
     "progressConnect": "Connexion",
     "progressCustomize": "Personnaliser",
     "progressFinish": "Terminer",
+    "progressLabel": "Progression de la configuration",
     "stepOf": "Étape {current} sur {total}",
     "skipForNow": "Passer pour le moment",
     "stepTitles": {
@@ -1574,12 +1573,6 @@
     "toastUpdatesFound": "{count, plural, one {# mise à jour de plugin disponible} other {# mises à jour de plugins disponibles}}",
     "toastNoUpdates": "Tous les plugins sont à jour",
     "toastCheckFailed": "Impossible de rechercher des mises à jour : {error}"
-  },
-  "festiveMonthsSettings": {
-    "title": "Mois festifs",
-    "description": "Touches d'interface thématiques selon le mois — actuellement un arc-en-ciel sur le logo, la barre latérale et les icônes d'en-tête pendant le Mois des fiertés (juin).",
-    "hideLabel": "Masquer les mois festifs",
-    "hideHint": "Désactive les décorations saisonnières dans toute l'interface web. N'affecte pas ce qui est envoyé à votre tableau."
   },
   "betaSettings": {
     "title": "Fonctionnalités bêta",
