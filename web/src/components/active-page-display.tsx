@@ -393,6 +393,18 @@ export function ActivePageDisplay() {
     return pages.find((p) => p.id === activePageId) || null;
   }, [pages, activePageId]);
 
+  // During silence "page" mode the board actually renders the configured
+  // silence page and freezes it there (issue #1637); the scheduled/manual page
+  // is temporarily replaced. Surface THAT page in the header so the name and
+  // edit link match what's on the display instead of pointing at the page
+  // silence overrode.
+  const silencePageId =
+    silenceStatus?.active && silenceStatus.mode === "page" ? (silenceStatus.page_id ?? null) : null;
+  const silencePage = useMemo(() => {
+    if (!silencePageId) return null;
+    return pages.find((p) => p.id === silencePageId) || null;
+  }, [pages, silencePageId]);
+
   // When a Collection is active the backend resolves which member page its
   // logic is currently rendering on the board (issue #1513). Surface that page
   // so the Dashboard can name and link to the design actually on the display.
@@ -491,7 +503,20 @@ export function ActivePageDisplay() {
           {/* Active page name and status */}
           <Flex align="center" gap="4" wrap className="text-xs text-muted-foreground mt-3">
             <Flex align="center" gap="1.5">
-              {activeCollection ? (
+              {silencePage ? (
+                // Silence "page" mode: the board is frozen on the configured
+                // silence page (issue #1637), so name and link that page here —
+                // it takes precedence over the scheduled/manual/collection page
+                // that silence temporarily replaced.
+                <Link
+                  href={`/pages/edit/${silencePage.id}`}
+                  className="inline-flex items-center text-xs font-medium text-foreground underline-offset-2 hover:underline hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                  aria-label={t("editActivePage", { pageName: silencePage.name })}
+                  title={t("editActivePage", { pageName: silencePage.name })}
+                >
+                  {silencePage.name}
+                </Link>
+              ) : activeCollection ? (
                 // A Collection drives the display through its own logic. Link the
                 // collection name to its editor so the user can adjust that logic
                 // (issue #1513), then link the member page the collection is
