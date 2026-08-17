@@ -78,12 +78,10 @@
     "secondaryNavigation": "Sekundärnavigation",
     "picks": "Empfehlungen",
     "skipToMainContent": "Zum Hauptinhalt springen",
-    "prideCelebrationAriaLabel": "Pride Month feiern",
     "boardSelector": "Zu verwaltendes Board auswählen",
     "selectBoard": "Board auswählen",
     "unnamedBoard": "Unbenanntes Board",
-    "transitions": "Übergangs-Labor",
-    "prideCelebration": "Frohen Pride Month!"
+    "transitions": "Übergangs-Labor"
   },
   "network": {
     "title": "WLAN",
@@ -587,6 +585,7 @@
     "progressConnect": "Verbinden",
     "progressCustomize": "Anpassen",
     "progressFinish": "Fertigstellen",
+    "progressLabel": "Einrichtungsfortschritt",
     "stepOf": "Schritt {current} von {total}",
     "skipForNow": "Vorerst überspringen",
     "stepTitles": {
@@ -1574,12 +1573,6 @@
     "toastUpdatesFound": "{count, plural, one {# Plugin-Update verfügbar} other {# Plugin-Updates verfügbar}}",
     "toastNoUpdates": "Alle Plugins sind aktuell",
     "toastCheckFailed": "Suche nach Updates fehlgeschlagen: {error}"
-  },
-  "festiveMonthsSettings": {
-    "title": "Festliche Monate",
-    "description": "Monatsbezogene UI-Akzente — derzeit ein Regenbogen auf Logo, Seitenleiste und Seitenkopf-Symbolen während des Pride Month (Juni).",
-    "hideLabel": "Festliche Monate ausblenden",
-    "hideHint": "Saisonale Dekorationen in der gesamten Web-Oberfläche deaktivieren. Hat keinen Einfluss darauf, was an dein Board gesendet wird."
   },
   "betaSettings": {
     "title": "Beta-Funktionen",

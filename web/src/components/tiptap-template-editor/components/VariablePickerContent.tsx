@@ -644,7 +644,15 @@ export function VariablePickerContent({
                           if (!groupVars || groupVars.length === 0) return null;
                           return (
                             <Box key={groupId}>
-                              <Text className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
+                              {/* No opacity modifier on --muted-foreground here or in the two
+                                  sibling headers below. It used to be `/70`, which
+                                  @fiestaboard/ui 4.0.0 pushed under AA: surfaces stopped being
+                                  chroma-0 and took a warm cast, so at 9px this composited to
+                                  3.81:1 against #f5f3f1 where 4.5:1 is required, failing the
+                                  Storybook axe run in both themes. The token is already
+                                  contrast-tuned by the design system; thinning it here
+                                  overrides that tuning by eye. */}
+                              <Text className="text-[9px] uppercase tracking-widest text-muted-foreground mt-1 mb-1 pb-0.5 border-b border-border/30">
                                 {groupDef.label}
                               </Text>
                               <Flex wrap gap="1.5">
@@ -655,7 +663,7 @@ export function VariablePickerContent({
                         })}
                         {groupedVars["__ungrouped__"] && groupedVars["__ungrouped__"].length > 0 && (
                           <Box>
-                            <Text className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
+                            <Text className="text-[9px] uppercase tracking-widest text-muted-foreground mt-1 mb-1 pb-0.5 border-b border-border/30">
                               {t("general")}
                             </Text>
                             <Flex wrap gap="1.5">
@@ -667,7 +675,7 @@ export function VariablePickerContent({
                     ) : (
                       filteredGeneralVars.length > 0 && (
                         <Box>
-                          <Text className="text-[9px] uppercase tracking-widest text-muted-foreground/70 mt-1 mb-1 pb-0.5 border-b border-border/30">
+                          <Text className="text-[9px] uppercase tracking-widest text-muted-foreground mt-1 mb-1 pb-0.5 border-b border-border/30">
                             {t("general")}
                           </Text>
                           <Flex wrap gap="1.5">

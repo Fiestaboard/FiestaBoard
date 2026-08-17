@@ -78,12 +78,10 @@
     "secondaryNavigation": "Secondary navigation",
     "picks": "Staff Picks",
     "skipToMainContent": "Skip to main content",
-    "prideCelebrationAriaLabel": "Celebrate Pride Month",
     "boardSelector": "Select board to manage",
     "selectBoard": "Select board",
     "unnamedBoard": "Unnamed board",
-    "transitions": "Transition Lab",
-    "prideCelebration": "Happy Pride!"
+    "transitions": "Transition Lab"
   },
   "home": {
     "title": "Dashboard",
@@ -544,6 +542,7 @@
     "progressConnect": "Connect",
     "progressCustomize": "Customize",
     "progressFinish": "Finish",
+    "progressLabel": "Setup progress",
     "stepOf": "Step {current} of {total}",
     "skipForNow": "Skip for now",
     "stepTitles": {
@@ -1531,12 +1530,6 @@
     "toastUpdatesFound": "{count, plural, one {# plugin update available} other {# plugin updates available}}",
     "toastNoUpdates": "All plugins are up to date",
     "toastCheckFailed": "Couldn't check for updates: {error}"
-  },
-  "festiveMonthsSettings": {
-    "title": "Festive Months",
-    "description": "Month-themed UI flourishes — currently a rainbow on the logo, sidebar, and page-header icons during Pride Month (June).",
-    "hideLabel": "Hide festive months",
-    "hideHint": "Turn off seasonal decorations across the web UI. Doesn't affect anything sent to your board."
   },
   "betaSettings": {
     "title": "Beta Features",

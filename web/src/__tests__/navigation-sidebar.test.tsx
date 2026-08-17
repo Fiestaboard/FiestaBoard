@@ -24,22 +24,6 @@ vi.mock("@/hooks/use-router", () => ({
   }),
 }));
 
-// Mock usePrideActive so tests can toggle the pride-month logo state
-// without colliding with the calendar. Defaults to false to match the
-// non-pride code path used by the existing suite.
-const mockPrideActive = vi.fn(() => false);
-const PRIDE_SEASON_MOCK = {
-  id: "pride",
-  label: "Pride",
-  months: [5],
-  htmlClass: "pride-month",
-  colors: ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"],
-};
-vi.mock("@/hooks/use-pride-active", () => ({
-  usePrideActive: () => mockPrideActive(),
-  useActiveSeason: () => (mockPrideActive() ? PRIDE_SEASON_MOCK : null),
-}));
-
 // Must import after mocking
 import { NavigationSidebar } from "@/components/navigation-sidebar";
 
@@ -234,30 +218,20 @@ describe("NavigationSidebar collections link", () => {
   });
 });
 
-describe("NavigationSidebar pride logo accessibility (issue #1204)", () => {
+describe("NavigationSidebar logo", () => {
   beforeEach(() => {
     mockPathname.mockReturnValue("/");
-    mockPrideActive.mockReturnValue(false);
   });
 
-  it("renders the logo area as a non-interactive div when Pride Month is inactive", () => {
-    mockPrideActive.mockReturnValue(false);
+  // Was the Pride-Month celebrate button (issue #1204). @fiestaboard/ui 4.0.0
+  // retired seasons, so the app passes no `onLogoClick` and Sidebar renders the
+  // lockup as a plain non-interactive element. Kept as a regression guard: a
+  // logo that silently becomes a button again is a keyboard-nav change nothing
+  // else in the suite would catch.
+  it("renders the logo area as non-interactive", () => {
     render(<NavigationSidebar />, { wrapper: TestWrapper });
 
-    expect(screen.queryByRole("button", { name: "Celebrate Pride Month" })).not.toBeInTheDocument();
-  });
-
-  it("renders the logo area as a keyboard-accessible button during Pride Month", () => {
-    mockPrideActive.mockReturnValue(true);
-    render(<NavigationSidebar />, { wrapper: TestWrapper });
-
-    // Both the mobile header and the desktop sidebar render a celebrate button.
-    const celebrateButtons = screen.getAllByRole("button", { name: "Celebrate Pride Month" });
-    expect(celebrateButtons.length).toBeGreaterThanOrEqual(2);
-    celebrateButtons.forEach((button) => {
-      expect(button.tagName).toBe("BUTTON");
-      expect(button).toHaveAttribute("type", "button");
-    });
+    expect(screen.queryByRole("button", { name: /celebrate/i })).not.toBeInTheDocument();
   });
 });
 

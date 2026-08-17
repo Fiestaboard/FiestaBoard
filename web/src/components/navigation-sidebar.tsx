@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  BoardSelector,
-  fireSeasonBurst,
-  Flex,
-  Sidebar,
-  type SidebarLinkProps,
-  type SidebarNavItem,
-  Text,
-} from "@fiestaboard/ui";
+import { BoardSelector, Sidebar, type SidebarLinkProps, type SidebarNavItem } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
   Award,
@@ -21,8 +13,6 @@ import {
   Puzzle,
   Settings,
 } from "lucide-react";
-import { useCallback } from "react";
-import { toast } from "sonner";
 
 import { useCurrentBoard } from "@/components/current-board-context";
 import { useGlobalAiPanel } from "@/components/global-ai-panel-context";
@@ -32,7 +22,6 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { VersionDisplay } from "@/components/version-display";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { usePrefetchPagesData } from "@/hooks/use-board";
-import { useActiveSeason } from "@/hooks/use-pride-active";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
@@ -64,43 +53,9 @@ const secondaryItems: NavItemDef[] = [
 ];
 
 /**
- * Toast body for the seasonal celebration burst.
- *
- * Kept as its own component (rather than inline JSX in `fireCelebration`)
- * so the translation hook lives here instead of being captured by the
- * `useCallback` closure — `t` in a dependency array is the infinite-render
- * trap from issue #1570.
- */
-function PrideCelebrationToast() {
-  const t = useTranslations("navigation");
-  return (
-    <Flex
-      align="center"
-      gap="2"
-      className="rounded-full border border-white/10 bg-[#111] px-5 py-2.5 text-[15px] font-bold shadow-xl"
-    >
-      <Text
-        as="span"
-        className="text-[15px] font-bold"
-        style={{
-          background: "linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-        }}
-      >
-        {t("prideCelebration")}
-      </Text>{" "}
-      🏳️‍🌈
-    </Flex>
-  );
-}
-
-/**
  * App wiring around the design system's presentational <Sidebar> — routes,
- * i18n labels, board context, collapse persistence, AI/beta feature flags,
- * and the seasonal celebration all live here; every pixel lives in
- * @fiestaboard/ui.
+ * i18n labels, board context, collapse persistence and AI/beta feature flags
+ * all live here; every pixel lives in @fiestaboard/ui.
  */
 export function NavigationSidebar() {
   const pathname = usePathname();
@@ -109,17 +64,6 @@ export function NavigationSidebar() {
   const t = useTranslations("navigation");
   const { isOpen: aiPanelOpen, open: openAiPanel } = useGlobalAiPanel();
   const { boards, currentBoardId, setCurrentBoardId } = useCurrentBoard();
-
-  const season = useActiveSeason();
-
-  const fireCelebration = useCallback(
-    (e: React.MouseEvent) => {
-      if (!season) return;
-      fireSeasonBurst(e, season.colors);
-      toast.custom(() => <PrideCelebrationToast />);
-    },
-    [season],
-  );
 
   const { data: aiSettings } = useQuery<AISettings>({
     queryKey: ["ai-settings"],
@@ -176,7 +120,6 @@ export function NavigationSidebar() {
         expandSidebar: t("expandSidebar"),
         collapseSidebar: t("collapseSidebar"),
         aiAssistant: t("aiAssistant"),
-        logoButtonAriaLabel: t("prideCelebrationAriaLabel"),
       }}
       primaryItems={navPrimaryItems.map(toNavItem)}
       secondaryItems={secondaryItems.map(toNavItem)}
@@ -185,8 +128,6 @@ export function NavigationSidebar() {
       transitioning={transitioning}
       onToggleCollapsed={toggle}
       onTransitionEnd={onTransitionEnd}
-      season={season}
-      onLogoClick={fireCelebration}
       ai={hasAiProviders ? { active: aiPanelOpen, onOpen: openAiPanel } : undefined}
       boardSelector={
         boards.length > 1 ? (
