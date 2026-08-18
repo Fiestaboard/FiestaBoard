@@ -67,6 +67,10 @@ Then restart: `docker compose -f docker-compose.hub.yml up -d`. See [In-App Upda
 Create a systemd unit so FiestaBoard starts automatically:
 
 ```bash
+# Enable Docker to start on boot
+sudo systemctl enable docker
+
+# Create a systemd service for FiestaBoard
 sudo tee /etc/systemd/system/fiestaboard.service > /dev/null << 'EOF'
 [Unit]
 Description=FiestaBoard
@@ -99,36 +103,6 @@ sudo systemctl start fiestaboard
 ```bash
 # In .env, 60 seconds is usually sufficient
 REFRESH_INTERVAL_SECONDS=60
-```
-
-## Auto-Start on Boot
-
-To have FiestaBoard start automatically when your Pi boots:
-
-```bash
-# Enable Docker to start on boot
-sudo systemctl enable docker
-
-# Create a systemd service for FiestaBoard
-sudo tee /etc/systemd/system/fiestaboard.service << 'EOF'
-[Unit]
-Description=FiestaBoard
-After=docker.service
-Requires=docker.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=/home/pi/FiestaBoard
-ExecStart=/usr/bin/docker compose up -d
-ExecStop=/usr/bin/docker compose down
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Enable the service
-sudo systemctl enable fiestaboard
 ```
 
 ## Accessing From Other Devices
