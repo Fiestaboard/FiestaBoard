@@ -17,7 +17,7 @@ The display service starts automatically when the container is running. Open the
 Plugins are data sources - they pull information like weather, time, stock prices, and more so you can put that data on your board.
 
 1. Click **Integrations** in the navigation
-2. You'll see all 26 available plugins. Start by enabling a few that need no API key:
+2. You'll see all available plugins. Start by enabling a few that need no API key:
 
 | Plugin | What It Shows |
 |--------|--------------|
@@ -166,4 +166,4 @@ Create pages for different moods and times of day. Mix and match plugin variable
 - **[Color Guide](/docs/reference/color-guide)** - Add colored tiles to your pages
 - **[Character Codes](/docs/reference/character-codes)** - Special characters available on the board
 - **[Schedule Mode](/docs/features/schedule)** - Advanced scheduling with day patterns
-- **[All Plugins](/docs/plugins/overview)** - Full list of all 26 plugins
+- **[All Plugins](/docs/plugins/overview)** - Full list of all 50+ plugins
