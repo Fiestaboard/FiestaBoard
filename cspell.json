@@ -60,6 +60,8 @@
     "fiestaupdater",
     "finnhub",
     "groq",
+    "kwarg",
+    "kwargs",
     "hacs",
     "haos",
     "headlessly",
