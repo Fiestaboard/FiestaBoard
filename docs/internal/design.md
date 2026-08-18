@@ -51,7 +51,7 @@ Use these for UI chrome, not for board tile colors.
 - **Display title (hub):** `.page-title-display` – `text-3xl sm:text-4xl font-bold tracking-tight`  
   Use for the Dashboard (home) title only.
 
-Font families: `--font-sans` (Geist, via the `"Geist Variable"` family) and `--font-mono` (Geist Mono, via `"Geist Mono Variable"`). Defined in `@fiestaboard/ui/theme.css` (`--font-geist-sans` / `--font-geist-mono` on `:root`) and mapped into Tailwind utilities in that file's `@theme inline` block — imported at the top of `globals.css`, not declared there.
+Font families: `--font-sans` (Archivo, via the `"Archivo Variable"` family) and `--font-mono` (Spline Sans Mono, via the `"Spline Sans Mono Variable"` family). Defined in `@fiestaboard/ui/theme.css` (`--font-sans-stack` / `--font-mono-stack` on `:root`) and mapped into Tailwind utilities in that file's `@theme inline` block; the `@font-face` registrations come from `@fiestaboard/ui/fonts.css`. Both are imported at the top of `globals.css`, not declared there.
 
 ## Spacing and radius
 

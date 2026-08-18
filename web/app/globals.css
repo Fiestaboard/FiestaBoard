@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@fiestaboard/ui/fonts.css";
 @import "@fiestaboard/ui/theme.css";
 @source "../node_modules/@fiestaboard/ui/dist";
 

@@ -131,16 +131,16 @@ jobs:
           # - caniuse-lite ships browser-compat *data* under CC-BY-4.0 (the
           #   code is MIT); it's a transitive dep of browserslist, pulled
           #   in by tooling across the web build.
-          # - @fontsource-variable/geist + -geist-mono ship the actual
-          #   font files (woff2) under SIL Open Font License 1.1 (OFL-1.1).
-          #   OFL is the standard permissive font license used by Google
-          #   Fonts; the JS wrapper / package metadata is MIT. Replaced
-          #   next/font/google during the Next.js → RR7 migration so the
-          #   fonts are self-hosted (HA-Ingress-safe).
+          # - @fontsource-variable/archivo + -spline-sans-mono ship the
+          #   actual font files (woff2) under SIL Open Font License 1.1
+          #   (OFL-1.1). OFL is the standard permissive font license used
+          #   by Google Fonts; the JS wrapper / package metadata is MIT.
+          #   Self-hosted (HA-Ingress-safe) via @fiestaboard/ui, which
+          #   replaced Geist with these faces in v5.0.0.
           allow-dependencies-licenses: >-
             pkg:npm/caniuse-lite,
-            pkg:npm/%40fontsource-variable/geist,
-            pkg:npm/%40fontsource-variable/geist-mono
+            pkg:npm/%40fontsource-variable/archivo,
+            pkg:npm/%40fontsource-variable/spline-sans-mono
           comment-summary-in-pr: on-failure
 
   test-platform:
