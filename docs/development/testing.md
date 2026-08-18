@@ -55,47 +55,58 @@ pylint src/ plugins/
 
 Plugins require a minimum of **80% test coverage**. Use the provided test utilities:
 
+`PluginBase` takes a **manifest** dict in its constructor, not a `config` kwarg.
+Set config separately via the `plugin.config` attribute. `validate_config(config)`
+takes the config dict as an argument and returns a **list of error strings**
+(empty when valid) — it never returns a bool.
+
 ```python
-import pytest
 from unittest.mock import patch, MagicMock
 
 class TestMyPlugin:
     """Tests for MyPlugin."""
 
+    def _make_plugin(self, config=None):
+        """Create a plugin instance with a minimal manifest."""
+        plugin = MyPlugin({"id": "my_plugin", "name": "My Plugin", "version": "1.0.0"})
+        if config:
+            plugin.config = config
+        return plugin
+
     def test_fetch_data_success(self):
         """Test successful data fetching."""
-        plugin = MyPlugin(config={"api_key": "test"})
-        
+        plugin = self._make_plugin({"api_key": "test"})
+
         with patch("requests.get") as mock_get:
             mock_get.return_value = MagicMock(
                 status_code=200,
                 json=lambda: {"temp": 72}
             )
             result = plugin.fetch_data()
-            
+
         assert result.available is True
         assert result.data["temp"] == 72
 
     def test_fetch_data_api_error(self):
         """Test handling of API errors."""
-        plugin = MyPlugin(config={"api_key": "test"})
-        
+        plugin = self._make_plugin({"api_key": "test"})
+
         with patch("requests.get") as mock_get:
             mock_get.side_effect = Exception("API Error")
             result = plugin.fetch_data()
-            
+
         assert result.available is False
         assert result.error is not None
 
     def test_validate_config(self):
         """Test configuration validation."""
-        # Missing required key
-        plugin = MyPlugin(config={})
-        assert plugin.validate_config() is False
-        
-        # Valid config
-        plugin = MyPlugin(config={"api_key": "test"})
-        assert plugin.validate_config() is True
+        plugin = self._make_plugin()
+
+        # Missing required key returns a non-empty list of errors
+        assert plugin.validate_config({}) != []
+
+        # Valid config returns an empty list
+        assert plugin.validate_config({"api_key": "test"}) == []
 ```
 
 ### Web UI Component Tests
