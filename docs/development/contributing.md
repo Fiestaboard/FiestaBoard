@@ -38,7 +38,7 @@ docker compose -f docker-compose.dev.yml up --build
 The development environment provides:
 
 - **Hot reload** for Python backend changes
-- **Hot reload** for Next.js frontend changes
+- **Hot reload** for React Router + Vite frontend changes
 - Web UI at `http://localhost:4420`
 - API at `http://localhost:4420`
 

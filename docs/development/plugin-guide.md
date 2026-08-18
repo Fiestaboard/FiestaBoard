@@ -55,7 +55,7 @@ git checkout -b feat-plugin-my-plugin
 cp env.example .env
 # Edit .env with your board API key (see README for details)
 
-# Start the development stack (hot reload for Python and Next.js)
+# Start the development stack (hot reload for Python and the React Router + Vite web UI)
 docker compose -f docker-compose.dev.yml up --build
 ```
 
