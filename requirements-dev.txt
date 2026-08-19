@@ -13,5 +13,5 @@ coverage>=7.6.0
 # began reformatting code blocks inside Markdown), so an unpinned range makes
 # `ruff format --check` in CI nondeterministic — a new release can turn CI red
 # on unchanged code. Bump this deliberately and reformat in the same commit.
-ruff==0.16.2
+ruff==0.16.3
 

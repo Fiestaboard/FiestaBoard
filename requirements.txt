@@ -15,7 +15,7 @@ pydantic>=2.10.0
 httpx>=0.28.1
 
 # Stock market data
-yfinance>=1.5.2
+yfinance>=1.6.0
 finnhub-python>=2.4.29
 
 # Sun position calculations
