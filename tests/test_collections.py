@@ -88,19 +88,43 @@ class TestCollectionModels:
         assert c.time.interval_seconds == 30
         assert c.variable is None
 
-    def test_time_interval_range(self):
+    def test_time_interval_rejects_below_minimum(self):
         with pytest.raises(ValidationError):
             Collection(
                 name="Too Low",
                 page_ids=["p1"],
-                time=TimeModeConfig(interval_seconds=1),
+                time=TimeModeConfig(interval_seconds=4),
             )
+
+    def test_time_interval_accepts_24_hours(self):
+        """24h is the documented ceiling for a page duration (#1652)."""
+        c = Collection(
+            name="All Day",
+            page_ids=["p1"],
+            time=TimeModeConfig(interval_seconds=86400),
+        )
+        assert c.time.interval_seconds == 86400
+
+    def test_time_interval_rejects_above_24_hours(self):
         with pytest.raises(ValidationError):
             Collection(
                 name="Too High",
                 page_ids=["p1"],
-                time=TimeModeConfig(interval_seconds=7200),
+                time=TimeModeConfig(interval_seconds=86401),
             )
+
+    def test_time_mode_cycles_on_24_hour_boundaries(self):
+        """A day-long interval still advances exactly one page per day."""
+        c = Collection(
+            name="Daily",
+            page_ids=["a", "b", "c"],
+            time=TimeModeConfig(interval_seconds=86400),
+        )
+        assert c.current_page_index_time(0) == 0
+        assert c.current_page_index_time(86399) == 0
+        assert c.current_page_index_time(86400) == 1
+        assert c.current_page_index_time(3 * 86400) == 0
+        assert c.total_cycle_seconds_time() == 3 * 86400
 
     # --- Time-mode cycling ---------------------------------------------------
 
@@ -268,11 +292,16 @@ class TestCollectionRandomMode:
         assert c.random is not None
         assert c.random.interval_seconds == 10
 
-    def test_random_interval_range(self):
+    def test_random_interval_rejects_below_minimum(self):
         with pytest.raises(ValidationError):
-            RandomModeConfig(interval_seconds=1)
+            RandomModeConfig(interval_seconds=4)
+
+    def test_random_interval_accepts_24_hours(self):
+        assert RandomModeConfig(interval_seconds=86400).interval_seconds == 86400
+
+    def test_random_interval_rejects_above_24_hours(self):
         with pytest.raises(ValidationError):
-            RandomModeConfig(interval_seconds=7200)
+            RandomModeConfig(interval_seconds=86401)
 
     def test_random_default_interval(self):
         assert RandomModeConfig().interval_seconds == 30

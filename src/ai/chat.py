@@ -294,7 +294,8 @@ COLLECTIONS (ordered page groups with a selection mode):
 
    `page_ids` is the ordered list of page IDs that belong to the
    collection. By default, the collection rotates time-sliced through them;
-   `interval_seconds` (5–3600) controls how long each page shows.
+   `interval_seconds` (5–86400, i.e. 5 seconds to 24 hours) controls how
+   long each page shows.
    The user will be asked to confirm before creation.
 
 11. Update an existing collection (rename, reorder pages, change interval):

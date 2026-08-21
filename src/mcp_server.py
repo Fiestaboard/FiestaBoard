@@ -842,7 +842,7 @@ def _build_mcp_server() -> Any:
                 "variable" picks a page by evaluating expression rules against
                 live plugin data.
             interval_seconds: For time mode — how long to show each page
-                (default 30). Range: 5–3600.
+                (default 30). Range: 5–86400 (5 seconds to 24 hours).
             rules: For variable mode — ordered list of
                 {"expression": ..., "page_id": ...} entries. First truthy
                 expression wins.
@@ -1281,7 +1281,7 @@ def _build_mcp_server() -> Any:
             "2. Ask which pages I want in the rotation and in what order\n"
             "   (all pages in one collection must share the same device_type)\n"
             "3. Ask how long each page should stay up — typical values are\n"
-            "   15–60 seconds; the allowed range is 5–3600\n"
+            "   15–60 seconds; the allowed range is 5–86400 (up to 24 hours)\n"
             "4. Call create_collection() with the ordered page_ids\n"
             "5. Offer to either:\n"
             "     a) set the collection as the active page now via set_active_page(),\n"

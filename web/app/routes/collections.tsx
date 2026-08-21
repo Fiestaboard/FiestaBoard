@@ -64,6 +64,15 @@ import type {
 } from "@/lib/api";
 import { api } from "@/lib/api";
 
+// Page-duration bounds. These mirror MIN_INTERVAL_SECONDS / MAX_INTERVAL_SECONDS
+// in src/collections/models.py — the server rejects anything outside them, so
+// the form validates locally rather than round-tripping a 422.
+const MIN_INTERVAL_SECONDS = 5;
+const MAX_INTERVAL_SECONDS = 86400; // 24 hours
+
+/** Sentinel Select value that switches the duration field into custom entry. */
+const CUSTOM_INTERVAL = "custom";
+
 const INTERVAL_PRESETS = [
   { labelKey: "interval5s", value: 5 },
   { labelKey: "interval10s", value: 10 },
@@ -75,7 +84,59 @@ const INTERVAL_PRESETS = [
   { labelKey: "interval10m", value: 600 },
   { labelKey: "interval15m", value: 900 },
   { labelKey: "interval30m", value: 1800 },
+  { labelKey: "interval45m", value: 2700 },
+  { labelKey: "interval1h", value: 3600 },
+  { labelKey: "interval2h", value: 7200 },
+  { labelKey: "interval4h", value: 14400 },
+  { labelKey: "interval8h", value: 28800 },
+  { labelKey: "interval12h", value: 43200 },
+  { labelKey: "interval24h", value: 86400 },
 ];
+
+export type IntervalUnit = "seconds" | "minutes" | "hours";
+
+const UNIT_SECONDS: Record<IntervalUnit, number> = {
+  seconds: 1,
+  minutes: 60,
+  hours: 3600,
+};
+
+const UNIT_OPTIONS: { value: IntervalUnit; labelKey: string }[] = [
+  { value: "seconds", labelKey: "unitSeconds" },
+  { value: "minutes", labelKey: "unitMinutes" },
+  { value: "hours", labelKey: "unitHours" },
+];
+
+function isPresetInterval(seconds: number): boolean {
+  return INTERVAL_PRESETS.some((p) => p.value === seconds);
+}
+
+/**
+ * Express a duration in the largest unit that divides it exactly, so an
+ * existing 5400s collection reopens as "90 minutes" rather than "5400 seconds".
+ */
+export function splitInterval(seconds: number): { amount: number; unit: IntervalUnit } {
+  if (seconds > 0 && seconds % UNIT_SECONDS.hours === 0) {
+    return { amount: seconds / UNIT_SECONDS.hours, unit: "hours" };
+  }
+  if (seconds > 0 && seconds % UNIT_SECONDS.minutes === 0) {
+    return { amount: seconds / UNIT_SECONDS.minutes, unit: "minutes" };
+  }
+  return { amount: seconds, unit: "seconds" };
+}
+
+/**
+ * Convert a raw custom-entry amount into seconds. Returns null when the entry
+ * is not a whole number or falls outside the server-accepted range.
+ */
+export function parseCustomInterval(amount: string, unit: IntervalUnit): number | null {
+  const trimmed = amount.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const seconds = Number(trimmed) * UNIT_SECONDS[unit];
+  if (!Number.isSafeInteger(seconds)) return null;
+  if (seconds < MIN_INTERVAL_SECONDS || seconds > MAX_INTERVAL_SECONDS) return null;
+  return seconds;
+}
 
 const POLL_PRESETS = [
   { labelKey: "interval5s", value: 5 },
@@ -85,10 +146,16 @@ const POLL_PRESETS = [
   { labelKey: "interval1m", value: 60 },
 ];
 
-function formatInterval(seconds: number): string {
+export function formatInterval(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-  return `${Math.floor(seconds / 3600)}h`;
+  if (seconds < 3600) {
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return rest ? `${minutes}m ${rest}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
 }
 
 interface CollectionFormProps {
@@ -99,7 +166,7 @@ interface CollectionFormProps {
   onDelete?: () => void;
 }
 
-function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: CollectionFormProps) {
+export function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: CollectionFormProps) {
   const t = useTranslations("collections");
   const tc = useTranslations("common");
   const isEdit = Boolean(collection);
@@ -107,11 +174,19 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
   const [name, setName] = useState(collection?.name || "");
   const [selectedPageIds, setSelectedPageIds] = useState<string[]>(collection?.page_ids || []);
   const [selectionMode, setSelectionMode] = useState<CollectionSelectionMode>(collection?.selection_mode || "time");
-  const [intervalSeconds, setIntervalSeconds] = useState(
+  // A collection saved with a custom duration (or one saved before a preset was
+  // removed) must reopen in custom mode showing its real value — snapping it to
+  // the nearest preset would silently rewrite the user's setting on save.
+  const initialInterval =
     collection?.selection_mode === "random"
       ? collection?.random?.interval_seconds || 30
-      : collection?.time?.interval_seconds || 30,
-  );
+      : collection?.time?.interval_seconds || 30;
+  const initialCustomEntry = splitInterval(initialInterval);
+
+  const [intervalSeconds, setIntervalSeconds] = useState(initialInterval);
+  const [isCustomInterval, setIsCustomInterval] = useState(() => !isPresetInterval(initialInterval));
+  const [customAmount, setCustomAmount] = useState(String(initialCustomEntry.amount));
+  const [customUnit, setCustomUnit] = useState<IntervalUnit>(initialCustomEntry.unit);
   const [rules, setRules] = useState<VariableRule[]>(collection?.variable?.rules || []);
   const [defaultPageId, setDefaultPageId] = useState<string>(collection?.variable?.default_page_id || "");
   const [pollSeconds, setPollSeconds] = useState(collection?.variable?.poll_seconds || 10);
@@ -303,9 +378,41 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
 
   const handleRuleDragEnd = useCallback(() => setRuleDragIndex(null), []);
 
+  // The duration control only exists in time and random mode; a half-typed
+  // custom value must not block saving a variable-mode collection, whose
+  // rotation is driven by rules rather than by a page duration.
+  const durationModeActive = selectionMode === "time" || selectionMode === "random";
+  const customIntervalActive = durationModeActive && isCustomInterval;
+  const customIntervalSeconds = useMemo(
+    () => (customIntervalActive ? parseCustomInterval(customAmount, customUnit) : null),
+    [customIntervalActive, customAmount, customUnit],
+  );
+  const customIntervalInvalid = customIntervalActive && customIntervalSeconds === null;
+  const resolvedIntervalSeconds = customIntervalActive ? customIntervalSeconds : intervalSeconds;
+
+  const handleIntervalChange = useCallback(
+    (value: string) => {
+      if (!value) return;
+      if (value === CUSTOM_INTERVAL) {
+        const entry = splitInterval(intervalSeconds);
+        setCustomAmount(String(entry.amount));
+        setCustomUnit(entry.unit);
+        setIsCustomInterval(true);
+        return;
+      }
+      setIsCustomInterval(false);
+      setIntervalSeconds(Number(value));
+    },
+    [intervalSeconds],
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || selectedPageIds.length === 0) return;
+    if (resolvedIntervalSeconds === null) {
+      toast.error(t("customDurationError"));
+      return;
+    }
     if (selectionMode === "variable") {
       if (!defaultPageId) {
         toast.error(t("variableDefaultRequired"));
@@ -322,7 +429,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
         name: name.trim(),
         page_ids: selectedPageIds,
         selection_mode: selectionMode,
-        time: { interval_seconds: intervalSeconds },
+        time: { interval_seconds: resolvedIntervalSeconds },
         variable:
           selectionMode === "variable"
             ? {
@@ -331,7 +438,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                 poll_seconds: pollSeconds,
               }
             : null,
-        random: selectionMode === "random" ? { interval_seconds: intervalSeconds } : null,
+        random: selectionMode === "random" ? { interval_seconds: resolvedIntervalSeconds } : null,
       });
     } catch {
       setIsSubmitting(false);
@@ -341,6 +448,7 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
   const canSubmit =
     name.trim().length > 0 &&
     selectedPageIds.length >= 1 &&
+    !customIntervalInvalid &&
     (selectionMode !== "variable" ||
       (defaultPageId.length > 0 && rules.every((r) => r.expression.trim().length > 0 && r.page_id.length > 0)));
 
@@ -401,7 +509,10 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
           <Text size="xs" tone="muted">
             {selectionMode === "random" ? t("randomDurationDescription") : t("pageDurationDescription")}
           </Text>
-          <Select value={String(intervalSeconds)} onValueChange={(v) => setIntervalSeconds(Number(v))}>
+          <Select
+            value={isCustomInterval ? CUSTOM_INTERVAL : String(intervalSeconds)}
+            onValueChange={handleIntervalChange}
+          >
             <SelectTrigger id="collection-interval">
               <SelectValue />
             </SelectTrigger>
@@ -411,8 +522,52 @@ function CollectionForm({ collection, pages, onSubmit, onCancel, onDelete }: Col
                   {t(p.labelKey)}
                 </SelectItem>
               ))}
+              <SelectItem value={CUSTOM_INTERVAL}>{t("intervalCustom")}</SelectItem>
             </SelectContent>
           </Select>
+
+          {isCustomInterval && (
+            <Flex gap="2" align="end" className="flex-wrap">
+              <Stack gap="1" className="flex-1 min-w-[7rem]">
+                <Label htmlFor="collection-interval-amount">{t("customDurationLabel")}</Label>
+                <Input
+                  id="collection-interval-amount"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  aria-invalid={customIntervalInvalid || undefined}
+                  aria-describedby={customIntervalInvalid ? "collection-interval-error" : undefined}
+                />
+              </Stack>
+              <Stack gap="1" className="w-40">
+                <Label htmlFor="collection-interval-unit">{t("customDurationUnitLabel")}</Label>
+                <Select value={customUnit} onValueChange={(v) => v && setCustomUnit(v as IntervalUnit)}>
+                  <SelectTrigger id="collection-interval-unit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNIT_OPTIONS.map((u) => (
+                      <SelectItem key={u.value} value={u.value}>
+                        {t(u.labelKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Stack>
+            </Flex>
+          )}
+          {isCustomInterval &&
+            (customIntervalInvalid ? (
+              <Text id="collection-interval-error" size="xs" tone="destructive" role="alert">
+                {t("customDurationError")}
+              </Text>
+            ) : (
+              <Text size="xs" tone="muted">
+                {t("customDurationResolved", { duration: formatInterval(customIntervalSeconds ?? 0) })}
+              </Text>
+            ))}
         </Stack>
       )}
 
