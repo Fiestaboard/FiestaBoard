@@ -79,8 +79,13 @@ import {
   paintLine,
   renderPositionalLine,
 } from "@/components/tiptap-template-editor/utils/draw-mode";
-import { queryKeys } from "@/hooks/use-board";
-import { getEffectiveBoardColor, useBoardSettings } from "@/hooks/use-board";
+import {
+  getEffectiveBoardColor,
+  getEffectiveCode62Glyph,
+  queryKeys,
+  resolveCode62Glyph,
+  useBoardSettings,
+} from "@/hooks/use-board";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { CurrentPageSnapshot, ToolCall } from "@/lib/ai-chat-types";
@@ -245,6 +250,11 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
   const defaultBoardColor = getEffectiveBoardColor(boardSettings);
   const [previewBoardColor, setPreviewBoardColor] = useState<"black" | "white" | null>(null);
   const effectiveBoardColor = previewBoardColor ?? defaultBoardColor;
+
+  // Which glyph code 62 draws in this preview (issue #1657). A page belongs to
+  // a device shape rather than to one board, so this reads the same first board
+  // `defaultBoardColor` does; a Note-shaped page always draws the heart.
+  const effectiveCode62Glyph = resolveCode62Glyph(deviceType, getEffectiveCode62Glyph(boardSettings));
 
   // Helper to create arrays of the correct length
   const emptyLines = () => Array.from({ length: numLines }, () => "");
@@ -1910,6 +1920,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         boardWidth={dims.cols}
                         boardLines={numLines}
                         deviceType={deviceType}
+                        code62Glyph={effectiveCode62Glyph}
                         onSyncFromBoard={!pageId ? () => syncFromBoardMutation.mutate() : undefined}
                         syncFromBoardPending={syncFromBoardMutation.isPending}
                         drawMode={drawMode}
@@ -2114,6 +2125,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                         size="md"
                         boardType={effectiveBoardColor}
                         deviceType={deviceType}
+                        code62Glyph={effectiveCode62Glyph}
                         notesWide={notesWide}
                         notesTall={notesTall}
                         // DrawableBoardPreview hit-tests strokes through the

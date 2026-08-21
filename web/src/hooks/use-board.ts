@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
-import { api } from "@/lib/api";
+import { api, type Code62Glyph } from "@/lib/api";
 
 // Query keys for cache management.
 // Board-scoped keys (issue #1247): calling `activePage()` / `boardCurrentMessage()`
@@ -213,6 +213,35 @@ export function getEffectiveBoardColor(
   const firstBoard = boardSettings?.boards?.[0];
   if (firstBoard?.board_color) return firstBoard.board_color;
   return boardSettings?.board_type ?? "black";
+}
+
+/**
+ * Which glyph a board draws for character code 62 (issue #1657).
+ *
+ * Mirrors `BoardInstance.effective_code62_glyph` in `src/devices.py` and
+ * `resolveCode62Glyph` in `@fiestaboard/ui`, so the dashboard, the MCP preview
+ * and the package can never disagree about the same board.
+ *
+ * Note and note-array hardware only ever carried the heart flap, so the stored
+ * setting is not theirs to answer — a stale Flagship preference must not make a
+ * Note preview a degree sign it does not physically have. An unset preference
+ * means "degree", the glyph every Flagship had before Vestaboard changed it.
+ */
+export function resolveCode62Glyph(deviceType: string | undefined, code62Glyph: Code62Glyph | undefined): Code62Glyph {
+  if (deviceType === "note" || deviceType === "note_array") return "heart";
+  return code62Glyph ?? "degree";
+}
+
+/**
+ * Derive the effective code-62 glyph from board settings, for surfaces that
+ * have no specific board in hand. Reads the first board, the same one
+ * {@link getEffectiveBoardColor} falls back to.
+ */
+export function getEffectiveCode62Glyph(
+  boardSettings: { boards?: Array<{ device_type?: string; code62_glyph?: Code62Glyph }> } | undefined,
+): Code62Glyph {
+  const firstBoard = boardSettings?.boards?.[0];
+  return resolveCode62Glyph(firstBoard?.device_type, firstBoard?.code62_glyph);
 }
 
 /**

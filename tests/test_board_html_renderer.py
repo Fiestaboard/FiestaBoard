@@ -127,6 +127,25 @@ class TestCharacterRendering:
         html = render_board_html("72°", device_type="flagship")
         assert ">°</span>" in html
 
+    def test_flagship_draws_a_heart_when_its_flap_carries_one(self):
+        """Issue #1657: a 2026-era Flagship must preview what is on the wall."""
+        html = render_board_html("72°", device_type="flagship", code62_glyph="heart")
+        assert "heart" in html
+        assert ">°</span>" not in html
+
+    def test_flagship_told_nothing_still_draws_a_degree(self):
+        """No caller passing the new argument may change what it renders."""
+        assert render_board_html("72°", device_type="flagship", code62_glyph=None) == render_board_html(
+            "72°", device_type="flagship"
+        )
+
+    def test_note_ignores_a_stale_flagship_preference(self):
+        """Note flaps only ever carried the heart, whatever a board dict says."""
+        for device_type in ("note", "note_array"):
+            html = render_board_html("72°", device_type=device_type, code62_glyph="degree")
+            assert ">°</span>" not in html, device_type
+            assert "heart" in html, device_type
+
 
 class TestColorTokens:
     def test_numeric_color_code_renders_swatch(self):

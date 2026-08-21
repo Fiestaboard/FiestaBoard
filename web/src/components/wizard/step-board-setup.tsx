@@ -8,9 +8,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ScaledBoardDisplay } from "@/components/scaled-board-display";
 import { useTranslations } from "@/i18n/translations";
-import type { BoardInstance, DiscoveredBoard } from "@/lib/api";
+import type { BoardInstance, Code62Glyph, DiscoveredBoard } from "@/lib/api";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+
+/**
+ * The two flaps a Flagship's character-code-62 slot can physically carry
+ * (issue #1657). Module scope so the swatch pair has one source of truth.
+ */
+const CODE62_CHOICES: ReadonlyArray<{ value: Code62Glyph; glyph: string; labelKey: string }> = [
+  { value: "degree", glyph: "°", labelKey: "code62DegreeAriaLabel" },
+  { value: "heart", glyph: "♥", labelKey: "code62HeartAriaLabel" },
+];
 
 interface BoardConfig {
   api_mode: "local" | "cloud";
@@ -20,6 +29,8 @@ interface BoardConfig {
   connectionVerified: boolean;
   device_type: "flagship" | "note";
   board_color: "black" | "white";
+  /** Which flap this Flagship's code-62 slot carries (issue #1657). */
+  code62_glyph: Code62Glyph;
 }
 
 interface StepBoardSetupProps {
@@ -169,6 +180,7 @@ export function StepBoardSetup({
               name: "My Board",
               device_type: cfg.device_type,
               board_color: cfg.board_color,
+              code62_glyph: cfg.code62_glyph,
               api_mode: cfg.api_mode,
               host: cfg.host,
               local_api_key: cfg.local_api_key,
@@ -633,6 +645,39 @@ export function StepBoardSetup({
           </Flex>
         </Stack>
 
+        {/* Code-62 flap (issue #1657). Flagship only: Note hardware has only
+            ever carried the heart, so there is nothing to ask its owner. */}
+        {config.device_type === "flagship" && (
+          <Stack gap="3">
+            <Text weight="medium">{t("code62Label")}</Text>
+            <Text size="sm" tone="muted">
+              {t("code62Help")}
+            </Text>
+            <Flex align="center" gap="3">
+              {CODE62_CHOICES.map(({ value, glyph, labelKey }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onConfigChange({ ...config, code62_glyph: value })}
+                  aria-label={t(labelKey)}
+                  aria-pressed={config.code62_glyph === value}
+                  data-testid={`wizard-code62-${value}`}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                    config.code62_glyph === value
+                      ? "border-primary ring-2 ring-primary/30"
+                      : "border-border hover:border-muted-foreground",
+                  )}
+                >
+                  <Text as="span" aria-hidden="true">
+                    {glyph}
+                  </Text>
+                </button>
+              ))}
+            </Flex>
+          </Stack>
+        )}
+
         {/* Live board preview */}
         <Stack gap="2" className="pt-3">
           <Text weight="medium" tone="muted">
@@ -643,6 +688,7 @@ export function StepBoardSetup({
             size="sm"
             boardType={config.board_color}
             deviceType={config.device_type}
+            code62Glyph={config.code62_glyph}
           />
         </Stack>
       </Stack>

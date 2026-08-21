@@ -170,6 +170,9 @@ class BoardInstanceSchema(BaseModel):
     name: str
     device_type: str | None = None
     board_color: str | None = None
+    # Which flap this board's code-62 slot carries: "degree" or "heart" (#1657).
+    # Optional: boards saved before the setting existed have no value.
+    code62_glyph: str | None = None
     api_mode: str | None = None
     enabled: bool | None = None
 

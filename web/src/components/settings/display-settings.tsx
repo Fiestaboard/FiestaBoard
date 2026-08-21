@@ -51,11 +51,21 @@ import { toast } from "sonner";
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
 import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
-import type { BoardInstance, DeviceType } from "@/lib/api";
+import type { BoardInstance, Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 import { isNoteArray, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
 
 import { TileGridAssignment } from "./tile-grid-assignment";
+
+/**
+ * The two flaps a Flagship's character-code-62 slot can physically carry
+ * (issue #1657). Module scope so the swatch pair below has one source of truth
+ * and a stable identity across renders.
+ */
+const CODE62_CHOICES: ReadonlyArray<{ value: Code62Glyph; glyph: string; labelKey: string }> = [
+  { value: "degree", glyph: "°", labelKey: "code62DegreeAriaLabel" },
+  { value: "heart", glyph: "♥", labelKey: "code62HeartAriaLabel" },
+];
 
 /**
  * Tiles usable for the board's CURRENT W×H — mirrors the backend's
@@ -768,7 +778,46 @@ export function DisplaySettings() {
                             />
                           </Flex>
                         </Flex>
+                        {/* Code-62 flap (issue #1657). Flagship only: Note
+                            hardware has only ever carried the heart, so there
+                            is nothing for its owner to tell us. */}
+                        {board.device_type === "flagship" && (
+                          <Flex align="center" gap="2">
+                            <Text as="span" tone="muted" className="text-[11px]">
+                              {t("code62Label")}
+                            </Text>
+                            <Flex gap="2">
+                              {CODE62_CHOICES.map(({ value, glyph, labelKey }) => {
+                                const selected = (board.code62_glyph ?? "degree") === value;
+                                return (
+                                  <button
+                                    key={value}
+                                    onClick={() => handleUpdateBoard(board.id, { code62_glyph: value })}
+                                    aria-label={t(labelKey)}
+                                    aria-pressed={selected}
+                                    data-testid={`board-code62-${value}`}
+                                    className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                                      selected
+                                        ? "border-primary ring-2 ring-primary/30"
+                                        : "border-border hover:border-muted-foreground"
+                                    }`}
+                                  >
+                                    <Text as="span" aria-hidden="true">
+                                      {glyph}
+                                    </Text>
+                                  </button>
+                                );
+                              })}
+                            </Flex>
+                          </Flex>
+                        )}
                       </Flex>
+
+                      {board.device_type === "flagship" && (
+                        <Text as="p" tone="muted" className="text-[11px]">
+                          {t("code62Help")}
+                        </Text>
+                      )}
 
                       {/* Custom W×H inputs (note arrays only) */}
                       {(customOpen[board.id] || currentConfigValue(board) === "custom") && (

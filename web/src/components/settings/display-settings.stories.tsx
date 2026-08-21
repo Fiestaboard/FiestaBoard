@@ -10,6 +10,8 @@ const flagshipBoard: BoardInstance = {
   name: "Living Room",
   device_type: "flagship",
   board_color: "black",
+  // A Flagship built before 2026: its code-62 flap is a degree sign (#1657).
+  code62_glyph: "degree",
   enabled: true,
   api_mode: "local",
   host: "192.168.1.100",
@@ -34,6 +36,8 @@ const disabledBoard: BoardInstance = {
   name: "Office Board",
   device_type: "flagship",
   board_color: "black",
+  // A Flagship built from 2026: the same flap carries a heart (#1657).
+  code62_glyph: "heart",
   enabled: false,
   api_mode: "local",
   host: "",

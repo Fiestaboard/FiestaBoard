@@ -55,8 +55,10 @@ import Link from "@/components/smart-link";
 import {
   collectionPollMs,
   getEffectiveBoardColor,
+  getEffectiveCode62Glyph,
   getEffectiveDeviceType,
   queryKeys,
+  resolveCode62Glyph,
   useActivePage,
   useBoardCurrentMessage,
   useBoardSettings,
@@ -689,6 +691,13 @@ export function ActivePageDisplay() {
               size="md"
               boardType={currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
               deviceType={activeDeviceType}
+              // Which code-62 flap this board carries (issue #1657) — the
+              // preview has to draw what is on the wall, and only the owner
+              // can tell a heart-era Flagship from a degree-era one.
+              code62Glyph={resolveCode62Glyph(
+                activeDeviceType,
+                currentBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
+              )}
             />
           </Flex>
         </CardContent>

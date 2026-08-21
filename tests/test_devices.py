@@ -1083,3 +1083,57 @@ class TestPagesCompatibleWithBoard:
 
         assert pages_compatible_with_board(self._page("flagship"), {"id": "b1"}) is True
         assert pages_compatible_with_board(self._page("note"), {"id": "b1"}) is False
+
+
+class TestBoardInstanceCode62Glyph:
+    """The per-board code-62 flap (issue #1657).
+
+    Character code 62 is one code with two possible physical flaps: Vestaboard
+    shipped every Flagship with a degree sign until 2026, then replaced it with
+    a heart on newly-manufactured units and published no boundary anyone can
+    query. So the owner tells FiestaBoard which flap their board has.
+    """
+
+    def test_defaults_to_degree(self):
+        """A board nobody has configured draws the pre-2026 Flagship glyph.
+
+        This is the promise to every existing install: nothing renders
+        differently until its owner says so.
+        """
+        assert BoardInstance().code62_glyph == "degree"
+        assert BoardInstance().effective_code62_glyph == "degree"
+
+    def test_a_flagship_draws_the_flap_its_owner_reports(self):
+        board = BoardInstance(device_type="flagship", code62_glyph="heart")
+        assert board.effective_code62_glyph == "heart"
+
+    def test_invalid_glyph_falls_back_to_degree(self):
+        """An unrecognised value must not silently become a heart."""
+        assert BoardInstance(code62_glyph="sparkle").code62_glyph == "degree"
+        assert BoardInstance(code62_glyph=None).code62_glyph == "degree"
+
+    def test_note_hardware_always_draws_a_heart(self):
+        """Note flaps only ever carried the heart, whatever is stored.
+
+        A board switched from Flagship to Note keeps its old preference in
+        storage; it must not make a Note preview a degree sign it does not have.
+        """
+        for device_type in ("note", "note_array"):
+            board = BoardInstance(device_type=device_type, code62_glyph="degree")
+            assert board.effective_code62_glyph == "heart", device_type
+
+    def test_survives_a_save_and_reload(self):
+        """to_dict/from_dict must carry the field, or the setting is lost."""
+        original = BoardInstance(device_type="flagship", code62_glyph="heart")
+        restored = BoardInstance.from_dict(original.to_dict())
+        assert restored.code62_glyph == "heart"
+
+    def test_a_board_stored_before_this_field_existed_loads_as_degree(self):
+        """The reason no schema migration is needed.
+
+        Boards saved by an older FiestaBoard have no ``code62_glyph`` key at
+        all. ``from_dict`` defaults them to the glyph they already rendered, so
+        an upgrade changes nothing on anyone's board.
+        """
+        legacy = {"id": "b1", "name": "Kitchen", "device_type": "flagship", "board_color": "black"}
+        assert BoardInstance.from_dict(legacy).code62_glyph == "degree"

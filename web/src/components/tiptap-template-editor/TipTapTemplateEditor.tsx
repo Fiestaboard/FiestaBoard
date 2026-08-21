@@ -14,7 +14,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
-import type { DeviceType } from "@/lib/api";
+import type { Code62Glyph, DeviceType } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 import { ColorTileNode } from "./extensions/color-tile-node";
@@ -139,6 +139,7 @@ interface TipTapTemplateEditorProps {
   boardLines?: number; // Total lines (default: 6 for flagship)
   onLineCountChange?: (lineCount: number) => void; // Reports current line count for validation
   deviceType?: DeviceType; // Device type for device-specific features
+  code62Glyph?: Code62Glyph; // Which flap the target board's code-62 slot carries (issue #1657)
   onSyncFromBoard?: () => void; // Callback to populate template from current board display
   syncFromBoardPending?: boolean; // True while the sync mutation is in flight
   drawMode?: boolean; // True while draw mode is active (collapses the editor, keeps toolbar)
@@ -169,6 +170,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
       boardLines = BOARD_LINES,
       onLineCountChange,
       deviceType,
+      code62Glyph,
       onSyncFromBoard,
       syncFromBoardPending = false,
       drawMode = false,
@@ -1252,6 +1254,7 @@ export const TipTapTemplateEditor = forwardRef<TipTapTemplateEditorHandle, TipTa
               handleWrapClick();
             }}
             deviceType={deviceType}
+            code62Glyph={code62Glyph}
             onSyncFromBoard={onSyncFromBoard}
             syncFromBoardPending={syncFromBoardPending}
             drawMode={drawMode}

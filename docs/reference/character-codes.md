@@ -109,15 +109,25 @@ FiestaBoard supports multiple Vestaboard device types:
 
 Pages are device-specific — each page targets either Flagship or Note, and the editor and preview adapt to the correct dimensions.
 
-## Device-Specific Characters
+## Code 62: Degree or Heart
 
-Some character codes render differently depending on the target device:
+Character code 62 is one code with two possible flaps, and which one you get depends on the physical board:
 
-| Code | Flagship | Note |
-|------|----------|------|
-| 62 | `°` (Degree) | `❤` (Heart) |
+| Board | Code 62 draws |
+|-------|---------------|
+| Note (and Note arrays) | `❤` (Heart) |
+| Flagship shipped before 2026 | `°` (Degree) |
+| Flagship shipped from 2026 | `❤` (Heart) |
 
-When creating pages for the Note device, code 62 will display as a red heart icon instead of the degree symbol.
+Vestaboard replaced the degree flap with a heart on newly-manufactured Flagships: *"Every new Vestaboard purchased will ship with the heart in place of the degree symbol."* Nothing FiestaBoard can query tells the two apart — there is no serial number or API field that reports it — so **you tell FiestaBoard which flap your board has**.
+
+Set it per board in **Settings → Hardware** (or in the setup wizard when adding a board), under **Code 62 flap**. Boards default to **Degree**, so if you have an older Flagship there is nothing to change.
+
+The setting only affects what FiestaBoard *draws* in its previews, so the preview matches your wall. It never changes what is sent to the board: both glyphs are character code 62 on the wire, and the board draws whichever flap it physically has. It is a per-board setting, so a household with one older and one newer Flagship previews each correctly.
+
+The setting is not offered for Note devices — Note hardware has only ever carried the heart flap.
+
+In a template, type the degree symbol (`°`) or a heart (`❤`) and you get code 62 either way.
 
 ## Next Steps
 

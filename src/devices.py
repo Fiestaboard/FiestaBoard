@@ -41,6 +41,21 @@ NOTE_ARRAY_PRESETS: list[dict] = [
 
 VALID_API_MODES = ("local", "cloud")
 
+# Which glyph a board's character-code-62 flap physically carries (issue #1657).
+#
+# Code 62 is one code with two possible flaps. Vestaboard shipped every Flagship
+# with a degree sign until 2026, then replaced it with a heart on newly
+# manufactured units ("Every new Vestaboard purchased will ship with the heart in
+# place of the degree symbol"). They published no serial or date boundary, so two
+# boards that both report device_type "flagship" can draw different glyphs and
+# nothing FiestaBoard can query distinguishes them — the owner has to say.
+#
+# Note and note-array hardware only ever carried the heart, so this is a Flagship
+# setting; see BoardInstance.effective_code62_glyph.
+Code62Glyph = Literal["degree", "heart"]
+
+CODE62_GLYPHS = ("degree", "heart")
+
 # Sensitive per-tile fields for local note arrays (masked in API responses)
 TILE_SENSITIVE_FIELDS = {"local_api_key"}
 
@@ -104,6 +119,20 @@ class BoardInstance:
     name: str = ""
     device_type: str = "flagship"
     board_color: str = "black"
+    # Which glyph this board's character-code-62 flap physically carries
+    # (issue #1657). Vestaboard shipped every Flagship with a degree sign until
+    # 2026, then replaced it with a heart on newly-manufactured units, and
+    # published no serial or date boundary — so nothing FiestaBoard can query
+    # tells a degree board from a heart board, and the owner has to say.
+    #
+    # Flagship only: Note and note-array hardware only ever carried the heart,
+    # so ``effective_code62_glyph`` ignores this for them. Defaults to "degree",
+    # the glyph every Flagship had before the change, so an existing install
+    # renders exactly as it did before this field existed.
+    #
+    # Display-only. Both glyphs are character code 62 on the wire; this never
+    # changes what is sent to a board.
+    code62_glyph: str = "degree"
     enabled: bool = True
     # Per-board pause flag (issue #970). When True, FiestaBoard does not push
     # anything to this board — polling loop, schedule rotation, manual sends,
@@ -130,6 +159,8 @@ class BoardInstance:
             self.device_type = "flagship"
         if self.board_color not in ("black", "white"):
             self.board_color = "black"
+        if self.code62_glyph not in CODE62_GLYPHS:
+            self.code62_glyph = "degree"
         if self.api_mode not in VALID_API_MODES:
             self.api_mode = "local"
         if not isinstance(self.enabled, bool):
@@ -150,6 +181,22 @@ class BoardInstance:
             self.notes_tall = MAX_NOTES_PER_AXIS
         # Tiles only make sense on note-array boards
         self.tiles = normalize_note_array_tiles(self.tiles) if self.device_type == "note_array" else []
+
+    @property
+    def effective_code62_glyph(self) -> str:
+        """The glyph this board actually draws for character code 62.
+
+        Note and note-array hardware only ever shipped the heart flap, so the
+        glyph is a property of the device there and ``code62_glyph`` is not
+        theirs to set — a stale Flagship preference must not make a Note draw a
+        degree sign it does not physically have. Only Flagship is ambiguous, and
+        only there does the stored setting decide.
+
+        Read this rather than ``code62_glyph`` anywhere a board is rendered.
+        """
+        if is_note_array(self.device_type) or self.device_type == "note":
+            return "heart"
+        return self.code62_glyph
 
     @property
     def uses_local_tiles(self) -> bool:
@@ -209,6 +256,11 @@ class BoardInstance:
             name=data.get("name", ""),
             device_type=data.get("device_type", "flagship"),
             board_color=data.get("board_color", "black"),
+            # A board saved before this field existed has no key here, and the
+            # default is "degree" — the glyph every Flagship carried before
+            # Vestaboard changed the flap — so no stored board changes how it
+            # renders and no migration is needed (issue #1657).
+            code62_glyph=data.get("code62_glyph", "degree"),
             enabled=data.get("enabled", True),
             paused=data.get("paused", False),
             schedule_enabled=data.get("schedule_enabled", False),
