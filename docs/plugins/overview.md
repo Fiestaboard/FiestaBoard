@@ -1,20 +1,22 @@
 ---
 sidebar_position: 1
-description: "Explore FiestaBoard's 26 plugins for your Vestaboard — weather, sports, traffic, transit, Home Assistant, and more."
+description: "Explore FiestaBoard's 50+ plugins for your Vestaboard — weather, sports, traffic, transit, Home Assistant, and more."
 keywords: [FiestaBoard plugins, plugin overview, available plugins, Vestaboard plugins, Vestaboard integrations, split-flap integrations]
 ---
 
 # Plugins Overview
 
-FiestaBoard uses a **plugin architecture** to bring live data to your Vestaboard. Each data source is a self-contained plugin you can enable or disable independently. There are currently 26 built-in plugins, and many work without any API key.
+FiestaBoard uses a **plugin architecture** to bring live data to your Vestaboard. Each data source is a self-contained plugin you can enable or disable independently. The curated catalog has **50+ plugins**, and many work without any API key.
 
 FiestaBoard supports three ways to add plugins:
 
 | Source | Description |
 |--------|-------------|
-| **Built-in** | Plugins that ship with FiestaBoard in the `plugins/` directory. These are always available. |
-| **Registry** | Community plugins listed in the curated `plugin-registry.json`. They are installed from public git repositories that follow the `fiestaboard-plugin--{name}` naming convention. |
+| **Bundled** | A small set of plugins ships with FiestaBoard in the `plugins/` directory (for example Countdown, Date & Time, Random). These are always available. |
+| **Registry** | The rest of the catalog — the **50+ plugins** listed in the curated `plugin-registry.json`. They are installed on demand from public git repositories that follow the `fiestaboard-plugin--{name}` naming convention. |
 | **Custom Git** | Any public git repository can be installed as a plugin. Custom repos do not need to follow the naming convention. |
+
+> The plugins listed on this page span both the bundled set and the registry. "Bundled" means the plugin's code lives in this repo; registry plugins are pulled in when you enable them. Either way, you enable and manage them the same way in the web UI.
 
 ## Enabling Plugins
 
@@ -134,7 +136,7 @@ curl -X POST http://localhost:4420/api/plugins/install \
 
 ### Uninstalling External Plugins
 
-External plugins can be removed when no longer needed. Built-in plugins cannot be uninstalled.
+External plugins can be removed when no longer needed. Bundled plugins cannot be uninstalled.
 
 ```bash
 curl -X DELETE http://localhost:4420/api/plugins/my_plugin/uninstall
