@@ -80,9 +80,10 @@ At your configured polling interval (default: 15 seconds), the display service:
 3. If a match is found, displays that page
 4. If no match is found, displays the default page
 
+> **Note:** Schedules can cross midnight (e.g., 11 PM to 1 AM). The system handles the rollover automatically.
+
 ## Known Limitations
 
-- **Midnight spanning supported** - Schedules can cross midnight (e.g., 11 PM to 1 AM). The system handles the rollover automatically.
 - **Switching delay** - There may be a delay of up to one refresh interval when switching between scheduled pages.
 - **Recommended limit** - For optimal performance, keep the total number of schedule entries under 50.
 
