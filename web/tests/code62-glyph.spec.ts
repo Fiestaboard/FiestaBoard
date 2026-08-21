@@ -13,6 +13,8 @@
 import {
   API_URL,
   authHeaders,
+  BOARD_HOST,
+  clearBoardConfig,
   configureBoard,
   createPage,
   deleteAllPages,
@@ -26,6 +28,7 @@ import {
   setActivePage,
   suppressWizard,
   test,
+  waitForFirstRun,
 } from "./helpers";
 
 /** Character code 62 — the one code both flaps carry. */
@@ -225,5 +228,63 @@ test.describe("Character code 62 — per-board glyph", () => {
     expect(sentRows[0][GLYPH_COL]).toBe(CODE_62);
     expect(sentRows[1][GLYPH_COL]).toBe(CODE_62);
     expect(sentRows[0]).toEqual(sentRows[1]);
+  });
+});
+
+/**
+ * The setup wizard is where most owners will answer this question — it is the
+ * first thing a new install asks — so the swatch there has to reach the stored
+ * board, not just the local form state.
+ */
+test.describe("Character code 62 — setup wizard", () => {
+  test.beforeEach(async () => {
+    await clearBoardConfig();
+    await waitForFirstRun();
+  });
+
+  test.afterEach(async () => {
+    await configureBoard();
+    await resetToSingleBoard();
+  });
+
+  test("the flap chosen in the wizard is saved with the board", async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.removeItem("fiestaboard_wizard_complete");
+    });
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
+
+    await page.getByText("Local API").click();
+    await page.getByLabel("Board IP Address").fill(BOARD_HOST);
+    await page.getByLabel("Local API Key").fill("test-key");
+
+    // Flagship is the default and the only shape this question applies to.
+    const heartSwatch = page.locator("[data-testid=wizard-code62-heart]");
+    await heartSwatch.scrollIntoViewIfNeeded();
+    await expect(heartSwatch).toHaveAttribute("aria-pressed", "false");
+    await heartSwatch.click();
+    await expect(heartSwatch).toHaveAttribute("aria-pressed", "true");
+
+    const testConnBtn = page.getByRole("button", { name: "Test Connection" });
+    await testConnBtn.scrollIntoViewIfNeeded();
+    await testConnBtn.click();
+    await expect(page.getByText("Connected!")).toBeVisible({ timeout: 15_000 });
+
+    const res = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
+    const data = await res.json();
+    expect(data.boards[0].code62_glyph).toBe("heart");
+  });
+
+  test("the wizard offers no code-62 choice once Note is selected", async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.removeItem("fiestaboard_wizard_complete");
+    });
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
+
+    await expect(page.locator("[data-testid=wizard-code62-heart]")).toHaveCount(1);
+    await page.getByRole("button", { name: "Note 3 × 15 characters" }).click();
+    await expect(page.locator("[data-testid=wizard-code62-heart]")).toHaveCount(0);
+    await expect(page.locator("[data-testid=wizard-code62-degree]")).toHaveCount(0);
   });
 });
