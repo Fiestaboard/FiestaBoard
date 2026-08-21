@@ -103,15 +103,32 @@ def _parse_line(line: str) -> list[object]:
     return tokens
 
 
-def _grid(formatted: str, rows: int, cols: int, device_type: str) -> list[list[object]]:
+def _resolve_code62_glyph(device_type: str, code62_glyph: str | None) -> str:
+    """Decide which glyph a board draws for character code 62.
+
+    Mirrors ``resolveCode62Glyph`` in ``@fiestaboard/ui`` exactly, so this
+    renderer and the web preview can never disagree about the same board.
+
+    Note and note-array hardware only ever carried the heart flap, so their
+    glyph is a property of the device. Flagship is the ambiguous one — see
+    :data:`src.devices.CODE62_GLYPHS` — and an unset preference means
+    ``"degree"``, the glyph every Flagship had before Vestaboard changed it.
+    """
+    if device_type in ("note", "note_array"):
+        return "heart"
+    return code62_glyph if code62_glyph in ("degree", "heart") else "degree"
+
+
+def _grid(formatted: str, rows: int, cols: int, code62_glyph: str) -> list[list[object]]:
     """Convert a rendered string into a fixed (rows x cols) token grid.
 
     Lines shorter than ``cols`` are right-padded with blank character
     tokens; extra lines beyond ``rows`` are ignored. Matches
-    ``messageToGrid`` in the web UI, including the Note-device degree
+    ``messageToGrid`` in the web UI, including the code-62 degree
     sign -> heart substitution.
+
+    ``code62_glyph`` is already resolved (see :func:`_resolve_code62_glyph`).
     """
-    is_note = device_type == "note"
     lines = formatted.split("\n") if formatted else []
     grid: list[list[object]] = []
     for r in range(rows):
@@ -121,7 +138,7 @@ def _grid(formatted: str, rows: int, cols: int, device_type: str) -> list[list[o
         for c in range(cols):
             if c < len(parsed):
                 tok = parsed[c]
-                if is_note and isinstance(tok, _CharToken) and tok.value == "°":
+                if code62_glyph == "heart" and isinstance(tok, _CharToken) and tok.value == "°":
                     row.append(_CharToken("♥"))
                 else:
                     row.append(tok)
@@ -248,6 +265,7 @@ def render_board_html(
     notes_wide: int = 1,
     notes_tall: int = 1,
     page_name: str | None = None,
+    code62_glyph: str | None = None,
 ) -> str:
     """Render a board preview as a self-contained HTML document.
 
@@ -260,6 +278,11 @@ def render_board_html(
         notes_wide: Number of Notes wide (only used for ``"note_array"``).
         notes_tall: Number of Notes tall (only used for ``"note_array"``).
         page_name: Optional label rendered above the board.
+        code62_glyph: ``"degree"`` or ``"heart"`` — which flap this board
+            physically carries for character code 62 (issue #1657). Flagship
+            only; Note and note-array always draw the heart. ``None`` means
+            ``"degree"``, the glyph every Flagship had before Vestaboard
+            changed it, so a caller that does not pass it renders as before.
 
     Returns:
         A standalone HTML document string (``<!DOCTYPE html>...``).
@@ -271,7 +294,7 @@ def render_board_html(
         # Unknown/corrupt device_type — fall back to flagship 6×22 rather than crash.
         rows, cols = 6, 22
     is_note = device_type == "note"
-    grid = _grid(formatted or "", rows, cols, device_type)
+    grid = _grid(formatted or "", rows, cols, _resolve_code62_glyph(device_type, code62_glyph))
 
     row_html_parts: list[str] = []
     for r, row in enumerate(grid):
@@ -301,7 +324,35 @@ def render_board_html(
     )
 
 
-def render_page_preview_html(page: object) -> str:
+def _code62_glyph_for_device(device_type: str) -> str | None:
+    """The stored code-62 flap for the boards of this shape, if they agree.
+
+    A Page is global — it belongs to a device *shape*, not to one board — so
+    there is no single board to read the setting off. Only an unambiguous answer
+    is used: if every configured board of this shape reports the same glyph,
+    that is what a preview of the page will draw on all of them. If they
+    disagree (one heart-era Flagship, one degree-era), no single preview can be
+    right for both, so this returns None and the caller falls back to the
+    default rather than guessing.
+
+    Never raises — a preview must not fail because settings are unreadable.
+    """
+    try:
+        from .settings.service import get_settings_service
+
+        boards = get_settings_service().get_board_settings().boards or []
+    except Exception:
+        return None
+
+    glyphs = {
+        (b.get("code62_glyph") or "degree")
+        for b in boards
+        if isinstance(b, dict) and (b.get("device_type") or "flagship") == device_type
+    }
+    return glyphs.pop() if len(glyphs) == 1 else None
+
+
+def render_page_preview_html(page: object, code62_glyph: str | None = None) -> str:
     """Render an HTML preview for a Page model.
 
     Uses ``PageService.preview_page`` (which is cached) when available so
@@ -312,6 +363,9 @@ def render_page_preview_html(page: object) -> str:
 
     Args:
         page: A ``src.pages.models.Page`` instance.
+        code62_glyph: Override which flap the preview draws for code 62. When
+            omitted it is read from the configured boards of this page's shape
+            (see :func:`_code62_glyph_for_device`).
 
     Returns:
         A standalone HTML document string.
@@ -346,4 +400,5 @@ def render_page_preview_html(page: object) -> str:
         notes_wide=notes_wide,
         notes_tall=notes_tall,
         page_name=page_name,
+        code62_glyph=code62_glyph if code62_glyph is not None else _code62_glyph_for_device(device_type),
     )

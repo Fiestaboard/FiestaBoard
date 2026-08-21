@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { LanguageSelector } from "@/components/language-selector";
 import { useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import type { Code62Glyph } from "@/lib/api";
 import { appUrl } from "@/lib/base-path";
 import type { WizardProgress } from "@/lib/setup-detection";
 import { clearWizardProgress, getWizardProgress, markWizardComplete, saveWizardProgress } from "@/lib/setup-detection";
@@ -62,6 +63,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     connectionVerified: boolean;
     device_type: "flagship" | "note";
     board_color: "black" | "white";
+    code62_glyph: Code62Glyph;
   }>(() => ({
     api_mode: saved?.boardConfig?.api_mode ?? "cloud",
     local_api_key: saved?.boardConfig?.local_api_key || "",
@@ -70,6 +72,9 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     connectionVerified: false,
     device_type: saved?.boardConfig?.device_type || "flagship",
     board_color: saved?.boardConfig?.board_color || "black",
+    // "degree" preserves what every Flagship drew before Vestaboard swapped the
+    // flap, so a user who skips the question is not opted into a change (#1657).
+    code62_glyph: saved?.boardConfig?.code62_glyph || "degree",
   }));
 
   // Plugin config state
@@ -90,6 +95,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         host: boardConfig.host,
         device_type: boardConfig.device_type,
         board_color: boardConfig.board_color,
+        code62_glyph: boardConfig.code62_glyph,
       },
       plugins: pluginConfig,
     };

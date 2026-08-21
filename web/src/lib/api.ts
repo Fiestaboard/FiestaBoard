@@ -222,6 +222,15 @@ export type PageType = "single" | "composite" | "template";
 // Device types
 export type DeviceType = "flagship" | "note" | "note_array";
 
+/**
+ * Which glyph a board's character-code-62 flap physically carries (issue #1657).
+ *
+ * Mirrors `Code62Glyph` in `src/devices.py` and the prop of the same shape in
+ * `@fiestaboard/ui`. Declared here rather than re-exported from the package
+ * because it is part of this app's API contract with its own backend.
+ */
+export type Code62Glyph = "degree" | "heart";
+
 export interface RowConfig {
   source: string;
   row_index: number;
@@ -558,6 +567,16 @@ export interface BoardInstance {
   name: string;
   device_type: DeviceType;
   board_color: "black" | "white";
+  /**
+   * Which glyph this board's character-code-62 flap physically carries
+   * (issue #1657). Flagship only — Note hardware has only ever had the heart.
+   * Optional because boards saved before the setting existed have no value;
+   * absent means "degree", the glyph every Flagship had before Vestaboard
+   * swapped it, so an existing install renders exactly as it did.
+   *
+   * Display-only: both glyphs are code 62 on the wire.
+   */
+  code62_glyph?: Code62Glyph;
   enabled: boolean;
   // Per-board pause flag (issue #970). When true FiestaBoard does not
   // push anything to this board from any code path until it is resumed.

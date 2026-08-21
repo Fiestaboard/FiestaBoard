@@ -7,14 +7,20 @@ import { Box, Grid, Text, Tooltip, TooltipContent, TooltipProvider, TooltipTrigg
 import { Heart } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { resolveCode62Glyph } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
-import type { DeviceType } from "@/lib/api";
+import type { Code62Glyph, DeviceType } from "@/lib/api";
 import { FIESTABOARD_COLORS } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
 
 interface ColorPickerContentProps {
   onInsert: (colorValue: string) => void;
   deviceType?: DeviceType;
+  /**
+   * Which flap the target board's code-62 slot carries (issue #1657). Only
+   * changes how the button below is *labelled* — it inserts code 62 either way.
+   */
+  code62Glyph?: Code62Glyph;
 }
 
 const COLOR_MAP: Record<string, { bg: string; needsDarkText: boolean }> = {
@@ -30,9 +36,14 @@ const COLOR_MAP: Record<string, { bg: string; needsDarkText: boolean }> = {
 
 const COLOR_ORDER = ["red", "orange", "yellow", "green", "blue", "violet", "white", "black"] as const;
 
-export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentProps) {
+export function ColorPickerContent({ onInsert, deviceType, code62Glyph }: ColorPickerContentProps) {
   const t = useTranslations("templateEditor");
-  const isNote = deviceType === "note";
+  // Character code 62 is one code with two possible flaps, and the button below
+  // is offered for every board — a Flagship owner could not reach code 62 from
+  // the picker at all while it was gated on `isNote` (issue #1657). Only the
+  // icon and wording follow the board: a degree-flap Flagship must not be
+  // offered a button captioned "Heart" that draws a degree sign.
+  const drawsHeart = resolveCode62Glyph(deviceType, code62Glyph) === "heart";
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -154,7 +165,9 @@ export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentP
     <TooltipProvider>
       <Box
         ref={containerRef}
-        className={cn("p-2", !isNote && "pb-1")}
+        // The code-62 button below the grid is now always rendered, so the
+        // padding no longer has an absent-button case to compensate for.
+        className="p-2"
         tabIndex={0}
         role="listbox"
         aria-label={t("colorPickerAriaLabel")}
@@ -197,34 +210,50 @@ export function ColorPickerContent({ onInsert, deviceType }: ColorPickerContentP
             );
           })}
         </Grid>
-        {isNote && (
-          <Box className="mt-2 pt-2 border-t border-border">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => onInsert("°")} // Degree symbol (°) renders as heart (❤) on Note device (code 62)
-                  className={cn(
-                    "w-full h-10 rounded-md text-sm font-medium transition-all hover:scale-[1.02] hover:shadow-md",
-                    "flex items-center justify-center gap-1.5 focus:outline-none",
-                    "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20",
-                  )}
-                  aria-label={t("heartCharacterAriaLabel")}
-                  role="option"
-                  aria-selected={false}
-                >
-                  <Heart className="w-4 h-4 fill-current" />
-                  <Text as="span" weight="medium" className="text-red-500">
-                    {t("heartLabel")}
-                  </Text>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <Text>{t("insertHeartTooltip")}</Text>
-              </TooltipContent>
-            </Tooltip>
-          </Box>
-        )}
+        <Box className="mt-2 pt-2 border-t border-border">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                // Always the degree symbol: it is character code 62, which is
+                // what the board is sent. Which glyph the flap then shows is a
+                // property of the hardware, not of the template.
+                onClick={() => onInsert("°")}
+                className={cn(
+                  "w-full h-10 rounded-md text-sm font-medium transition-all hover:scale-[1.02] hover:shadow-md",
+                  "flex items-center justify-center gap-1.5 focus:outline-none",
+                  drawsHeart
+                    ? "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20"
+                    : "bg-muted/50 text-foreground border border-border hover:bg-muted",
+                )}
+                aria-label={drawsHeart ? t("heartCharacterAriaLabel") : t("degreeCharacterAriaLabel")}
+                role="option"
+                aria-selected={false}
+              >
+                {drawsHeart ? (
+                  <>
+                    <Heart className="w-4 h-4 fill-current" />
+                    <Text as="span" weight="medium" className="text-red-500">
+                      {t("heartLabel")}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text as="span" aria-hidden="true">
+                      °
+                    </Text>
+                    <Text as="span" weight="medium">
+                      {t("degreeLabel")}
+                    </Text>
+                  </>
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <Text>{drawsHeart ? t("insertHeartTooltip") : t("insertDegreeTooltip")}</Text>
+            </TooltipContent>
+          </Tooltip>
+        </Box>
       </Box>
     </TooltipProvider>
   );

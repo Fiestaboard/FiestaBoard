@@ -5,6 +5,7 @@ import { CheckCircle, Clock, Loader2, PartyPopper, Puzzle, Send, XCircle } from 
 import { useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
+import type { Code62Glyph } from "@/lib/api";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ interface BoardConfig {
   connectionVerified: boolean;
   device_type: "flagship" | "note";
   board_color: "black" | "white";
+  code62_glyph: Code62Glyph;
 }
 
 interface StepWelcomeProps {

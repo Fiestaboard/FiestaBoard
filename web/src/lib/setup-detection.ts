@@ -5,7 +5,7 @@
  * and provides utilities for the setup flow.
  */
 
-import type { ConfigValidationResponse } from "./api";
+import type { Code62Glyph, ConfigValidationResponse } from "./api";
 import { api } from "./api";
 
 const WIZARD_COMPLETE_KEY = "fiestaboard_wizard_complete";
@@ -20,6 +20,8 @@ export interface WizardProgress {
     host?: string;
     device_type?: "flagship" | "note";
     board_color?: "black" | "white";
+    /** Which flap this Flagship's code-62 slot carries (issue #1657). */
+    code62_glyph?: Code62Glyph;
   };
   plugins?: {
     date_time?: {

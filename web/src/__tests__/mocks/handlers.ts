@@ -1138,7 +1138,12 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE}/settings/board/add`, async ({ request }) => {
-    const body = (await request.json()) as { device_type: string; name?: string; board_color?: string };
+    const body = (await request.json()) as {
+      device_type: string;
+      name?: string;
+      board_color?: string;
+      code62_glyph?: string;
+    };
     return HttpResponse.json({
       status: "success",
       settings: {
@@ -1150,6 +1155,7 @@ export const handlers = [
             name: body.name || (body.device_type === "note" ? "Note" : "Flagship"),
             device_type: body.device_type,
             board_color: body.board_color || "black",
+            code62_glyph: body.code62_glyph || "degree",
           },
         ],
         devices: ["flagship", body.device_type],

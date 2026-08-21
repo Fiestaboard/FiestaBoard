@@ -73,7 +73,15 @@ describe("BoardDisplay white/black tile colors", () => {
   });
 });
 
-describe("BoardDisplay Note device heart character", () => {
+/**
+ * Character code 62 is one code with two possible physical flaps (issue #1657).
+ *
+ * Note hardware has only ever carried the heart. Flagships carried the degree
+ * sign until 2026, when Vestaboard replaced it with a heart on newly
+ * manufactured units — so `deviceType` no longer decides what a Flagship draws,
+ * and the board's own `code62Glyph` does.
+ */
+describe("BoardDisplay code-62 flap", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -82,27 +90,36 @@ describe("BoardDisplay Note device heart character", () => {
     vi.useRealTimers();
   });
 
-  it("renders degree symbol as heart (♥) on Note device", async () => {
-    // Degree symbol ° (code 62) should become ♥ on Note
-    render(<BoardDisplay message="°" deviceType="note" boardType="black" size="md" />, { wrapper: TestWrapper });
+  /** Render one board and return the glyph its first tile drew. */
+  async function firstTileGlyph(props: Partial<Parameters<typeof BoardDisplay>[0]>) {
+    render(<BoardDisplay message="°" boardType="black" size="md" {...props} />, { wrapper: TestWrapper });
     await vi.advanceTimersByTimeAsync(200);
+    const tile = screen.getByTestId("char-tile-0-0");
+    return tile.getAttribute("data-target-char");
+  }
 
-    const tile = screen.queryByTestId("char-tile-0-0");
-    expect(tile).toBeTruthy();
-    if (tile) {
-      // The target char should be the text heart ♥ (not the emoji ❤)
-      expect(tile.getAttribute("data-target-char")).toBe("♥");
-    }
+  it("draws a heart on a Note device", async () => {
+    // The text heart ♥, not the emoji ❤.
+    expect(await firstTileGlyph({ deviceType: "note" })).toBe("♥");
   });
 
-  it("keeps degree symbol on Flagship device", async () => {
-    render(<BoardDisplay message="°" deviceType="flagship" boardType="black" size="md" />, { wrapper: TestWrapper });
-    await vi.advanceTimersByTimeAsync(200);
+  it("draws a degree on a Flagship that was not told which flap it has", async () => {
+    // The promise to every install that predates the setting: unchanged.
+    expect(await firstTileGlyph({ deviceType: "flagship" })).toBe("°");
+  });
 
-    const tile = screen.queryByTestId("char-tile-0-0");
-    expect(tile).toBeTruthy();
-    if (tile) {
-      expect(tile.getAttribute("data-target-char")).toBe("°");
-    }
+  it("draws a heart on a Flagship whose flap carries one", async () => {
+    // The reported bug: a 2026-era Flagship previewing 72° while showing 72♥.
+    expect(await firstTileGlyph({ deviceType: "flagship", code62Glyph: "heart" })).toBe("♥");
+  });
+
+  it("draws a degree on a Flagship explicitly set to the degree flap", async () => {
+    expect(await firstTileGlyph({ deviceType: "flagship", code62Glyph: "degree" })).toBe("°");
+  });
+
+  it("ignores a stale Flagship setting on a Note device", async () => {
+    // Note flaps only ever carried the heart, so the setting is not the
+    // device's to answer — a board switched Flagship→Note keeps the old value.
+    expect(await firstTileGlyph({ deviceType: "note", code62Glyph: "degree" })).toBe("♥");
   });
 });

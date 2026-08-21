@@ -116,6 +116,19 @@ class TestBoardCharsSpecialCharacters:
         """Space character returns code 0."""
         assert BoardChars.get_char_code(" ") == 0
 
+    def test_every_code_62_glyph_encodes_to_62(self):
+        """The wire format is untouched by the per-board flap setting (#1657).
+
+        Which glyph a board draws for code 62 is a property of its hardware and
+        is a display concern only. All three ways of typing it must still encode
+        to the one code — introducing a second code would send a character no
+        Vestaboard has.
+        """
+        assert BoardChars.DEGREE == 62
+        assert BoardChars.HEART == 62
+        for char in ("°", "❤", "♥"):
+            assert BoardChars.get_char_code(char) == 62, char
+
 
 class TestBoardCharsUnknownCharacter:
     """Tests for unknown character handling."""

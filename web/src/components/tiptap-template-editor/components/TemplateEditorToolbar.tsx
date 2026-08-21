@@ -31,7 +31,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { HomeAssistantEntityPicker } from "@/components/home-assistant-entity-picker";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
-import type { DeviceType } from "@/lib/api";
+import type { Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
 import { AVAILABLE_COLORS, getBoardColor } from "@/lib/board-colors";
 import { cn } from "@/lib/utils";
@@ -60,6 +60,8 @@ interface TemplateEditorToolbarProps {
   onWrapToggle?: () => void;
   className?: string;
   deviceType?: DeviceType;
+  /** Which flap the target board's code-62 slot carries (issue #1657). */
+  code62Glyph?: Code62Glyph;
   onSyncFromBoard?: () => void;
   syncFromBoardPending?: boolean;
   drawMode?: boolean;
@@ -76,6 +78,7 @@ export function TemplateEditorToolbar({
   onWrapToggle,
   className,
   deviceType,
+  code62Glyph,
   onSyncFromBoard,
   syncFromBoardPending = false,
   drawMode = false,
@@ -630,6 +633,7 @@ export function TemplateEditorToolbar({
                       close();
                     }}
                     deviceType={deviceType}
+                    code62Glyph={code62Glyph}
                   />
                 )}
               </ToolbarDropdown>

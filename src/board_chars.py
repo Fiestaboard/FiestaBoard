@@ -78,7 +78,7 @@ class BoardChars:
     SLASH = 59  # /
     QUESTION = 60  # ?
     # 61 is undefined
-    DEGREE = 62  # ° (Flagship only, Heart on Note)
+    DEGREE = 62  # ° or ❤ — one code, two flaps (see HEART below)
 
     # Color codes (filled color tiles)
     RED = 63
@@ -94,7 +94,15 @@ class BoardChars:
     # Aliases for compatibility
     APOSTROPHE = SINGLE_QUOTE
     HYPHEN = DASH
-    HEART = DEGREE  # Code 62 renders as ❤ on Note, ° on Flagship
+    # Code 62 is one character code with two possible physical flaps, and which
+    # glyph a board draws is a property of the hardware, not of the code we send.
+    # Note has always carried the heart. Flagship carried the degree sign until
+    # 2026, when Vestaboard replaced it with a heart on newly-manufactured units
+    # and published no serial or date boundary (issue #1657) — so the owner tells
+    # FiestaBoard which flap their board has, per board, via
+    # ``BoardInstance.code62_glyph``. That setting is display-only: it decides
+    # what previews draw, never what is encoded here.
+    HEART = DEGREE
 
     @classmethod
     def get_char_code(cls, char: str) -> int | None:
@@ -142,7 +150,7 @@ class BoardChars:
             "/": cls.SLASH,
             "?": cls.QUESTION,
             "°": cls.DEGREE,
-            "❤": cls.DEGREE,  # Heart on Note devices shares code 62
+            "❤": cls.DEGREE,  # A typed heart is code 62, same as a typed degree sign
             "♥": cls.DEGREE,
         }
 
