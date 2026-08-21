@@ -55,18 +55,18 @@ Template variables let you insert live data from your enabled plugins into any p
 
 | Type | Description | Example |
 |------|-------------|---------|
-| **Simple** | Single value replacement | `{weather.temperature}` → `72°F` |
-| **Array** | Multi-line data | `{stocks.prices}` → formatted stock rows |
+| **Simple** | Single value replacement | `{{weather.temperature}}` → `72°F` |
+| **Array** | Multi-line data | `{{stocks.prices}}` → formatted stock rows |
 
 ### Example Variables
 
 Here are some commonly used template variables:
 
-- `{weather.temperature}` - Current temperature
-- `{weather.condition}` - Weather conditions (Sunny, Cloudy, etc.)
-- `{stocks.prices}` - Stock price display
-- `{date_time.datetime}` - Current date and time
-- `{muni.formatted}` - Transit arrival times
+- `{{weather.temperature}}` - Current temperature
+- `{{weather.condition}}` - Weather conditions (Sunny, Cloudy, etc.)
+- `{{stocks.prices}}` - Stock price display
+- `{{date_time.datetime}}` - Current date and time
+- `{{muni.formatted}}` - Transit arrival times
 
 ### Inline Formulas (`{{= ... }}`)
 
@@ -147,14 +147,14 @@ The split-flap display supports colored tiles using special character codes. You
 
 | Code | Color | Common Use |
 |------|-------|------------|
-| `{63}` | 🟥 Red | Alerts, high temperatures |
-| `{64}` | 🟧 Orange | Warm temperatures |
-| `{65}` | 🟨 Yellow | Comfortable, warnings |
-| `{66}` | 🟩 Green | Good status, success |
-| `{67}` | 🟦 Blue | Cold temperatures, info |
-| `{68}` | 🟪 Violet | Very cold, accents |
-| `{69}` | ⬜ White | Backgrounds |
-| `{70}` | ⬛ Black | Backgrounds |
+| `{{63}}` | 🟥 Red | Alerts, high temperatures |
+| `{{64}}` | 🟧 Orange | Warm temperatures |
+| `{{65}}` | 🟨 Yellow | Comfortable, warnings |
+| `{{66}}` | 🟩 Green | Good status, success |
+| `{{67}}` | 🟦 Blue | Cold temperatures, info |
+| `{{68}}` | 🟪 Violet | Very cold, accents |
+| `{{69}}` | ⬜ White | Backgrounds |
+| `{{70}}` | ⬛ Black | Backgrounds |
 
 See the [Color Guide](/docs/reference/color-guide) for detailed usage examples.
 

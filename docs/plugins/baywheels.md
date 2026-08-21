@@ -34,12 +34,12 @@ No API key is needed -- Bay Wheels uses a public data feed.
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `{baywheels.total_electric}` | Total e-bikes across stations | `12` |
-| `{baywheels.total_classic}` | Total classic bikes across stations | `8` |
-| `{baywheels.total_bikes}` | Total bikes across all stations | `20` |
-| `{baywheels.station_count}` | Number of monitored stations | `3` |
-| `{baywheels.best_station_name}` | Station with most bikes | `MARKET + 2ND` |
-| `{baywheels.best_station_electric}` | E-bikes at best station | `5` |
+| `{{baywheels.total_electric}}` | Total e-bikes across stations | `12` |
+| `{{baywheels.total_classic}}` | Total classic bikes across stations | `8` |
+| `{{baywheels.total_bikes}}` | Total bikes across all stations | `20` |
+| `{{baywheels.station_count}}` | Number of monitored stations | `3` |
+| `{{baywheels.best_station_name}}` | Station with most bikes | `MARKET + 2ND` |
+| `{{baywheels.best_station_electric}}` | E-bikes at best station | `5` |
 
 ## Next Steps
 

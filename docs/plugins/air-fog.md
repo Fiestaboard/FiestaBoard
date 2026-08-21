@@ -47,23 +47,23 @@ Pollen data is fetched from [Open-Meteo](https://open-meteo.com/) automatically 
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `{air_fog.aqi}` | Air Quality Index value | `42` |
-| `{air_fog.air_status}` | Air quality status text | `GOOD` |
-| `{air_fog.air_color}` | Color indicator for AQI | `{66}` |
-| `{air_fog.fog_status}` | Fog/visibility status | `LIGHT FOG` |
-| `{air_fog.fog_color}` | Color indicator for fog status | `{65}` |
-| `{air_fog.is_foggy}` | Whether fog is present | `true` |
-| `{air_fog.visibility}` | Visibility distance | `8.5 MILES` |
-| `{air_fog.grass_pollen}` | Grass pollen count | `12` |
-| `{air_fog.grass_pollen_level}` | Grass pollen level text | `LOW` |
-| `{air_fog.grass_pollen_color}` | Color indicator for grass pollen | `{66}` |
-| `{air_fog.tree_pollen}` | Tree pollen count | `45` |
-| `{air_fog.tree_pollen_level}` | Tree pollen level text | `MODERATE` |
-| `{air_fog.tree_pollen_color}` | Color indicator for tree pollen | `{65}` |
-| `{air_fog.weed_pollen}` | Weed pollen count | `8` |
-| `{air_fog.weed_pollen_level}` | Weed pollen level text | `LOW` |
-| `{air_fog.weed_pollen_color}` | Color indicator for weed pollen | `{66}` |
-| `{air_fog.formatted}` | Formatted display string | `AQI 42 GOOD` |
+| `{{air_fog.aqi}}` | Air Quality Index value | `42` |
+| `{{air_fog.air_status}}` | Air quality status text | `GOOD` |
+| `{{air_fog.air_color}}` | Color indicator for AQI | `{{66}}` |
+| `{{air_fog.fog_status}}` | Fog/visibility status | `LIGHT FOG` |
+| `{{air_fog.fog_color}}` | Color indicator for fog status | `{{65}}` |
+| `{{air_fog.is_foggy}}` | Whether fog is present | `true` |
+| `{{air_fog.visibility}}` | Visibility distance | `8.5 MILES` |
+| `{{air_fog.grass_pollen}}` | Grass pollen count | `12` |
+| `{{air_fog.grass_pollen_level}}` | Grass pollen level text | `LOW` |
+| `{{air_fog.grass_pollen_color}}` | Color indicator for grass pollen | `{{66}}` |
+| `{{air_fog.tree_pollen}}` | Tree pollen count | `45` |
+| `{{air_fog.tree_pollen_level}}` | Tree pollen level text | `MODERATE` |
+| `{{air_fog.tree_pollen_color}}` | Color indicator for tree pollen | `{{65}}` |
+| `{{air_fog.weed_pollen}}` | Weed pollen count | `8` |
+| `{{air_fog.weed_pollen_level}}` | Weed pollen level text | `LOW` |
+| `{{air_fog.weed_pollen_color}}` | Color indicator for weed pollen | `{{66}}` |
+| `{{air_fog.formatted}}` | Formatted display string | `AQI 42 GOOD` |
 
 ## Next Steps
 
