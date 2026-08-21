@@ -28,6 +28,11 @@ COLLECTION_ID_PREFIX = "collection:"
 
 SelectionMode = Literal["time", "variable", "random"]
 
+#: Page-duration bounds shared by time mode and random mode. The ceiling is
+#: 24 hours so a collection can hold a single page for a whole day (#1652).
+MIN_INTERVAL_SECONDS = 5
+MAX_INTERVAL_SECONDS = 86400
+
 
 def _shuffle_bag_permutation(round_index: int, n: int) -> list[int]:
     """Return a deterministic random permutation of ``range(n)`` for a round.
@@ -57,7 +62,7 @@ def extract_collection_uuid(collection_id: str) -> str:
 class TimeModeConfig(BaseModel):
     """Settings for time-based rotation (classic carousel)."""
 
-    interval_seconds: int = Field(default=30, ge=5, le=3600)
+    interval_seconds: int = Field(default=30, ge=MIN_INTERVAL_SECONDS, le=MAX_INTERVAL_SECONDS)
 
 
 class VariableRule(BaseModel):
@@ -94,7 +99,7 @@ class RandomModeConfig(BaseModel):
     page is shown before a new one is selected.
     """
 
-    interval_seconds: int = Field(default=30, ge=5, le=3600)
+    interval_seconds: int = Field(default=30, ge=MIN_INTERVAL_SECONDS, le=MAX_INTERVAL_SECONDS)
 
 
 class Collection(BaseModel):

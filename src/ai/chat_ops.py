@@ -298,7 +298,7 @@ class CreateCollectionArgs(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     page_ids: list[str] = Field(default_factory=list)
     # Time-mode interval; ignored when selection_mode == "variable".
-    interval_seconds: int = Field(30, ge=5, le=3600)
+    interval_seconds: int = Field(30, ge=5, le=86400)
 
 
 class CreateCollectionOp(BaseModel):
@@ -314,7 +314,7 @@ class UpdateCollectionArgs(BaseModel):
     collection_id: str = Field(..., description="ID of the collection to update.")
     name: str | None = Field(default=None, min_length=1, max_length=100)
     page_ids: list[str] | None = None
-    interval_seconds: int | None = Field(default=None, ge=5, le=3600)
+    interval_seconds: int | None = Field(default=None, ge=5, le=86400)
 
 
 class UpdateCollectionOp(BaseModel):
