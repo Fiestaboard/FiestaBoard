@@ -38,8 +38,6 @@ const GLYPH_COL = 2;
 const DEGREE = "°";
 const HEART = "♥";
 
-const BOARD_HOST_FOR_TESTS = process.env.MOCK_BOARD_HOST || "localhost";
-
 /**
  * Replace the board list with a single board of the given shape and flap.
  * Pass `glyph: undefined` to omit the key entirely — that is what a board
@@ -59,7 +57,7 @@ async function setSingleBoard(deviceType: "flagship" | "note", glyph?: "degree" 
           ...(glyph ? { code62_glyph: glyph } : {}),
           enabled: true,
           api_mode: "local",
-          host: BOARD_HOST_FOR_TESTS,
+          host: BOARD_HOST,
           local_api_key: "test-key",
         },
       ],
