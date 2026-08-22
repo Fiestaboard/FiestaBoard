@@ -717,6 +717,54 @@ plugins/my_plugin/
     └── test_plugin.py
 ```
 
+### A plugin must be self-contained
+
+Ship every data file your plugin reads, and never resolve a path outside your
+own plugin directory.
+
+The tree above is the **development** layout. Installed from the registry, your
+plugin lives one directory deeper:
+
+```text
+data/external_plugins/my_plugin/     # where users actually run it
+plugins/my_plugin/                   # bundled/dev layout only
+```
+
+So a path written against the bundled layout silently resolves somewhere else
+once installed:
+
+```python
+# WRONG — reaches into the platform. Resolves to data/src/utils/ on a real
+# install, so the file is never found and every variable renders "???".
+data = Path(__file__).parent.parent.parent / "src" / "utils" / "data.json"
+
+# RIGHT — relative to the plugin, valid in both layouts.
+data = Path(__file__).parent / "data.json"
+```
+
+This is not hypothetical: the Star Trek Quotes plugin shipped this way for
+months, serving `???` to every user, because its data file was never committed
+and its fallback pointed at the platform copy.
+
+Two rules follow:
+
+- **Commit your data files.** Do not generate or symlink them in CI. If your
+  test workflow creates a file the shipped plugin lacks, your suite is testing
+  a tree no user has.
+- **Do not rely on third-party packages.** The platform does not install a
+  plugin's `requirements.txt` (see
+  [#1671](https://github.com/Fiestaboard/FiestaBoard/issues/1671)); anything
+  beyond the standard library plus the platform's own dependencies will be
+  missing at runtime. Vendor it or do without.
+
+`scripts/plugin_health_sweep.py` enforces all of this against every registry
+plugin daily. Run it locally before publishing:
+
+```bash
+docker compose -f docker-compose.dev.yml exec fiestaboard \
+  python scripts/plugin_health_sweep.py --plugin=my_plugin --no-fetch
+```
+
 ## Documentation Standards
 
 Each plugin has two documentation layers you are responsible for:
