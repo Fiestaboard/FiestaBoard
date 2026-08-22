@@ -123,7 +123,7 @@ def _parse_requirement_names(requirements_text: str) -> list[str]:
     names: list[str] = []
     for raw_line in requirements_text.splitlines():
         line = raw_line.strip()
-        if not line or line.startswith("#") or line.startswith("-"):
+        if not line or line.startswith(("#", "-")):
             continue
         # Drop an inline comment (a ``#`` following whitespace).
         line = re.split(r"\s+#", line, maxsplit=1)[0].strip()
