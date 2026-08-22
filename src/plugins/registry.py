@@ -258,6 +258,15 @@ class PluginRegistry:
         """
         loaded = self._loader.load_all_plugins()
 
+        # Self-heal directories left orphaned by a plugin rename: an update
+        # installs the new-id directory but never removes the old one, which
+        # then fails the id/dirname integrity check on every boot and
+        # permanently pollutes GET /plugins/errors (issue #1672).
+        try:
+            self._loader.sweep_renamed_plugin_dirs()
+        except Exception:
+            logger.exception("Failed to sweep orphaned renamed plugin directories")
+
         # Try to get stored configs from config manager
         stored_configs: dict[str, dict[str, Any]] = {}
         try:
