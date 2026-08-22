@@ -440,8 +440,26 @@ class TestCloneOrUpdateRepoErrorMessages:
 # ── install helpers ──────────────────────────────────────────────────────────
 
 
+def _fake_clone_producing_a_plugin(repo_url, plugin_id, branch, external_dir):
+    """Stand in for a real clone by leaving a usable plugin behind.
+
+    A clone that reports success but writes nothing is not a state git can
+    produce, and since install now verifies what actually landed
+    (sources._install_and_verify), returning (True, "") alone would have the
+    install correctly rejected.
+    """
+    plugin_dir = Path(external_dir) / plugin_id
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+    (plugin_dir / "__init__.py").write_text("class Plugin:\n    pass\n")
+    (plugin_dir / "manifest.json").write_text(json.dumps({"id": plugin_id, "name": plugin_id, "version": "1.0.0"}))
+    return True, ""
+
+
 class TestInstallRegistryPlugin:
-    @mock.patch("src.plugins.sources.clone_or_update_repo", return_value=(True, ""))
+    @mock.patch(
+        "src.plugins.sources.clone_or_update_repo",
+        side_effect=_fake_clone_producing_a_plugin,
+    )
     def test_valid_install(self, mock_clone, tmp_path):
         entry = RegistryEntry(
             plugin_id="ext_weather",
@@ -452,6 +470,18 @@ class TestInstallRegistryPlugin:
         assert ok
         assert err == ""
         mock_clone.assert_called_once()
+
+    @mock.patch("src.plugins.sources.clone_or_update_repo", return_value=(True, ""))
+    def test_clone_that_produces_nothing_usable_is_rejected(self, mock_clone, tmp_path):
+        """A "successful" clone leaving no plugin behind must not install."""
+        entry = RegistryEntry(
+            plugin_id="ext_weather",
+            name="Weather",
+            repository="https://github.com/FiestaBoard/fiestaboard-plugin--ext-weather",
+        )
+        ok, err = install_registry_plugin(entry, external_dir=tmp_path)
+        assert ok is False
+        assert "was not installed" in err
 
     def test_rejects_bad_name(self, tmp_path):
         entry = RegistryEntry(
@@ -465,7 +495,10 @@ class TestInstallRegistryPlugin:
 
 
 class TestInstallGitPlugin:
-    @mock.patch("src.plugins.sources.clone_or_update_repo", return_value=(True, ""))
+    @mock.patch(
+        "src.plugins.sources.clone_or_update_repo",
+        side_effect=_fake_clone_producing_a_plugin,
+    )
     def test_install_custom(self, mock_clone, tmp_path):
         ok, err = install_git_plugin(
             "https://github.com/someone/my-cool-plugin",
@@ -474,7 +507,10 @@ class TestInstallGitPlugin:
         assert ok
         assert err == ""
 
-    @mock.patch("src.plugins.sources.clone_or_update_repo", return_value=(True, ""))
+    @mock.patch(
+        "src.plugins.sources.clone_or_update_repo",
+        side_effect=_fake_clone_producing_a_plugin,
+    )
     def test_install_with_override_id(self, mock_clone, tmp_path):
         ok, _err = install_git_plugin(
             "https://github.com/someone/repo",

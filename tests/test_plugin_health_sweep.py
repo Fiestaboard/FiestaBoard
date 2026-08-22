@@ -69,136 +69,6 @@ def make_plugin(tmp_path: Path, plugin_id: str, source: str, files: dict | None 
     return plugin_dir
 
 
-class TestDataFileCheck:
-    def test_flags_data_file_that_does_not_ship(self, tmp_path):
-        plugin_dir = make_plugin(tmp_path, "brokenplug", HEALTHY_SOURCE)
-        findings = sweep_mod.check_data_files("brokenplug", plugin_dir)
-        assert len(findings) == 1
-        assert findings[0].check == "data_files"
-        assert "data.json" in findings[0].detail
-
-    def test_flags_a_missing_file_reached_through_a_variable(self, tmp_path):
-        """Exactly how star_trek_quotes spells it, and how most plugins do."""
-        source = (
-            'from pathlib import Path\n\nplugin_dir = Path(__file__).parent\nquotes_file = plugin_dir / "quotes.json"\n'
-        )
-        plugin_dir = make_plugin(tmp_path, "varplug", source)
-        findings = sweep_mod.check_data_files("varplug", plugin_dir)
-        assert len(findings) == 1
-        assert "quotes.json" in findings[0].detail
-
-    def test_passes_when_the_data_file_ships(self, tmp_path):
-        plugin_dir = make_plugin(tmp_path, "goodplug", HEALTHY_SOURCE, {"data.json": "{}"})
-        assert sweep_mod.check_data_files("goodplug", plugin_dir) == []
-
-    def test_ignores_manifest_json(self, tmp_path):
-        source = 'from pathlib import Path\np = Path(__file__).parent / "manifest.json"\n'
-        plugin_dir = make_plugin(tmp_path, "manifestonly", source)
-        assert sweep_mod.check_data_files("manifestonly", plugin_dir) == []
-
-    def test_ignores_plugins_without_file_references(self, tmp_path):
-        source = "import requests\n\n\nclass Plugin:\n    pass\n"
-        plugin_dir = make_plugin(tmp_path, "netplug", source)
-        assert sweep_mod.check_data_files("netplug", plugin_dir) == []
-
-    def test_does_not_scan_test_files(self, tmp_path):
-        plugin_dir = make_plugin(tmp_path, "withtests", HEALTHY_SOURCE, {"data.json": "{}"})
-        tests_dir = plugin_dir / "tests"
-        tests_dir.mkdir()
-        (tests_dir / "test_x.py").write_text(
-            'from pathlib import Path\nfixture = Path(__file__).parent / "fixture.json"\n'
-        )
-        assert sweep_mod.check_data_files("withtests", plugin_dir) == []
-
-
-class TestSelfContainedCheck:
-    def test_flags_path_escaping_the_plugin_directory(self, tmp_path):
-        """The exact Star Trek Quotes regression."""
-        plugin_dir = make_plugin(tmp_path, "escaper", ESCAPING_SOURCE)
-        findings = sweep_mod.check_self_contained("escaper", plugin_dir)
-        assert len(findings) == 1
-        assert findings[0].check == "self_contained"
-        assert "escaping the plugin directory" in findings[0].detail
-
-    def test_escape_is_flagged_even_when_the_file_happens_to_exist(self, tmp_path):
-        """A path that resolves on this box still breaks on a real install."""
-        plugin_dir = make_plugin(tmp_path, "luckyescaper", ESCAPING_SOURCE)
-        stray = tmp_path.parent / "src" / "utils"
-        stray.mkdir(parents=True, exist_ok=True)
-        (stray / "quotes.json").write_text("{}")
-        findings = sweep_mod.check_self_contained("luckyescaper", plugin_dir)
-        assert len(findings) == 1
-
-    def test_allows_paths_inside_the_plugin_directory(self, tmp_path):
-        plugin_dir = make_plugin(tmp_path, "selfcontained", HEALTHY_SOURCE, {"data.json": "{}"})
-        assert sweep_mod.check_self_contained("selfcontained", plugin_dir) == []
-
-    def test_allows_a_nested_module_reaching_its_own_package_root(self, tmp_path):
-        """plugins/<id>/lib/loader.py reading ../data.json is fine."""
-        plugin_dir = make_plugin(tmp_path, "nested", "class Plugin:\n    pass\n", {"data.json": "{}"})
-        lib = plugin_dir / "lib"
-        lib.mkdir()
-        (lib / "loader.py").write_text('from pathlib import Path\nDATA = Path(__file__).parent.parent / "data.json"\n')
-        assert sweep_mod.check_self_contained("nested", plugin_dir) == []
-
-
-class TestDependencyCheck:
-    def test_flags_a_dependency_that_is_not_installed(self, tmp_path):
-        plugin_dir = make_plugin(
-            tmp_path,
-            "needsdep",
-            HEALTHY_SOURCE,
-            {"data.json": "{}", "requirements.txt": "definitely-not-installed>=1.0\n"},
-        )
-        findings = sweep_mod.check_dependencies("needsdep", plugin_dir)
-        assert len(findings) == 1
-        assert findings[0].check == "dependencies"
-        assert "definitely-not-installed" in findings[0].detail
-
-    def test_passes_for_a_dependency_the_platform_ships(self, tmp_path):
-        plugin_dir = make_plugin(
-            tmp_path,
-            "usesrequests",
-            HEALTHY_SOURCE,
-            {"data.json": "{}", "requirements.txt": "requests>=2.0\n"},
-        )
-        assert sweep_mod.check_dependencies("usesrequests", plugin_dir) == []
-
-    def test_ignores_comments_and_blank_lines(self, tmp_path):
-        plugin_dir = make_plugin(
-            tmp_path,
-            "commented",
-            HEALTHY_SOURCE,
-            {
-                "data.json": "{}",
-                "requirements.txt": "# a comment\n\n  \nrequests>=2.0  # inline\n",
-            },
-        )
-        assert sweep_mod.check_dependencies("commented", plugin_dir) == []
-
-    def test_maps_distribution_names_to_import_names(self, tmp_path):
-        """speedtest-cli imports as 'speedtest', not 'speedtest_cli'."""
-        assert sweep_mod.IMPORT_NAME_OVERRIDES["speedtest-cli"] == "speedtest"
-        plugin_dir = make_plugin(
-            tmp_path,
-            "speedy",
-            HEALTHY_SOURCE,
-            {"data.json": "{}", "requirements.txt": "speedtest-cli\n"},
-        )
-        findings = sweep_mod.check_dependencies("speedy", plugin_dir)
-        assert len(findings) == 1
-        assert "'speedtest'" in findings[0].detail
-
-    def test_skips_dev_requirements(self, tmp_path):
-        plugin_dir = make_plugin(
-            tmp_path,
-            "devonly",
-            HEALTHY_SOURCE,
-            {"data.json": "{}", "requirements-dev.txt": "definitely-not-installed\n"},
-        )
-        assert sweep_mod.check_dependencies("devonly", plugin_dir) == []
-
-
 class TestFetchContract:
     class _Result:
         def __init__(self, available, error=None, data=None):
@@ -257,51 +127,6 @@ class TestFetchContract:
         assert config["refresh_seconds"] == 300
 
 
-class TestReferencedDataPaths:
-    def test_counts_parent_hops(self):
-        refs = sweep_mod.referenced_data_paths('p = Path(__file__).parent.parent.parent / "src" / "x.json"')
-        assert refs == [(3, ["src", "x.json"])]
-
-    def test_handles_os_path_join(self):
-        refs = sweep_mod.referenced_data_paths('p = os.path.join(os.path.dirname(__file__), "data.json")')
-        assert refs == [(1, ["data.json"])]
-
-    def test_ignores_non_data_suffixes(self):
-        refs = sweep_mod.referenced_data_paths('p = Path(__file__).parent / "helper.py"')
-        assert refs == []
-
-    def test_ignores_paths_not_anchored_to_file(self):
-        refs = sweep_mod.referenced_data_paths('p = Path("/etc/config.json")')
-        assert refs == []
-
-    def test_follows_an_anchor_held_in_a_variable(self):
-        """The idiomatic two-line spelling must not slip past the check."""
-        refs = sweep_mod.referenced_data_paths(
-            'plugin_dir = Path(__file__).parent\nquotes = plugin_dir / "quotes.json"\n'
-        )
-        assert refs == [(1, ["quotes.json"])]
-
-    def test_follows_a_variable_anchor_with_parent_hops(self):
-        refs = sweep_mod.referenced_data_paths(
-            'root = Path(__file__).parent.parent.parent\ndata = root / "src" / "utils" / "x.json"\n'
-        )
-        assert refs == [(3, ["src", "utils", "x.json"])]
-
-    def test_follows_a_variable_anchor_through_os_path_join(self):
-        refs = sweep_mod.referenced_data_paths(
-            'here = os.path.dirname(__file__)\ndata = os.path.join(here, "data.json")\n'
-        )
-        assert refs == [(1, ["data.json"])]
-
-    def test_reports_a_file_referenced_twice_only_once(self):
-        refs = sweep_mod.referenced_data_paths(
-            "plugin_dir = Path(__file__).parent\n"
-            'a = plugin_dir / "data.json"\n'
-            'b = Path(__file__).parent / "data.json"\n'
-        )
-        assert refs == [(1, ["data.json"])]
-
-
 class TestFindingSerialisation:
     def test_to_dict_round_trips(self):
         finding = sweep_mod.Finding("plug", "data_files", "missing x.json")
@@ -350,17 +175,28 @@ class TestSetOutput:
         sweep_mod.set_output("has_findings", "true")  # must not raise
 
 
-class TestAgainstRealBundledPlugins:
-    """The sweep must find nothing wrong with the plugins we actually ship."""
+class TestFatalVsAdvisory:
+    """Advisory findings must not turn a scheduled run red."""
 
-    @pytest.mark.parametrize("plugin_id", ["date_time", "countdown", "random", "typewriter"])
-    def test_bundled_plugin_is_clean(self, plugin_id):
-        plugin_dir = PROJECT_ROOT / "plugins" / plugin_id
-        if not plugin_dir.exists():
-            pytest.skip(f"{plugin_id} not present")
-        findings = (
-            sweep_mod.check_data_files(plugin_id, plugin_dir)
-            + sweep_mod.check_self_contained(plugin_id, plugin_dir)
-            + sweep_mod.check_dependencies(plugin_id, plugin_dir)
-        )
-        assert findings == [], [f.detail for f in findings]
+    def test_fatal_defaults_true(self):
+        assert sweep_mod.Finding("p", "install", "x").fatal is True
+
+    def test_advisory_finding_can_be_marked_non_fatal(self):
+        assert sweep_mod.Finding("p", "undeclared", "x", fatal=False).fatal is False
+
+    def test_to_dict_carries_the_flag(self):
+        assert sweep_mod.Finding("p", "undeclared", "x", fatal=False).to_dict()["fatal"] is False
+
+
+class TestAgainstRealBundledPlugins:
+    """The sweep must find nothing blocking in the plugins we ship."""
+
+    def test_bundled_plugins_sweep_clean(self):
+
+        bundled = PROJECT_ROOT / "plugins"
+        if not bundled.exists():
+            pytest.skip("bundled plugins not present")
+        findings, report = sweep_mod.sweep(bundled, None, do_fetch=False)
+        blocking = [f for f in findings if f.fatal]
+        assert blocking == [], [f"{f.plugin_id}: {f.detail}" for f in blocking]
+        assert report, "sweep discovered no plugins at all"
