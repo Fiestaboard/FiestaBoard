@@ -22,7 +22,7 @@ The web UI is the recommended way to manage plugins:
 The Integrations page shows setup instructions for each plugin that needs an API key. You don't need to look anything up separately.
 :::
 
-<ThemedScreenshot src="/img/guides/integrations-full.png" alt="Full Integrations page with plugin list and settings" />
+<AppShot name="integrations-full" alt="Full Integrations page with plugin list and settings" />
 
 ## Using Plugin Data in Pages
 
@@ -35,7 +35,7 @@ Once a plugin is enabled, its data becomes available as **template variables** i
 3. Browse variables grouped by plugin
 4. Click a variable to insert it at the cursor position
 
-<ThemedScreenshot src="/img/guides/page-editor-variable-picker-open.png" alt="Variable Picker dropdown showing available plugin variables" />
+<AppShot name="page-editor-variable-picker-open" alt="Variable Picker dropdown showing available plugin variables" />
 
 ### Variable Format
 

@@ -10,6 +10,7 @@
 #   plugin-registry.json                   ->  data/plugin-registry.json
 #   plugin-previews.json                   ->  data/plugin-previews.json
 #   assets/img/branding/**                 ->  static/img/branding/**
+#   assets/docs-captures/**                ->  static/captures/**
 #   fiestapi-latest-version.txt            ->  data/fiestapi-latest-version.txt
 #                                              (only with --with-fiestapi-version)
 #
@@ -126,6 +127,11 @@ copy_file "$SRC_ROOT/plugin-previews.json" "$TARGET_DIR/data/plugin-previews.jso
 # path must match or the mirror silently deletes the target subtree.
 mirror_dir "$SRC_ROOT/assets/img/branding" "$TARGET_DIR/static/img/branding"
 
+# Serialised app screens the site renders instead of PNG screenshots. Produced
+# by web/tests/generate-screenshots.spec.ts; see assets/docs-captures/README.md.
+# Mirrored (not merged) so a screen deleted here disappears there too.
+mirror_dir "$SRC_ROOT/assets/docs-captures" "$TARGET_DIR/static/captures"
+
 if [ "$WITH_FIESTAPI_VERSION" -eq 1 ]; then
   copy_file "$SRC_ROOT/fiestapi-latest-version.txt" \
     "$TARGET_DIR/data/fiestapi-latest-version.txt"
@@ -139,7 +145,7 @@ cd "$TARGET_DIR"
 # Stage only the allowlisted target areas (git add errors on pathspecs that
 # match nothing, so only pass paths that exist in worktree or index).
 ADD_PATHS=()
-for p in docs data static/img/branding; do
+for p in docs data static/img/branding static/captures; do
   if [ -e "$p" ] || git ls-files --error-unmatch -- "$p" >/dev/null 2>&1; then
     ADD_PATHS+=("$p")
   fi

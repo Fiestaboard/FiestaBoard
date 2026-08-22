@@ -191,9 +191,9 @@ The wizard will:
 2. Go to **http://localhost:4420**
 3. You should see the FiestaBoard dashboard
 
-<ThemedScreenshot src="/img/web-ui-home.png" alt="FiestaBoard Dashboard" />
+<AppShot name="web-ui-home" alt="FiestaBoard Dashboard" />
 
-<ThemedScreenshot src="/img/guides/dashboard-running.png" alt="Dashboard with active page displayed on the board" />
+<AppShot name="dashboard-running" alt="Dashboard with active page displayed on the board" />
 
 :::tip Accessing from a phone or another computer?
 FiestaBoard automatically advertises itself on your local network. Try **http://fiestaboard.local:4420** from any device on the same WiFi. If that doesn't work, use the IP address of the computer running FiestaBoard (e.g. `http://192.168.1.50:4420`).
@@ -211,7 +211,7 @@ If you used the install wizard (Path B or C), you may have already entered your 
 2. Enter your board API key (from Step 2)
 3. If you're using the Local API, also enter your board's IP address (settings save automatically)
 
-<ThemedScreenshot src="/img/guides/settings-board-config.png" alt="Settings page with board API key and IP address inputs" />
+<AppShot name="settings-board-config" alt="Settings page with board API key and IP address inputs" />
 
 ## Step 6: Verify the Service is Running
 
@@ -225,9 +225,9 @@ Congratulations - your board is now controlled by FiestaBoard!
 
 Now the fun part. Here's what to do next:
 
-<ThemedScreenshot src="/img/guides/integrations-full.png" alt="Integrations page showing all plugins with toggle switches" />
+<AppShot name="integrations-full" alt="Integrations page showing all plugins with toggle switches" />
 
-<ThemedScreenshot src="/img/guides/page-editor-variable-picker-open.png" alt="Variable Picker dropdown open in the page editor" />
+<AppShot name="page-editor-variable-picker-open" alt="Variable Picker dropdown open in the page editor" />
 
 ### Enable some plugins
 
