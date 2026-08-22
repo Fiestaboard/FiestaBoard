@@ -104,6 +104,82 @@ class TestFreshInstallIsBlocked:
         assert err == "network down"
 
 
+class TestPathSafety:
+    """The rejection path deletes a directory, so the id must be sanitised.
+
+    CodeQL flagged these sinks as py/path-injection (2 high) on the first
+    version of this change; these encode the barrier that resolved it.
+    """
+
+    def test_traversal_in_the_plugin_id_is_refused(self, tmp_path):
+        external = tmp_path / "external"
+        external.mkdir()
+        victim = tmp_path / "victim"
+        victim.mkdir()
+        (victim / "keepme.txt").write_text("do not delete")
+
+        ok, err = sources._install_and_verify("https://x/y", "../victim", "", external)
+
+        assert ok is False
+        assert "Invalid plugin id" in err
+        assert (victim / "keepme.txt").exists(), "traversal must never reach a delete"
+
+    def test_absolute_path_in_the_plugin_id_is_refused(self, tmp_path):
+        external = tmp_path / "external"
+        external.mkdir()
+        ok, err = sources._install_and_verify("https://x/y", "/etc", "", external)
+        assert ok is False
+        assert "Invalid plugin id" in err
+
+    def test_id_with_separators_is_refused(self, tmp_path):
+        external = tmp_path / "external"
+        external.mkdir()
+        ok, err = sources._install_and_verify("https://x/y", "a/b", "", external)
+        assert ok is False
+        assert "Invalid plugin id" in err
+
+    def test_the_clone_is_never_attempted_for_a_bad_id(self, tmp_path):
+        """Reject before doing any work, not after."""
+        external = tmp_path / "external"
+        external.mkdir()
+        with patch.object(sources, "clone_or_update_repo") as mock_clone:
+            ok, _err = sources._install_and_verify("https://x/y", "../evil", "", external)
+        assert ok is False
+        mock_clone.assert_not_called()
+
+    def test_a_symlinked_plugin_dir_escaping_the_root_is_refused(self, tmp_path):
+        """Covers the realpath containment check, not the id allow-list.
+
+        A valid id can still resolve outside the plugins directory if the
+        directory it names is a symlink. Without the containment check the
+        rejection path would rmtree the symlink's *target*.
+        """
+        external = tmp_path / "external"
+        external.mkdir()
+        victim = tmp_path / "victim"
+        victim.mkdir()
+        (victim / "keepme.txt").write_text("do not delete")
+        (external / "evil_plugin").symlink_to(victim, target_is_directory=True)
+
+        ok, err = sources._install_and_verify("https://x/y", "evil_plugin", "", external)
+
+        assert ok is False
+        assert "outside the external plugins directory" in err
+        assert (victim / "keepme.txt").exists(), "must not delete a symlink target"
+
+    def test_a_normal_id_still_passes_the_barrier(self, tmp_path):
+        external = tmp_path / "external"
+        external.mkdir()
+
+        def fake_clone(repo_url, plugin_id, branch, external_dir):
+            write_plugin(external_dir / plugin_id, data_files=["d.json"], ships={"d.json": "{}"})
+            return True, ""
+
+        with patch.object(sources, "clone_or_update_repo", side_effect=fake_clone):
+            ok, err = sources._install_and_verify("https://x/y", "good_plugin", "", external)
+        assert ok is True, err
+
+
 class TestUpdateIsNotBlocked:
     def test_update_that_breaks_a_plugin_leaves_it_installed(self, tmp_path):
         """An installed plugin may be driving a board; do not tear it out."""
