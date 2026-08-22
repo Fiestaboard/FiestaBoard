@@ -146,7 +146,21 @@ jobs:
           # what carries the captures to the site repo. It cannot retrigger
           # this workflow — that one only watches web/**.
           git commit -m "chore(docs): regenerate app captures"
-          git push
+
+          # main moves while this job runs — it takes ~10 minutes to build the
+          # image and capture every screen twice, and a release version bump
+          # landing in that window is enough to make the push a stale-ref
+          # rejection. Rebase and retry rather than losing the captures.
+          for attempt in 1 2 3; do
+            if git push; then
+              echo "captures pushed on attempt $attempt"
+              exit 0
+            fi
+            echo "push rejected, rebasing onto latest main (attempt $attempt)"
+            git pull --rebase --autostash origin main || exit 1
+          done
+          echo "::error::Could not push captures after 3 attempts."
+          exit 1
 
       - name: Collect diagnostics on failure
         if: failure()
