@@ -306,7 +306,43 @@ def validate_plugin(plugin_dir: Path) -> ValidationResult:
     for warning in validate_preview_presence(manifest):
         result.add_warning(warning)
 
+    # Can this plugin actually work once installed? A declared data file that
+    # never shipped, or a Python package FiestaBoard does not provide, means
+    # the plugin renders "???" for every variable no matter how it is
+    # configured. Errors here are hard errors; the advisory "reads a file it
+    # does not declare" is a warning that --strict escalates, which is what
+    # the registry submission lane wants.
+    for error, warning in _install_findings(plugin_dir, manifest):
+        if error:
+            result.add_error(error)
+        else:
+            result.add_warning(warning)
+
     return result
+
+
+def _install_findings(plugin_dir: Path, manifest: dict):
+    """Yield ``(error, warning)`` pairs from the shared install checks.
+
+    Imported lazily so this script keeps working (minus these checks) if it is
+    ever run somewhere the platform package is not importable.
+    """
+    try:
+        from src.plugins.install_check import validate_install
+        from src.plugins.manifest import PluginManifest
+    except ImportError:  # pragma: no cover - defensive
+        return
+
+    try:
+        parsed = PluginManifest.from_dict(manifest)
+    except Exception:
+        return
+
+    outcome = validate_install(manifest.get("id", plugin_dir.name), plugin_dir, parsed)
+    for message in outcome.errors:
+        yield message, None
+    for message in outcome.warnings:
+        yield None, message
 
 
 def validate_unique_ids(plugins: list[Path]) -> list[str]:

@@ -801,6 +801,69 @@ def _safe_external_dest(
     return Path(candidate_real), ""
 
 
+def verify_installed_plugin(plugin_id: str, plugin_dir: Path) -> tuple[bool, str]:
+    """Check that a freshly-cloned plugin can actually work on this box.
+
+    Returns ``(True, "")`` when usable, ``(False, reason)`` otherwise.  The
+    reason is written for the person installing the plugin, not for a log.
+    """
+    # Imported here: manifest/install_check pull in the plugin package, and
+    # sources is imported during its initialisation.
+    from .install_check import validate_install
+    from .manifest import load_manifest
+
+    manifest, manifest_errors = load_manifest(plugin_dir / "manifest.json")
+    if manifest is None:
+        detail = "; ".join(manifest_errors) or "manifest.json could not be read"
+        return False, f"{plugin_id}: {detail}"
+
+    result = validate_install(plugin_id, plugin_dir, manifest)
+    for warning in result.warnings:
+        logger.warning("Plugin %s: %s", plugin_id, warning)
+    if result.ok:
+        return True, ""
+    return False, f"{plugin_id}: " + "; ".join(result.errors)
+
+
+def _install_and_verify(
+    repo_url: str,
+    plugin_id: str,
+    branch: str,
+    external_dir: Path,
+) -> tuple[bool, str]:
+    """Clone/update a plugin, then refuse a *fresh* install that cannot work.
+
+    An update that fails validation is left in place and only logged: the
+    plugin was already installed and may be driving a board, so tearing it
+    out is a worse outcome than leaving it broken and loudly reported. The
+    failure surfaces through the loader's error list instead.
+    """
+    plugin_dir = external_dir / plugin_id
+    was_installed = plugin_dir.exists()
+
+    ok, err = clone_or_update_repo(repo_url, plugin_id, branch, external_dir=external_dir)
+    if not ok:
+        return ok, err
+
+    verified, reason = verify_installed_plugin(plugin_id, plugin_dir)
+    if verified:
+        return True, ""
+
+    if was_installed:
+        logger.error(
+            "Plugin %s failed validation after update but was left installed: %s",
+            plugin_id,
+            reason,
+        )
+        return True, ""
+
+    logger.error("Rejecting install of %s: %s", plugin_id, reason)
+    shutil.rmtree(plugin_dir, ignore_errors=True)
+    return False, (
+        f"This plugin cannot run on FiestaBoard as published and was not installed. {reason}"
+    )
+
+
 def install_registry_plugin(
     entry: RegistryEntry,
     external_dir: Path | None = None,
@@ -823,7 +886,7 @@ def install_registry_plugin(
     if external_dir is None:
         external_dir = get_external_plugins_dir()
 
-    return clone_or_update_repo(entry.repository, entry.plugin_id, entry.branch, external_dir=external_dir)
+    return _install_and_verify(entry.repository, entry.plugin_id, entry.branch, external_dir)
 
 
 def install_git_plugin(
@@ -867,4 +930,4 @@ def install_git_plugin(
     if not ok:
         return False, err
 
-    return clone_or_update_repo(repo_url, plugin_id, branch, external_dir=external_dir)
+    return _install_and_verify(repo_url, plugin_id, branch, external_dir)
