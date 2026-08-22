@@ -558,8 +558,7 @@ class PluginLoader:
                     self._load_errors.pop(item.name, None)
                     removed.append(item.name)
                     logger.info(
-                        "Removed orphaned renamed plugin directory '%s' "
-                        "(manifest id '%s' installed elsewhere)",
+                        "Removed orphaned renamed plugin directory '%s' (manifest id '%s' installed elsewhere)",
                         item.name,
                         manifest.id,
                     )
