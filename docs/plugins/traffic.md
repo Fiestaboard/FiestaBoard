@@ -8,7 +8,7 @@ keywords: [FiestaBoard traffic plugin, Vestaboard traffic, Vestaboard commute, G
 
 Display commute times and live traffic conditions using the Google Routes API.
 
-<BoardScreenshot src="/img/traffic-display.png" alt="Traffic display on split-flap board" />
+<BoardShot plugin="traffic" alt="Traffic display on split-flap board" />
 
 ## Overview
 

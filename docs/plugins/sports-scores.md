@@ -8,7 +8,7 @@ keywords: [FiestaBoard sports scores, Vestaboard sports scores, Vestaboard NFL, 
 
 Display recent sports scores from NFL, Soccer, NHL, and NBA on your board.
 
-<BoardScreenshot src="/img/sports-scores-display.png" alt="Sports scores on split-flap board" />
+<BoardShot plugin="sports_scores" alt="Sports scores on split-flap board" />
 
 ## Overview
 

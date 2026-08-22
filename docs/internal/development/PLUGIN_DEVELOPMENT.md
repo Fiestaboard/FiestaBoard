@@ -886,7 +886,11 @@ The `screenshots` field in `manifest.json` makes images programmatically discove
 | `caption` | No | Human-readable description |
 | `primary` | No | Exactly one screenshot should be `true` (used as hero image in galleries and the registry) |
 
-On the docs site (built from the separate [Fiestaboard/fiestaboard.github.io](https://github.com/Fiestaboard/fiestaboard.github.io) repo), the primary screenshot is served from `static/img/<id-hyphenated>-display.png` (underscores in the plugin ID become hyphens) for use in the `<BoardScreenshot>` component — e.g. `air_fog` → `/img/air-fog-display.png`. That path is derived by `pluginImagePath()` in the site repo's `src/plugin-data.ts`, which is the source of truth. The `<BoardScreenshot>` component then looks up per-color variants in the `img/black/` and `img/white/` subdirectories.
+On the docs site (built from the separate [Fiestaboard/fiestaboard.github.io](https://github.com/Fiestaboard/fiestaboard.github.io) repo), **the board itself is no longer a screenshot.** Pages render it live from the `previews` your plugin publishes (see [Board previews](#board-previews)), through a `<BoardShot plugin="your_id" />` component backed by `plugin-previews.json`.
+
+This matters for what you ship: **declare `teaser` and `previews` in your manifest and your documentation draws itself**, in both board colours and every device shape you support, and it updates when you change what the plugin puts on a board. A plugin with no `previews` entry renders nothing there.
+
+Screenshots in `screenshots[]` are still used for anything that is not a board — configuration UI, wiring diagrams, photos of hardware.
 
 ---
 
