@@ -36,6 +36,7 @@ import { toast } from "sonner";
 
 import Link from "@/components/smart-link";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
+import { useEffectiveCode62Glyph } from "@/hooks/use-effective-code62-glyph";
 import { useParams, useRouter } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
@@ -49,6 +50,7 @@ export default function PluginDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const boardColor = useEffectiveBoardColor();
+  const code62Glyph = useEffectiveCode62Glyph();
   const pluginId = params.pluginId as string;
   const [addInstanceOpen, setAddInstanceOpen] = useState(false);
   const [instanceLabel, setInstanceLabel] = useState("");
@@ -158,6 +160,7 @@ export default function PluginDetailPage() {
             previews={previews}
             previewLabel={t("boardPreviewLabel", { name: entry?.name ?? pluginId })}
             defaultBoardType={boardColor}
+            code62Glyph={code62Glyph}
             labels={{
               flagship: t("deviceFlagship"),
               note: t("deviceNote"),

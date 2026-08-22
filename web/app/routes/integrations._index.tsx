@@ -277,6 +277,7 @@ import { asJSONSchema, SchemaForm } from "@/components/plugin-settings";
 import Link from "@/components/smart-link";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
+import { useEffectiveCode62Glyph } from "@/hooks/use-effective-code62-glyph";
 import { useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { PluginInfo, RegistryEntry } from "@/lib/api";
@@ -1822,6 +1823,7 @@ function RegistryPluginCard({
 }) {
   const t = useTranslations("integrations");
   const boardColor = useEffectiveBoardColor();
+  const code62Glyph = useEffectiveCode62Glyph();
 
   return (
     <PluginCard
@@ -1832,6 +1834,7 @@ function RegistryPluginCard({
       authorLabel={t("byAuthor", { author: entry.author })}
       teaser={entry.teaser}
       boardType={boardColor}
+      code62Glyph={code62Glyph}
       renderLink={({ className, children }) => (
         <Link href={`/integrations/${entry.id}`} className={className}>
           {children}
