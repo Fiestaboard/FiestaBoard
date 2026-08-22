@@ -35,7 +35,7 @@ Works from anywhere with internet. No transition animation support.
 
 > If you're setting up manually (without the wizard), see `env.example` for the environment variable names (`BOARD_LOCAL_API_KEY`, `BOARD_HOST`, `BOARD_READ_WRITE_KEY`, etc.).
 
-<ThemedScreenshot src="/img/guides/settings-board-config.png" alt="Settings page with board API key and IP address inputs" />
+<AppShot name="settings-board-config" alt="Settings page with board API key and IP address inputs" />
 
 ## Plugin API Keys
 
@@ -74,7 +74,7 @@ These work out of the box:
 - Surf
 - Visual Clock
 
-<ThemedScreenshot src="/img/guides/integrations-plugin-config.png" alt="Plugin settings modal for Weather plugin configuration" />
+<AppShot name="integrations-plugin-config" alt="Plugin settings modal for Weather plugin configuration" />
 
 ## Next Steps
 

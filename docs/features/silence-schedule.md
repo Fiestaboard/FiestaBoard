@@ -14,7 +14,7 @@ Split-flap displays can be noisy when updating. The silence schedule ensures you
 
 ## Configuring Silence Hours
 
-<ThemedScreenshot src="/img/guides/settings-silence-schedule.png" alt="Silence schedule settings in the Settings page" />
+<AppShot name="settings-silence-schedule" alt="Silence schedule settings in the Settings page" />
 
 ### Via the Web UI
 

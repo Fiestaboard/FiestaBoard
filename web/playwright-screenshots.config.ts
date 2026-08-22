@@ -16,6 +16,13 @@ export default defineConfig({
     trace: "off",
     screenshot: "off",
     viewport: { width: 1280, height: 800 },
+    // Docs shots must be deterministic. Without this, /settings' Animations
+    // card runs a live demo board that cycles its message, so every run
+    // produced a different DOM capture (and a PNG caught mid-flap). Reduced
+    // motion settles every board immediately and hides that one motion demo —
+    // which a static screenshot could never convey anyway. Verified not to
+    // remove real board content: / and /pages still render all 132 tiles.
+    reducedMotion: "reduce",
   },
 
   projects: [

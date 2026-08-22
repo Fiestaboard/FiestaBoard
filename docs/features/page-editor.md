@@ -12,7 +12,7 @@ FiestaBoard's WYSIWYG page editor lets you create and edit board display pages w
 
 The page editor is the core of FiestaBoard's content creation experience. It provides a real-time preview of your board layout, template variable insertion, and color formatting, all in a visual interface.
 
-<ThemedScreenshot src="/img/page-editor-wysiwyg.png" alt="Page Editor" />
+<AppShot name="page-editor-wysiwyg" alt="Page Editor" />
 
 ## Device Types
 
@@ -49,7 +49,7 @@ Template variables let you insert live data from your enabled plugins into any p
 2. Browse available variables grouped by plugin
 3. Click a variable to insert it at the cursor position
 
-<ThemedScreenshot src="/img/guides/page-editor-variable-picker-open.png" alt="Variable Picker dropdown showing available plugin variables" />
+<AppShot name="page-editor-variable-picker-open" alt="Variable Picker dropdown showing available plugin variables" />
 
 ### Variable Types
 
@@ -143,7 +143,7 @@ what FiestaBoard sends to your provider.
 
 The split-flap display supports colored tiles using special character codes. You can use these in the editor to add visual emphasis to your pages.
 
-<ThemedScreenshot src="/img/guides/page-editor-colors.png" alt="Page editor showing color codes in use" />
+<AppShot name="page-editor-colors" alt="Page editor showing color codes in use" />
 
 | Code | Color | Common Use |
 |------|-------|------------|
@@ -189,7 +189,7 @@ The editor reflects the target device's layout so you can see exactly how your c
 
 ## Managing Pages
 
-<ThemedScreenshot src="/img/pages-list.png" alt="Pages list view with Flagship and Note tabs" />
+<AppShot name="pages-list" alt="Pages list view with Flagship and Note tabs" />
 
 ### Editing Existing Pages
 

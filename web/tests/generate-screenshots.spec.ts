@@ -16,6 +16,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 
+import { CAPTURE_INSTANT, captureScreen, writeManifestEntry } from "./lib/dom-capture";
+
 // `__dirname` isn't defined in ESM; package.json sets `"type": "module"`.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -34,6 +36,46 @@ const GUIDES_IMG = path.join(SITE_ROOT, "static/img/guides");
 const FEATURES_IMG = path.join(SITE_ROOT, "static/img/features");
 const PLUGINS_DIR = path.resolve(__dirname, "../../plugins");
 const ROOT_IMG = path.resolve(__dirname, "../../images");
+
+// DOM captures live in THIS repo (committed) rather than in the docs checkout,
+// because they reach the site through scripts/publish-docs.sh's allowlist —
+// the same one-direction sync that already carries docs/ and plugin-previews.
+// See assets/docs-captures/README.md.
+const CAPTURES_OUT = path.resolve(__dirname, "../../assets/docs-captures");
+
+/**
+ * Pin the wall clock before anything navigates.
+ *
+ * Screens render text derived from "now" — Settings' Time & Date card shows
+ * `Right now: 1:38 PM on 08/22/2026` — so two runs minutes apart produced two
+ * different captures. `setFixedTime` freezes what `Date.now()` reports while
+ * leaving timers running, so the app still boots normally; the capture itself
+ * additionally pauses the clock (see dom-capture) once the screen has settled.
+ */
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(CAPTURE_INSTANT);
+
+  // Turn the app's own board animation off for the duration of a capture run.
+  //
+  // This is what finally makes the Settings screens reproducible. The
+  // Animations card runs a live preview board that alternates two messages on
+  // a 3.2s interval — `FlapSpeedPreview` — and its effect is gated on
+  // `enabled`, so with board animations off the interval is never scheduled
+  // and the preview holds message 0 forever. Left on, the board is caught at
+  // whatever phase real time had reached, one run showing "FLIP SPEED" and the
+  // next "WATCH ME", or worse, a tile mid-flip.
+  //
+  // It also means every other board on every other screen snaps straight to
+  // its target instead of cascading, which is what a still image wants anyway.
+  await fetch(`${API_URL}/settings/display`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ board_animations: "off" }),
+  }).catch(() => {
+    // Older builds may not expose the setting; the capture still works, it is
+    // just more likely to need the settle/virtual-time fallbacks below.
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Theme helpers
@@ -262,6 +304,23 @@ async function screenshotPage(page: Page, baseFilePath: string) {
     ensureDir(dir);
     fs.copyFileSync(themedPath, baseFilePath);
   }
+
+  await captureDomOnce(page, file);
+}
+
+/**
+ * Serialise the screen's DOM once per run.
+ *
+ * The markup is identical in light and dark (the theme is a class on the
+ * wrapper) so only one of the two theme projects needs to do this work; the
+ * light project is arbitrary but fixed, so a run always produces the same
+ * files regardless of project ordering.
+ */
+async function captureDomOnce(page: Page, file: string, frame?: string) {
+  if (isDark()) return;
+  const name = file.replace(/\.png$/, "");
+  const entry = await captureScreen(page, CAPTURES_OUT, name, frame ? { frame } : {});
+  writeManifestEntry(CAPTURES_OUT, name, entry);
 }
 
 /**
@@ -282,6 +341,11 @@ async function screenshotElement(page: Page, selector: string, baseFilePath: str
     ensureDir(dir);
     fs.copyFileSync(themedPath, baseFilePath);
   }
+
+  // The DOM capture is NOT cropped here. The docs site frames it at render
+  // time using this selector, so the crop follows the element when the app
+  // changes instead of being frozen to a pixel box.
+  await captureDomOnce(page, file, selector);
 }
 
 /**
