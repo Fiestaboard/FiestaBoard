@@ -4,7 +4,11 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from src.plugins.loader import PluginLoader
+from src.plugins.loader import (
+    PluginLoader,
+    _missing_requirement_dists,
+    _parse_requirement_names,
+)
 
 
 def _loader_for_tests(plugins_dir: Path) -> PluginLoader:
@@ -717,3 +721,69 @@ def test_load_plugin_external_plugin_still_reports_external_source(tmp_path):
     source = loader.get_source("ext_only")
     assert source is not None
     assert source.source_type == "external"
+
+
+# --- requirements.txt dependency detection ---
+
+
+def test_parse_requirement_names_strips_specifiers_and_skips_noise():
+    """_parse_requirement_names extracts bare dist names, ignoring noise lines."""
+    text = "\n".join(
+        [
+            "feedparser>=6.0.0",
+            "speedtest-cli",
+            "requests==2.31.0  # inline comment",
+            "package[extra]>=1.0; python_version < '3.10'",
+            "# a comment line",
+            "-r other.txt",
+            "--hash=sha256:deadbeef",
+            "git+https://example.com/pkg.git",
+            "",
+        ]
+    )
+    assert _parse_requirement_names(text) == [
+        "feedparser",
+        "speedtest-cli",
+        "requests",
+        "package",
+    ]
+
+
+def test_missing_requirement_dists_flags_absent_and_ignores_present():
+    """_missing_requirement_dists reports uninstalled dists but not installed ones."""
+    # ``pytest`` is always installed in the test runtime; the fake name is not.
+    missing = _missing_requirement_dists(["pytest", "definitely-not-a-real-dist-xyz"])
+    assert missing == ["definitely-not-a-real-dist-xyz"]
+
+
+def test_load_plugin_reports_missing_requirements_as_load_error(tmp_path):
+    """A plugin declaring an uninstalled dep surfaces a load error instead of
+    loading silently and only breaking later at fetch time."""
+    create_valid_plugin_dir(tmp_path, "needs_dep")
+    (tmp_path / "needs_dep" / "requirements.txt").write_text(
+        "definitely-not-a-real-dist-xyz>=1.0\n"
+    )
+
+    loader = _loader_for_tests(tmp_path)
+    plugin = loader.load_plugin("needs_dep")
+
+    # Soft failure: the plugin still loads, but the missing dep is recorded.
+    assert plugin is not None
+    errors = loader.load_errors.get("needs_dep", [])
+    assert any(
+        "definitely-not-a-real-dist-xyz" in e and "requirements.txt" in e for e in errors
+    ), errors
+
+
+def test_load_plugin_no_error_when_requirements_are_installed(tmp_path):
+    """A plugin whose declared deps are all installed records no dep load error."""
+    create_valid_plugin_dir(tmp_path, "has_dep")
+    # ``pytest`` is always present in the test runtime.
+    (tmp_path / "has_dep" / "requirements.txt").write_text("pytest\n")
+
+    loader = _loader_for_tests(tmp_path)
+    plugin = loader.load_plugin("has_dep")
+
+    assert plugin is not None
+    errors = loader.load_errors.get("has_dep", [])
+    assert not any("requirements.txt" in e for e in errors), errors

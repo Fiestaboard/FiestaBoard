@@ -4,6 +4,7 @@ The PluginLoader discovers plugins from the built-in ``plugins/`` directory
 as well as external plugin directories (registry and custom git sources).
 """
 
+import importlib.metadata
 import importlib.util
 import logging
 import re
@@ -89,6 +90,69 @@ def _check_version_constraint(constraint: str, running_version: str) -> tuple[bo
     if not satisfied:
         return False, (f"Plugin requires FiestaBoard {constraint}, but running version is {running_version}")
     return True, ""
+
+
+# ---------------------------------------------------------------------------
+# Third-party dependency helpers
+# ---------------------------------------------------------------------------
+
+# Matches the leading distribution name of a requirements.txt entry, stopping
+# before any version specifier (``>=``), extra (``[...]``), environment marker
+# (``;``), or whitespace.
+_REQ_NAME_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)")
+
+
+def _normalize_dist_name(name: str) -> str:
+    """Normalise a distribution name for comparison (PEP 503).
+
+    Collapses runs of ``-``, ``_`` and ``.`` to a single ``-`` and lowercases,
+    so ``speedtest-cli``, ``speedtest_cli`` and ``Speedtest.CLI`` all compare
+    equal.
+    """
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _parse_requirement_names(requirements_text: str) -> list[str]:
+    """Extract declared distribution names from ``requirements.txt`` contents.
+
+    Only the distribution *name* of each requirement is returned — version
+    specifiers, extras and environment markers are dropped.  Comment lines,
+    option lines (``-r``, ``--hash``) and direct URL / VCS references (which
+    cannot be mapped to an installed distribution name) are skipped.
+    """
+    names: list[str] = []
+    for raw_line in requirements_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or line.startswith("-"):
+            continue
+        # Drop an inline comment (a ``#`` following whitespace).
+        line = re.split(r"\s+#", line, maxsplit=1)[0].strip()
+        if not line:
+            continue
+        # A direct reference (``name @ url`` or a bare URL / VCS ref) has no
+        # installable distribution name we can check against — skip it.
+        before_at = line.split("@", 1)[0]
+        if "://" in before_at or line.startswith(("git+", "http:", "https:")):
+            continue
+        match = _REQ_NAME_RE.match(line)
+        if match:
+            names.append(match.group(1))
+    return names
+
+
+def _missing_requirement_dists(names: list[str]) -> list[str]:
+    """Return the declared distribution *names* that are not installed.
+
+    Names are compared using :func:`_normalize_dist_name` against the set of
+    installed distributions, so a package is considered present regardless of
+    dash/underscore/case differences between the requirement and its metadata.
+    """
+    installed = {
+        _normalize_dist_name(dist_name)
+        for dist in importlib.metadata.distributions()
+        if (dist_name := dist.metadata["Name"])
+    }
+    return [name for name in names if _normalize_dist_name(name) not in installed]
 
 
 class PluginLoadError(Exception):
@@ -330,6 +394,37 @@ class PluginLoader:
             if not ok:
                 logger.warning("Plugin '%s' version incompatibility: %s", plugin_name, reason)
                 self._load_errors.setdefault(plugin_name, []).append(f"Version incompatibility: {reason}")
+
+        # Check third-party dependencies declared in requirements.txt.
+        #
+        # Nothing in the install path installs a plugin's requirements.txt, so
+        # a plugin that needs a package it declares there is broken on a real
+        # install.  When the plugin imports that package lazily (inside
+        # fetch_data), it loads cleanly here and only fails later at fetch
+        # time, surfacing to the user as an unactionable "unavailable" render.
+        # Detect declared-but-missing distributions now and surface them
+        # loudly through GET /plugins/errors and the Integrations UI.
+        #
+        # Soft failure on purpose: the plugin still loads (the code may not
+        # actually use the missing dep on every path, and hiding the plugin
+        # outright would remove it from the board), but the missing dependency
+        # is recorded so the failure is actionable at load time, not fetch.
+        requirements_path = plugin_dir / "requirements.txt"
+        if requirements_path.exists():
+            try:
+                requirements_text = requirements_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                logger.warning("Could not read requirements.txt for %s: %s", plugin_name, exc)
+            else:
+                missing = _missing_requirement_dists(_parse_requirement_names(requirements_text))
+                if missing:
+                    message = (
+                        "Missing dependencies declared in requirements.txt: "
+                        + ", ".join(sorted(missing))
+                        + " — install them into the container and reload the plugin"
+                    )
+                    logger.warning("Plugin '%s': %s", plugin_name, message)
+                    self._load_errors.setdefault(plugin_name, []).append(message)
 
         # Load Python module
         # Support two repo layouts:
