@@ -589,12 +589,7 @@ export function DisplaySettings() {
   }
 
   return (
-    <PageSection
-      icon={<Monitor />}
-      title={t("title")}
-      description={t("description")}
-      contentClassName="space-y-4"
-    >
+    <PageSection icon={<Monitor />} title={t("title")} description={t("description")} contentClassName="space-y-4">
       <Stack gap="3">
         {boards.map((board) => {
           const isPaused = board.paused === true;

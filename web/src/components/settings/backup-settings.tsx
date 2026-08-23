@@ -130,7 +130,7 @@ export function BackupSettings() {
         icon={<Database />}
         title={t("cardTitle")}
         description={t("cardDescription")}
-      contentClassName="space-y-6"
+        contentClassName="space-y-6"
       >
         <Flex direction="col" gap="3" className="sm:flex-row">
           <Button variant="default" className="gap-2" onClick={handleExport} disabled={importMutation.isPending}>

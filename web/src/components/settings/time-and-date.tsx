@@ -86,11 +86,7 @@ export function TimeAndDateCard() {
   };
 
   return (
-    <PageSection
-      icon={<Clock />}
-      title={t("timeAndDateTitle")}
-      description={t("timeAndDateDescription")}
-    >
+    <PageSection icon={<Clock />} title={t("timeAndDateTitle")} description={t("timeAndDateDescription")}>
       {isLoading ? (
         <Stack gap="4">
           <Skeleton className="h-10 w-full max-w-sm" />

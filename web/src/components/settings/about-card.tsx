@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Badge,
-  Box,
-  Flex,
-  PageSection,
-  Skeleton,
-  Text,
-  TextLink,
-} from "@fiestaboard/ui";
+import { Badge, Box, Flex, PageSection, Skeleton, Text, TextLink } from "@fiestaboard/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Cpu, ExternalLink, Info, Package } from "lucide-react";
 
@@ -41,11 +33,7 @@ export function AboutCard() {
   const managedExternally = useIsManagedExternally();
 
   return (
-    <PageSection
-      icon={<Info />}
-      title={t("aboutTitle")}
-      description={t("aboutDescription")}
-    >
+    <PageSection icon={<Info />} title={t("aboutTitle")} description={t("aboutDescription")}>
       <dl className="space-y-3 text-sm">
         <Flex align="center" justify="between" gap="4">
           <dt className="text-muted-foreground">{t("status")}</dt>

@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Box,
-  Flex,
-  PageSection,
-  Skeleton,
-  Switch,
-  Text,
-} from "@fiestaboard/ui";
+import { Box, Flex, PageSection, Skeleton, Switch, Text } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Accessibility } from "lucide-react";
 import { useState } from "react";
@@ -48,11 +41,7 @@ export function AccessibilitySettings() {
   };
 
   return (
-    <PageSection
-      icon={<Accessibility />}
-      title={t("accessibilityTitle")}
-      description={t("accessibilityDescription")}
-    >
+    <PageSection icon={<Accessibility />} title={t("accessibilityTitle")} description={t("accessibilityDescription")}>
       {isLoading ? (
         <Skeleton className="h-6 w-48" />
       ) : (

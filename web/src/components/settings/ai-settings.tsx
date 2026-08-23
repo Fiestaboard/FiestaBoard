@@ -505,53 +505,53 @@ export function AiSettings() {
       }
       contentClassName="space-y-3"
     >
-        <Alert>
-          <AlertDescription className="text-xs">{t("privacyNotice")}</AlertDescription>
-        </Alert>
+      <Alert>
+        <AlertDescription className="text-xs">{t("privacyNotice")}</AlertDescription>
+      </Alert>
 
-        {current.providers.length === 0 ? (
-          <Text tone="muted" className="rounded-md border border-dashed p-6 text-center">
-            {t("emptyState")}
-          </Text>
-        ) : (
-          <Stack gap="3">
-            {current.providers.map((p, idx) => (
-              <ProviderRow
-                key={p.id}
-                provider={p}
-                isDefault={p.id === current.default_provider_id}
-                expanded={expandedIds.has(p.id)}
-                onToggleExpanded={(open) => setRowExpanded(p.id, open)}
-                onChange={(next) => updateProvider(idx, next)}
-                onRemove={() => removeProvider(idx)}
-                onMakeDefault={() => makeDefault(idx)}
-              />
-            ))}
-          </Stack>
+      {current.providers.length === 0 ? (
+        <Text tone="muted" className="rounded-md border border-dashed p-6 text-center">
+          {t("emptyState")}
+        </Text>
+      ) : (
+        <Stack gap="3">
+          {current.providers.map((p, idx) => (
+            <ProviderRow
+              key={p.id}
+              provider={p}
+              isDefault={p.id === current.default_provider_id}
+              expanded={expandedIds.has(p.id)}
+              onToggleExpanded={(open) => setRowExpanded(p.id, open)}
+              onChange={(next) => updateProvider(idx, next)}
+              onRemove={() => removeProvider(idx)}
+              onMakeDefault={() => makeDefault(idx)}
+            />
+          ))}
+        </Stack>
+      )}
+
+      <Flex wrap align="center" justify="between" gap="2" className="pt-1">
+        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addProvider}>
+          <Plus className="h-3.5 w-3.5" />
+          {t("addProviderButton")}
+        </Button>
+        {hasDraft && (
+          <Flex gap="2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(null)}>
+              {t("discardButton")}
+            </Button>
+            <Button
+              type="button"
+              variant="brand"
+              size="sm"
+              onClick={() => saveMutation.mutate(current)}
+              disabled={saveMutation.isPending}
+            >
+              {saveMutation.isPending ? tCommon("saving") : t("saveChangesButton")}
+            </Button>
+          </Flex>
         )}
-
-        <Flex wrap align="center" justify="between" gap="2" className="pt-1">
-          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addProvider}>
-            <Plus className="h-3.5 w-3.5" />
-            {t("addProviderButton")}
-          </Button>
-          {hasDraft && (
-            <Flex gap="2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(null)}>
-                {t("discardButton")}
-              </Button>
-              <Button
-                type="button"
-                variant="brand"
-                size="sm"
-                onClick={() => saveMutation.mutate(current)}
-                disabled={saveMutation.isPending}
-              >
-                {saveMutation.isPending ? tCommon("saving") : t("saveChangesButton")}
-              </Button>
-            </Flex>
-          )}
-        </Flex>
+      </Flex>
     </PageSection>
   );
 }

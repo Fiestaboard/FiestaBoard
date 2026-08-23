@@ -131,68 +131,68 @@ export function BetaSettings() {
         description={t("description")}
         contentClassName="space-y-4"
       >
-          <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
-            <Stack gap="1">
-              <Flex align="center" gap="2">
-                <Lock className="h-4 w-4 text-muted-foreground" />
-                <Text as="span" weight="medium">
-                  {t("httpsLabel")}
-                </Text>
-                {httpsEnabled && certPresent && (
-                  <Badge variant="default" className="text-[10px] bg-board-green">
-                    <ShieldCheck className="h-3 w-3 mr-1" />
-                    {t("httpsActive")}
-                  </Badge>
-                )}
-              </Flex>
-              <Text tone="muted">{t("httpsDescription")}</Text>
-              <Flex align="start" gap="1.5" className="text-xs text-muted-foreground pt-1">
-                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <Text as="span" size="xs" tone="muted">
-                  {t("httpsWarning")}
-                </Text>
-              </Flex>
-            </Stack>
-            <Switch
-              checked={httpsEnabled}
-              disabled={mutation.isPending}
-              onCheckedChange={(checked) => mutation.mutate(checked)}
-              aria-label={t("httpsLabel")}
-            />
-          </Flex>
-
-          <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
-            <Stack gap="1">
-              <Flex align="center" gap="2">
-                <Wand2 className="h-4 w-4 text-muted-foreground" />
-                <Text as="span" weight="medium">
-                  {t("transitionsLabel")}
-                </Text>
-              </Flex>
-              <Text tone="muted">{t("transitionsDescription")}</Text>
-              <Flex align="start" gap="1.5" className="text-xs text-muted-foreground pt-1">
-                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <Text as="span" size="xs" tone="muted">
-                  {t("transitionsWarning")}
-                </Text>
-              </Flex>
-              {transitionsEnabled && (
-                <TextLink
-                  href="/transitions"
-                  className="text-xs text-primary inline-flex items-center gap-1 pt-1 no-underline hover:underline"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  {t("transitionsLabLink")}
-                </TextLink>
+        <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
+          <Stack gap="1">
+            <Flex align="center" gap="2">
+              <Lock className="h-4 w-4 text-muted-foreground" />
+              <Text as="span" weight="medium">
+                {t("httpsLabel")}
+              </Text>
+              {httpsEnabled && certPresent && (
+                <Badge variant="default" className="text-[10px] bg-board-green">
+                  <ShieldCheck className="h-3 w-3 mr-1" />
+                  {t("httpsActive")}
+                </Badge>
               )}
-            </Stack>
-            <Switch
-              checked={transitionsEnabled}
-              disabled={transitionsMutation.isPending}
-              onCheckedChange={(checked) => transitionsMutation.mutate(checked)}
-              aria-label={t("transitionsLabel")}
-            />
-          </Flex>
+            </Flex>
+            <Text tone="muted">{t("httpsDescription")}</Text>
+            <Flex align="start" gap="1.5" className="text-xs text-muted-foreground pt-1">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <Text as="span" size="xs" tone="muted">
+                {t("httpsWarning")}
+              </Text>
+            </Flex>
+          </Stack>
+          <Switch
+            checked={httpsEnabled}
+            disabled={mutation.isPending}
+            onCheckedChange={(checked) => mutation.mutate(checked)}
+            aria-label={t("httpsLabel")}
+          />
+        </Flex>
+
+        <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
+          <Stack gap="1">
+            <Flex align="center" gap="2">
+              <Wand2 className="h-4 w-4 text-muted-foreground" />
+              <Text as="span" weight="medium">
+                {t("transitionsLabel")}
+              </Text>
+            </Flex>
+            <Text tone="muted">{t("transitionsDescription")}</Text>
+            <Flex align="start" gap="1.5" className="text-xs text-muted-foreground pt-1">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <Text as="span" size="xs" tone="muted">
+                {t("transitionsWarning")}
+              </Text>
+            </Flex>
+            {transitionsEnabled && (
+              <TextLink
+                href="/transitions"
+                className="text-xs text-primary inline-flex items-center gap-1 pt-1 no-underline hover:underline"
+              >
+                <ExternalLink className="h-3 w-3" />
+                {t("transitionsLabLink")}
+              </TextLink>
+            )}
+          </Stack>
+          <Switch
+            checked={transitionsEnabled}
+            disabled={transitionsMutation.isPending}
+            onCheckedChange={(checked) => transitionsMutation.mutate(checked)}
+            aria-label={t("transitionsLabel")}
+          />
+        </Flex>
       </PageSection>
 
       <Dialog open={restartPrompt !== null} onOpenChange={(open) => !open && !restarting && setRestartPrompt(null)}>

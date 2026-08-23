@@ -149,7 +149,8 @@ export function McpSettings() {
       <PageSection
         icon={<Bot />}
         title={t("title")}
-        description={<>
+        description={
+          <>
             {t.rich("description", {
               endpoint: () => <Code className="font-mono text-xs">{MCP_ENDPOINT}</Code>,
               link: (chunks: ReactNode) => (
@@ -163,7 +164,9 @@ export function McpSettings() {
                 </TextLink>
               ),
             })}
-          </>} className="space-y-4"
+          </>
+        }
+        className="space-y-4"
       >
         <Flex align="center" gap="2">
           <Text as="span" size="sm" weight="medium">

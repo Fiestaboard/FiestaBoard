@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Button,
-  Flex,
-  PageSection,
-  Skeleton,
-  Stack,
-  Switch,
-  Text,
-} from "@fiestaboard/ui";
+import { Button, Flex, PageSection, Skeleton, Stack, Switch, Text } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Puzzle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -64,12 +56,7 @@ export function PluginSettingsCard() {
   }
 
   return (
-    <PageSection
-      icon={<Puzzle />}
-      title={t("title")}
-      description={t("description")}
-      contentClassName="space-y-3"
-    >
+    <PageSection icon={<Puzzle />} title={t("title")} description={t("description")} contentClassName="space-y-3">
       <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
         <Stack gap="1">
           <Text as="span" weight="medium">

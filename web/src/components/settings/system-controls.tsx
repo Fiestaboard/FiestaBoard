@@ -83,11 +83,7 @@ export function SystemControls() {
 
   return (
     <>
-      <PageSection
-        icon={<Cpu />}
-        title={t("title")}
-        description={t("description")}
-      >
+      <PageSection icon={<Cpu />} title={t("title")} description={t("description")}>
         <Flex wrap gap="2">
           <Button
             variant={updateAvailable ? "default" : "outline"}

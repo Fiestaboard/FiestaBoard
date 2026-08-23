@@ -1,16 +1,6 @@
 "use client";
 
-import {
-  Badge,
-  Flex,
-  Grid,
-  Input,
-  Label,
-  PageSection,
-  Skeleton,
-  Stack,
-  Text,
-} from "@fiestaboard/ui";
+import { Badge, Flex, Grid, Input, Label, PageSection, Skeleton, Stack, Text } from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Sparkles } from "lucide-react";
@@ -159,12 +149,7 @@ export function TransitionSettings() {
   }
 
   return (
-    <PageSection
-      icon={<Sparkles />}
-      title={t("title")}
-      description={t("description")}
-      contentClassName="space-y-5"
-    >
+    <PageSection icon={<Sparkles />} title={t("title")} description={t("description")} contentClassName="space-y-5">
       {/* Strategy Selector */}
       <Stack gap="2">
         <Label className="text-sm font-medium">{t("transitionStyle")}</Label>

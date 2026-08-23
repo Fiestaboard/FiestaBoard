@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Input,
-  Label,
-  PageSection,
-  Skeleton,
-  Stack,
-} from "@fiestaboard/ui";
+import { Input, Label, PageSection, Skeleton, Stack } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tag } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -49,11 +43,7 @@ export function InstanceNameCard() {
   }, [instanceName, allSettings?.general?.instance_name, updateGeneralMutation]);
 
   return (
-    <PageSection
-      icon={<Tag />}
-      title={t("instanceNameTitle")}
-      description={t("instanceNameDescription")}
-    >
+    <PageSection icon={<Tag />} title={t("instanceNameTitle")} description={t("instanceNameDescription")}>
       {isLoading ? (
         <Skeleton className="h-10 w-full max-w-sm" />
       ) : (

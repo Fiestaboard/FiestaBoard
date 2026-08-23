@@ -97,21 +97,21 @@ export function MqttSettingsCard() {
       title={t("title")}
       description={t("description")}
       action={
-          <Flex align="center" gap="3">
-            {isEnabled &&
-              (isConnected ? (
-                <Badge variant="default" className="text-[10px] h-5 bg-board-green flex items-center gap-1">
-                  <CheckCircle2 className="h-2.5 w-2.5" />
-                  {t("connected")}
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="text-[10px] h-5 flex items-center gap-1">
-                  <XCircle className="h-2.5 w-2.5" />
-                  {t("disconnected")}
-                </Badge>
-              ))}
-            <Switch checked={isEnabled} onCheckedChange={handleToggleEnabled} disabled={saveMutation.isPending} />
-          </Flex>
+        <Flex align="center" gap="3">
+          {isEnabled &&
+            (isConnected ? (
+              <Badge variant="default" className="text-[10px] h-5 bg-board-green flex items-center gap-1">
+                <CheckCircle2 className="h-2.5 w-2.5" />
+                {t("connected")}
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="text-[10px] h-5 flex items-center gap-1">
+                <XCircle className="h-2.5 w-2.5" />
+                {t("disconnected")}
+              </Badge>
+            ))}
+          <Switch checked={isEnabled} onCheckedChange={handleToggleEnabled} disabled={saveMutation.isPending} />
+        </Flex>
       }
     >
       <Collapsible open={expanded} onOpenChange={setExpanded}>

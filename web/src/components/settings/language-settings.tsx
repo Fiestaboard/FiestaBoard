@@ -10,11 +10,7 @@ export function LanguageSettingsCard() {
   const t = useTranslations("profile");
 
   return (
-    <PageSection
-      icon={<Globe />}
-      title={t("languageTitle")}
-      description={t("languageDescription")}
-    >
+    <PageSection icon={<Globe />} title={t("languageTitle")} description={t("languageDescription")}>
       <LanguageSelector />
     </PageSection>
   );

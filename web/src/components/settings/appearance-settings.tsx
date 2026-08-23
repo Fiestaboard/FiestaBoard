@@ -12,11 +12,7 @@ export function AppearanceSettings() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <PageSection
-      icon={<Sun />}
-      title={t("appearanceTitle")}
-      description={t("appearanceDescription")}
-    >
+    <PageSection icon={<Sun />} title={t("appearanceTitle")} description={t("appearanceDescription")}>
       <Grid cols="3" gap="3" className="max-w-sm">
         {(
           [

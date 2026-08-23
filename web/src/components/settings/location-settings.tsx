@@ -1,16 +1,6 @@
 "use client";
 
-import {
-  Box,
-  Button,
-  Flex,
-  Grid,
-  Input,
-  Label,
-  PageSection,
-  Stack,
-  Text,
-} from "@fiestaboard/ui";
+import { Box, Button, Flex, Grid, Input, Label, PageSection, Stack, Text } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, LocateFixed, MapPin } from "lucide-react";
 import { useState } from "react";
@@ -122,12 +112,7 @@ export function LocationSettingsCard() {
   const isConfigured = location?.latitude != null && location?.longitude != null;
 
   return (
-    <PageSection
-      icon={<MapPin />}
-      title={t("title")}
-      description={t("description")}
-      contentClassName="space-y-4"
-    >
+    <PageSection icon={<MapPin />} title={t("title")} description={t("description")} contentClassName="space-y-4">
       {isLoading ? (
         <Stack gap="3">
           <Box className="h-10 bg-muted animate-pulse rounded" />
