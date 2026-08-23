@@ -10,6 +10,7 @@ import {
   Flex,
   Grid,
   PageHeader,
+  PageInset,
   PageLayout,
   PageToolbar,
   Skeleton,
@@ -238,13 +239,20 @@ export default function PagesPage() {
       <Box className="animate-card-fade-in" style={{ animationDelay: "150ms" }}>
         {hasMultipleDevices ? (
           <Tabs value={activeTab ?? availableDevices[0]} onValueChange={(v) => setActiveTab(v as DeviceType)}>
-            <TabsList className="mb-5">
-              {availableDevices.includes("flagship") && <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>}
-              {availableDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
-              {availableDevices.includes("note_array") && (
-                <TabsTrigger value="note_array">{t("noteArrayTab")}</TabsTrigger>
-              )}
-            </TabsList>
+            {/* Inset: a tab strip is bare controls, so it belongs on the
+                content column with the toolbar above it, not on the gutter
+                the tiles' borders use. */}
+            <PageInset>
+              <TabsList className="mb-5">
+                {availableDevices.includes("flagship") && (
+                  <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>
+                )}
+                {availableDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
+                {availableDevices.includes("note_array") && (
+                  <TabsTrigger value="note_array">{t("noteArrayTab")}</TabsTrigger>
+                )}
+              </TabsList>
+            </PageInset>
             {availableDevices.includes("flagship") && (
               <TabsContent value="flagship">
                 <PageGridSelector
