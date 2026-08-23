@@ -22,9 +22,17 @@ on:
       - ".github/workflows/docs-captures.yml"
   workflow_dispatch: {}
 
+# Queue runs, never cancel them. This job takes ~11 minutes — build the image,
+# boot the app, capture every screen twice — and it triggers on any web/**
+# change. With cancel-in-progress the first four real runs were all killed by
+# the next merge landing before they finished, so the capture PR was never
+# refreshed and sat there as a rollback of everything merged after it.
+#
+# Queueing wastes some runner time when merges cluster. Cancelling wasted the
+# entire mechanism.
 concurrency:
   group: docs-captures
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
