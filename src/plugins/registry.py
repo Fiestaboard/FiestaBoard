@@ -45,6 +45,11 @@ INSTANCE_SEPARATOR = ":"
 # Valid instance label pattern: alphanumeric, underscores, and hyphens, 1-40 chars.
 _INSTANCE_LABEL_RE = re.compile(r"^[a-zA-Z0-9_-]{1,40}$")
 
+# How long build_template_context() waits for the slowest enabled plugin before
+# rendering without it. A board that is a little stale beats a board that never
+# updates because one data source is wedged.
+CONTEXT_BUILD_TIMEOUT_SECONDS = 15
+
 
 def _config_in_use(plugin_id: str, stored_configs: dict[str, dict[str, Any]]) -> bool:
     """Return True when a stored config, or any of its instance configs
@@ -1528,9 +1533,10 @@ class PluginRegistry:
         # Fetch every plugin concurrently; cap the pool to avoid spawning an
         # unbounded number of threads when many plugins are enabled.
         max_workers = min(len(enabled), 8)
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="plugin-fetch")
+        try:
             futures = {executor.submit(self.fetch_plugin_data, plugin_id, board): plugin_id for plugin_id in enabled}
-            done, not_done = futures_wait(futures, timeout=15)
+            done, not_done = futures_wait(futures, timeout=CONTEXT_BUILD_TIMEOUT_SECONDS)
 
             if not_done:
                 slow_ids = [futures[f] for f in not_done]
@@ -1547,6 +1553,19 @@ class PluginRegistry:
                         context[plugin_id] = result.data
                 except Exception:
                     logger.exception(f"Plugin {plugin_id} raised an error during context build")
+        finally:
+            # Deliberately not a `with` block. ThreadPoolExecutor.__exit__ calls
+            # shutdown(wait=True), which would block here until the slowest
+            # plugin returned -- so the timeout above would decide only whether
+            # a result is *used*, never how long the render takes. A plugin
+            # wedged on a 60s network call would stall every board render for
+            # the full 60s and then have its answer thrown away.
+            #
+            # wait=False lets an abandoned fetch finish on its own thread
+            # (harmlessly -- nothing reads its result, and PluginBase caches it
+            # for the next tick); cancel_futures drops the ones that never
+            # started.
+            executor.shutdown(wait=False, cancel_futures=True)
 
         return context
 
