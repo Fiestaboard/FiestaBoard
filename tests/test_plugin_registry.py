@@ -1,5 +1,7 @@
 """Tests for PluginRegistry - manages loaded plugins."""
 
+import threading
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -2098,3 +2100,53 @@ def test_migration_still_installs_untombstoned_orphan(registry):
         registry._auto_migrate_v2_plugins(stored)
 
     registry.install_from_registry.assert_called_once_with("weather")
+
+
+def test_build_template_context_returns_without_waiting_for_a_slow_plugin(
+    registry, mock_loader, mock_plugin, mock_manifest
+):
+    """A plugin that blows the timeout must not delay the render.
+
+    ``futures_wait(timeout=...)`` only decides whether a result is *used*.
+    Leaving the executor to a ``with`` block undoes that: ``__exit__`` calls
+    ``shutdown(wait=True)``, so the call still blocks for the full duration of
+    the slowest plugin and then throws its answer away.
+    """
+    slow_plugin = MagicMock(spec=PluginBase)
+    slow_plugin.plugin_id = "slow_plugin"
+    slow_plugin.validate_config.return_value = []
+    slow_plugin._validate_refresh_seconds.return_value = []
+    slow_plugin.enabled = False
+    slow_plugin.config = {}
+
+    released = threading.Event()
+
+    def never_finishes_in_time(board=None):
+        released.wait(timeout=30)
+        return PluginResult(available=True, data={"key": "too late"})
+
+    slow_plugin.get_data.side_effect = never_finishes_in_time
+
+    mock_loader.load_all_plugins.return_value = {
+        "test_plugin": mock_plugin,
+        "slow_plugin": slow_plugin,
+    }
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {
+            "test_plugin": {"enabled": True},
+            "slow_plugin": {"enabled": True},
+        }
+        registry.initialize()
+
+    try:
+        with patch("src.plugins.registry.CONTEXT_BUILD_TIMEOUT_SECONDS", 0.5):
+            started = time.monotonic()
+            context = registry.build_template_context()
+            elapsed = time.monotonic() - started
+
+        assert elapsed < 3, f"build_template_context blocked {elapsed:.1f}s on a plugin it had already abandoned"
+        assert "test_plugin" in context, "the responsive plugin's data was lost"
+        assert "slow_plugin" not in context
+    finally:
+        released.set()
