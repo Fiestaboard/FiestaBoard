@@ -1079,8 +1079,14 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await page.goto("/integrations");
     await page.waitForTimeout(3000);
 
-    const weatherCard = page.getByText("Weather").first();
+    // Exact match, and scrolled into view first. A substring match now finds
+    // the "Weather & Environment" CATEGORY cell of whichever plugin sorts
+    // first, which is not clickable — the click waited out the full timeout.
+    // The Weather plugin's own row sits below the fold as the list has grown.
+    const weatherCard = page.getByText("Weather", { exact: true }).first();
     if (await weatherCard.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await weatherCard.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(400);
       await weatherCard.click();
       await page.waitForTimeout(1500);
     }
