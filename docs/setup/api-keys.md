@@ -65,10 +65,10 @@ These are optional. Enter them in the **Integrations page** of the web UI as you
 
 These work out of the box:
 
-- Bay Wheels
 - Date & Time
 - Disney Parks
 - Guest WiFi
+- Lyft Bike Share
 - Star Trek Quotes
 - Sun Art
 - Surf
