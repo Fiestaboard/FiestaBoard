@@ -746,7 +746,20 @@ This is not hypothetical: the Star Trek Quotes plugin shipped this way for
 months, serving `???` to every user, because its data file was never committed
 and its fallback pointed at the platform copy.
 
-Two rules follow:
+Three rules follow:
+
+- **Declare your data files** in `manifest.json`, so a broken install is
+  rejected before the plugin ever runs:
+
+  ```json
+  {
+    "id": "star_trek_quotes",
+    "data_files": ["quotes.json"]
+  }
+  ```
+
+  Paths are relative to your plugin directory. Absolute paths and `..`
+  segments are rejected — a plugin may only declare files it ships.
 
 - **Commit your data files.** Do not generate or symlink them in CI. If your
   test workflow creates a file the shipped plugin lacks, your suite is testing
@@ -757,8 +770,17 @@ Two rules follow:
   beyond the standard library plus the platform's own dependencies will be
   missing at runtime. Vendor it or do without.
 
-`scripts/plugin_health_sweep.py` enforces all of this against every registry
-plugin daily. Run it locally before publishing:
+### How this is enforced
+
+| when | what happens |
+|------|--------------|
+| **Install** | A plugin that declares a file it does not ship, reads a file that is missing, or needs a package FiestaBoard lacks is **refused**, and the clone is removed. |
+| **Update** | The same failure is reported through `GET /plugins/errors` and the Integrations page, but the plugin is **left installed** — an update should not silently pull a working board out from under someone. |
+| **Startup** | Every installed plugin is re-checked; findings appear in `GET /plugins/errors`. |
+| **Registry review** | `validate_plugins.py --strict` escalates the advisory "reads a file it does not declare" into a failure. |
+| **Daily** | `scripts/plugin_health_sweep.py` sweeps every registry plugin and files an issue. |
+
+Run the checks locally before publishing:
 
 ```bash
 docker compose -f docker-compose.dev.yml exec fiestaboard \

@@ -45,10 +45,8 @@ Exit codes:
 """
 
 import argparse
-import importlib.util
 import json
 import os
-import re
 import sys
 import traceback
 from pathlib import Path
@@ -59,49 +57,6 @@ PLUGINS_DIR = PROJECT_ROOT / "plugins"
 DEFAULT_EXTERNAL_DIR = PROJECT_ROOT / "data" / "external_plugins"
 
 sys.path.insert(0, str(PROJECT_ROOT))
-
-DATA_SUFFIXES = ("json", "csv", "txt", "yaml", "yml", "ndjson", "tsv")
-
-# A __file__-anchored path expression, capturing the .parent hops and the
-# quoted segments joined onto it. Matches both pathlib and os.path styles:
-#   Path(__file__).parent / "quotes.json"
-#   Path(__file__).parent.parent / "src" / "utils" / "x.json"
-#   os.path.join(os.path.dirname(__file__), "data", "x.json")
-FILE_ANCHORED = re.compile(
-    r"""
-    (?P<anchor>
-        Path\(\s*__file__\s*\)(?P<hops>(?:\s*\.\s*parent)*)
-        | os\.path\.dirname\(\s*__file__\s*\)
-    )
-    (?P<tail>(?:\s*[/,]\s*(?:["'][^"']+["']|\w+\s*\(\s*\))|\s*\)\s*)*)
-    """,
-    re.VERBOSE,
-)
-QUOTED = re.compile(r"""["']([^"']+)["']""")
-
-# Plugins commonly stash the anchor first and join onto it later:
-#   plugin_dir = Path(__file__).parent
-#   quotes_file = plugin_dir / "quotes.json"
-# Without this the data_files check misses the most idiomatic spelling.
-ANCHOR_ASSIGN = re.compile(
-    r"""^[ \t]*(?P<name>\w+)[ \t]*=[ \t]*
-        (?:Path\(\s*__file__\s*\)(?P<hops>(?:\s*\.\s*parent)*)
-         | os\.path\.dirname\(\s*__file__\s*\))
-        [ \t]*$""",
-    re.VERBOSE | re.MULTILINE,
-)
-
-# Distributions whose import name differs from the package name.
-IMPORT_NAME_OVERRIDES = {
-    "speedtest-cli": "speedtest",
-    "beautifulsoup4": "bs4",
-    "pillow": "PIL",
-    "python-dateutil": "dateutil",
-    "pyyaml": "yaml",
-    "python-dotenv": "dotenv",
-    "msgpack-python": "msgpack",
-    "attrs": "attr",
-}
 
 
 class Finding:
@@ -123,160 +78,6 @@ class Finding:
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<Finding {self.plugin_id}/{self.check}>"
-
-
-def python_sources(plugin_dir: Path) -> list[Path]:
-    """Runtime .py files for a plugin (tests and caches excluded)."""
-    skip = {"tests", "test", "docs", "__pycache__", ".git", ".github"}
-    return [p for p in plugin_dir.rglob("*.py") if not any(part in skip for part in p.relative_to(plugin_dir).parts)]
-
-
-def referenced_data_paths(source: str) -> list[tuple[int, list[str]]]:
-    """Extract ``__file__``-anchored data-file references from source text.
-
-    Returns ``(parent_hops, path_segments)`` per reference.  ``parent_hops`` is
-    how many ``.parent`` steps the expression takes, which is what tells us
-    whether the path escapes the plugin's own directory.
-    """
-    refs = []
-    for match in FILE_ANCHORED.finditer(source):
-        segments = QUOTED.findall(match.group("tail") or "")
-        if not segments:
-            continue
-        if not segments[-1].lower().endswith(DATA_SUFFIXES):
-            continue
-        hops = len(re.findall(r"\.\s*parent", match.group("hops") or ""))
-        if match.group("anchor").startswith("os.path.dirname"):
-            hops = 1
-        refs.append((hops, segments))
-
-    # Second pass: joins onto a variable that holds a __file__ anchor.
-    for assign in ANCHOR_ASSIGN.finditer(source):
-        name = assign.group("name")
-        hops = len(re.findall(r"\.\s*parent", assign.group("hops") or "")) or 1
-        joined = re.compile(
-            rf"""(?:\b{re.escape(name)}\b(?P<tail>(?:\s*/\s*["'][^"']+["'])+)
-                 | os\.path\.join\(\s*{re.escape(name)}\s*(?P<jtail>(?:,\s*["'][^"']+["'])+)\s*\))""",
-            re.VERBOSE,
-        )
-        for use in joined.finditer(source):
-            segments = QUOTED.findall(use.group("tail") or use.group("jtail") or "")
-            if not segments:
-                continue
-            if not segments[-1].lower().endswith(DATA_SUFFIXES):
-                continue
-            refs.append((hops, segments))
-
-    # Same file referenced both inline and via a variable -> report once.
-    deduped = dict.fromkeys((hops, tuple(segs)) for hops, segs in refs)
-    return [(hops, list(segs)) for hops, segs in deduped]
-
-
-def check_data_files(plugin_id: str, plugin_dir: Path) -> list[Finding]:
-    """Every data file the plugin reads relative to itself must exist."""
-    findings = []
-    for src in python_sources(plugin_dir):
-        try:
-            text = src.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        if "__file__" not in text:
-            continue
-        for hops, segments in referenced_data_paths(text):
-            if segments[-1] == "manifest.json":
-                continue
-            # hops==1 means Path(__file__).parent -> the plugin dir itself.
-            base = src.parent
-            for _ in range(max(hops - 1, 0)):
-                base = base.parent
-            target = base.joinpath(*segments)
-            if target.exists():
-                continue
-            rel = src.relative_to(plugin_dir)
-            findings.append(
-                Finding(
-                    plugin_id,
-                    "data_files",
-                    f"{rel} reads {'/'.join(segments)!r} but no such file ships with the plugin (looked for {target})",
-                )
-            )
-    return findings
-
-
-def check_self_contained(plugin_id: str, plugin_dir: Path) -> list[Finding]:
-    """A plugin must not reach outside its own directory for data.
-
-    This is the exact shape of the Star Trek Quotes regression: a path written
-    for the bundled ``plugins/<id>/`` layout silently resolves somewhere else
-    once the plugin is installed one directory deeper.
-    """
-    findings = []
-    for src in python_sources(plugin_dir):
-        try:
-            text = src.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        if "__file__" not in text:
-            continue
-        depth = len(src.relative_to(plugin_dir).parts)  # 1 == plugin root
-        for hops, segments in referenced_data_paths(text):
-            # hops-1 directories above the file's own directory.
-            if hops - 1 < depth:
-                continue
-            rel = src.relative_to(plugin_dir)
-            findings.append(
-                Finding(
-                    plugin_id,
-                    "self_contained",
-                    f"{rel} walks {hops - 1} directories up to reach "
-                    f"{'/'.join(segments)!r}, escaping the plugin directory. "
-                    f"Such a path only resolves in the bundled layout and "
-                    f"breaks once the plugin is installed.",
-                )
-            )
-    return findings
-
-
-def declared_requirements(plugin_dir: Path) -> list[str]:
-    """Distribution names from any requirements.txt the plugin ships."""
-    names = []
-    for req in plugin_dir.rglob("requirements.txt"):
-        if "dev" in req.name:
-            continue
-        for line in req.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = line.split("#")[0].strip()
-            if not line or line.startswith("-"):
-                continue
-            name = re.split(r"[<>=!~\[; ]", line, maxsplit=1)[0].strip()
-            if name:
-                names.append(name)
-    return sorted(set(names))
-
-
-def check_dependencies(plugin_id: str, plugin_dir: Path) -> list[Finding]:
-    """Declared dependencies must be importable in this runtime.
-
-    The platform never installs a plugin's requirements.txt (Fiestaboard/
-    FiestaBoard#1671), so anything declared there is missing at runtime.
-    """
-    findings = []
-    for dist in declared_requirements(plugin_dir):
-        module = IMPORT_NAME_OVERRIDES.get(dist.lower(), dist.replace("-", "_"))
-        try:
-            found = importlib.util.find_spec(module) is not None
-        except (ImportError, ValueError):
-            found = False
-        if not found:
-            findings.append(
-                Finding(
-                    plugin_id,
-                    "dependencies",
-                    f"requires {dist!r} (import {module!r}) which is not "
-                    f"installed in the runtime; the plugin cannot work on a "
-                    f"real install",
-                )
-            )
-    return findings
 
 
 def schema_defaults(plugin) -> dict:
@@ -359,7 +160,9 @@ def check_fetch_contract(plugin_id: str, plugin) -> tuple[list[Finding], str]:
 
 def sweep(external_dir: Path, only: str | None, do_fetch: bool) -> tuple[list, list]:
     """Run every check against every discoverable plugin."""
+    from src.plugins.install_check import validate_install
     from src.plugins.loader import PluginLoader
+    from src.plugins.manifest import load_manifest
 
     loader = PluginLoader(plugins_dir=PLUGINS_DIR, external_dirs=[external_dir])
     plugin_ids = loader.discover_plugins()
@@ -376,9 +179,12 @@ def sweep(external_dir: Path, only: str | None, do_fetch: bool) -> tuple[list, l
         row = {"plugin": plugin_id, "dir": str(plugin_dir), "status": "?"}
 
         if plugin_dir is not None:
-            findings.extend(check_data_files(plugin_id, plugin_dir))
-            findings.extend(check_self_contained(plugin_id, plugin_dir))
-            findings.extend(check_dependencies(plugin_id, plugin_dir))
+            manifest_for_checks, _ = load_manifest(plugin_dir / "manifest.json")
+            install_result = validate_install(plugin_id, plugin_dir, manifest_for_checks)
+            for message in install_result.errors:
+                findings.append(Finding(plugin_id, "install", message))
+            for message in install_result.warnings:
+                findings.append(Finding(plugin_id, "undeclared", message, fatal=False))
 
         try:
             plugin = loader.load_plugin(plugin_id)
@@ -422,6 +228,15 @@ def sweep(external_dir: Path, only: str | None, do_fetch: bool) -> tuple[list, l
 
 CHECK_EXPLANATIONS = {
     "load": "The plugin does not load at all, so it is invisible to users.",
+    "install": (
+        "The plugin cannot work as installed -- a declared data file is "
+        "missing, or it needs a package FiestaBoard does not ship."
+    ),
+    "undeclared": (
+        "Advisory. The plugin reads a data file it does not declare in "
+        "`manifest.json`, so a missing copy would not be caught at install "
+        "time. Declare it under `data_files`."
+    ),
     "data_files": (
         "The plugin reads a data file that is not shipped with it. Every variable it exposes will render as `???`."
     ),
@@ -519,7 +334,8 @@ def main() -> int:
     if args.markdown_path:
         Path(args.markdown_path).write_text(render_markdown(findings, report, external_dir))
 
-    set_output("has_findings", "true" if findings else "false")
+    fatal = [f for f in findings if f.fatal]
+    set_output("has_findings", "true" if fatal else "false")
 
     if not findings:
         print("No breakage found. Every plugin loads, ships its data files,")
@@ -530,13 +346,18 @@ def main() -> int:
     for finding in findings:
         by_plugin.setdefault(finding.plugin_id, []).append(finding)
 
-    print(f"BROKEN: {len(findings)} finding(s) across {len(by_plugin)} plugin(s)\n")
+    print(f"{len(fatal)} blocking, {len(findings) - len(fatal)} advisory across {len(by_plugin)} plugin(s)\n")
     for plugin_id in sorted(by_plugin):
         print(f"  {plugin_id}")
         for finding in by_plugin[plugin_id]:
-            print(f"    [{finding.check}] {finding.detail}")
+            mark = "" if finding.fatal else " (advisory)"
+            print(f"    [{finding.check}]{mark} {finding.detail}")
         print()
-    return 1
+
+    # Advisory findings -- an undeclared data file that is nonetheless
+    # present -- must not fail a scheduled job, or every plugin published
+    # before data_files existed turns the run red forever.
+    return 1 if fatal else 0
 
 
 if __name__ == "__main__":

@@ -39,9 +39,7 @@ EXTERNAL_PLUGINS_DIR = "external_plugins"
 # UI can distinguish them by repo name alone before any cloning happens.
 REGISTRY_PREFIX = "fiestaboard-plugin--"
 REGISTRY_TRANSITION_PREFIX = "fiestaboard-transition--"
-REGISTRY_NAME_RE = re.compile(
-    r"^(?:fiestaboard-plugin--|fiestaboard-transition--)[a-z][a-z0-9-]*$"
-)
+REGISTRY_NAME_RE = re.compile(r"^(?:fiestaboard-plugin--|fiestaboard-transition--)[a-z][a-z0-9-]*$")
 
 # Plugin id must be a safe single-segment identifier so it can be used as a
 # directory name without enabling path traversal.  Same character set as a
@@ -238,7 +236,7 @@ def plugin_id_from_repo_name(repo_name: str) -> str:
     """
     for prefix in (REGISTRY_PREFIX, REGISTRY_TRANSITION_PREFIX):
         if repo_name.startswith(prefix):
-            return repo_name[len(prefix):].replace("-", "_")
+            return repo_name[len(prefix) :].replace("-", "_")
     return repo_name.replace("-", "_")
 
 
@@ -296,10 +294,7 @@ def _validate_git_url(url: str) -> tuple[bool, str]:
 def _validate_plugin_id(plugin_id: str) -> tuple[bool, str]:
     """Validate that *plugin_id* is safe to use as a single path segment."""
     if not isinstance(plugin_id, str) or not PLUGIN_ID_RE.match(plugin_id):
-        return False, (
-            f"Invalid plugin id {plugin_id!r}: must match "
-            f"{PLUGIN_ID_RE.pattern}"
-        )
+        return False, (f"Invalid plugin id {plugin_id!r}: must match {PLUGIN_ID_RE.pattern}")
     return True, ""
 
 
@@ -308,9 +303,7 @@ def _validate_git_ref(ref: str) -> tuple[bool, str]:
     if not isinstance(ref, str):
         return False, "Invalid branch/tag: must be a string"
     if not GIT_REF_RE.fullmatch(ref):
-        return False, (
-            f"Invalid branch/tag {ref!r}: must match {GIT_REF_RE.pattern}"
-        )
+        return False, (f"Invalid branch/tag {ref!r}: must match {GIT_REF_RE.pattern}")
     return True, ""
 
 
@@ -389,14 +382,20 @@ def clone_or_update_repo(
             subprocess.run(
                 ["git", "fetch", "--depth=1", "origin", "HEAD"],
                 cwd=_candidate,
-                check=True, capture_output=True, text=True,
-                timeout=120, env=env,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env,
             )
             subprocess.run(
                 ["git", "reset", "--hard", "FETCH_HEAD"],
                 cwd=_candidate,
-                check=True, capture_output=True, text=True,
-                timeout=30, env=env,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                env=env,
             )
             logger.info("Updated existing plugin clone at %s", _candidate)
             return True, ""
@@ -423,16 +422,15 @@ def clone_or_update_repo(
         subprocess.run(
             ["git", "init", "--quiet"],
             cwd=_candidate,
-            check=True, capture_output=True, text=True,
-            timeout=30, env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
         )
         _git_config_path = os.path.join(_candidate, ".git", "config")
         with open(_git_config_path, "a") as _cfg:
-            _cfg.write(
-                '[remote "origin"]\n'
-                f"\turl = {repo_url}\n"
-                "\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
-            )
+            _cfg.write(f'[remote "origin"]\n\turl = {repo_url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n')
         _fetch_cmd = ["git", "fetch", "--depth=1", "origin"]
         if branch:
             _fetch_cmd.append(branch)
@@ -441,14 +439,20 @@ def clone_or_update_repo(
         subprocess.run(
             _fetch_cmd,
             cwd=_candidate,
-            check=True, capture_output=True, text=True,
-            timeout=120, env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=env,
         )
         subprocess.run(
             ["git", "reset", "--hard", "FETCH_HEAD"],
             cwd=_candidate,
-            check=True, capture_output=True, text=True,
-            timeout=30, env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
         )
         logger.info("Installed external plugin repository to %s", _candidate)
         return True, ""
@@ -475,7 +479,9 @@ def get_remote_head_sha(dest_dir: Path) -> str | None:
         # Get the remote URL from the local clone
         result = subprocess.run(
             ["git", "-C", str(dest_dir), "remote", "get-url", "origin"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         if result.returncode != 0:
             return None
@@ -495,14 +501,16 @@ def get_remote_head_sha(dest_dir: Path) -> str | None:
         # Determine the default branch name tracked locally
         branch_result = subprocess.run(
             ["git", "-C", str(dest_dir), "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         branch = branch_result.stdout.strip() or "main"
         # Allow only characters that are legal in git branch names and safe
         # as subprocess arguments (prevents argument injection).
         # Re-derive branch from the match result so the subprocess sink
         # does not see it as tainted (CodeQL py/command-line-injection).
-        _branch_m = re.match(r'^[A-Za-z0-9_./-]+$', branch)
+        _branch_m = re.match(r"^[A-Za-z0-9_./-]+$", branch)
         if not _branch_m:
             return None
         branch = _branch_m.group(0)
@@ -510,7 +518,9 @@ def get_remote_head_sha(dest_dir: Path) -> str | None:
         # Query the remote for the latest SHA
         ls_result = subprocess.run(
             ["git", "ls-remote", "--heads", remote_url, branch],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
         )
         if ls_result.returncode == 0 and ls_result.stdout.strip():
@@ -524,7 +534,9 @@ def get_remote_head_sha(dest_dir: Path) -> str | None:
         # detected correctly regardless of local/remote branch name mismatch.
         ls_result = subprocess.run(
             ["git", "ls-remote", remote_url, "HEAD"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
         )
         if ls_result.returncode != 0 or not ls_result.stdout.strip():
@@ -541,7 +553,9 @@ def get_local_head_sha(dest_dir: Path) -> str | None:
     try:
         result = subprocess.run(
             ["git", "-C", str(dest_dir), "rev-parse", "HEAD"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         return result.stdout.strip() if result.returncode == 0 else None
     except (subprocess.SubprocessError, OSError):
@@ -573,7 +587,10 @@ def _read_remote_manifest_version(dest_dir: Path) -> str:
         # while most plugin repos publish "main".
         branch_result = subprocess.run(
             ["git", "-C", str(dest_dir), "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True, text=True, timeout=10, env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=env,
         )
         refs: list[str] = []
         branch = branch_result.stdout.strip()
@@ -588,7 +605,10 @@ def _read_remote_manifest_version(dest_dir: Path) -> str:
         for ref in refs:
             fetch_result = subprocess.run(
                 ["git", "-C", str(dest_dir), "fetch", "--quiet", "--depth=1", "origin", ref],
-                capture_output=True, text=True, timeout=120, env=env,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env,
             )
             if fetch_result.returncode == 0:
                 fetched = True
@@ -598,7 +618,10 @@ def _read_remote_manifest_version(dest_dir: Path) -> str:
 
         show_result = subprocess.run(
             ["git", "-C", str(dest_dir), "show", "FETCH_HEAD:manifest.json"],
-            capture_output=True, text=True, timeout=30, env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
         )
         if show_result.returncode != 0:
             return ""
@@ -752,9 +775,7 @@ def get_external_plugins_dir(project_root: Path | None = None) -> Path:
     return ext_dir
 
 
-def _safe_external_dest(
-    external_dir: Path, plugin_id: str
-) -> tuple[Path | None, str]:
+def _safe_external_dest(external_dir: Path, plugin_id: str) -> tuple[Path | None, str]:
     """Compute a safe destination path inside `external_dir` for a plugin.
 
     The plugin id flows through three independent CodeQL-recognized
@@ -801,6 +822,95 @@ def _safe_external_dest(
     return Path(candidate_real), ""
 
 
+def verify_installed_plugin(plugin_id: str, plugin_dir: Path) -> tuple[bool, str]:
+    """Check that a freshly-cloned plugin can actually work on this box.
+
+    Returns ``(True, "")`` when usable, ``(False, reason)`` otherwise.  The
+    reason is written for the person installing the plugin, not for a log.
+    """
+    # Imported here: manifest/install_check pull in the plugin package, and
+    # sources is imported during its initialisation.
+    from .install_check import validate_install
+    from .manifest import load_manifest
+
+    manifest, manifest_errors = load_manifest(plugin_dir / "manifest.json")
+    if manifest is None:
+        detail = "; ".join(manifest_errors) or "manifest.json could not be read"
+        return False, f"{plugin_id}: {detail}"
+
+    result = validate_install(plugin_id, plugin_dir, manifest)
+    for warning in result.warnings:
+        logger.warning("Plugin %s: %s", plugin_id, warning)
+    if result.ok:
+        return True, ""
+    return False, f"{plugin_id}: " + "; ".join(result.errors)
+
+
+def _install_and_verify(
+    repo_url: str,
+    plugin_id: str,
+    branch: str,
+    external_dir: Path,
+) -> tuple[bool, str]:
+    """Clone/update a plugin, then refuse a *fresh* install that cannot work.
+
+    An update that fails validation is left in place and only logged: the
+    plugin was already installed and may be driving a board, so tearing it
+    out is a worse outcome than leaving it broken and loudly reported. The
+    failure surfaces through the loader's error list instead.
+    """
+    # ── Validate plugin_id ────────────────────────────────────────────────────
+    if not PLUGIN_ID_RE.fullmatch(plugin_id):
+        return False, f"Invalid plugin id {plugin_id!r}"
+    # Rebuild from the literal allowed-character set so the value is sourced
+    # from a constant, not from the user-provided parameter.
+    _safe_id = "".join(c for c in plugin_id if c in _PLUGIN_ID_ALLOWED)
+    if _safe_id != plugin_id:
+        return False, f"Invalid plugin id {plugin_id!r}"
+
+    # ── Inline canonical CodeQL py/path-injection barrier ─────────────────────
+    # Same pattern as clone_or_update_repo: realpath + containment check, with
+    # the check and every filesystem sink in this one scope so the taint
+    # tracker treats ``_candidate`` as sanitised.  This matters more here than
+    # most places -- the rejection path below *deletes* the directory.
+    #
+    # The containment check duplicates the identical one in
+    # clone_or_update_repo, deliberately.  It cannot be reached independently
+    # (that function refuses the same paths first, with the same message), so
+    # removing it changes no test.  It stays because CodeQL only treats the
+    # rmtree below as sanitised when the barrier is in the *same* function,
+    # and because a delete deserves the second layer regardless.
+    _ext_root = os.path.realpath(str(external_dir))
+    _ext_root_prefix = _ext_root + os.sep
+    _candidate = os.path.realpath(os.path.join(_ext_root, _safe_id))
+    if not _candidate.startswith(_ext_root_prefix):
+        return False, "Plugin path is outside the external plugins directory"
+    if _candidate == _ext_root:
+        return False, "Refusing to install plugin at root directory"
+
+    was_installed = os.path.isdir(_candidate)
+
+    ok, err = clone_or_update_repo(repo_url, plugin_id, branch, external_dir=external_dir)
+    if not ok:
+        return ok, err
+
+    verified, reason = verify_installed_plugin(_safe_id, Path(_candidate))
+    if verified:
+        return True, ""
+
+    if was_installed:
+        logger.error(
+            "Plugin %s failed validation after update but was left installed: %s",
+            _safe_id,
+            reason,
+        )
+        return True, ""
+
+    logger.error("Rejecting install of %s: %s", _safe_id, reason)
+    shutil.rmtree(_candidate, ignore_errors=True)
+    return False, (f"This plugin cannot run on FiestaBoard as published and was not installed. {reason}")
+
+
 def install_registry_plugin(
     entry: RegistryEntry,
     external_dir: Path | None = None,
@@ -823,7 +933,7 @@ def install_registry_plugin(
     if external_dir is None:
         external_dir = get_external_plugins_dir()
 
-    return clone_or_update_repo(entry.repository, entry.plugin_id, entry.branch, external_dir=external_dir)
+    return _install_and_verify(entry.repository, entry.plugin_id, entry.branch, external_dir)
 
 
 def install_git_plugin(
@@ -867,4 +977,4 @@ def install_git_plugin(
     if not ok:
         return False, err
 
-    return clone_or_update_repo(repo_url, plugin_id, branch, external_dir=external_dir)
+    return _install_and_verify(repo_url, plugin_id, branch, external_dir)

@@ -95,6 +95,37 @@ UI_OPTIONS_KEYS = (
 MIN_OPTIONS_CACHE_SECONDS = 0
 MAX_OPTIONS_CACHE_SECONDS = 3600
 
+
+def parse_data_files(raw: Any) -> list[str]:
+    """Normalise the manifest's ``data_files`` declaration.
+
+    Entries are paths relative to the plugin's own directory.  Anything that
+    could escape that directory -- absolute paths, ``..`` segments, drive
+    letters, backslashes -- is dropped rather than raising, because
+    ``load_manifest()`` returns None on error and rejecting the manifest would
+    uninstall a working plugin over a bad declaration.  ``validate_install()``
+    reports the dropped entry.
+    """
+    if not isinstance(raw, list):
+        return []
+    cleaned: list[str] = []
+    for entry in raw:
+        if not isinstance(entry, str):
+            continue
+        candidate = entry.strip().replace("\\", "/")
+        if not candidate:
+            continue
+        if candidate.startswith("/") or ":" in candidate:
+            continue
+        parts = [p for p in candidate.split("/") if p not in ("", ".")]
+        if any(p == ".." for p in parts):
+            continue
+        normalised = "/".join(parts)
+        if normalised and normalised not in cleaned:
+            cleaned.append(normalised)
+    return cleaned
+
+
 # ``ui:widget`` values the settings form knows how to render. An unrecognised
 # value is a *warning*, never an error: several installed plugins declare
 # picker widgets core never implemented, and load_manifest() returns None on
@@ -522,6 +553,11 @@ class PluginManifest:
     previews: list[BoardPreview] = field(default_factory=list)
     plugin_type: str = "data"  # "data" or "transition"
     transition_settings: dict[str, Any] = field(default_factory=dict)
+    # Data files the plugin must be able to read, relative to its own
+    # directory. Declared so an install can be rejected before the plugin
+    # ever runs, rather than serving "???" for every variable. See
+    # validate_install() in src/plugins/install_check.py.
+    data_files: list[str] = field(default_factory=list)
     raw: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -685,6 +721,7 @@ class PluginManifest:
             previews=parse_previews(data.get("previews")),
             plugin_type=data.get("plugin_type", "data"),
             transition_settings=dict(data.get("transition_settings", {})),
+            data_files=parse_data_files(data.get("data_files")),
             raw=raw,
         )
 
