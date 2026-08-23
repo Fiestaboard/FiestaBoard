@@ -90,8 +90,8 @@ The board uses special characters for weather conditions:
 
 ```text
 ┌──────────────────────┐
-│  SAN FRANCISCO  72*F │
-│  SUNNY     H78  L58  │
+│  SAN FRANCISCO  72°F │
+│  SUNNY    H78° L58°  │
 │  UV 6   HUMIDITY 65% │
 │                      │
 │                      │
