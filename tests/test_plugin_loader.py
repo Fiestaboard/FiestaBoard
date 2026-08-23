@@ -717,3 +717,88 @@ def test_load_plugin_external_plugin_still_reports_external_source(tmp_path):
     source = loader.get_source("ext_only")
     assert source is not None
     assert source.source_type == "external"
+
+
+# --- sweep_renamed_plugin_dirs (issue #1672) ---
+
+
+def _write_renamed_leftover(external_root: Path, dir_name: str, manifest_id: str) -> Path:
+    """Create a leftover dir whose manifest id differs from its directory name.
+
+    This is the on-disk fingerprint of a plugin rename: the update installed
+    ``<manifest_id>/`` and left the old ``<dir_name>/`` behind, still carrying
+    a manifest that now declares the new id.
+    """
+    stale_dir = external_root / dir_name
+    stale_dir.mkdir()
+    (stale_dir / "manifest.json").write_text(
+        '{"id":"'
+        + manifest_id
+        + '","name":"Test","version":"1.0.0","description":"","author":"","variables":{"simple":["var1"]},"max_lengths":{}}'
+    )
+    return stale_dir
+
+
+def test_sweep_removes_orphaned_renamed_directory(tmp_path):
+    """A dir left over from a rename is deleted and its stale error cleared."""
+    builtin_root = tmp_path / "builtin_root"
+    builtin_root.mkdir()
+    external_root = tmp_path / "external_root"
+    external_root.mkdir()
+
+    # The current, correctly-named plugin plus the orphaned predecessor dir.
+    create_valid_plugin_dir(external_root, "lyft_bike_share")
+    stale_dir = _write_renamed_leftover(external_root, "baywheels", "lyft_bike_share")
+
+    loader = PluginLoader(plugins_dir=builtin_root, external_dirs=[external_root])
+    loader.load_all_plugins()
+
+    # Baseline: the leftover fails the id/dirname integrity check.
+    assert "baywheels" in loader.load_errors
+    assert any("does not match directory name" in e for e in loader.load_errors["baywheels"])
+
+    removed = loader.sweep_renamed_plugin_dirs()
+
+    assert removed == ["baywheels"]
+    assert not stale_dir.exists()
+    assert "baywheels" not in loader.load_errors
+    # The real plugin is untouched.
+    assert (external_root / "lyft_bike_share").exists()
+    assert "lyft_bike_share" in loader.loaded_plugins
+
+
+def test_sweep_keeps_leftover_when_target_id_not_installed(tmp_path):
+    """A mismatched dir is left alone if no loaded plugin claims its manifest id."""
+    builtin_root = tmp_path / "builtin_root"
+    builtin_root.mkdir()
+    external_root = tmp_path / "external_root"
+    external_root.mkdir()
+
+    # Only the orphan exists — the plugin it names never loaded, so removing it
+    # would destroy the sole copy. Not the unambiguous rename signature.
+    stale_dir = _write_renamed_leftover(external_root, "baywheels", "lyft_bike_share")
+
+    loader = PluginLoader(plugins_dir=builtin_root, external_dirs=[external_root])
+    loader.load_all_plugins()
+
+    removed = loader.sweep_renamed_plugin_dirs()
+
+    assert removed == []
+    assert stale_dir.exists()
+
+
+def test_sweep_is_idempotent_with_no_leftovers(tmp_path):
+    """A clean install removes nothing and leaves loaded plugins in place."""
+    builtin_root = tmp_path / "builtin_root"
+    builtin_root.mkdir()
+    external_root = tmp_path / "external_root"
+    external_root.mkdir()
+    create_valid_plugin_dir(external_root, "lyft_bike_share")
+
+    loader = PluginLoader(plugins_dir=builtin_root, external_dirs=[external_root])
+    loader.load_all_plugins()
+
+    removed = loader.sweep_renamed_plugin_dirs()
+
+    assert removed == []
+    assert (external_root / "lyft_bike_share").exists()

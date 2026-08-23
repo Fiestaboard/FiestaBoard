@@ -17,6 +17,7 @@ from .manifest import PluginManifest, collect_options_ids, load_manifest, settin
 from .sources import (
     PluginSource,
     get_external_plugins_dir,
+    remove_external_plugin,
 )
 
 # A loaded plugin instance can be either a data plugin or a transition plugin.
@@ -518,6 +519,70 @@ class PluginLoader:
                 logger.warning(f"Plugin {name} had errors: {errors}")
 
         return loaded
+
+    def sweep_renamed_plugin_dirs(self) -> list[str]:
+        """Delete external plugin dirs left orphaned by a plugin rename.
+
+        When a published plugin changes its id, an update installs the new
+        ``<external>/<new_id>`` directory but nothing removes the old
+        ``<external>/<old_id>`` one. The stale directory's manifest declares
+        the *new* id, so its manifest id no longer matches its directory name
+        and it fails the loader's id/dirname integrity check on **every**
+        boot — a permanent, unfixable-from-the-UI entry in
+        ``GET /plugins/errors`` (issue #1672).
+
+        A directory whose manifest id differs from its own name **and** whose
+        manifest id belongs to a plugin that loaded successfully is
+        unambiguous evidence of a leftover rename: it can never load anyway
+        (the id/dirname check guarantees that), and the plugin it names is
+        already present from another directory. Remove it and clear its stale
+        load error.
+
+        Runs after :meth:`load_all_plugins`, so ``_loaded_plugins`` and
+        ``_load_errors`` are populated. Idempotent: a boot with no leftovers
+        removes nothing.
+
+        Returns:
+            Directory names that were removed (empty when nothing was stale).
+        """
+        loaded_ids = set(self._loaded_plugins.keys())
+        removed: list[str] = []
+
+        for ext_dir in self._external_dirs:
+            if not ext_dir.exists() or not ext_dir.is_dir():
+                continue
+            for item in ext_dir.iterdir():
+                # A healthy dir loaded under a matching id — skip it. Also skip
+                # discovery-excluded names (hidden / underscore temp dirs).
+                if item.name in loaded_ids or item.name.startswith((".", "_")):
+                    continue
+                if not item.is_dir():
+                    continue
+                manifest_path = item / "manifest.json"
+                if not manifest_path.exists():
+                    continue
+
+                manifest, manifest_errors = load_manifest(manifest_path)
+                if manifest_errors or manifest is None:
+                    # A genuinely broken manifest is a different problem; leave
+                    # it to surface as its own load error.
+                    continue
+                # Directory name already matches its manifest id, or the id it
+                # claims is not actually installed — neither is the unambiguous
+                # rename-leftover signature, so leave it alone.
+                if manifest.id == item.name or manifest.id not in loaded_ids:
+                    continue
+
+                if remove_external_plugin(item):
+                    self._load_errors.pop(item.name, None)
+                    removed.append(item.name)
+                    logger.info(
+                        "Removed orphaned renamed plugin directory '%s' (manifest id '%s' installed elsewhere)",
+                        item.name,
+                        manifest.id,
+                    )
+
+        return removed
 
     def reload_plugin(self, plugin_id: str) -> AnyPlugin | None:
         """Reload a plugin (unload and load again).
