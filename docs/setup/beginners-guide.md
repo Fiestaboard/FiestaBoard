@@ -318,6 +318,6 @@ Make sure Docker Desktop is open. Look for the whale icon in your menu bar (Mac)
 ## Next Steps
 
 - **[Your First 10 Minutes](/docs/setup/first-10-minutes)** - Detailed walkthrough of creating pages, enabling plugins, and scheduling
-- **[Plugins Overview](/docs/plugins/overview)** - See all 23 available plugins
+- **[Plugins Overview](/docs/plugins/overview)** - See all available plugins
 - **[Schedule Mode](/docs/features/schedule)** - Automate when different pages display
 - **[Quick Start](/docs/setup/quick-start)** - Condensed reference for experienced users
