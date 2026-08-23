@@ -108,7 +108,7 @@ port — just start your server and click **Test connection**.
    - **API Key** — paste the key. It is stored on this device's
      `data/config.json` and is masked (`***`) on read.
    - **Models** — type each model id and press Enter or click `+`
-     (e.g. `openai/gpt-4o-mini`, `claude-3-5-sonnet-20241022`).
+     (e.g. `openai/gpt-5-mini`, `claude-sonnet-5`).
    - **Default model** — picked automatically once you add at least
      one model.
 4. (Optional) Click **Test connection** to send a one-token smoke
@@ -121,15 +121,18 @@ provider unless you pick another from the dropdown in the chat panel.
 
 ## Recommended models
 
-These all work well with the FiestaBoard prompt format:
+These all work well with the FiestaBoard prompt format. Where a
+provider offers a stable alias (`-latest`, or an undated family name
+like `claude-sonnet-5`), we prefer it over a date-stamped id so the
+recommendation ages more gracefully.
 
 | Provider       | Protocol  | Model                                  | Notes                              |
 | -------------- | --------- | -------------------------------------- | ---------------------------------- |
-| OpenRouter     | OpenAI    | `openai/gpt-4o-mini`                   | Cheap, fast, reliable JSON output. |
-| OpenRouter     | OpenAI    | `anthropic/claude-3.5-sonnet`          | High-quality, slower.              |
-| OpenAI         | OpenAI    | `gpt-4o-mini`                          | Same as via OpenRouter.            |
-| Anthropic      | Anthropic | `claude-3-5-sonnet-20241022`           | Direct, no OpenRouter markup.      |
-| Anthropic      | Anthropic | `claude-3-5-haiku-20241022`            | Cheaper, fast.                     |
+| OpenRouter     | OpenAI    | `openai/gpt-5-mini`                    | Cheap, fast, reliable JSON output. |
+| OpenRouter     | OpenAI    | `anthropic/claude-sonnet-5`           | High-quality, slower.              |
+| OpenAI         | OpenAI    | `gpt-5-mini`                          | Same as via OpenRouter.            |
+| Anthropic      | Anthropic | `claude-sonnet-5`                     | Direct, no OpenRouter markup.      |
+| Anthropic      | Anthropic | `claude-haiku-4-5`                    | Cheaper, fast.                     |
 | Groq           | OpenAI    | `llama-3.3-70b-versatile`              | Very low latency.                  |
 | DeepSeek       | OpenAI    | `deepseek-chat`                        | Cheap, capable.                    |
 | Mistral        | OpenAI    | `mistral-large-latest`                 | EU-hosted option.                  |
@@ -137,6 +140,11 @@ These all work well with the FiestaBoard prompt format:
 | Fireworks AI   | OpenAI    | `accounts/fireworks/models/llama-v3p3-70b-instruct` | Hosted open weights.   |
 | Local Ollama   | OpenAI    | `qwen2.5:14b-instruct` or larger       | Needs a model that follows JSON.   |
 | Local LM Studio| OpenAI    | A 14B+ instruction-tuned model         | Same JSON-adherence caveat.        |
+
+> **Note:** Model catalogs change often, and providers retire ids on
+> their own schedule. Treat this table as a starting point — check the
+> provider's current model list, and if **Test connection** reports an
+> unknown model, pick the closest current id from their catalog.
 
 Smaller (≤ 7B) local models often struggle to emit valid JSON for
 the FiestaBoard schema; if you see frequent "Could not parse JSON"
@@ -189,8 +197,8 @@ only appears once a provider exists.
 
 **"Could not parse JSON" or repeated empty results**
 The model isn't returning valid JSON for the board schema. Switch
-to a stronger model (e.g. `gpt-4o-mini` or
-`claude-3-5-sonnet-20241022`) or one explicitly tuned for
+to a stronger model (e.g. `gpt-5-mini` or
+`claude-sonnet-5`) or one explicitly tuned for
 instruction following.
 
 **Test connection fails**
