@@ -172,9 +172,11 @@ export default function SettingsPage() {
         <PageCard>
           <PageHeader icon={Settings} title={t("title")} description={t("description")} />
 
-          <PageSection>
-            <SystemUpdate />
-          </PageSection>
+          {/* Unwrapped on purpose: SystemUpdate brings its own PageSection
+              when it has something to announce and renders nothing when it
+              does not. A section here would draw an empty band on every
+              up-to-date install — see the note on its return. */}
+          <SystemUpdate />
 
           <PageSection>
             <Box className="-mx-6 overflow-x-auto px-6">

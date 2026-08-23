@@ -138,6 +138,65 @@ describe("SystemUpdate", () => {
     expect(screen.queryByText("Update Available")).not.toBeInTheDocument();
   });
 
+  /*
+   * The banner owns its `PageSection`, and these two are the pair that keeps
+   * it that way.
+   *
+   * The settings route is one `PageCard` whose blocks are `PageSection`s, and
+   * a section pads itself 24px top and bottom and draws a divider whether or
+   * not anything is inside it. So when the route wrapped this component —
+   * `<PageSection><SystemUpdate /></PageSection>` — every install with no
+   * update pending, which is nearly all of them nearly all of the time, drew
+   * an empty 49px band and a rule under the settings header. Only this
+   * component can know whether it has anything to say; the route cannot,
+   * because the answer lives in a query this component owns.
+   */
+  it("draws no section when there is nothing to announce", async () => {
+    server.use(
+      http.get(`${API_BASE}/system/update-check`, () => {
+        return HttpResponse.json({
+          current_version: "2.0.1",
+          latest_version: "2.0.1",
+          update_available: false,
+          package_url: "https://github.com/Fiestaboard/FiestaBoard/releases/latest",
+          error: null,
+          is_production: true,
+        });
+      }),
+    );
+
+    render(<SystemUpdate />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+    expect(document.querySelector('[data-slot="page-section"]')).toBeNull();
+  });
+
+  it("draws its own section when it has an update to announce", async () => {
+    server.use(
+      http.get(`${API_BASE}/system/update-check`, () => {
+        return HttpResponse.json({
+          current_version: "2.0.1",
+          latest_version: "2.0.2",
+          update_available: true,
+          package_url: "https://github.com/Fiestaboard/FiestaBoard/releases/latest",
+          error: null,
+          is_production: true,
+        });
+      }),
+    );
+
+    render(<SystemUpdate />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Update Available")).toBeInTheDocument();
+    });
+    const section = document.querySelector('[data-slot="page-section"]');
+    expect(section).not.toBeNull();
+    expect(section).toContainElement(screen.getByRole("alert"));
+  });
+
   it("renders nothing in non-production mode with no update", async () => {
     server.use(
       http.get(`${API_BASE}/system/update-check`, () => {
