@@ -4,11 +4,6 @@ import {
   Badge,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -20,6 +15,7 @@ import {
   Label,
   List,
   ListItem,
+  PageSection,
   Stack,
   Text,
 } from "@fiestaboard/ui";
@@ -145,174 +141,156 @@ export function NetworkSettings() {
   return (
     <>
       {/* ── Current connection ─────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            {isConnected ? (
-              <Wifi className="h-4 w-4 text-emerald-600" />
-            ) : (
-              <WifiOff className="h-4 w-4 text-muted-foreground" />
+      <PageSection
+        icon={isConnected ? <Wifi className="text-emerald-600" /> : <WifiOff className="text-muted-foreground" />}
+        title={t("currentConnection")}
+        description={t("description")}
+        contentClassName="space-y-3"
+      >
+        {statusQuery.isLoading ? (
+          <Spinner className="text-muted-foreground" label={tCommon("loading")} />
+        ) : !isConnected ? (
+          <Text tone="muted">{t("notConnected")}</Text>
+        ) : (
+          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+            <dt className="text-muted-foreground">{t("ssidLabel")}</dt>
+            <dd className="font-medium">{status?.ssid}</dd>
+            {status?.ip_address && (
+              <>
+                <dt className="text-muted-foreground">{t("ipLabel")}</dt>
+                <dd className="font-mono">{status.ip_address}</dd>
+              </>
             )}
-            {t("currentConnection")}
-          </CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {statusQuery.isLoading ? (
-            <Spinner className="text-muted-foreground" label={tCommon("loading")} />
-          ) : !isConnected ? (
-            <Text tone="muted">{t("notConnected")}</Text>
-          ) : (
-            <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-              <dt className="text-muted-foreground">{t("ssidLabel")}</dt>
-              <dd className="font-medium">{status?.ssid}</dd>
-              {status?.ip_address && (
-                <>
-                  <dt className="text-muted-foreground">{t("ipLabel")}</dt>
-                  <dd className="font-mono">{status.ip_address}</dd>
-                </>
+            {status?.gateway && (
+              <>
+                <dt className="text-muted-foreground">{t("gatewayLabel")}</dt>
+                <dd className="font-mono">{status.gateway}</dd>
+              </>
+            )}
+            {status?.signal != null && (
+              <>
+                <dt className="text-muted-foreground">{t("signalLabel")}</dt>
+                <dd>{status.signal}%</dd>
+              </>
+            )}
+            <dt className="text-muted-foreground">
+              {status?.internet_reachable ? t("internetReachable") : t("internetUnreachable")}
+            </dt>
+            <dd>
+              {status?.internet_reachable ? (
+                <Check className="h-4 w-4 text-emerald-600" />
+              ) : (
+                <X className="h-4 w-4 text-destructive" />
               )}
-              {status?.gateway && (
-                <>
-                  <dt className="text-muted-foreground">{t("gatewayLabel")}</dt>
-                  <dd className="font-mono">{status.gateway}</dd>
-                </>
-              )}
-              {status?.signal != null && (
-                <>
-                  <dt className="text-muted-foreground">{t("signalLabel")}</dt>
-                  <dd>{status.signal}%</dd>
-                </>
-              )}
-              <dt className="text-muted-foreground">
-                {status?.internet_reachable ? t("internetReachable") : t("internetUnreachable")}
-              </dt>
-              <dd>
-                {status?.internet_reachable ? (
-                  <Check className="h-4 w-4 text-emerald-600" />
-                ) : (
-                  <X className="h-4 w-4 text-destructive" />
-                )}
-              </dd>
-            </dl>
-          )}
-          <Flex gap="2" className="pt-2">
+            </dd>
+          </dl>
+        )}
+        <Flex gap="2" className="pt-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["wifi", "status"] })}
+            disabled={statusQuery.isFetching}
+          >
+            {statusQuery.isFetching ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            {t("refresh")}
+          </Button>
+          {isConnected && (
             <Button
               size="sm"
               variant="outline"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["wifi", "status"] })}
-              disabled={statusQuery.isFetching}
+              onClick={() => setDisconnectOpen(true)}
+              className="text-destructive hover:text-destructive"
             >
-              {statusQuery.isFetching ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              {t("refresh")}
+              <Unlink className="h-4 w-4 mr-2" />
+              {t("disconnect")}
             </Button>
-            {isConnected && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setDisconnectOpen(true)}
-                className="text-destructive hover:text-destructive"
-              >
-                <Unlink className="h-4 w-4 mr-2" />
-                {t("disconnect")}
-              </Button>
-            )}
-          </Flex>
-        </CardContent>
-      </Card>
+          )}
+        </Flex>
+      </PageSection>
 
       {/* ── Available networks ─────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <Flex align="center" justify="between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Wifi className="h-4 w-4" />
-              {t("availableNetworks")}
-            </CardTitle>
-            <Button size="sm" variant="ghost" onClick={handleScan} disabled={scanning}>
-              {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-              {scanning ? t("scanning") : t("rescan")}
-            </Button>
-          </Flex>
-        </CardHeader>
-        <CardContent>
-          {networks.length === 0 && !scanning ? (
-            <Text tone="muted">{t("noNetworksFound")}</Text>
-          ) : (
-            <List gap="0" className="divide-y divide-border">
-              {networks.map((n) => (
-                <ListItem key={`${n.ssid}-${n.signal}`} className="flex items-center justify-between py-2 gap-3">
-                  <Flex align="center" gap="3" className="min-w-0">
-                    <SignalIcon strength={n.signal} />
-                    <Box className="min-w-0">
-                      <Flex align="center" gap="2">
-                        <Text as="span" weight="medium" className="truncate">
-                          {n.ssid}
-                        </Text>
-                        {needsPassword(n) && <Lock className="h-3 w-3 text-muted-foreground" />}
-                        {n.in_use && (
-                          <Badge variant="secondary" className="text-xs">
-                            {t("currentConnection")}
-                          </Badge>
-                        )}
-                      </Flex>
-                      {}
-                      <Text size="xs" tone="muted">
-                        {n.signal}% · {needsPassword(n) ? t("secured") : t("open")}
+      <PageSection
+        icon={<Wifi />}
+        title={t("availableNetworks")}
+        action={
+          <Button size="sm" variant="ghost" onClick={handleScan} disabled={scanning}>
+            {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            {scanning ? t("scanning") : t("rescan")}
+          </Button>
+        }
+      >
+        {networks.length === 0 && !scanning ? (
+          <Text tone="muted">{t("noNetworksFound")}</Text>
+        ) : (
+          <List gap="0" className="divide-y divide-border">
+            {networks.map((n) => (
+              <ListItem key={`${n.ssid}-${n.signal}`} className="flex items-center justify-between py-2 gap-3">
+                <Flex align="center" gap="3" className="min-w-0">
+                  <SignalIcon strength={n.signal} />
+                  <Box className="min-w-0">
+                    <Flex align="center" gap="2">
+                      <Text as="span" weight="medium" className="truncate">
+                        {n.ssid}
                       </Text>
-                    </Box>
-                  </Flex>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleStartConnect(n)}
-                    disabled={n.in_use || connectMutation.isPending}
-                  >
-                    {t("connect")}
-                  </Button>
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </CardContent>
-      </Card>
+                      {needsPassword(n) && <Lock className="h-3 w-3 text-muted-foreground" />}
+                      {n.in_use && (
+                        <Badge variant="secondary" className="text-xs">
+                          {t("currentConnection")}
+                        </Badge>
+                      )}
+                    </Flex>
+                    {}
+                    <Text size="xs" tone="muted">
+                      {n.signal}% · {needsPassword(n) ? t("secured") : t("open")}
+                    </Text>
+                  </Box>
+                </Flex>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleStartConnect(n)}
+                  disabled={n.in_use || connectMutation.isPending}
+                >
+                  {t("connect")}
+                </Button>
+              </ListItem>
+            ))}
+          </List>
+        )}
+      </PageSection>
 
       {/* ── Saved networks ─────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("savedNetworks")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {savedQuery.isLoading ? (
-            <Spinner className="text-muted-foreground" label={tCommon("loading")} />
-          ) : !savedQuery.data || savedQuery.data.length === 0 ? (
-            <Text tone="muted">{t("savedEmpty")}</Text>
-          ) : (
-            <List gap="0" className="divide-y divide-border">
-              {savedQuery.data.map((s) => (
-                <ListItem key={s.name} className="flex items-center justify-between py-2 gap-3">
-                  <Text as="span" weight="medium" className="truncate">
-                    {s.name}
-                  </Text>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setForgetTarget(s)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {t("forget")}
-                  </Button>
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </CardContent>
-      </Card>
+      <PageSection title={t("savedNetworks")}>
+        {savedQuery.isLoading ? (
+          <Spinner className="text-muted-foreground" label={tCommon("loading")} />
+        ) : !savedQuery.data || savedQuery.data.length === 0 ? (
+          <Text tone="muted">{t("savedEmpty")}</Text>
+        ) : (
+          <List gap="0" className="divide-y divide-border">
+            {savedQuery.data.map((s) => (
+              <ListItem key={s.name} className="flex items-center justify-between py-2 gap-3">
+                <Text as="span" weight="medium" className="truncate">
+                  {s.name}
+                </Text>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setForgetTarget(s)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {t("forget")}
+                </Button>
+              </ListItem>
+            ))}
+          </List>
+        )}
+      </PageSection>
 
       {/* ── Connect dialog ─────────────────────────────────────────────── */}
       <Dialog

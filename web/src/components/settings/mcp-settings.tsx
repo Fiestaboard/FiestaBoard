@@ -12,11 +12,6 @@ import {
   Badge,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Code,
   Dialog,
   DialogContent,
@@ -25,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
   Flex,
+  PageSection,
   Skeleton,
   Stack,
   Text,
@@ -137,12 +133,10 @@ export function McpSettings() {
 
   if (isLoading || !status) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-44" />
-          <Skeleton className="h-4 w-72" />
-        </CardHeader>
-      </Card>
+      <PageSection>
+        <Skeleton className="h-5 w-44" />
+        <Skeleton className="mt-2 h-4 w-72" />
+      </PageSection>
     );
   }
 
@@ -152,13 +146,11 @@ export function McpSettings() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Bot className="h-4 w-4" />
-            {t("title")}
-          </CardTitle>
-          <CardDescription>
+      <PageSection
+        icon={<Bot />}
+        title={t("title")}
+        description={
+          <>
             {t.rich("description", {
               endpoint: () => <Code className="font-mono text-xs">{MCP_ENDPOINT}</Code>,
               link: (chunks: ReactNode) => (
@@ -172,75 +164,75 @@ export function McpSettings() {
                 </TextLink>
               ),
             })}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Flex align="center" gap="2">
-            <Text as="span" size="sm" weight="medium">
-              {t("statusLabel")}
-            </Text>
-            {isPinnedByEnv ? (
-              <Badge variant="secondary" className="gap-1.5">
-                <KeyRound className="h-3 w-3" />
-                {t("pinnedByEnvBadge", { envVar: MCP_TOKEN_ENV_VAR })}
-              </Badge>
-            ) : hasToken ? (
-              <Badge variant="default" className="gap-1.5 bg-emerald-600 hover:bg-emerald-600">
-                <Check className="h-3 w-3" />
-                {t("configuredBadge")}
-              </Badge>
-            ) : (
-              <Badge variant="outline">{tCommon("notConfigured")}</Badge>
-            )}
-          </Flex>
-
-          {isPinnedByEnv && (
-            <Text tone="muted">
-              {t.rich("pinnedByEnvDescription", {
-                envVar: () => <Code className="font-mono text-xs">{MCP_TOKEN_ENV_VAR}</Code>,
-                envFile: () => <Code className="font-mono text-xs">.env</Code>,
-              })}
-            </Text>
+          </>
+        }
+        className="space-y-4"
+      >
+        <Flex align="center" gap="2">
+          <Text as="span" size="sm" weight="medium">
+            {t("statusLabel")}
+          </Text>
+          {isPinnedByEnv ? (
+            <Badge variant="secondary" className="gap-1.5">
+              <KeyRound className="h-3 w-3" />
+              {t("pinnedByEnvBadge", { envVar: MCP_TOKEN_ENV_VAR })}
+            </Badge>
+          ) : hasToken ? (
+            <Badge variant="default" className="gap-1.5 bg-emerald-600 hover:bg-emerald-600">
+              <Check className="h-3 w-3" />
+              {t("configuredBadge")}
+            </Badge>
+          ) : (
+            <Badge variant="outline">{tCommon("notConfigured")}</Badge>
           )}
+        </Flex>
 
-          {!isPinnedByEnv && !hasToken && <Text tone="muted">{t("noTokenDescription")}</Text>}
+        {isPinnedByEnv && (
+          <Text tone="muted">
+            {t.rich("pinnedByEnvDescription", {
+              envVar: () => <Code className="font-mono text-xs">{MCP_TOKEN_ENV_VAR}</Code>,
+              envFile: () => <Code className="font-mono text-xs">.env</Code>,
+            })}
+          </Text>
+        )}
 
-          {!isPinnedByEnv && hasToken && <Text tone="muted">{t("activeTokenDescription")}</Text>}
+        {!isPinnedByEnv && !hasToken && <Text tone="muted">{t("noTokenDescription")}</Text>}
 
-          {!isPinnedByEnv && (
-            <Flex wrap gap="2">
+        {!isPinnedByEnv && hasToken && <Text tone="muted">{t("activeTokenDescription")}</Text>}
+
+        {!isPinnedByEnv && (
+          <Flex wrap gap="2">
+            <Button
+              onClick={() => setConfirmingRotate(true)}
+              disabled={rotateMutation.isPending}
+              variant="default"
+              className="gap-2"
+            >
+              {rotateMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {rotateLabel}
+            </Button>
+            {hasToken && (
               <Button
-                onClick={() => setConfirmingRotate(true)}
-                disabled={rotateMutation.isPending}
-                variant="default"
+                onClick={() => setConfirmingClear(true)}
+                disabled={clearMutation.isPending}
+                variant="outline"
                 className="gap-2"
               >
-                {rotateMutation.isPending ? (
+                {clearMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <RefreshCw className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" />
                 )}
-                {rotateLabel}
+                {t("revokeTokenButton")}
               </Button>
-              {hasToken && (
-                <Button
-                  onClick={() => setConfirmingClear(true)}
-                  disabled={clearMutation.isPending}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  {clearMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  {t("revokeTokenButton")}
-                </Button>
-              )}
-            </Flex>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </Flex>
+        )}
+      </PageSection>
 
       {/* "Are you sure you want to rotate?" — only shown when there's an
           existing token whose rotation would invalidate something. */}

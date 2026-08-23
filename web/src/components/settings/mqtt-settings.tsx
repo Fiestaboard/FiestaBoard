@@ -2,12 +2,8 @@
 
 import {
   Badge,
+  Box,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -15,6 +11,7 @@ import {
   Grid,
   Input,
   Label,
+  PageSection,
   Skeleton,
   Stack,
   Switch,
@@ -84,12 +81,10 @@ export function MqttSettingsCard() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-56" />
-        </CardHeader>
-      </Card>
+      <PageSection>
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="mt-2 h-4 w-56" />
+      </PageSection>
     );
   }
 
@@ -97,34 +92,33 @@ export function MqttSettingsCard() {
   const isEnabled = merged.enabled;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <Flex align="center" justify="between">
-          <Flex align="center" gap="2">
-            <Radio className="h-4 w-4" />
-            <CardTitle className="text-base">{t("title")}</CardTitle>
-          </Flex>
-          <Flex align="center" gap="3">
-            {isEnabled &&
-              (isConnected ? (
-                <Badge variant="default" className="text-[10px] h-5 bg-board-green flex items-center gap-1">
-                  <CheckCircle2 className="h-2.5 w-2.5" />
-                  {t("connected")}
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="text-[10px] h-5 flex items-center gap-1">
-                  <XCircle className="h-2.5 w-2.5" />
-                  {t("disconnected")}
-                </Badge>
-              ))}
-            <Switch checked={isEnabled} onCheckedChange={handleToggleEnabled} disabled={saveMutation.isPending} />
-          </Flex>
+    <PageSection
+      icon={<Radio />}
+      title={t("title")}
+      description={t("description")}
+      action={
+        <Flex align="center" gap="3">
+          {isEnabled &&
+            (isConnected ? (
+              <Badge variant="default" className="text-[10px] h-5 bg-board-green flex items-center gap-1">
+                <CheckCircle2 className="h-2.5 w-2.5" />
+                {t("connected")}
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="text-[10px] h-5 flex items-center gap-1">
+                <XCircle className="h-2.5 w-2.5" />
+                {t("disconnected")}
+              </Badge>
+            ))}
+          <Switch checked={isEnabled} onCheckedChange={handleToggleEnabled} disabled={saveMutation.isPending} />
         </Flex>
-        <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-
+      }
+    >
       <Collapsible open={expanded} onOpenChange={setExpanded}>
-        <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
+        {/* -mx-6 px-6: the trigger still spans the surface edge to edge, but
+            the surface is the page card now, so it bleeds out of the section's
+            inset rather than assuming a card's own padding. */}
+        <CollapsibleTrigger className="-mx-6 flex w-full items-center justify-between px-6 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
           <Text as="span" size="xs" tone="muted">
             {t("brokerConfiguration")}
           </Text>
@@ -132,7 +126,7 @@ export function MqttSettingsCard() {
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <CardContent className="pt-2 space-y-4">
+          <Box className="pt-2 space-y-4">
             <Grid cols="3" gap="3">
               <Stack gap="1" className="col-span-2">
                 <Label htmlFor="mqtt-broker-host" className="text-xs">
@@ -221,9 +215,9 @@ export function MqttSettingsCard() {
                 </Button>
               </Flex>
             )}
-          </CardContent>
+          </Box>
         </CollapsibleContent>
       </Collapsible>
-    </Card>
+    </PageSection>
   );
 }

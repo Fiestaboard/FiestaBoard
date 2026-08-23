@@ -1,3 +1,4 @@
+import { PageCard } from "@fiestaboard/ui";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -29,7 +30,12 @@ const withSettings = (display: DisplaySettings) => [
   (Story: React.ComponentType) => (
     <QueryClientProvider client={createQueryClient(display)}>
       <div className="max-w-lg">
-        <Story />
+        {/* PageSection pads and divides itself but draws no surface — the
+            page card is what a settings section lives in, so the story
+            shows it in one rather than floating unpadded. */}
+        <PageCard>
+          <Story />
+        </PageCard>
       </div>
     </QueryClientProvider>
   ),

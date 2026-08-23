@@ -6,17 +6,13 @@ import {
   Badge,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
   Flex,
   Input,
   Label,
+  PageSection,
   Select,
   SelectContent,
   SelectItem,
@@ -482,88 +478,80 @@ export function AiSettings() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-64" />
-        </CardHeader>
-      </Card>
+      <PageSection>
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="mt-2 h-4 w-64" />
+      </PageSection>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <Flex align="start" justify="between" gap="2">
-          <Box>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              {t("cardTitle")}
-            </CardTitle>
-            <CardDescription>{t("cardDescription")}</CardDescription>
-          </Box>
-          <Flex align="center" gap="2" className="pt-1">
-            <Label htmlFor="ai-enabled" className="text-xs">
-              {current.enabled ? tCommon("enabled") : tCommon("disabled")}
-            </Label>
-            <Switch
-              id="ai-enabled"
-              checked={current.enabled}
-              onCheckedChange={toggleEnabled}
-              disabled={saveMutation.isPending}
+    <PageSection
+      icon={<Sparkles />}
+      title={t("cardTitle")}
+      description={t("cardDescription")}
+      action={
+        <Flex align="center" gap="2" className="pt-1">
+          <Label htmlFor="ai-enabled" className="text-xs">
+            {current.enabled ? tCommon("enabled") : tCommon("disabled")}
+          </Label>
+          <Switch
+            id="ai-enabled"
+            checked={current.enabled}
+            onCheckedChange={toggleEnabled}
+            disabled={saveMutation.isPending}
+          />
+        </Flex>
+      }
+      contentClassName="space-y-3"
+    >
+      <Alert>
+        <AlertDescription className="text-xs">{t("privacyNotice")}</AlertDescription>
+      </Alert>
+
+      {current.providers.length === 0 ? (
+        <Text tone="muted" className="rounded-md border border-dashed p-6 text-center">
+          {t("emptyState")}
+        </Text>
+      ) : (
+        <Stack gap="3">
+          {current.providers.map((p, idx) => (
+            <ProviderRow
+              key={p.id}
+              provider={p}
+              isDefault={p.id === current.default_provider_id}
+              expanded={expandedIds.has(p.id)}
+              onToggleExpanded={(open) => setRowExpanded(p.id, open)}
+              onChange={(next) => updateProvider(idx, next)}
+              onRemove={() => removeProvider(idx)}
+              onMakeDefault={() => makeDefault(idx)}
             />
+          ))}
+        </Stack>
+      )}
+
+      <Flex wrap align="center" justify="between" gap="2" className="pt-1">
+        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addProvider}>
+          <Plus className="h-3.5 w-3.5" />
+          {t("addProviderButton")}
+        </Button>
+        {hasDraft && (
+          <Flex gap="2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(null)}>
+              {t("discardButton")}
+            </Button>
+            <Button
+              type="button"
+              variant="brand"
+              size="sm"
+              onClick={() => saveMutation.mutate(current)}
+              disabled={saveMutation.isPending}
+            >
+              {saveMutation.isPending ? tCommon("saving") : t("saveChangesButton")}
+            </Button>
           </Flex>
-        </Flex>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Alert>
-          <AlertDescription className="text-xs">{t("privacyNotice")}</AlertDescription>
-        </Alert>
-
-        {current.providers.length === 0 ? (
-          <Text tone="muted" className="rounded-md border border-dashed p-6 text-center">
-            {t("emptyState")}
-          </Text>
-        ) : (
-          <Stack gap="3">
-            {current.providers.map((p, idx) => (
-              <ProviderRow
-                key={p.id}
-                provider={p}
-                isDefault={p.id === current.default_provider_id}
-                expanded={expandedIds.has(p.id)}
-                onToggleExpanded={(open) => setRowExpanded(p.id, open)}
-                onChange={(next) => updateProvider(idx, next)}
-                onRemove={() => removeProvider(idx)}
-                onMakeDefault={() => makeDefault(idx)}
-              />
-            ))}
-          </Stack>
         )}
-
-        <Flex wrap align="center" justify="between" gap="2" className="pt-1">
-          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addProvider}>
-            <Plus className="h-3.5 w-3.5" />
-            {t("addProviderButton")}
-          </Button>
-          {hasDraft && (
-            <Flex gap="2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(null)}>
-                {t("discardButton")}
-              </Button>
-              <Button
-                type="button"
-                variant="brand"
-                size="sm"
-                onClick={() => saveMutation.mutate(current)}
-                disabled={saveMutation.isPending}
-              >
-                {saveMutation.isPending ? tCommon("saving") : t("saveChangesButton")}
-              </Button>
-            </Flex>
-          )}
-        </Flex>
-      </CardContent>
-    </Card>
+      </Flex>
+    </PageSection>
   );
 }

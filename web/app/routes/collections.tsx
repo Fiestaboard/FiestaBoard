@@ -18,8 +18,10 @@ import {
   Flex,
   Input,
   Label,
+  PageCard,
   PageHeader,
   PageLayout,
+  PageSection,
   PageToolbar,
   Select,
   SelectContent,
@@ -898,113 +900,121 @@ export default function CollectionsPage() {
 
   return (
     <PageLayout>
-      <PageHeader icon={GalleryHorizontalEnd} title={t("title")} description={t("description")} />
-      <PageToolbar
-        right={
-          <Button
-            variant="brand"
-            size="sm"
-            onClick={() => {
-              setEditingCollection(null);
-              setShowForm(true);
-            }}
-            className="btn-lift"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            {t("newCollection")}
-          </Button>
-        }
-      />
-
-      {/* Collections list */}
-      {collections.length === 0 ? (
-        <Card>
-          <CardContent className="py-12">
-            <EmptyState
-              icon={GalleryHorizontalEnd}
-              title={t("noCollectionsTitle")}
-              description={t("noCollectionsDescription")}
-              action={
-                <Button
-                  variant="brand"
-                  onClick={() => {
-                    setEditingCollection(null);
-                    setShowForm(true);
-                  }}
-                  className="btn-lift"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t("createFirstCollection")}
-                </Button>
-              }
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <Stack gap="4">
-          {collections.map((collection, idx) => (
-            <Card
-              key={collection.id}
-              className="animate-card-fade-in card-interactive"
-              style={{ animationDelay: `${idx * 50}ms` }}
+      <PageCard>
+        <PageHeader icon={GalleryHorizontalEnd} title={t("title")} description={t("description")} />
+        <PageToolbar
+          right={
+            <Button
+              variant="brand"
+              size="sm"
+              onClick={() => {
+                setEditingCollection(null);
+                setShowForm(true);
+              }}
+              className="btn-lift"
             >
-              <CardHeader className="pb-3">
-                {/* min-w-0: CardHeader is a grid; without it this grid item
-                    sizes to min-content and long names inflate the row. */}
-                <Flex align="start" justify="between" gap="2" className="min-w-0">
-                  <Flex align="center" gap="2" className="min-w-0">
-                    <GalleryHorizontalEnd className="h-5 w-5 text-primary flex-shrink-0" />
-                    <Box className="min-w-0">
-                      <CardTitle className="text-base flex items-center gap-2 min-w-0">
-                        <Text as="span" size="base" weight="semibold" className="truncate">
-                          {collection.name}
-                        </Text>
-                        <Badge variant="outline" className="text-[10px] uppercase tracking-wide flex-shrink-0">
-                          {collection.selection_mode === "time" ? (
-                            <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
-                          ) : collection.selection_mode === "random" ? (
-                            <Shuffle className="h-3 w-3 mr-1" aria-hidden="true" />
-                          ) : (
-                            <Sigma className="h-3 w-3 mr-1" aria-hidden="true" />
-                          )}
-                          {collection.selection_mode}
-                        </Badge>
-                        {collection.selection_mode === "variable" && (
-                          <Badge variant="outline" className="text-[10px] uppercase tracking-wide flex-shrink-0">
-                            {t("betaBadge")}
-                          </Badge>
-                        )}
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        {tc("pageCount", { count: collection.page_ids.length })} &middot; {describeMode(collection)}
-                      </CardDescription>
-                    </Box>
-                  </Flex>
-                  <Button variant="ghost" size="sm" className="flex-shrink-0" onClick={() => handleEdit(collection)}>
-                    <Pencil className="h-4 w-4" />
+              <Plus className="h-4 w-4 mr-1" />
+              {t("newCollection")}
+            </Button>
+          }
+        />
+
+        {/* Collections list. The tiles below keep their borders — a collection
+          card is a thing you open, so its border is the click target. */}
+        <PageSection>
+          {collections.length === 0 ? (
+            <Box className="py-8">
+              <EmptyState
+                icon={GalleryHorizontalEnd}
+                title={t("noCollectionsTitle")}
+                description={t("noCollectionsDescription")}
+                action={
+                  <Button
+                    variant="brand"
+                    onClick={() => {
+                      setEditingCollection(null);
+                      setShowForm(true);
+                    }}
+                    className="btn-lift"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    {t("createFirstCollection")}
                   </Button>
-                </Flex>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Flex wrap gap="1.5">
-                  {collection.page_ids.map((pid, i) => (
-                    <Badge key={pid} variant="secondary" className="text-xs max-w-full">
-                      {collection.selection_mode === "time" && (
-                        <Text as="span" size="xs" tone="muted" className="mr-1 flex-shrink-0">
-                          {i + 1}.
-                        </Text>
-                      )}
-                      <Text as="span" size="xs" className="truncate text-secondary-foreground">
-                        {getPageName(pid)}
-                      </Text>
-                    </Badge>
-                  ))}
-                </Flex>
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
-      )}
+                }
+              />
+            </Box>
+          ) : (
+            <Stack gap="4">
+              {collections.map((collection, idx) => (
+                <Card
+                  key={collection.id}
+                  className="animate-card-fade-in card-interactive"
+                  style={{ animationDelay: `${idx * 50}ms` }}
+                >
+                  <CardHeader className="pb-3">
+                    {/* min-w-0: CardHeader is a grid; without it this grid item
+                    sizes to min-content and long names inflate the row. */}
+                    <Flex align="start" justify="between" gap="2" className="min-w-0">
+                      <Flex align="center" gap="2" className="min-w-0">
+                        <GalleryHorizontalEnd className="h-5 w-5 text-primary flex-shrink-0" />
+                        <Box className="min-w-0">
+                          <CardTitle className="text-base flex items-center gap-2 min-w-0">
+                            <Text as="span" size="base" weight="semibold" className="truncate">
+                              {collection.name}
+                            </Text>
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wide flex-shrink-0">
+                              {collection.selection_mode === "time" ? (
+                                <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
+                              ) : collection.selection_mode === "random" ? (
+                                <Shuffle className="h-3 w-3 mr-1" aria-hidden="true" />
+                              ) : (
+                                <Sigma className="h-3 w-3 mr-1" aria-hidden="true" />
+                              )}
+                              {collection.selection_mode}
+                            </Badge>
+                            {collection.selection_mode === "variable" && (
+                              <Badge variant="outline" className="text-[10px] uppercase tracking-wide flex-shrink-0">
+                                {t("betaBadge")}
+                              </Badge>
+                            )}
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            {tc("pageCount", { count: collection.page_ids.length })} &middot; {describeMode(collection)}
+                          </CardDescription>
+                        </Box>
+                      </Flex>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-shrink-0"
+                        onClick={() => handleEdit(collection)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </Flex>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <Flex wrap gap="1.5">
+                      {collection.page_ids.map((pid, i) => (
+                        <Badge key={pid} variant="secondary" className="text-xs max-w-full">
+                          {collection.selection_mode === "time" && (
+                            <Text as="span" size="xs" tone="muted" className="mr-1 flex-shrink-0">
+                              {i + 1}.
+                            </Text>
+                          )}
+                          <Text as="span" size="xs" className="truncate text-secondary-foreground">
+                            {getPageName(pid)}
+                          </Text>
+                        </Badge>
+                      ))}
+                    </Flex>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          )}
+        </PageSection>
+      </PageCard>
 
       {/* Form Sheet */}
       <Sheet

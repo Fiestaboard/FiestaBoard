@@ -10,9 +10,6 @@ import {
   BoardIcon,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
   CardTitle,
   DropdownMenu,
   DropdownMenuContent,
@@ -21,8 +18,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Flex,
+  PageCard,
   PageHeader,
   PageLayout,
+  PageSection,
   PageToolbar,
   Select,
   SelectContent,
@@ -492,290 +491,293 @@ export default function SchedulePage() {
 
   return (
     <PageLayout fillHeight={isCalendarMode}>
-      {/* ── Page header ── */}
-      <PageHeader
-        icon={CalendarIcon}
-        title={t("title")}
-        className={cn(
-          "flex-shrink-0",
-          // In calendar mode the grid wants every vertical pixel — compact the
-          // header chrome on mobile so the calendar isn't squeezed.
-          isCalendarMode && "py-2 sm:py-4 mb-2 sm:mb-5",
-        )}
-        description={t("descriptionWithTimezone", { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })}
-      />
+      <PageCard fillHeight={isCalendarMode}>
+        {/* ── Page header ── */}
+        <PageHeader
+          icon={CalendarIcon}
+          title={t("title")}
+          className={cn(
+            "flex-shrink-0",
+            // In calendar mode the grid wants every vertical pixel — compact the
+            // header chrome on mobile so the calendar isn't squeezed.
+            isCalendarMode && "py-2 sm:py-4 mb-2 sm:mb-5",
+          )}
+          description={t("descriptionWithTimezone", { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })}
+        />
 
-      {/* ── Compact toolbar: everything in one row ── */}
-      <TooltipProvider>
-        <PageToolbar
-          className="flex-shrink-0"
-          left={
-            /* View toggle */
-            <Flex align="center" gap="1" className="bg-muted p-1 rounded-md">
-              <Button
-                variant={viewMode === "list" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-                className="px-3"
-              >
-                <List className="h-4 w-4 mr-1.5" />
-                {t("listView")}
-              </Button>
-              <Button
-                variant={viewMode === "calendar" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("calendar")}
-                className="px-3"
-              >
-                <CalendarDays className="h-4 w-4 mr-1.5" />
-                {t("calendarView")}
-              </Button>
-            </Flex>
-          }
-          right={
-            <Flex align="center" justify="end" gap="2" wrap>
-              {/* Active board indicator (multi-board only). Read-only: switching
-                  boards happens via the shared sidebar selector (#1248). */}
-              {boards.length > 1 && (
-                <Flex
-                  data-testid="active-board-indicator"
-                  align="center"
-                  gap="1.5"
-                  className="h-8 px-2.5 rounded-md border bg-muted/40 text-xs text-muted-foreground max-w-[150px]"
+        {/* ── Compact toolbar: everything in one row ── */}
+        <TooltipProvider>
+          <PageToolbar
+            className="flex-shrink-0"
+            left={
+              /* View toggle */
+              <Flex align="center" gap="1" className="bg-muted p-1 rounded-md">
+                <Button
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  className="px-3"
                 >
-                  <BoardIcon className="h-3.5 w-3.5 shrink-0" />
-                  <Text as="span" size="xs" tone="muted" className="truncate">
-                    {currentBoard?.name || t("boardFallback", { id: currentBoardId.slice(0, 8) })}
-                  </Text>
-                </Flex>
-              )}
-
-              {/* Schedule on/off toggle */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    data-testid="schedule-enabled-toggle"
-                    role="switch"
-                    aria-checked={scheduleEnabled}
-                    aria-label={scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
-                    disabled={toggleSchedule.isPending}
-                    onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}
-                    className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer bg-transparent text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                  <List className="h-4 w-4 mr-1.5" />
+                  {t("listView")}
+                </Button>
+                <Button
+                  variant={viewMode === "calendar" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("calendar")}
+                  className="px-3"
+                >
+                  <CalendarDays className="h-4 w-4 mr-1.5" />
+                  {t("calendarView")}
+                </Button>
+              </Flex>
+            }
+            right={
+              <Flex align="center" justify="end" gap="2" wrap>
+                {/* Active board indicator (multi-board only). Read-only: switching
+                  boards happens via the shared sidebar selector (#1248). */}
+                {boards.length > 1 && (
+                  <Flex
+                    data-testid="active-board-indicator"
+                    align="center"
+                    gap="1.5"
+                    className="h-8 px-2.5 rounded-md border bg-muted/40 text-xs text-muted-foreground max-w-[150px]"
                   >
-                    <Power className={`h-3.5 w-3.5 ${scheduleEnabled ? "text-green-500" : "text-muted-foreground"}`} />
-                    <Text as="span" size="xs" weight="medium">
-                      {scheduleEnabled ? tCommon("on") : tCommon("off")}
+                    <BoardIcon className="h-3.5 w-3.5 shrink-0" />
+                    <Text as="span" size="xs" tone="muted" className="truncate">
+                      {currentBoard?.name || t("boardFallback", { id: currentBoardId.slice(0, 8) })}
                     </Text>
-                    <Flex
-                      aria-hidden="true"
-                      align="center"
-                      inline
-                      className={cn(
-                        "h-[1.15rem] w-8 shrink-0 rounded-full border border-transparent transition-all",
-                        scheduleEnabled ? "bg-primary" : "bg-input/80 dark:bg-input/80",
-                        "scale-75",
-                      )}
-                    >
-                      <Box
-                        className={cn(
-                          "pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform",
-                          scheduleEnabled ? "translate-x-[calc(100%-3px)]" : "translate-x-px",
-                        )}
-                      />
-                    </Flex>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
-                </TooltipContent>
-              </Tooltip>
+                  </Flex>
+                )}
 
-              {/* Default page for gaps */}
-              <Select
-                value={defaultPageId || NO_DEFAULT_PAGE}
-                onValueChange={(value) => setDefaultPage.mutate(value === NO_DEFAULT_PAGE ? null : value)}
-              >
+                {/* Schedule on/off toggle */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <SelectTrigger
-                      data-testid="gap-default-select"
-                      className="h-8 w-[150px] text-xs"
-                      aria-label={t("gapDefaultTooltip")}
+                    <button
+                      type="button"
+                      data-testid="schedule-enabled-toggle"
+                      role="switch"
+                      aria-checked={scheduleEnabled}
+                      aria-label={scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
+                      disabled={toggleSchedule.isPending}
+                      onClick={() => !toggleSchedule.isPending && toggleSchedule.mutate(!scheduleEnabled)}
+                      className="flex items-center gap-1.5 border rounded-md px-2.5 h-8 cursor-pointer bg-transparent text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <SelectValue placeholder={t("gapDefaultPlaceholder")} />
-                    </SelectTrigger>
+                      <Power
+                        className={`h-3.5 w-3.5 ${scheduleEnabled ? "text-green-500" : "text-muted-foreground"}`}
+                      />
+                      <Text as="span" size="xs" weight="medium">
+                        {scheduleEnabled ? tCommon("on") : tCommon("off")}
+                      </Text>
+                      <Flex
+                        aria-hidden="true"
+                        align="center"
+                        inline
+                        className={cn(
+                          "h-[1.15rem] w-8 shrink-0 rounded-full border border-transparent transition-all",
+                          scheduleEnabled ? "bg-primary" : "bg-input/80 dark:bg-input/80",
+                          "scale-75",
+                        )}
+                      >
+                        <Box
+                          className={cn(
+                            "pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform",
+                            scheduleEnabled ? "translate-x-[calc(100%-3px)]" : "translate-x-px",
+                          )}
+                        />
+                      </Flex>
+                    </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">{t("gapDefaultTooltip")}</TooltipContent>
+                  <TooltipContent side="bottom">
+                    {scheduleEnabled ? t("disableScheduleMode") : t("enableScheduleMode")}
+                  </TooltipContent>
                 </Tooltip>
-                <SelectContent>
-                  <SelectItem value={NO_DEFAULT_PAGE}>{t("noDefault")}</SelectItem>
-                  {pagesData?.pages.map((page) => (
-                    <SelectItem key={page.id} value={page.id}>
-                      {page.name}
-                    </SelectItem>
-                  ))}
-                  {collectionsData?.collections?.map((collection) => (
-                    <SelectItem key={collection.id} value={collection.id}>
-                      {collection.name} {t("collectionSuffix")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
 
-              {/* Validation indicator — floating icon that opens a detail dropdown */}
-              {(hasOverlaps || hasGaps) && (
-                <DropdownMenu>
+                {/* Default page for gaps */}
+                <Select
+                  value={defaultPageId || NO_DEFAULT_PAGE}
+                  onValueChange={(value) => setDefaultPage.mutate(value === NO_DEFAULT_PAGE ? null : value)}
+                >
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`relative h-8 w-8 p-0 ${hasOverlaps ? "text-destructive hover:text-destructive" : "text-yellow-500 hover:text-yellow-500"}`}
-                        >
-                          {hasOverlaps ? <AlertCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                          <Flex
-                            align="center"
-                            justify="center"
-                            inline
-                            className={cn(
-                              "absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-xs font-bold rounded-full text-white",
-                              hasOverlaps ? "bg-destructive" : "bg-yellow-500",
-                            )}
-                          >
-                            {issueCount}
-                          </Flex>
-                        </Button>
-                      </DropdownMenuTrigger>
+                      <SelectTrigger
+                        data-testid="gap-default-select"
+                        className="h-8 w-[150px] text-xs"
+                        aria-label={t("gapDefaultTooltip")}
+                      >
+                        <SelectValue placeholder={t("gapDefaultPlaceholder")} />
+                      </SelectTrigger>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      {hasOverlaps
-                        ? t("conflictsCountTooltip", { count: issueCount })
-                        : t("gapsCountTooltip", { count: issueCount })}
-                    </TooltipContent>
+                    <TooltipContent side="bottom">{t("gapDefaultTooltip")}</TooltipContent>
                   </Tooltip>
-                  <DropdownMenuContent align="end" className="w-80">
-                    <DropdownMenuLabel
-                      className={hasOverlaps ? "text-destructive" : "text-yellow-600 dark:text-yellow-400"}
-                    >
-                      {hasOverlaps ? t("scheduleConflictsLabel") : t("scheduleGapsLabel")}
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {hasOverlaps ? (
-                      validation?.overlaps?.map((overlap, i) => (
-                        <DropdownMenuItem
-                          key={i}
-                          className="text-xs whitespace-normal cursor-default focus:bg-transparent"
-                          variant="destructive"
-                        >
-                          {overlap?.conflict_description || t("unknownConflict")}
-                        </DropdownMenuItem>
-                      ))
-                    ) : (
-                      <>
-                        <DropdownMenuItem className="text-xs cursor-default focus:bg-transparent">
-                          {t("gapsInSchedule", { count: issueCount })}{" "}
-                          {defaultPageId ? (
-                            <>
-                              {t("defaultLabel")}{" "}
-                              <Text as="span" size="xs" weight="medium">
-                                {getPageName(defaultPageId)}
+                  <SelectContent>
+                    <SelectItem value={NO_DEFAULT_PAGE}>{t("noDefault")}</SelectItem>
+                    {pagesData?.pages.map((page) => (
+                      <SelectItem key={page.id} value={page.id}>
+                        {page.name}
+                      </SelectItem>
+                    ))}
+                    {collectionsData?.collections?.map((collection) => (
+                      <SelectItem key={collection.id} value={collection.id}>
+                        {collection.name} {t("collectionSuffix")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Validation indicator — floating icon that opens a detail dropdown */}
+                {(hasOverlaps || hasGaps) && (
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`relative h-8 w-8 p-0 ${hasOverlaps ? "text-destructive hover:text-destructive" : "text-yellow-500 hover:text-yellow-500"}`}
+                          >
+                            {hasOverlaps ? <AlertCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                            <Flex
+                              align="center"
+                              justify="center"
+                              inline
+                              className={cn(
+                                "absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-xs font-bold rounded-full text-white",
+                                hasOverlaps ? "bg-destructive" : "bg-yellow-500",
+                              )}
+                            >
+                              {issueCount}
+                            </Flex>
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        {hasOverlaps
+                          ? t("conflictsCountTooltip", { count: issueCount })
+                          : t("gapsCountTooltip", { count: issueCount })}
+                      </TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="w-80">
+                      <DropdownMenuLabel
+                        className={hasOverlaps ? "text-destructive" : "text-yellow-600 dark:text-yellow-400"}
+                      >
+                        {hasOverlaps ? t("scheduleConflictsLabel") : t("scheduleGapsLabel")}
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {hasOverlaps ? (
+                        validation?.overlaps?.map((overlap, i) => (
+                          <DropdownMenuItem
+                            key={i}
+                            className="text-xs whitespace-normal cursor-default focus:bg-transparent"
+                            variant="destructive"
+                          >
+                            {overlap?.conflict_description || t("unknownConflict")}
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <>
+                          <DropdownMenuItem className="text-xs cursor-default focus:bg-transparent">
+                            {t("gapsInSchedule", { count: issueCount })}{" "}
+                            {defaultPageId ? (
+                              <>
+                                {t("defaultLabel")}{" "}
+                                <Text as="span" size="xs" weight="medium">
+                                  {getPageName(defaultPageId)}
+                                </Text>
+                              </>
+                            ) : (
+                              <Text as="span" size="xs" tone="muted">
+                                {t("noDefaultPageSet")}
                               </Text>
+                            )}
+                          </DropdownMenuItem>
+                          {validation?.gaps && validation.gaps.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              {validation.gaps.map((gap, i) => {
+                                if (!gap?.days || !gap?.start_time || !gap?.end_time) return null;
+                                return (
+                                  <DropdownMenuItem key={i} className="text-xs cursor-default focus:bg-transparent">
+                                    <Text as="span" size="xs" tone="muted" className="mr-2">
+                                      {formatDaysCompact(gap.days)}
+                                    </Text>
+                                    {gap.start_time} – {gap.end_time}
+                                  </DropdownMenuItem>
+                                );
+                              })}
                             </>
-                          ) : (
-                            <Text as="span" size="xs" tone="muted">
-                              {t("noDefaultPageSet")}
-                            </Text>
                           )}
-                        </DropdownMenuItem>
-                        {validation?.gaps && validation.gaps.length > 0 && (
-                          <>
-                            <DropdownMenuSeparator />
-                            {validation.gaps.map((gap, i) => {
-                              if (!gap?.days || !gap?.start_time || !gap?.end_time) return null;
-                              return (
-                                <DropdownMenuItem key={i} className="text-xs cursor-default focus:bg-transparent">
-                                  <Text as="span" size="xs" tone="muted" className="mr-2">
-                                    {formatDaysCompact(gap.days)}
-                                  </Text>
-                                  {gap.start_time} – {gap.end_time}
-                                </DropdownMenuItem>
-                              );
-                            })}
-                          </>
-                        )}
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
-              <Button variant="brand" size="sm" onClick={handleAdd} className="btn-lift">
-                <Plus className="h-4 w-4 mr-1" />
-                {t("addSchedule")}
-              </Button>
-            </Flex>
-          }
-        />
-      </TooltipProvider>
+                <Button variant="brand" size="sm" onClick={handleAdd} className="btn-lift">
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t("addSchedule")}
+                </Button>
+              </Flex>
+            }
+          />
+        </TooltipProvider>
 
-      {/* ── Location warning (sun schedules without location configured) ── */}
-      {hasSunSchedules && !locationConfigured && (
-        <Flex
-          align="start"
-          gap="2.5"
-          className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3.5 py-2.5 text-sm text-amber-800 dark:text-amber-300 flex-shrink-0"
-        >
-          <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-          <Text as="span" tone="warning">
-            {t("locationWarning")}{" "}
-            <Link href="/settings" className="font-medium underline underline-offset-2 hover:no-underline">
-              {t("configureLocationLink")}
-            </Link>
-            .
-          </Text>
-        </Flex>
-      )}
+        {/* ── Location warning (sun schedules without location configured) ── */}
+        {hasSunSchedules && !locationConfigured && (
+          <Flex
+            align="start"
+            gap="2.5"
+            className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3.5 py-2.5 text-sm text-amber-800 dark:text-amber-300 flex-shrink-0"
+          >
+            <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+            <Text as="span" tone="warning">
+              {t("locationWarning")}{" "}
+              <Link href="/settings" className="font-medium underline underline-offset-2 hover:no-underline">
+                {t("configureLocationLink")}
+              </Link>
+              .
+            </Text>
+          </Flex>
+        )}
 
-      {/* ── Schedule View ── */}
-      {viewMode === "list" ? (
-        <ScheduleListView
-          schedules={schedules}
-          pages={pages}
-          collections={collectionsData?.collections}
-          silenceSchedule={resolvedSilenceSchedule}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onToggleEnabled={handleToggleEnabled}
-          onSilenceClick={handleSilenceClick}
-        />
-      ) : (
-        /* Calendar card: grows to fill remaining space in the pinned layout.
-           Mobile: drop the card chrome (title + extra padding) and let the
-           calendar grow to its natural 24-hour height so the page scrolls. */
-        <Card
-          className="flex flex-col overflow-hidden animate-card-fade-in py-2 sm:py-6 sm:flex-1 sm:min-h-0"
-          style={{ animationDelay: "300ms" }}
-        >
-          <CardHeader className="flex-shrink-0 py-3 hidden sm:block">
-            <CardTitle className="text-base">{t("scheduleCalendar")}</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-hidden pt-0 px-2 sm:px-6 sm:flex-1 sm:min-h-0">
-            <ScheduleCalendarView
+        {/* ── Schedule View ── */}
+        <PageSection fill={isCalendarMode} scrollLabel={t("scheduleCalendar")}>
+          {viewMode === "list" ? (
+            <ScheduleListView
               schedules={schedules}
               pages={pages}
               collections={collectionsData?.collections}
-              overlaps={validation?.overlaps}
               silenceSchedule={resolvedSilenceSchedule}
-              onEventClick={handleEventClick}
-              onSlotSelect={handleSlotSelect}
-              onEventTimeChange={handleEventTimeChange}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onToggleEnabled={handleToggleEnabled}
               onSilenceClick={handleSilenceClick}
             />
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            /* Calendar: grows to fill remaining space in the pinned layout. The
+           border is gone — the page card is the surface now — but the flex
+           sizing is unchanged, and it is still the thing that scrolls. */
+            <Box className="flex flex-col overflow-hidden sm:flex-1 sm:min-h-0">
+              <CardTitle size="base" className="flex-shrink-0 pb-3 hidden sm:block">
+                {t("scheduleCalendar")}
+              </CardTitle>
+              <Box className="overflow-hidden -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-1 sm:min-h-0">
+                <ScheduleCalendarView
+                  schedules={schedules}
+                  pages={pages}
+                  collections={collectionsData?.collections}
+                  overlaps={validation?.overlaps}
+                  silenceSchedule={resolvedSilenceSchedule}
+                  onEventClick={handleEventClick}
+                  onSlotSelect={handleSlotSelect}
+                  onEventTimeChange={handleEventTimeChange}
+                  onSilenceClick={handleSilenceClick}
+                />
+              </Box>
+            </Box>
+          )}
+        </PageSection>
+      </PageCard>
 
       {/* Form Tray */}
       <Sheet

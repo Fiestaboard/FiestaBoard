@@ -2,11 +2,6 @@
 
 import {
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -15,6 +10,7 @@ import {
   DialogTitle,
   Flex,
   Heading,
+  PageSection,
   Stack,
   Text,
 } from "@fiestaboard/ui";
@@ -87,56 +83,47 @@ export function SystemControls() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Cpu className="h-4 w-4" />
-            {t("title")}
-          </CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Flex wrap gap="2">
-            <Button
-              variant={updateAvailable ? "default" : "outline"}
-              size="sm"
-              onClick={() => setConfirmAction("update")}
-              disabled={anyPending}
-            >
-              {updateMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <ArrowUpCircle className="h-4 w-4 mr-2" />
-              )}
-              {updateAvailable ? t("updateNow") : t("rePullLatest")}
-            </Button>
+      <PageSection icon={<Cpu />} title={t("title")} description={t("description")}>
+        <Flex wrap gap="2">
+          <Button
+            variant={updateAvailable ? "default" : "outline"}
+            size="sm"
+            onClick={() => setConfirmAction("update")}
+            disabled={anyPending}
+          >
+            {updateMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <ArrowUpCircle className="h-4 w-4 mr-2" />
+            )}
+            {updateAvailable ? t("updateNow") : t("rePullLatest")}
+          </Button>
 
-            <Button variant="outline" size="sm" onClick={() => setConfirmAction("restart")} disabled={anyPending}>
-              {restartMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              {t("restart")}
-            </Button>
+          <Button variant="outline" size="sm" onClick={() => setConfirmAction("restart")} disabled={anyPending}>
+            {restartMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            {t("restart")}
+          </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmAction("shutdown")}
-              disabled={anyPending}
-              className="text-destructive hover:text-destructive"
-            >
-              {shutdownMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Power className="h-4 w-4 mr-2" />
-              )}
-              {t("shutdown")}
-            </Button>
-          </Flex>
-        </CardContent>
-      </Card>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setConfirmAction("shutdown")}
+            disabled={anyPending}
+            className="text-destructive hover:text-destructive"
+          >
+            {shutdownMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Power className="h-4 w-4 mr-2" />
+            )}
+            {t("shutdown")}
+          </Button>
+        </Flex>
+      </PageSection>
 
       {/* Update confirmation */}
       <Dialog open={confirmAction === "update"} onOpenChange={(open) => !open && setConfirmAction(null)}>

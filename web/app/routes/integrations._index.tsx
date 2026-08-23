@@ -36,8 +36,10 @@ import {
   Heading,
   Input,
   Label,
+  PageCard,
   PageHeader,
   PageLayout,
+  PageSection,
   PageToolbar,
   PluginCard,
   PluginCategoryBadge,
@@ -2309,356 +2311,363 @@ export default function IntegrationsPage() {
 
   return (
     <PageLayout>
-      <PageHeader icon={Puzzle} title={t("title")} description={t("description")}>
-        <Flex className="mt-3 justify-start sm:justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCheckForUpdates}
-            disabled={isCheckingForUpdates}
-            className="gap-2"
-          >
-            <RefreshCw className={cn("h-3.5 w-3.5", isCheckingForUpdates && "animate-spin")} />
-            {isCheckingForUpdates ? t("checking") : t("checkForUpdates")}
-          </Button>
-        </Flex>
-      </PageHeader>
-
-      {/* Tabs */}
+      {/* Tabs wraps the card rather than sitting inside it: PageCard styles its
+          DIRECT children as blocks, so the toolbar and the tab panels have to be
+          direct children to get the inset and the dividers. Tabs is only a
+          context provider and a div, so hoisting it changes nothing else. */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        {/* PageToolbar via its children escape hatch, not its left/right slots:
+        <PageCard>
+          <PageHeader icon={Puzzle} title={t("title")} description={t("description")}>
+            <Flex className="mt-3 justify-start sm:justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCheckForUpdates}
+                disabled={isCheckingForUpdates}
+                className="gap-2"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", isCheckingForUpdates && "animate-spin")} />
+                {isCheckingForUpdates ? t("checking") : t("checkForUpdates")}
+              </Button>
+            </Flex>
+          </PageHeader>
+
+          {/* PageToolbar via its children escape hatch, not its left/right slots:
             the search field has to take whatever track the tab strip leaves,
             and a flex split cannot express "fill the rest". The toolbar
             contributes only the inset, which is what puts this row on the
             content column with the page title above it. `mb-4` moves off the
             grid because PageToolbar already carries it. */}
-        <PageToolbar>
-          <Box
-            className={
-              activeTab === "marketplace"
-                ? "grid grid-cols-1 gap-3 items-center md:grid-cols-[auto_minmax(12rem,1fr)_auto]"
-                : "grid grid-cols-1 gap-3 items-center sm:grid-cols-[auto_minmax(0,1fr)]"
-            }
-          >
-            <TabsList className="w-fit">
-              <TabsTrigger value="installed">
-                {t("tabInstalled")}
-                {data && (
-                  <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
-                    {data.total}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="marketplace">
-                {t("tabMarketplace")}
-                {availableCount > 0 && (
-                  <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
-                    {availableCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-            <Box className="relative min-w-0 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder={
-                  activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
-                }
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-full"
-              />
-            </Box>
-            {activeTab === "marketplace" && (
-              <Flex align="center" gap="2" className="shrink-0 md:justify-self-end">
-                <Flex className="rounded-md border overflow-hidden">
-                  <Button
-                    variant={marketplaceView === "card" ? "secondary" : "ghost"}
-                    size="icon"
-                    className="h-9 w-9 rounded-none border-0"
-                    onClick={() => setMarketplaceView("card")}
-                    aria-label={t("cardViewAriaLabel")}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={marketplaceView === "list" ? "secondary" : "ghost"}
-                    size="icon"
-                    className="h-9 w-9 rounded-none border-0"
-                    onClick={() => setMarketplaceView("list")}
-                    aria-label={t("listViewAriaLabel")}
-                  >
-                    <LayoutList className="h-4 w-4" />
-                  </Button>
-                </Flex>
-                <Button variant="outline" className="gap-2" onClick={() => setGitDialogOpen(true)}>
-                  <GitBranch className="h-4 w-4" />
-                  {t("addFromGit")}
-                </Button>
-              </Flex>
-            )}
-          </Box>
-        </PageToolbar>
-
-        {/* ── Installed Tab ── */}
-        <TabsContent value="installed" className="mt-0">
-          {isLoading ? (
-            <Card className="overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b bg-muted/40">
-                    <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs h-auto">
-                      {t("nameColumn")}
-                    </TableHead>
-                    <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden sm:table-cell h-auto">
-                      {t("categoryColumn")}
-                    </TableHead>
-                    <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden md:table-cell h-auto">
-                      {t("statusColumn")}
-                    </TableHead>
-                    <TableHead className="px-4 py-2.5 w-32 h-auto" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[...Array(5)].map((_, i) => (
-                    <TableRow key={i} className="border-b last:border-b-0">
-                      <TableCell className="px-4 py-2.5">
-                        <Flex align="center" gap="3">
-                          <Skeleton className="h-7 w-7 rounded-md shrink-0" />
-                          <Flex align="center" gap="2">
-                            <Skeleton className="h-4 w-32" />
-                            <Skeleton className="h-4 w-10" />
-                          </Flex>
-                        </Flex>
-                      </TableCell>
-                      <TableCell className="px-4 py-2.5 hidden sm:table-cell">
-                        <Skeleton className="h-4 w-20" />
-                      </TableCell>
-                      <TableCell className="px-4 py-2.5 hidden md:table-cell">
-                        <Skeleton className="h-5 w-24 rounded-full" />
-                      </TableCell>
-                      <TableCell className="px-4 py-2.5">
-                        <Flex align="center" justify="end" gap="1">
-                          <Skeleton className="h-5 w-9 rounded-full" />
-                          <Skeleton className="h-7 w-7 rounded" />
-                          <Skeleton className="h-7 w-7 rounded" />
-                        </Flex>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          ) : error ? (
-            <Card className="border-destructive">
-              <CardContent className="flex items-center gap-3 py-6">
-                <AlertCircle className="h-5 w-5 text-destructive" />
-                <Text tone="destructive">
-                  {t("loadPluginsError", { error: error instanceof Error ? error.message : tCommon("error") })}
-                </Text>
-              </CardContent>
-            </Card>
-          ) : filteredInstalled.length === 0 ? (
-            query ? (
-              <EmptyState icon={Search} title={t("noInstalledMatch", { query: searchQuery })} className="py-16" />
-            ) : (
-              <EmptyState
-                icon={Puzzle}
-                title={t("noPluginsInstalled")}
-                description={t("headToMarketplace")}
-                action={
-                  <Button variant="outline" onClick={() => setActiveTab("marketplace")}>
-                    {t("browseMarketplace")}
-                  </Button>
-                }
-                className="py-16"
-              />
-            )
-          ) : (
-            <Stack gap="3">
-              {updatesAvailableCount > 0 && (
-                <Flex
-                  align="center"
-                  justify="between"
-                  className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/40"
-                >
-                  <Text tone="warning">{t("pluginUpdatesAvailable", { count: updatesAvailableCount })}</Text>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900"
-                    onClick={handleUpdateAll}
-                    disabled={isUpdatingAll || !!updatingId}
-                  >
-                    <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", isUpdatingAll && "animate-spin")} />
-                    {isUpdatingAll ? t("updating") : t("updateAllCount", { count: updatesAvailableCount })}
+          <PageToolbar>
+            <Box
+              className={
+                activeTab === "marketplace"
+                  ? "grid grid-cols-1 gap-3 items-center md:grid-cols-[auto_minmax(12rem,1fr)_auto]"
+                  : "grid grid-cols-1 gap-3 items-center sm:grid-cols-[auto_minmax(0,1fr)]"
+              }
+            >
+              <TabsList className="w-fit">
+                <TabsTrigger value="installed">
+                  {t("tabInstalled")}
+                  {data && (
+                    <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
+                      {data.total}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="marketplace">
+                  {t("tabMarketplace")}
+                  {availableCount > 0 && (
+                    <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
+                      {availableCount}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+              <Box className="relative min-w-0 w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder={
+                    activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
+                  }
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-full"
+                />
+              </Box>
+              {activeTab === "marketplace" && (
+                <Flex align="center" gap="2" className="shrink-0 md:justify-self-end">
+                  <Flex className="rounded-md border overflow-hidden">
+                    <Button
+                      variant={marketplaceView === "card" ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-9 w-9 rounded-none border-0"
+                      onClick={() => setMarketplaceView("card")}
+                      aria-label={t("cardViewAriaLabel")}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={marketplaceView === "list" ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-9 w-9 rounded-none border-0"
+                      onClick={() => setMarketplaceView("list")}
+                      aria-label={t("listViewAriaLabel")}
+                    >
+                      <LayoutList className="h-4 w-4" />
+                    </Button>
+                  </Flex>
+                  <Button variant="outline" className="gap-2" onClick={() => setGitDialogOpen(true)}>
+                    <GitBranch className="h-4 w-4" />
+                    {t("addFromGit")}
                   </Button>
                 </Flex>
               )}
-              <Card className="overflow-hidden animate-card-fade-in">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b bg-muted/40">
-                      {(["name", "category", "status"] as const).map((col) => {
-                        const labels: Record<string, string> = {
-                          name: t("nameColumn"),
-                          category: t("categoryColumn"),
-                          status: t("statusColumn"),
-                        };
-                        const active = installedSort.key === col;
-                        return (
-                          <TableHead
-                            key={col}
-                            className={cn(
-                              "px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors h-auto",
-                              col === "category" && "hidden sm:table-cell",
-                              col === "status" && "hidden md:table-cell",
-                            )}
-                            onClick={() => handleInstalledSort(col)}
-                          >
-                            <Flex align="center" gap="1">
-                              {labels[col]}
-                              {active ? (
-                                installedSort.dir === "asc" ? (
-                                  <ChevronUp className="h-3 w-3" />
-                                ) : (
-                                  <ChevronDown className="h-3 w-3" />
-                                )
-                              ) : (
-                                <ChevronsUp className="h-3 w-3 opacity-30" />
-                              )}
-                            </Flex>
-                          </TableHead>
-                        );
-                      })}
-                      <TableHead className="px-4 py-2.5 w-32 h-auto" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedInstalled.map((plugin) => (
-                      <InstalledPluginRow
-                        key={plugin.id}
-                        plugin={plugin}
-                        onToggle={handleToggle}
-                        isToggling={toggleMutation.isPending}
-                        onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
-                        onUninstall={handleUninstall}
-                        onUpdate={handleUpdate}
-                        isUninstalling={uninstallingId === plugin.id}
-                        isUpdating={updatingId === plugin.id}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
-              </Card>
-            </Stack>
-          )}
-        </TabsContent>
+            </Box>
+          </PageToolbar>
 
-        {/* ── Marketplace Tab ── */}
-        <TabsContent value="marketplace" className="mt-0">
-          {filteredRegistry.length === 0 ? (
-            query ? (
-              <EmptyState icon={Search} title={t("noPluginsMatch", { query: searchQuery })} className="py-16" />
-            ) : (
-              <EmptyState
-                icon={Puzzle}
-                title={t("noRegistryPluginsFound")}
-                description={t("canInstallCustomGitDescription")}
-                className="py-16"
-              />
-            )
-          ) : marketplaceView === "card" ? (
-            <Stack gap="6" className="animate-card-fade-in">
-              {(() => {
-                let globalIndex = 0;
-                return marketplaceCategories.map((category) => {
-                  const entries = groupedRegistry[category] ?? [];
-                  if (entries.length === 0) return null;
-                  return (
-                    <Box as="section" key={category}>
-                      {/* The category colour lives on the section heading, not on
+          <PageSection>
+            {/* ── Installed Tab ── */}
+            <TabsContent value="installed" className="mt-0">
+              {isLoading ? (
+                <Card className="overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b bg-muted/40">
+                        <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs h-auto">
+                          {t("nameColumn")}
+                        </TableHead>
+                        <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden sm:table-cell h-auto">
+                          {t("categoryColumn")}
+                        </TableHead>
+                        <TableHead className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs hidden md:table-cell h-auto">
+                          {t("statusColumn")}
+                        </TableHead>
+                        <TableHead className="px-4 py-2.5 w-32 h-auto" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[...Array(5)].map((_, i) => (
+                        <TableRow key={i} className="border-b last:border-b-0">
+                          <TableCell className="px-4 py-2.5">
+                            <Flex align="center" gap="3">
+                              <Skeleton className="h-7 w-7 rounded-md shrink-0" />
+                              <Flex align="center" gap="2">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-4 w-10" />
+                              </Flex>
+                            </Flex>
+                          </TableCell>
+                          <TableCell className="px-4 py-2.5 hidden sm:table-cell">
+                            <Skeleton className="h-4 w-20" />
+                          </TableCell>
+                          <TableCell className="px-4 py-2.5 hidden md:table-cell">
+                            <Skeleton className="h-5 w-24 rounded-full" />
+                          </TableCell>
+                          <TableCell className="px-4 py-2.5">
+                            <Flex align="center" justify="end" gap="1">
+                              <Skeleton className="h-5 w-9 rounded-full" />
+                              <Skeleton className="h-7 w-7 rounded" />
+                              <Skeleton className="h-7 w-7 rounded" />
+                            </Flex>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              ) : error ? (
+                <Card className="border-destructive">
+                  <CardContent className="flex items-center gap-3 py-6">
+                    <AlertCircle className="h-5 w-5 text-destructive" />
+                    <Text tone="destructive">
+                      {t("loadPluginsError", { error: error instanceof Error ? error.message : tCommon("error") })}
+                    </Text>
+                  </CardContent>
+                </Card>
+              ) : filteredInstalled.length === 0 ? (
+                query ? (
+                  <EmptyState icon={Search} title={t("noInstalledMatch", { query: searchQuery })} className="py-16" />
+                ) : (
+                  <EmptyState
+                    icon={Puzzle}
+                    title={t("noPluginsInstalled")}
+                    description={t("headToMarketplace")}
+                    action={
+                      <Button variant="outline" onClick={() => setActiveTab("marketplace")}>
+                        {t("browseMarketplace")}
+                      </Button>
+                    }
+                    className="py-16"
+                  />
+                )
+              ) : (
+                <Stack gap="3">
+                  {updatesAvailableCount > 0 && (
+                    <Flex
+                      align="center"
+                      justify="between"
+                      className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/40"
+                    >
+                      <Text tone="warning">{t("pluginUpdatesAvailable", { count: updatesAvailableCount })}</Text>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900"
+                        onClick={handleUpdateAll}
+                        disabled={isUpdatingAll || !!updatingId}
+                      >
+                        <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", isUpdatingAll && "animate-spin")} />
+                        {isUpdatingAll ? t("updating") : t("updateAllCount", { count: updatesAvailableCount })}
+                      </Button>
+                    </Flex>
+                  )}
+                  <Card className="overflow-hidden animate-card-fade-in">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b bg-muted/40">
+                          {(["name", "category", "status"] as const).map((col) => {
+                            const labels: Record<string, string> = {
+                              name: t("nameColumn"),
+                              category: t("categoryColumn"),
+                              status: t("statusColumn"),
+                            };
+                            const active = installedSort.key === col;
+                            return (
+                              <TableHead
+                                key={col}
+                                className={cn(
+                                  "px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors h-auto",
+                                  col === "category" && "hidden sm:table-cell",
+                                  col === "status" && "hidden md:table-cell",
+                                )}
+                                onClick={() => handleInstalledSort(col)}
+                              >
+                                <Flex align="center" gap="1">
+                                  {labels[col]}
+                                  {active ? (
+                                    installedSort.dir === "asc" ? (
+                                      <ChevronUp className="h-3 w-3" />
+                                    ) : (
+                                      <ChevronDown className="h-3 w-3" />
+                                    )
+                                  ) : (
+                                    <ChevronsUp className="h-3 w-3 opacity-30" />
+                                  )}
+                                </Flex>
+                              </TableHead>
+                            );
+                          })}
+                          <TableHead className="px-4 py-2.5 w-32 h-auto" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedInstalled.map((plugin) => (
+                          <InstalledPluginRow
+                            key={plugin.id}
+                            plugin={plugin}
+                            onToggle={handleToggle}
+                            isToggling={toggleMutation.isPending}
+                            onConfigUpdate={() => queryClient.invalidateQueries({ queryKey: ["plugins"] })}
+                            onUninstall={handleUninstall}
+                            onUpdate={handleUpdate}
+                            isUninstalling={uninstallingId === plugin.id}
+                            isUpdating={updatingId === plugin.id}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Card>
+                </Stack>
+              )}
+            </TabsContent>
+
+            {/* ── Marketplace Tab ── */}
+            <TabsContent value="marketplace" className="mt-0">
+              {filteredRegistry.length === 0 ? (
+                query ? (
+                  <EmptyState icon={Search} title={t("noPluginsMatch", { query: searchQuery })} className="py-16" />
+                ) : (
+                  <EmptyState
+                    icon={Puzzle}
+                    title={t("noRegistryPluginsFound")}
+                    description={t("canInstallCustomGitDescription")}
+                    className="py-16"
+                  />
+                )
+              ) : marketplaceView === "card" ? (
+                <Stack gap="6" className="animate-card-fade-in">
+                  {(() => {
+                    let globalIndex = 0;
+                    return marketplaceCategories.map((category) => {
+                      const entries = groupedRegistry[category] ?? [];
+                      if (entries.length === 0) return null;
+                      return (
+                        <Box as="section" key={category}>
+                          {/* The category colour lives on the section heading, not on
                           every card: the grid is grouped, so a badge per card would
                           repeat the heading verbatim N times. Cards in the public
                           directory carry it because that grid is flat. */}
-                      <Heading level={2} size="sm" className="mb-3 flex items-center gap-2">
-                        <PluginCategoryBadge category={category} label={categoryLabels[category] || category} />
-                        <Text as="span" size="xs" tone="muted" className="normal-case tracking-normal">
-                          ({entries.length})
-                        </Text>
-                      </Heading>
-                      <Grid cols="1" md="2" gap="4" className="xl:grid-cols-3 items-stretch">
-                        {entries.map((entry) => {
-                          const cardIndex = globalIndex++;
+                          <Heading level={2} size="sm" className="mb-3 flex items-center gap-2">
+                            <PluginCategoryBadge category={category} label={categoryLabels[category] || category} />
+                            <Text as="span" size="xs" tone="muted" className="normal-case tracking-normal">
+                              ({entries.length})
+                            </Text>
+                          </Heading>
+                          <Grid cols="1" md="2" gap="4" className="xl:grid-cols-3 items-stretch">
+                            {entries.map((entry) => {
+                              const cardIndex = globalIndex++;
+                              return (
+                                <RegistryPluginCard
+                                  key={entry.id}
+                                  entry={entry}
+                                  onInstall={handleInstall}
+                                  isInstalling={installingId === entry.id}
+                                  isInstalled={installedIds.has(entry.id)}
+                                  index={cardIndex}
+                                />
+                              );
+                            })}
+                          </Grid>
+                        </Box>
+                      );
+                    });
+                  })()}
+                </Stack>
+              ) : (
+                /* List view */
+                <Card className="overflow-hidden animate-card-fade-in">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b bg-muted/40">
+                        {(["name", "category", "author"] as const).map((col) => {
+                          const labels: Record<string, string> = {
+                            name: t("nameColumn"),
+                            category: t("categoryColumn"),
+                            author: t("authorColumn"),
+                          };
+                          const active = marketplaceSort.key === col;
                           return (
-                            <RegistryPluginCard
-                              key={entry.id}
-                              entry={entry}
-                              onInstall={handleInstall}
-                              isInstalling={installingId === entry.id}
-                              isInstalled={installedIds.has(entry.id)}
-                              index={cardIndex}
-                            />
+                            <TableHead
+                              key={col}
+                              className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors h-auto"
+                              onClick={() => handleMarketplaceSort(col)}
+                            >
+                              <Flex align="center" gap="1">
+                                {labels[col]}
+                                {active ? (
+                                  marketplaceSort.dir === "asc" ? (
+                                    <ChevronUp className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronDown className="h-3 w-3" />
+                                  )
+                                ) : (
+                                  <ChevronsUp className="h-3 w-3 opacity-30" />
+                                )}
+                              </Flex>
+                            </TableHead>
                           );
                         })}
-                      </Grid>
-                    </Box>
-                  );
-                });
-              })()}
-            </Stack>
-          ) : (
-            /* List view */
-            <Card className="overflow-hidden animate-card-fade-in">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b bg-muted/40">
-                    {(["name", "category", "author"] as const).map((col) => {
-                      const labels: Record<string, string> = {
-                        name: t("nameColumn"),
-                        category: t("categoryColumn"),
-                        author: t("authorColumn"),
-                      };
-                      const active = marketplaceSort.key === col;
-                      return (
-                        <TableHead
-                          key={col}
-                          className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground transition-colors h-auto"
-                          onClick={() => handleMarketplaceSort(col)}
-                        >
-                          <Flex align="center" gap="1">
-                            {labels[col]}
-                            {active ? (
-                              marketplaceSort.dir === "asc" ? (
-                                <ChevronUp className="h-3 w-3" />
-                              ) : (
-                                <ChevronDown className="h-3 w-3" />
-                              )
-                            ) : (
-                              <ChevronsUp className="h-3 w-3 opacity-30" />
-                            )}
-                          </Flex>
-                        </TableHead>
-                      );
-                    })}
-                    <TableHead className="px-4 py-2.5 w-24 h-auto" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedRegistry.map((entry) => (
-                    <RegistryPluginRow
-                      key={entry.id}
-                      entry={entry}
-                      onInstall={handleInstall}
-                      isInstalling={installingId === entry.id}
-                      isInstalled={installedIds.has(entry.id)}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          )}
-        </TabsContent>
+                        <TableHead className="px-4 py-2.5 w-24 h-auto" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedRegistry.map((entry) => (
+                        <RegistryPluginRow
+                          key={entry.id}
+                          entry={entry}
+                          onInstall={handleInstall}
+                          isInstalling={installingId === entry.id}
+                          isInstalled={installedIds.has(entry.id)}
+                        />
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              )}
+            </TabsContent>
+          </PageSection>
+        </PageCard>
       </Tabs>
 
       {gitInstallDialog}

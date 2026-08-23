@@ -1,3 +1,4 @@
+import { PageCard } from "@fiestaboard/ui";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -70,7 +71,12 @@ export const LocalApi: Story = {
     (Story) => (
       <QueryClientProvider client={createQueryClient(mockLocalConfig)}>
         <div className="max-w-lg">
-          <Story />
+          {/* PageSection pads and divides itself but draws no surface — the
+              page card is what a settings section lives in, so the story
+              shows it in one rather than floating unpadded. */}
+          <PageCard>
+            <Story />
+          </PageCard>
         </div>
       </QueryClientProvider>
     ),
@@ -82,7 +88,12 @@ export const CloudApi: Story = {
     (Story) => (
       <QueryClientProvider client={createQueryClient(mockCloudConfig)}>
         <div className="max-w-lg">
-          <Story />
+          {/* PageSection pads and divides itself but draws no surface — the
+              page card is what a settings section lives in, so the story
+              shows it in one rather than floating unpadded. */}
+          <PageCard>
+            <Story />
+          </PageCard>
         </div>
       </QueryClientProvider>
     ),
@@ -94,7 +105,12 @@ export const Unconfigured: Story = {
     (Story) => (
       <QueryClientProvider client={createQueryClient(mockUnconfigured)}>
         <div className="max-w-lg">
-          <Story />
+          {/* PageSection pads and divides itself but draws no surface — the
+              page card is what a settings section lives in, so the story
+              shows it in one rather than floating unpadded. */}
+          <PageCard>
+            <Story />
+          </PageCard>
         </div>
       </QueryClientProvider>
     ),
@@ -106,7 +122,12 @@ export const Loading: Story = {
     (Story) => (
       <QueryClientProvider client={new QueryClient()}>
         <div className="max-w-lg">
-          <Story />
+          {/* PageSection pads and divides itself but draws no surface — the
+              page card is what a settings section lives in, so the story
+              shows it in one rather than floating unpadded. */}
+          <PageCard>
+            <Story />
+          </PageCard>
         </div>
       </QueryClientProvider>
     ),

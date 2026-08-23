@@ -1,13 +1,9 @@
 "use client";
 
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Grid,
   Label,
+  PageSection,
   Select,
   SelectContent,
   SelectItem,
@@ -90,82 +86,73 @@ export function TimeAndDateCard() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Clock className="h-4 w-4" />
-          {t("timeAndDateTitle")}
-        </CardTitle>
-        <CardDescription>{t("timeAndDateDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Stack gap="4">
-            <Skeleton className="h-10 w-full max-w-sm" />
-            <Skeleton className="h-10 w-48" />
-            <Skeleton className="h-10 w-48" />
+    <PageSection icon={<Clock />} title={t("timeAndDateTitle")} description={t("timeAndDateDescription")}>
+      {isLoading ? (
+        <Stack gap="4">
+          <Skeleton className="h-10 w-full max-w-sm" />
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-10 w-48" />
+        </Stack>
+      ) : (
+        <Stack gap="4">
+          <Stack gap="2" className="max-w-sm">
+            <Label id="timezone-label" htmlFor="timezone-picker" className="text-sm font-medium">
+              {t("timezoneLabel")}
+            </Label>
+            <TimezonePicker id="timezone-picker" value={timezone} onChange={handleTimezoneChange} />
           </Stack>
-        ) : (
-          <Stack gap="4">
-            <Stack gap="2" className="max-w-sm">
-              <Label id="timezone-label" htmlFor="timezone-picker" className="text-sm font-medium">
-                {t("timezoneLabel")}
+
+          <Grid cols="1" sm="2" gap="4" className="max-w-md">
+            <Stack gap="2">
+              <Label htmlFor="time-format" className="text-sm font-medium">
+                {t("timeFormat")}
               </Label>
-              <TimezonePicker id="timezone-picker" value={timezone} onChange={handleTimezoneChange} />
+              <Select
+                value={timeFormat}
+                onValueChange={(v) => handleTimeFormatChange(v as TimeFormat)}
+                disabled={updateMutation.isPending}
+              >
+                <SelectTrigger id="time-format">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="12h">{t("timeFormat12h")}</SelectItem>
+                  <SelectItem value="24h">{t("timeFormat24h")}</SelectItem>
+                </SelectContent>
+              </Select>
             </Stack>
 
-            <Grid cols="1" sm="2" gap="4" className="max-w-md">
-              <Stack gap="2">
-                <Label htmlFor="time-format" className="text-sm font-medium">
-                  {t("timeFormat")}
-                </Label>
-                <Select
-                  value={timeFormat}
-                  onValueChange={(v) => handleTimeFormatChange(v as TimeFormat)}
-                  disabled={updateMutation.isPending}
-                >
-                  <SelectTrigger id="time-format">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="12h">{t("timeFormat12h")}</SelectItem>
-                    <SelectItem value="24h">{t("timeFormat24h")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Stack>
+            <Stack gap="2">
+              <Label htmlFor="date-format" className="text-sm font-medium">
+                {t("dateFormat")}
+              </Label>
+              <Select
+                value={dateFormat}
+                onValueChange={(v) => handleDateFormatChange(v as DateFormat)}
+                disabled={updateMutation.isPending}
+              >
+                <SelectTrigger id="date-format">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MM/DD/YYYY">{t("dateFormatMMDDYYYY")}</SelectItem>
+                  <SelectItem value="DD/MM/YYYY">{t("dateFormatDDMMYYYY")}</SelectItem>
+                  <SelectItem value="YYYY-MM-DD">{t("dateFormatISO")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Stack>
+          </Grid>
 
-              <Stack gap="2">
-                <Label htmlFor="date-format" className="text-sm font-medium">
-                  {t("dateFormat")}
-                </Label>
-                <Select
-                  value={dateFormat}
-                  onValueChange={(v) => handleDateFormatChange(v as DateFormat)}
-                  disabled={updateMutation.isPending}
-                >
-                  <SelectTrigger id="date-format">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MM/DD/YYYY">{t("dateFormatMMDDYYYY")}</SelectItem>
-                    <SelectItem value="DD/MM/YYYY">{t("dateFormatDDMMYYYY")}</SelectItem>
-                    <SelectItem value="YYYY-MM-DD">{t("dateFormatISO")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Stack>
-            </Grid>
-
-            {(() => {
-              const preview = getFormatPreview();
-              return preview ? (
-                <Text size="xs" tone="muted">
-                  {preview}
-                </Text>
-              ) : null;
-            })()}
-          </Stack>
-        )}
-      </CardContent>
-    </Card>
+          {(() => {
+            const preview = getFormatPreview();
+            return preview ? (
+              <Text size="xs" tone="muted">
+                {preview}
+              </Text>
+            ) : null;
+          })()}
+        </Stack>
+      )}
+    </PageSection>
   );
 }

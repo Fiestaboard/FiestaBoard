@@ -1,4 +1,14 @@
-import { Alert, AlertDescription, AlertTitle, Box, Button, PageHeader, PageLayout } from "@fiestaboard/ui";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Box,
+  Button,
+  PageCard,
+  PageHeader,
+  PageLayout,
+  PageSection,
+} from "@fiestaboard/ui";
 import { Home as HomeIcon, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -27,33 +37,34 @@ export default function Home() {
 
   return (
     <PageLayout outerClassName="relative" className="relative z-10">
-      <PageHeader icon={HomeIcon} title={t("title")} description={t("description")} />
+      <PageCard>
+        <PageHeader icon={HomeIcon} title={t("title")} description={t("description")} />
 
-      {boardNotConfigured && (
-        <Box className="mb-6">
-          <Alert className="border-info/50 bg-info/10 flex flex-col sm:flex-row sm:items-center sm:gap-4 [&>svg]:static [&>svg]:shrink-0 [&>svg+div]:translate-y-0 [&>svg~*]:pl-3">
-            <Info className="h-4 w-4 text-info" />
-            <Box className="flex-1 min-w-0">
-              <AlertTitle>{t("noBoardConfigured")}</AlertTitle>
-              <AlertDescription>{t("noBoardDescription")}</AlertDescription>
-            </Box>
-            <Button
-              variant="brand"
-              size="sm"
-              onClick={triggerWizard}
-              className="w-fit btn-lift shrink-0 self-center sm:self-center"
-            >
-              {t("runSetupWizard")}
-            </Button>
-          </Alert>
-        </Box>
-      )}
+        {boardNotConfigured && (
+          <PageSection>
+            <Alert className="border-info/50 bg-info/10 flex flex-col sm:flex-row sm:items-center sm:gap-4 [&>svg]:static [&>svg]:shrink-0 [&>svg+div]:translate-y-0 [&>svg~*]:pl-3">
+              <Info className="h-4 w-4 text-info" />
+              <Box className="flex-1 min-w-0">
+                <AlertTitle>{t("noBoardConfigured")}</AlertTitle>
+                <AlertDescription>{t("noBoardDescription")}</AlertDescription>
+              </Box>
+              <Button
+                variant="brand"
+                size="sm"
+                onClick={triggerWizard}
+                className="w-fit btn-lift shrink-0 self-center sm:self-center"
+              >
+                {t("runSetupWizard")}
+              </Button>
+            </Alert>
+          </PageSection>
+        )}
 
-      <SilenceImminentBanner />
-
-      <Box className="animate-card-fade-in">
-        <ActivePageDisplay />
-      </Box>
+        <PageSection>
+          <SilenceImminentBanner />
+          <ActivePageDisplay />
+        </PageSection>
+      </PageCard>
     </PageLayout>
   );
 }

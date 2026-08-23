@@ -18,16 +18,15 @@ import {
   Badge,
   Box,
   Button,
-  Card,
-  CardContent,
   CardDescription,
-  CardHeader,
   CardTitle,
   Flex,
   Grid,
   Label,
+  PageCard,
   PageHeader,
   PageLayout,
+  PageSection,
   Select,
   SelectContent,
   SelectItem,
@@ -291,34 +290,37 @@ export default function TransitionsLabPage() {
   if (betaQuery.isSuccess && !betaEnabled) {
     return (
       <PageLayout>
-        <PageHeader icon={FlaskConical} title={t("title")} description={t("description")} />
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {t("betaGateTitle")}
-              <Badge variant="secondary">{t("betaBadge")}</Badge>
-            </CardTitle>
-            <CardDescription>{t("betaGateDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <PageCard>
+          <PageHeader icon={FlaskConical} title={t("title")} description={t("description")} />
+          <PageSection
+            title={
+              <Flex align="center" gap="2">
+                {t("betaGateTitle")}
+                <Badge variant="secondary">{t("betaBadge")}</Badge>
+              </Flex>
+            }
+            description={t("betaGateDescription")}
+          >
             <Button onClick={() => router.push("/settings")}>{t("betaGateCta")}</Button>
-          </CardContent>
-        </Card>
+          </PageSection>
+        </PageCard>
       </PageLayout>
     );
   }
 
   return (
     <PageLayout>
-      <PageHeader icon={FlaskConical} title={t("title")} description={t("description")} />
+      <PageCard>
+        <PageHeader icon={FlaskConical} title={t("title")} description={t("description")} />
 
-      <Box className="grid gap-6 lg:grid-cols-[400px_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("setupTitle")}</CardTitle>
-            <CardDescription>{t("setupDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        {/* One section holding both panels, so the split is a vertical rule
+            rather than two more borders inside the page card. */}
+        <PageSection className="grid gap-6 lg:grid-cols-[400px_1fr] lg:gap-0 lg:divide-x lg:divide-border">
+          <Box className="space-y-4 lg:pr-6">
+            <Stack gap="1" className="mb-4">
+              <CardTitle size="base">{t("setupTitle")}</CardTitle>
+              <CardDescription>{t("setupDescription")}</CardDescription>
+            </Stack>
             <Stack gap="2">
               <Label htmlFor="plugin-picker">{t("pluginLabel")}</Label>
               <Select value={selectedPluginId} onValueChange={(val: string) => setSelectedPluginId(val)}>
@@ -483,22 +485,20 @@ export default function TransitionsLabPage() {
               {liveStatus && <Text tone="muted">{liveStatus}</Text>}
               {liveError && <Text tone="destructive">{liveError}</Text>}
             </Stack>
-          </CardContent>
-        </Card>
+          </Box>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("previewTitle")}</CardTitle>
-            <CardDescription>
-              {preview
-                ? t("frameSummary", {
-                    count: preview.frame_count,
-                    seconds: (totalDuration / 1000).toFixed(1),
-                  }) + (preview.capped ? ` ${t("cappedSuffix")}` : "")
-                : t("previewEmptyHint")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          <Box className="space-y-4 lg:pl-6">
+            <Stack gap="1" className="mb-4">
+              <CardTitle size="base">{t("previewTitle")}</CardTitle>
+              <CardDescription>
+                {preview
+                  ? t("frameSummary", {
+                      count: preview.frame_count,
+                      seconds: (totalDuration / 1000).toFixed(1),
+                    }) + (preview.capped ? ` ${t("cappedSuffix")}` : "")
+                  : t("previewEmptyHint")}
+              </CardDescription>
+            </Stack>
             {displayGrid ? (
               <TransitionGridDisplay grid={displayGrid} size={gridSize} />
             ) : (
@@ -577,9 +577,9 @@ export default function TransitionsLabPage() {
                 )}
               </>
             )}
-          </CardContent>
-        </Card>
-      </Box>
+          </Box>
+        </PageSection>
+      </PageCard>
     </PageLayout>
   );
 }

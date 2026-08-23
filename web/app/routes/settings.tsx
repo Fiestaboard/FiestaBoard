@@ -6,8 +6,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  PageCard,
   PageHeader,
   PageLayout,
+  PageSection,
   Tabs,
   TabsContent,
   TabsList,
@@ -164,92 +166,98 @@ export default function SettingsPage() {
 
   return (
     <PageLayout>
-      <PageHeader icon={Settings} title={t("title")} description={t("description")} />
-
-      <Box className="mb-5">
-        <SystemUpdate />
-      </Box>
-
+      {/* Tabs wraps the card so the tab strip and the panels are both blocks
+          inside it — same reason as the Integrations route. */}
       <Tabs value={activeSection} onValueChange={handleSectionChange}>
-        <Box className="mb-5 -mx-3 sm:-mx-4 md:mx-0 overflow-x-auto px-3 sm:px-4 md:px-0">
-          <TabsList className="w-fit h-auto p-1">
-            {sections.map(({ id, label, icon: Icon }) => (
-              <TabsTrigger key={id} value={id} className="gap-1.5 px-3 py-1.5 data-[state=active]:shadow-sm">
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                {/* Inherits size/weight/color from TabsTrigger's data-active state — Text's fixed
+        <PageCard>
+          <PageHeader icon={Settings} title={t("title")} description={t("description")} />
+
+          <PageSection>
+            <SystemUpdate />
+          </PageSection>
+
+          <PageSection>
+            <Box className="-mx-6 overflow-x-auto px-6">
+              <TabsList className="w-fit h-auto p-1">
+                {sections.map(({ id, label, icon: Icon }) => (
+                  <TabsTrigger key={id} value={id} className="gap-1.5 px-3 py-1.5 data-[state=active]:shadow-sm">
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    {/* Inherits size/weight/color from TabsTrigger's data-active state — Text's fixed
                     tone/weight defaults would break the active/inactive styling, so this stays raw. */}
-                {/* eslint-disable-next-line react/forbid-elements -- inherit-only span; TabsTrigger drives its active/inactive size/weight/color and Text's fixed defaults would break that */}
-                <span className="whitespace-nowrap">{label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Box>
+                    {/* eslint-disable-next-line react/forbid-elements -- inherit-only span; TabsTrigger drives its active/inactive size/weight/color and Text's fixed defaults would break that */}
+                    <span className="whitespace-nowrap">{label}</span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Box>
+          </PageSection>
 
-        <TabsContent value="general" className="mt-0 space-y-6">
-          <InstanceNameCard />
-          <AppearanceSettings />
-          <LanguageSettingsCard />
-          <TimeAndDateCard />
-          <LocationSettingsCard />
-          <AccessibilitySettings />
-          <AnimationSettings />
-        </TabsContent>
-
-        {showAccount && (
-          <TabsContent value="account" className="mt-0 space-y-6">
-            <AccountSection />
+          <TabsContent value="general" className="mt-0">
+            <InstanceNameCard />
+            <AppearanceSettings />
+            <LanguageSettingsCard />
+            <TimeAndDateCard />
+            <LocationSettingsCard />
+            <AccessibilitySettings />
+            <AnimationSettings />
           </TabsContent>
-        )}
 
-        <TabsContent value="hardware" className="mt-0 space-y-6">
-          <DisplaySettings />
-        </TabsContent>
+          {showAccount && (
+            <TabsContent value="account" className="mt-0">
+              <AccountSection />
+            </TabsContent>
+          )}
 
-        {showNetwork && (
-          <TabsContent value="network" className="mt-0 space-y-6">
-            <NetworkSettings />
+          <TabsContent value="hardware" className="mt-0">
+            <DisplaySettings />
           </TabsContent>
-        )}
 
-        <TabsContent value="behavior" className="mt-0 space-y-6">
-          <TransitionSettings />
-          <UpdateIntervals />
-          <SilenceSchedule />
-        </TabsContent>
+          {showNetwork && (
+            <TabsContent value="network" className="mt-0">
+              <NetworkSettings />
+            </TabsContent>
+          )}
 
-        <TabsContent value="integrations" className="mt-0 space-y-6">
-          <AiSettings />
-          <McpSettings />
-          <MqttSettingsCard />
-          <PluginSettingsCard />
-        </TabsContent>
+          <TabsContent value="behavior" className="mt-0">
+            <TransitionSettings />
+            <UpdateIntervals />
+            <SilenceSchedule />
+          </TabsContent>
 
-        <TabsContent value="system" className="mt-0 space-y-6">
-          <SystemControls />
-          <AutoUpdateIntervalCard />
-          <BackupSettings />
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Wand2 className="h-4 w-4" />
-                {t("setupWizardTitle")}
-              </CardTitle>
-              <CardDescription>{t("setupWizardDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="brand" onClick={triggerWizard} className="gap-2 btn-lift">
-                <Wand2 className="h-4 w-4" />
-                {t("runSetupWizard")}
-              </Button>
-            </CardContent>
-          </Card>
-          <AboutCard />
-        </TabsContent>
+          <TabsContent value="integrations" className="mt-0">
+            <AiSettings />
+            <McpSettings />
+            <MqttSettingsCard />
+            <PluginSettingsCard />
+          </TabsContent>
 
-        <TabsContent value="advanced" className="mt-0 space-y-6">
-          <DebugSettings />
-          <BetaSettings />
-        </TabsContent>
+          <TabsContent value="system" className="mt-0">
+            <SystemControls />
+            <AutoUpdateIntervalCard />
+            <BackupSettings />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Wand2 className="h-4 w-4" />
+                  {t("setupWizardTitle")}
+                </CardTitle>
+                <CardDescription>{t("setupWizardDescription")}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="brand" onClick={triggerWizard} className="gap-2 btn-lift">
+                  <Wand2 className="h-4 w-4" />
+                  {t("runSetupWizard")}
+                </Button>
+              </CardContent>
+            </Card>
+            <AboutCard />
+          </TabsContent>
+
+          <TabsContent value="advanced" className="mt-0">
+            <DebugSettings />
+            <BetaSettings />
+          </TabsContent>
+        </PageCard>
       </Tabs>
     </PageLayout>
   );
