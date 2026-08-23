@@ -9,9 +9,10 @@ import {
   DialogTitle,
   Flex,
   Grid,
+  PageCard,
   PageHeader,
-  PageInset,
   PageLayout,
+  PageSection,
   PageToolbar,
   Skeleton,
   Tabs,
@@ -191,6 +192,7 @@ export default function PagesPage() {
 
   return (
     <PageLayout>
+      <PageCard>
       <PageHeader icon={FileText} title={t("title")} description={t("description")} />
       <PageToolbar
         left={
@@ -236,23 +238,18 @@ export default function PagesPage() {
         }
       />
 
-      <Box className="animate-card-fade-in" style={{ animationDelay: "150ms" }}>
+      <PageSection>
         {hasMultipleDevices ? (
           <Tabs value={activeTab ?? availableDevices[0]} onValueChange={(v) => setActiveTab(v as DeviceType)}>
-            {/* Inset: a tab strip is bare controls, so it belongs on the
-                content column with the toolbar above it, not on the gutter
-                the tiles' borders use. */}
-            <PageInset>
-              <TabsList className="mb-5">
-                {availableDevices.includes("flagship") && (
-                  <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>
-                )}
-                {availableDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
-                {availableDevices.includes("note_array") && (
-                  <TabsTrigger value="note_array">{t("noteArrayTab")}</TabsTrigger>
-                )}
-              </TabsList>
-            </PageInset>
+            {/* No inset any more: the section's own padding puts this strip on
+                the content column, and the tiles below sit on it too. */}
+            <TabsList className="mb-5">
+              {availableDevices.includes("flagship") && <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>}
+              {availableDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
+              {availableDevices.includes("note_array") && (
+                <TabsTrigger value="note_array">{t("noteArrayTab")}</TabsTrigger>
+              )}
+            </TabsList>
             {availableDevices.includes("flagship") && (
               <TabsContent value="flagship">
                 <PageGridSelector
@@ -296,7 +293,8 @@ export default function PagesPage() {
             viewMode={viewMode}
           />
         )}
-      </Box>
+      </PageSection>
+      </PageCard>
       <ImportPageDialog open={importOpen} onOpenChange={setImportOpen} />
     </PageLayout>
   );

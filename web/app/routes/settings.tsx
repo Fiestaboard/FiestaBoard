@@ -6,8 +6,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  PageCard,
   PageHeader,
   PageLayout,
+  PageSection,
   Tabs,
   TabsContent,
   TabsList,
@@ -164,15 +166,19 @@ export default function SettingsPage() {
 
   return (
     <PageLayout>
-      <PageHeader icon={Settings} title={t("title")} description={t("description")} />
-
-      <Box className="mb-5">
-        <SystemUpdate />
-      </Box>
-
+      {/* Tabs wraps the card so the tab strip and the panels are both blocks
+          inside it — same reason as the Integrations route. */}
       <Tabs value={activeSection} onValueChange={handleSectionChange}>
-        <Box className="mb-5 -mx-3 sm:-mx-4 md:mx-0 overflow-x-auto px-3 sm:px-4 md:px-0">
-          <TabsList className="w-fit h-auto p-1">
+      <PageCard>
+        <PageHeader icon={Settings} title={t("title")} description={t("description")} />
+
+        <PageSection>
+          <SystemUpdate />
+        </PageSection>
+
+        <PageSection>
+          <Box className="-mx-6 overflow-x-auto px-6">
+            <TabsList className="w-fit h-auto p-1">
             {sections.map(({ id, label, icon: Icon }) => (
               <TabsTrigger key={id} value={id} className="gap-1.5 px-3 py-1.5 data-[state=active]:shadow-sm">
                 <Icon className="h-4 w-4 flex-shrink-0" />
@@ -181,11 +187,12 @@ export default function SettingsPage() {
                 {/* eslint-disable-next-line react/forbid-elements -- inherit-only span; TabsTrigger drives its active/inactive size/weight/color and Text's fixed defaults would break that */}
                 <span className="whitespace-nowrap">{label}</span>
               </TabsTrigger>
-            ))}
-          </TabsList>
-        </Box>
+              ))}
+            </TabsList>
+          </Box>
+        </PageSection>
 
-        <TabsContent value="general" className="mt-0 space-y-6">
+        <TabsContent value="general" className="mt-0">
           <InstanceNameCard />
           <AppearanceSettings />
           <LanguageSettingsCard />
@@ -196,35 +203,35 @@ export default function SettingsPage() {
         </TabsContent>
 
         {showAccount && (
-          <TabsContent value="account" className="mt-0 space-y-6">
+          <TabsContent value="account" className="mt-0">
             <AccountSection />
           </TabsContent>
         )}
 
-        <TabsContent value="hardware" className="mt-0 space-y-6">
+        <TabsContent value="hardware" className="mt-0">
           <DisplaySettings />
         </TabsContent>
 
         {showNetwork && (
-          <TabsContent value="network" className="mt-0 space-y-6">
+          <TabsContent value="network" className="mt-0">
             <NetworkSettings />
           </TabsContent>
         )}
 
-        <TabsContent value="behavior" className="mt-0 space-y-6">
+        <TabsContent value="behavior" className="mt-0">
           <TransitionSettings />
           <UpdateIntervals />
           <SilenceSchedule />
         </TabsContent>
 
-        <TabsContent value="integrations" className="mt-0 space-y-6">
+        <TabsContent value="integrations" className="mt-0">
           <AiSettings />
           <McpSettings />
           <MqttSettingsCard />
           <PluginSettingsCard />
         </TabsContent>
 
-        <TabsContent value="system" className="mt-0 space-y-6">
+        <TabsContent value="system" className="mt-0">
           <SystemControls />
           <AutoUpdateIntervalCard />
           <BackupSettings />
@@ -246,10 +253,11 @@ export default function SettingsPage() {
           <AboutCard />
         </TabsContent>
 
-        <TabsContent value="advanced" className="mt-0 space-y-6">
+        <TabsContent value="advanced" className="mt-0">
           <DebugSettings />
           <BetaSettings />
         </TabsContent>
+      </PageCard>
       </Tabs>
     </PageLayout>
   );

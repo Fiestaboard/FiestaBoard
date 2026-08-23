@@ -6,17 +6,13 @@ import {
   Badge,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
   Flex,
   Input,
   Label,
+  PageSection,
   Select,
   SelectContent,
   SelectItem,
@@ -482,40 +478,33 @@ export function AiSettings() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-64" />
-        </CardHeader>
-      </Card>
+      <PageSection>
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="mt-2 h-4 w-64" />
+      </PageSection>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <Flex align="start" justify="between" gap="2">
-          <Box>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              {t("cardTitle")}
-            </CardTitle>
-            <CardDescription>{t("cardDescription")}</CardDescription>
-          </Box>
-          <Flex align="center" gap="2" className="pt-1">
-            <Label htmlFor="ai-enabled" className="text-xs">
-              {current.enabled ? tCommon("enabled") : tCommon("disabled")}
-            </Label>
-            <Switch
-              id="ai-enabled"
-              checked={current.enabled}
-              onCheckedChange={toggleEnabled}
-              disabled={saveMutation.isPending}
-            />
-          </Flex>
+    <PageSection
+      icon={<Sparkles />}
+      title={t("cardTitle")}
+      description={t("cardDescription")}
+      action={
+        <Flex align="center" gap="2" className="pt-1">
+          <Label htmlFor="ai-enabled" className="text-xs">
+            {current.enabled ? tCommon("enabled") : tCommon("disabled")}
+          </Label>
+          <Switch
+            id="ai-enabled"
+            checked={current.enabled}
+            onCheckedChange={toggleEnabled}
+            disabled={saveMutation.isPending}
+          />
         </Flex>
-      </CardHeader>
-      <CardContent className="space-y-3">
+      }
+      contentClassName="space-y-3"
+    >
         <Alert>
           <AlertDescription className="text-xs">{t("privacyNotice")}</AlertDescription>
         </Alert>
@@ -563,7 +552,6 @@ export function AiSettings() {
             </Flex>
           )}
         </Flex>
-      </CardContent>
-    </Card>
+    </PageSection>
   );
 }

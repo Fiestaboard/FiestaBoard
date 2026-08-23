@@ -1,14 +1,10 @@
 "use client";
 
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Flex,
   Input,
   Label,
+  PageSection,
   Skeleton,
   Stack,
   Text,
@@ -103,124 +99,120 @@ export function UpdateIntervals() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Timer className="h-4 w-4" />
-          {t("updateIntervalsTitle")}
-        </CardTitle>
-        <CardDescription>{t("updateIntervalsDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {isLoading || !initialized ? (
-          <Stack gap="6">
-            <Stack gap="2">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-10 w-32" />
-              <Skeleton className="h-3 w-40" />
-            </Stack>
-            <Stack gap="2">
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="h-10 w-32" />
-            </Stack>
-            <Stack gap="2">
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="h-10 w-32" />
-            </Stack>
+    <PageSection
+      icon={<Timer />}
+      title={t("updateIntervalsTitle")}
+      description={t("updateIntervalsDescription")}
+      contentClassName="space-y-6"
+    >
+      {isLoading || !initialized ? (
+        <Stack gap="6">
+          <Stack gap="2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-3 w-40" />
           </Stack>
-        ) : (
-          <>
-            <Stack gap="2">
-              <Label htmlFor="polling-interval" className="text-sm font-medium">
-                {t("boardUpdateIntervalLabel")}
-              </Label>
-              <Text size="xs" tone="muted">
-                {t("boardUpdateIntervalDescription")}
+          <Stack gap="2">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-10 w-32" />
+          </Stack>
+          <Stack gap="2">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-10 w-32" />
+          </Stack>
+        </Stack>
+      ) : (
+        <>
+          <Stack gap="2">
+            <Label htmlFor="polling-interval" className="text-sm font-medium">
+              {t("boardUpdateIntervalLabel")}
+            </Label>
+            <Text size="xs" tone="muted">
+              {t("boardUpdateIntervalDescription")}
+            </Text>
+            <Flex align="center" gap="3">
+              <Input
+                id="polling-interval"
+                type="number"
+                min={10}
+                max={3600}
+                value={pollingInterval}
+                onChange={(e) => handlePollingIntervalChange(e.target.value)}
+                onBlur={handlePollingIntervalBlur}
+                disabled={isSaving}
+                className="w-32"
+              />
+              <Text as="span" tone="muted">
+                {tc("seconds")}
               </Text>
-              <Flex align="center" gap="3">
-                <Input
-                  id="polling-interval"
-                  type="number"
-                  min={10}
-                  max={3600}
-                  value={pollingInterval}
-                  onChange={(e) => handlePollingIntervalChange(e.target.value)}
-                  onBlur={handlePollingIntervalBlur}
-                  disabled={isSaving}
-                  className="w-32"
-                />
-                <Text as="span" tone="muted">
-                  {tc("seconds")}
-                </Text>
-              </Flex>
-              <Text size="xs" tone="muted">
-                {t("requiresServiceRestart")}
-              </Text>
-            </Stack>
+            </Flex>
+            <Text size="xs" tone="muted">
+              {t("requiresServiceRestart")}
+            </Text>
+          </Stack>
 
-            <Stack gap="2">
-              <Label htmlFor="board-read-local" className="text-sm font-medium">
-                {t("boardReadIntervalLocalLabel")}
-              </Label>
-              <Text size="xs" tone="muted">
-                {t("boardReadIntervalLocalDescription")}
+          <Stack gap="2">
+            <Label htmlFor="board-read-local" className="text-sm font-medium">
+              {t("boardReadIntervalLocalLabel")}
+            </Label>
+            <Text size="xs" tone="muted">
+              {t("boardReadIntervalLocalDescription")}
+            </Text>
+            <Flex align="center" gap="3">
+              <Input
+                id="board-read-local"
+                type="number"
+                min={20}
+                max={3600}
+                value={boardReadIntervalLocal}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v)) setBoardReadIntervalLocal(v);
+                }}
+                onBlur={handleBoardReadIntervalLocalBlur}
+                disabled={updateBoardReadIntervalMutation.isPending}
+                className="w-32"
+              />
+              <Text as="span" tone="muted">
+                {tc("seconds")}
               </Text>
-              <Flex align="center" gap="3">
-                <Input
-                  id="board-read-local"
-                  type="number"
-                  min={20}
-                  max={3600}
-                  value={boardReadIntervalLocal}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value, 10);
-                    if (!isNaN(v)) setBoardReadIntervalLocal(v);
-                  }}
-                  onBlur={handleBoardReadIntervalLocalBlur}
-                  disabled={updateBoardReadIntervalMutation.isPending}
-                  className="w-32"
-                />
-                <Text as="span" tone="muted">
-                  {tc("seconds")}
-                </Text>
-              </Flex>
-            </Stack>
+            </Flex>
+          </Stack>
 
-            <Stack gap="2">
-              <Label htmlFor="board-read-cloud" className="text-sm font-medium">
-                {t("boardReadIntervalCloudLabel")}
-              </Label>
-              <Text size="xs" tone="muted">
-                {t("boardReadIntervalCloudDescription")}
+          <Stack gap="2">
+            <Label htmlFor="board-read-cloud" className="text-sm font-medium">
+              {t("boardReadIntervalCloudLabel")}
+            </Label>
+            <Text size="xs" tone="muted">
+              {t("boardReadIntervalCloudDescription")}
+            </Text>
+            <Flex align="center" gap="3">
+              <Input
+                id="board-read-cloud"
+                type="number"
+                min={20}
+                max={3600}
+                value={boardReadIntervalCloud}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v)) setBoardReadIntervalCloud(v);
+                }}
+                onBlur={handleBoardReadIntervalCloudBlur}
+                disabled={updateBoardReadIntervalMutation.isPending}
+                className="w-32"
+              />
+              <Text as="span" tone="muted">
+                {tc("seconds")}
               </Text>
-              <Flex align="center" gap="3">
-                <Input
-                  id="board-read-cloud"
-                  type="number"
-                  min={20}
-                  max={3600}
-                  value={boardReadIntervalCloud}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value, 10);
-                    if (!isNaN(v)) setBoardReadIntervalCloud(v);
-                  }}
-                  onBlur={handleBoardReadIntervalCloudBlur}
-                  disabled={updateBoardReadIntervalMutation.isPending}
-                  className="w-32"
-                />
-                <Text as="span" tone="muted">
-                  {tc("seconds")}
-                </Text>
-              </Flex>
-              {boardReadIntervalCloud < 60 && (
-                <Text size="xs" tone="warning">
-                  {t("boardReadIntervalWarning")}
-                </Text>
-              )}
-            </Stack>
-          </>
-        )}
-      </CardContent>
-    </Card>
+            </Flex>
+            {boardReadIntervalCloud < 60 && (
+              <Text size="xs" tone="warning">
+                {t("boardReadIntervalWarning")}
+              </Text>
+            )}
+          </Stack>
+        </>
+      )}
+    </PageSection>
   );
 }

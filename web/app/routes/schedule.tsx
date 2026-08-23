@@ -10,9 +10,6 @@ import {
   BoardIcon,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
   CardTitle,
   DropdownMenu,
   DropdownMenuContent,
@@ -21,8 +18,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Flex,
+  PageCard,
   PageHeader,
   PageLayout,
+  PageSection,
   PageToolbar,
   Select,
   SelectContent,
@@ -492,6 +491,7 @@ export default function SchedulePage() {
 
   return (
     <PageLayout fillHeight={isCalendarMode}>
+      <PageCard fillHeight={isCalendarMode}>
       {/* ── Page header ── */}
       <PageHeader
         icon={CalendarIcon}
@@ -739,6 +739,7 @@ export default function SchedulePage() {
       )}
 
       {/* ── Schedule View ── */}
+      <PageSection fill={isCalendarMode} scrollLabel={t("scheduleCalendar")}>
       {viewMode === "list" ? (
         <ScheduleListView
           schedules={schedules}
@@ -751,17 +752,14 @@ export default function SchedulePage() {
           onSilenceClick={handleSilenceClick}
         />
       ) : (
-        /* Calendar card: grows to fill remaining space in the pinned layout.
-           Mobile: drop the card chrome (title + extra padding) and let the
-           calendar grow to its natural 24-hour height so the page scrolls. */
-        <Card
-          className="flex flex-col overflow-hidden animate-card-fade-in py-2 sm:py-6 sm:flex-1 sm:min-h-0"
-          style={{ animationDelay: "300ms" }}
-        >
-          <CardHeader className="flex-shrink-0 py-3 hidden sm:block">
-            <CardTitle className="text-base">{t("scheduleCalendar")}</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-hidden pt-0 px-2 sm:px-6 sm:flex-1 sm:min-h-0">
+        /* Calendar: grows to fill remaining space in the pinned layout. The
+           border is gone — the page card is the surface now — but the flex
+           sizing is unchanged, and it is still the thing that scrolls. */
+        <Box className="flex flex-col overflow-hidden sm:flex-1 sm:min-h-0">
+          <CardTitle size="base" className="flex-shrink-0 pb-3 hidden sm:block">
+            {t("scheduleCalendar")}
+          </CardTitle>
+          <Box className="overflow-hidden -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-1 sm:min-h-0">
             <ScheduleCalendarView
               schedules={schedules}
               pages={pages}
@@ -773,9 +771,11 @@ export default function SchedulePage() {
               onEventTimeChange={handleEventTimeChange}
               onSilenceClick={handleSilenceClick}
             />
-          </CardContent>
-        </Card>
+          </Box>
+        </Box>
       )}
+      </PageSection>
+      </PageCard>
 
       {/* Form Tray */}
       <Sheet

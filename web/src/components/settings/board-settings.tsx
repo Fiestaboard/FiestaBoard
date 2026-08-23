@@ -4,13 +4,9 @@ import {
   Badge,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Flex,
   Grid,
+  PageSection,
   Skeleton,
   Stack,
   Text,
@@ -158,48 +154,40 @@ export function BoardSettings() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-40 w-full" />
-        </CardContent>
-      </Card>
+      <PageSection>
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="mt-2 h-4 w-64" />
+        <Skeleton className="mt-4 h-40 w-full" />
+      </PageSection>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <Flex align="start" justify="between">
-          <Flex align="center" gap="3">
-            <Box className="p-2 rounded-md bg-primary/10">
-              <Monitor className="h-5 w-5 text-primary" />
-            </Box>
-            <Box>
-              <CardTitle className="text-base flex items-center gap-2">
-                {t("connection")}
-                {isConfigValid ? (
-                  <Badge variant="default" className="text-xs bg-board-green">
-                    <Check className="h-3 w-3 mr-1" />
-                    {t("configured")}
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive" className="text-xs">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    {t("incomplete")}
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription className="text-xs mt-0.5">{t("configureDescription")}</CardDescription>
-            </Box>
-          </Flex>
-        </Flex>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
+    <PageSection
+      icon={
+        <Box className="p-2 rounded-md bg-primary/10">
+          <Monitor className="h-5 w-5 text-primary" />
+        </Box>
+      }
+      title={
+        <>
+          {t("connection")}
+          {isConfigValid ? (
+            <Badge variant="default" className="text-xs bg-board-green">
+              <Check className="h-3 w-3 mr-1" />
+              {t("configured")}
+            </Badge>
+          ) : (
+            <Badge variant="destructive" className="text-xs">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              {t("incomplete")}
+            </Badge>
+          )}
+        </>
+      }
+      description={t("configureDescription")}
+      contentClassName="space-y-4"
+    >
         <TooltipProvider>
           {/* API Mode */}
           <Stack gap="1.5">
@@ -468,8 +456,7 @@ export function BoardSettings() {
             </Flex>
           )}
         </TooltipProvider>
-      </CardContent>
-    </Card>
+    </PageSection>
   );
 }
 

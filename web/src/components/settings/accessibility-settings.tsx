@@ -2,12 +2,8 @@
 
 import {
   Box,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Flex,
+  PageSection,
   Skeleton,
   Switch,
   Text,
@@ -52,36 +48,31 @@ export function AccessibilitySettings() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Accessibility className="h-4 w-4" />
-          {t("accessibilityTitle")}
-        </CardTitle>
-        <CardDescription>{t("accessibilityDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-6 w-48" />
-        ) : (
-          <Flex align="center" gap="3">
-            <Switch
-              id="reduce-motion"
-              checked={reduceMotion}
-              onCheckedChange={handleReduceMotionToggle}
-              disabled={updateDisplayMutation.isPending}
-            />
-            <Box>
-              <label htmlFor="reduce-motion" className="text-sm font-medium cursor-pointer">
-                {t("reduceMotion")}
-              </label>
-              <Text size="xs" tone="muted" className="mt-0.5">
-                {t("reduceMotionHint")}
-              </Text>
-            </Box>
-          </Flex>
-        )}
-      </CardContent>
-    </Card>
+    <PageSection
+      icon={<Accessibility />}
+      title={t("accessibilityTitle")}
+      description={t("accessibilityDescription")}
+    >
+      {isLoading ? (
+        <Skeleton className="h-6 w-48" />
+      ) : (
+        <Flex align="center" gap="3">
+          <Switch
+            id="reduce-motion"
+            checked={reduceMotion}
+            onCheckedChange={handleReduceMotionToggle}
+            disabled={updateDisplayMutation.isPending}
+          />
+          <Box>
+            <label htmlFor="reduce-motion" className="text-sm font-medium cursor-pointer">
+              {t("reduceMotion")}
+            </label>
+            <Text size="xs" tone="muted" className="mt-0.5">
+              {t("reduceMotionHint")}
+            </Text>
+          </Box>
+        </Flex>
+      )}
+    </PageSection>
   );
 }

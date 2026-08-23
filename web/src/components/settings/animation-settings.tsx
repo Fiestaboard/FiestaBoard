@@ -2,18 +2,14 @@
 
 import {
   Box,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   FLAP_SPEED_PRESETS,
-  type FlapSpeedPreset,
   Flex,
   Label,
+  PageSection,
   Skeleton,
   Stack,
   Text,
+  type FlapSpeedPreset,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Sparkles } from "lucide-react";
@@ -148,157 +144,153 @@ export function AnimationSettings() {
   const boardAnimating = useBoardAnimationsEnabled();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Sparkles className="h-4 w-4" />
-          {t("animationsTitle")}
-        </CardTitle>
-        <CardDescription>{t("animationsDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {isLoading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : (
-          <>
-            <Stack gap="2">
-              <Box>
-                <Label className="text-sm font-medium">{t("boardAnimationsLabel")}</Label>
-                <Text size="xs" tone="muted" className="mt-0.5">
-                  {t("boardAnimationsHint")}
-                </Text>
-              </Box>
-              <Flex wrap gap="2" role="radiogroup" aria-label={t("boardAnimationsLabel")}>
-                {BOARD_OPTIONS.map((option) => {
-                  const selected = boardMode === option;
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => handleBoardChange(option)}
-                      disabled={updateMutation.isPending}
-                      className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-                        selected
-                          ? "border-brand bg-brand/10 text-brand"
-                          : "border-muted hover:border-brand/50 text-foreground"
-                      }`}
-                    >
-                      {t(BOARD_LABEL_KEY[option])}
-                    </button>
-                  );
-                })}
-              </Flex>
-              <Text size="xs" tone="muted">
-                {t(BOARD_HINT_KEY[boardMode])}
+    <PageSection
+      icon={<Sparkles />}
+      title={t("animationsTitle")}
+      description={t("animationsDescription")}
+      contentClassName="space-y-5"
+    >
+      {isLoading ? (
+        <Skeleton className="h-20 w-full" />
+      ) : (
+        <>
+          <Stack gap="2">
+            <Box>
+              <Label className="text-sm font-medium">{t("boardAnimationsLabel")}</Label>
+              <Text size="xs" tone="muted" className="mt-0.5">
+                {t("boardAnimationsHint")}
               </Text>
-            </Stack>
+            </Box>
+            <Flex wrap gap="2" role="radiogroup" aria-label={t("boardAnimationsLabel")}>
+              {BOARD_OPTIONS.map((option) => {
+                const selected = boardMode === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => handleBoardChange(option)}
+                    disabled={updateMutation.isPending}
+                    className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
+                      selected
+                        ? "border-brand bg-brand/10 text-brand"
+                        : "border-muted hover:border-brand/50 text-foreground"
+                    }`}
+                  >
+                    {t(BOARD_LABEL_KEY[option])}
+                  </button>
+                );
+              })}
+            </Flex>
+            <Text size="xs" tone="muted">
+              {t(BOARD_HINT_KEY[boardMode])}
+            </Text>
+          </Stack>
 
-            <Stack gap="2" className="pt-2 border-t">
-              <Box>
-                <Label className="text-sm font-medium">{t("flapSpeedLabel")}</Label>
-                <Text size="xs" tone="muted" className="mt-0.5">
-                  {t("flapSpeedHint")}
-                </Text>
-              </Box>
-              <Flex wrap gap="2" role="radiogroup" aria-label={t("flapSpeedLabel")}>
-                {FLAP_SPEED_OPTIONS.map((option) => {
-                  const selected = flapSpeed === option;
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => handleFlapSpeedChange(option)}
-                      disabled={updateMutation.isPending}
-                      className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-                        selected
-                          ? "border-brand bg-brand/10 text-brand"
-                          : "border-muted hover:border-brand/50 text-foreground"
-                      }`}
-                    >
-                      {/* The per-preset hint below the group names the default,
-                          but only for whatever is selected — so a user on
-                          "Relaxed" cannot tell what they moved away from. One
-                          combined string rather than an appended "(default)"
-                          so translators own the whole label. */}
-                      {t(option === "standard" ? "flapSpeed_standardWithDefault" : `flapSpeed_${option}`)}
-                    </button>
-                  );
-                })}
-              </Flex>
-              <Text size="xs" tone="muted">
-                {t(`flapSpeed_${flapSpeed}Hint`, { ms: FLAP_SPEED_PRESETS[flapSpeed] })}
+          <Stack gap="2" className="pt-2 border-t">
+            <Box>
+              <Label className="text-sm font-medium">{t("flapSpeedLabel")}</Label>
+              <Text size="xs" tone="muted" className="mt-0.5">
+                {t("flapSpeedHint")}
               </Text>
+            </Box>
+            <Flex wrap gap="2" role="radiogroup" aria-label={t("flapSpeedLabel")}>
+              {FLAP_SPEED_OPTIONS.map((option) => {
+                const selected = flapSpeed === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => handleFlapSpeedChange(option)}
+                    disabled={updateMutation.isPending}
+                    className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
+                      selected
+                        ? "border-brand bg-brand/10 text-brand"
+                        : "border-muted hover:border-brand/50 text-foreground"
+                    }`}
+                  >
+                    {/* The per-preset hint below the group names the default,
+                        but only for whatever is selected — so a user on
+                        "Relaxed" cannot tell what they moved away from. One
+                        combined string rather than an appended "(default)"
+                        so translators own the whole label. */}
+                    {t(option === "standard" ? "flapSpeed_standardWithDefault" : `flapSpeed_${option}`)}
+                  </button>
+                );
+              })}
+            </Flex>
+            <Text size="xs" tone="muted">
+              {t(`flapSpeed_${flapSpeed}Hint`, { ms: FLAP_SPEED_PRESETS[flapSpeed] })}
+            </Text>
 
-              {/* Users have a second, unrelated speed control under
-                  Behavior → Board Transitions (step_interval_ms, sent to the
-                  physical unit over the Local API). Without this the two read
-                  as the same setting configured twice. */}
-              <Flex align="start" gap="2" className="p-2.5 rounded-md bg-muted/50">
-                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                <Text as="span" size="xs" tone="muted">
-                  {t("flapSpeedScreenOnlyNote")}
+            {/* Users have a second, unrelated speed control under
+                Behavior → Board Transitions (step_interval_ms, sent to the
+                physical unit over the Local API). Without this the two read
+                as the same setting configured twice. */}
+            <Flex align="start" gap="2" className="p-2.5 rounded-md bg-muted/50">
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+              <Text as="span" size="xs" tone="muted">
+                {t("flapSpeedScreenOnlyNote")}
+              </Text>
+            </Flex>
+
+            {boardAnimating ? (
+              <Stack gap="1.5" className="pt-1">
+                <Text size="xs" tone="muted">
+                  {t("flapSpeedPreviewLabel")}
                 </Text>
-              </Flex>
-
-              {boardAnimating ? (
-                <Stack gap="1.5" className="pt-1">
-                  <Text size="xs" tone="muted">
-                    {t("flapSpeedPreviewLabel")}
-                  </Text>
-                  <Box className="flex justify-center">
-                    <FlapSpeedPreview speed={flapSpeed} enabled={boardAnimating} />
-                  </Box>
-                </Stack>
-              ) : (
-                <Text size="xs" tone="muted" className="italic">
-                  {t("flapSpeedInactive")}
-                </Text>
-              )}
-            </Stack>
-
-            <Stack gap="2" className="pt-2 border-t">
-              <Box>
-                <Label className="text-sm font-medium">{t("siteAnimationsLabel")}</Label>
-                <Text size="xs" tone="muted" className="mt-0.5">
-                  {t("siteAnimationsHint")}
-                </Text>
-              </Box>
-              <Flex wrap gap="2" role="radiogroup" aria-label={t("siteAnimationsLabel")}>
-                {SITE_OPTIONS.map((option) => {
-                  const selected = siteMode === option;
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => handleSiteChange(option)}
-                      disabled={updateMutation.isPending}
-                      className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-                        selected
-                          ? "border-brand bg-brand/10 text-brand"
-                          : "border-muted hover:border-brand/50 text-foreground"
-                      }`}
-                    >
-                      {t(SITE_LABEL_KEY[option])}
-                    </button>
-                  );
-                })}
-              </Flex>
-            </Stack>
-
-            {reduceMotion && (
+                <Box className="flex justify-center">
+                  <FlapSpeedPreview speed={flapSpeed} enabled={boardAnimating} />
+                </Box>
+              </Stack>
+            ) : (
               <Text size="xs" tone="muted" className="italic">
-                {t("animationsReduceMotionOverride")}
+                {t("flapSpeedInactive")}
               </Text>
             )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </Stack>
+
+          <Stack gap="2" className="pt-2 border-t">
+            <Box>
+              <Label className="text-sm font-medium">{t("siteAnimationsLabel")}</Label>
+              <Text size="xs" tone="muted" className="mt-0.5">
+                {t("siteAnimationsHint")}
+              </Text>
+            </Box>
+            <Flex wrap gap="2" role="radiogroup" aria-label={t("siteAnimationsLabel")}>
+              {SITE_OPTIONS.map((option) => {
+                const selected = siteMode === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => handleSiteChange(option)}
+                    disabled={updateMutation.isPending}
+                    className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
+                      selected
+                        ? "border-brand bg-brand/10 text-brand"
+                        : "border-muted hover:border-brand/50 text-foreground"
+                    }`}
+                  >
+                    {t(SITE_LABEL_KEY[option])}
+                  </button>
+                );
+              })}
+            </Flex>
+          </Stack>
+
+          {reduceMotion && (
+            <Text size="xs" tone="muted" className="italic">
+              {t("animationsReduceMotionOverride")}
+            </Text>
+          )}
+        </>
+      )}
+    </PageSection>
   );
 }

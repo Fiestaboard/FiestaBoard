@@ -2,12 +2,8 @@
 
 import {
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Flex,
+  PageSection,
   Select,
   SelectContent,
   SelectItem,
@@ -116,48 +112,44 @@ export function AutoUpdateIntervalCard() {
   const current: AutoUpdateInterval = status.auto_update_interval ?? "weekly";
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <CalendarClock className="h-4 w-4" />
-          {t("checkForUpdates")}
-        </CardTitle>
-        <CardDescription>{t("intervalCardDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Flex wrap align="center" gap="3">
-          <Select
-            value={current}
-            onValueChange={(v) => mutation.mutate(v as AutoUpdateInterval)}
-            disabled={mutation.isPending}
-          >
-            <SelectTrigger className="w-[180px]" aria-label={t("intervalSelectAriaLabel")}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {AUTO_UPDATE_INTERVALS.map((key) => (
-                <SelectItem key={key} value={key}>
-                  {INTERVAL_LABELS[key]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Text as="span" size="xs" tone="muted">
-            {t("lastChecked", { time: formatLastCheck(status.last_check) })}
-          </Text>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => checkNowMutation.mutate()}
-            disabled={checkNowMutation.isPending}
-            className="ml-auto"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${checkNowMutation.isPending ? "animate-spin" : ""}`} />
-            {checkNowMutation.isPending ? t("checkingForUpdates") : t("checkNow")}
-          </Button>
-        </Flex>
-        <Text tone="muted">{INTERVAL_DESCRIPTIONS[current]}</Text>
-      </CardContent>
-    </Card>
+    <PageSection
+      icon={<CalendarClock />}
+      title={t("checkForUpdates")}
+      description={t("intervalCardDescription")}
+      contentClassName="space-y-3"
+    >
+      <Flex wrap align="center" gap="3">
+        <Select
+          value={current}
+          onValueChange={(v) => mutation.mutate(v as AutoUpdateInterval)}
+          disabled={mutation.isPending}
+        >
+          <SelectTrigger className="w-[180px]" aria-label={t("intervalSelectAriaLabel")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {AUTO_UPDATE_INTERVALS.map((key) => (
+              <SelectItem key={key} value={key}>
+                {INTERVAL_LABELS[key]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Text as="span" size="xs" tone="muted">
+          {t("lastChecked", { time: formatLastCheck(status.last_check) })}
+        </Text>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => checkNowMutation.mutate()}
+          disabled={checkNowMutation.isPending}
+          className="ml-auto"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${checkNowMutation.isPending ? "animate-spin" : ""}`} />
+          {checkNowMutation.isPending ? t("checkingForUpdates") : t("checkNow")}
+        </Button>
+      </Flex>
+      <Text tone="muted">{INTERVAL_DESCRIPTIONS[current]}</Text>
+    </PageSection>
   );
 }

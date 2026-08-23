@@ -4,7 +4,6 @@ import {
   Badge,
   Box,
   Button,
-  Card,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -13,6 +12,7 @@ import {
   Label,
   List,
   ListItem,
+  PageSection,
   Select,
   SelectContent,
   SelectItem,
@@ -201,8 +201,11 @@ export function DebugSettings() {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <Card>
-        <CollapsibleTrigger className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+      <PageSection>
+        {/* -mx-6 -my-6 …: the whole section is the trigger's hit area, so it
+            bleeds back out over the block padding the page card supplies and
+            restates it, rather than assuming a card of its own. */}
+        <CollapsibleTrigger className="-mx-6 -mt-6 flex w-full items-center justify-between px-6 py-4 text-left hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
           <Flex align="center" gap="2">
             <Bug className="h-4 w-4 text-muted-foreground" />
             <Text as="span" size="base" weight="semibold">
@@ -611,7 +614,7 @@ export function DebugSettings() {
             </Stack>
           </Stack>
         </CollapsibleContent>
-      </Card>
+      </PageSection>
     </Collapsible>
   );
 }

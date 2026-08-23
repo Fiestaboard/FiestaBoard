@@ -1,15 +1,11 @@
 "use client";
 
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Flex,
   Grid,
   Input,
   Label,
+  PageSection,
   Select,
   SelectContent,
   SelectItem,
@@ -180,15 +176,13 @@ export function SilenceSchedule() {
   ]);
 
   return (
-    <Card id="silence-schedule" className="scroll-mt-24">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Moon className="h-4 w-4" />
-          {t("silenceScheduleLabel")}
-        </CardTitle>
-        <CardDescription>{t("silenceScheduleDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <PageSection
+      id="silence-schedule"
+      className="scroll-mt-24"
+      icon={<Moon />}
+      title={t("silenceScheduleLabel")}
+      description={t("silenceScheduleDescription")}
+    >
         {isLoading ? (
           <Stack gap="3">
             <Skeleton className="h-5 w-11 rounded-full" />
@@ -354,7 +348,6 @@ export function SilenceSchedule() {
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+    </PageSection>
   );
 }

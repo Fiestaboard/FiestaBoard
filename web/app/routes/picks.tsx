@@ -5,9 +5,10 @@ import {
   Flex,
   Grid,
   Heading,
+  PageCard,
   PageHeader,
-  PageInset,
   PageLayout,
+  PageSection,
   Skeleton,
   Stack,
   Tabs,
@@ -240,38 +241,40 @@ export default function PicksPage() {
 
   return (
     <PageLayout>
-      <PageHeader icon={Sparkles} title={t("title")} description={t("description")} />
+      <PageCard>
+        <PageHeader icon={Sparkles} title={t("title")} description={t("description")} />
 
-      <PageInset>
-        <Flex align="center" gap="2" className="mb-6 -mt-2">
-          <Text as="span" size="xs" tone="muted" className="italic">
-            {t("byline")}
-          </Text>
-        </Flex>
-      </PageInset>
+        <PageSection>
+          <Flex align="center" gap="2" className="mb-6 -mt-2">
+            <Text as="span" size="xs" tone="muted" className="italic">
+              {t("byline")}
+            </Text>
+          </Flex>
 
-      {hasMultipleDevices ? (
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
-          <PageInset>
-            <TabsList className="mb-6">
-              {configuredDevices.includes("flagship") && <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>}
-              {configuredDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
-            </TabsList>
-          </PageInset>
-          {configuredDevices.includes("flagship") && (
-            <TabsContent value="flagship">
-              <PicksGrid deviceType="flagship" />
-            </TabsContent>
+          {hasMultipleDevices ? (
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DeviceType)}>
+              <TabsList className="mb-6">
+                {configuredDevices.includes("flagship") && (
+                  <TabsTrigger value="flagship">{t("flagshipTab")}</TabsTrigger>
+                )}
+                {configuredDevices.includes("note") && <TabsTrigger value="note">{t("noteTab")}</TabsTrigger>}
+              </TabsList>
+              {configuredDevices.includes("flagship") && (
+                <TabsContent value="flagship">
+                  <PicksGrid deviceType="flagship" />
+                </TabsContent>
+              )}
+              {configuredDevices.includes("note") && (
+                <TabsContent value="note">
+                  <PicksGrid deviceType="note" />
+                </TabsContent>
+              )}
+            </Tabs>
+          ) : (
+            <PicksGrid deviceType={configuredDevices[0] as DeviceType} />
           )}
-          {configuredDevices.includes("note") && (
-            <TabsContent value="note">
-              <PicksGrid deviceType="note" />
-            </TabsContent>
-          )}
-        </Tabs>
-      ) : (
-        <PicksGrid deviceType={configuredDevices[0] as DeviceType} />
-      )}
+        </PageSection>
+      </PageCard>
     </PageLayout>
   );
 }

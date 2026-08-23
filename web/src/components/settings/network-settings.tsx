@@ -4,11 +4,6 @@ import {
   Badge,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -20,6 +15,7 @@ import {
   Label,
   List,
   ListItem,
+  PageSection,
   Stack,
   Text,
 } from "@fiestaboard/ui";
@@ -145,19 +141,18 @@ export function NetworkSettings() {
   return (
     <>
       {/* ── Current connection ─────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            {isConnected ? (
-              <Wifi className="h-4 w-4 text-emerald-600" />
-            ) : (
-              <WifiOff className="h-4 w-4 text-muted-foreground" />
-            )}
-            {t("currentConnection")}
-          </CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <PageSection
+        icon={
+          isConnected ? (
+            <Wifi className="text-emerald-600" />
+          ) : (
+            <WifiOff className="text-muted-foreground" />
+          )
+        }
+        title={t("currentConnection")}
+        description={t("description")}
+        contentClassName="space-y-3"
+      >
           {statusQuery.isLoading ? (
             <Spinner className="text-muted-foreground" label={tCommon("loading")} />
           ) : !isConnected ? (
@@ -222,24 +217,19 @@ export function NetworkSettings() {
               </Button>
             )}
           </Flex>
-        </CardContent>
-      </Card>
+      </PageSection>
 
       {/* ── Available networks ─────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <Flex align="center" justify="between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Wifi className="h-4 w-4" />
-              {t("availableNetworks")}
-            </CardTitle>
-            <Button size="sm" variant="ghost" onClick={handleScan} disabled={scanning}>
-              {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-              {scanning ? t("scanning") : t("rescan")}
-            </Button>
-          </Flex>
-        </CardHeader>
-        <CardContent>
+      <PageSection
+        icon={<Wifi />}
+        title={t("availableNetworks")}
+        action={
+          <Button size="sm" variant="ghost" onClick={handleScan} disabled={scanning}>
+            {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            {scanning ? t("scanning") : t("rescan")}
+          </Button>
+        }
+      >
           {networks.length === 0 && !scanning ? (
             <Text tone="muted">{t("noNetworksFound")}</Text>
           ) : (
@@ -278,15 +268,10 @@ export function NetworkSettings() {
               ))}
             </List>
           )}
-        </CardContent>
-      </Card>
+      </PageSection>
 
       {/* ── Saved networks ─────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("savedNetworks")}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <PageSection title={t("savedNetworks")}>
           {savedQuery.isLoading ? (
             <Spinner className="text-muted-foreground" label={tCommon("loading")} />
           ) : !savedQuery.data || savedQuery.data.length === 0 ? (
@@ -311,8 +296,7 @@ export function NetworkSettings() {
               ))}
             </List>
           )}
-        </CardContent>
-      </Card>
+      </PageSection>
 
       {/* ── Connect dialog ─────────────────────────────────────────────── */}
       <Dialog

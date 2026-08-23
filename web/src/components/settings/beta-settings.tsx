@@ -3,11 +3,6 @@
 import {
   Badge,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -15,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   Flex,
+  PageSection,
   Skeleton,
   Stack,
   Switch,
@@ -109,17 +105,9 @@ export function BetaSettings() {
 
   if (isLoading || !data) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <FlaskConical className="h-4 w-4" />
-            {t("title")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-16 w-full" />
-        </CardContent>
-      </Card>
+      <PageSection icon={<FlaskConical />} title={t("title")}>
+        <Skeleton className="h-16 w-full" />
+      </PageSection>
     );
   }
 
@@ -130,18 +118,19 @@ export function BetaSettings() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <FlaskConical className="h-4 w-4" />
+      <PageSection
+        icon={<FlaskConical />}
+        title={
+          <>
             {t("title")}
             <Badge variant="outline" className="ml-1 text-[10px] uppercase tracking-wide">
               {t("betaBadge")}
             </Badge>
-          </CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          </>
+        }
+        description={t("description")}
+        contentClassName="space-y-4"
+      >
           <Flex align="start" justify="between" gap="4" className="rounded-md border p-4">
             <Stack gap="1">
               <Flex align="center" gap="2">
@@ -204,8 +193,7 @@ export function BetaSettings() {
               aria-label={t("transitionsLabel")}
             />
           </Flex>
-        </CardContent>
-      </Card>
+      </PageSection>
 
       <Dialog open={restartPrompt !== null} onOpenChange={(open) => !open && !restarting && setRestartPrompt(null)}>
         <DialogContent>

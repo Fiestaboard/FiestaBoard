@@ -4,17 +4,13 @@ import {
   Badge as BadgeUI,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
   Flex,
   Grid,
   Label,
+  PageSection,
   Select,
   SelectContent,
   SelectGroup,
@@ -584,376 +580,368 @@ export function DisplaySettings() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-4 w-48" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-20 w-full" />
-        </CardContent>
-      </Card>
+      <PageSection>
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="mt-2 h-4 w-48" />
+        <Skeleton className="mt-4 h-20 w-full" />
+      </PageSection>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Monitor className="h-4 w-4" />
-          {t("title")}
-        </CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Stack gap="3">
-          {boards.map((board) => {
-            const isPaused = board.paused === true;
-            const apiMode = board.api_mode ?? "local";
-            const hasLocalKey = board.local_api_key === "***" || Boolean(board.local_api_key);
-            const hasCloudKey = board.cloud_key === "***" || Boolean(board.cloud_key);
-            const hasHost = Boolean(board.host);
-            // Same rule as BoardConnectionForm: arrays with saved local tiles
-            // connect via assigned tiles, token-only arrays via the Cloud
-            // token (even in local mode — the backend's cloud fallback),
-            // flagship/note via the selected API mode's credentials.
-            const isConnected = isNoteArray(board.device_type)
-              ? isArrayConfigured(board)
-              : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
+    <PageSection
+      icon={<Monitor />}
+      title={t("title")}
+      description={t("description")}
+      contentClassName="space-y-4"
+    >
+      <Stack gap="3">
+        {boards.map((board) => {
+          const isPaused = board.paused === true;
+          const apiMode = board.api_mode ?? "local";
+          const hasLocalKey = board.local_api_key === "***" || Boolean(board.local_api_key);
+          const hasCloudKey = board.cloud_key === "***" || Boolean(board.cloud_key);
+          const hasHost = Boolean(board.host);
+          // Same rule as BoardConnectionForm: arrays with saved local tiles
+          // connect via assigned tiles, token-only arrays via the Cloud
+          // token (even in local mode — the backend's cloud fallback),
+          // flagship/note via the selected API mode's credentials.
+          const isConnected = isNoteArray(board.device_type)
+            ? isArrayConfigured(board)
+            : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
 
-            return (
-              <Collapsible
-                key={board.id}
-                data-testid="board-card"
-                data-paused={isPaused ? "true" : undefined}
-                className={`rounded-lg border overflow-hidden ${isPaused ? "border-amber-500/60 bg-amber-500/5" : ""}`}
-              >
-                <CollapsibleTrigger className="flex items-center gap-3 p-3 w-full text-left hover:bg-muted/40 transition-colors [&[data-state=open]>div:first-child>svg:first-child]:hidden [&[data-state=closed]>div:first-child>svg:last-child]:hidden">
-                  <Box className="flex-shrink-0 text-muted-foreground">
-                    <ChevronRight className="h-4 w-4" />
-                    <ChevronDown className="h-4 w-4" />
-                  </Box>
-                  <Box className="flex-1 min-w-0">
-                    <Text weight="medium" className="truncate">
-                      {board.name || t("unnamedBoard")}
+          return (
+            <Collapsible
+              key={board.id}
+              data-testid="board-card"
+              data-paused={isPaused ? "true" : undefined}
+              className={`rounded-lg border overflow-hidden ${isPaused ? "border-amber-500/60 bg-amber-500/5" : ""}`}
+            >
+              <CollapsibleTrigger className="flex items-center gap-3 p-3 w-full text-left hover:bg-muted/40 transition-colors [&[data-state=open]>div:first-child>svg:first-child]:hidden [&[data-state=closed]>div:first-child>svg:last-child]:hidden">
+                <Box className="flex-shrink-0 text-muted-foreground">
+                  <ChevronRight className="h-4 w-4" />
+                  <ChevronDown className="h-4 w-4" />
+                </Box>
+                <Box className="flex-1 min-w-0">
+                  <Text weight="medium" className="truncate">
+                    {board.name || t("unnamedBoard")}
+                  </Text>
+                  <Flex align="center" gap="2" className="text-xs text-muted-foreground">
+                    <Text as="span" size="xs" className="capitalize">
+                      {board.device_type}
                     </Text>
-                    <Flex align="center" gap="2" className="text-xs text-muted-foreground">
-                      <Text as="span" size="xs" className="capitalize">
-                        {board.device_type}
-                      </Text>
-                      <Text as="span" size="xs" tone="muted">
-                        •
-                      </Text>
-                      <BoardSizeIndicator
-                        deviceType={board.device_type}
-                        notesWide={board.notes_wide}
-                        notesTall={board.notes_tall}
-                      />
-                      <Text as="span" size="xs" tone="muted">
-                        •
-                      </Text>
-                      <Box
-                        className="h-3 w-3 rounded border"
-                        style={{
-                          backgroundColor:
-                            board.board_color === "white"
-                              ? "var(--color-board-surface-light)"
-                              : "var(--color-board-surface-dark)",
-                        }}
-                      />
-                    </Flex>
-                  </Box>
-                  <Flex align="center" gap="1.5" className="flex-shrink-0">
-                    {isPaused && (
-                      <BadgeUI
-                        variant="default"
-                        className="text-[10px] h-5 bg-amber-500 text-white"
-                        data-testid="board-paused-badge"
-                        title={t("pause.tooltip")}
-                      >
-                        <Pause className="h-2.5 w-2.5 mr-0.5" />
-                        {t("pause.badge")}
-                      </BadgeUI>
-                    )}
-                    {isConnected ? (
-                      <BadgeUI variant="default" className="text-[10px] h-5 bg-board-green">
-                        <Check className="h-2.5 w-2.5 mr-0.5" />
-                        {t("connected")}
-                      </BadgeUI>
-                    ) : (
-                      <BadgeUI variant="destructive" className="text-[10px] h-5">
-                        <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                        {t("notConfigured")}
-                      </BadgeUI>
-                    )}
+                    <Text as="span" size="xs" tone="muted">
+                      •
+                    </Text>
+                    <BoardSizeIndicator
+                      deviceType={board.device_type}
+                      notesWide={board.notes_wide}
+                      notesTall={board.notes_tall}
+                    />
+                    <Text as="span" size="xs" tone="muted">
+                      •
+                    </Text>
+                    <Box
+                      className="h-3 w-3 rounded border"
+                      style={{
+                        backgroundColor:
+                          board.board_color === "white"
+                            ? "var(--color-board-surface-light)"
+                            : "var(--color-board-surface-dark)",
+                      }}
+                    />
                   </Flex>
-                </CollapsibleTrigger>
-
-                <CollapsibleContent>
-                  <Stack gap="3" className="border-t px-4 pb-4 pt-3">
-                    {/* Pause / Resume row (issue #970) */}
-                    <Flex
-                      align="center"
-                      justify="between"
-                      className={`rounded-md border px-3 py-2 ${
-                        isPaused ? "border-amber-500/60 bg-amber-500/10" : "border-transparent bg-muted/30"
-                      }`}
+                </Box>
+                <Flex align="center" gap="1.5" className="flex-shrink-0">
+                  {isPaused && (
+                    <BadgeUI
+                      variant="default"
+                      className="text-[10px] h-5 bg-amber-500 text-white"
+                      data-testid="board-paused-badge"
+                      title={t("pause.tooltip")}
                     >
-                      <Flex align="start" gap="2" className="min-w-0">
-                        <Pause
-                          className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${
-                            isPaused ? "text-amber-600" : "text-muted-foreground"
-                          }`}
-                        />
-                        <Box className="min-w-0">
-                          <Text size="xs" weight="medium">
-                            {isPaused ? t("pause.resumeToggle") : t("pause.toggle")}
-                          </Text>
-                          <Text tone="muted" className="text-[11px]">
-                            {t("pause.tooltip")}
-                          </Text>
-                        </Box>
-                      </Flex>
-                      <Switch
-                        checked={isPaused}
-                        onCheckedChange={(checked) => handleTogglePaused(board.id, checked)}
-                        aria-label={isPaused ? t("pause.resumeToggle") : t("pause.toggle")}
-                        data-testid="board-pause-switch"
-                      />
-                    </Flex>
+                      <Pause className="h-2.5 w-2.5 mr-0.5" />
+                      {t("pause.badge")}
+                    </BadgeUI>
+                  )}
+                  {isConnected ? (
+                    <BadgeUI variant="default" className="text-[10px] h-5 bg-board-green">
+                      <Check className="h-2.5 w-2.5 mr-0.5" />
+                      {t("connected")}
+                    </BadgeUI>
+                  ) : (
+                    <BadgeUI variant="destructive" className="text-[10px] h-5">
+                      <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                      {t("notConfigured")}
+                    </BadgeUI>
+                  )}
+                </Flex>
+              </CollapsibleTrigger>
 
-                    {/* Type + Color row */}
-                    <Stack gap="2">
-                      <Flex align="center" gap="4" wrap>
-                        <Flex align="center" gap="2">
-                          <Text as="span" tone="muted" className="text-[11px]">
-                            {t("typeLabel")}
-                          </Text>
-                          <Select value={currentConfigValue(board)} onValueChange={(v) => handleConfigChange(board, v)}>
-                            <SelectTrigger className="h-7 w-[200px] text-xs" aria-label={t("deviceTypeAriaLabel")}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                <SelectLabel>{t("deviceGroupLabel")}</SelectLabel>
-                                <SelectItem value="flagship">{t("flagshipLabel")}</SelectItem>
-                                <SelectItem value="note">{t("noteLabel")}</SelectItem>
-                              </SelectGroup>
-                              <SelectGroup>
-                                <SelectLabel>{t("noteArrayGroupLabel")}</SelectLabel>
-                                {NOTE_ARRAY_PRESETS.map((p) => (
-                                  <SelectItem key={p.id} value={`preset:${p.id}`}>
-                                    {t(`presets.${p.id}`)}
-                                  </SelectItem>
-                                ))}
-                                <SelectItem value="custom">{t("customLabel")}</SelectItem>
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
+              <CollapsibleContent>
+                <Stack gap="3" className="border-t px-4 pb-4 pt-3">
+                  {/* Pause / Resume row (issue #970) */}
+                  <Flex
+                    align="center"
+                    justify="between"
+                    className={`rounded-md border px-3 py-2 ${
+                      isPaused ? "border-amber-500/60 bg-amber-500/10" : "border-transparent bg-muted/30"
+                    }`}
+                  >
+                    <Flex align="start" gap="2" className="min-w-0">
+                      <Pause
+                        className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${
+                          isPaused ? "text-amber-600" : "text-muted-foreground"
+                        }`}
+                      />
+                      <Box className="min-w-0">
+                        <Text size="xs" weight="medium">
+                          {isPaused ? t("pause.resumeToggle") : t("pause.toggle")}
+                        </Text>
+                        <Text tone="muted" className="text-[11px]">
+                          {t("pause.tooltip")}
+                        </Text>
+                      </Box>
+                    </Flex>
+                    <Switch
+                      checked={isPaused}
+                      onCheckedChange={(checked) => handleTogglePaused(board.id, checked)}
+                      aria-label={isPaused ? t("pause.resumeToggle") : t("pause.toggle")}
+                      data-testid="board-pause-switch"
+                    />
+                  </Flex>
+
+                  {/* Type + Color row */}
+                  <Stack gap="2">
+                    <Flex align="center" gap="4" wrap>
+                      <Flex align="center" gap="2">
+                        <Text as="span" tone="muted" className="text-[11px]">
+                          {t("typeLabel")}
+                        </Text>
+                        <Select value={currentConfigValue(board)} onValueChange={(v) => handleConfigChange(board, v)}>
+                          <SelectTrigger className="h-7 w-[200px] text-xs" aria-label={t("deviceTypeAriaLabel")}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectLabel>{t("deviceGroupLabel")}</SelectLabel>
+                              <SelectItem value="flagship">{t("flagshipLabel")}</SelectItem>
+                              <SelectItem value="note">{t("noteLabel")}</SelectItem>
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel>{t("noteArrayGroupLabel")}</SelectLabel>
+                              {NOTE_ARRAY_PRESETS.map((p) => (
+                                <SelectItem key={p.id} value={`preset:${p.id}`}>
+                                  {t(`presets.${p.id}`)}
+                                </SelectItem>
+                              ))}
+                              <SelectItem value="custom">{t("customLabel")}</SelectItem>
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </Flex>
+                      <Flex align="center" gap="2">
+                        <Text as="span" tone="muted" className="text-[11px]">
+                          {t("colorLabel")}
+                        </Text>
+                        <Flex gap="2">
+                          <button
+                            onClick={() => handleUpdateBoard(board.id, { board_color: "black" })}
+                            aria-label={t("blackAriaLabel")}
+                            aria-pressed={board.board_color === "black"}
+                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                              board.board_color === "black"
+                                ? "border-primary ring-2 ring-primary/30"
+                                : "border-border hover:border-muted-foreground"
+                            }`}
+                          />
+                          <button
+                            onClick={() => handleUpdateBoard(board.id, { board_color: "white" })}
+                            aria-label={t("whiteAriaLabel")}
+                            aria-pressed={board.board_color === "white"}
+                            className={`h-6 w-6 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                              board.board_color === "white"
+                                ? "border-primary ring-2 ring-primary/30"
+                                : "border-border hover:border-muted-foreground"
+                            }`}
+                          />
                         </Flex>
+                      </Flex>
+                      {/* Code-62 flap (issue #1657). Flagship only: Note
+                          hardware has only ever carried the heart, so there
+                          is nothing for its owner to tell us. */}
+                      {board.device_type === "flagship" && (
                         <Flex align="center" gap="2">
                           <Text as="span" tone="muted" className="text-[11px]">
-                            {t("colorLabel")}
+                            {t("code62Label")}
                           </Text>
                           <Flex gap="2">
-                            <button
-                              onClick={() => handleUpdateBoard(board.id, { board_color: "black" })}
-                              aria-label={t("blackAriaLabel")}
-                              aria-pressed={board.board_color === "black"}
-                              className={`h-6 w-6 rounded-full border-2 bg-board-surface-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                                board.board_color === "black"
-                                  ? "border-primary ring-2 ring-primary/30"
-                                  : "border-border hover:border-muted-foreground"
-                              }`}
-                            />
-                            <button
-                              onClick={() => handleUpdateBoard(board.id, { board_color: "white" })}
-                              aria-label={t("whiteAriaLabel")}
-                              aria-pressed={board.board_color === "white"}
-                              className={`h-6 w-6 rounded-full border-2 bg-board-surface-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                                board.board_color === "white"
-                                  ? "border-primary ring-2 ring-primary/30"
-                                  : "border-border hover:border-muted-foreground"
-                              }`}
-                            />
+                            {CODE62_CHOICES.map(({ value, glyph, labelKey }) => {
+                              const selected = (board.code62_glyph ?? "degree") === value;
+                              return (
+                                <button
+                                  key={value}
+                                  onClick={() => handleUpdateBoard(board.id, { code62_glyph: value })}
+                                  aria-label={t(labelKey)}
+                                  aria-pressed={selected}
+                                  data-testid={`board-code62-${value}`}
+                                  className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                                    selected
+                                      ? "border-primary ring-2 ring-primary/30"
+                                      : "border-border hover:border-muted-foreground"
+                                  }`}
+                                >
+                                  <Text as="span" aria-hidden="true">
+                                    {glyph}
+                                  </Text>
+                                </button>
+                              );
+                            })}
                           </Flex>
                         </Flex>
-                        {/* Code-62 flap (issue #1657). Flagship only: Note
-                            hardware has only ever carried the heart, so there
-                            is nothing for its owner to tell us. */}
-                        {board.device_type === "flagship" && (
-                          <Flex align="center" gap="2">
-                            <Text as="span" tone="muted" className="text-[11px]">
-                              {t("code62Label")}
+                      )}
+                    </Flex>
+
+                    {board.device_type === "flagship" && (
+                      <Text as="p" tone="muted" className="text-[11px]">
+                        {t("code62Help")}
+                      </Text>
+                    )}
+
+                    {/* Custom W×H inputs (note arrays only) */}
+                    {(customOpen[board.id] || currentConfigValue(board) === "custom") && (
+                      <Stack gap="1">
+                        <Flex align="end" gap="2">
+                          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                            {t("notesWideLabel")}
+                            <input
+                              type="number"
+                              min={1}
+                              max={MAX_NOTES_PER_AXIS}
+                              value={board.notes_wide ?? 1}
+                              onChange={(e) => handleCustomDim(board, "notes_wide", e.target.value)}
+                              className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
+                            />
+                          </label>
+                          <Text as="span" size="xs" tone="muted" className="pb-1.5">
+                            ×
+                          </Text>
+                          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+                            {t("notesTallLabel")}
+                            <input
+                              type="number"
+                              min={1}
+                              max={MAX_NOTES_PER_AXIS}
+                              value={board.notes_tall ?? 1}
+                              onChange={(e) => handleCustomDim(board, "notes_tall", e.target.value)}
+                              className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
+                            />
+                          </label>
+                        </Flex>
+                        {dimError[board.id] && (
+                          <Text role="alert" tone="destructive" className="text-[10px]">
+                            {dimError[board.id]}
+                          </Text>
+                        )}
+                      </Stack>
+                    )}
+
+                    {/* Auto-detect from board — not offered for local-mode
+                        arrays: their shape is defined by assigning tiles, so
+                        a local read could only echo the configured W×H back.
+                        Detection is meaningful via the Cloud API (which
+                        knows the array's real shape) and for single boards. */}
+                    {!(isNoteArray(board.device_type) && (board.api_mode ?? "cloud") === "local") && (
+                      <Stack gap="1">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="h-7 text-[11px]"
+                          disabled={detectingBoardId === board.id}
+                          onClick={() => handleAutoDetect(board)}
+                        >
+                          {detectingBoardId === board.id ? (
+                            <>
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              {t("detecting")}
+                            </>
+                          ) : (
+                            t("autoDetect")
+                          )}
+                        </Button>
+                        {detectError[board.id] && (
+                          <Flex role="alert" align="center" gap="1.5" className="text-destructive text-[10px]">
+                            <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                            <Text as="span" tone="destructive" className="text-[10px]">
+                              {detectError[board.id]}
                             </Text>
-                            <Flex gap="2">
-                              {CODE62_CHOICES.map(({ value, glyph, labelKey }) => {
-                                const selected = (board.code62_glyph ?? "degree") === value;
-                                return (
-                                  <button
-                                    key={value}
-                                    onClick={() => handleUpdateBoard(board.id, { code62_glyph: value })}
-                                    aria-label={t(labelKey)}
-                                    aria-pressed={selected}
-                                    data-testid={`board-code62-${value}`}
-                                    className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-                                      selected
-                                        ? "border-primary ring-2 ring-primary/30"
-                                        : "border-border hover:border-muted-foreground"
-                                    }`}
-                                  >
-                                    <Text as="span" aria-hidden="true">
-                                      {glyph}
-                                    </Text>
-                                  </button>
-                                );
-                              })}
-                            </Flex>
                           </Flex>
                         )}
-                      </Flex>
-
-                      {board.device_type === "flagship" && (
-                        <Text as="p" tone="muted" className="text-[11px]">
-                          {t("code62Help")}
-                        </Text>
-                      )}
-
-                      {/* Custom W×H inputs (note arrays only) */}
-                      {(customOpen[board.id] || currentConfigValue(board) === "custom") && (
-                        <Stack gap="1">
-                          <Flex align="end" gap="2">
-                            <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                              {t("notesWideLabel")}
-                              <input
-                                type="number"
-                                min={1}
-                                max={MAX_NOTES_PER_AXIS}
-                                value={board.notes_wide ?? 1}
-                                onChange={(e) => handleCustomDim(board, "notes_wide", e.target.value)}
-                                className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
-                              />
-                            </label>
-                            <Text as="span" size="xs" tone="muted" className="pb-1.5">
-                              ×
-                            </Text>
-                            <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                              {t("notesTallLabel")}
-                              <input
-                                type="number"
-                                min={1}
-                                max={MAX_NOTES_PER_AXIS}
-                                value={board.notes_tall ?? 1}
-                                onChange={(e) => handleCustomDim(board, "notes_tall", e.target.value)}
-                                className="h-8 w-16 px-2 text-xs rounded-md border bg-background"
-                              />
-                            </label>
-                          </Flex>
-                          {dimError[board.id] && (
-                            <Text role="alert" tone="destructive" className="text-[10px]">
-                              {dimError[board.id]}
-                            </Text>
-                          )}
-                        </Stack>
-                      )}
-
-                      {/* Auto-detect from board — not offered for local-mode
-                          arrays: their shape is defined by assigning tiles, so
-                          a local read could only echo the configured W×H back.
-                          Detection is meaningful via the Cloud API (which
-                          knows the array's real shape) and for single boards. */}
-                      {!(isNoteArray(board.device_type) && (board.api_mode ?? "cloud") === "local") && (
-                        <Stack gap="1">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            className="h-7 text-[11px]"
-                            disabled={detectingBoardId === board.id}
-                            onClick={() => handleAutoDetect(board)}
-                          >
-                            {detectingBoardId === board.id ? (
-                              <>
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                {t("detecting")}
-                              </>
-                            ) : (
-                              t("autoDetect")
-                            )}
-                          </Button>
-                          {detectError[board.id] && (
-                            <Flex role="alert" align="center" gap="1.5" className="text-destructive text-[10px]">
-                              <AlertCircle className="h-3 w-3 flex-shrink-0" />
-                              <Text as="span" tone="destructive" className="text-[10px]">
-                                {detectError[board.id]}
-                              </Text>
-                            </Flex>
-                          )}
-                        </Stack>
-                      )}
-                    </Stack>
-
-                    {/* Connection section */}
-                    <Box className="border-t pt-3">
-                      <BoardConnectionForm board={board} onUpdate={handleUpdateBoard} />
-                    </Box>
-
-                    {/* Remove board - bottom */}
-                    <Box className="border-t pt-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-[11px] text-muted-foreground hover:text-destructive h-7 px-2"
-                        onClick={() => handleRemoveBoard(board.id)}
-                        disabled={boards.length <= 1}
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        {t("removeBoard")}
-                      </Button>
-                    </Box>
+                      </Stack>
+                    )}
                   </Stack>
-                </CollapsibleContent>
-              </Collapsible>
-            );
-          })}
-        </Stack>
 
-        {/* Add Board */}
-        <Box className="pt-2">
-          {!showTypePicker ? (
-            <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowTypePicker(true)}>
-              <Plus className="h-3 w-3 mr-1" />
-              {t("addBoard")}
+                  {/* Connection section */}
+                  <Box className="border-t pt-3">
+                    <BoardConnectionForm board={board} onUpdate={handleUpdateBoard} />
+                  </Box>
+
+                  {/* Remove board - bottom */}
+                  <Box className="border-t pt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-[11px] text-muted-foreground hover:text-destructive h-7 px-2"
+                      onClick={() => handleRemoveBoard(board.id)}
+                      disabled={boards.length <= 1}
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      {t("removeBoard")}
+                    </Button>
+                  </Box>
+                </Stack>
+              </CollapsibleContent>
+            </Collapsible>
+          );
+        })}
+      </Stack>
+
+      {/* Add Board */}
+      <Box className="pt-2">
+        {!showTypePicker ? (
+          <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowTypePicker(true)}>
+            <Plus className="h-3 w-3 mr-1" />
+            {t("addBoard")}
+          </Button>
+        ) : (
+          <Flex align="center" gap="2">
+            <Text as="span" size="xs" tone="muted">
+              {t("selectType")}
+            </Text>
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("flagship")}>
+              <Monitor className="h-3 w-3 mr-1" />
+              {t("flagshipLabel")}
             </Button>
-          ) : (
-            <Flex align="center" gap="2">
-              <Text as="span" size="xs" tone="muted">
-                {t("selectType")}
-              </Text>
-              <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("flagship")}>
-                <Monitor className="h-3 w-3 mr-1" />
-                {t("flagshipLabel")}
-              </Button>
-              <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("note")}>
-                <Smartphone className="h-3 w-3 mr-1" />
-                {t("noteLabel")}
-              </Button>
-              <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("note_array")}>
-                <LayoutGrid className="h-3 w-3 mr-1" />
-                {t("noteArrayLabel")}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-muted-foreground"
-                onClick={() => setShowTypePicker(false)}
-              >
-                {tCommon("cancel")}
-              </Button>
-            </Flex>
-          )}
-        </Box>
-      </CardContent>
-    </Card>
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("note")}>
+              <Smartphone className="h-3 w-3 mr-1" />
+              {t("noteLabel")}
+            </Button>
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => handleAddBoard("note_array")}>
+              <LayoutGrid className="h-3 w-3 mr-1" />
+              {t("noteArrayLabel")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground"
+              onClick={() => setShowTypePicker(false)}
+            >
+              {tCommon("cancel")}
+            </Button>
+          </Flex>
+        )}
+      </Box>
+    </PageSection>
   );
 }

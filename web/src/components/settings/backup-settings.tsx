@@ -10,13 +10,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Flex,
   Label,
+  PageSection,
   Stack,
   Switch,
   Text,
@@ -130,55 +126,51 @@ export function BackupSettings() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            {t("cardTitle")}
-          </CardTitle>
-          <CardDescription>{t("cardDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Flex direction="col" gap="3" className="sm:flex-row">
-            <Button variant="default" className="gap-2" onClick={handleExport} disabled={importMutation.isPending}>
-              <Download className="h-4 w-4" />
-              {t("exportButton")}
-            </Button>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importMutation.isPending}
-            >
-              {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {t("importButton")}
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              onChange={handleFileSelected}
-            />
-          </Flex>
+      <PageSection
+        icon={<Database />}
+        title={t("cardTitle")}
+        description={t("cardDescription")}
+      contentClassName="space-y-6"
+      >
+        <Flex direction="col" gap="3" className="sm:flex-row">
+          <Button variant="default" className="gap-2" onClick={handleExport} disabled={importMutation.isPending}>
+            <Download className="h-4 w-4" />
+            {t("exportButton")}
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importMutation.isPending}
+          >
+            {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {t("importButton")}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={handleFileSelected}
+          />
+        </Flex>
 
-          <Flex align="start" gap="3" className="rounded-md border border-border/60 bg-muted/40 p-3">
-            <Switch id="backup-reinstall-plugins" checked={reinstallPlugins} onCheckedChange={setReinstallPlugins} />
-            <Stack gap="1">
-              <Label htmlFor="backup-reinstall-plugins" className="cursor-pointer">
-                {t("reinstallPluginsLabel")}
-              </Label>
-              <Text size="xs" tone="muted">
-                {t("reinstallPluginsDescription")}
-              </Text>
-            </Stack>
-          </Flex>
+        <Flex align="start" gap="3" className="rounded-md border border-border/60 bg-muted/40 p-3">
+          <Switch id="backup-reinstall-plugins" checked={reinstallPlugins} onCheckedChange={setReinstallPlugins} />
+          <Stack gap="1">
+            <Label htmlFor="backup-reinstall-plugins" className="cursor-pointer">
+              {t("reinstallPluginsLabel")}
+            </Label>
+            <Text size="xs" tone="muted">
+              {t("reinstallPluginsDescription")}
+            </Text>
+          </Stack>
+        </Flex>
 
-          <Text size="xs" tone="muted">
-            {t("sensitiveNote")}
-          </Text>
-        </CardContent>
-      </Card>
+        <Text size="xs" tone="muted">
+          {t("sensitiveNote")}
+        </Text>
+      </PageSection>
 
       <AlertDialog
         open={pending !== null}

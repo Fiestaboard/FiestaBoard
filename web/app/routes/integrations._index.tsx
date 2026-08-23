@@ -36,8 +36,10 @@ import {
   Heading,
   Input,
   Label,
+  PageCard,
   PageHeader,
   PageLayout,
+  PageSection,
   PageToolbar,
   PluginCard,
   PluginCategoryBadge,
@@ -2309,6 +2311,12 @@ export default function IntegrationsPage() {
 
   return (
     <PageLayout>
+      {/* Tabs wraps the card rather than sitting inside it: PageCard styles its
+          DIRECT children as blocks, so the toolbar and the tab panels have to be
+          direct children to get the inset and the dividers. Tabs is only a
+          context provider and a div, so hoisting it changes nothing else. */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <PageCard>
       <PageHeader icon={Puzzle} title={t("title")} description={t("description")}>
         <Flex className="mt-3 justify-start sm:justify-end">
           <Button
@@ -2324,8 +2332,6 @@ export default function IntegrationsPage() {
         </Flex>
       </PageHeader>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
         {/* PageToolbar via its children escape hatch, not its left/right slots:
             the search field has to take whatever track the tab strip leaves,
             and a flex split cannot express "fill the rest". The toolbar
@@ -2399,6 +2405,8 @@ export default function IntegrationsPage() {
             )}
           </Box>
         </PageToolbar>
+
+        <PageSection>
 
         {/* ── Installed Tab ── */}
         <TabsContent value="installed" className="mt-0">
@@ -2659,6 +2667,8 @@ export default function IntegrationsPage() {
             </Card>
           )}
         </TabsContent>
+        </PageSection>
+      </PageCard>
       </Tabs>
 
       {gitInstallDialog}

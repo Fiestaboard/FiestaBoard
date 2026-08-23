@@ -1,13 +1,9 @@
 "use client";
 
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Input,
   Label,
+  PageSection,
   Skeleton,
   Stack,
 } from "@fiestaboard/ui";
@@ -53,31 +49,26 @@ export function InstanceNameCard() {
   }, [instanceName, allSettings?.general?.instance_name, updateGeneralMutation]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Tag className="h-4 w-4" />
-          {t("instanceNameTitle")}
-        </CardTitle>
-        <CardDescription>{t("instanceNameDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-10 w-full max-w-sm" />
-        ) : (
-          <Stack gap="2" className="max-w-sm">
-            <Label htmlFor="instance-name">{t("instanceNameTitle")}</Label>
-            <Input
-              id="instance-name"
-              value={instanceName}
-              onChange={(e) => setInstanceName(e.target.value)}
-              onBlur={handleBlur}
-              placeholder={t("instanceNamePlaceholder")}
-              maxLength={50}
-            />
-          </Stack>
-        )}
-      </CardContent>
-    </Card>
+    <PageSection
+      icon={<Tag />}
+      title={t("instanceNameTitle")}
+      description={t("instanceNameDescription")}
+    >
+      {isLoading ? (
+        <Skeleton className="h-10 w-full max-w-sm" />
+      ) : (
+        <Stack gap="2" className="max-w-sm">
+          <Label htmlFor="instance-name">{t("instanceNameTitle")}</Label>
+          <Input
+            id="instance-name"
+            value={instanceName}
+            onChange={(e) => setInstanceName(e.target.value)}
+            onBlur={handleBlur}
+            placeholder={t("instanceNamePlaceholder")}
+            maxLength={50}
+          />
+        </Stack>
+      )}
+    </PageSection>
   );
 }

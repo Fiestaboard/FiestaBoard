@@ -18,8 +18,10 @@ import {
   Flex,
   Input,
   Label,
+  PageCard,
   PageHeader,
   PageLayout,
+  PageSection,
   PageToolbar,
   Select,
   SelectContent,
@@ -898,6 +900,7 @@ export default function CollectionsPage() {
 
   return (
     <PageLayout>
+      <PageCard>
       <PageHeader icon={GalleryHorizontalEnd} title={t("title")} description={t("description")} />
       <PageToolbar
         right={
@@ -916,10 +919,11 @@ export default function CollectionsPage() {
         }
       />
 
-      {/* Collections list */}
+      {/* Collections list. The tiles below keep their borders — a collection
+          card is a thing you open, so its border is the click target. */}
+      <PageSection>
       {collections.length === 0 ? (
-        <Card>
-          <CardContent className="py-12">
+        <Box className="py-8">
             <EmptyState
               icon={GalleryHorizontalEnd}
               title={t("noCollectionsTitle")}
@@ -938,8 +942,7 @@ export default function CollectionsPage() {
                 </Button>
               }
             />
-          </CardContent>
-        </Card>
+        </Box>
       ) : (
         <Stack gap="4">
           {collections.map((collection, idx) => (
@@ -1005,6 +1008,8 @@ export default function CollectionsPage() {
           ))}
         </Stack>
       )}
+      </PageSection>
+      </PageCard>
 
       {/* Form Sheet */}
       <Sheet
