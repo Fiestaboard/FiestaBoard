@@ -30,7 +30,9 @@ The Routes API requires billing to be enabled:
 
 1. Go to **Billing** in Google Cloud Console
 2. Link a billing account to your project
-3. Google provides a **$200/month free credit**. Typical FiestaBoard usage costs well under this
+3. Check the current [Routes API pricing and free tier](https://developers.google.com/maps/documentation/routes/usage-and-billing) before you start. Google Maps Platform bills the Routes API on its own per-API free monthly allotment, so confirm the terms that apply to your account
+
+> **Note:** Google retired its flat $200/month Maps Platform credit in 2025 in favor of per-API free tiers. Pricing and free-tier limits change over time — treat Google's billing page as the source of truth, not this doc.
 
 ### 3. Create an API Key
 
@@ -85,13 +87,14 @@ Using coordinates is faster and avoids geocoding errors. You can find coordinate
 
 ## Costs
 
-| Item | Price |
-|------|-------|
-| Monthly free credit | $200 |
-| Per route request | ~$0.005 |
-| Typical monthly cost | Well under free credit |
+The Routes API is billed per request. With 4 routes updating every 5 minutes, you'd make about 35,000 requests/month.
 
-With 4 routes updating every 5 minutes, you'd make about 35,000 requests/month, well within the free credit.
+| Item | Notes |
+|------|-------|
+| Per route request | Billed per request — see Google's [Routes API pricing](https://developers.google.com/maps/documentation/routes/usage-and-billing) |
+| Free tier | Google applies a per-API free monthly allotment to the Routes API — check your account's current limit |
+
+> **Note:** Estimate your monthly cost from your route count and refresh interval against Google's current Routes API rates and free tier. Google's pricing changes over time, so this doc doesn't hardcode a figure.
 
 ## Troubleshooting
 
