@@ -88,7 +88,7 @@ FiestaBoard includes **FiestaBot**, an AI chat assistant that can draft
 and edit board pages through natural conversation. Click **AI Assistant**
 in the sidebar (the Sparkles icon) to open the panel.
 
-<ThemedScreenshot src="/img/guides/ai-chat-panel.png" alt="FiestaBot AI chat panel open alongside the page editor" />
+<AppShot name="ai-chat-panel" alt="FiestaBot AI chat panel open alongside the page editor" />
 
 FiestaBoard ships **without any bundled LLM credentials**. You bring
 your own provider, your own API key, and your own model list. Two

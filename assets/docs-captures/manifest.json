@@ -1,6 +1,39 @@
 {
   "version": 1,
   "captures": {
+    "ai-chat-panel": {
+      "file": "ai-chat-panel.html",
+      "wrapperClass": "font-sans antialiased",
+      "vars": {
+        "desktop": {
+          "--mobile-header-height": "0px"
+        },
+        "mobile": {
+          "--mobile-header-height": "0px"
+        }
+      },
+      "capturedAt": {
+        "width": 1280,
+        "height": 800
+      },
+      "viewportSpecific": true
+    },
+    "ai-settings": {
+      "file": "ai-settings.html",
+      "wrapperClass": "font-sans antialiased",
+      "vars": {
+        "desktop": {
+          "--mobile-header-height": "0px"
+        },
+        "mobile": {
+          "--mobile-header-height": "0px"
+        }
+      },
+      "capturedAt": {
+        "width": 1280,
+        "height": 800
+      }
+    },
     "customizable": {
       "file": "customizable.html",
       "wrapperClass": "font-sans antialiased",

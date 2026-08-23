@@ -91,7 +91,7 @@ port — just start your server and click **Test connection**.
 
 ## Configuration
 
-<ThemedScreenshot src="/img/guides/ai-settings.png" alt="AI Providers settings section showing a configured OpenRouter provider with Quick Presets and model list" />
+<AppShot name="ai-settings" alt="AI Providers settings section showing a configured OpenRouter provider with Quick Presets and model list" />
 
 1. Open **Settings → AI Providers**.
 2. Toggle the top switch to **Enabled**.
