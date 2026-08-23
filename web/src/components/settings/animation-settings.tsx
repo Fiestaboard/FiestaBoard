@@ -3,13 +3,13 @@
 import {
   Box,
   FLAP_SPEED_PRESETS,
+  type FlapSpeedPreset,
   Flex,
   Label,
   PageSection,
   Skeleton,
   Stack,
   Text,
-  type FlapSpeedPreset,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Sparkles } from "lucide-react";

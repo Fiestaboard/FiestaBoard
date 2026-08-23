@@ -1,4 +1,4 @@
-import { Code, Heading, PageCard, PageHeader, PageLayout, PageSection, Text } from "@fiestaboard/ui";
+import { Box, Code, Heading, PageCard, PageHeader, PageLayout, PageSection, Text } from "@fiestaboard/ui";
 import { Activity } from "lucide-react";
 
 import { useTranslations } from "@/i18n/translations";
@@ -14,7 +14,7 @@ export default function DebugMonitorPage() {
       <PageCard>
         <PageHeader icon={Activity} title={t("title")} description={t("monitoringRemovedTitle")} />
         <PageSection>
-          <div className="py-8 text-center">
+          <Box className="py-8 text-center">
             <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <Heading level={2} size="lg" className="mb-2">
               {t("monitoringRemovedTitle")}
@@ -22,7 +22,7 @@ export default function DebugMonitorPage() {
             <Text tone="muted" className="max-w-lg mx-auto">
               {t("monitoringRemovedDescription")} <Code>docker logs fiestaboard</Code>
             </Text>
-          </div>
+          </Box>
         </PageSection>
       </PageCard>
     </PageLayout>
