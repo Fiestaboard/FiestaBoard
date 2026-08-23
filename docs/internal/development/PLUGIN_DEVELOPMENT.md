@@ -381,7 +381,7 @@ read, so FiestaBoard falls back to the rendered copies in the root
 `plugin-previews.json` (refreshed by `scripts/sync_plugin_previews.py`). Your
 manifest always wins over that seed once the plugin is installed.
 
-Widths are counted in **tiles, not characters**: a colour marker such as `{66}`
+Widths are counted in **tiles, not characters**: a color marker such as `{66}`
 occupies one flap regardless of how many characters it takes to write, and
 closing tags like `{/green}` occupy none. Content must be literal — a
 `{{variable}}` reference is rejected, because previews render with no plugin
@@ -888,7 +888,7 @@ The `screenshots` field in `manifest.json` makes images programmatically discove
 
 On the docs site (built from the separate [Fiestaboard/fiestaboard.github.io](https://github.com/Fiestaboard/fiestaboard.github.io) repo), **the board itself is no longer a screenshot.** Pages render it live from the `previews` your plugin publishes (see [Board previews](#board-previews)), through a `<BoardShot plugin="your_id" />` component backed by `plugin-previews.json`.
 
-This matters for what you ship: **declare `teaser` and `previews` in your manifest and your documentation draws itself**, in both board colours and every device shape you support, and it updates when you change what the plugin puts on a board. A plugin with no `previews` entry renders nothing there.
+This matters for what you ship: **declare `teaser` and `previews` in your manifest and your documentation draws itself**, in both board colors and every device shape you support, and it updates when you change what the plugin puts on a board. A plugin with no `previews` entry renders nothing there.
 
 Screenshots in `screenshots[]` are still used for anything that is not a board — configuration UI, wiring diagrams, photos of hardware.
 
