@@ -8,7 +8,7 @@ keywords: [FiestaBoard air quality, AQI display, fog visibility, PurpleAir, spli
 
 Display air quality index (AQI) and fog/visibility conditions on your board using PurpleAir and OpenWeatherMap data.
 
-<BoardScreenshot src="/img/air-fog-display.png" alt="Air Quality and Fog on split-flap board" />
+<BoardShot plugin="air_fog" alt="Air Quality and Fog on split-flap board" />
 
 ## Overview
 

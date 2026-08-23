@@ -8,7 +8,7 @@ keywords: [FiestaBoard Muni, SF transit, bus arrival times, train times, split-f
 
 Display real-time San Francisco Muni transit arrival predictions with multi-stop and multi-line support.
 
-<BoardScreenshot src="/img/muni-display.png" alt="SF Muni on split-flap board" />
+<BoardShot plugin="muni" alt="SF Muni on split-flap board" />
 
 ## Overview
 

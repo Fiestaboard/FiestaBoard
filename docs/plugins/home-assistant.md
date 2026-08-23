@@ -8,7 +8,7 @@ keywords: [FiestaBoard Home Assistant, Vestaboard Home Assistant, Vestaboard Hom
 
 Display smart home device states from your Home Assistant instance on your board.
 
-<BoardScreenshot src="/img/home-assistant-display.png" alt="Home Assistant on split-flap board" />
+<BoardShot plugin="home_assistant" alt="Home Assistant on split-flap board" />
 
 ## Overview
 

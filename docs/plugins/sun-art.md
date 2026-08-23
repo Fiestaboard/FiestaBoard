@@ -8,7 +8,7 @@ keywords: [FiestaBoard sun art, visual display, sunrise sunset, split-flap art, 
 
 Display a beautiful full-screen color pattern that changes throughout the day based on the sun's position. **No API key required.**
 
-<BoardScreenshot src="/img/sun-art-display.png" alt="Sun Art on split-flap board" />
+<BoardShot plugin="sun_art" alt="Sun Art on split-flap board" />
 
 ## Overview
 

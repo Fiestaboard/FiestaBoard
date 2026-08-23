@@ -8,7 +8,7 @@ keywords: [FiestaBoard stardate, Star Trek stardate, TNG stardate, split-flap st
 
 Display the current TNG-era stardate on your board. **No API key required.**
 
-<BoardScreenshot src="/img/stardate-display.png" alt="Stardate on split-flap board" />
+<BoardShot plugin="stardate" alt="Stardate on split-flap board" />
 
 ## Overview
 

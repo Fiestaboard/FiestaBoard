@@ -8,7 +8,7 @@ keywords: [FiestaBoard date time, clock display, date display, timezone, split-f
 
 Display the current date and time in a variety of configurable formats. **No API key required.**
 
-<BoardScreenshot src="/img/date-time-display.png" alt="Date and Time on split-flap board" />
+<BoardShot plugin="date_time" alt="Date and Time on split-flap board" />
 
 ## Overview
 
