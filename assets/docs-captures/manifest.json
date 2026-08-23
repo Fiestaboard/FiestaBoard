@@ -14,7 +14,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       },
       "frame": ".animate-card-fade-in >> nth=0"
     },
@@ -31,7 +35,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 670
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "docker-ready": {
@@ -47,7 +55,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "integrations-full": {
@@ -63,7 +75,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "integrations-page": {
@@ -79,7 +95,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "integrations-plugin-config": {
@@ -95,7 +115,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "integrations-plugin-enabled": {
@@ -111,7 +135,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "open-source": {
@@ -127,7 +155,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 670
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "page-editor-colors": {
@@ -143,7 +175,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       },
       "viewportSpecific": true
     },
@@ -160,7 +196,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       },
       "viewportSpecific": true
     },
@@ -177,7 +217,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       },
       "viewportSpecific": true
     },
@@ -194,7 +238,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       },
       "viewportSpecific": true
     },
@@ -211,7 +259,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       },
       "viewportSpecific": true
     },
@@ -228,7 +280,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       },
       "viewportSpecific": true
     },
@@ -245,7 +301,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "pages-new-button": {
@@ -261,7 +321,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "plugin-architecture": {
@@ -277,7 +341,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       },
       "frame": "main .grid"
     },
@@ -294,7 +362,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 774
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "schedule-calendar-populated": {
@@ -310,7 +382,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 774
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "schedule-entry-form": {
@@ -326,7 +402,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 600
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "schedule-list-view": {
@@ -342,7 +422,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 684
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "schedule-mode": {
@@ -358,7 +442,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 684
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "schedule-mode-toggle": {
@@ -374,7 +462,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 600
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "settings-board-config": {
@@ -390,7 +482,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "settings-page": {
@@ -406,7 +502,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "settings-silence-schedule": {
@@ -422,7 +522,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "start-service-button": {
@@ -438,7 +542,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 670
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "web-ui-home": {
@@ -454,7 +562,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 670
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "wysiwyg-editor": {
@@ -470,7 +582,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       },
       "frame": ".ProseMirror",
       "viewportSpecific": true

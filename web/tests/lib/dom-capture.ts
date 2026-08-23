@@ -47,8 +47,10 @@ export interface CaptureEntry {
   wrapperClass: string;
   /** Runtime CSS custom properties, per breakpoint. */
   vars: Record<string, Record<string, string>>;
-  /** Viewport the markup was captured at. */
+  /** Desktop viewport the markup was captured at — fitted to the content. */
   capturedAt: { width: number; height: number };
+  /** Mobile viewport the markup was captured at. */
+  capturedAtMobile?: { width: number; height: number };
   /** True when desktop and mobile produced different markup and both are kept. */
   viewportSpecific?: boolean;
   /**
@@ -210,6 +212,36 @@ async function readStable(page: Page) {
   return { ...last, unstable: true };
 }
 
+/**
+ * Height the desktop capture should use, so the app fills its frame.
+ *
+ * A fixed 800px viewport letterboxes any screen whose content is shorter. The
+ * Dashboard's natural height is 670, so its capture carried 130px of empty page
+ * background under the card while the fixed sidebar ran the full height. In
+ * dark mode that reads as a black bar, and on the marketing homepage it looked
+ * like bad framing rather than the app.
+ *
+ * Measuring is not as simple as reading the content box: the main column is a
+ * full-height flex container, so at an 800px viewport every candidate element
+ * dutifully reports 800. The height has to be measured with the viewport
+ * COLLAPSED, where the layout reports what it actually needs. Width is left
+ * alone throughout — the breakpoints are width-based, so this cannot flip the
+ * capture to a mobile layout.
+ *
+ * Clamped: a very short screen (Pages is 453) still reads as an app rather than
+ * a strip, and a long one (Settings is 2166) is not turned into a poster.
+ */
+async function fittedHeight(page: Page, width: number, fallback: number): Promise<number> {
+  const original = page.viewportSize() ?? { width, height: fallback };
+  await page.setViewportSize({ width, height: 200 });
+  await page.waitForTimeout(500);
+  const natural = await page.evaluate(() => document.documentElement.scrollHeight);
+  await page.setViewportSize(original);
+  await page.waitForTimeout(400);
+  if (!natural) return fallback;
+  return Math.min(900, Math.max(600, natural));
+}
+
 /** Read the wrapper class + runtime vars + markup for the current viewport. */
 async function readScreen(page: Page) {
   return page.evaluate(
@@ -287,9 +319,25 @@ export async function captureScreen(
     string,
     { html: string; wrapperClass: string; vars: Record<string, string>; unstable: boolean }
   > = {};
+  // Actual viewport each capture was taken at — desktop is fitted to content,
+  // so the docs site must render it at the same height or the layout differs.
+  const sizes: Record<string, { width: number; height: number }> = {
+    desktop: { ...CAPTURE_VIEWPORTS.desktop },
+    mobile: { ...CAPTURE_VIEWPORTS.mobile },
+  };
 
   for (const [label, size] of Object.entries(CAPTURE_VIEWPORTS)) {
     await page.setViewportSize(size);
+    // Desktop fits its content; mobile keeps a real phone viewport, where the
+    // content is taller than the screen anyway.
+    if (label === "desktop") {
+      await page.waitForTimeout(250);
+      const h = await fittedHeight(page, size.width, size.height);
+      if (h !== size.height) {
+        await page.setViewportSize({ width: size.width, height: h });
+        sizes[label] = { width: size.width, height: h };
+      }
+    }
     // Let the breakpoint change settle before reading layout-derived vars.
     await page.waitForTimeout(400);
     byViewport[label] = { ...(await readStable(page)), unstable: settled.unstable };
@@ -308,7 +356,8 @@ export async function captureScreen(
     file: `${name}.html`,
     wrapperClass: byViewport.desktop.wrapperClass,
     vars,
-    capturedAt: CAPTURE_VIEWPORTS.desktop,
+    capturedAt: sizes.desktop,
+    capturedAtMobile: sizes.mobile,
     ...(opts.frame ? { frame: opts.frame } : {}),
   };
 

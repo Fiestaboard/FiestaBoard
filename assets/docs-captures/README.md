@@ -44,6 +44,14 @@ and bury real UI changes. Nine sources were closed, taking a two-run diff from
 | Server-computed variable samples in the picker | Removed — the browser clock cannot reach them |
 | Stray focus (the editor highlights the caret's gutter line) | Blurred before reading |
 
+## Framing
+
+Each desktop capture is taken at a viewport fitted to its own content, recorded
+as `capturedAt` in the manifest, and the docs site renders it at that height. A
+fixed 800px viewport letterboxed anything shorter — the Dashboard needs 670, so
+its capture carried 130px of empty page background that read as a black bar in
+dark mode. Heights are clamped to 600-900. Mobile keeps a real phone viewport.
+
 `reducedMotion: "reduce"` is set in `playwright-screenshots.config.ts` for the
 same reason. It does not remove real board content: `/` and `/pages` still
 render all 132 tiles with it on.
