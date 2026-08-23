@@ -154,6 +154,21 @@ class TestDependencies:
         assert len(errors) == 1
         assert "speedtest-cli" in errors[0]
 
+    @pytest.mark.parametrize("dist", ["finnhub-python", "paho-mqtt"])
+    def test_shipped_dist_with_a_different_import_name_is_clean(self, tmp_path, dist):
+        """A package FiestaBoard ships must never be reported as missing.
+
+        Both of these are in the platform's own requirements.txt and both
+        import under a name that is not their distribution name
+        (``finnhub``, ``paho.mqtt``). Resolving them by guessing the import
+        name reports them absent, which at install time is not a warning --
+        it refuses the install of a plugin whose dependency is in fact
+        present. Neither appears in IMPORT_NAME_OVERRIDES, so the guess is
+        the only thing standing between them and a false rejection.
+        """
+        plugin_dir, _ = make_plugin_dir(tmp_path, "p", files={"requirements.txt": f"{dist}\n"})
+        assert check_dependencies(plugin_dir) == []
+
     def test_no_requirements_file_is_clean(self, tmp_path):
         plugin_dir, _ = make_plugin_dir(tmp_path, "p")
         assert check_dependencies(plugin_dir) == []

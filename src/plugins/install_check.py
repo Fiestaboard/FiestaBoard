@@ -27,6 +27,7 @@ from __future__ import annotations
 import importlib.util
 import re
 from dataclasses import dataclass, field
+from importlib import metadata as importlib_metadata
 from pathlib import Path
 
 # Distributions whose import name differs from the name pip installs under.
@@ -233,6 +234,32 @@ def _declared_requirements(plugin_dir: Path) -> list[str]:
 
 
 def _is_importable(distribution: str) -> bool:
+    """True when this runtime provides *distribution*.
+
+    Installed metadata is asked first, because it is keyed by the name pip
+    installs under (PEP 503 normalised) and so needs no guess about the import
+    name.  Guessing is what makes this dangerous: a wrong guess here is a
+    blocking error that *refuses the install*, and FiestaBoard ships two
+    packages whose import name differs from their distribution name without
+    appearing in the override table below -- ``finnhub-python`` (imports as
+    ``finnhub``) and ``paho-mqtt`` (imports as ``paho.mqtt``).  A plugin
+    declaring either would have been rejected for a dependency that is in
+    fact present.
+
+    ``find_spec`` remains as a fallback for a module that is importable
+    without installed metadata -- vendored, or provided under a different
+    distribution name.
+    """
+    try:
+        importlib_metadata.distribution(distribution)
+        return True
+    except importlib_metadata.PackageNotFoundError:
+        pass
+    except (ValueError, OSError):
+        # Malformed name or unreadable metadata: fall through to the import
+        # probe rather than treating the dependency as missing.
+        pass
+
     module = IMPORT_NAME_OVERRIDES.get(distribution.lower(), distribution.replace("-", "_"))
     try:
         return importlib.util.find_spec(module) is not None
