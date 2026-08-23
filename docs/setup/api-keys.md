@@ -46,7 +46,7 @@ These are optional. Enter them in the **Integrations page** of the web UI as you
 | Plugin | Where to Get the Key | Free Tier |
 |--------|---------------------|-----------|
 | Weather | [WeatherAPI](https://www.weatherapi.com/) or [OpenWeatherMap](https://openweathermap.org/api) | 1M calls/month (WeatherAPI) |
-| Traffic | [Google Cloud Console](https://console.cloud.google.com/) (Routes API) | $200/month credit |
+| Traffic | [Google Cloud Console](https://console.cloud.google.com/) (Routes API) | Free tier ([current terms](https://developers.google.com/maps/documentation/routes/usage-and-billing)) |
 | Home Assistant | Your HA instance → Profile → Long-Lived Access Tokens | Self-hosted |
 | Last.fm | [last.fm/api/account/create](https://www.last.fm/api/account/create) | Unlimited |
 | Muni Transit | [511.org Open Data token](https://511.org/open-data/token) | Free |
