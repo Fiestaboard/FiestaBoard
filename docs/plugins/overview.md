@@ -35,7 +35,7 @@ These plugins work immediately after enabling - no registration or API keys need
 
 | Plugin | What It Shows |
 |--------|--------------|
-| **Bay Wheels** | Bike availability at Bay Area stations |
+| **Lyft Bike Share** | Bike availability at Bay Wheels, CitiBike, Divvy, and other Lyft stations |
 | **Countdown** | Time remaining until a target event |
 | **Dad Jokes** | Random dad jokes from icanhazdadjoke |
 | **Date & Time** | Current date and time in multiple formats (12h/24h, US/international) with timezone support |
