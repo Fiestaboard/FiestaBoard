@@ -165,6 +165,35 @@ async function deleteAllCollections() {
   }
 }
 
+/**
+ * Configure an AI provider.
+ *
+ * Both AI screens are gated on one existing: the sidebar only renders its
+ * assistant entry when `hasAiProviders`, and the AI Providers card renders an
+ * empty state until something is configured. The key is a placeholder — these
+ * screens are only ever rendered, never asked to complete anything.
+ */
+async function configureAiProvider() {
+  await fetch(`${API_URL}/settings/ai`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      enabled: true,
+      providers: [
+        {
+          id: "openrouter",
+          name: "OpenRouter",
+          base_url: "https://openrouter.ai/api/v1",
+          api_key: "sk-or-v1-docs-placeholder",
+          models: ["anthropic/claude-3.5-sonnet", "openai/gpt-4o-mini", "meta-llama/llama-3.1-70b-instruct"],
+          default_model: "anthropic/claude-3.5-sonnet",
+        },
+      ],
+      default_provider_id: "openrouter",
+    }),
+  });
+}
+
 async function setActivePage(id: string | null) {
   await fetch(`${API_URL}/settings/active-page`, {
     method: "PUT",
@@ -1285,6 +1314,42 @@ test.describe("Getting Started Workflow Screenshots", () => {
     await deleteAllSchedules();
     await deleteAllCollections();
     await deleteAllPages();
+  });
+
+  test("ai settings", async ({ page }) => {
+    await configureAiProvider();
+    await initPage(page);
+
+    await page.goto("/settings?section=integrations");
+    await page.waitForTimeout(3000);
+
+    const card = page.getByText(/ai providers/i).first();
+    if (await card.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await card.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(500);
+    }
+
+    await screenshotPage(page, path.join(GUIDES_IMG, "ai-settings.png"));
+  });
+
+  test("ai chat panel", async ({ page }) => {
+    await configureAiProvider();
+    await initPage(page);
+
+    // The panel is only reachable once a provider exists — see
+    // configureAiProvider. Opened from the page editor because that is the
+    // context the docs describe it in.
+    const pageId = await createPage("AI Demo", ["", "  HELLO", "", "", "", ""]);
+    await page.goto(`/pages/edit/${pageId}`);
+    await page.waitForTimeout(3000);
+
+    const assistant = page.getByRole("button", { name: /ai assistant/i }).first();
+    if (await assistant.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await assistant.click();
+      await page.waitForTimeout(2000);
+    }
+
+    await screenshotPage(page, path.join(GUIDES_IMG, "ai-chat-panel.png"));
   });
 
   test("start service button", async ({ page }) => {
