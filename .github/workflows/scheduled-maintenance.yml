@@ -15,6 +15,12 @@ name: 'Scheduled: Maintenance'
 #   - security-scan   : weekly bandit + pip-audit sweep of plugin-registry
 #                       repos, opens/updates an issue on findings
 #                       (was .github/workflows/registry-scan.yml)
+#   - plugin-health   : daily install-and-load sweep of every registry
+#                       plugin, opens/updates an issue on findings. Catches
+#                       breakage that per-plugin CI structurally cannot see,
+#                       because each plugin repo tests itself in the bundled
+#                       plugins/<id>/ layout rather than the installed
+#                       data/external_plugins/<id>/ one.
 #
 # Note: the Claude-driven docs audit lives in its own workflow
 # (.github/workflows/claude-docs-audit.yml) so it surfaces independently
@@ -26,6 +32,7 @@ on:
     # Each job filters on the resolved schedule via `github.event.schedule`.
     - cron: '0 4 * * *'    # plugin previews (04:00 UTC daily)
     - cron: '0 0 * * 0'    # security scan (Sun 00:00 UTC)
+    - cron: '0 5 * * *'    # plugin health sweep (05:00 UTC daily)
   workflow_dispatch:
     inputs:
       job:
@@ -33,7 +40,7 @@ on:
         required: true
         default: 'all'
         type: choice
-        options: [all, plugin-previews, security-scan]
+        options: [all, plugin-previews, security-scan, plugin-health]
 
 permissions:
   contents: read
@@ -176,4 +183,136 @@ jobs:
               labels: ['security']
             });
             console.log('Created new security scan issue');
+          }
+
+  plugin-health:
+    name: Sweep installed plugins
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Daily cron OR explicit dispatch.
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '0 5 * * *') ||
+      (github.event_name == 'workflow_dispatch' &&
+        (inputs.job == 'all' || inputs.job == 'plugin-health'))
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+
+    - name: Install platform dependencies
+      # Deliberately ONLY the platform's own requirements. A plugin's
+      # requirements.txt is never installed on a real box either (#1671),
+      # so installing it here would hide exactly what we are sweeping for.
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Install every registry plugin
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Clone each plugin into the directory the app actually installs to,
+      # so __file__-relative paths resolve the way they do for a user.
+      run: |
+        mkdir -p data/external_plugins
+        failed=0
+        while IFS=$'\t' read -r id repo; do
+          [ -n "$id" ] || continue
+          if git clone --depth 1 --quiet "$repo" "data/external_plugins/$id"; then
+            echo "cloned $id"
+          else
+            echo "::warning::could not clone $id from $repo"
+            failed=$((failed + 1))
+          fi
+        done < <(python -c "
+        import json
+        for p in json.load(open('plugin-registry.json'))['plugins']:
+            print(p['id'], p['repository'], sep='\t')
+        ")
+        echo "installed $(find data/external_plugins -maxdepth 1 -mindepth 1 -type d | wc -l) plugins ($failed clone failures)"
+
+    - name: Sweep installed plugins
+      id: sweep
+      # Exit 1 means findings; that is a reportable result, not a crash.
+      # --no-fetch keeps the run hermetic: fetch_data() would hit dozens of
+      # third-party APIs and make a scheduled job flaky for reasons that
+      # have nothing to do with plugin health.
+      run: |
+        set +e
+        python scripts/plugin_health_sweep.py \
+          --external-dir=data/external_plugins \
+          --no-fetch \
+          --verbose \
+          --json=plugin-health.json \
+          --markdown=plugin-health.md
+        code=$?
+        set -e
+        if [ "$code" = "0" ] || [ "$code" = "1" ]; then
+          exit 0
+        fi
+        echo "::error::plugin_health_sweep.py crashed with exit code $code"
+        exit "$code"
+
+    - name: Upload sweep results
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: plugin-health-results
+        path: |
+          plugin-health.json
+          plugin-health.md
+        retention-days: 90
+
+    - name: Create or update issue on findings
+      if: steps.sweep.outputs.has_findings == 'true'
+      uses: actions/github-script@v9
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('plugin-health.md', 'utf8');
+          const title = '🔌 Plugin Health Sweep: Broken Plugins Found';
+
+          const { data: issues } = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'plugin',
+            per_page: 100
+          });
+
+          const existing = issues.find(i => i.title === title);
+          const body = [
+            report,
+            '',
+            '---',
+            '_Automatically created by the daily plugin health sweep._',
+            `_Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}_`,
+            `_Last updated: ${new Date().toISOString()}_`
+          ].join('\n');
+
+          if (existing) {
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              body
+            });
+            console.log(`Updated existing issue #${existing.number}`);
+          } else {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['plugin']
+            });
+            console.log('Created new plugin health issue');
           }

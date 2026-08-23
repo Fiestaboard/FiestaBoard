@@ -381,7 +381,7 @@ read, so FiestaBoard falls back to the rendered copies in the root
 `plugin-previews.json` (refreshed by `scripts/sync_plugin_previews.py`). Your
 manifest always wins over that seed once the plugin is installed.
 
-Widths are counted in **tiles, not characters**: a colour marker such as `{66}`
+Widths are counted in **tiles, not characters**: a color marker such as `{66}`
 occupies one flap regardless of how many characters it takes to write, and
 closing tags like `{/green}` occupy none. Content must be literal — a
 `{{variable}}` reference is rejected, because previews render with no plugin
@@ -717,6 +717,76 @@ plugins/my_plugin/
     └── test_plugin.py
 ```
 
+### A plugin must be self-contained
+
+Ship every data file your plugin reads, and never resolve a path outside your
+own plugin directory.
+
+The tree above is the **development** layout. Installed from the registry, your
+plugin lives one directory deeper:
+
+```text
+data/external_plugins/my_plugin/     # where users actually run it
+plugins/my_plugin/                   # bundled/dev layout only
+```
+
+So a path written against the bundled layout silently resolves somewhere else
+once installed:
+
+```python
+# WRONG — reaches into the platform. Resolves to data/src/utils/ on a real
+# install, so the file is never found and every variable renders "???".
+data = Path(__file__).parent.parent.parent / "src" / "utils" / "data.json"
+
+# RIGHT — relative to the plugin, valid in both layouts.
+data = Path(__file__).parent / "data.json"
+```
+
+This is not hypothetical: the Star Trek Quotes plugin shipped this way for
+months, serving `???` to every user, because its data file was never committed
+and its fallback pointed at the platform copy.
+
+Three rules follow:
+
+- **Declare your data files** in `manifest.json`, so a broken install is
+  rejected before the plugin ever runs:
+
+  ```json
+  {
+    "id": "star_trek_quotes",
+    "data_files": ["quotes.json"]
+  }
+  ```
+
+  Paths are relative to your plugin directory. Absolute paths and `..`
+  segments are rejected — a plugin may only declare files it ships.
+
+- **Commit your data files.** Do not generate or symlink them in CI. If your
+  test workflow creates a file the shipped plugin lacks, your suite is testing
+  a tree no user has.
+- **Do not rely on third-party packages.** The platform does not install a
+  plugin's `requirements.txt` (see
+  [#1671](https://github.com/Fiestaboard/FiestaBoard/issues/1671)); anything
+  beyond the standard library plus the platform's own dependencies will be
+  missing at runtime. Vendor it or do without.
+
+### How this is enforced
+
+| when | what happens |
+|------|--------------|
+| **Install** | A plugin that declares a file it does not ship, reads a file that is missing, or needs a package FiestaBoard lacks is **refused**, and the clone is removed. |
+| **Update** | The same failure is reported through `GET /plugins/errors` and the Integrations page, but the plugin is **left installed** — an update should not silently pull a working board out from under someone. |
+| **Startup** | Every installed plugin is re-checked; findings appear in `GET /plugins/errors`. |
+| **Registry review** | `validate_plugins.py --strict` escalates the advisory "reads a file it does not declare" into a failure. |
+| **Daily** | `scripts/plugin_health_sweep.py` sweeps every registry plugin and files an issue. |
+
+Run the checks locally before publishing:
+
+```bash
+docker compose -f docker-compose.dev.yml exec fiestaboard \
+  python scripts/plugin_health_sweep.py --plugin=my_plugin --no-fetch
+```
+
 ## Documentation Standards
 
 Each plugin has two documentation layers you are responsible for:
@@ -838,7 +908,11 @@ The `screenshots` field in `manifest.json` makes images programmatically discove
 | `caption` | No | Human-readable description |
 | `primary` | No | Exactly one screenshot should be `true` (used as hero image in galleries and the registry) |
 
-On the docs site (built from the separate [Fiestaboard/fiestaboard.github.io](https://github.com/Fiestaboard/fiestaboard.github.io) repo), the primary screenshot is served from `static/img/<id-hyphenated>-display.png` (underscores in the plugin ID become hyphens) for use in the `<BoardScreenshot>` component — e.g. `air_fog` → `/img/air-fog-display.png`. That path is derived by `pluginImagePath()` in the site repo's `src/plugin-data.ts`, which is the source of truth. The `<BoardScreenshot>` component then looks up per-color variants in the `img/black/` and `img/white/` subdirectories.
+On the docs site (built from the separate [Fiestaboard/fiestaboard.github.io](https://github.com/Fiestaboard/fiestaboard.github.io) repo), **the board itself is no longer a screenshot.** Pages render it live from the `previews` your plugin publishes (see [Board previews](#board-previews)), through a `<BoardShot plugin="your_id" />` component backed by `plugin-previews.json`.
+
+This matters for what you ship: **declare `teaser` and `previews` in your manifest and your documentation draws itself**, in both board colors and every device shape you support, and it updates when you change what the plugin puts on a board. A plugin with no `previews` entry renders nothing there.
+
+Screenshots in `screenshots[]` are still used for anything that is not a board — configuration UI, wiring diagrams, photos of hardware.
 
 ---
 

@@ -38,6 +38,7 @@ import {
   Label,
   PageHeader,
   PageLayout,
+  PageToolbar,
   PluginCard,
   PluginCategoryBadge,
   Select,
@@ -277,6 +278,7 @@ import { asJSONSchema, SchemaForm } from "@/components/plugin-settings";
 import Link from "@/components/smart-link";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useEffectiveBoardColor } from "@/hooks/use-effective-board-color";
+import { useEffectiveCode62Glyph } from "@/hooks/use-effective-code62-glyph";
 import { useSearchParams } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import type { PluginInfo, RegistryEntry } from "@/lib/api";
@@ -1822,6 +1824,7 @@ function RegistryPluginCard({
 }) {
   const t = useTranslations("integrations");
   const boardColor = useEffectiveBoardColor();
+  const code62Glyph = useEffectiveCode62Glyph();
 
   return (
     <PluginCard
@@ -1832,6 +1835,7 @@ function RegistryPluginCard({
       authorLabel={t("byAuthor", { author: entry.author })}
       teaser={entry.teaser}
       boardType={boardColor}
+      code62Glyph={code62Glyph}
       renderLink={({ className, children }) => (
         <Link href={`/integrations/${entry.id}`} className={className}>
           {children}
@@ -2322,71 +2326,79 @@ export default function IntegrationsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <Box
-          className={
-            activeTab === "marketplace"
-              ? "mb-4 grid grid-cols-1 gap-3 items-center md:grid-cols-[auto_minmax(12rem,1fr)_auto]"
-              : "mb-4 grid grid-cols-1 gap-3 items-center sm:grid-cols-[auto_minmax(0,1fr)]"
-          }
-        >
-          <TabsList className="w-fit">
-            <TabsTrigger value="installed">
-              {t("tabInstalled")}
-              {data && (
-                <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
-                  {data.total}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="marketplace">
-              {t("tabMarketplace")}
-              {availableCount > 0 && (
-                <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
-                  {availableCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-          <Box className="relative min-w-0 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder={
-                activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
-              }
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-full"
-            />
-          </Box>
-          {activeTab === "marketplace" && (
-            <Flex align="center" gap="2" className="shrink-0 md:justify-self-end">
-              <Flex className="rounded-md border overflow-hidden">
-                <Button
-                  variant={marketplaceView === "card" ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-9 w-9 rounded-none border-0"
-                  onClick={() => setMarketplaceView("card")}
-                  aria-label={t("cardViewAriaLabel")}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={marketplaceView === "list" ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-9 w-9 rounded-none border-0"
-                  onClick={() => setMarketplaceView("list")}
-                  aria-label={t("listViewAriaLabel")}
-                >
-                  <LayoutList className="h-4 w-4" />
+        {/* PageToolbar via its children escape hatch, not its left/right slots:
+            the search field has to take whatever track the tab strip leaves,
+            and a flex split cannot express "fill the rest". The toolbar
+            contributes only the inset, which is what puts this row on the
+            content column with the page title above it. `mb-4` moves off the
+            grid because PageToolbar already carries it. */}
+        <PageToolbar>
+          <Box
+            className={
+              activeTab === "marketplace"
+                ? "grid grid-cols-1 gap-3 items-center md:grid-cols-[auto_minmax(12rem,1fr)_auto]"
+                : "grid grid-cols-1 gap-3 items-center sm:grid-cols-[auto_minmax(0,1fr)]"
+            }
+          >
+            <TabsList className="w-fit">
+              <TabsTrigger value="installed">
+                {t("tabInstalled")}
+                {data && (
+                  <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
+                    {data.total}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="marketplace">
+                {t("tabMarketplace")}
+                {availableCount > 0 && (
+                  <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 h-4">
+                    {availableCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+            <Box className="relative min-w-0 w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder={
+                  activeTab === "installed" ? t("searchInstalledPlaceholder") : t("searchAvailablePlaceholder")
+                }
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-full"
+              />
+            </Box>
+            {activeTab === "marketplace" && (
+              <Flex align="center" gap="2" className="shrink-0 md:justify-self-end">
+                <Flex className="rounded-md border overflow-hidden">
+                  <Button
+                    variant={marketplaceView === "card" ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-9 w-9 rounded-none border-0"
+                    onClick={() => setMarketplaceView("card")}
+                    aria-label={t("cardViewAriaLabel")}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={marketplaceView === "list" ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-9 w-9 rounded-none border-0"
+                    onClick={() => setMarketplaceView("list")}
+                    aria-label={t("listViewAriaLabel")}
+                  >
+                    <LayoutList className="h-4 w-4" />
+                  </Button>
+                </Flex>
+                <Button variant="outline" className="gap-2" onClick={() => setGitDialogOpen(true)}>
+                  <GitBranch className="h-4 w-4" />
+                  {t("addFromGit")}
                 </Button>
               </Flex>
-              <Button variant="outline" className="gap-2" onClick={() => setGitDialogOpen(true)}>
-                <GitBranch className="h-4 w-4" />
-                {t("addFromGit")}
-              </Button>
-            </Flex>
-          )}
-        </Box>
+            )}
+          </Box>
+        </PageToolbar>
 
         {/* ── Installed Tab ── */}
         <TabsContent value="installed" className="mt-0">

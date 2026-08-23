@@ -57,7 +57,7 @@ BOARD_READ_WRITE_KEY=your_cloud_api_key_here
 docker compose restart
 ```
 
-<ThemedScreenshot src="/img/guides/settings-board-config.png" alt="Settings page with board API key and IP address inputs" />
+<AppShot name="settings-board-config" alt="Settings page with board API key and IP address inputs" />
 
 ## Rate Limiting
 

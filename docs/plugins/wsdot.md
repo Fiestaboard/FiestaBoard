@@ -8,7 +8,7 @@ keywords: [FiestaBoard WSDOT, Washington ferries, ferry schedule, ferry wait tim
 
 Display Washington State Ferry schedules, vessel names, car availability, and service alerts.
 
-<BoardScreenshot src="/img/wsdot-display.png" alt="WSDOT Ferries on split-flap board" />
+<BoardShot plugin="wsdot" alt="WSDOT Ferries on split-flap board" />
 
 ## Overview
 

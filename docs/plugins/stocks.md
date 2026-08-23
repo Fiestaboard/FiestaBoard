@@ -8,7 +8,7 @@ keywords: [FiestaBoard stocks, Vestaboard stocks, Vestaboard stock ticker, stock
 
 Display real-time stock prices and percentage changes from Yahoo Finance with color-coded gain/loss indicators.
 
-<BoardScreenshot src="/img/stocks-display.png" alt="Stock Prices on split-flap board" />
+<BoardShot plugin="stocks" alt="Stock Prices on split-flap board" />
 
 ## Overview
 

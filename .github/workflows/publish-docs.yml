@@ -13,6 +13,10 @@ on:
       - "plugin-registry.json"
       - "plugin-previews.json"
       - "assets/img/branding/**"
+      # Serialised app screens rendered by the site's <AppShot>. Without this
+      # path the capture-regeneration workflow would commit fresh captures that
+      # never reached the site, which is exactly the drift it exists to stop.
+      - "assets/docs-captures/**"
   workflow_dispatch: {}
 
 concurrency:

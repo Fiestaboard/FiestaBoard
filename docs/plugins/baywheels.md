@@ -8,7 +8,7 @@ keywords: [FiestaBoard Bay Wheels, bike share, electric bikes, transit, split-fl
 
 Display real-time Bay Wheels bike share station availability, including electric and classic bike counts. **No API key required.**
 
-<BoardScreenshot src="/img/baywheels-display.png" alt="Bay Wheels on split-flap board" />
+<BoardShot plugin="lyft_bike_share" alt="Bay Wheels on split-flap board" />
 
 ## Overview
 

@@ -8,7 +8,7 @@ keywords: [FiestaBoard weather plugin, Vestaboard weather, Vestaboard weather di
 
 Display current weather conditions on your board with temperature, conditions, UV index, and more.
 
-<BoardScreenshot src="/img/weather-display.png" alt="Weather conditions on split-flap board" />
+<BoardShot plugin="weather" alt="Weather conditions on split-flap board" />
 
 ## Overview
 

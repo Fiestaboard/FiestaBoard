@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .base import PluginBase, TransitionPluginBase
+from .install_check import validate_install
 from .manifest import PluginManifest, collect_options_ids, load_manifest, settings_schema_ui_warnings
 from .sources import (
     PluginSource,
@@ -322,6 +323,24 @@ class PluginLoader:
         # ignored key is invisible from the settings dialog, so surface it
         # through GET /plugins/errors rather than only in the container log.
         for message in settings_schema_ui_warnings(manifest.settings_schema):
+            self._load_errors.setdefault(plugin_name, []).append(message)
+
+        # Structural problems that make the plugin unusable no matter how the
+        # user configures it: a declared data file that never shipped, a
+        # Python package the platform does not provide. A *fresh* install
+        # carrying these is rejected outright (see sources._install_and_verify);
+        # here we are looking at something already on disk, which may be
+        # driving a board, so surface it through GET /plugins/errors and let
+        # it load rather than silently serving "???" for every variable.
+        install_result = validate_install(plugin_name, plugin_dir, manifest)
+        for message in install_result.errors:
+            self._load_errors.setdefault(plugin_name, []).append(message)
+            logger.error("Plugin %s is installed but cannot work: %s", plugin_name, message)
+        # Warnings are heuristic (a regex over the plugin's source), so they
+        # never stop a load -- but they share the same surface, because an
+        # undeclared data file is precisely the case the declaration cannot
+        # catch on its own.
+        for message in install_result.warnings:
             self._load_errors.setdefault(plugin_name, []).append(message)
 
         # Check FiestaBoard version compatibility (soft failure -- warn but still load)
