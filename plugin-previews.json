@@ -177,30 +177,6 @@
         }
       ]
     },
-    "date_time": {
-      "teaser": "SAT 2026-01-17",
-      "previews": [
-        {
-          "device_type": "flagship",
-          "rows": [
-            "",
-            "       SATURDAY",
-            "      2026-01-17",
-            "        14:30",
-            "",
-            ""
-          ]
-        },
-        {
-          "device_type": "note",
-          "rows": [
-            "      SAT",
-            "   2026-01-17",
-            "     14:30"
-          ]
-        }
-      ]
-    },
     "disney_parks_times": {
       "teaser": "SPACE MTN 45MIN",
       "previews": [
