@@ -14,7 +14,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 880
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       },
       "viewportSpecific": true
     },
@@ -31,7 +35,11 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 800
+        "height": 900
+      },
+      "capturedAtMobile": {
+        "width": 390,
+        "height": 844
       }
     },
     "customizable": {
@@ -108,7 +116,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 631
       },
       "capturedAtMobile": {
         "width": 390,
@@ -128,7 +136,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 631
       },
       "capturedAtMobile": {
         "width": 390,
@@ -148,7 +156,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 631
       },
       "capturedAtMobile": {
         "width": 390,
@@ -168,7 +176,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 631
       },
       "capturedAtMobile": {
         "width": 390,
@@ -188,7 +196,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 670
+        "height": 744
       },
       "capturedAtMobile": {
         "width": 390,
@@ -374,7 +382,7 @@
       },
       "capturedAt": {
         "width": 1280,
-        "height": 900
+        "height": 631
       },
       "capturedAtMobile": {
         "width": 390,
