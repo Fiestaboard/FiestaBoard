@@ -1,6 +1,6 @@
 ---
 sidebar_position: 4
-description: "Complete reference of FiestaBoard .env configuration variables for API keys, display settings, and plugin options."
+description: "Reference for the common FiestaBoard .env configuration variables for API keys, display settings, and plugin options."
 keywords: [FiestaBoard environment variables, .env config, configuration reference, settings, env file]
 ---
 
@@ -22,29 +22,28 @@ This reference is useful for:
 
 These variables control how FiestaBoard connects to your board. The install wizard and web UI set these for you -- manual editing is not required.
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `BOARD_API_MODE` | API connection mode | `local` or `cloud` |
-| `BOARD_LOCAL_API_KEY` | Board Local API key (when `BOARD_API_MODE=local`) | `your_api_key` |
-| `BOARD_HOST` | Board IP or hostname (when `BOARD_API_MODE=local`) | `192.168.0.11` |
-| `BOARD_READ_WRITE_KEY` | Board Read/Write API key (when `BOARD_API_MODE=cloud`) | `your_api_key` |
-| `TIMEZONE` | Your local timezone | `America/Los_Angeles` |
-
-## Board Configuration
-
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BOARD_API_MODE` | API mode (`local` or `cloud`) | `local` |
-| `BOARD_LOCAL_API_KEY` | Local API key | - |
-| `BOARD_HOST` | Board IP or hostname (local mode) | - |
-| `BOARD_READ_WRITE_KEY` | Cloud Read/Write API key | - |
-| `BOARD_TRANSITION_STRATEGY` | Transition animation style (local mode only) | - |
-| `BOARD_TRANSITION_INTERVAL_MS` | Delay between animation steps | `0` |
-| `BOARD_TRANSITION_STEP_SIZE` | Columns/rows per animation step | `0` |
+| `BOARD_API_MODE` | API connection mode (`local` or `cloud`) | `local` |
+| `BOARD_LOCAL_API_KEY` | Board Local API key (when `BOARD_API_MODE=local`) | - |
+| `BOARD_HOST` | Board IP or hostname, e.g. `192.168.0.11` (when `BOARD_API_MODE=local`) | - |
+| `BOARD_READ_WRITE_KEY` | Board Read/Write API key (when `BOARD_API_MODE=cloud`) | - |
+| `BOARD_NOTE_ARRAY_TOKEN` | Vestaboard Cloud API token for Note Array boards (`X-Vestaboard-Token`, not the Read/Write key). Normally set per-board in the UI; see [Note Arrays](/docs/setup/note-arrays). | - |
 
 :::info Board API Key Variables
 Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_READ_WRITE_KEY` for cloud mode. See the [Cloud API Setup](/docs/setup/cloud-api) guide for details.
 :::
+
+## Board Transition & Display
+
+These control the board's animation and where output is sent. The `BOARD_TRANSITION_*` variables apply in local mode only; `OUTPUT_TARGET` applies in both modes.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BOARD_TRANSITION_STRATEGY` | Transition animation style (local mode only) | - |
+| `BOARD_TRANSITION_INTERVAL_MS` | Delay between animation steps | `0` |
+| `BOARD_TRANSITION_STEP_SIZE` | Columns/rows per animation step | `0` |
+| `OUTPUT_TARGET` | Where rendered content goes: `ui` (preview only), `board` (send to board), or `both` | `board` |
 
 ## Weather
 
