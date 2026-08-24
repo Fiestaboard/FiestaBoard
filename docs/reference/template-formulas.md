@@ -57,7 +57,7 @@ still work exactly as before. **You only opt in to formulas where you write
 
 > **One restriction:** because `{` and `}` mark the boundaries of a formula,
 > they cannot appear inside string literals. Use `COLOR("red")` instead of
-> writing `"{67}"` directly.
+> writing `"{63}"` directly.
 
 ### Literals
 
@@ -362,7 +362,7 @@ Two practical consequences:
 - A bad formula renders as a short tag like `#SYNTAX` or `#REF` — look for
   those when something doesn't show up the way you expected.
 - `ISERROR(x)` is handy in nested `IF`s when a piece of data may be unstable.
-- The board is at most 22 columns wide on a flagship device and 22 columns
+- The board is at most 22 columns wide on a flagship device and 15 columns
   on a Note (3 rows). Use `LEFT`, `PAD`, or `FIXED` to keep your output a
   predictable width.
 
