@@ -66,7 +66,9 @@ Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_RE
 
 ## Plugin API Keys
 
-These plugins ship with FiestaBoard, so core reads their environment variables on startup.
+Core FiestaBoard reads these on startup and folds them into `config.json`, so they
+take effect whether or not the plugin is installed yet. They are legacy keys from
+when these plugins were bundled -- the plugins themselves now install from the registry.
 
 | Variable | Plugin | Description |
 |----------|--------|-------------|
