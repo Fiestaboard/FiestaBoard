@@ -140,9 +140,11 @@ test.describe("regression: schedule.toolbar", () => {
     await createSchedule(pageId, "10:00", "12:00", "weekdays");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle");
-    // The validation indicator is an icon button with a destructive-colored badge.
-    // Click it to open the dropdown, then assert the conflicts label.
-    const indicator = page.locator("button.text-destructive").first();
+    // The validation indicator is an icon-only button whose accessible name
+    // carries the conflict count ("2 schedule conflicts"). Locate it by role,
+    // not by its color classes — those are presentation, and moving them onto
+    // tokens must not break this test.
+    const indicator = page.getByRole("button", { name: /schedule conflicts?$/i }).first();
     await expect(indicator).toBeVisible({ timeout: 15_000 });
     await indicator.click();
     await expect(page.getByText(/Schedule Conflicts/i)).toBeVisible({ timeout: 5_000 });
@@ -154,8 +156,9 @@ test.describe("regression: schedule.toolbar", () => {
     await createSchedule(pageId, "09:00", "10:00", "weekdays");
     await page.goto("/schedule");
     await page.waitForLoadState("networkidle");
-    // The gap indicator is yellow-colored when there are gaps and no overlaps.
-    const indicator = page.locator("button.text-yellow-500").first();
+    // With gaps and no overlaps the same button's accessible name carries the
+    // gap count instead ("1 schedule gap").
+    const indicator = page.getByRole("button", { name: /schedule gaps?$/i }).first();
     await expect(indicator).toBeVisible({ timeout: 15_000 });
     await indicator.click();
     await expect(page.getByText(/Schedule Gaps/i)).toBeVisible({ timeout: 5_000 });
