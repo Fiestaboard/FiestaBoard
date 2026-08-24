@@ -69,7 +69,7 @@ These plugins need an API key from a service with a generous free tier:
 
 | Plugin | What It Shows | Where to Get the Key | Free Tier |
 |--------|--------------|---------------------|-----------|
-| **Traffic** | Travel time to destinations with live traffic | [Google Cloud Console](https://console.cloud.google.com/) (Routes API) | $200/month credit |
+| **Traffic** | Travel time to destinations with live traffic | [Google Cloud Console](https://console.cloud.google.com/) (Routes API) | Free tier ([current terms](https://developers.google.com/maps/documentation/routes/usage-and-billing)) |
 | **Home Assistant** | Smart home status (doors, garage, locks, etc.) | Your Home Assistant instance | Self-hosted |
 | **Air Quality & Fog** | AQI and fog conditions | PurpleAir or OpenWeatherMap | Varies |
 

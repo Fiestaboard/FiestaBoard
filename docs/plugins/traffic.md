@@ -30,7 +30,7 @@ The Routes API requires billing to be enabled:
 
 1. Go to **Billing** in Google Cloud Console
 2. Link a billing account to your project
-3. Google provides a **$200/month free credit**. Typical FiestaBoard usage costs well under this
+3. The Routes API includes a monthly free tier. Check [Google's current Routes API pricing](https://developers.google.com/maps/documentation/routes/usage-and-billing) for the latest terms — typical FiestaBoard usage is low-volume and usually falls within the free allotment
 
 ### 3. Create an API Key
 
@@ -85,13 +85,11 @@ Using coordinates is faster and avoids geocoding errors. You can find coordinate
 
 ## Costs
 
-| Item | Price |
-|------|-------|
-| Monthly free credit | $200 |
-| Per route request | ~$0.005 |
-| Typical monthly cost | Well under free credit |
+Google Maps Platform bills the Routes API per request, with a monthly free tier that covers a set number of calls before charges apply. The exact free allotment and per-request price change over time.
 
-With 4 routes updating every 5 minutes, you'd make about 35,000 requests/month, well within the free credit.
+> **Note:** Google retired its flat $200/month platform-wide credit in 2025 in favor of per-API monthly free allotments. Always confirm the current numbers on [Google's Routes API pricing page](https://developers.google.com/maps/documentation/routes/usage-and-billing) before estimating your costs.
+
+To gauge your own volume: 4 routes updating every 5 minutes is about 35,000 requests/month. Compare that against the current free allotment and per-request price to estimate whether you'll owe anything.
 
 ## Troubleshooting
 
