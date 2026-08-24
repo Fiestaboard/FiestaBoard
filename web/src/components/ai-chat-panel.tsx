@@ -196,7 +196,7 @@ export function AiChatPanel({
 
   return (
     <Flex direction="col" className="h-full min-h-0 w-full">
-      <Card className="flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden rounded-none border-0 py-0 shadow-none">
+      <Card className="flex flex-1 min-h-0 w-full flex-col gap-0 overflow-hidden py-0">
         {/* Header */}
         <Flex align="center" justify="between" gap="2" className="flex-shrink-0 border-b px-4 py-3">
           <Flex align="center" gap="2" className="min-w-0">

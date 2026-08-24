@@ -256,6 +256,7 @@ export default function PagesPage() {
                 <TabsContent value="flagship">
                   <PageGridSelector
                     onSelectPage={handleSelectPage}
+                    label={null}
                     showActiveIndicator={false}
                     showCollections={false}
                     deviceTypeFilter="flagship"
@@ -267,6 +268,7 @@ export default function PagesPage() {
                 <TabsContent value="note">
                   <PageGridSelector
                     onSelectPage={handleSelectPage}
+                    label={null}
                     showActiveIndicator={false}
                     showCollections={false}
                     deviceTypeFilter="note"
@@ -278,6 +280,7 @@ export default function PagesPage() {
                 <TabsContent value="note_array">
                   <PageGridSelector
                     onSelectPage={handleSelectPage}
+                    label={null}
                     showActiveIndicator={false}
                     showCollections={false}
                     deviceTypeFilter="note_array"
@@ -289,6 +292,7 @@ export default function PagesPage() {
           ) : (
             <PageGridSelector
               onSelectPage={handleSelectPage}
+              label={null}
               showActiveIndicator={false}
               showCollections={false}
               deviceTypeFilter={(availableDevices[0] ?? configuredDevices[0]) as DeviceType}

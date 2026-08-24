@@ -6,9 +6,6 @@ import {
   Badge,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
   CardTitle,
   Dialog,
   DialogContent,
@@ -469,8 +466,13 @@ export function ActivePageDisplay() {
 
   return (
     <>
-      <Card className="card-interactive">
-        <CardHeader className="pb-4">
+      {/* A block inside the route's PageCard, not a card of its own: home.tsx
+          wraps this in a PageSection, which owns the inset and the top rule.
+          Keeping a bordered Card here drew a second frame inside the page card
+          for a region that is not a click target (see PageCard's "what keeps
+          its border inside" note in @fiestaboard/ui). */}
+      <Box>
+        <Stack gap="2" className="pb-4">
           <Flex align="center" justify="between">
             <Flex align="baseline" gap="2" className="min-w-0">
               <CardTitle className="text-lg">{t("title")}</CardTitle>
@@ -638,9 +640,9 @@ export function ActivePageDisplay() {
               </Badge>
             ))}
           </Flex>
-        </CardHeader>
+        </Stack>
 
-        <CardContent className="space-y-4">
+        <Box className="space-y-4">
           {/* Schedule gap warning */}
           {scheduleEnabled && !activePageId && (
             <Alert variant="default" className="border-warning/50 bg-warning/10">
@@ -700,8 +702,8 @@ export function ActivePageDisplay() {
               )}
             />
           </Flex>
-        </CardContent>
-      </Card>
+        </Box>
+      </Box>
 
       {/* Pre-render grid in background (hidden) to warm up cache */}
       {shouldPreRender && !isSheetOpen && (

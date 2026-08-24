@@ -826,10 +826,23 @@ export function GlobalAiChatDrawer() {
       aria-label={t("panelAriaLabel")}
       tabIndex={-1}
       className={cn(
-        "fixed right-0 top-0 bottom-0 z-40 w-96 flex flex-col bg-background overflow-hidden",
+        // A floating card on the same 12px inset the rail sits on — MainContent
+        // already reserves 396px (384 panel + 12 inset) for exactly this
+        // geometry. The card chrome itself (bg, border, radius, shadow) lives
+        // on AiChatPanel's Card; this Box only places and slides it.
+        // Below lg it clears the floating mobile header the same way the nav
+        // menu does, and the maxWidth clamp keeps the card inside a phone
+        // viewport (384 + the 12px inset overflows a 390px screen).
+        "fixed right-3 bottom-3 top-[calc(var(--mobile-header-height,56px)+16px)] lg:top-3 z-40 w-96 flex flex-col overflow-hidden",
         "transition-transform duration-300 ease-in-out sidebar-transition",
-        isOpen ? "translate-x-0" : "translate-x-full",
       )}
+      // Inline rather than a Tailwind arbitrary class: translate-x-full alone
+      // would leave the 12px inset's worth of card (plus its shadow) peeking
+      // at the screen edge, so the closed offset is 100% + the inset.
+      style={{
+        maxWidth: "calc(100vw - 1.5rem)",
+        transform: isOpen ? "translateX(0)" : "translateX(calc(100% + 0.75rem))",
+      }}
       aria-hidden={!isOpen}
     >
       <AiChatPanel

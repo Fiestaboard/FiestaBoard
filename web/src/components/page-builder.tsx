@@ -1788,7 +1788,10 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
             <ScrollArea className="flex-1 min-h-0 space-y-4">
               {/* Draft restored notification */}
               {draftRestored && (
-                <Alert className="bg-info/10 border-info/20">
+                // mb-4 by hand: the parent ScrollArea's space-y-4 spaces its
+                // viewport wrapper, not the content siblings inside it, so
+                // without this the banner sat flush against the name field.
+                <Alert className="bg-info/10 border-info/20 mb-4">
                   <AlertDescription className="text-sm">{t("draftRestored")}</AlertDescription>
                 </Alert>
               )}
@@ -1822,7 +1825,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       size="sm"
                       variant="ghost"
                       onClick={() => handleEditorModeChange("rich")}
-                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
+                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "rich" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                       aria-label={t("richEditorAriaLabel")}
                       aria-pressed={editorMode === "rich"}
                     >
@@ -1832,7 +1835,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
                       size="sm"
                       variant="ghost"
                       onClick={() => handleEditorModeChange("plain")}
-                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-brand-emphasis text-brand-foreground hover:bg-brand-emphasis/85 hover:text-brand-foreground" : ""}`}
+                      className={`h-7 px-3 text-[11px] rounded-none ${editorMode === "plain" ? "bg-primary text-primary-foreground hover:bg-primary/85 hover:text-primary-foreground" : ""}`}
                       aria-label={t("plainTextAriaLabel")}
                       aria-pressed={editorMode === "plain"}
                     >

@@ -634,7 +634,12 @@ export default function SchedulePage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className={`relative h-8 w-8 p-0 ${hasOverlaps ? "text-destructive hover:text-destructive" : "text-yellow-500 hover:text-yellow-500"}`}
+                            aria-label={
+                              hasOverlaps
+                                ? t("conflictsCountTooltip", { count: issueCount })
+                                : t("gapsCountTooltip", { count: issueCount })
+                            }
+                            className={`relative h-8 w-8 p-0 ${hasOverlaps ? "text-destructive hover:text-destructive" : "text-warning hover:text-warning"}`}
                           >
                             {hasOverlaps ? <AlertCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
                             <Flex
@@ -642,8 +647,10 @@ export default function SchedulePage() {
                               justify="center"
                               inline
                               className={cn(
-                                "absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-xs font-bold rounded-full text-white",
-                                hasOverlaps ? "bg-destructive" : "bg-yellow-500",
+                                "absolute -top-1 -right-1 h-4 min-w-4 px-0.5 text-xs font-bold rounded-full",
+                                hasOverlaps
+                                  ? "bg-destructive text-destructive-foreground"
+                                  : "bg-warning text-warning-foreground",
                               )}
                             >
                               {issueCount}
@@ -658,9 +665,7 @@ export default function SchedulePage() {
                       </TooltipContent>
                     </Tooltip>
                     <DropdownMenuContent align="end" className="w-80">
-                      <DropdownMenuLabel
-                        className={hasOverlaps ? "text-destructive" : "text-yellow-600 dark:text-yellow-400"}
-                      >
+                      <DropdownMenuLabel className={hasOverlaps ? "text-destructive" : "text-warning"}>
                         {hasOverlaps ? t("scheduleConflictsLabel") : t("scheduleGapsLabel")}
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
