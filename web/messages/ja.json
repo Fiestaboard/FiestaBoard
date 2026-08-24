@@ -1704,9 +1704,7 @@
   "timezonePicker": {
     "ariaLabel": "タイムゾーン",
     "placeholder": "タイムゾーンを検索...",
-    "toggleAriaLabel": "タイムゾーン一覧を切り替え",
     "optionsAriaLabel": "タイムゾーンオプション",
-    "showingFirst": "{total} 件の結果のうち最初の 50 件を表示しています",
     "invalidTimezone": "無効なタイムゾーンです。リストから選択するか、有効な IANA タイムゾーン名を入力してください。"
   },
   "pluginDetail": {

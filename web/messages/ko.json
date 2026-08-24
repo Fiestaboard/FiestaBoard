@@ -1704,9 +1704,7 @@
   "timezonePicker": {
     "ariaLabel": "시간대",
     "placeholder": "시간대 검색...",
-    "toggleAriaLabel": "시간대 목록 전환",
     "optionsAriaLabel": "시간대 옵션",
-    "showingFirst": "{total}개 결과 중 처음 50개 표시",
     "invalidTimezone": "유효하지 않은 시간대입니다. 목록에서 선택하거나 유효한 IANA 시간대 이름을 입력하세요."
   },
   "pluginDetail": {

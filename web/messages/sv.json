@@ -1704,9 +1704,7 @@
   "timezonePicker": {
     "ariaLabel": "Tidszon",
     "placeholder": "Sök tidszon...",
-    "toggleAriaLabel": "Växla tidszonlista",
     "optionsAriaLabel": "Tidszonsalternativ",
-    "showingFirst": "Visar de första 50 av {total} resultat",
     "invalidTimezone": "Ogiltig tidszon. Välj från listan eller ange ett giltigt IANA-tidszonsnamn."
   },
   "pluginDetail": {

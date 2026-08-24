@@ -1704,9 +1704,7 @@
   "timezonePicker": {
     "ariaLabel": "时区",
     "placeholder": "搜索时区...",
-    "toggleAriaLabel": "切换时区列表",
     "optionsAriaLabel": "时区选项",
-    "showingFirst": "显示 {total} 个结果中的前 50 个",
     "invalidTimezone": "无效的时区。请从列表中选择或输入有效的 IANA 时区名称。"
   },
   "pluginDetail": {

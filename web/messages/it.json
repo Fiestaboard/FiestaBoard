@@ -1704,9 +1704,7 @@
   "timezonePicker": {
     "ariaLabel": "Fuso orario",
     "placeholder": "Cerca fuso orario...",
-    "toggleAriaLabel": "Attiva/disattiva elenco fusi orari",
     "optionsAriaLabel": "Opzioni fuso orario",
-    "showingFirst": "Mostro i primi 50 di {total} risultati",
     "invalidTimezone": "Fuso orario non valido. Seleziona dall'elenco o inserisci un nome IANA valido."
   },
   "pluginDetail": {

@@ -1704,9 +1704,7 @@
   "timezonePicker": {
     "ariaLabel": "Tijdzone",
     "placeholder": "Tijdzone zoeken...",
-    "toggleAriaLabel": "Tijdzonelijst wisselen",
     "optionsAriaLabel": "Tijdzone-opties",
-    "showingFirst": "Eerste 50 van {total} resultaten worden getoond",
     "invalidTimezone": "Ongeldige tijdzone. Selecteer uit de lijst of voer een geldige IANA-tijdzonenaam in."
   },
   "pluginDetail": {

@@ -1704,9 +1704,7 @@
   "timezonePicker": {
     "ariaLabel": "Strefa czasowa",
     "placeholder": "Szukaj strefy czasowej...",
-    "toggleAriaLabel": "Przełącz listę stref czasowych",
     "optionsAriaLabel": "Opcje strefy czasowej",
-    "showingFirst": "Pokazano pierwsze 50 z {total} wyników",
     "invalidTimezone": "Nieprawidłowa strefa czasowa. Wybierz z listy lub wprowadź prawidłową nazwę strefy IANA."
   },
   "pluginDetail": {

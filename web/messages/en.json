@@ -1661,9 +1661,7 @@
   "timezonePicker": {
     "ariaLabel": "Timezone",
     "placeholder": "Search timezone...",
-    "toggleAriaLabel": "Toggle timezone list",
     "optionsAriaLabel": "Timezone options",
-    "showingFirst": "Showing first 50 of {total} results",
     "invalidTimezone": "Invalid timezone. Please select from the list or enter a valid IANA timezone name."
   },
   "pluginDetail": {
