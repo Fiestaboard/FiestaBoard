@@ -1,17 +1,4 @@
-import {
-  Badge,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Flex,
-  Label,
-  Stack,
-  Switch,
-  Text,
-} from "@fiestaboard/ui";
+import { Badge, Box, Button, CardTitle, Flex, Label, Stack, Switch, Text } from "@fiestaboard/ui";
 import { EmptyState } from "@fiestaboard/ui/components/feedback/empty-state";
 import { format } from "date-fns";
 import { Calendar, ChevronRight, Edit, GalleryHorizontalEnd, Moon, Trash2 } from "lucide-react";
@@ -178,11 +165,15 @@ export function ScheduleListView({
   };
 
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="text-lg">{t("scheduleEntriesTitle")}</CardTitle>
-      </CardHeader>
-      <CardContent>
+    // A block inside the route's PageCard: the PageSection wrapping this in
+    // schedule.tsx owns the inset and the top rule, so the list draws no card
+    // of its own — mirroring the calendar view, whose border was already
+    // traded for the page card. The heading matches its size="base" title.
+    <Box>
+      <CardTitle size="base" className="pb-3">
+        {t("scheduleEntriesTitle")}
+      </CardTitle>
+      <Box>
         {schedules.length === 0 && !showSilenceRow ? (
           <EmptyState
             icon={Calendar}
@@ -268,7 +259,7 @@ export function ScheduleListView({
             })}
           </Stack>
         )}
-      </CardContent>
-    </Card>
+      </Box>
+    </Box>
   );
 }

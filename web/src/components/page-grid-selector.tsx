@@ -517,8 +517,8 @@ export interface PageGridSelectorProps {
   isPending?: boolean;
   /** Whether to show the active indicator line */
   showActiveIndicator?: boolean;
-  /** Label text above the grid */
-  label?: string;
+  /** Label text above the grid; null suppresses it (undefined falls back to "SELECT PAGE") */
+  label?: string | null;
   /** Filter pages by device type */
   deviceTypeFilter?: DeviceType;
   /** View mode: "grid" shows previews, "list" shows compact list */
