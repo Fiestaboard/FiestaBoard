@@ -36,7 +36,7 @@ Use `BOARD_LOCAL_API_KEY` + `BOARD_HOST` for local mode (default). Use `BOARD_RE
 
 ## Board Transition & Display
 
-These control the board's animation and where output is sent. They only apply in local mode.
+These control the board's animation and where output is sent. The `BOARD_TRANSITION_*` variables apply in local mode only; `OUTPUT_TARGET` applies in both modes.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
