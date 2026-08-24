@@ -282,11 +282,19 @@ docker compose up -d
 Then go to **http://localhost:4420** — the service starts automatically.
 
 :::tip
-If you used Path A (Docker Hub pull), make sure you're in the folder where the `docker-compose.hub.yml` file is, and use:
+If you used Path A (Docker Hub pull), make sure you're in the folder where the `docker-compose.hub.yml` file is, and pass that file to both commands. To stop:
+
+```bash
+docker compose -f docker-compose.hub.yml down
+```
+
+To start again:
 
 ```bash
 docker compose -f docker-compose.hub.yml up -d
 ```
+
+Without the `-f docker-compose.hub.yml` flag, the bare commands report "no configuration file provided" because that folder has no default `docker-compose.yml`.
 
 :::
 
