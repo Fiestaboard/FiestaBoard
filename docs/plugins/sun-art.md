@@ -53,6 +53,7 @@ Sun Art fills the entire board -- use it as a standalone full-screen display or 
 | Morning | Bright warm tones |
 | Noon | Peak yellow/white |
 | Afternoon | Warm golden hour begins |
+| Sunset | Sun setting, orange/red sky |
 | Late Sunset | Rich orange/red sky |
 | Dusk | Fading purple tones |
 | Twilight | Deep blue returning |
