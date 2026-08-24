@@ -54,9 +54,10 @@ test.describe("regression: settings.hardware", () => {
     await expect(page.getByRole("button", { name: /Get API Key from Board/i })).toBeVisible({ timeout: 10_000 });
 
     // Now switch to cloud API mode (the FiestaBoard cloud registry path).
-    // The mode-picker buttons contain the label "Cloud API" plus a description,
-    // so match by partial text instead of exact role-name.
-    const cloudBtn = page.getByRole("button", { name: /Cloud API/i }).first();
+    // The mode picker is a radiogroup, and each tile's accessible name is its
+    // label plus its description, so match by partial text rather than an
+    // exact role-name.
+    const cloudBtn = page.getByRole("radio", { name: /Cloud API/i }).first();
     await expect(cloudBtn).toBeVisible({ timeout: 10_000 });
     await cloudBtn.click();
 

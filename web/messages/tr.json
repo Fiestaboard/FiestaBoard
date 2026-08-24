@@ -853,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "Bağlantı",
+    "apiModeLabel": "API modu",
     "localApiLabel": "Yerel API",
     "localApiDescription": "Doğrudan bağlantı",
     "cloudApiLabel": "Bulut API",

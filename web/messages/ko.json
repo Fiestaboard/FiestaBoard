@@ -853,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "연결",
+    "apiModeLabel": "API 모드",
     "localApiLabel": "로컬 API",
     "localApiDescription": "직접 연결",
     "cloudApiLabel": "클라우드 API",

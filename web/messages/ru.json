@@ -853,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "Подключение",
+    "apiModeLabel": "Режим API",
     "localApiLabel": "Локальный API",
     "localApiDescription": "Прямое подключение",
     "cloudApiLabel": "Облачный API",

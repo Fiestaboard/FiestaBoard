@@ -853,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "Conexão",
+    "apiModeLabel": "Modo de API",
     "localApiLabel": "API Local",
     "localApiDescription": "Conexão direta",
     "cloudApiLabel": "API na Nuvem",

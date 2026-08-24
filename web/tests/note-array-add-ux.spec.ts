@@ -61,7 +61,7 @@ test.describe("Add Note Array board", () => {
 
     // Expand the card: cloud mode is active with the token field visible.
     await card.getByText("My Board 2").click();
-    const localMode = card.getByRole("button", { name: /Local API/ });
+    const localMode = card.getByRole("radio", { name: /Local API/ });
     await expect(localMode).toBeVisible();
     await expect(card.getByText("Cloud API Token", { exact: true })).toBeVisible();
     // A tokenless array is not usable yet — the form says which credential it needs.
@@ -95,7 +95,7 @@ test.describe("Add Note Array board", () => {
     await page.keyboard.press("Escape");
 
     // Switching back to cloud restores the token field.
-    await card.getByRole("button", { name: /Cloud API/ }).click();
+    await card.getByRole("radio", { name: /Cloud API/ }).click();
     await expect(card.getByText("Cloud API Token", { exact: true })).toBeVisible({ timeout: 10_000 });
 
     // Pause so the video captures the final state before teardown.

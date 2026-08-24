@@ -853,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "Połączenie",
+    "apiModeLabel": "Tryb API",
     "localApiLabel": "Lokalne API",
     "localApiDescription": "Bezpośrednie połączenie",
     "cloudApiLabel": "Cloud API",

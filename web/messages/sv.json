@@ -853,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "Anslutning",
+    "apiModeLabel": "API-läge",
     "localApiLabel": "Lokalt API",
     "localApiDescription": "Direktanslutning",
     "cloudApiLabel": "Moln-API",

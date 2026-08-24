@@ -1,6 +1,18 @@
 "use client";
 
-import { Button, Flex, Grid, Input, Label, List, ListItem, Stack, Text } from "@fiestaboard/ui";
+import {
+  Button,
+  Flex,
+  Grid,
+  Input,
+  Label,
+  List,
+  ListItem,
+  Stack,
+  Text,
+  ToggleCard,
+  ToggleCardGroup,
+} from "@fiestaboard/ui";
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { CheckCircle, Cloud, HelpCircle, Key, KeyRound, Loader2, Search, Wifi, XCircle } from "lucide-react";
@@ -11,6 +23,13 @@ import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, Code62Glyph, DiscoveredBoard } from "@/lib/api";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+
+/** The board shapes the wizard can set up. */
+type DeviceType = "flagship" | "note";
+
+function isDeviceType(value: string): value is DeviceType {
+  return value === "flagship" || value === "note";
+}
 
 /**
  * The two flaps a Flagship's character-code-62 slot can physically carry
@@ -27,7 +46,7 @@ interface BoardConfig {
   cloud_key: string;
   host: string;
   connectionVerified: boolean;
-  device_type: "flagship" | "note";
+  device_type: DeviceType;
   board_color: "black" | "white";
   /** Which flap this Flagship's code-62 slot carries (issue #1657). */
   code62_glyph: Code62Glyph;
@@ -579,40 +598,20 @@ export function StepBoardSetup({
       <Stack gap="4" className="pt-4 border-t">
         <Stack gap="3">
           <Text weight="medium">{t("boardType")}</Text>
-          <Grid cols="2" gap="3">
-            <button
-              type="button"
-              onClick={() => onConfigChange({ ...config, device_type: "flagship" })}
-              aria-pressed={config.device_type === "flagship"}
-              className={cn(
-                "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
-                config.device_type === "flagship" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
-              )}
-            >
-              <Text as="span" weight="medium">
-                {tc("flagship")}
-              </Text>
-              <Text as="span" size="xs" tone="muted">
-                {t("flagshipDimensions")}
-              </Text>
-            </button>
-            <button
-              type="button"
-              onClick={() => onConfigChange({ ...config, device_type: "note" })}
-              aria-pressed={config.device_type === "note"}
-              className={cn(
-                "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all",
-                config.device_type === "note" ? "border-primary bg-primary/5" : "border-muted hover:border-border",
-              )}
-            >
-              <Text as="span" weight="medium">
-                {tc("note")}
-              </Text>
-              <Text as="span" size="xs" tone="muted">
-                {t("noteDimensions")}
-              </Text>
-            </button>
-          </Grid>
+          {/* One-of-two, so a radiogroup: one tab stop, arrows move the
+              choice, and each tile announces "1 of 2". */}
+          <ToggleCardGroup
+            columns="2"
+            align="center"
+            value={config.device_type}
+            onValueChange={(value) => {
+              if (isDeviceType(value)) onConfigChange({ ...config, device_type: value });
+            }}
+            aria-label={t("boardType")}
+          >
+            <ToggleCard value="flagship" title={tc("flagship")} description={t("flagshipDimensions")} />
+            <ToggleCard value="note" title={tc("note")} description={t("noteDimensions")} />
+          </ToggleCardGroup>
         </Stack>
 
         <Stack gap="3">

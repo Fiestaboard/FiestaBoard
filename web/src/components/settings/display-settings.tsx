@@ -23,6 +23,8 @@ import {
   Switch,
   Text,
   TextLink,
+  ToggleCard,
+  ToggleCardGroup,
 } from "@fiestaboard/ui";
 import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -62,6 +64,13 @@ const CODE62_CHOICES: ReadonlyArray<{ value: Code62Glyph; glyph: string; labelKe
   { value: "degree", glyph: "°", labelKey: "code62DegreeAriaLabel" },
   { value: "heart", glyph: "♥", labelKey: "code62HeartAriaLabel" },
 ];
+
+/** How a board is driven: the Vestaboard Local API, or the Cloud (RW) API. */
+type ApiMode = "local" | "cloud";
+
+function isApiMode(value: string): value is ApiMode {
+  return value === "local" || value === "cloud";
+}
 
 /**
  * Tiles usable for the board's CURRENT W×H — mirrors the backend's
@@ -173,36 +182,20 @@ function BoardConnectionForm({
       </Flex>
 
       {/* API Mode */}
-      <Grid cols="2" gap="2">
-        <button
-          onClick={() => onUpdate(board.id, { api_mode: "local" })}
-          aria-pressed={apiMode === "local"}
-          className={`p-2 rounded-md border text-left transition-colors ${
-            apiMode === "local" ? "border-primary bg-primary/10" : "border-muted hover:border-primary/50"
-          }`}
-        >
-          <Text size="xs" weight="medium">
-            {t("localApiLabel")}
-          </Text>
-          <Text tone="muted" className="text-[10px]">
-            {t("localApiDescription")}
-          </Text>
-        </button>
-        <button
-          onClick={() => onUpdate(board.id, { api_mode: "cloud" })}
-          aria-pressed={apiMode === "cloud"}
-          className={`p-2 rounded-md border text-left transition-colors ${
-            apiMode === "cloud" ? "border-primary bg-primary/10" : "border-muted hover:border-primary/50"
-          }`}
-        >
-          <Text size="xs" weight="medium">
-            {t("cloudApiLabel")}
-          </Text>
-          <Text tone="muted" className="text-[10px]">
-            {t("cloudApiDescription")}
-          </Text>
-        </button>
-      </Grid>
+      {/* One-of-two, so a radiogroup: one tab stop for the pair, arrows move
+          the choice, and each tile announces its position in the set. */}
+      <ToggleCardGroup
+        columns="2"
+        size="sm"
+        value={apiMode}
+        onValueChange={(value) => {
+          if (isApiMode(value)) onUpdate(board.id, { api_mode: value });
+        }}
+        aria-label={t("apiModeLabel")}
+      >
+        <ToggleCard value="local" title={t("localApiLabel")} description={t("localApiDescription")} />
+        <ToggleCard value="cloud" title={t("cloudApiLabel")} description={t("cloudApiDescription")} />
+      </ToggleCardGroup>
 
       {/* Local array mode: per-tile assignment grid instead of host/key fields */}
       {isArray && apiMode === "local" && <TileGridAssignment board={board} onUpdate={onUpdate} />}

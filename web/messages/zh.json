@@ -853,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "连接",
+    "apiModeLabel": "API 模式",
     "localApiLabel": "本地 API",
     "localApiDescription": "直接连接",
     "cloudApiLabel": "云端 API",
