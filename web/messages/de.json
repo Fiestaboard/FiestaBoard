@@ -107,6 +107,7 @@
     "connectDialogDescription": "Gib das Netzwerkpasswort ein. Die Verbindung wird gespeichert, damit dein FiestaPi automatisch erneut verbindet.",
     "passwordLabel": "Passwort",
     "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort ausblenden",
     "savedNetworks": "Gespeicherte Netzwerke",
     "savedEmpty": "Noch keine gespeicherten Netzwerke.",
     "forget": "Vergessen",

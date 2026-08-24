@@ -11,11 +11,11 @@ import {
   DialogHeader,
   DialogTitle,
   Flex,
-  Input,
   Label,
   List,
   ListItem,
   PageSection,
+  SecretInput,
   Stack,
   Text,
 } from "@fiestaboard/ui";
@@ -311,21 +311,19 @@ export function NetworkSettings() {
           {connectTarget && needsPassword(connectTarget) && (
             <Stack gap="2">
               <Label htmlFor="wifi-password">{t("passwordLabel")}</Label>
-              <Flex gap="2">
-                <Input
-                  id="wifi-password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  autoFocus
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && password) handleSubmitConnect();
-                  }}
-                />
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowPassword((v) => !v)}>
-                  {showPassword ? tCommon("off") : tCommon("on")}
-                </Button>
-              </Flex>
+              <SecretInput
+                id="wifi-password"
+                value={password}
+                autoFocus
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && password) handleSubmitConnect();
+                }}
+                visible={showPassword}
+                onVisibleChange={setShowPassword}
+                showLabel={t("showPassword")}
+                hideLabel={t("hidePassword")}
+              />
             </Stack>
           )}
           <DialogFooter>

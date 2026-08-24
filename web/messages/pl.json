@@ -107,6 +107,7 @@
     "connectDialogDescription": "Wprowadź hasło sieci, aby się połączyć. Połączenie zostanie zapisane, aby FiestaPi automatycznie łączyło się ponownie.",
     "passwordLabel": "Hasło",
     "showPassword": "Pokaż hasło",
+    "hidePassword": "Ukryj hasło",
     "savedNetworks": "Zapisane sieci",
     "savedEmpty": "Brak zapisanych sieci.",
     "forget": "Zapomnij",

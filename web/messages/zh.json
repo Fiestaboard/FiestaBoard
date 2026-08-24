@@ -107,6 +107,7 @@
     "connectDialogDescription": "输入网络密码以加入。连接将被保存，以便您的 FiestaPi 自动重新连接。",
     "passwordLabel": "密码",
     "showPassword": "显示密码",
+    "hidePassword": "隐藏密码",
     "savedNetworks": "已保存的网络",
     "savedEmpty": "尚无已保存的网络。",
     "forget": "忘记",

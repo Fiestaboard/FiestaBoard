@@ -107,6 +107,7 @@
     "connectDialogDescription": "참여하려면 네트워크 비밀번호를 입력하세요. FiestaPi가 자동으로 다시 연결되도록 연결이 저장됩니다.",
     "passwordLabel": "비밀번호",
     "showPassword": "비밀번호 표시",
+    "hidePassword": "비밀번호 숨기기",
     "savedNetworks": "저장된 네트워크",
     "savedEmpty": "아직 저장된 네트워크가 없습니다.",
     "forget": "잊기",

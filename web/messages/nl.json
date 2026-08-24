@@ -107,6 +107,7 @@
     "connectDialogDescription": "Voer het netwerkwachtwoord in om verbinding te maken. De verbinding wordt opgeslagen zodat je FiestaPi automatisch opnieuw verbindt.",
     "passwordLabel": "Wachtwoord",
     "showPassword": "Wachtwoord weergeven",
+    "hidePassword": "Wachtwoord verbergen",
     "savedNetworks": "Opgeslagen netwerken",
     "savedEmpty": "Nog geen opgeslagen netwerken.",
     "forget": "Vergeten",

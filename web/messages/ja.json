@@ -107,6 +107,7 @@
     "connectDialogDescription": "ネットワークパスワードを入力して参加します。接続は保存され、FiestaPi が自動的に再接続します。",
     "passwordLabel": "パスワード",
     "showPassword": "パスワードを表示",
+    "hidePassword": "パスワードを非表示",
     "savedNetworks": "保存済みネットワーク",
     "savedEmpty": "保存されたネットワークはまだありません。",
     "forget": "削除",

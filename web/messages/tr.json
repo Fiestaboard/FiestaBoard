@@ -107,6 +107,7 @@
     "connectDialogDescription": "Katılmak için ağ parolasını girin. Bağlantı, FiestaPi'nizin otomatik olarak yeniden bağlanması için kaydedilecektir.",
     "passwordLabel": "Parola",
     "showPassword": "Parolayı göster",
+    "hidePassword": "Şifreyi gizle",
     "savedNetworks": "Kaydedilmiş ağlar",
     "savedEmpty": "Henüz kaydedilmiş ağ yok.",
     "forget": "Unut",

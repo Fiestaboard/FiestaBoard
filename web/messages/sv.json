@@ -107,6 +107,7 @@
     "connectDialogDescription": "Ange nätverkslösenordet för att ansluta. Anslutningen sparas så att din FiestaPi automatiskt återansluter.",
     "passwordLabel": "Lösenord",
     "showPassword": "Visa lösenord",
+    "hidePassword": "Dölj lösenord",
     "savedNetworks": "Sparade nätverk",
     "savedEmpty": "Inga sparade nätverk ännu.",
     "forget": "Glöm",

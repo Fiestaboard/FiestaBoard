@@ -107,6 +107,7 @@
     "connectDialogDescription": "Digite a senha da rede para entrar. A conexão será salva para que seu FiestaPi se reconecte automaticamente.",
     "passwordLabel": "Senha",
     "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar palavra-passe",
     "savedNetworks": "Redes salvas",
     "savedEmpty": "Ainda não há redes salvas.",
     "forget": "Esquecer",

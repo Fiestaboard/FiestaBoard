@@ -1926,6 +1926,7 @@
     "connectDialogDescription": "Enter the network password to join. The connection will be saved so your FiestaPi reconnects automatically.",
     "passwordLabel": "Password",
     "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "savedNetworks": "Saved networks",
     "savedEmpty": "No saved networks yet.",
     "forget": "Forget",

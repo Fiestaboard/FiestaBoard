@@ -107,6 +107,7 @@
     "connectDialogDescription": "Saisissez le mot de passe du réseau pour vous connecter. La connexion sera enregistrée pour que votre FiestaPi se reconnecte automatiquement.",
     "passwordLabel": "Mot de passe",
     "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
     "savedNetworks": "Réseaux enregistrés",
     "savedEmpty": "Aucun réseau enregistré pour l'instant.",
     "forget": "Oublier",
