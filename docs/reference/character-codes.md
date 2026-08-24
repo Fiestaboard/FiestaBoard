@@ -89,14 +89,21 @@ See the [Color Guide](/docs/reference/color-guide) for detailed usage.
 ```python
 from src.board_chars import BoardChars
 
-# Convert text to character codes
+# Convert a whole string to character codes
 codes = BoardChars.text_to_codes("HELLO")
 # Result: [8, 5, 12, 12, 15]
 
-# Convert codes back to text
-text = BoardChars.codes_to_text([8, 5, 12, 12, 15])
-# Result: "HELLO"
+# Look up a single character's code
+code = BoardChars.get_char_code("H")
+# Result: 8
+
+# Look up a color code by name
+red = BoardChars.get_color_code("red")
+# Result: 63
 ```
+
+> **Note:** `BoardChars` only maps text to codes, not the reverse. To turn a code
+> back into a character, read it off the tables above.
 
 ## Board Dimensions
 
