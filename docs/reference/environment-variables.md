@@ -65,19 +65,32 @@ These control the board's animation and where output is sent. The `BOARD_TRANSIT
 
 ## Plugin API Keys
 
+Core FiestaBoard reads these on startup and folds them into `config.json`, so they
+take effect whether or not the plugin is installed yet. They are legacy keys from
+when these plugins were bundled -- the plugins themselves now install from the registry.
+
 | Variable | Plugin | Description |
 |----------|--------|-------------|
 | `GOOGLE_ROUTES_API_KEY` | Traffic | Google Routes API key |
 | `HOME_ASSISTANT_BASE_URL` | Home Assistant | HA instance URL |
 | `HOME_ASSISTANT_ACCESS_TOKEN` | Home Assistant | Long-lived access token |
-| `LASTFM_API_KEY` | Last.fm | Last.fm API key |
-| `LASTFM_USERNAME` | Last.fm | Last.fm username |
 | `MUNI_API_KEY` | Muni Transit | 511.org API key |
-| `WSDOT_API_ACCESS_CODE` | WSDOT Ferries | WSDOT API access code |
 | `PURPLEAIR_API_KEY` | Air Quality | PurpleAir API key |
 | `OPENWEATHERMAP_API_KEY` | Air Quality | OpenWeatherMap API key |
 | `FINNHUB_API_KEY` | Stocks | Finnhub API key (optional) |
-| `SPORTS_SCORES_API_KEY` | Sports Scores | TheSportsDB API key (optional) |
+
+## Installable Plugin API Keys
+
+These variables belong to plugins you install from the [registry](/docs/plugins/overview), not to core FiestaBoard. Each plugin reads its own variables, so they only take effect once that plugin is installed. Configure them through the plugin's settings on the Integrations page, or set the variable if you prefer `.env`.
+
+> Core `config_manager` does not read these -- setting one without the matching plugin installed has no effect.
+
+| Variable | Plugin | Description |
+|----------|--------|-------------|
+| `LASTFM_API_KEY` | [Last.fm](/docs/plugins/last-fm) | Last.fm API key |
+| `LASTFM_USERNAME` | [Last.fm](/docs/plugins/last-fm) | Last.fm username |
+| `WSDOT_API_ACCESS_CODE` | [WSDOT Ferries](/docs/plugins/wsdot) | WSDOT API access code |
+| `SPORTS_SCORES_API_KEY` | [Sports Scores](/docs/plugins/sports-scores) | TheSportsDB API key (optional) |
 
 ## Guest WiFi
 
