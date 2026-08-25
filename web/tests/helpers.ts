@@ -561,6 +561,24 @@ export async function deleteAllSchedules(): Promise<void> {
   }
 }
 
+/**
+ * Turn schedule mode on or off for the primary board.
+ *
+ * Useful for pinning "no active page" deterministically: the render loop's
+ * "primary never goes dark" rule (src/main.py) auto-promotes the first page
+ * whenever the active page is null *in manual mode*, so a test that needs a
+ * genuinely empty active display should enable schedule mode with no matching
+ * schedules rather than race the loop's ~15s tick.
+ */
+export async function setScheduleEnabled(enabled: boolean): Promise<void> {
+  const res = await fetch(`${API_URL}/schedules/enabled`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw new Error(`setScheduleEnabled(${enabled}) failed: ${res.status}`);
+}
+
 /** Enable a plugin via the API. */
 export async function enablePlugin(id: string): Promise<void> {
   const res = await fetch(`${API_URL}/plugins/${id}/enable`, {

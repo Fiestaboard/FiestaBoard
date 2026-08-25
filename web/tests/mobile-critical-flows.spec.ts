@@ -181,27 +181,32 @@ test.describe("Mobile — Board preview fits viewport", () => {
     await page.goto("/");
     const firstTile = page.getByTestId("char-tile-0-0");
     await expect(firstTile).toBeVisible({ timeout: 15_000 });
-    // Let ScaledBoardDisplay's measure + rAF scale pass settle
-    await page.waitForTimeout(500);
 
-    const geometry = await page.evaluate(() => {
-      const t0 = document.querySelector('[data-testid="char-tile-0-0"]');
-      const t21 = document.querySelector('[data-testid="char-tile-0-21"]');
-      if (!t0 || !t21) return null;
-      const frame = t0.closest('[class*="border-["]');
-      if (!frame) return null;
-      const fr = frame.getBoundingClientRect();
-      const r0 = t0.getBoundingClientRect();
-      const r21 = t21.getBoundingClientRect();
-      return {
-        frameInViewport: fr.left >= 0 && fr.right <= window.innerWidth,
-        tilesInsideFrame: r0.left >= fr.left - 0.5 && r21.right <= fr.right + 0.5,
-      };
-    });
+    // ScaledBoardDisplay measures, then applies its scale on a rAF. A fixed
+    // sleep followed by a single measurement samples whatever the layout
+    // happened to be at that instant, which is what made this flaky on a
+    // loaded CI runner. Poll the measurement instead so a late scale pass is
+    // waited out rather than caught mid-flight.
+    const readGeometry = () =>
+      page.evaluate(() => {
+        const t0 = document.querySelector('[data-testid="char-tile-0-0"]');
+        const t21 = document.querySelector('[data-testid="char-tile-0-21"]');
+        if (!t0 || !t21) return null;
+        const frame = t0.closest('[class*="border-["]');
+        if (!frame) return null;
+        const fr = frame.getBoundingClientRect();
+        const r0 = t0.getBoundingClientRect();
+        const r21 = t21.getBoundingClientRect();
+        // A frame with no width means the scale pass has not run yet; report
+        // it as not-ready so the poll retries instead of asserting on zeroes.
+        if (fr.width === 0) return null;
+        return {
+          frameInViewport: fr.left >= 0 && fr.right <= window.innerWidth,
+          tilesInsideFrame: r0.left >= fr.left - 0.5 && r21.right <= fr.right + 0.5,
+        };
+      });
 
-    expect(geometry).not.toBeNull();
-    expect(geometry?.frameInViewport).toBe(true);
-    expect(geometry?.tilesInsideFrame).toBe(true);
+    await expect.poll(readGeometry, { timeout: 10_000 }).toEqual({ frameInViewport: true, tilesInsideFrame: true });
   });
 });
 

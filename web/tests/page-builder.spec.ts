@@ -9,9 +9,11 @@ import {
   configureBoard,
   createPage,
   deleteAllPages,
+  deleteAllSchedules,
   deletePage,
   expect,
   setActivePage,
+  setScheduleEnabled,
   suppressWizard,
   test,
   waitForNoActiveDisplay,
@@ -245,45 +247,54 @@ test.describe("Sync from Board", () => {
   });
 
   test("shows error when no active page is set", async ({ page }) => {
-    // Delete all pages and clear the active page. The backend auto-creates a
-    // default welcome page when the last page is deleted, so we cannot reach
-    // a truly empty state. Instead we clear active_page_id again immediately
-    // before clicking sync to collapse the window where the main loop (polling
-    // every ~15 s) could auto-promote the default page back to active.
+    // Reaching "no active display" is the whole setup cost of this test, and
+    // it used to be a race: deleting the last page makes the backend
+    // auto-create a Welcome page, and the render loop's "primary never goes
+    // dark" rule (src/main.py) re-promotes the first page to active on every
+    // ~15s tick whenever the active page is null. Clearing active_page_id and
+    // clicking fast enough to beat the next tick is what made this the single
+    // flakiest test in the suite.
+    //
+    // The loop's rule is guarded on manual mode, and GET /pages/current-display
+    // resolves through the schedule when schedule mode is on. So schedule mode
+    // with zero schedules is a *stable* no-active-display state that neither
+    // side will promote out from under us.
     await deleteAllPages();
-    await setActivePage(null);
+    await deleteAllSchedules();
+    await setScheduleEnabled(true);
 
-    await page.goto("/pages/new");
-    await expect(page.getByText("Create Page").first()).toBeVisible({
-      timeout: 15_000,
-    });
+    try {
+      await setActivePage(null);
+      // Now a cheap assertion rather than a race we hope to win.
+      await waitForNoActiveDisplay();
 
-    const syncBtn = page.getByRole("button", {
-      name: "Sync from current board display",
-    });
-    await expect(syncBtn).toBeVisible({ timeout: 10_000 });
+      await page.goto("/pages/new");
+      await expect(page.getByText("Create Page").first()).toBeVisible({
+        timeout: 15_000,
+      });
 
-    // Re-arm null active page immediately before clicking to prevent the main
-    // loop from auto-promoting the default page during the page-load wait above.
-    await setActivePage(null);
+      const syncBtn = page.getByRole("button", {
+        name: "Sync from current board display",
+      });
+      await expect(syncBtn).toBeVisible({ timeout: 10_000 });
 
-    // Block on confirmation that there is no active display server-side. This
-    // closes the race where the polling loop auto-promotes the Welcome page
-    // between the setActivePage(null) write and the click below.
-    await waitForNoActiveDisplay();
+      // Wait for the sync API response, then verify the error toast.
+      // We match on URL only (not status) so a 200 produces an assertion
+      // failure rather than a cryptic timeout.
+      const [response] = await Promise.all([
+        page.waitForResponse((res) => res.url().includes("/api/pages/current-display"), { timeout: 10_000 }),
+        syncBtn.click(),
+      ]);
+      expect(response.status()).toBe(404);
 
-    // Wait for the sync API response, then verify the error toast.
-    // We match on URL only (not status) so a 200 produces an assertion
-    // failure rather than a cryptic timeout.
-    const [response] = await Promise.all([
-      page.waitForResponse((res) => res.url().includes("/api/pages/current-display"), { timeout: 10_000 }),
-      syncBtn.click(),
-    ]);
-    expect(response.status()).toBe(404);
-
-    // An error toast should be visible — use text-based detection since Sonner
-    // toast attribute structure can vary between versions/configurations.
-    await expect(page.getByText("No active display to sync from").first()).toBeVisible({ timeout: 5_000 });
+      // An error toast should be visible — use text-based detection since Sonner
+      // toast attribute structure can vary between versions/configurations.
+      await expect(page.getByText("No active display to sync from").first()).toBeVisible({ timeout: 5_000 });
+    } finally {
+      // Specs in a file run serially against one backend; leaving schedule
+      // mode on would change what every later test in this file sees.
+      await setScheduleEnabled(false);
+    }
   });
 
   test("populates template lines from active page on successful sync", async ({ page }) => {

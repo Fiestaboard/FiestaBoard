@@ -40,13 +40,18 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 4 : 1,
-  reporter: process.env.CI ? "github" : "list",
+  // `github` annotates the diff; the JSON report is what makes retried-and-
+  // passed tests visible. Without it a flake reports "1 flaky", the job goes
+  // green, and nothing durable records which test it was.
+  reporter: process.env.CI ? [["github"], ["json", { outputFile: "playwright-report.json" }]] : [["list"]],
   timeout: 30_000,
   globalSetup: "./tests/global-setup.ts",
 
   use: {
     baseURL: process.env.BASE_URL || "http://localhost:4420",
-    trace: "off",
+    // Only the retry carries a trace, so passing runs pay nothing and every
+    // CI failure arrives with a timeline instead of a lone screenshot.
+    trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
 
