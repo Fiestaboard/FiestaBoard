@@ -115,3 +115,41 @@ class TestFactoryDispatch:
         client = board_client_from_board_dict({"api_mode": "virtual", "device_type": "note"})
         assert client is not None
         assert (client.rows, client.cols) == (3, 15)
+
+
+class TestSharedStatePerBoard:
+    """Frames must live with the BOARD, not a client instance.
+
+    Several code paths construct a throwaway client via
+    board_client_from_board_dict (live template render, detect-size) while
+    the display loop holds its own instance. All instances for one board id
+    must see the same frame, or a live-edit send evaporates (the bug that
+    motivated this: /templates/render/live wrote to a fresh instance and
+    the panel never saw it).
+    """
+
+    def test_two_instances_for_same_board_share_frames(self):
+        a = VirtualBoardClient(device_type="flagship", board_id="b-shared")
+        b = VirtualBoardClient(device_type="flagship", board_id="b-shared")
+        a.send_characters(_grid(fill=9))
+        assert b.read_current_message() == _grid(fill=9)
+        assert b._last_sent_at is not None
+
+    def test_distinct_boards_do_not_share(self):
+        a = VirtualBoardClient(device_type="flagship", board_id="b-one")
+        b = VirtualBoardClient(device_type="flagship", board_id="b-two")
+        a.send_characters(_grid(fill=1))
+        assert b.read_current_message() is None
+
+    def test_factory_passes_board_id(self):
+        board = {"api_mode": "virtual", "device_type": "flagship", "id": "b-factory"}
+        a = board_client_from_board_dict(board)
+        b = board_client_from_board_dict(board)
+        a.send_characters(_grid(fill=4))
+        assert b.read_current_message() == _grid(fill=4)
+
+    def test_anonymous_clients_stay_instance_local(self):
+        a = VirtualBoardClient(device_type="flagship")
+        b = VirtualBoardClient(device_type="flagship")
+        a.send_characters(_grid(fill=2))
+        assert b.read_current_message() is None

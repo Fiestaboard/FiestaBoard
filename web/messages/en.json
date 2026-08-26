@@ -2062,6 +2062,11 @@
     "toastCopyFailed": "Couldn't copy to clipboard"
   },
   "fiestaPanels": {
-    "title": "FiestaPanel"
+    "title": "FiestaPanel",
+    "notFoundTitle": "This panel no longer exists",
+    "notFoundBody": "It may have been deleted in FiestaBoard. Create a new panel and open its URL here.",
+    "boardMissingTitle": "This panel's board was removed",
+    "boardMissingBody": "The virtual board behind this panel was deleted. Delete and recreate the panel in Settings.",
+    "offline": "Connection to FiestaBoard lost — showing the last update"
   }
 }

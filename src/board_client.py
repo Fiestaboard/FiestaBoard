@@ -692,7 +692,10 @@ def board_client_from_board_dict(board: dict) -> Optional["BoardClient"]:
     if api_mode == "virtual":
         from .virtual_board_client import VirtualBoardClient
 
-        return VirtualBoardClient(device_type=board.get("device_type") or "flagship")
+        return VirtualBoardClient(
+            device_type=board.get("device_type") or "flagship",
+            board_id=board.get("id"),
+        )
 
     # Note-array boards: detected by device_type (not api_mode).
     # Local mode (api_mode == "local" with saved tiles) fans out per-tile
