@@ -5,6 +5,7 @@
 import type { BoardPreviewEntry } from "@fiestaboard/ui";
 
 import { apiUrl, appUrl, stripBasePath } from "./base-path";
+import { isPanelPath } from "./chromeless";
 
 // Types for API responses
 export interface StatusResponse {
@@ -1583,6 +1584,9 @@ function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
   // Compare app-relative routes: under HA Ingress the raw pathname is
   // "<prefix>/login", which a bare "/login" check would miss and loop.
   if (stripBasePath(window.location.pathname).startsWith("/login")) return false;
+  // The FiestaPanel viewer runs on TVs with no session; a stray 401/409
+  // from a background query must never bounce the wall display to /login.
+  if (isPanelPath(window.location.pathname)) return false;
   if (res.status === 401 || res.status === 409) {
     // For 409 only redirect when the body actually says setup_required —
     // other 409s (e.g. "already set up") should bubble up as errors.

@@ -25,6 +25,7 @@ import { usePrefetchPagesData } from "@/hooks/use-board";
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
 import { type AISettings, api } from "@/lib/api";
+import { isChromelessPath } from "@/lib/chromeless";
 import { MAX_APP_WIDTH, SIDEBAR_INSET } from "@/lib/layout-constants";
 
 interface NavItemDef {
@@ -78,10 +79,10 @@ export function NavigationSidebar() {
   const showTransitionsLab = betaData?.settings.transition_plugins_enabled ?? false;
   const navPrimaryItems = showTransitionsLab ? [...primaryItems, transitionsLabItem] : primaryItems;
 
-  // Hide the sidebar on auth screens — the user isn't navigating
-  // anywhere until they sign in / finish setup, and chrome around
-  // the login form makes a fresh install look broken.
-  if (pathname.startsWith("/login")) return null;
+  // Hide the sidebar on chrome-less screens: auth screens (the user isn't
+  // navigating anywhere until they sign in) and the FiestaPanel TV viewer
+  // (a wall display must never grow app chrome).
+  if (isChromelessPath(pathname)) return null;
 
   const isActive = (item: NavItemDef) => {
     if (item.external) return false;

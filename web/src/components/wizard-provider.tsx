@@ -7,6 +7,7 @@ import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useS
 
 import { usePathname } from "@/hooks/use-router";
 import { useTranslations } from "@/i18n/translations";
+import { isChromelessPath } from "@/lib/chromeless";
 import { clearWizardCompletion, shouldShowWizard } from "@/lib/setup-detection";
 
 function WizardLoadingFallback() {
@@ -59,8 +60,10 @@ export function WizardProvider({ children }: WizardProviderProps) {
   // ``/config/validate`` request the wizard relies on is unauthenticated-401
   // there. Treat the auth screen as a "wizard off" surface and re-check the
   // moment the user leaves it — that's the transition where the first-run
-  // wizard should appear on a freshly provisioned device.
-  const isOnAuthScreen = pathname?.startsWith("/login") ?? false;
+  // wizard should appear on a freshly provisioned device. The FiestaPanel
+  // viewer is chrome-less for the same reason: a TV browser has no session,
+  // and a wall display must never be replaced by the setup wizard.
+  const isOnAuthScreen = pathname ? isChromelessPath(pathname) : false;
   const [isWizardActive, setIsWizardActive] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
 

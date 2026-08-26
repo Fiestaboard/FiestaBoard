@@ -2060,5 +2060,8 @@
     "savedItButton": "I've saved it",
     "toastTokenRevoked": "MCP token revoked",
     "toastCopyFailed": "Couldn't copy to clipboard"
+  },
+  "fiestaPanels": {
+    "title": "FiestaPanel"
   }
 }

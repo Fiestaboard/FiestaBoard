@@ -21,4 +21,5 @@ export default [
   route("pages/edit/:id", "routes/pages.edit.$id.tsx"),
   route("schedule", "routes/schedule.tsx"),
   route("transitions", "routes/transitions.tsx"),
+  route("panel/:panelId", "routes/panel.tsx"),
 ] satisfies RouteConfig;
