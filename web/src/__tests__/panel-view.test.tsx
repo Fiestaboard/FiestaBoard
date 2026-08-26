@@ -3,9 +3,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
-import type { PanelFrame, PanelPublicConfig } from "@/lib/api";
 import { isInDimWindow } from "@/components/panel/panel-view";
 import { PanelView } from "@/components/panel/panel-view";
+import type { PanelFrame, PanelPublicConfig } from "@/lib/api";
 
 import { server } from "./mocks/server";
 
