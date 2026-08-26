@@ -109,10 +109,11 @@ class TestDeviceConstants:
         assert "note_array" in DEVICE_TYPES
 
     def test_valid_api_modes(self):
-        """VALID_API_MODES contains only local and cloud (no note_array entry)."""
-        assert VALID_API_MODES == ("local", "cloud")
+        """VALID_API_MODES contains local, cloud, and virtual (no note_array entry)."""
+        assert VALID_API_MODES == ("local", "cloud", "virtual")
         assert "local" in VALID_API_MODES
         assert "cloud" in VALID_API_MODES
+        assert "virtual" in VALID_API_MODES
         assert "note_array" not in VALID_API_MODES
 
 
@@ -1137,3 +1138,22 @@ class TestBoardInstanceCode62Glyph:
         """
         legacy = {"id": "b1", "name": "Kitchen", "device_type": "flagship", "board_color": "black"}
         assert BoardInstance.from_dict(legacy).code62_glyph == "degree"
+
+
+class TestVirtualApiMode:
+    """Tests for the virtual api_mode (FiestaPanel boards, no hardware)."""
+
+    def test_virtual_api_mode_is_preserved(self):
+        """api_mode="virtual" survives __post_init__ instead of coercing to local."""
+        board = BoardInstance(api_mode="virtual")
+        assert board.api_mode == "virtual"
+
+    def test_virtual_board_is_connection_configured_without_credentials(self):
+        """Virtual boards need no host or keys to count as configured."""
+        board = BoardInstance(api_mode="virtual", host="", local_api_key="", cloud_key="")
+        assert board.is_connection_configured is True
+
+    def test_unknown_api_mode_still_coerces_to_local(self):
+        """Arbitrary junk api_mode values keep falling back to local."""
+        board = BoardInstance(api_mode="bogus")
+        assert board.api_mode == "local"

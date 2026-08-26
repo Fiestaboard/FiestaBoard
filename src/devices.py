@@ -39,7 +39,7 @@ NOTE_ARRAY_PRESETS: list[dict] = [
     {"id": "2x2_grid", "label": "2×2 grid", "notes_wide": 2, "notes_tall": 2},  # → 6 rows × 30 cols
 ]
 
-VALID_API_MODES = ("local", "cloud")
+VALID_API_MODES = ("local", "cloud", "virtual")
 
 # Which glyph a board's character-code-62 flap physically carries (issue #1657).
 #
@@ -210,6 +210,10 @@ class BoardInstance:
 
     @property
     def is_connection_configured(self) -> bool:
+        if self.api_mode == "virtual":
+            # Virtual boards (FiestaPanel) render to memory; there is no
+            # connection to configure.
+            return True
         if is_note_array(self.device_type):
             if self.uses_local_tiles:
                 # A partial array is usable: assigned tiles receive their
