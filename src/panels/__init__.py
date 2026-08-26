@@ -8,8 +8,8 @@ __all__ = [
     "AutoDim",
     "Panel",
     "PanelCreate",
-    "PanelUpdate",
     "PanelService",
     "PanelStorage",
+    "PanelUpdate",
     "get_panel_service",
 ]

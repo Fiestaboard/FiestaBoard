@@ -13,7 +13,8 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from ..atomic_io import staging_path
+from src.atomic_io import staging_path
+
 from .models import Panel
 
 logger = logging.getLogger(__name__)

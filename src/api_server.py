@@ -1,6 +1,7 @@
 """REST API server for FiestaBoard Display Service."""
 
 import asyncio
+import contextlib
 import hashlib
 import json
 import logging
@@ -9,6 +10,7 @@ import os
 import re
 import threading
 import time
+import uuid
 from collections import deque
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -44,6 +46,8 @@ from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.models import PageCreate, PageUpdate  # noqa: E402
 from .pages.service import check_ref_board_compatibility, find_incompatible_references, get_page_service  # noqa: E402
 from .pages.share import decode_page, encode_page  # noqa: E402
+from .panels.models import PanelCreate, PanelUpdate  # noqa: E402
+from .panels.service import get_panel_service  # noqa: E402
 from .schedules.models import ScheduleCreate, ScheduleUpdate  # noqa: E402
 from .schedules.service import get_schedule_service  # noqa: E402
 from .settings.service import VALID_OUTPUT_TARGETS, VALID_STRATEGIES, get_settings_service  # noqa: E402
@@ -914,7 +918,10 @@ except Exception as _mcp_mount_err:  # pragma: no cover
 # Mounted unconditionally so /auth/* endpoints are always reachable; the
 # middleware itself short-circuits when auth is disabled so existing
 # local-only installs are unaffected.
-app.add_middleware(AuthMiddleware)
+# /panel/ (singular) is the FiestaPanel viewer surface: read-only endpoints a
+# TV browser must reach with no session cookie. The /panels CRUD surface
+# (plural) stays behind auth like everything else.
+app.add_middleware(AuthMiddleware, extra_public_paths=("/panel/",))
 app.include_router(auth_router)
 if is_auth_enabled():
     logger.info("Authentication is ENABLED (FIESTABOARD_AUTH_ENABLED=true)")
@@ -7249,6 +7256,188 @@ async def debug_network_diagnostics():
     except Exception as e:
         logger.error(f"Error running network diagnostics: {e}")
         raise HTTPException(status_code=500, detail="Network diagnostics failed") from e
+
+
+# =============================================================================
+# FiestaPanel Endpoints
+# =============================================================================
+#
+# Two surfaces with different auth:
+#   /panels  (plural)  — CRUD for the app, authenticated like everything else.
+#   /panel/  (singular) — read-only viewer endpoints for TVs, exempted from
+#                         auth via AuthMiddleware(extra_public_paths).
+# A panel's virtual board is co-created on POST and co-deleted on DELETE so
+# "a FiestaPanel" stays one concept for the user.
+
+
+def _panel_board_fields(board: dict | None) -> dict:
+    """Board-derived fields attached to panel payloads (orphan-aware)."""
+    if board is None:
+        return {"device_type": None, "board_missing": True}
+    return {"device_type": board.get("device_type"), "board_missing": False}
+
+
+@app.get("/panels")
+async def list_panels():
+    """List all panels with their virtual board's shape attached."""
+    panel_service = get_panel_service()
+    panels = []
+    for panel in panel_service.list_panels():
+        board = _find_board(panel.board_id)
+        panels.append({**panel.model_dump(mode="json"), **_panel_board_fields(board)})
+    return {"panels": panels, "total": len(panels)}
+
+
+@app.post("/panels")
+async def create_panel(data: PanelCreate):
+    """Create a panel and its backing virtual board.
+
+    The virtual board is added first; if panel creation then fails the board
+    is rolled back so no orphan is left behind.
+    """
+    settings_service = get_settings_service()
+    board_id = str(uuid.uuid4())
+    settings_service.add_board(
+        {
+            "id": board_id,
+            "device_type": data.device_type,
+            "api_mode": "virtual",
+            "name": f"{data.name} (Panel)",
+        }
+    )
+    _reinitialize_board_clients()
+    panel_service = get_panel_service()
+    try:
+        panel = panel_service.create_panel(data, board_id=board_id)
+    except Exception:
+        with contextlib.suppress(Exception):
+            settings_service.remove_board(board_id)
+            _reinitialize_board_clients()
+        raise
+    return {
+        "status": "success",
+        "panel": {
+            **panel.model_dump(mode="json"),
+            "device_type": data.device_type,
+            "board_missing": False,
+        },
+    }
+
+
+@app.patch("/panels/{panel_id}")
+async def update_panel(panel_id: str, data: PanelUpdate):
+    """Update a panel's display configuration."""
+    panel_service = get_panel_service()
+    panel = panel_service.update_panel(panel_id, data)
+    if panel is None:
+        raise HTTPException(status_code=404, detail="Panel not found")
+    board = _find_board(panel.board_id)
+    return {
+        "status": "success",
+        "panel": {**panel.model_dump(mode="json"), **_panel_board_fields(board)},
+    }
+
+
+@app.delete("/panels/{panel_id}")
+async def delete_panel(panel_id: str):
+    """Delete a panel and its virtual board (tolerating an already-gone board)."""
+    panel_service = get_panel_service()
+    panel = panel_service.delete_panel(panel_id)
+    if panel is None:
+        raise HTTPException(status_code=404, detail="Panel not found")
+    settings_service = get_settings_service()
+    with contextlib.suppress(ValueError):
+        settings_service.remove_board(panel.board_id)
+    _reinitialize_board_clients()
+    return {"status": "success"}
+
+
+@app.get("/panel/{panel_id}")
+async def get_panel_public(panel_id: str):
+    """Public viewer config: panel settings + board geometry. No auth."""
+    panel = get_panel_service().get_panel(panel_id)
+    if panel is None:
+        raise HTTPException(status_code=404, detail="Panel not found")
+    out = panel.model_dump(mode="json")
+    board = _find_board(panel.board_id)
+    if board is None:
+        out.update(
+            {
+                "device_type": None,
+                "board_missing": True,
+                "rows": None,
+                "cols": None,
+                "board_color": None,
+                "code62_glyph": None,
+            }
+        )
+        return out
+    from .devices import BoardInstance
+
+    dims = _board_dims(board)
+    instance = BoardInstance.from_dict(board)
+    out.update(
+        {
+            "device_type": board.get("device_type"),
+            "board_missing": False,
+            "rows": dims.rows,
+            "cols": dims.cols,
+            "board_color": board.get("board_color") or "black",
+            "code62_glyph": instance.effective_code62_glyph,
+        }
+    )
+    return out
+
+
+@app.get("/panel/{panel_id}/frame")
+async def get_panel_frame(panel_id: str):
+    """Public viewer frame: the virtual board's current content. No auth.
+
+    Never triggers a live HTTP read — a panel misconfigured onto a physical
+    board serves that board's last-sent cache instead of hammering it at the
+    viewer's 2s poll cadence.
+    """
+    panel = get_panel_service().get_panel(panel_id)
+    if panel is None:
+        raise HTTPException(status_code=404, detail="Panel not found")
+    board = _find_board(panel.board_id)
+    dims = _board_dims(board) if board is not None else resolve_dimensions("flagship")
+
+    service = get_service()
+    client = service.get_board_client(panel.board_id) if service is not None else None
+    if client is None and service is not None:
+        # Primary runtimes may be keyed under a legacy sentinel rather than
+        # the settings board id; fall back to the primary client.
+        with contextlib.suppress(Exception):
+            if panel.board_id == get_settings_service().get_primary_board_id():
+                client = service.vb_client
+
+    characters = None
+    updated_at = None
+    if client is not None:
+        if getattr(client, "is_virtual", False):
+            characters = client.read_current_message()
+        else:
+            characters = getattr(client, "_last_characters", None)
+        ts = getattr(client, "_last_sent_at", None)
+        if ts:
+            updated_at = datetime.fromtimestamp(ts, tz=UTC).isoformat()
+
+    if characters is None:
+        return {
+            "characters": None,
+            "message": None,
+            "rows": dims.rows,
+            "cols": dims.cols,
+            "updated_at": updated_at,
+        }
+    return {
+        "characters": characters,
+        "message": _characters_to_message(characters),
+        "rows": len(characters),
+        "cols": len(characters[0]) if characters else 0,
+        "updated_at": updated_at,
+    }
 
 
 # =============================================================================

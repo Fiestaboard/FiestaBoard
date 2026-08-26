@@ -106,9 +106,7 @@ class TestVirtualBoardClientRead:
 
 class TestFactoryDispatch:
     def test_factory_returns_virtual_client(self):
-        client = board_client_from_board_dict(
-            {"api_mode": "virtual", "device_type": "flagship", "id": "b1"}
-        )
+        client = board_client_from_board_dict({"api_mode": "virtual", "device_type": "flagship", "id": "b1"})
         assert isinstance(client, VirtualBoardClient)
         assert client.is_virtual is True
         assert client.use_cloud is False
