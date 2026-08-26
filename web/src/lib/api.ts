@@ -53,6 +53,63 @@ export interface BoardCurrentMessageResponse {
   board_id?: string | null;
 }
 
+// ---- FiestaPanel (mirrors src/panels/models.py) ----
+
+export interface PanelAutoDim {
+  enabled: boolean;
+  start: string; // "HH:MM" 24h
+  end: string;
+}
+
+export type PanelBackdrop = "wall" | "dark" | "none";
+
+export interface Panel {
+  id: string;
+  name: string;
+  board_id: string;
+  screen_diagonal_inches: number;
+  calibration_scale: number;
+  backdrop: PanelBackdrop;
+  auto_dim: PanelAutoDim;
+  created_at: string;
+  updated_at: string;
+  // Attached by the API from the panel's virtual board (null/true when the
+  // board was deleted out from under the panel).
+  device_type?: DeviceType | null;
+  board_missing?: boolean;
+}
+
+export interface PanelCreateRequest {
+  name: string;
+  device_type: "flagship" | "note";
+  screen_diagonal_inches: number;
+}
+
+export interface PanelUpdateRequest {
+  name?: string;
+  screen_diagonal_inches?: number;
+  calibration_scale?: number;
+  backdrop?: PanelBackdrop;
+  auto_dim?: PanelAutoDim;
+}
+
+// Public viewer config served by GET /panel/{id} (no auth).
+export interface PanelPublicConfig extends Panel {
+  rows: number | null;
+  cols: number | null;
+  board_color: "black" | "white" | null;
+  code62_glyph: "degree" | "heart" | null;
+}
+
+// Public frame served by GET /panel/{id}/frame (no auth).
+export interface PanelFrame {
+  characters: number[][] | null;
+  message: string | null;
+  rows: number;
+  cols: number;
+  updated_at: string | null;
+}
+
 export interface ActionResponse {
   status: string;
   message: string;
@@ -2082,6 +2139,27 @@ export const api = {
         body: JSON.stringify({ paused }),
       },
     ),
+  // ---- FiestaPanel ----
+  listPanels: () => fetchApi<{ panels: Panel[]; total: number }>("/panels"),
+  createPanel: (data: PanelCreateRequest) =>
+    fetchApi<{ status: string; panel: Panel }>("/panels", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+  updatePanel: (panelId: string, data: PanelUpdateRequest) =>
+    fetchApi<{ status: string; panel: Panel }>(`/panels/${encodeURIComponent(panelId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+  deletePanel: (panelId: string) =>
+    fetchApi<{ status: string }>(`/panels/${encodeURIComponent(panelId)}`, {
+      method: "DELETE",
+    }),
+  // Public viewer endpoints — reachable with no session (TV browsers).
+  getPanel: (panelId: string) => fetchApi<PanelPublicConfig>(`/panel/${encodeURIComponent(panelId)}`),
+  getPanelFrame: (panelId: string) => fetchApi<PanelFrame>(`/panel/${encodeURIComponent(panelId)}/frame`),
   detectBoardSize: (boardId: string) =>
     fetchApi<DetectBoardSizeResponse>(`/settings/board/${boardId}/detect-size`, {
       method: "POST",
