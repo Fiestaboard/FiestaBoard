@@ -121,9 +121,13 @@ function BoardConnectionForm({
   // Mirrors the backend's BoardInstance.is_connection_configured: an array
   // with saved local tiles needs at least one usable tile; otherwise (cloud,
   // or local mode without tiles yet) it falls back to the Cloud token.
-  const isConfigured = isArray
-    ? isArrayConfigured(board)
-    : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
+  // Virtual boards (FiestaPanel) render to memory and are always reachable.
+  const isConfigured =
+    apiMode === "virtual"
+      ? true
+      : isArray
+        ? isArrayConfigured(board)
+        : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
 
   const handleEnableLocalApi = async () => {
     if (!board.host || !enablementToken) {

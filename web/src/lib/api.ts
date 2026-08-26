@@ -641,7 +641,7 @@ export interface BoardInstance {
   paused?: boolean;
   /** Per-board schedule mode (issue #1242). Emitted on every GET /settings/board. */
   schedule_enabled?: boolean;
-  api_mode: "local" | "cloud";
+  api_mode: "local" | "cloud" | "virtual";
   host: string;
   /** Local API port (default 7000). */
   port?: number;

@@ -1,6 +1,6 @@
 "use client";
 
-import { BoardDisplay, type Code62Glyph, type DeviceType } from "@fiestaboard/ui";
+import { BoardDisplay, Box, type Code62Glyph, type DeviceType } from "@fiestaboard/ui";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
@@ -75,12 +75,12 @@ export function PanelBoard({
   }, [diagonalInches, deviceType, calibration]);
 
   return (
-    <div
+    <Box
       ref={wrapRef}
       data-testid="panel-board-scaler"
       style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
     >
-      <div
+      <Box
         className="relative"
         style={{ filter: "drop-shadow(0 24px 48px rgba(0,0,0,0.55)) drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }}
       >
@@ -99,7 +99,7 @@ export function PanelBoard({
         />
         {/* Plastic-flap sheen: one overlay above the whole board, no
             package-internal selectors. */}
-        <div
+        <Box
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
           style={{
@@ -108,7 +108,7 @@ export function PanelBoard({
             mixBlendMode: "screen",
           }}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

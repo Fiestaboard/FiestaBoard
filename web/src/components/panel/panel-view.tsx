@@ -1,6 +1,6 @@
 "use client";
 
-import type { Code62Glyph } from "@fiestaboard/ui";
+import { Box, type Code62Glyph, Flex, Text } from "@fiestaboard/ui";
 import { useEffect, useRef, useState } from "react";
 
 import { PanelBoard } from "@/components/panel/panel-board";
@@ -58,7 +58,12 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
   const frame = usePanelFrame(panelId, frameIntervalMs);
 
   const [cursorHidden, setCursorHidden] = useState(false);
-  const [dimActive, setDimActive] = useState(false);
+  // The TV's clock, in minutes since midnight; ticked by an interval so the
+  // dim window is derived at render instead of set inside an effect body.
+  const [minutesNow, setMinutesNow] = useState(() => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  });
   const cursorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const notFound =
@@ -113,20 +118,16 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
     };
   }, []);
 
-  // Evaluate the auto-dim window against the TV's local clock.
+  // Keep the clock state ticking; the dim window itself is derived below.
   useEffect(() => {
-    if (!autoDim?.enabled) {
-      setDimActive(false);
-      return;
-    }
-    const tick = () => {
+    const interval = setInterval(() => {
       const now = new Date();
-      setDimActive(isInDimWindow(now.getHours() * 60 + now.getMinutes(), autoDim.start, autoDim.end));
-    };
-    tick();
-    const interval = setInterval(tick, DIM_TICK_MS);
+      setMinutesNow(now.getHours() * 60 + now.getMinutes());
+    }, DIM_TICK_MS);
     return () => clearInterval(interval);
-  }, [autoDim?.enabled, autoDim?.start, autoDim?.end]);
+  }, []);
+
+  const dimActive = !!autoDim?.enabled && isInDimWindow(minutesNow, autoDim.start, autoDim.end);
 
   const toggleFullscreen = () => {
     try {
@@ -142,17 +143,25 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
   let content: React.ReactNode;
   if (notFound) {
     content = (
-      <div className="text-center text-neutral-400">
-        <p className="text-2xl font-medium">{t("notFoundTitle")}</p>
-        <p className="mt-2 text-base text-neutral-500">{t("notFoundBody")}</p>
-      </div>
+      <Box className="text-center">
+        <Text as="p" className="text-2xl font-medium text-neutral-400">
+          {t("notFoundTitle")}
+        </Text>
+        <Text as="p" className="mt-2 text-base text-neutral-500">
+          {t("notFoundBody")}
+        </Text>
+      </Box>
     );
   } else if (config.data?.board_missing) {
     content = (
-      <div className="text-center text-neutral-400">
-        <p className="text-2xl font-medium">{t("boardMissingTitle")}</p>
-        <p className="mt-2 text-base text-neutral-500">{t("boardMissingBody")}</p>
-      </div>
+      <Box className="text-center">
+        <Text as="p" className="text-2xl font-medium text-neutral-400">
+          {t("boardMissingTitle")}
+        </Text>
+        <Text as="p" className="mt-2 text-base text-neutral-500">
+          {t("boardMissingBody")}
+        </Text>
+      </Box>
     );
   } else if (config.data) {
     content = (
@@ -171,10 +180,12 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
   }
 
   return (
-    <div
+    <Flex
       data-testid="panel-scene"
       data-panel-id={panelId}
-      className="fixed inset-0 flex items-center justify-center overflow-hidden"
+      align="center"
+      justify="center"
+      className="fixed inset-0 overflow-hidden"
       style={{ ...backdrop, cursor: cursorHidden ? "none" : undefined }}
       onClick={toggleFullscreen}
     >
@@ -182,14 +193,14 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
       {/* Edge vignette (wall backdrop only) so the letterboxed area reads
           as a lit room instead of dead pixels. */}
       {config.data?.backdrop === "wall" && (
-        <div
+        <Box
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
           style={{ boxShadow: "inset 0 0 18vmin rgba(0,0,0,0.65)" }}
         />
       )}
       {/* Auto-dim: slow-fading brightness overlay during the night window. */}
-      <div
+      <Box
         aria-hidden="true"
         data-testid="panel-dim"
         data-active={dimActive ? "true" : "false"}
@@ -197,14 +208,16 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
         style={{ opacity: dimActive ? 0.65 : 0, transition: "opacity 5s ease" }}
       />
       {offline && (
-        <div
+        <Box
           data-testid="panel-offline"
           title={t("offline")}
           className="absolute right-4 bottom-4 size-2 rounded-full bg-amber-500/60"
         >
-          <span className="sr-only">{t("offline")}</span>
-        </div>
+          <Text as="span" className="sr-only">
+            {t("offline")}
+          </Text>
+        </Box>
       )}
-    </div>
+    </Flex>
   );
 }
