@@ -63,6 +63,13 @@ test.describe("FiestaPanel viewer", () => {
       // Still on the panel route (no /login redirect) and chrome-less.
       expect(new URL(page.url()).pathname).toContain(`/p/${panel.short_code}`);
       await expect(page.getByRole("navigation")).toHaveCount(0);
+
+      // Seamless grid: the renderer's note-array block seams are zeroed on
+      // the panel, so tiles sit at the normal gutter end to end. The 43"
+      // auto-fit board is 15×9 (3 notes tall) → row seams exist to check.
+      const seamTile = page.locator('[data-note-row-seam="true"]').first();
+      await expect(seamTile).toBeAttached();
+      await expect(seamTile).toHaveCSS("margin-top", "0px");
     } finally {
       await deletePanel(panel.id);
     }

@@ -124,7 +124,7 @@ export function PanelBoard({
     <Box data-testid="panel-board-scaler" style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}>
       <Box
         data-testid="panel-board-crop"
-        className="relative overflow-hidden"
+        className="panel-seamless relative overflow-hidden"
         style={grid ? { width: grid.width, height: grid.height } : { opacity: 0 }}
       >
         <Box ref={wrapRef} className="absolute" style={grid ? { left: -grid.x, top: -grid.y } : undefined}>
