@@ -9,6 +9,7 @@ import { API_URL, authHeaders, ensureAuthForFetch, expect, test } from "./helper
 
 interface CreatedPanel {
   id: string;
+  short_code: number;
   board_id: string;
 }
 
@@ -50,14 +51,17 @@ test.describe("FiestaPanel viewer", () => {
       await driveBoard(panel.board_id, ["PANEL E2E OK", "", ""]);
 
       // Deliberately NO loginIfNeeded: a TV browser has no session cookie.
-      await page.goto(`/panel/${panel.id}`);
+      // Use the TV-typable short alias — the long /panel/{id} form shares
+      // the same module and API resolution.
+      expect(panel.short_code).toBeGreaterThan(0);
+      await page.goto(`/p/${panel.short_code}`);
 
       const board = page.getByRole("img");
       await expect(board).toBeVisible({ timeout: 15000 });
       await expect(board).toHaveAttribute("aria-label", /PANEL E2E OK/, { timeout: 10000 });
 
       // Still on the panel route (no /login redirect) and chrome-less.
-      expect(new URL(page.url()).pathname).toContain(`/panel/${panel.id}`);
+      expect(new URL(page.url()).pathname).toContain(`/p/${panel.short_code}`);
       await expect(page.getByRole("navigation")).toHaveCount(0);
     } finally {
       await deletePanel(panel.id);

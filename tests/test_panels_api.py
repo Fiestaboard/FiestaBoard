@@ -78,8 +78,16 @@ class TestPanelCrudEndpoints:
 
 
 class TestPublicPanelEndpoints:
+    def test_public_endpoints_resolve_short_codes(self, client, mock_panel_service):
+        """/panel/1 (TV-typable short URL) resolves via get_panel_by_ref."""
+        mock_panel_service.get_panel_by_ref.return_value = _panel(short_code=1)
+        with patch("src.api_server._find_board", return_value=None):
+            response = client.get("/panel/1")
+        assert response.status_code == 200
+        mock_panel_service.get_panel_by_ref.assert_called_with("1")
+
     def test_get_panel_returns_board_geometry(self, client, mock_panel_service):
-        mock_panel_service.get_panel.return_value = _panel()
+        mock_panel_service.get_panel_by_ref.return_value = _panel()
         board = {
             "id": "vboard-1",
             "device_type": "note",
@@ -95,13 +103,13 @@ class TestPublicPanelEndpoints:
         assert data["board_missing"] is False
 
     def test_get_panel_unknown_404s_with_stable_detail(self, client, mock_panel_service):
-        mock_panel_service.get_panel.return_value = None
+        mock_panel_service.get_panel_by_ref.return_value = None
         response = client.get("/panel/nope")
         assert response.status_code == 404
         assert response.json()["detail"] == "Panel not found"
 
     def test_get_panel_orphaned_board(self, client, mock_panel_service):
-        mock_panel_service.get_panel.return_value = _panel()
+        mock_panel_service.get_panel_by_ref.return_value = _panel()
         with patch("src.api_server._find_board", return_value=None):
             response = client.get("/panel/abc123def456")
         assert response.status_code == 200
@@ -110,7 +118,7 @@ class TestPublicPanelEndpoints:
         assert data["rows"] is None
 
     def test_frame_returns_sent_grid(self, client, mock_panel_service):
-        mock_panel_service.get_panel.return_value = _panel()
+        mock_panel_service.get_panel_by_ref.return_value = _panel()
         vclient = VirtualBoardClient(device_type="note")
         grid = [[7] * 15 for _ in range(3)]
         vclient.send_characters(grid)
@@ -130,7 +138,7 @@ class TestPublicPanelEndpoints:
         assert isinstance(data["message"], str)
 
     def test_frame_empty_board_returns_nulls_with_dims(self, client, mock_panel_service):
-        mock_panel_service.get_panel.return_value = _panel()
+        mock_panel_service.get_panel_by_ref.return_value = _panel()
         vclient = VirtualBoardClient(device_type="flagship")
         board = {"id": "vboard-1", "device_type": "flagship", "api_mode": "virtual"}
         display = Mock()
@@ -149,7 +157,7 @@ class TestPublicPanelEndpoints:
 
     def test_frame_never_http_reads_a_non_virtual_client(self, client, mock_panel_service):
         """A panel misconfigured onto a physical board must not trigger live reads."""
-        mock_panel_service.get_panel.return_value = _panel()
+        mock_panel_service.get_panel_by_ref.return_value = _panel()
         board = {"id": "vboard-1", "device_type": "flagship", "api_mode": "local"}
         physical = Mock(spec=["read_current_message", "_last_characters"])
         physical._last_characters = None

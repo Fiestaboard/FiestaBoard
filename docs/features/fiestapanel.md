@@ -20,7 +20,7 @@ A panel is a **virtual board**: FiestaBoard drives it exactly like a physical bo
 
 1. Open **Settings → Hardware → FiestaPanel** and click **Create panel**.
 2. Give it a name and choose your TV's diagonal size (presets from 32″ to 85″, or a custom value). The board's grid is computed automatically.
-3. Copy the panel URL — or scan the QR code — and open it in the TV's web browser.
+3. Open the panel URL in the TV's web browser. Every panel gets a TV-typable short URL — the first panel is `/p/1` (for example `http://192.168.1.50:4420/p/1`) — plus a QR code and a copy button in Settings.
 4. Give the panel content the same way you would any board: it appears in the board selector, so set its active page, add it to schedules, or point plugins at it. Panels use note-array layouts (blocks of 15×3), which the page editor supports natively.
 
 That's it. The TV shows a blank board until the first frame arrives.

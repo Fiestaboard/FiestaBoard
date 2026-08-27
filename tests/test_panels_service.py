@@ -56,3 +56,20 @@ class TestPanelServiceCrud:
 class TestSingleton:
     def test_get_panel_service_returns_same_instance(self):
         assert get_panel_service() is get_panel_service()
+
+
+class TestLookupByRef:
+    def test_ref_resolves_short_code(self, tmp_path):
+        service = _service(tmp_path)
+        panel = service.create_panel(PanelCreate(name="TV"), board_id="b1")
+        assert service.get_panel_by_ref(str(panel.short_code)) == panel
+
+    def test_ref_resolves_full_id(self, tmp_path):
+        service = _service(tmp_path)
+        panel = service.create_panel(PanelCreate(name="TV"), board_id="b1")
+        assert service.get_panel_by_ref(panel.id) == panel
+
+    def test_unknown_ref_returns_none(self, tmp_path):
+        service = _service(tmp_path)
+        assert service.get_panel_by_ref("999") is None
+        assert service.get_panel_by_ref("doesnotexist") is None

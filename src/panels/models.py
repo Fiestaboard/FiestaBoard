@@ -44,6 +44,9 @@ class Panel(BaseModel):
     """A FiestaPanel: display config for one virtual board."""
 
     id: str = Field(default_factory=_generate_panel_id)
+    # Small sequential number for TV-typable URLs (/p/1). Assigned by
+    # storage at creation; 0 means "not yet assigned".
+    short_code: int = Field(default=0, ge=0)
     name: str = Field(min_length=1, max_length=100)
     board_id: str
     screen_diagonal_inches: float = Field(default=55.0, ge=10.0, le=200.0)

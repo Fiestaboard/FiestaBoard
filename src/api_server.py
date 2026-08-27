@@ -7385,7 +7385,7 @@ async def delete_panel(panel_id: str):
 @app.get("/panel/{panel_id}")
 async def get_panel_public(panel_id: str):
     """Public viewer config: panel settings + board geometry. No auth."""
-    panel = get_panel_service().get_panel(panel_id)
+    panel = get_panel_service().get_panel_by_ref(panel_id)
     if panel is None:
         raise HTTPException(status_code=404, detail="Panel not found")
     out = panel.model_dump(mode="json")
@@ -7427,7 +7427,7 @@ async def get_panel_frame(panel_id: str):
     board serves that board's last-sent cache instead of hammering it at the
     viewer's 2s poll cadence.
     """
-    panel = get_panel_service().get_panel(panel_id)
+    panel = get_panel_service().get_panel_by_ref(panel_id)
     if panel is None:
         raise HTTPException(status_code=404, detail="Panel not found")
     board = _find_board(panel.board_id)

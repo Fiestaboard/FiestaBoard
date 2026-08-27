@@ -11,6 +11,7 @@ import { server } from "./mocks/server";
 
 const PANEL: Panel = {
   id: "abc123def456",
+  short_code: 1,
   name: "Living Room TV",
   board_id: "vboard-1",
   screen_diagonal_inches: 55,
@@ -35,11 +36,11 @@ function mockList(panels: Panel[] = [PANEL]) {
 }
 
 describe("FiestaPanelSettings", () => {
-  it("lists panels with their viewer URL and auto-fit grid", async () => {
+  it("lists panels with their short viewer URL and auto-fit grid", async () => {
     mockList();
     render(<FiestaPanelSettings />, { wrapper: Wrapper });
     expect(await screen.findByText("Living Room TV")).toBeInTheDocument();
-    expect(screen.getByText(/\/panel\/abc123def456/)).toBeInTheDocument();
+    expect(screen.getByText(/\/p\/1$/)).toBeInTheDocument();
     expect(screen.getByText(/30 × 12 flaps/)).toBeInTheDocument();
   });
 

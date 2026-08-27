@@ -29,13 +29,13 @@ class TestPanelAuthBoundary:
     def test_public_panel_read_reaches_route_without_cookie(self, client, auth_enabled):
         """Unknown panel gives 404 (the route ran) — not 401/409 from auth."""
         with patch("src.api_server.get_panel_service") as mock:
-            mock.return_value = Mock(get_panel=Mock(return_value=None))
+            mock.return_value = Mock(get_panel_by_ref=Mock(return_value=None))
             response = client.get("/panel/doesnotexist")
         assert response.status_code == 404
 
     def test_public_frame_read_reaches_route_without_cookie(self, client, auth_enabled):
         with patch("src.api_server.get_panel_service") as mock:
-            mock.return_value = Mock(get_panel=Mock(return_value=None))
+            mock.return_value = Mock(get_panel_by_ref=Mock(return_value=None))
             response = client.get("/panel/doesnotexist/frame")
         assert response.status_code == 404
 

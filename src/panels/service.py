@@ -24,6 +24,16 @@ class PanelService:
     def get_panel(self, panel_id: str) -> Panel | None:
         return self.storage.get(panel_id)
 
+    def get_panel_by_ref(self, ref: str) -> Panel | None:
+        """Resolve a viewer URL reference: a short code (all digits) or an id.
+
+        Random slug ids are 12+ chars of base64url, so a short all-digit
+        string can only be a short code — the two namespaces cannot collide.
+        """
+        if ref.isdigit() and len(ref) <= 6:
+            return self.storage.get_by_short_code(int(ref))
+        return self.storage.get(ref)
+
     def create_panel(self, data: PanelCreate, board_id: str) -> Panel:
         """Create a panel bound to an (already created) virtual board."""
         panel = Panel(

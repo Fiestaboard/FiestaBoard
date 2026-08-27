@@ -66,3 +66,56 @@ class TestPanelStorage:
     def test_missing_file_loads_empty(self, tmp_path):
         storage = PanelStorage(storage_file=str(tmp_path / "panels.json"))
         assert storage.list_all() == []
+
+
+class TestShortCodes:
+    def test_create_assigns_sequential_short_codes(self, tmp_path):
+        storage = PanelStorage(storage_file=str(tmp_path / "panels.json"))
+        first = storage.create(_panel(name="one"))
+        second = storage.create(_panel(name="two"))
+        assert first.short_code == 1
+        assert second.short_code == 2
+
+    def test_deleted_code_is_reused_lowest_first(self, tmp_path):
+        storage = PanelStorage(storage_file=str(tmp_path / "panels.json"))
+        first = storage.create(_panel(name="one"))
+        storage.create(_panel(name="two"))
+        storage.delete(first.id)
+        third = storage.create(_panel(name="three"))
+        assert third.short_code == 1
+
+    def test_short_codes_survive_reload(self, tmp_path):
+        path = tmp_path / "panels.json"
+        storage = PanelStorage(storage_file=str(path))
+        panel = storage.create(_panel(name="one"))
+        reloaded = PanelStorage(storage_file=str(path)).get(panel.id)
+        assert reloaded is not None
+        assert reloaded.short_code == panel.short_code
+
+
+class TestSchemaMigrationV2:
+    def test_v1_panels_get_short_codes_backfilled(self, tmp_path):
+        """Panels stored before short codes existed are assigned them on load."""
+        path = tmp_path / "panels.json"
+        v1 = {
+            "schema_version": 1,
+            "panels": [
+                {"id": "aaaaaaaaaaaa", "name": "beta", "board_id": "b1"},
+                {"id": "bbbbbbbbbbbb", "name": "alpha", "board_id": "b2"},
+            ],
+        }
+        path.write_text(json.dumps(v1))
+        storage = PanelStorage(storage_file=str(path))
+        codes = sorted(p.short_code for p in storage.list_all())
+        assert codes == [1, 2]
+        data = json.loads(path.read_text())
+        assert data["schema_version"] == CURRENT_SCHEMA_VERSION
+        assert CURRENT_SCHEMA_VERSION == 2
+
+    def test_migration_is_idempotent(self, tmp_path):
+        path = tmp_path / "panels.json"
+        v1 = {"schema_version": 1, "panels": [{"id": "aaaaaaaaaaaa", "name": "one", "board_id": "b1"}]}
+        path.write_text(json.dumps(v1))
+        PanelStorage(storage_file=str(path))
+        reloaded = PanelStorage(storage_file=str(path))
+        assert [p.short_code for p in reloaded.list_all()] == [1]

@@ -8,6 +8,7 @@ import { server } from "./mocks/server";
 
 const PANEL: Panel = {
   id: "abc123def456",
+  short_code: 1,
   name: "Living Room TV",
   board_id: "vboard-1",
   screen_diagonal_inches: 55,

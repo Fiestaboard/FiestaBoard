@@ -43,8 +43,11 @@ const SIZE_PRESETS = [32, 43, 50, 55, 65, 75, 85] as const;
 
 const PANELS_QUERY_KEY = ["panels"] as const;
 
-function panelViewerUrl(panelId: string): string {
-  return new URL(appUrl(`/panel/${panelId}`), window.location.origin).toString();
+function panelViewerUrl(panel: Pick<Panel, "id" | "short_code">): string {
+  // Prefer the TV-typable short URL (/p/1); fall back to the full id for
+  // panels created before short codes existed.
+  const path = panel.short_code > 0 ? `/p/${panel.short_code}` : `/panel/${panel.id}`;
+  return new URL(appUrl(path), window.location.origin).toString();
 }
 
 interface EditorState {
@@ -138,9 +141,9 @@ export function FiestaPanelSettings() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const copyUrl = async (panelId: string) => {
+  const copyUrl = async (panel: Panel) => {
     try {
-      await navigator.clipboard.writeText(panelViewerUrl(panelId));
+      await navigator.clipboard.writeText(panelViewerUrl(panel));
       toast.success(t("urlCopied"));
     } catch {
       toast.error(t("urlCopyFailed"));
@@ -167,7 +170,7 @@ export function FiestaPanelSettings() {
           {panels.map((panel) => (
             <Flex key={panel.id} gap="4" align="start" className="rounded-lg border border-border p-4">
               <Box aria-hidden="true" className="hidden rounded-md bg-white p-1.5 sm:block">
-                <QRCodeSVG value={panelViewerUrl(panel.id)} size={72} />
+                <QRCodeSVG value={panelViewerUrl(panel)} size={72} />
               </Box>
               <Stack gap="1" className="min-w-0 flex-1">
                 <Text className="font-medium">{panel.name}</Text>
@@ -177,13 +180,8 @@ export function FiestaPanelSettings() {
                   {panel.board_missing ? ` · ${t("boardMissing")}` : ""}
                 </Text>
                 <Flex gap="2" align="center" className="min-w-0">
-                  <Code className="truncate text-xs">{panelViewerUrl(panel.id)}</Code>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t("copyUrl")}
-                    onClick={() => void copyUrl(panel.id)}
-                  >
+                  <Code className="truncate text-xs">{panelViewerUrl(panel)}</Code>
+                  <Button variant="ghost" size="icon-sm" aria-label={t("copyUrl")} onClick={() => void copyUrl(panel)}>
                     <Copy />
                   </Button>
                 </Flex>

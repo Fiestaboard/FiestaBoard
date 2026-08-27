@@ -19,11 +19,39 @@ from .models import Panel
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
+
+
+def _migrate_v1_to_v2(panels_data: list[dict]) -> int:
+    """Migration 1 -> 2: backfill short_code for TV-typable /p/{n} URLs.
+
+    Codes are assigned in stable id order, lowest free integer first, and
+    entries that somehow already carry a positive code keep it (idempotent).
+    """
+    used = {
+        p.get("short_code") for p in panels_data if isinstance(p.get("short_code"), int) and p.get("short_code", 0) > 0
+    }
+    migrated = 0
+    next_code = 1
+    for panel_data in sorted(
+        (p for p in panels_data if isinstance(p, dict)),
+        key=lambda p: str(p.get("id", "")),
+    ):
+        if isinstance(panel_data.get("short_code"), int) and panel_data["short_code"] > 0:
+            continue
+        while next_code in used:
+            next_code += 1
+        panel_data["short_code"] = next_code
+        used.add(next_code)
+        migrated += 1
+    return migrated
+
 
 # Ordered migrations: (target_version, function). Each function takes the raw
 # panels list, mutates in place, and returns the number of entries processed.
-MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = []
+MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
+    (2, _migrate_v1_to_v2),
+]
 
 
 class PanelStorage:
@@ -183,6 +211,21 @@ class PanelStorage:
         """Get a panel by ID, or None."""
         return self._panels.get(panel_id)
 
+    def get_by_short_code(self, short_code: int) -> Panel | None:
+        """Get a panel by its TV-typable short code, or None."""
+        for panel in self._panels.values():
+            if panel.short_code == short_code:
+                return panel
+        return None
+
+    def _next_short_code(self) -> int:
+        """Lowest positive integer not already in use."""
+        used = {p.short_code for p in self._panels.values()}
+        code = 1
+        while code in used:
+            code += 1
+        return code
+
     def create(self, panel: Panel) -> Panel:
         """Create a new panel.
 
@@ -191,6 +234,9 @@ class PanelStorage:
         """
         if panel.id in self._panels:
             raise ValueError(f"Panel with ID {panel.id} already exists")
+
+        if panel.short_code <= 0:
+            panel = panel.model_copy(update={"short_code": self._next_short_code()})
 
         self._panels[panel.id] = panel
         self._save()

@@ -11,6 +11,7 @@ import { server } from "./mocks/server";
 
 const CONFIG: PanelPublicConfig = {
   id: "p1",
+  short_code: 1,
   name: "Living Room TV",
   board_id: "vboard-1",
   screen_diagonal_inches: 55,

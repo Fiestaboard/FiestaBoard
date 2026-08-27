@@ -7,8 +7,15 @@ describe("isPanelPath", () => {
     expect(isPanelPath("/panel/abc123def456")).toBe(true);
   });
 
+  it("matches the short viewer alias", () => {
+    expect(isPanelPath("/p/1")).toBe(true);
+    expect(isChromelessPath("/p/1")).toBe(true);
+  });
+
   it("does not match the panels settings surface or other routes", () => {
     expect(isPanelPath("/panels")).toBe(false);
+    expect(isPanelPath("/pages")).toBe(false);
+    expect(isPanelPath("/picks")).toBe(false);
     expect(isPanelPath("/")).toBe(false);
     expect(isPanelPath("/settings")).toBe(false);
   });

@@ -66,6 +66,8 @@ export type PanelBackdrop = "wall" | "dark" | "none";
 
 export interface Panel {
   id: string;
+  /** Small sequential number behind the TV-typable /p/{n} viewer URL. */
+  short_code: number;
   name: string;
   board_id: string;
   screen_diagonal_inches: number;
