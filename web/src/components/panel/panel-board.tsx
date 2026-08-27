@@ -144,17 +144,6 @@ export function PanelBoard({
             messageLabel={messageLabel}
           />
         </Box>
-        {/* Plastic-flap sheen: one overlay above the whole grid, no
-            package-internal selectors. */}
-        <Box
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.05) 46%, rgba(255,255,255,0.02) 52%, transparent 64%)",
-            mixBlendMode: "screen",
-          }}
-        />
       </Box>
     </Box>
   );
