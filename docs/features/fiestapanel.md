@@ -32,6 +32,7 @@ Edit a panel any time — changes reach the TV within about 10 seconds, no reloa
 | Setting | What it does |
 |---|---|
 | **TV size** | Drives everything: the flap scale (pixels-per-inch from your diagonal) and the auto-fit grid (as many real-size flaps as fit a 16:9 screen of that size). Changing it re-fits the board's dimensions. |
+| **Flip animation** | Off by default — characters update in place instantly. Turn it on for the full mechanical spin on every change. |
 | **Auto-dim** | Fades the panel down during a nightly window (e.g. 22:00–07:00), using the TV's own clock. |
 | **Size calibration** | ±15% fine-tune for TVs whose browsers misreport their resolution or overscan the picture. |
 
