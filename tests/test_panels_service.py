@@ -13,7 +13,7 @@ class TestPanelServiceCrud:
     def test_create_binds_board_id(self, tmp_path):
         service = _service(tmp_path)
         panel = service.create_panel(
-            PanelCreate(name="TV", device_type="flagship", screen_diagonal_inches=65),
+            PanelCreate(name="TV", screen_diagonal_inches=65),
             board_id="board-9",
         )
         assert panel.board_id == "board-9"
@@ -22,14 +22,14 @@ class TestPanelServiceCrud:
 
     def test_list_panels(self, tmp_path):
         service = _service(tmp_path)
-        service.create_panel(PanelCreate(name="B", device_type="note"), board_id="b1")
-        service.create_panel(PanelCreate(name="A", device_type="note"), board_id="b2")
+        service.create_panel(PanelCreate(name="B"), board_id="b1")
+        service.create_panel(PanelCreate(name="A"), board_id="b2")
         assert [p.name for p in service.list_panels()] == ["A", "B"]
 
     def test_update_only_touches_set_fields(self, tmp_path):
         """PanelUpdate uses exclude_unset — unset fields must not reset others."""
         service = _service(tmp_path)
-        panel = service.create_panel(PanelCreate(name="TV", device_type="note"), board_id="b1")
+        panel = service.create_panel(PanelCreate(name="TV"), board_id="b1")
         service.update_panel(panel.id, PanelUpdate(auto_dim=AutoDim(enabled=True)))
         updated = service.update_panel(panel.id, PanelUpdate(name="Kitchen"))
         assert updated is not None
@@ -43,7 +43,7 @@ class TestPanelServiceCrud:
     def test_delete_returns_deleted_panel_with_board_id(self, tmp_path):
         """Routes need the deleted panel's board_id to remove the virtual board."""
         service = _service(tmp_path)
-        panel = service.create_panel(PanelCreate(name="TV", device_type="note"), board_id="b7")
+        panel = service.create_panel(PanelCreate(name="TV"), board_id="b7")
         deleted = service.delete_panel(panel.id)
         assert deleted is not None
         assert deleted.board_id == "b7"

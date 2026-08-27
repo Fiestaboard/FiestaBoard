@@ -695,6 +695,8 @@ def board_client_from_board_dict(board: dict) -> Optional["BoardClient"]:
         return VirtualBoardClient(
             device_type=board.get("device_type") or "flagship",
             board_id=board.get("id"),
+            notes_wide=board.get("notes_wide") or 1,
+            notes_tall=board.get("notes_tall") or 1,
         )
 
     # Note-array boards: detected by device_type (not api_mode).

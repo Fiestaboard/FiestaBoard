@@ -2066,18 +2066,11 @@
     "description": "Tarayıcısı olan herhangi bir TV'yi veya ekranı gerçek boyutlu bir kanatlı panoya dönüştürün.",
     "createPanel": "Panel oluştur",
     "editPanel": "Paneli düzenle",
-    "editorHelp": "Panel sanal bir panodur: diğer panolar gibi ona sayfalar ve zamanlamalar atayın, ardından URL'sini televizyonda açın.",
+    "editorHelp": "Panel, ekranınıza göre boyutlandırılmış sanal bir panodur: diğer panolar gibi ona sayfalar ve zamanlamalar atayın, ardından URL'sini televizyonda açın.",
     "panelName": "Panel adı",
-    "shape": "Pano biçimi",
-    "shapeFlagship": "Flagship (22×6)",
-    "shapeNote": "Note (15×3)",
     "screenSize": "TV boyutu",
     "screenSizeCustom": "Özel (inç)",
     "screenMeta": "{inches}\" ekran",
-    "backdrop": "Arka plan",
-    "backdropWall": "Aydınlatılmış duvar",
-    "backdropDark": "Karanlık",
-    "backdropNone": "Saf siyah (OLED)",
     "autoDim": "Geceleri otomatik karart",
     "autoDimStart": "Karartma başlangıcı",
     "autoDimEnd": "Bitiş",
@@ -2104,6 +2097,8 @@
     "notFoundBody": "FiestaBoard'da silinmiş olabilir. Yeni bir panel oluşturun ve URL'sini burada açın.",
     "boardMissingTitle": "Bu panelin panosu kaldırıldı",
     "boardMissingBody": "Bu panelin arkasındaki sanal pano silindi. Ayarlardan paneli silip yeniden oluşturun.",
-    "offline": "FiestaBoard bağlantısı kesildi — son güncelleme gösteriliyor"
+    "offline": "FiestaBoard bağlantısı kesildi — son güncelleme gösteriliyor",
+    "gridMeta": "{cols} × {rows} kanat",
+    "autoFitHint": "Izgara otomatik boyutlandırılır: ekranınıza sığdığı kadar gerçek boyutlu kanat."
   }
 }

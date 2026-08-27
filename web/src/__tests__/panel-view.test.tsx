@@ -19,10 +19,10 @@ const CONFIG: PanelPublicConfig = {
   auto_dim: { enabled: false, start: "22:00", end: "07:00" },
   created_at: "2026-08-25T00:00:00+00:00",
   updated_at: "2026-08-25T00:00:00+00:00",
-  device_type: "note",
+  device_type: "note_array",
   board_missing: false,
-  rows: 3,
-  cols: 15,
+  rows: 6,
+  cols: 30,
   board_color: "black",
   code62_glyph: "heart",
 };
@@ -30,8 +30,8 @@ const CONFIG: PanelPublicConfig = {
 const FRAME: PanelFrame = {
   characters: null,
   message: "HELLO PANEL",
-  rows: 3,
-  cols: 15,
+  rows: 6,
+  cols: 30,
   updated_at: "2026-08-25T00:00:00+00:00",
 };
 

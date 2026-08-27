@@ -61,14 +61,14 @@ class TestPanelValidation:
 
 
 class TestRequestModels:
-    def test_create_requires_shape(self):
-        with pytest.raises(ValidationError):
-            PanelCreate(name="TV", device_type="note_array", screen_diagonal_inches=55)
+    def test_create_needs_only_name_and_size(self):
+        """Auto-fit computes the grid; creation takes no shape."""
+        req = PanelCreate(name="TV", screen_diagonal_inches=43)
+        assert req.screen_diagonal_inches == 43
 
-    def test_create_accepts_real_shapes(self):
-        for shape in ("flagship", "note"):
-            req = PanelCreate(name="TV", device_type=shape, screen_diagonal_inches=43)
-            assert req.device_type == shape
+    def test_create_rejects_tiny_screen(self):
+        with pytest.raises(ValidationError):
+            PanelCreate(name="TV", screen_diagonal_inches=5)
 
     def test_update_is_all_optional(self):
         update = PanelUpdate()

@@ -2066,18 +2066,11 @@
     "description": "Transformez tout téléviseur ou écran doté d'un navigateur en un tableau à palettes grandeur nature.",
     "createPanel": "Créer un panneau",
     "editPanel": "Modifier le panneau",
-    "editorHelp": "Un panneau est un tableau virtuel : attribuez-lui des pages et des horaires comme à tout autre tableau, puis ouvrez son URL sur le téléviseur.",
+    "editorHelp": "Un panneau est un tableau virtuel adapté à votre écran : attribuez-lui des pages et des horaires comme à tout autre tableau, puis ouvrez son URL sur le téléviseur.",
     "panelName": "Nom du panneau",
-    "shape": "Forme du tableau",
-    "shapeFlagship": "Flagship (22×6)",
-    "shapeNote": "Note (15×3)",
     "screenSize": "Taille du téléviseur",
     "screenSizeCustom": "Personnalisée (pouces)",
     "screenMeta": "écran de {inches}\"",
-    "backdrop": "Arrière-plan",
-    "backdropWall": "Mur éclairé",
-    "backdropDark": "Sombre",
-    "backdropNone": "Noir pur (OLED)",
     "autoDim": "Atténuer automatiquement la nuit",
     "autoDimStart": "Atténuer à partir de",
     "autoDimEnd": "Jusqu'à",
@@ -2104,6 +2097,8 @@
     "notFoundBody": "Il a peut-être été supprimé dans FiestaBoard. Créez un nouveau panneau et ouvrez son URL ici.",
     "boardMissingTitle": "Le tableau de ce panneau a été supprimé",
     "boardMissingBody": "Le tableau virtuel derrière ce panneau a été supprimé. Supprimez le panneau dans les réglages et recréez-le.",
-    "offline": "Connexion à FiestaBoard perdue — affichage de la dernière mise à jour"
+    "offline": "Connexion à FiestaBoard perdue — affichage de la dernière mise à jour",
+    "gridMeta": "{cols} × {rows} palettes",
+    "autoFitHint": "La grille se dimensionne automatiquement : autant de palettes à taille réelle que votre écran peut en contenir."
   }
 }

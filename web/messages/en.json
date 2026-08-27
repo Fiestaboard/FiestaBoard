@@ -2071,18 +2071,11 @@
     "description": "Turn any TV or screen with a browser into a life-size split-flap display.",
     "createPanel": "Create panel",
     "editPanel": "Edit panel",
-    "editorHelp": "A panel is a virtual board: give it pages and schedules like any other board, then open its URL on the TV.",
+    "editorHelp": "A panel is a virtual board sized to your screen: give it pages and schedules like any other board, then open its URL on the TV.",
     "panelName": "Panel name",
-    "shape": "Board shape",
-    "shapeFlagship": "Flagship (22×6)",
-    "shapeNote": "Note (15×3)",
     "screenSize": "TV size",
     "screenSizeCustom": "Custom (inches)",
     "screenMeta": "{inches}\" screen",
-    "backdrop": "Backdrop",
-    "backdropWall": "Lit wall",
-    "backdropDark": "Dark",
-    "backdropNone": "Pure black (OLED)",
     "autoDim": "Auto-dim at night",
     "autoDimStart": "Dim from",
     "autoDimEnd": "Until",
@@ -2104,6 +2097,8 @@
     "saved": "Panel saved",
     "deleted": "Panel deleted",
     "empty": "No panels yet. Create one and open its URL on a TV.",
-    "boardMissing": "Board missing"
+    "boardMissing": "Board missing",
+    "gridMeta": "{cols} × {rows} flaps",
+    "autoFitHint": "The board's grid is sized automatically: as many real-size flaps as fit your screen."
   }
 }

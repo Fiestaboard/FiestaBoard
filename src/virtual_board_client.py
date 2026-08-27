@@ -72,10 +72,14 @@ class VirtualBoardClient(TransitionRenderMixin):
         device_type: str = "flagship",
         board_id: str | None = None,
         skip_unchanged: bool = True,
+        notes_wide: int = 1,
+        notes_tall: int = 1,
     ):
         self.device_type = device_type
         self.board_id = board_id
-        dims = resolve_dimensions(device_type)
+        self.notes_wide = notes_wide
+        self.notes_tall = notes_tall
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
         self.rows = dims.rows
         self.cols = dims.cols
         # Duck-type surface shared with BoardClient

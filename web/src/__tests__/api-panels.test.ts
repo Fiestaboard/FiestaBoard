@@ -16,8 +16,10 @@ const PANEL: Panel = {
   auto_dim: { enabled: false, start: "22:00", end: "07:00" },
   created_at: "2026-08-25T00:00:00+00:00",
   updated_at: "2026-08-25T00:00:00+00:00",
-  device_type: "flagship",
+  device_type: "note_array",
   board_missing: false,
+  rows: 12,
+  cols: 30,
 };
 
 describe("panels API client", () => {
@@ -28,7 +30,7 @@ describe("panels API client", () => {
     expect(result.panels[0].name).toBe("Living Room TV");
   });
 
-  it("createPanel POSTs the chosen shape and size", async () => {
+  it("createPanel POSTs the name and screen size", async () => {
     let body: unknown;
     server.use(
       http.post("/api/panels", async ({ request }) => {
@@ -38,13 +40,11 @@ describe("panels API client", () => {
     );
     const result = await api.createPanel({
       name: "Living Room TV",
-      device_type: "flagship",
       screen_diagonal_inches: 55,
     });
     expect(result.status).toBe("success");
     expect(body).toEqual({
       name: "Living Room TV",
-      device_type: "flagship",
       screen_diagonal_inches: 55,
     });
   });
@@ -76,14 +76,12 @@ describe("panels API client", () => {
   it("getPanel GETs the public viewer config", async () => {
     const config: PanelPublicConfig = {
       ...PANEL,
-      rows: 6,
-      cols: 22,
       board_color: "black",
       code62_glyph: "degree",
     };
     server.use(http.get("/api/panel/abc123def456", () => HttpResponse.json(config)));
     const result = await api.getPanel("abc123def456");
-    expect(result.rows).toBe(6);
+    expect(result.rows).toBe(12);
     expect(result.board_color).toBe("black");
   });
 

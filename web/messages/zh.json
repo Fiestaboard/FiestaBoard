@@ -2066,18 +2066,11 @@
     "description": "把任何带浏览器的电视或屏幕变成真实尺寸的翻牌显示屏。",
     "createPanel": "创建面板",
     "editPanel": "编辑面板",
-    "editorHelp": "面板是一块虚拟板：像其他板一样为它分配页面和排程，然后在电视上打开它的网址。",
+    "editorHelp": "面板是按你的屏幕尺寸定制的虚拟板：像其他板一样为它分配页面和排程，然后在电视上打开它的网址。",
     "panelName": "面板名称",
-    "shape": "板型",
-    "shapeFlagship": "Flagship（22×6）",
-    "shapeNote": "Note（15×3）",
     "screenSize": "电视尺寸",
     "screenSizeCustom": "自定义（英寸）",
     "screenMeta": "{inches} 英寸屏幕",
-    "backdrop": "背景",
-    "backdropWall": "带灯光的墙面",
-    "backdropDark": "深色",
-    "backdropNone": "纯黑（OLED）",
     "autoDim": "夜间自动调暗",
     "autoDimStart": "调暗开始",
     "autoDimEnd": "结束",
@@ -2104,6 +2097,8 @@
     "notFoundBody": "它可能已在 FiestaBoard 中被删除。创建一个新面板并在此打开它的网址。",
     "boardMissingTitle": "此面板的板已被移除",
     "boardMissingBody": "此面板背后的虚拟板已被删除。请在设置中删除该面板并重新创建。",
-    "offline": "与 FiestaBoard 的连接已断开 — 正在显示最后一次更新"
+    "offline": "与 FiestaBoard 的连接已断开 — 正在显示最后一次更新",
+    "gridMeta": "{cols} × {rows} 翻牌",
+    "autoFitHint": "网格会自动调整：在屏幕上放下尽可能多的真实尺寸翻牌。"
   }
 }

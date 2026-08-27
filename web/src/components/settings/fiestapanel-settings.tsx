@@ -22,11 +22,6 @@ import {
   Input,
   Label,
   PageSection,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Skeleton,
   Stack,
   Switch,
@@ -40,7 +35,7 @@ import { toast } from "sonner";
 
 import { TimePicker } from "@/components/ui/time-picker";
 import { useTranslations } from "@/i18n/translations";
-import { api, type Panel, type PanelBackdrop } from "@/lib/api";
+import { api, type Panel } from "@/lib/api";
 import { appUrl } from "@/lib/base-path";
 
 /** TV-diagonal presets offered as one-tap chips (inches) — never translated. */
@@ -56,9 +51,7 @@ interface EditorState {
   mode: "create" | "edit";
   panelId?: string;
   name: string;
-  deviceType: "flagship" | "note";
   diagonal: number;
-  backdrop: PanelBackdrop;
   autoDimEnabled: boolean;
   autoDimStart: string;
   autoDimEnd: string;
@@ -68,9 +61,7 @@ interface EditorState {
 const NEW_PANEL: EditorState = {
   mode: "create",
   name: "",
-  deviceType: "flagship",
   diagonal: 55,
-  backdrop: "wall",
   autoDimEnabled: false,
   autoDimStart: "22:00",
   autoDimEnd: "07:00",
@@ -82,9 +73,7 @@ function editorFromPanel(panel: Panel): EditorState {
     mode: "edit",
     panelId: panel.id,
     name: panel.name,
-    deviceType: panel.device_type === "note" ? "note" : "flagship",
     diagonal: panel.screen_diagonal_inches,
-    backdrop: panel.backdrop,
     autoDimEnabled: panel.auto_dim.enabled,
     autoDimStart: panel.auto_dim.start,
     autoDimEnd: panel.auto_dim.end,
@@ -113,7 +102,6 @@ export function FiestaPanelSettings() {
     mutationFn: (state: EditorState) =>
       api.createPanel({
         name: state.name,
-        device_type: state.deviceType,
         screen_diagonal_inches: state.diagonal,
       }),
     onSuccess: () => {
@@ -129,7 +117,6 @@ export function FiestaPanelSettings() {
       api.updatePanel(state.panelId ?? "", {
         name: state.name,
         screen_diagonal_inches: state.diagonal,
-        backdrop: state.backdrop,
         auto_dim: { enabled: state.autoDimEnabled, start: state.autoDimStart, end: state.autoDimEnd },
         calibration_scale: state.calibration,
       }),
@@ -185,9 +172,8 @@ export function FiestaPanelSettings() {
               <Stack gap="1" className="min-w-0 flex-1">
                 <Text className="font-medium">{panel.name}</Text>
                 <Text size="sm" tone="muted">
-                  {panel.device_type === "note" ? t("shapeNote") : t("shapeFlagship")}
-                  {" · "}
                   {t("screenMeta", { inches: panel.screen_diagonal_inches })}
+                  {panel.rows && panel.cols ? ` · ${t("gridMeta", { cols: panel.cols, rows: panel.rows })}` : ""}
                   {panel.board_missing ? ` · ${t("boardMissing")}` : ""}
                 </Text>
                 <Flex gap="2" align="center" className="min-w-0">
@@ -247,25 +233,6 @@ export function FiestaPanelSettings() {
                     onChange={(e) => setEditor({ ...editor, name: e.target.value })}
                   />
                 </Stack>
-                {editor.mode === "create" && (
-                  <Stack gap="2">
-                    <Label htmlFor="panel-shape">{t("shape")}</Label>
-                    <Select
-                      value={editor.deviceType}
-                      onValueChange={(value) =>
-                        value && setEditor({ ...editor, deviceType: value as "flagship" | "note" })
-                      }
-                    >
-                      <SelectTrigger id="panel-shape">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="flagship">{t("shapeFlagship")}</SelectItem>
-                        <SelectItem value="note">{t("shapeNote")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Stack>
-                )}
                 <Stack gap="2">
                   <Label>{t("screenSize")}</Label>
                   <Flex gap="2" wrap>
@@ -299,25 +266,12 @@ export function FiestaPanelSettings() {
                       }}
                     />
                   </Flex>
+                  <Text size="xs" tone="muted">
+                    {t("autoFitHint")}
+                  </Text>
                 </Stack>
                 {editor.mode === "edit" && (
                   <>
-                    <Stack gap="2">
-                      <Label htmlFor="panel-backdrop">{t("backdrop")}</Label>
-                      <Select
-                        value={editor.backdrop}
-                        onValueChange={(value) => value && setEditor({ ...editor, backdrop: value as PanelBackdrop })}
-                      >
-                        <SelectTrigger id="panel-backdrop">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="wall">{t("backdropWall")}</SelectItem>
-                          <SelectItem value="dark">{t("backdropDark")}</SelectItem>
-                          <SelectItem value="none">{t("backdropNone")}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </Stack>
                     <Flex gap="3" align="center">
                       <Switch
                         id="panel-auto-dim"

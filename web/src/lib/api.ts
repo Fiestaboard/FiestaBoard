@@ -75,14 +75,16 @@ export interface Panel {
   created_at: string;
   updated_at: string;
   // Attached by the API from the panel's virtual board (null/true when the
-  // board was deleted out from under the panel).
+  // board was deleted out from under the panel). rows/cols are the board's
+  // auto-fit grid, for display in the app.
   device_type?: DeviceType | null;
   board_missing?: boolean;
+  rows?: number | null;
+  cols?: number | null;
 }
 
 export interface PanelCreateRequest {
   name: string;
-  device_type: "flagship" | "note";
   screen_diagonal_inches: number;
 }
 
@@ -96,8 +98,6 @@ export interface PanelUpdateRequest {
 
 // Public viewer config served by GET /panel/{id} (no auth).
 export interface PanelPublicConfig extends Panel {
-  rows: number | null;
-  cols: number | null;
   board_color: "black" | "white" | null;
   code62_glyph: "degree" | "heart" | null;
 }

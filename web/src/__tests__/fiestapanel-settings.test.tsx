@@ -19,8 +19,10 @@ const PANEL: Panel = {
   auto_dim: { enabled: false, start: "22:00", end: "07:00" },
   created_at: "2026-08-25T00:00:00+00:00",
   updated_at: "2026-08-25T00:00:00+00:00",
-  device_type: "flagship",
+  device_type: "note_array",
   board_missing: false,
+  rows: 12,
+  cols: 30,
 };
 
 function Wrapper({ children }: { children: React.ReactNode }) {
@@ -33,14 +35,15 @@ function mockList(panels: Panel[] = [PANEL]) {
 }
 
 describe("FiestaPanelSettings", () => {
-  it("lists panels with their viewer URL", async () => {
+  it("lists panels with their viewer URL and auto-fit grid", async () => {
     mockList();
     render(<FiestaPanelSettings />, { wrapper: Wrapper });
     expect(await screen.findByText("Living Room TV")).toBeInTheDocument();
     expect(screen.getByText(/\/panel\/abc123def456/)).toBeInTheDocument();
+    expect(screen.getByText(/30 × 12 flaps/)).toBeInTheDocument();
   });
 
-  it("creates a panel with the chosen shape and screen size", async () => {
+  it("creates a panel with the chosen screen size", async () => {
     mockList([]);
     let body: unknown;
     server.use(
@@ -60,7 +63,6 @@ describe("FiestaPanelSettings", () => {
     await waitFor(() =>
       expect(body).toEqual({
         name: "Kitchen TV",
-        device_type: "flagship",
         screen_diagonal_inches: 65,
       }),
     );

@@ -2066,18 +2066,11 @@
     "description": "ブラウザ搭載のテレビやスクリーンを実物大のスプリットフラップ表示板にします。",
     "createPanel": "パネルを作成",
     "editPanel": "パネルを編集",
-    "editorHelp": "パネルは仮想ボードです。ほかのボードと同じようにページやスケジュールを割り当て、テレビでその URL を開いてください。",
+    "editorHelp": "パネルは画面サイズに合わせた仮想ボードです。ほかのボードと同じようにページやスケジュールを割り当て、テレビでその URL を開いてください。",
     "panelName": "パネル名",
-    "shape": "ボードの形状",
-    "shapeFlagship": "Flagship（22×6）",
-    "shapeNote": "Note（15×3）",
     "screenSize": "テレビのサイズ",
     "screenSizeCustom": "カスタム（インチ）",
     "screenMeta": "{inches} インチ画面",
-    "backdrop": "背景",
-    "backdropWall": "照明のある壁",
-    "backdropDark": "ダーク",
-    "backdropNone": "純黒（OLED）",
     "autoDim": "夜間の自動減光",
     "autoDimStart": "減光開始",
     "autoDimEnd": "終了",
@@ -2104,6 +2097,8 @@
     "notFoundBody": "FiestaBoard で削除された可能性があります。新しいパネルを作成し、その URL をここで開いてください。",
     "boardMissingTitle": "このパネルのボードが削除されました",
     "boardMissingBody": "このパネルの背後にある仮想ボードが削除されました。設定でパネルを削除し、作り直してください。",
-    "offline": "FiestaBoard への接続が切断されました — 最後の更新を表示しています"
+    "offline": "FiestaBoard への接続が切断されました — 最後の更新を表示しています",
+    "gridMeta": "{cols} × {rows} フラップ",
+    "autoFitHint": "グリッドは自動調整されます。画面に収まるだけの実寸フラップが並びます。"
   }
 }

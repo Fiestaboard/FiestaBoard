@@ -2066,18 +2066,11 @@
     "description": "Convierte cualquier televisor o pantalla con navegador en un panel de paletas a tamaño real.",
     "createPanel": "Crear panel",
     "editPanel": "Editar panel",
-    "editorHelp": "Un panel es un tablero virtual: asígnale páginas y horarios como a cualquier otro tablero y luego abre su URL en el televisor.",
+    "editorHelp": "Un panel es un tablero virtual adaptado a tu pantalla: asígnale páginas y horarios como a cualquier otro tablero y luego abre su URL en el televisor.",
     "panelName": "Nombre del panel",
-    "shape": "Forma del tablero",
-    "shapeFlagship": "Flagship (22×6)",
-    "shapeNote": "Note (15×3)",
     "screenSize": "Tamaño del televisor",
     "screenSizeCustom": "Personalizado (pulgadas)",
     "screenMeta": "pantalla de {inches}\"",
-    "backdrop": "Fondo",
-    "backdropWall": "Pared iluminada",
-    "backdropDark": "Oscuro",
-    "backdropNone": "Negro puro (OLED)",
     "autoDim": "Atenuar automáticamente de noche",
     "autoDimStart": "Atenuar desde",
     "autoDimEnd": "Hasta",
@@ -2104,6 +2097,8 @@
     "notFoundBody": "Puede que se haya eliminado en FiestaBoard. Crea un panel nuevo y abre aquí su URL.",
     "boardMissingTitle": "El tablero de este panel fue eliminado",
     "boardMissingBody": "El tablero virtual detrás de este panel fue eliminado. Elimina el panel en Ajustes y créalo de nuevo.",
-    "offline": "Conexión con FiestaBoard perdida — mostrando la última actualización"
+    "offline": "Conexión con FiestaBoard perdida — mostrando la última actualización",
+    "gridMeta": "{cols} × {rows} paletas",
+    "autoFitHint": "La cuadrícula se dimensiona automáticamente: tantas paletas a tamaño real como quepan en tu pantalla."
   }
 }

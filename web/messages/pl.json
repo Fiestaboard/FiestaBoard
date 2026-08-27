@@ -2066,18 +2066,11 @@
     "description": "Zamień dowolny telewizor lub ekran z przeglądarką w klapkowy wyświetlacz naturalnej wielkości.",
     "createPanel": "Utwórz panel",
     "editPanel": "Edytuj panel",
-    "editorHelp": "Panel to wirtualna tablica: przypisz mu strony i harmonogramy jak każdej innej tablicy, a następnie otwórz jego adres URL na telewizorze.",
+    "editorHelp": "Panel to wirtualna tablica dopasowana do Twojego ekranu: przypisz mu strony i harmonogramy jak każdej innej tablicy, a następnie otwórz jego adres URL na telewizorze.",
     "panelName": "Nazwa panelu",
-    "shape": "Kształt tablicy",
-    "shapeFlagship": "Flagship (22×6)",
-    "shapeNote": "Note (15×3)",
     "screenSize": "Rozmiar telewizora",
     "screenSizeCustom": "Niestandardowy (cale)",
     "screenMeta": "ekran {inches}\"",
-    "backdrop": "Tło",
-    "backdropWall": "Oświetlona ściana",
-    "backdropDark": "Ciemne",
-    "backdropNone": "Czysta czerń (OLED)",
     "autoDim": "Automatyczne przyciemnianie w nocy",
     "autoDimStart": "Przyciemniaj od",
     "autoDimEnd": "Do",
@@ -2104,6 +2097,8 @@
     "notFoundBody": "Mógł zostać usunięty w FiestaBoard. Utwórz nowy panel i otwórz tutaj jego adres URL.",
     "boardMissingTitle": "Tablica tego panelu została usunięta",
     "boardMissingBody": "Wirtualna tablica tego panelu została usunięta. Usuń panel w ustawieniach i utwórz go ponownie.",
-    "offline": "Utracono połączenie z FiestaBoard — wyświetlana jest ostatnia aktualizacja"
+    "offline": "Utracono połączenie z FiestaBoard — wyświetlana jest ostatnia aktualizacja",
+    "gridMeta": "{cols} × {rows} klapek",
+    "autoFitHint": "Siatka jest dobierana automatycznie: tyle klapek w rzeczywistym rozmiarze, ile zmieści się na ekranie."
   }
 }

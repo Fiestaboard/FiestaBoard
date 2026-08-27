@@ -20,9 +20,6 @@ _TIME_RE = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 
 BackdropStyle = Literal["wall", "dark", "none"]
 
-# Virtual boards come in the real hardware shapes only (spec v1).
-PanelDeviceType = Literal["flagship", "note"]
-
 
 def _generate_panel_id() -> str:
     return secrets.token_urlsafe(_PANEL_ID_BYTES)
@@ -58,10 +55,13 @@ class Panel(BaseModel):
 
 
 class PanelCreate(BaseModel):
-    """Request model for creating a panel (its virtual board is co-created)."""
+    """Request model for creating a panel (its virtual board is co-created).
+
+    No shape is chosen: the board's grid is auto-fit from the screen size
+    (see src/panels/autofit.py).
+    """
 
     name: str = Field(min_length=1, max_length=100)
-    device_type: PanelDeviceType
     screen_diagonal_inches: float = Field(default=55.0, ge=10.0, le=200.0)
 
 

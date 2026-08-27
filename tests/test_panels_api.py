@@ -35,16 +35,22 @@ def _panel(**overrides):
 
 class TestPanelCrudEndpoints:
     def test_list_panels(self, client, mock_panel_service):
-        """GET /panels returns panels with board info attached."""
+        """GET /panels returns panels with board geometry attached."""
         mock_panel_service.list_panels.return_value = [_panel()]
         with patch("src.api_server._find_board") as find_board:
-            find_board.return_value = {"id": "vboard-1", "device_type": "flagship"}
+            find_board.return_value = {
+                "id": "vboard-1",
+                "device_type": "note_array",
+                "notes_wide": 2,
+                "notes_tall": 4,
+            }
             response = client.get("/panels")
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 1
-        assert data["panels"][0]["device_type"] == "flagship"
+        assert data["panels"][0]["device_type"] == "note_array"
         assert data["panels"][0]["board_missing"] is False
+        assert (data["panels"][0]["rows"], data["panels"][0]["cols"]) == (12, 30)
 
     def test_list_panels_reports_orphaned_board(self, client, mock_panel_service):
         """A panel whose virtual board was deleted reports board_missing."""
@@ -173,15 +179,20 @@ class TestPanelOrchestration:
             if len(boards) == before:
                 raise ValueError(f"Board not found: {board_id}")
 
+        def set_boards(new_boards: list[dict]):
+            boards[:] = [dict(b) for b in new_boards]
+
         return SimpleNamespace(
             add_board=add_board,
             remove_board=remove_board,
+            set_boards=set_boards,
             boards=boards,
             get_board_settings=lambda: SimpleNamespace(boards=boards),
             get_primary_board_id=lambda: "primary-board",
         )
 
-    def test_create_panel_creates_virtual_board(self, client, tmp_path):
+    def test_create_panel_creates_autofit_virtual_board(self, client, tmp_path):
+        """The board's grid is computed from the TV size (65" 16:9 → 30×12)."""
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service()
         with (
@@ -191,17 +202,36 @@ class TestPanelOrchestration:
         ):
             response = client.post(
                 "/panels",
-                json={"name": "Hall TV", "device_type": "flagship", "screen_diagonal_inches": 65},
+                json={"name": "Hall TV", "screen_diagonal_inches": 65},
             )
         assert response.status_code == 200
         panel = response.json()["panel"]
         assert len(fake_settings.boards) == 1
         board = fake_settings.boards[0]
         assert board["api_mode"] == "virtual"
-        assert board["device_type"] == "flagship"
+        assert board["device_type"] == "note_array"
+        assert (board["notes_wide"], board["notes_tall"]) == (2, 4)
         assert board["id"] == panel["board_id"]
         assert reinit.called
         assert real_service.get_panel(panel["id"]) is not None
+
+    def test_resize_recomputes_the_grid(self, client, tmp_path):
+        """Changing the TV size re-fits the virtual board's dimensions."""
+        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
+        fake_settings = self._fake_settings_service()
+        with (
+            patch("src.api_server.get_panel_service", return_value=real_service),
+            patch("src.api_server.get_settings_service", return_value=fake_settings),
+            patch("src.api_server._reinitialize_board_clients"),
+        ):
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            board = fake_settings.boards[0]
+            assert (board["notes_wide"], board["notes_tall"]) == (1, 3)
+
+            response = client.patch(f"/panels/{created['id']}", json={"screen_diagonal_inches": 85})
+        assert response.status_code == 200
+        board = fake_settings.boards[0]
+        assert (board["notes_wide"], board["notes_tall"]) == (3, 6)
 
     def test_delete_panel_removes_virtual_board(self, client, tmp_path):
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
@@ -211,7 +241,7 @@ class TestPanelOrchestration:
             patch("src.api_server.get_settings_service", return_value=fake_settings),
             patch("src.api_server._reinitialize_board_clients"),
         ):
-            created = client.post("/panels", json={"name": "Hall TV", "device_type": "note"}).json()["panel"]
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
             assert len(fake_settings.boards) == 1
             response = client.delete(f"/panels/{created['id']}")
         assert response.status_code == 200
@@ -226,7 +256,7 @@ class TestPanelOrchestration:
             patch("src.api_server.get_settings_service", return_value=fake_settings),
             patch("src.api_server._reinitialize_board_clients"),
         ):
-            created = client.post("/panels", json={"name": "Hall TV", "device_type": "note"}).json()["panel"]
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
             fake_settings.boards.clear()  # board deleted out-of-band
             response = client.delete(f"/panels/{created['id']}")
         assert response.status_code == 200

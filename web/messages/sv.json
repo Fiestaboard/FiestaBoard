@@ -2066,18 +2066,11 @@
     "description": "Förvandla vilken tv eller skärm som helst med webbläsare till en klaffskylt i naturlig storlek.",
     "createPanel": "Skapa panel",
     "editPanel": "Redigera panel",
-    "editorHelp": "En panel är en virtuell tavla: ge den sidor och scheman som vilken annan tavla som helst och öppna sedan dess URL på tv:n.",
+    "editorHelp": "En panel är en virtuell tavla anpassad till din skärm: ge den sidor och scheman som vilken annan tavla som helst och öppna sedan dess URL på tv:n.",
     "panelName": "Panelnamn",
-    "shape": "Tavlans form",
-    "shapeFlagship": "Flagship (22×6)",
-    "shapeNote": "Note (15×3)",
     "screenSize": "Tv-storlek",
     "screenSizeCustom": "Anpassad (tum)",
     "screenMeta": "{inches}\"-skärm",
-    "backdrop": "Bakgrund",
-    "backdropWall": "Upplyst vägg",
-    "backdropDark": "Mörk",
-    "backdropNone": "Helsvart (OLED)",
     "autoDim": "Dimma automatiskt på natten",
     "autoDimStart": "Dimma från",
     "autoDimEnd": "Till",
@@ -2104,6 +2097,8 @@
     "notFoundBody": "Den kan ha tagits bort i FiestaBoard. Skapa en ny panel och öppna dess URL här.",
     "boardMissingTitle": "Panelens tavla har tagits bort",
     "boardMissingBody": "Den virtuella tavlan bakom panelen har tagits bort. Ta bort panelen i inställningarna och skapa den på nytt.",
-    "offline": "Anslutningen till FiestaBoard bröts — visar den senaste uppdateringen"
+    "offline": "Anslutningen till FiestaBoard bröts — visar den senaste uppdateringen",
+    "gridMeta": "{cols} × {rows} klaffar",
+    "autoFitHint": "Rutnätet dimensioneras automatiskt: så många klaffar i verklig storlek som får plats på din skärm."
   }
 }

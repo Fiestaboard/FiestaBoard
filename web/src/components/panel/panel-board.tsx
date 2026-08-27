@@ -4,35 +4,66 @@ import { BoardDisplay, Box, type Code62Glyph, type DeviceType } from "@fiestaboa
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
-import { panelBoardScale } from "@/lib/panel-scale";
+import { NOTE_COL_PITCH_IN, PANEL_PHYSICAL_WIDTH_IN, panelAutofitScale } from "@/lib/panel-scale";
 
 interface PanelBoardProps {
   message: string | null;
-  deviceType: "flagship" | "note";
+  deviceType: DeviceType;
+  notesWide: number;
+  notesTall: number;
+  rows: number;
+  cols: number;
   boardColor: "black" | "white";
   code62Glyph: Code62Glyph;
   diagonalInches: number;
   calibration: number;
 }
 
+interface GridRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Transform-free offset of `el` relative to the positioned `container`. */
+function offsetWithin(el: HTMLElement, container: HTMLElement): { x: number; y: number } {
+  let x = 0;
+  let y = 0;
+  let node: HTMLElement | null = el;
+  while (node && node !== container) {
+    x += node.offsetLeft;
+    y += node.offsetTop;
+    node = node.offsetParent as HTMLElement | null;
+  }
+  return { x, y };
+}
+
+/** Physical column pitch in inches for the board's device family. */
+function colPitchIn(deviceType: DeviceType): number {
+  // Auto-fit grids are built from Note blocks; a legacy flagship panel
+  // anchors to the Flagship's 41.2" / 22 columns instead.
+  if (deviceType === "flagship") return PANEL_PHYSICAL_WIDTH_IN.flagship / 22;
+  return NOTE_COL_PITCH_IN;
+}
+
 /**
- * Renders the package board at true physical size.
+ * Borderless board at true flap scale.
  *
- * The board is rendered at `size="lg"`, its unscaled bezel width is
- * measured, and a CSS transform brings it to the real unit's width
- * (Flagship 41.2″, Note 24.5″) for the screen the user described.
- *
- * Deliberately NOT `ScaledBoardDisplay` — that clamps to scale ≤ 1 to fit
- * containers, while life-size on a big TV regularly needs scale > 1.
- *
- * Also deliberately not the app's `BoardDisplay` wrapper: the wrapper wires
- * in the signed-in user's animation settings, which a TV with no session
- * can't read. The panel always animates (the package still honors
- * `prefers-reduced-motion` internally) at the `hardware` cadence.
+ * The package board is rendered normally, then cropped to its tile grid
+ * (bezel and padding fall outside an overflow-hidden window) and scaled so
+ * each flap lands at real-world size — with a gentle ≤10% stretch toward
+ * the nearest screen edge (see panelAutofitScale). Measurement uses
+ * offset* geometry, which ignores CSS transforms, so the scale never feeds
+ * back into itself.
  */
 export function PanelBoard({
   message,
   deviceType,
+  notesWide,
+  notesTall,
+  rows,
+  cols,
   boardColor,
   code62Glyph,
   diagonalInches,
@@ -40,26 +71,41 @@ export function PanelBoard({
 }: PanelBoardProps) {
   const t = useTranslations("boardDisplay");
   const wrapRef = useRef<HTMLDivElement>(null);
+  const [grid, setGrid] = useState<GridRect | null>(null);
   const [scale, setScale] = useState(1);
 
   const messageLabel = useCallback((m: string) => t("withMessage", { message: m }), [t]);
 
   useLayoutEffect(() => {
-    const board = wrapRef.current?.querySelector<HTMLElement>("[data-board-preview]");
-    if (!board) return;
+    const wrapper = wrapRef.current;
+    const board = wrapper?.querySelector<HTMLElement>("[data-board-preview]");
+    if (!wrapper || !board) return;
 
     const measure = () => {
-      const naturalWidth = board.offsetWidth;
-      if (naturalWidth <= 0) return;
+      const first = board.querySelector<HTMLElement>('[data-testid="char-tile-0-0"]');
+      const last = board.querySelector<HTMLElement>(`[data-testid="char-tile-${rows - 1}-${cols - 1}"]`);
+      if (!first || !last) return;
+      const firstPos = offsetWithin(first, wrapper);
+      const lastPos = offsetWithin(last, wrapper);
+      const rect: GridRect = {
+        x: firstPos.x,
+        y: firstPos.y,
+        width: lastPos.x + last.offsetWidth - firstPos.x,
+        height: lastPos.y + last.offsetHeight - firstPos.y,
+      };
+      if (rect.width <= 0 || rect.height <= 0) return;
+      setGrid(rect);
       try {
         setScale(
-          panelBoardScale({
+          panelAutofitScale({
             screenWidthPx: window.screen.width,
             screenHeightPx: window.screen.height,
             diagonalInches,
-            deviceType,
-            boardNaturalWidthPx: naturalWidth,
+            cols,
+            gridWidthPx: rect.width,
+            gridHeightPx: rect.height,
             calibration,
+            colPitchIn: colPitchIn(deviceType),
           }),
         );
       } catch {
@@ -72,32 +118,33 @@ export function PanelBoard({
     const observer = new ResizeObserver(measure);
     observer.observe(board);
     return () => observer.disconnect();
-  }, [diagonalInches, deviceType, calibration]);
+  }, [diagonalInches, deviceType, calibration, rows, cols]);
 
   return (
-    <Box
-      ref={wrapRef}
-      data-testid="panel-board-scaler"
-      style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
-    >
+    <Box data-testid="panel-board-scaler" style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}>
       <Box
-        className="relative"
-        style={{ filter: "drop-shadow(0 24px 48px rgba(0,0,0,0.55)) drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }}
+        data-testid="panel-board-crop"
+        className="relative overflow-hidden"
+        style={grid ? { width: grid.width, height: grid.height } : { opacity: 0 }}
       >
-        <BoardDisplay
-          message={message}
-          size="lg"
-          boardType={boardColor}
-          deviceType={deviceType as DeviceType}
-          code62Glyph={code62Glyph}
-          animationsEnabled
-          flapSpeed="hardware"
-          announceUpdates
-          loadingLabel={t("loading")}
-          emptyLabel={t("empty")}
-          messageLabel={messageLabel}
-        />
-        {/* Plastic-flap sheen: one overlay above the whole board, no
+        <Box ref={wrapRef} className="absolute" style={grid ? { left: -grid.x, top: -grid.y } : undefined}>
+          <BoardDisplay
+            message={message}
+            size="lg"
+            boardType={boardColor}
+            deviceType={deviceType}
+            notesWide={notesWide}
+            notesTall={notesTall}
+            code62Glyph={code62Glyph}
+            animationsEnabled
+            flapSpeed="hardware"
+            announceUpdates
+            loadingLabel={t("loading")}
+            emptyLabel={t("empty")}
+            messageLabel={messageLabel}
+          />
+        </Box>
+        {/* Plastic-flap sheen: one overlay above the whole grid, no
             package-internal selectors. */}
         <Box
           aria-hidden="true"

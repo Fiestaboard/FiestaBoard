@@ -39,18 +39,9 @@ export function isInDimWindow(minutesSinceMidnight: number, start: string, end: 
   return minutesSinceMidnight >= startMin || minutesSinceMidnight < endMin;
 }
 
-const BACKDROPS: Record<"wall" | "dark" | "none", React.CSSProperties> = {
-  // A softly lit wall: key light falling from above, near-black at the edges.
-  wall: {
-    background: "radial-gradient(ellipse 120% 85% at 50% -15%, #2b2723 0%, #1c1a17 48%, #121110 100%)",
-  },
-  dark: { background: "#0a0a0a" },
-  none: { background: "#000000" },
-};
-
 /**
- * Full-viewport FiestaPanel scene: the board at physical scale in a
- * room-like setting, polling its virtual board for frames.
+ * Full-viewport FiestaPanel scene: a borderless auto-fit grid at true flap
+ * scale on pure black, polling its virtual board for frames.
  */
 export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelViewProps) {
   const t = useTranslations("fiestaPanels");
@@ -138,8 +129,6 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
     }
   };
 
-  const backdrop = BACKDROPS[config.data?.backdrop ?? "dark"];
-
   let content: React.ReactNode;
   if (notFound) {
     content = (
@@ -164,10 +153,17 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
       </Box>
     );
   } else if (config.data) {
+    const rows = config.data.rows ?? 6;
+    const cols = config.data.cols ?? 22;
+    const deviceType = config.data.device_type ?? "flagship";
     content = (
       <PanelBoard
         message={frame.data?.message ?? null}
-        deviceType={config.data.device_type === "note" ? "note" : "flagship"}
+        deviceType={deviceType}
+        notesWide={deviceType === "note_array" ? Math.max(1, Math.round(cols / 15)) : 1}
+        notesTall={deviceType === "note_array" ? Math.max(1, Math.round(rows / 3)) : 1}
+        rows={rows}
+        cols={cols}
         boardColor={config.data.board_color ?? "black"}
         code62Glyph={(config.data.code62_glyph ?? "degree") as Code62Glyph}
         diagonalInches={config.data.screen_diagonal_inches}
@@ -185,20 +181,11 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
       data-panel-id={panelId}
       align="center"
       justify="center"
-      className="fixed inset-0 overflow-hidden"
-      style={{ ...backdrop, cursor: cursorHidden ? "none" : undefined }}
+      className="fixed inset-0 overflow-hidden bg-black"
+      style={{ cursor: cursorHidden ? "none" : undefined }}
       onClick={toggleFullscreen}
     >
       {content}
-      {/* Edge vignette (wall backdrop only) so the letterboxed area reads
-          as a lit room instead of dead pixels. */}
-      {config.data?.backdrop === "wall" && (
-        <Box
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          style={{ boxShadow: "inset 0 0 18vmin rgba(0,0,0,0.65)" }}
-        />
-      )}
       {/* Auto-dim: slow-fading brightness overlay during the night window. */}
       <Box
         aria-hidden="true"

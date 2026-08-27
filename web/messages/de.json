@@ -2066,18 +2066,11 @@
     "description": "Verwandle jeden Fernseher oder Bildschirm mit Browser in eine lebensgroße Fallblattanzeige.",
     "createPanel": "Panel erstellen",
     "editPanel": "Panel bearbeiten",
-    "editorHelp": "Ein Panel ist ein virtuelles Board: Weise ihm wie jedem anderen Board Seiten und Zeitpläne zu und öffne dann seine URL auf dem Fernseher.",
+    "editorHelp": "Ein Panel ist ein virtuelles Board in der Größe deines Bildschirms: Weise ihm wie jedem anderen Board Seiten und Zeitpläne zu und öffne dann seine URL auf dem Fernseher.",
     "panelName": "Panelname",
-    "shape": "Boardform",
-    "shapeFlagship": "Flagship (22×6)",
-    "shapeNote": "Note (15×3)",
     "screenSize": "TV-Größe",
     "screenSizeCustom": "Benutzerdefiniert (Zoll)",
     "screenMeta": "{inches}\"-Bildschirm",
-    "backdrop": "Hintergrund",
-    "backdropWall": "Beleuchtete Wand",
-    "backdropDark": "Dunkel",
-    "backdropNone": "Reines Schwarz (OLED)",
     "autoDim": "Nachts automatisch dimmen",
     "autoDimStart": "Dimmen ab",
     "autoDimEnd": "Bis",
@@ -2104,6 +2097,8 @@
     "notFoundBody": "Es wurde möglicherweise in FiestaBoard gelöscht. Erstelle ein neues Panel und öffne hier dessen URL.",
     "boardMissingTitle": "Das Board dieses Panels wurde entfernt",
     "boardMissingBody": "Das virtuelle Board hinter diesem Panel wurde gelöscht. Lösche das Panel in den Einstellungen und lege es neu an.",
-    "offline": "Verbindung zu FiestaBoard verloren — letzte Aktualisierung wird angezeigt"
+    "offline": "Verbindung zu FiestaBoard verloren — letzte Aktualisierung wird angezeigt",
+    "gridMeta": "{cols} × {rows} Klappen",
+    "autoFitHint": "Das Raster wird automatisch dimensioniert: so viele Klappen in Originalgröße, wie auf deinen Bildschirm passen."
   }
 }

@@ -5388,8 +5388,7 @@ def _ensure_transition_plugins_beta() -> None:
         raise HTTPException(
             status_code=404,
             detail=(
-                "Transition plugins are an experimental beta. Enable them "
-                "in Settings → Beta to use this endpoint."
+                "Transition plugins are an experimental beta. Enable them in Settings → Beta to use this endpoint."
             ),
         )
 
@@ -5446,18 +5445,20 @@ async def list_transition_plugins():
         manifest = registry.get_manifest(plugin_id)
         if manifest is None:
             continue
-        out.append({
-            "id": plugin_id,
-            "name": manifest.name,
-            "description": manifest.description,
-            "icon": manifest.icon,
-            "version": manifest.version,
-            "author": manifest.author,
-            "settings_schema": manifest.settings_schema,
-            "transition_settings": plugin.transition_settings,
-            "config": dict(plugin.config or {}),
-            "strategy": f"plugin:{plugin_id}",
-        })
+        out.append(
+            {
+                "id": plugin_id,
+                "name": manifest.name,
+                "description": manifest.description,
+                "icon": manifest.icon,
+                "version": manifest.version,
+                "author": manifest.author,
+                "settings_schema": manifest.settings_schema,
+                "transition_settings": plugin.transition_settings,
+                "config": dict(plugin.config or {}),
+                "strategy": f"plugin:{plugin_id}",
+            }
+        )
     out.sort(key=lambda e: e["name"].lower())
     return {"plugins": out}
 
@@ -5603,10 +5604,7 @@ async def _preview_transition_impl(request: dict):
         )
         raise HTTPException(
             status_code=504,
-            detail=(
-                f"Plugin {plugin_id!r} exceeded the {max_runtime_s}s "
-                "runtime cap and was aborted."
-            ),
+            detail=(f"Plugin {plugin_id!r} exceeded the {max_runtime_s}s runtime cap and was aborted."),
         ) from exc
 
     if error is not None:
@@ -7273,8 +7271,14 @@ async def debug_network_diagnostics():
 def _panel_board_fields(board: dict | None) -> dict:
     """Board-derived fields attached to panel payloads (orphan-aware)."""
     if board is None:
-        return {"device_type": None, "board_missing": True}
-    return {"device_type": board.get("device_type"), "board_missing": False}
+        return {"device_type": None, "board_missing": True, "rows": None, "cols": None}
+    dims = _board_dims(board)
+    return {
+        "device_type": board.get("device_type"),
+        "board_missing": False,
+        "rows": dims.rows,
+        "cols": dims.cols,
+    }
 
 
 @app.get("/panels")
@@ -7290,18 +7294,25 @@ async def list_panels():
 
 @app.post("/panels")
 async def create_panel(data: PanelCreate):
-    """Create a panel and its backing virtual board.
+    """Create a panel and its backing auto-fit virtual board.
 
-    The virtual board is added first; if panel creation then fails the board
+    The board's grid (note-array blocks) is computed from the TV size so
+    each flap renders at real-world scale while filling the screen. The
+    virtual board is added first; if panel creation then fails the board
     is rolled back so no orphan is left behind.
     """
+    from .panels.autofit import compute_autofit_grid
+
     settings_service = get_settings_service()
     board_id = str(uuid.uuid4())
+    notes_wide, notes_tall = compute_autofit_grid(data.screen_diagonal_inches)
     settings_service.add_board(
         {
             "id": board_id,
-            "device_type": data.device_type,
+            "device_type": "note_array",
             "api_mode": "virtual",
+            "notes_wide": notes_wide,
+            "notes_tall": notes_tall,
             "name": f"{data.name} (Panel)",
         }
     )
@@ -7314,23 +7325,42 @@ async def create_panel(data: PanelCreate):
             settings_service.remove_board(board_id)
             _reinitialize_board_clients()
         raise
+    board = _find_board(board_id)
     return {
         "status": "success",
-        "panel": {
-            **panel.model_dump(mode="json"),
-            "device_type": data.device_type,
-            "board_missing": False,
-        },
+        "panel": {**panel.model_dump(mode="json"), **_panel_board_fields(board)},
     }
 
 
 @app.patch("/panels/{panel_id}")
 async def update_panel(panel_id: str, data: PanelUpdate):
-    """Update a panel's display configuration."""
+    """Update a panel's display configuration.
+
+    A screen-size change re-fits the virtual board's grid: content keeps
+    flowing at the new dimensions on the next send.
+    """
+    from .panels.autofit import compute_autofit_grid
+
     panel_service = get_panel_service()
     panel = panel_service.update_panel(panel_id, data)
     if panel is None:
         raise HTTPException(status_code=404, detail="Panel not found")
+
+    if data.model_dump(exclude_unset=True).get("screen_diagonal_inches") is not None:
+        settings_service = get_settings_service()
+        boards = [dict(b) for b in (settings_service.get_board_settings().boards or [])]
+        target = next((b for b in boards if b.get("id") == panel.board_id), None)
+        if target is not None and target.get("api_mode") == "virtual":
+            notes_wide, notes_tall = compute_autofit_grid(panel.screen_diagonal_inches)
+            if (target.get("notes_wide"), target.get("notes_tall")) != (notes_wide, notes_tall) or target.get(
+                "device_type"
+            ) != "note_array":
+                target["device_type"] = "note_array"
+                target["notes_wide"] = notes_wide
+                target["notes_tall"] = notes_tall
+                settings_service.set_boards(boards)
+                _reinitialize_board_clients()
+
     board = _find_board(panel.board_id)
     return {
         "status": "success",

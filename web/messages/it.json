@@ -2066,18 +2066,11 @@
     "description": "Trasforma qualsiasi TV o schermo con un browser in un tabellone a palette a grandezza naturale.",
     "createPanel": "Crea pannello",
     "editPanel": "Modifica pannello",
-    "editorHelp": "Un pannello è una board virtuale: assegnale pagine e programmazioni come a qualsiasi altra board, poi apri il suo URL sul televisore.",
+    "editorHelp": "Un pannello è una board virtuale adattata al tuo schermo: assegnale pagine e programmazioni come a qualsiasi altra board, poi apri il suo URL sul televisore.",
     "panelName": "Nome del pannello",
-    "shape": "Forma della board",
-    "shapeFlagship": "Flagship (22×6)",
-    "shapeNote": "Note (15×3)",
     "screenSize": "Dimensione del TV",
     "screenSizeCustom": "Personalizzata (pollici)",
     "screenMeta": "schermo da {inches}\"",
-    "backdrop": "Sfondo",
-    "backdropWall": "Parete illuminata",
-    "backdropDark": "Scuro",
-    "backdropNone": "Nero puro (OLED)",
     "autoDim": "Attenuazione automatica notturna",
     "autoDimStart": "Attenua dalle",
     "autoDimEnd": "Fino alle",
@@ -2104,6 +2097,8 @@
     "notFoundBody": "Potrebbe essere stato eliminato in FiestaBoard. Crea un nuovo pannello e apri qui il suo URL.",
     "boardMissingTitle": "La board di questo pannello è stata rimossa",
     "boardMissingBody": "La board virtuale dietro questo pannello è stata eliminata. Elimina il pannello nelle impostazioni e ricrealo.",
-    "offline": "Connessione a FiestaBoard persa — viene mostrato l'ultimo aggiornamento"
+    "offline": "Connessione a FiestaBoard persa — viene mostrato l'ultimo aggiornamento",
+    "gridMeta": "{cols} × {rows} palette",
+    "autoFitHint": "La griglia si dimensiona automaticamente: tante palette a grandezza reale quante ne entrano nel tuo schermo."
   }
 }

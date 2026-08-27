@@ -116,6 +116,22 @@ class TestFactoryDispatch:
         assert client is not None
         assert (client.rows, client.cols) == (3, 15)
 
+    def test_factory_virtual_note_array_gets_stitched_dims(self):
+        """Auto-fit panels are note_array virtual boards; dims must stitch."""
+        client = board_client_from_board_dict(
+            {
+                "api_mode": "virtual",
+                "device_type": "note_array",
+                "id": "b-array",
+                "notes_wide": 2,
+                "notes_tall": 4,
+            }
+        )
+        assert client is not None
+        assert (client.rows, client.cols) == (12, 30)
+        ok, sent = client.send_characters([[0] * 30 for _ in range(12)])
+        assert (ok, sent) == (True, True)
+
 
 class TestSharedStatePerBoard:
     """Frames must live with the BOARD, not a client instance.

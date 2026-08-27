@@ -16,7 +16,7 @@ async function createPanel(name: string): Promise<CreatedPanel> {
   const res = await fetch(`${API_URL}/panels`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ name, device_type: "note", screen_diagonal_inches: 43 }),
+    body: JSON.stringify({ name, screen_diagonal_inches: 43 }),
   });
   expect(res.ok).toBe(true);
   const body = (await res.json()) as { panel: CreatedPanel };

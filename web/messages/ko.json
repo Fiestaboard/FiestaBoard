@@ -2066,18 +2066,11 @@
     "description": "브라우저가 있는 TV나 화면을 실물 크기의 스플릿 플랩 보드로 바꿉니다.",
     "createPanel": "패널 만들기",
     "editPanel": "패널 편집",
-    "editorHelp": "패널은 가상 보드입니다. 다른 보드처럼 페이지와 일정을 지정한 뒤 TV에서 해당 URL을 여세요.",
+    "editorHelp": "패널은 화면 크기에 맞춘 가상 보드입니다. 다른 보드처럼 페이지와 일정을 지정한 뒤 TV에서 해당 URL을 여세요.",
     "panelName": "패널 이름",
-    "shape": "보드 형태",
-    "shapeFlagship": "Flagship (22×6)",
-    "shapeNote": "Note (15×3)",
     "screenSize": "TV 크기",
     "screenSizeCustom": "직접 입력 (인치)",
     "screenMeta": "{inches}인치 화면",
-    "backdrop": "배경",
-    "backdropWall": "조명이 있는 벽",
-    "backdropDark": "어둡게",
-    "backdropNone": "순수 검정 (OLED)",
     "autoDim": "야간 자동 어둡게",
     "autoDimStart": "어둡게 시작",
     "autoDimEnd": "종료",
@@ -2104,6 +2097,8 @@
     "notFoundBody": "FiestaBoard에서 삭제되었을 수 있습니다. 새 패널을 만들고 그 URL을 여기서 여세요.",
     "boardMissingTitle": "이 패널의 보드가 제거되었습니다",
     "boardMissingBody": "이 패널의 가상 보드가 삭제되었습니다. 설정에서 패널을 삭제하고 다시 만드세요.",
-    "offline": "FiestaBoard 연결이 끊겼습니다 — 마지막 업데이트를 표시 중"
+    "offline": "FiestaBoard 연결이 끊겼습니다 — 마지막 업데이트를 표시 중",
+    "gridMeta": "{cols} × {rows} 플랩",
+    "autoFitHint": "그리드는 자동으로 조정됩니다. 화면에 들어가는 만큼 실물 크기 플랩이 배치됩니다."
   }
 }

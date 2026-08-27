@@ -44,5 +44,5 @@ class TestPanelAuthBoundary:
         assert response.status_code in (401, 409)
 
     def test_panels_create_requires_auth(self, client, auth_enabled):
-        response = client.post("/panels", json={"name": "TV", "device_type": "note"})
+        response = client.post("/panels", json={"name": "TV", "screen_diagonal_inches": 43})
         assert response.status_code in (401, 409)

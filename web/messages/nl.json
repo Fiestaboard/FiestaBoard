@@ -2066,18 +2066,11 @@
     "description": "Maak van elke tv of elk scherm met een browser een klepbord op ware grootte.",
     "createPanel": "Paneel aanmaken",
     "editPanel": "Paneel bewerken",
-    "editorHelp": "Een paneel is een virtueel bord: geef het pagina's en schema's zoals elk ander bord en open daarna de URL op de tv.",
+    "editorHelp": "Een paneel is een virtueel bord op maat van je scherm: geef het pagina's en schema's zoals elk ander bord en open daarna de URL op de tv.",
     "panelName": "Paneelnaam",
-    "shape": "Bordvorm",
-    "shapeFlagship": "Flagship (22×6)",
-    "shapeNote": "Note (15×3)",
     "screenSize": "Tv-formaat",
     "screenSizeCustom": "Aangepast (inch)",
     "screenMeta": "{inches}\"-scherm",
-    "backdrop": "Achtergrond",
-    "backdropWall": "Verlichte muur",
-    "backdropDark": "Donker",
-    "backdropNone": "Puur zwart (OLED)",
     "autoDim": "'s Nachts automatisch dimmen",
     "autoDimStart": "Dimmen vanaf",
     "autoDimEnd": "Tot",
@@ -2104,6 +2097,8 @@
     "notFoundBody": "Het is mogelijk verwijderd in FiestaBoard. Maak een nieuw paneel en open hier de URL.",
     "boardMissingTitle": "Het bord van dit paneel is verwijderd",
     "boardMissingBody": "Het virtuele bord achter dit paneel is verwijderd. Verwijder het paneel in de instellingen en maak het opnieuw aan.",
-    "offline": "Verbinding met FiestaBoard verbroken — laatste update wordt getoond"
+    "offline": "Verbinding met FiestaBoard verbroken — laatste update wordt getoond",
+    "gridMeta": "{cols} × {rows} kleppen",
+    "autoFitHint": "Het raster wordt automatisch bepaald: zoveel kleppen op ware grootte als er op je scherm passen."
   }
 }
