@@ -2099,6 +2099,7 @@
     "boardMissingBody": "La board virtuale dietro questo pannello è stata eliminata. Elimina il pannello nelle impostazioni e ricrealo.",
     "offline": "Connessione a FiestaBoard persa — viene mostrato l'ultimo aggiornamento",
     "gridMeta": "{cols} × {rows} palette",
-    "autoFitHint": "La griglia si dimensiona automaticamente: tante palette a grandezza reale quante ne entrano nel tuo schermo."
+    "autoFitHint": "La griglia si dimensiona automaticamente: tante palette a grandezza reale quante ne entrano nel tuo schermo.",
+    "flapAnimation": "Animazione delle palette"
   }
 }

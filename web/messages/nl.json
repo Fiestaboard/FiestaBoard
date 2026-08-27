@@ -2099,6 +2099,7 @@
     "boardMissingBody": "Het virtuele bord achter dit paneel is verwijderd. Verwijder het paneel in de instellingen en maak het opnieuw aan.",
     "offline": "Verbinding met FiestaBoard verbroken — laatste update wordt getoond",
     "gridMeta": "{cols} × {rows} kleppen",
-    "autoFitHint": "Het raster wordt automatisch bepaald: zoveel kleppen op ware grootte als er op je scherm passen."
+    "autoFitHint": "Het raster wordt automatisch bepaald: zoveel kleppen op ware grootte als er op je scherm passen.",
+    "flapAnimation": "Klepanimatie"
   }
 }

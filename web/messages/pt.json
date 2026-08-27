@@ -2099,6 +2099,7 @@
     "boardMissingBody": "O quadro virtual por trás deste painel foi excluído. Exclua o painel nas configurações e crie-o novamente.",
     "offline": "Conexão com o FiestaBoard perdida — exibindo a última atualização",
     "gridMeta": "{cols} × {rows} palhetas",
-    "autoFitHint": "A grade é dimensionada automaticamente: tantas palhetas em tamanho real quantas couberem na sua tela."
+    "autoFitHint": "A grade é dimensionada automaticamente: tantas palhetas em tamanho real quantas couberem na sua tela.",
+    "flapAnimation": "Animação das palhetas"
   }
 }

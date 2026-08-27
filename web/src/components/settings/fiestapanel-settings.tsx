@@ -55,6 +55,7 @@ interface EditorState {
   panelId?: string;
   name: string;
   diagonal: number;
+  animationsEnabled: boolean;
   autoDimEnabled: boolean;
   autoDimStart: string;
   autoDimEnd: string;
@@ -65,6 +66,7 @@ const NEW_PANEL: EditorState = {
   mode: "create",
   name: "",
   diagonal: 55,
+  animationsEnabled: true,
   autoDimEnabled: false,
   autoDimStart: "22:00",
   autoDimEnd: "07:00",
@@ -77,6 +79,7 @@ function editorFromPanel(panel: Panel): EditorState {
     panelId: panel.id,
     name: panel.name,
     diagonal: panel.screen_diagonal_inches,
+    animationsEnabled: panel.animations_enabled,
     autoDimEnabled: panel.auto_dim.enabled,
     autoDimStart: panel.auto_dim.start,
     autoDimEnd: panel.auto_dim.end,
@@ -120,6 +123,7 @@ export function FiestaPanelSettings() {
       api.updatePanel(state.panelId ?? "", {
         name: state.name,
         screen_diagonal_inches: state.diagonal,
+        animations_enabled: state.animationsEnabled,
         auto_dim: { enabled: state.autoDimEnabled, start: state.autoDimStart, end: state.autoDimEnd },
         calibration_scale: state.calibration,
       }),
@@ -270,6 +274,14 @@ export function FiestaPanelSettings() {
                 </Stack>
                 {editor.mode === "edit" && (
                   <>
+                    <Flex gap="3" align="center">
+                      <Switch
+                        id="panel-animations"
+                        checked={editor.animationsEnabled}
+                        onCheckedChange={(checked) => setEditor({ ...editor, animationsEnabled: checked === true })}
+                      />
+                      <Label htmlFor="panel-animations">{t("flapAnimation")}</Label>
+                    </Flex>
                     <Flex gap="3" align="center">
                       <Switch
                         id="panel-auto-dim"

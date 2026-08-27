@@ -253,3 +253,12 @@
 .panel-seamless [data-note-col-seam="true"] {
   margin-left: 0 !important;
 }
+
+/* FiestaPanel page mode: while the viewer is mounted nothing behind it may
+   scroll or show a non-black background — TV browsers otherwise paint their
+   default page background at the edges and float scrollbars over the board. */
+.panel-mode,
+.panel-mode body {
+  overflow: hidden !important;
+  background: #000 !important;
+}

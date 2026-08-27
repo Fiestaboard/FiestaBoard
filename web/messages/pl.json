@@ -2099,6 +2099,7 @@
     "boardMissingBody": "Wirtualna tablica tego panelu została usunięta. Usuń panel w ustawieniach i utwórz go ponownie.",
     "offline": "Utracono połączenie z FiestaBoard — wyświetlana jest ostatnia aktualizacja",
     "gridMeta": "{cols} × {rows} klapek",
-    "autoFitHint": "Siatka jest dobierana automatycznie: tyle klapek w rzeczywistym rozmiarze, ile zmieści się na ekranie."
+    "autoFitHint": "Siatka jest dobierana automatycznie: tyle klapek w rzeczywistym rozmiarze, ile zmieści się na ekranie.",
+    "flapAnimation": "Animacja klapek"
   }
 }

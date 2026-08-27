@@ -2099,6 +2099,7 @@
     "boardMissingBody": "此面板背后的虚拟板已被删除。请在设置中删除该面板并重新创建。",
     "offline": "与 FiestaBoard 的连接已断开 — 正在显示最后一次更新",
     "gridMeta": "{cols} × {rows} 翻牌",
-    "autoFitHint": "网格会自动调整：在屏幕上放下尽可能多的真实尺寸翻牌。"
+    "autoFitHint": "网格会自动调整：在屏幕上放下尽可能多的真实尺寸翻牌。",
+    "flapAnimation": "翻牌动画"
   }
 }

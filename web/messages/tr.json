@@ -2099,6 +2099,7 @@
     "boardMissingBody": "Bu panelin arkasındaki sanal pano silindi. Ayarlardan paneli silip yeniden oluşturun.",
     "offline": "FiestaBoard bağlantısı kesildi — son güncelleme gösteriliyor",
     "gridMeta": "{cols} × {rows} kanat",
-    "autoFitHint": "Izgara otomatik boyutlandırılır: ekranınıza sığdığı kadar gerçek boyutlu kanat."
+    "autoFitHint": "Izgara otomatik boyutlandırılır: ekranınıza sığdığı kadar gerçek boyutlu kanat.",
+    "flapAnimation": "Kanat animasyonu"
   }
 }

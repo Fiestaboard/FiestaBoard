@@ -16,6 +16,7 @@ const CONFIG: PanelPublicConfig = {
   board_id: "vboard-1",
   screen_diagonal_inches: 55,
   calibration_scale: 1,
+  animations_enabled: true,
   backdrop: "wall",
   auto_dim: { enabled: false, start: "22:00", end: "07:00" },
   created_at: "2026-08-25T00:00:00+00:00",
@@ -91,6 +92,13 @@ describe("PanelView", () => {
     await waitFor(() => {
       expect(screen.getByTestId("panel-dim")).toHaveAttribute("data-active", "true");
     });
+  });
+
+  it("passes the panel's animation setting to the board", async () => {
+    mockPanel({ ...CONFIG, animations_enabled: false });
+    render(<PanelView panelId="p1" />, { wrapper: Wrapper });
+    await screen.findByRole("img");
+    expect(screen.getByTestId("panel-board-scaler")).toHaveAttribute("data-animations", "false");
   });
 
   it("reports the orphaned-board state", async () => {

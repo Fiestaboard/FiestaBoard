@@ -51,6 +51,10 @@ class Panel(BaseModel):
     board_id: str
     screen_diagonal_inches: float = Field(default=55.0, ge=10.0, le=200.0)
     calibration_scale: float = Field(default=1.0, ge=0.85, le=1.15)
+    # Mechanical flip animation on the viewer. Off by default: on a large
+    # auto-fit grid the spin reads slow and busy — characters just update
+    # in place. The toggle stays for people who want the theater.
+    animations_enabled: bool = False
     backdrop: BackdropStyle = "wall"
     auto_dim: AutoDim = Field(default_factory=AutoDim)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -74,5 +78,6 @@ class PanelUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     screen_diagonal_inches: float | None = Field(default=None, ge=10.0, le=200.0)
     calibration_scale: float | None = Field(default=None, ge=0.85, le=1.15)
+    animations_enabled: bool | None = None
     backdrop: BackdropStyle | None = None
     auto_dim: AutoDim | None = None

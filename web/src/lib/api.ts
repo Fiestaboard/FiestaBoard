@@ -72,6 +72,8 @@ export interface Panel {
   board_id: string;
   screen_diagonal_inches: number;
   calibration_scale: number;
+  /** Mechanical flip animation on the viewer; off = frames snap into place. */
+  animations_enabled: boolean;
   backdrop: PanelBackdrop;
   auto_dim: PanelAutoDim;
   created_at: string;
@@ -94,6 +96,7 @@ export interface PanelUpdateRequest {
   name?: string;
   screen_diagonal_inches?: number;
   calibration_scale?: number;
+  animations_enabled?: boolean;
   backdrop?: PanelBackdrop;
   auto_dim?: PanelAutoDim;
 }

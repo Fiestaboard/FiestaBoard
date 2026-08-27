@@ -64,6 +64,15 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
 
   const autoDim = config.data?.auto_dim;
 
+  // Panel mode: pin the page itself — no scrollbars, black behind
+  // everything (globals.css .panel-mode rules on html/body). The scene div
+  // is fixed inset-0, but an oversized true-scale board must never let the
+  // document scroll or reveal a non-black backdrop behind it.
+  useEffect(() => {
+    document.documentElement.classList.add("panel-mode");
+    return () => document.documentElement.classList.remove("panel-mode");
+  }, []);
+
   // Keep the TV awake while the panel is showing (best effort).
   useEffect(() => {
     let sentinel: { release: () => Promise<void> } | null = null;
@@ -159,6 +168,7 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
     content = (
       <PanelBoard
         message={frame.data?.message ?? null}
+        animationsEnabled={config.data.animations_enabled ?? true}
         deviceType={deviceType}
         notesWide={deviceType === "note_array" ? Math.max(1, Math.round(cols / 15)) : 1}
         notesTall={deviceType === "note_array" ? Math.max(1, Math.round(rows / 3)) : 1}

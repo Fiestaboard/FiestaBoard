@@ -2099,6 +2099,7 @@
     "boardMissingBody": "Den virtuella tavlan bakom panelen har tagits bort. Ta bort panelen i inställningarna och skapa den på nytt.",
     "offline": "Anslutningen till FiestaBoard bröts — visar den senaste uppdateringen",
     "gridMeta": "{cols} × {rows} klaffar",
-    "autoFitHint": "Rutnätet dimensioneras automatiskt: så många klaffar i verklig storlek som får plats på din skärm."
+    "autoFitHint": "Rutnätet dimensioneras automatiskt: så många klaffar i verklig storlek som får plats på din skärm.",
+    "flapAnimation": "Klaffanimation"
   }
 }

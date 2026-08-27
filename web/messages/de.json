@@ -2099,6 +2099,7 @@
     "boardMissingBody": "Das virtuelle Board hinter diesem Panel wurde gelöscht. Lösche das Panel in den Einstellungen und lege es neu an.",
     "offline": "Verbindung zu FiestaBoard verloren — letzte Aktualisierung wird angezeigt",
     "gridMeta": "{cols} × {rows} Klappen",
-    "autoFitHint": "Das Raster wird automatisch dimensioniert: so viele Klappen in Originalgröße, wie auf deinen Bildschirm passen."
+    "autoFitHint": "Das Raster wird automatisch dimensioniert: so viele Klappen in Originalgröße, wie auf deinen Bildschirm passen.",
+    "flapAnimation": "Klappanimation"
   }
 }

@@ -19,7 +19,7 @@ from .models import Panel
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
 
 
 def _migrate_v1_to_v2(panels_data: list[dict]) -> int:
@@ -47,10 +47,21 @@ def _migrate_v1_to_v2(panels_data: list[dict]) -> int:
     return migrated
 
 
+def _migrate_v2_to_v3(panels_data: list[dict]) -> int:
+    """Migration 2 -> 3: stamp the animations_enabled default (off) explicitly."""
+    migrated = 0
+    for panel_data in panels_data:
+        if isinstance(panel_data, dict) and "animations_enabled" not in panel_data:
+            panel_data["animations_enabled"] = False
+            migrated += 1
+    return migrated
+
+
 # Ordered migrations: (target_version, function). Each function takes the raw
 # panels list, mutates in place, and returns the number of entries processed.
 MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
     (2, _migrate_v1_to_v2),
+    (3, _migrate_v2_to_v3),
 ]
 
 

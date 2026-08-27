@@ -110,7 +110,21 @@ class TestSchemaMigrationV2:
         assert codes == [1, 2]
         data = json.loads(path.read_text())
         assert data["schema_version"] == CURRENT_SCHEMA_VERSION
-        assert CURRENT_SCHEMA_VERSION == 2
+
+    def test_v2_panels_get_animations_enabled_stamped(self, tmp_path):
+        """v2 entries predate the animation toggle; v3 stamps the default."""
+        path = tmp_path / "panels.json"
+        v2 = {
+            "schema_version": 2,
+            "panels": [{"id": "aaaaaaaaaaaa", "short_code": 1, "name": "one", "board_id": "b1"}],
+        }
+        path.write_text(json.dumps(v2))
+        storage = PanelStorage(storage_file=str(path))
+        assert storage.list_all()[0].animations_enabled is False
+        data = json.loads(path.read_text())
+        assert data["schema_version"] == CURRENT_SCHEMA_VERSION
+        assert CURRENT_SCHEMA_VERSION == 3
+        assert data["panels"][0]["animations_enabled"] is False
 
     def test_migration_is_idempotent(self, tmp_path):
         path = tmp_path / "panels.json"

@@ -2099,6 +2099,7 @@
     "empty": "No panels yet. Create one and open its URL on a TV.",
     "boardMissing": "Board missing",
     "gridMeta": "{cols} × {rows} flaps",
-    "autoFitHint": "The board's grid is sized automatically: as many real-size flaps as fit your screen."
+    "autoFitHint": "The board's grid is sized automatically: as many real-size flaps as fit your screen.",
+    "flapAnimation": "Flip animation"
   }
 }

@@ -25,6 +25,7 @@ class TestPanelDefaults:
         panel = _panel()
         assert panel.screen_diagonal_inches == 55.0
         assert panel.calibration_scale == 1.0
+        assert panel.animations_enabled is False
         assert panel.backdrop == "wall"
         assert panel.auto_dim.enabled is False
         assert panel.auto_dim.start == "22:00"
@@ -73,3 +74,7 @@ class TestRequestModels:
     def test_update_is_all_optional(self):
         update = PanelUpdate()
         assert update.model_dump(exclude_unset=True) == {}
+
+    def test_update_can_disable_animations(self):
+        update = PanelUpdate(animations_enabled=False)
+        assert update.model_dump(exclude_unset=True) == {"animations_enabled": False}

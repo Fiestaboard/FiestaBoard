@@ -8,6 +8,7 @@ import { NOTE_COL_PITCH_IN, PANEL_PHYSICAL_WIDTH_IN, panelAutofitScale } from "@
 
 interface PanelBoardProps {
   message: string | null;
+  animationsEnabled: boolean;
   deviceType: DeviceType;
   notesWide: number;
   notesTall: number;
@@ -59,6 +60,7 @@ function colPitchIn(deviceType: DeviceType): number {
  */
 export function PanelBoard({
   message,
+  animationsEnabled,
   deviceType,
   notesWide,
   notesTall,
@@ -121,7 +123,11 @@ export function PanelBoard({
   }, [diagonalInches, deviceType, calibration, rows, cols]);
 
   return (
-    <Box data-testid="panel-board-scaler" style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}>
+    <Box
+      data-testid="panel-board-scaler"
+      data-animations={animationsEnabled ? "true" : "false"}
+      style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
+    >
       <Box
         data-testid="panel-board-crop"
         className="panel-seamless relative overflow-hidden"
@@ -136,7 +142,7 @@ export function PanelBoard({
             notesWide={notesWide}
             notesTall={notesTall}
             code62Glyph={code62Glyph}
-            animationsEnabled
+            animationsEnabled={animationsEnabled}
             flapSpeed="hardware"
             announceUpdates
             loadingLabel={t("loading")}

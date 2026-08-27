@@ -2099,6 +2099,7 @@
     "boardMissingBody": "El tablero virtual detrás de este panel fue eliminado. Elimina el panel en Ajustes y créalo de nuevo.",
     "offline": "Conexión con FiestaBoard perdida — mostrando la última actualización",
     "gridMeta": "{cols} × {rows} paletas",
-    "autoFitHint": "La cuadrícula se dimensiona automáticamente: tantas paletas a tamaño real como quepan en tu pantalla."
+    "autoFitHint": "La cuadrícula se dimensiona automáticamente: tantas paletas a tamaño real como quepan en tu pantalla.",
+    "flapAnimation": "Animación de paletas"
   }
 }
