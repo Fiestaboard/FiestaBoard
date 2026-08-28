@@ -31,3 +31,11 @@ def test_unit_file_matches_image_stage():
 def test_wait_script_matches_image_stage():
     expected = (STAGE / "kiosk-wait.sh").read_text()
     assert _heredoc("WAIT_EOF") == expected
+
+
+def test_sidecar_copy_matches_canonical_script():
+    """The fiestaupdater image bakes its own copy (its Docker build context
+    is fiestaupdater/ only); it must stay byte-identical to the canonical
+    scripts/ copy that docs and the SSH fallback point at."""
+    sidecar = ROOT / "fiestaupdater" / "fiestapi-hdmi-setup.sh"
+    assert sidecar.read_text() == SCRIPT.read_text()

@@ -42,6 +42,7 @@ import { appUrl } from "@/lib/base-path";
 const SIZE_PRESETS = [32, 43, 50, 55, 65, 75, 85] as const;
 
 const PANELS_QUERY_KEY = ["panels"] as const;
+const HDMI_QUERY_KEY = ["hdmi-kiosk"] as const;
 
 function panelViewerUrl(panel: Pick<Panel, "id" | "short_code">): string {
   // Prefer the TV-typable short URL (/p/1); fall back to the full id for
@@ -98,6 +99,13 @@ export function FiestaPanelSettings() {
     queryFn: () => api.listPanels(),
   });
 
+  const hdmi = useQuery({
+    queryKey: HDMI_QUERY_KEY,
+    queryFn: () => api.getHdmiKiosk(),
+    // Installs take minutes (apt on a Pi); poll while one is running.
+    refetchInterval: (query) => (query.state.data?.status === "in_progress" ? 3000 : false),
+  });
+
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: PANELS_QUERY_KEY });
     // A panel's virtual board shows up in every board-scoped surface.
@@ -132,6 +140,12 @@ export function FiestaPanelSettings() {
       setEditor(null);
       toast.success(t("saved"));
     },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const hdmiMutation = useMutation({
+    mutationFn: (enabled: boolean) => api.setHdmiKiosk(enabled),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: HDMI_QUERY_KEY }),
     onError: (error: Error) => toast.error(error.message),
   });
 
@@ -242,6 +256,29 @@ export function FiestaPanelSettings() {
       )}
 
       <Button onClick={() => setEditor(NEW_PANEL)}>{t("createPanel")}</Button>
+
+      {hdmi.data?.supported && (
+        <Stack gap="2" className="rounded-lg border border-border p-4">
+          <Flex gap="3" align="center">
+            <Switch
+              id="hdmi-kiosk"
+              checked={hdmi.data.status === "enabled" || hdmi.data.status === "in_progress"}
+              disabled={hdmi.data.status === "in_progress" || hdmiMutation.isPending}
+              onCheckedChange={(checked) => hdmiMutation.mutate(checked === true)}
+            />
+            <Label htmlFor="hdmi-kiosk">{t("hdmiTitle")}</Label>
+          </Flex>
+          <Text size="xs" tone="muted">
+            {hdmi.data.status === "in_progress"
+              ? t("hdmiInstalling")
+              : hdmi.data.status === "failed"
+                ? t("hdmiFailed")
+                : hdmi.data.status === "enabled"
+                  ? t("hdmiEnabledHint")
+                  : t("hdmiHelp")}
+          </Text>
+        </Stack>
+      )}
 
       <Dialog open={editor !== null} onOpenChange={(open) => !open && setEditor(null)}>
         <DialogContent>

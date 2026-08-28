@@ -34,7 +34,10 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 function mockList(panels: Panel[] = [PANEL]) {
-  server.use(http.get("/api/panels", () => HttpResponse.json({ panels, total: panels.length })));
+  server.use(
+    http.get("/api/panels", () => HttpResponse.json({ panels, total: panels.length })),
+    http.get("/api/settings/hdmi-kiosk", () => HttpResponse.json({ supported: false, status: "unsupported" })),
+  );
 }
 
 describe("FiestaPanelSettings", () => {
@@ -84,6 +87,29 @@ describe("FiestaPanelSettings", () => {
     render(<FiestaPanelSettings />, { wrapper: Wrapper });
     await user.click(await screen.findByRole("switch", { name: "Display output" }));
     await waitFor(() => expect(body).toEqual({ is_display: true }));
+  });
+
+  it("hides HDMI controls when unsupported", async () => {
+    mockList();
+    render(<FiestaPanelSettings />, { wrapper: Wrapper });
+    await screen.findByText("Living Room TV");
+    expect(screen.queryByLabelText("HDMI output on this FiestaPi")).not.toBeInTheDocument();
+  });
+
+  it("enables the HDMI kiosk from the app on a FiestaPi", async () => {
+    mockList();
+    server.use(http.get("/api/settings/hdmi-kiosk", () => HttpResponse.json({ supported: true, status: "disabled" })));
+    let body: unknown;
+    server.use(
+      http.post("/api/settings/hdmi-kiosk", async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ status: "queued", action: "hdmi_enable" });
+      }),
+    );
+    const user = userEvent.setup();
+    render(<FiestaPanelSettings />, { wrapper: Wrapper });
+    await user.click(await screen.findByRole("switch", { name: "HDMI output on this FiestaPi" }));
+    await waitFor(() => expect(body).toEqual({ enabled: true }));
   });
 
   it("deletes a panel after confirmation", async () => {

@@ -92,9 +92,14 @@ doing on a Pi 3B you aren't using for HDMI output).
 
 ### Already have a FiestaPi flashed?
 
-FiestaBoard's in-app updater only updates the app itself, not the Pi's
-operating system — so Pis flashed before the kiosk existed don't have the
-browser installed. One command over SSH retrofits it (and enables it):
+The easiest path needs no SSH at all: open **Settings → Hardware →
+FiestaPanel** and flip **HDMI output on this FiestaPi** — the updater
+sidecar installs the kiosk for you (it can mutate the host, unlike the
+app updater, which only refreshes the app itself). If the app says the
+sidecar is too old, reboot the Pi once (each boot pulls the newest
+sidecar) and flip the switch again.
+
+Prefer a terminal? The same retrofit is one command over SSH:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/scripts/fiestapi-hdmi-setup.sh | sudo bash

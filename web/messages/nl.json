@@ -2104,6 +2104,11 @@
     "displayOutput": "Schermuitvoer",
     "displayOutputHint": "Dit paneel wordt getoond op /p/display — de URL die de HDMI-uitgang van FiestaPi gebruikt.",
     "noDisplayTitle": "Geen paneel ingesteld als schermuitvoer",
-    "noDisplayBody": "Open in FiestaBoard Instellingen → Hardware → FiestaPanel en zet “Schermuitvoer” aan voor een paneel."
+    "noDisplayBody": "Open in FiestaBoard Instellingen → Hardware → FiestaPanel en zet “Schermuitvoer” aan voor een paneel.",
+    "hdmiTitle": "HDMI-uitvoer op deze FiestaPi",
+    "hdmiHelp": "Toont het schermpaneel op een scherm dat op de HDMI-poort van deze Pi is aangesloten. Inschakelen installeert een kleine kioskbrowser (duurt enkele minuten).",
+    "hdmiInstalling": "HDMI-kiosk wordt ingesteld — er wordt een browser op de Pi geïnstalleerd, dit kan enkele minuten duren…",
+    "hdmiEnabledHint": "Het HDMI-scherm toont het paneel waarvoor hierboven “Schermuitvoer” is ingeschakeld.",
+    "hdmiFailed": "De laatste HDMI-kioskwijziging is mislukt. Probeer opnieuw of herstart de Pi."
   }
 }

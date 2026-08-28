@@ -2104,6 +2104,11 @@
     "displayOutput": "Skärmutgång",
     "displayOutputHint": "Den här panelen visas på /p/display — adressen som FiestaPis HDMI-utgång använder.",
     "noDisplayTitle": "Ingen panel är inställd som skärmutgång",
-    "noDisplayBody": "Öppna Inställningar → Hårdvara → FiestaPanel i FiestaBoard och slå på ”Skärmutgång” för en panel."
+    "noDisplayBody": "Öppna Inställningar → Hårdvara → FiestaPanel i FiestaBoard och slå på ”Skärmutgång” för en panel.",
+    "hdmiTitle": "HDMI-utgång på denna FiestaPi",
+    "hdmiHelp": "Visar skärmpanelen på en skärm ansluten till Pi:ns HDMI-port. Aktivering installerar en liten kioskwebbläsare (tar några minuter).",
+    "hdmiInstalling": "Ställer in HDMI-kiosken — en webbläsare installeras på Pi:n, det kan ta några minuter…",
+    "hdmiEnabledHint": "HDMI-skärmen visar panelen med ”Skärmutgång” aktiverad ovan.",
+    "hdmiFailed": "Den senaste HDMI-kioskändringen misslyckades. Försök igen eller starta om Pi:n."
   }
 }

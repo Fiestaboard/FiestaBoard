@@ -2104,6 +2104,11 @@
     "displayOutput": "Wyjście ekranowe",
     "displayOutputHint": "Ten panel jest wyświetlany pod /p/display — adresem używanym przez wyjście HDMI FiestaPi.",
     "noDisplayTitle": "Żaden panel nie jest ustawiony jako wyjście ekranowe",
-    "noDisplayBody": "W FiestaBoard otwórz Ustawienia → Sprzęt → FiestaPanel i włącz „Wyjście ekranowe” dla panelu."
+    "noDisplayBody": "W FiestaBoard otwórz Ustawienia → Sprzęt → FiestaPanel i włącz „Wyjście ekranowe” dla panelu.",
+    "hdmiTitle": "Wyjście HDMI na tym FiestaPi",
+    "hdmiHelp": "Wyświetla panel na ekranie podłączonym do portu HDMI tego Pi. Włączenie instaluje małą przeglądarkę w trybie kiosku (kilka minut).",
+    "hdmiInstalling": "Konfigurowanie kiosku HDMI — na Pi instalowana jest przeglądarka, może to potrwać kilka minut…",
+    "hdmiEnabledHint": "Ekran HDMI pokazuje panel z włączonym powyżej „Wyjściem ekranowym”.",
+    "hdmiFailed": "Ostatnia zmiana kiosku HDMI nie powiodła się. Spróbuj ponownie lub uruchom Pi ponownie."
   }
 }

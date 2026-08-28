@@ -2104,6 +2104,11 @@
     "displayOutput": "Display-Ausgabe",
     "displayOutputHint": "Dieses Panel wird unter /p/display angezeigt — die URL, die der FiestaPi-HDMI-Ausgang verwendet.",
     "noDisplayTitle": "Kein Panel als Display-Ausgabe festgelegt",
-    "noDisplayBody": "Öffne in FiestaBoard Einstellungen → Hardware → FiestaPanel und aktiviere „Display-Ausgabe“ für ein Panel."
+    "noDisplayBody": "Öffne in FiestaBoard Einstellungen → Hardware → FiestaPanel und aktiviere „Display-Ausgabe“ für ein Panel.",
+    "hdmiTitle": "HDMI-Ausgabe auf diesem FiestaPi",
+    "hdmiHelp": "Zeigt das Display-Panel auf einem am HDMI-Anschluss dieses Pi angeschlossenen Bildschirm. Beim Aktivieren wird ein kleiner Kiosk-Browser installiert (dauert einige Minuten).",
+    "hdmiInstalling": "HDMI-Kiosk wird eingerichtet — dabei wird ein Browser auf dem Pi installiert, das kann einige Minuten dauern…",
+    "hdmiEnabledHint": "Der HDMI-Bildschirm zeigt das Panel, bei dem oben „Display-Ausgabe“ aktiviert ist.",
+    "hdmiFailed": "Die letzte HDMI-Kiosk-Änderung ist fehlgeschlagen. Versuche es erneut oder starte den Pi neu."
   }
 }
