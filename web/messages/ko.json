@@ -2100,6 +2100,10 @@
     "offline": "FiestaBoard 연결이 끊겼습니다 — 마지막 업데이트를 표시 중",
     "gridMeta": "{cols} × {rows} 플랩",
     "autoFitHint": "그리드는 자동으로 조정됩니다. 화면에 들어가는 만큼 실물 크기 플랩이 배치됩니다.",
-    "flapAnimation": "플랩 애니메이션"
+    "flapAnimation": "플랩 애니메이션",
+    "displayOutput": "디스플레이 출력",
+    "displayOutputHint": "이 패널은 /p/display에 표시됩니다. FiestaPi HDMI 출력이 사용하는 URL입니다.",
+    "noDisplayTitle": "디스플레이 출력으로 설정된 패널이 없습니다",
+    "noDisplayBody": "FiestaBoard에서 설정 → 하드웨어 → FiestaPanel을 열고 패널 하나의 “디스플레이 출력”을 켜세요."
   }
 }

@@ -94,6 +94,46 @@ test.describe("FiestaPanel viewer", () => {
     }
   });
 
+  test("/p/display follows the designated panel", async ({ page }) => {
+    const first = await createPanel("E2E Display A");
+    const second = await createPanel("E2E Display B");
+    try {
+      await driveBoard(first.board_id, ["FIRST BOARD", "", ""]);
+      await driveBoard(second.board_id, ["SECOND BOARD", "", ""]);
+
+      // No designation yet: the kiosk URL asks for one.
+      await page.goto("/p/display");
+      await expect(page.getByText("No panel is set as the display output")).toBeVisible({
+        timeout: 15000,
+      });
+
+      const designate = async (panelId: string) => {
+        const res = await fetch(`${API_URL}/panels/${panelId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({ is_display: true }),
+        });
+        expect(res.ok).toBe(true);
+      };
+
+      await designate(first.id);
+      await page.reload();
+      await expect(page.getByRole("img")).toHaveAttribute("aria-label", /FIRST BOARD/, {
+        timeout: 15000,
+      });
+
+      // Re-pointing the display moves the same URL to the other panel.
+      await designate(second.id);
+      await page.reload();
+      await expect(page.getByRole("img")).toHaveAttribute("aria-label", /SECOND BOARD/, {
+        timeout: 15000,
+      });
+    } finally {
+      await deletePanel(first.id);
+      await deletePanel(second.id);
+    }
+  });
+
   test("shows the not-found state for an unknown panel", async ({ page }) => {
     await page.goto("/panel/doesnotexist000");
     await expect(page.getByText("This panel no longer exists")).toBeVisible({ timeout: 15000 });

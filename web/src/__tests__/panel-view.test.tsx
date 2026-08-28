@@ -17,6 +17,7 @@ const CONFIG: PanelPublicConfig = {
   screen_diagonal_inches: 55,
   calibration_scale: 1,
   animations_enabled: true,
+  is_display: false,
   backdrop: "wall",
   auto_dim: { enabled: false, start: "22:00", end: "07:00" },
   created_at: "2026-08-25T00:00:00+00:00",
@@ -99,6 +100,17 @@ describe("PanelView", () => {
     render(<PanelView panelId="p1" />, { wrapper: Wrapper });
     await screen.findByRole("img");
     expect(screen.getByTestId("panel-board-scaler")).toHaveAttribute("data-animations", "false");
+  });
+
+  it("shows the choose-a-display state on the reserved display URL", async () => {
+    server.use(
+      http.get("/api/panel/display", () => HttpResponse.json({ detail: "No display panel selected" }, { status: 404 })),
+      http.get("/api/panel/display/frame", () =>
+        HttpResponse.json({ detail: "No display panel selected" }, { status: 404 }),
+      ),
+    );
+    render(<PanelView panelId="display" />, { wrapper: Wrapper });
+    expect(await screen.findByText("No panel is set as the display output")).toBeInTheDocument();
   });
 
   it("reports the orphaned-board state", async () => {

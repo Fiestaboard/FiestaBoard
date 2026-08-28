@@ -2100,6 +2100,10 @@
     "offline": "Utracono połączenie z FiestaBoard — wyświetlana jest ostatnia aktualizacja",
     "gridMeta": "{cols} × {rows} klapek",
     "autoFitHint": "Siatka jest dobierana automatycznie: tyle klapek w rzeczywistym rozmiarze, ile zmieści się na ekranie.",
-    "flapAnimation": "Animacja klapek"
+    "flapAnimation": "Animacja klapek",
+    "displayOutput": "Wyjście ekranowe",
+    "displayOutputHint": "Ten panel jest wyświetlany pod /p/display — adresem używanym przez wyjście HDMI FiestaPi.",
+    "noDisplayTitle": "Żaden panel nie jest ustawiony jako wyjście ekranowe",
+    "noDisplayBody": "W FiestaBoard otwórz Ustawienia → Sprzęt → FiestaPanel i włącz „Wyjście ekranowe” dla panelu."
   }
 }

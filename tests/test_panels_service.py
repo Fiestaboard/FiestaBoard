@@ -73,3 +73,38 @@ class TestLookupByRef:
         service = _service(tmp_path)
         assert service.get_panel_by_ref("999") is None
         assert service.get_panel_by_ref("doesnotexist") is None
+
+
+class TestDisplayDesignation:
+    def test_set_display_designates_exactly_one(self, tmp_path):
+        service = _service(tmp_path)
+        first = service.create_panel(PanelCreate(name="A"), board_id="b1")
+        second = service.create_panel(PanelCreate(name="B"), board_id="b2")
+        service.update_panel(first.id, PanelUpdate(is_display=True))
+        updated = service.update_panel(second.id, PanelUpdate(is_display=True))
+        assert updated is not None
+        assert updated.is_display is True
+        refreshed_first = service.get_panel(first.id)
+        assert refreshed_first is not None
+        assert refreshed_first.is_display is False
+
+    def test_display_ref_resolves_designated_panel(self, tmp_path):
+        service = _service(tmp_path)
+        service.create_panel(PanelCreate(name="A"), board_id="b1")
+        second = service.create_panel(PanelCreate(name="B"), board_id="b2")
+        service.update_panel(second.id, PanelUpdate(is_display=True))
+        resolved = service.get_panel_by_ref("display")
+        assert resolved is not None
+        assert resolved.id == second.id
+
+    def test_display_ref_without_designation_returns_none(self, tmp_path):
+        service = _service(tmp_path)
+        service.create_panel(PanelCreate(name="A"), board_id="b1")
+        assert service.get_panel_by_ref("display") is None
+
+    def test_display_can_be_turned_off(self, tmp_path):
+        service = _service(tmp_path)
+        panel = service.create_panel(PanelCreate(name="A"), board_id="b1")
+        service.update_panel(panel.id, PanelUpdate(is_display=True))
+        service.update_panel(panel.id, PanelUpdate(is_display=False))
+        assert service.get_panel_by_ref("display") is None

@@ -2100,6 +2100,10 @@
     "offline": "Verbinding met FiestaBoard verbroken — laatste update wordt getoond",
     "gridMeta": "{cols} × {rows} kleppen",
     "autoFitHint": "Het raster wordt automatisch bepaald: zoveel kleppen op ware grootte als er op je scherm passen.",
-    "flapAnimation": "Klepanimatie"
+    "flapAnimation": "Klepanimatie",
+    "displayOutput": "Schermuitvoer",
+    "displayOutputHint": "Dit paneel wordt getoond op /p/display — de URL die de HDMI-uitgang van FiestaPi gebruikt.",
+    "noDisplayTitle": "Geen paneel ingesteld als schermuitvoer",
+    "noDisplayBody": "Open in FiestaBoard Instellingen → Hardware → FiestaPanel en zet “Schermuitvoer” aan voor een paneel."
   }
 }

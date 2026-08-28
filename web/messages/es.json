@@ -2100,6 +2100,10 @@
     "offline": "Conexión con FiestaBoard perdida — mostrando la última actualización",
     "gridMeta": "{cols} × {rows} paletas",
     "autoFitHint": "La cuadrícula se dimensiona automáticamente: tantas paletas a tamaño real como quepan en tu pantalla.",
-    "flapAnimation": "Animación de paletas"
+    "flapAnimation": "Animación de paletas",
+    "displayOutput": "Salida de pantalla",
+    "displayOutputHint": "Este panel se muestra en /p/display, la URL que usa la salida HDMI de FiestaPi.",
+    "noDisplayTitle": "Ningún panel está configurado como salida de pantalla",
+    "noDisplayBody": "En FiestaBoard, abre Ajustes → Hardware → FiestaPanel y activa «Salida de pantalla» en un panel."
   }
 }

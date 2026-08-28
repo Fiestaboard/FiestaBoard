@@ -25,11 +25,15 @@ class PanelService:
         return self.storage.get(panel_id)
 
     def get_panel_by_ref(self, ref: str) -> Panel | None:
-        """Resolve a viewer URL reference: a short code (all digits) or an id.
+        """Resolve a viewer URL reference.
 
-        Random slug ids are 12+ chars of base64url, so a short all-digit
-        string can only be a short code — the two namespaces cannot collide.
+        "display" resolves the panel designated as the local display (the
+        FiestaPi HDMI kiosk's stable URL); a short all-digit string is a
+        short code; anything else is a panel id. Random slug ids are 12+
+        chars of base64url, so the reserved words and codes cannot collide.
         """
+        if ref == "display":
+            return self.storage.get_display_panel()
         if ref.isdigit() and len(ref) <= 6:
             return self.storage.get_by_short_code(int(ref))
         return self.storage.get(ref)
@@ -44,8 +48,16 @@ class PanelService:
         return self.storage.create(panel)
 
     def update_panel(self, panel_id: str, data: PanelUpdate) -> Panel | None:
-        """Apply only the fields the caller actually set (exclude_unset)."""
+        """Apply only the fields the caller actually set (exclude_unset).
+
+        Designating a panel as the local display clears the role from any
+        other holder first — exactly one panel may serve /p/display.
+        """
         updates = data.model_dump(exclude_unset=True)
+        if updates.get("is_display"):
+            current = self.storage.get_display_panel()
+            if current is not None and current.id != panel_id:
+                self.storage.update(current.id, {"is_display": False})
         return self.storage.update(panel_id, updates)
 
     def delete_panel(self, panel_id: str) -> Panel | None:

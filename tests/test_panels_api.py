@@ -86,6 +86,16 @@ class TestPublicPanelEndpoints:
         assert response.status_code == 200
         mock_panel_service.get_panel_by_ref.assert_called_with("1")
 
+    def test_display_ref_without_designation_gets_distinct_detail(self, client, mock_panel_service):
+        """The kiosk URL needs actionable copy before a panel is designated."""
+        mock_panel_service.get_panel_by_ref.return_value = None
+        response = client.get("/panel/display")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "No display panel selected"
+        response = client.get("/panel/display/frame")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "No display panel selected"
+
     def test_get_panel_returns_board_geometry(self, client, mock_panel_service):
         mock_panel_service.get_panel_by_ref.return_value = _panel()
         board = {

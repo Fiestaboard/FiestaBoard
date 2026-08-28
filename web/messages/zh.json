@@ -2100,6 +2100,10 @@
     "offline": "与 FiestaBoard 的连接已断开 — 正在显示最后一次更新",
     "gridMeta": "{cols} × {rows} 翻牌",
     "autoFitHint": "网格会自动调整：在屏幕上放下尽可能多的真实尺寸翻牌。",
-    "flapAnimation": "翻牌动画"
+    "flapAnimation": "翻牌动画",
+    "displayOutput": "显示输出",
+    "displayOutputHint": "此面板显示在 /p/display — FiestaPi HDMI 输出使用的网址。",
+    "noDisplayTitle": "尚未将任何面板设为显示输出",
+    "noDisplayBody": "在 FiestaBoard 中打开 设置 → 硬件 → FiestaPanel，为某个面板开启“显示输出”。"
   }
 }

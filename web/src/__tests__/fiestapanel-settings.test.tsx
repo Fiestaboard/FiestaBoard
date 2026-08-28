@@ -17,6 +17,7 @@ const PANEL: Panel = {
   screen_diagonal_inches: 55,
   calibration_scale: 1,
   animations_enabled: true,
+  is_display: false,
   backdrop: "wall",
   auto_dim: { enabled: false, start: "22:00", end: "07:00" },
   created_at: "2026-08-25T00:00:00+00:00",
@@ -68,6 +69,21 @@ describe("FiestaPanelSettings", () => {
         screen_diagonal_inches: 65,
       }),
     );
+  });
+
+  it("designates a panel as the display output", async () => {
+    mockList();
+    let body: unknown;
+    server.use(
+      http.patch("/api/panels/abc123def456", async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ status: "success", panel: { ...PANEL, is_display: true } });
+      }),
+    );
+    const user = userEvent.setup();
+    render(<FiestaPanelSettings />, { wrapper: Wrapper });
+    await user.click(await screen.findByRole("switch", { name: "Display output" }));
+    await waitFor(() => expect(body).toEqual({ is_display: true }));
   });
 
   it("deletes a panel after confirmation", async () => {

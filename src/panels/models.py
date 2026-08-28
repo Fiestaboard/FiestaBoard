@@ -55,6 +55,10 @@ class Panel(BaseModel):
     # auto-fit grid the spin reads slow and busy — characters just update
     # in place. The toggle stays for people who want the theater.
     animations_enabled: bool = False
+    # Exactly one panel may hold the local-display role at a time: it is the
+    # one served by the reserved /p/display viewer URL (FiestaPi HDMI kiosk).
+    # The service enforces the single-holder invariant on update.
+    is_display: bool = False
     backdrop: BackdropStyle = "wall"
     auto_dim: AutoDim = Field(default_factory=AutoDim)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -79,5 +83,6 @@ class PanelUpdate(BaseModel):
     screen_diagonal_inches: float | None = Field(default=None, ge=10.0, le=200.0)
     calibration_scale: float | None = Field(default=None, ge=0.85, le=1.15)
     animations_enabled: bool | None = None
+    is_display: bool | None = None
     backdrop: BackdropStyle | None = None
     auto_dim: AutoDim | None = None

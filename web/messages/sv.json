@@ -2100,6 +2100,10 @@
     "offline": "Anslutningen till FiestaBoard bröts — visar den senaste uppdateringen",
     "gridMeta": "{cols} × {rows} klaffar",
     "autoFitHint": "Rutnätet dimensioneras automatiskt: så många klaffar i verklig storlek som får plats på din skärm.",
-    "flapAnimation": "Klaffanimation"
+    "flapAnimation": "Klaffanimation",
+    "displayOutput": "Skärmutgång",
+    "displayOutputHint": "Den här panelen visas på /p/display — adressen som FiestaPis HDMI-utgång använder.",
+    "noDisplayTitle": "Ingen panel är inställd som skärmutgång",
+    "noDisplayBody": "Öppna Inställningar → Hårdvara → FiestaPanel i FiestaBoard och slå på ”Skärmutgång” för en panel."
   }
 }

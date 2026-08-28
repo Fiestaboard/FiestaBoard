@@ -2100,6 +2100,10 @@
     "offline": "Verbindung zu FiestaBoard verloren — letzte Aktualisierung wird angezeigt",
     "gridMeta": "{cols} × {rows} Klappen",
     "autoFitHint": "Das Raster wird automatisch dimensioniert: so viele Klappen in Originalgröße, wie auf deinen Bildschirm passen.",
-    "flapAnimation": "Klappanimation"
+    "flapAnimation": "Klappanimation",
+    "displayOutput": "Display-Ausgabe",
+    "displayOutputHint": "Dieses Panel wird unter /p/display angezeigt — die URL, die der FiestaPi-HDMI-Ausgang verwendet.",
+    "noDisplayTitle": "Kein Panel als Display-Ausgabe festgelegt",
+    "noDisplayBody": "Öffne in FiestaBoard Einstellungen → Hardware → FiestaPanel und aktiviere „Display-Ausgabe“ für ein Panel."
   }
 }

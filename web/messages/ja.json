@@ -2100,6 +2100,10 @@
     "offline": "FiestaBoard への接続が切断されました — 最後の更新を表示しています",
     "gridMeta": "{cols} × {rows} フラップ",
     "autoFitHint": "グリッドは自動調整されます。画面に収まるだけの実寸フラップが並びます。",
-    "flapAnimation": "フラップアニメーション"
+    "flapAnimation": "フラップアニメーション",
+    "displayOutput": "ディスプレイ出力",
+    "displayOutputHint": "このパネルは /p/display に表示されます。FiestaPi の HDMI 出力が使う URL です。",
+    "noDisplayTitle": "ディスプレイ出力に設定されたパネルがありません",
+    "noDisplayBody": "FiestaBoard の設定 → ハードウェア → FiestaPanel で、いずれかのパネルの「ディスプレイ出力」をオンにしてください。"
   }
 }

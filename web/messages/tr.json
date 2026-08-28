@@ -2100,6 +2100,10 @@
     "offline": "FiestaBoard bağlantısı kesildi — son güncelleme gösteriliyor",
     "gridMeta": "{cols} × {rows} kanat",
     "autoFitHint": "Izgara otomatik boyutlandırılır: ekranınıza sığdığı kadar gerçek boyutlu kanat.",
-    "flapAnimation": "Kanat animasyonu"
+    "flapAnimation": "Kanat animasyonu",
+    "displayOutput": "Ekran çıkışı",
+    "displayOutputHint": "Bu panel /p/display adresinde gösterilir — FiestaPi HDMI çıkışının kullandığı URL.",
+    "noDisplayTitle": "Ekran çıkışı olarak ayarlanmış panel yok",
+    "noDisplayBody": "FiestaBoard'da Ayarlar → Donanım → FiestaPanel'i açın ve bir panelde “Ekran çıkışı”nı etkinleştirin."
   }
 }

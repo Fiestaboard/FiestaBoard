@@ -7268,6 +7268,14 @@ async def debug_network_diagnostics():
 # "a FiestaPanel" stays one concept for the user.
 
 
+def _panel_not_found_detail(ref: str) -> str:
+    """404 detail for the public viewer: the reserved display ref gets
+    actionable copy (the HDMI kiosk shows it before a panel is designated)."""
+    if ref == "display":
+        return "No display panel selected"
+    return "Panel not found"
+
+
 def _panel_board_fields(board: dict | None) -> dict:
     """Board-derived fields attached to panel payloads (orphan-aware)."""
     if board is None:
@@ -7387,7 +7395,7 @@ async def get_panel_public(panel_id: str):
     """Public viewer config: panel settings + board geometry. No auth."""
     panel = get_panel_service().get_panel_by_ref(panel_id)
     if panel is None:
-        raise HTTPException(status_code=404, detail="Panel not found")
+        raise HTTPException(status_code=404, detail=_panel_not_found_detail(panel_id))
     out = panel.model_dump(mode="json")
     board = _find_board(panel.board_id)
     if board is None:
@@ -7429,7 +7437,7 @@ async def get_panel_frame(panel_id: str):
     """
     panel = get_panel_service().get_panel_by_ref(panel_id)
     if panel is None:
-        raise HTTPException(status_code=404, detail="Panel not found")
+        raise HTTPException(status_code=404, detail=_panel_not_found_detail(panel_id))
     board = _find_board(panel.board_id)
     dims = _board_dims(board) if board is not None else resolve_dimensions("flagship")
 

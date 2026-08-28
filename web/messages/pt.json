@@ -2100,6 +2100,10 @@
     "offline": "Conexão com o FiestaBoard perdida — exibindo a última atualização",
     "gridMeta": "{cols} × {rows} palhetas",
     "autoFitHint": "A grade é dimensionada automaticamente: tantas palhetas em tamanho real quantas couberem na sua tela.",
-    "flapAnimation": "Animação das palhetas"
+    "flapAnimation": "Animação das palhetas",
+    "displayOutput": "Saída de tela",
+    "displayOutputHint": "Este painel é exibido em /p/display — a URL usada pela saída HDMI do FiestaPi.",
+    "noDisplayTitle": "Nenhum painel está definido como saída de tela",
+    "noDisplayBody": "No FiestaBoard, abra Configurações → Hardware → FiestaPanel e ative “Saída de tela” em um painel."
   }
 }

@@ -123,8 +123,8 @@ class TestSchemaMigrationV2:
         assert storage.list_all()[0].animations_enabled is False
         data = json.loads(path.read_text())
         assert data["schema_version"] == CURRENT_SCHEMA_VERSION
-        assert CURRENT_SCHEMA_VERSION == 3
         assert data["panels"][0]["animations_enabled"] is False
+        assert data["panels"][0]["is_display"] is False
 
     def test_migration_is_idempotent(self, tmp_path):
         path = tmp_path / "panels.json"

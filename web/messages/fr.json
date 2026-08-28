@@ -2100,6 +2100,10 @@
     "offline": "Connexion à FiestaBoard perdue — affichage de la dernière mise à jour",
     "gridMeta": "{cols} × {rows} palettes",
     "autoFitHint": "La grille se dimensionne automatiquement : autant de palettes à taille réelle que votre écran peut en contenir.",
-    "flapAnimation": "Animation des palettes"
+    "flapAnimation": "Animation des palettes",
+    "displayOutput": "Sortie d'affichage",
+    "displayOutputHint": "Ce panneau s'affiche sur /p/display — l'URL utilisée par la sortie HDMI du FiestaPi.",
+    "noDisplayTitle": "Aucun panneau n'est défini comme sortie d'affichage",
+    "noDisplayBody": "Dans FiestaBoard, ouvrez Réglages → Matériel → FiestaPanel et activez « Sortie d'affichage » pour un panneau."
   }
 }

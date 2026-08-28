@@ -14,6 +14,7 @@ const PANEL: Panel = {
   screen_diagonal_inches: 55,
   calibration_scale: 1,
   animations_enabled: true,
+  is_display: false,
   backdrop: "wall",
   auto_dim: { enabled: false, start: "22:00", end: "07:00" },
   created_at: "2026-08-25T00:00:00+00:00",

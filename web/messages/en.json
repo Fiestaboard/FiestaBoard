@@ -2100,6 +2100,10 @@
     "boardMissing": "Board missing",
     "gridMeta": "{cols} × {rows} flaps",
     "autoFitHint": "The board's grid is sized automatically: as many real-size flaps as fit your screen.",
-    "flapAnimation": "Flip animation"
+    "flapAnimation": "Flip animation",
+    "displayOutput": "Display output",
+    "displayOutputHint": "This panel is shown at /p/display — the URL the FiestaPi HDMI output uses.",
+    "noDisplayTitle": "No panel is set as the display output",
+    "noDisplayBody": "In FiestaBoard, open Settings → Hardware → FiestaPanel and turn on “Display output” for a panel."
   }
 }

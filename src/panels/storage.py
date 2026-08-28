@@ -19,7 +19,7 @@ from .models import Panel
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 3
+CURRENT_SCHEMA_VERSION = 4
 
 
 def _migrate_v1_to_v2(panels_data: list[dict]) -> int:
@@ -57,11 +57,22 @@ def _migrate_v2_to_v3(panels_data: list[dict]) -> int:
     return migrated
 
 
+def _migrate_v3_to_v4(panels_data: list[dict]) -> int:
+    """Migration 3 -> 4: stamp the is_display default (no panel designated)."""
+    migrated = 0
+    for panel_data in panels_data:
+        if isinstance(panel_data, dict) and "is_display" not in panel_data:
+            panel_data["is_display"] = False
+            migrated += 1
+    return migrated
+
+
 # Ordered migrations: (target_version, function). Each function takes the raw
 # panels list, mutates in place, and returns the number of entries processed.
 MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
     (2, _migrate_v1_to_v2),
     (3, _migrate_v2_to_v3),
+    (4, _migrate_v3_to_v4),
 ]
 
 
@@ -221,6 +232,13 @@ class PanelStorage:
     def get(self, panel_id: str) -> Panel | None:
         """Get a panel by ID, or None."""
         return self._panels.get(panel_id)
+
+    def get_display_panel(self) -> Panel | None:
+        """The panel currently designated as the local display, or None."""
+        for panel in self._panels.values():
+            if panel.is_display:
+                return panel
+        return None
 
     def get_by_short_code(self, short_code: int) -> Panel | None:
         """Get a panel by its TV-typable short code, or None."""

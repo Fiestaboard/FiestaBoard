@@ -15,6 +15,7 @@ interface PanelViewProps {
 }
 
 const NOT_FOUND_DETAIL = "Panel not found";
+const NO_DISPLAY_DETAIL = "No display panel selected";
 
 /** Idle time before the cursor hides on the TV. */
 const CURSOR_HIDE_MS = 3_000;
@@ -60,7 +61,10 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
   const notFound =
     (config.error instanceof Error && config.error.message === NOT_FOUND_DETAIL) ||
     (frame.error instanceof Error && frame.error.message === NOT_FOUND_DETAIL && !config.data);
-  const offline = !notFound && !!(config.data || frame.data) && (config.isError || frame.isError);
+  const noDisplaySelected =
+    (config.error instanceof Error && config.error.message === NO_DISPLAY_DETAIL) ||
+    (frame.error instanceof Error && frame.error.message === NO_DISPLAY_DETAIL && !config.data);
+  const offline = !notFound && !noDisplaySelected && !!(config.data || frame.data) && (config.isError || frame.isError);
 
   const autoDim = config.data?.auto_dim;
 
@@ -139,7 +143,18 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
   };
 
   let content: React.ReactNode;
-  if (notFound) {
+  if (noDisplaySelected) {
+    content = (
+      <Box className="text-center">
+        <Text as="p" className="text-2xl font-medium text-neutral-400">
+          {t("noDisplayTitle")}
+        </Text>
+        <Text as="p" className="mt-2 text-base text-neutral-500">
+          {t("noDisplayBody")}
+        </Text>
+      </Box>
+    );
+  } else if (notFound) {
     content = (
       <Box className="text-center">
         <Text as="p" className="text-2xl font-medium text-neutral-400">

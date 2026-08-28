@@ -2100,6 +2100,10 @@
     "offline": "Connessione a FiestaBoard persa — viene mostrato l'ultimo aggiornamento",
     "gridMeta": "{cols} × {rows} palette",
     "autoFitHint": "La griglia si dimensiona automaticamente: tante palette a grandezza reale quante ne entrano nel tuo schermo.",
-    "flapAnimation": "Animazione delle palette"
+    "flapAnimation": "Animazione delle palette",
+    "displayOutput": "Uscita display",
+    "displayOutputHint": "Questo pannello viene mostrato su /p/display — l'URL usato dall'uscita HDMI di FiestaPi.",
+    "noDisplayTitle": "Nessun pannello è impostato come uscita display",
+    "noDisplayBody": "In FiestaBoard apri Impostazioni → Hardware → FiestaPanel e attiva «Uscita display» per un pannello."
   }
 }

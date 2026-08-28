@@ -135,6 +135,13 @@ export function FiestaPanelSettings() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const displayMutation = useMutation({
+    mutationFn: ({ panelId, isDisplay }: { panelId: string; isDisplay: boolean }) =>
+      api.updatePanel(panelId, { is_display: isDisplay }),
+    onSuccess: () => invalidate(),
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (panelId: string) => api.deletePanel(panelId),
     onSuccess: () => {
@@ -192,6 +199,24 @@ export function FiestaPanelSettings() {
                 <Text size="xs" tone="muted">
                   {t("openOnTv")}
                 </Text>
+                <Flex gap="2" align="center">
+                  <Switch
+                    id={`panel-display-${panel.id}`}
+                    checked={panel.is_display}
+                    disabled={displayMutation.isPending}
+                    onCheckedChange={(checked) =>
+                      displayMutation.mutate({ panelId: panel.id, isDisplay: checked === true })
+                    }
+                  />
+                  <Label htmlFor={`panel-display-${panel.id}`} className="text-sm font-normal">
+                    {t("displayOutput")}
+                  </Label>
+                </Flex>
+                {panel.is_display && (
+                  <Text size="xs" tone="muted">
+                    {t("displayOutputHint")}
+                  </Text>
+                )}
               </Stack>
               <Flex gap="1">
                 <Button
