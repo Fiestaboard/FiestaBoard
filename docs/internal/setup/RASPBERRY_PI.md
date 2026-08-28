@@ -71,6 +71,25 @@ If `.local` doesn't resolve (some Windows networks), find the Pi's IP from your 
 
 The browser will land on the FiestaBoard setup wizard. Pick your board, enter the API key, and pick a starting plugin or two. That's it.
 
+## Optional: show a FiestaPanel on the Pi's HDMI port
+
+The Pi can drive a TV or monitor directly — it boots into a minimal kiosk
+browser showing the reserved `/p/display` FiestaPanel URL.
+
+1. After flashing (or any time later), put an **empty file named
+   `fiestapi-hdmi.txt`** on the boot partition — the same partition where
+   `fiestapi-wifi.txt` goes.
+2. Connect a screen over HDMI and boot.
+3. In **Settings → Hardware → FiestaPanel**, create a panel (pick the
+   screen's size) and turn on **Display output** for it. The screen follows
+   whichever panel holds that role — exactly one at a time — so you can
+   re-point it from the app without touching the Pi.
+
+Until a panel is designated, the screen shows an instruction card. To turn
+the kiosk off, delete `fiestapi-hdmi.txt` from the boot partition and
+reboot — the browser then never starts and its memory is reclaimed (worth
+doing on a Pi 3B you aren't using for HDMI output).
+
 ## Updating
 
 Updates are one click. When a new version is released, a banner appears in **Settings → System** with an **Update Now** button. Press it; the Pi pulls the new image and restarts FiestaBoard automatically. The page reloads when it's back. No SSH required.
