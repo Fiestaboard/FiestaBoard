@@ -90,6 +90,20 @@ the kiosk off, delete `fiestapi-hdmi.txt` from the boot partition and
 reboot — the browser then never starts and its memory is reclaimed (worth
 doing on a Pi 3B you aren't using for HDMI output).
 
+### Already have a FiestaPi flashed?
+
+FiestaBoard's in-app updater only updates the app itself, not the Pi's
+operating system — so Pis flashed before the kiosk existed don't have the
+browser installed. One command over SSH retrofits it (and enables it):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/scripts/fiestapi-hdmi-setup.sh | sudo bash
+```
+
+It installs the same pieces new images ship with, so everything above
+applies afterwards. Disable later with
+`sudo /opt/fiestaboard/fiestapi-hdmi-setup.sh --disable`.
+
 ## Updating
 
 Updates are one click. When a new version is released, a banner appears in **Settings → System** with an **Update Now** button. Press it; the Pi pulls the new image and restarts FiestaBoard automatically. The page reloads when it's back. No SSH required.

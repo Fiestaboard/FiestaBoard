@@ -46,6 +46,8 @@ Running FiestaBoard on a FiestaPi image? The Pi can drive a TV or monitor direct
 
 Until a panel is designated, the screen shows a short instruction card. Remove `fiestapi-hdmi.txt` and reboot to disable the kiosk.
 
+Already-deployed FiestaPis (flashed before the kiosk existed) can add it with one SSH command — see the [Raspberry Pi guide](https://github.com/Fiestaboard/FiestaBoard/blob/main/docs/internal/setup/RASPBERRY_PI.md) — because the in-app updater only updates the app, never the Pi's operating system.
+
 ## TV Tips
 
 - **Fullscreen:** click or tap anywhere on the panel to toggle browser fullscreen. Many TV browsers are effectively fullscreen already.
