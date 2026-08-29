@@ -281,7 +281,7 @@ test.describe("Character code 62 — setup wizard", () => {
     await expect(page.getByRole("heading", { name: "Connect Your Board" })).toBeVisible({ timeout: 30_000 });
 
     await expect(page.locator("[data-testid=wizard-code62-heart]")).toHaveCount(1);
-    await page.getByRole("button", { name: "Note 3 × 15 characters" }).click();
+    await page.getByRole("radio", { name: "Note 3 × 15 characters" }).click();
     await expect(page.locator("[data-testid=wizard-code62-heart]")).toHaveCount(0);
     await expect(page.locator("[data-testid=wizard-code62-degree]")).toHaveCount(0);
   });

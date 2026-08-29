@@ -107,6 +107,7 @@
     "connectDialogDescription": "참여하려면 네트워크 비밀번호를 입력하세요. FiestaPi가 자동으로 다시 연결되도록 연결이 저장됩니다.",
     "passwordLabel": "비밀번호",
     "showPassword": "비밀번호 표시",
+    "hidePassword": "비밀번호 숨기기",
     "savedNetworks": "저장된 네트워크",
     "savedEmpty": "아직 저장된 네트워크가 없습니다.",
     "forget": "잊기",
@@ -852,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "연결",
+    "apiModeLabel": "API 모드",
     "localApiLabel": "로컬 API",
     "localApiDescription": "직접 연결",
     "cloudApiLabel": "클라우드 API",
@@ -1704,9 +1706,7 @@
   "timezonePicker": {
     "ariaLabel": "시간대",
     "placeholder": "시간대 검색...",
-    "toggleAriaLabel": "시간대 목록 전환",
     "optionsAriaLabel": "시간대 옵션",
-    "showingFirst": "{total}개 결과 중 처음 50개 표시",
     "invalidTimezone": "유효하지 않은 시간대입니다. 목록에서 선택하거나 유효한 IANA 시간대 이름을 입력하세요."
   },
   "pluginDetail": {

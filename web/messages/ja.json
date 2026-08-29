@@ -107,6 +107,7 @@
     "connectDialogDescription": "ネットワークパスワードを入力して参加します。接続は保存され、FiestaPi が自動的に再接続します。",
     "passwordLabel": "パスワード",
     "showPassword": "パスワードを表示",
+    "hidePassword": "パスワードを非表示",
     "savedNetworks": "保存済みネットワーク",
     "savedEmpty": "保存されたネットワークはまだありません。",
     "forget": "削除",
@@ -852,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "接続",
+    "apiModeLabel": "API モード",
     "localApiLabel": "ローカル API",
     "localApiDescription": "直接接続",
     "cloudApiLabel": "クラウド API",
@@ -1704,9 +1706,7 @@
   "timezonePicker": {
     "ariaLabel": "タイムゾーン",
     "placeholder": "タイムゾーンを検索...",
-    "toggleAriaLabel": "タイムゾーン一覧を切り替え",
     "optionsAriaLabel": "タイムゾーンオプション",
-    "showingFirst": "{total} 件の結果のうち最初の 50 件を表示しています",
     "invalidTimezone": "無効なタイムゾーンです。リストから選択するか、有効な IANA タイムゾーン名を入力してください。"
   },
   "pluginDetail": {

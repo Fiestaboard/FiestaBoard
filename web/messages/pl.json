@@ -107,6 +107,7 @@
     "connectDialogDescription": "Wprowadź hasło sieci, aby się połączyć. Połączenie zostanie zapisane, aby FiestaPi automatycznie łączyło się ponownie.",
     "passwordLabel": "Hasło",
     "showPassword": "Pokaż hasło",
+    "hidePassword": "Ukryj hasło",
     "savedNetworks": "Zapisane sieci",
     "savedEmpty": "Brak zapisanych sieci.",
     "forget": "Zapomnij",
@@ -852,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "Połączenie",
+    "apiModeLabel": "Tryb API",
     "localApiLabel": "Lokalne API",
     "localApiDescription": "Bezpośrednie połączenie",
     "cloudApiLabel": "Cloud API",
@@ -1704,9 +1706,7 @@
   "timezonePicker": {
     "ariaLabel": "Strefa czasowa",
     "placeholder": "Szukaj strefy czasowej...",
-    "toggleAriaLabel": "Przełącz listę stref czasowych",
     "optionsAriaLabel": "Opcje strefy czasowej",
-    "showingFirst": "Pokazano pierwsze 50 z {total} wyników",
     "invalidTimezone": "Nieprawidłowa strefa czasowa. Wybierz z listy lub wprowadź prawidłową nazwę strefy IANA."
   },
   "pluginDetail": {

@@ -371,7 +371,8 @@ describe("DisplaySettings — note array connection (cloud token vs local tiles)
     expect(within(card).getByText("Cloud API Token")).toBeInTheDocument();
     expect(within(card).queryByTestId("tile-grid-assignment")).not.toBeInTheDocument();
 
-    await user.click(within(card).getByRole("button", { name: /Local API/ }));
+    // The API-mode pair is a radiogroup now, not two aria-pressed buttons.
+    await user.click(within(card).getByRole("radio", { name: /Local API/ }));
 
     await waitFor(() => expect(put.body).not.toBeNull());
     expect(put.body!.boards![0].api_mode).toBe("local");

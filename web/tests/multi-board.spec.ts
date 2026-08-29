@@ -413,13 +413,14 @@ test.describe("Setup Wizard – Board Configuration", () => {
     await expect(page.getByRole("heading", { name: "Welcome to FiestaBoard" })).toBeVisible({ timeout: 30_000 });
 
     await expect(page.getByText("Board Type")).toBeVisible({ timeout: 5_000 });
-    // Target the pills by role + accessible name, not by bare text. The step's
+    // Target the tiles by role + accessible name, not by bare text. The step's
     // help copy also mentions "Flagship" and the dimensions read as plain text,
-    // so `getByText("Flagship")` matched the pill AND the help paragraph and
-    // failed strict mode (issue #1657). The accessible name is the pill's label
-    // plus its dimension caption, so this asserts both in one locator.
-    await expect(page.getByRole("button", { name: "Flagship 6 × 22 characters" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Note 3 × 15 characters" })).toBeVisible();
+    // so `getByText("Flagship")` matched the tile AND the help paragraph and
+    // failed strict mode (issue #1657). The accessible name is the tile's label
+    // plus its dimension caption, so this asserts both in one locator. The pair
+    // is a radiogroup, so the role is `radio` rather than `button`.
+    await expect(page.getByRole("radio", { name: "Flagship 6 × 22 characters" })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Note 3 × 15 characters" })).toBeVisible();
   });
 
   test("wizard shows Board Color swatches with Black and White options", async ({ page }) => {

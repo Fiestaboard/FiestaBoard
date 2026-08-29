@@ -107,6 +107,7 @@
     "connectDialogDescription": "Ange nätverkslösenordet för att ansluta. Anslutningen sparas så att din FiestaPi automatiskt återansluter.",
     "passwordLabel": "Lösenord",
     "showPassword": "Visa lösenord",
+    "hidePassword": "Dölj lösenord",
     "savedNetworks": "Sparade nätverk",
     "savedEmpty": "Inga sparade nätverk ännu.",
     "forget": "Glöm",
@@ -852,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "Anslutning",
+    "apiModeLabel": "API-läge",
     "localApiLabel": "Lokalt API",
     "localApiDescription": "Direktanslutning",
     "cloudApiLabel": "Moln-API",
@@ -1704,9 +1706,7 @@
   "timezonePicker": {
     "ariaLabel": "Tidszon",
     "placeholder": "Sök tidszon...",
-    "toggleAriaLabel": "Växla tidszonlista",
     "optionsAriaLabel": "Tidszonsalternativ",
-    "showingFirst": "Visar de första 50 av {total} resultat",
     "invalidTimezone": "Ogiltig tidszon. Välj från listan eller ange ett giltigt IANA-tidszonsnamn."
   },
   "pluginDetail": {

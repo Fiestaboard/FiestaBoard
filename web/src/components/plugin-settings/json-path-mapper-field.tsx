@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Button, Code, Flex, Grid, Input, Label, Stack, Text } from "@fiestaboard/ui";
+import { Box, Button, Code, Flex, Grid, Input, JsonTree, Label, Stack, Text } from "@fiestaboard/ui";
 import { Loader2, Plus, Trash2, Zap } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -9,7 +9,6 @@ import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
 
 import { usePluginId } from "./field-context";
-import { JsonTree } from "./json-tree";
 
 /**
  * `generic-data-mapping-helper` was this widget's name before it was a

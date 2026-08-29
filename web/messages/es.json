@@ -107,6 +107,7 @@
     "connectDialogDescription": "Introduce la contraseña de la red para unirte. La conexión se guardará para que tu FiestaPi se reconecte automáticamente.",
     "passwordLabel": "Contraseña",
     "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña",
     "savedNetworks": "Redes guardadas",
     "savedEmpty": "Aún no hay redes guardadas.",
     "forget": "Olvidar",
@@ -852,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "Conexión",
+    "apiModeLabel": "Modo de API",
     "localApiLabel": "API local",
     "localApiDescription": "Conexión directa",
     "cloudApiLabel": "API en la nube",
@@ -1704,9 +1706,7 @@
   "timezonePicker": {
     "ariaLabel": "Zona horaria",
     "placeholder": "Buscar zona horaria...",
-    "toggleAriaLabel": "Alternar lista de zonas horarias",
     "optionsAriaLabel": "Opciones de zona horaria",
-    "showingFirst": "Mostrando los primeros 50 de {total} resultados",
     "invalidTimezone": "Zona horaria no válida. Selecciona una de la lista o introduce un nombre de zona horaria IANA válido."
   },
   "pluginDetail": {

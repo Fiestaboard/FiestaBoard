@@ -1,51 +1,51 @@
 "use client";
 
-import { Grid, PageSection, Text } from "@fiestaboard/ui";
-import { Check, Monitor, Moon, Sun } from "lucide-react";
+import { PageSection, ToggleCard, ToggleCardGroup } from "@fiestaboard/ui";
+import { Monitor, Moon, Sun } from "lucide-react";
 
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslations } from "@/i18n/translations";
-import { cn } from "@/lib/utils";
+
+const THEMES = [
+  { value: "light", Icon: Sun },
+  { value: "dark", Icon: Moon },
+  { value: "system", Icon: Monitor },
+] as const;
+
+type ThemeValue = (typeof THEMES)[number]["value"];
+
+function isThemeValue(value: string): value is ThemeValue {
+  return THEMES.some((option) => option.value === value);
+}
 
 export function AppearanceSettings() {
   const t = useTranslations("profile");
   const { theme, setTheme } = useTheme();
+  const labels: Record<ThemeValue, string> = {
+    light: t("lightMode"),
+    dark: t("darkMode"),
+    system: t("systemMode"),
+  };
 
   return (
     <PageSection icon={<Sun />} title={t("appearanceTitle")} description={t("appearanceDescription")}>
-      <Grid cols="3" gap="3" className="max-w-sm">
-        {(
-          [
-            { value: "light", label: t("lightMode"), Icon: Sun },
-            { value: "dark", label: t("darkMode"), Icon: Moon },
-            { value: "system", label: t("systemMode"), Icon: Monitor },
-          ] as const
-        ).map(({ value, label, Icon }) => {
-          const isActive = theme === value;
-          return (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setTheme(value)}
-              aria-pressed={isActive}
-              className={cn(
-                "relative flex flex-col items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                isActive
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-border hover:border-primary/50 hover:bg-accent",
-              )}
-            >
-              {isActive && (
-                <Text as="span" className="absolute right-1.5 top-1.5">
-                  <Check className="h-3 w-3 text-primary" />
-                </Text>
-              )}
-              <Icon className="h-5 w-5" />
-              {label}
-            </button>
-          );
-        })}
-      </Grid>
+      {/* One-of-three, so a radiogroup rather than three independent
+          `aria-pressed` buttons: one tab stop, arrow keys move the choice,
+          and the selected tile announces its position in the set. */}
+      <ToggleCardGroup
+        columns="3"
+        align="center"
+        value={theme}
+        onValueChange={(value) => {
+          if (isThemeValue(value)) setTheme(value);
+        }}
+        aria-label={t("appearanceTitle")}
+        className="max-w-sm"
+      >
+        {THEMES.map(({ value, Icon }) => (
+          <ToggleCard key={value} value={value} icon={<Icon className="size-5" />} title={labels[value]} />
+        ))}
+      </ToggleCardGroup>
     </PageSection>
   );
 }

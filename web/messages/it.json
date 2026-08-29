@@ -107,6 +107,7 @@
     "connectDialogDescription": "Inserisci la password della rete per accedere. La connessione verrà salvata in modo che il tuo FiestaPi si riconnetta automaticamente.",
     "passwordLabel": "Password",
     "showPassword": "Mostra password",
+    "hidePassword": "Nascondi password",
     "savedNetworks": "Reti salvate",
     "savedEmpty": "Nessuna rete salvata.",
     "forget": "Dimentica",
@@ -852,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "Connessione",
+    "apiModeLabel": "Modalità API",
     "localApiLabel": "API Locale",
     "localApiDescription": "Connessione diretta",
     "cloudApiLabel": "API Cloud",
@@ -1704,9 +1706,7 @@
   "timezonePicker": {
     "ariaLabel": "Fuso orario",
     "placeholder": "Cerca fuso orario...",
-    "toggleAriaLabel": "Attiva/disattiva elenco fusi orari",
     "optionsAriaLabel": "Opzioni fuso orario",
-    "showingFirst": "Mostro i primi 50 di {total} risultati",
     "invalidTimezone": "Fuso orario non valido. Seleziona dall'elenco o inserisci un nome IANA valido."
   },
   "pluginDetail": {

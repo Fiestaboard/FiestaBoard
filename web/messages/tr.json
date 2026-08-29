@@ -107,6 +107,7 @@
     "connectDialogDescription": "Katılmak için ağ parolasını girin. Bağlantı, FiestaPi'nizin otomatik olarak yeniden bağlanması için kaydedilecektir.",
     "passwordLabel": "Parola",
     "showPassword": "Parolayı göster",
+    "hidePassword": "Şifreyi gizle",
     "savedNetworks": "Kaydedilmiş ağlar",
     "savedEmpty": "Henüz kaydedilmiş ağ yok.",
     "forget": "Unut",
@@ -852,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "Bağlantı",
+    "apiModeLabel": "API modu",
     "localApiLabel": "Yerel API",
     "localApiDescription": "Doğrudan bağlantı",
     "cloudApiLabel": "Bulut API",
@@ -1704,9 +1706,7 @@
   "timezonePicker": {
     "ariaLabel": "Saat dilimi",
     "placeholder": "Saat dilimi ara...",
-    "toggleAriaLabel": "Saat dilimi listesini değiştir",
     "optionsAriaLabel": "Saat dilimi seçenekleri",
-    "showingFirst": "{total} sonuçtan ilk 50 gösteriliyor",
     "invalidTimezone": "Geçersiz saat dilimi. Listeden seçin veya geçerli bir IANA saat dilimi adı girin."
   },
   "pluginDetail": {

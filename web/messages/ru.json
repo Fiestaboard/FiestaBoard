@@ -107,6 +107,7 @@
     "connectDialogDescription": "Введите пароль сети для подключения. Подключение будет сохранено, чтобы ваш FiestaPi автоматически переподключался.",
     "passwordLabel": "Пароль",
     "showPassword": "Показать пароль",
+    "hidePassword": "Скрыть пароль",
     "savedNetworks": "Сохранённые сети",
     "savedEmpty": "Пока нет сохранённых сетей.",
     "forget": "Забыть",
@@ -852,6 +853,7 @@
       "note": "15×3"
     },
     "connectionLabel": "Подключение",
+    "apiModeLabel": "Режим API",
     "localApiLabel": "Локальный API",
     "localApiDescription": "Прямое подключение",
     "cloudApiLabel": "Облачный API",
@@ -1704,9 +1706,7 @@
   "timezonePicker": {
     "ariaLabel": "Часовой пояс",
     "placeholder": "Поиск часового пояса...",
-    "toggleAriaLabel": "Переключить список часовых поясов",
     "optionsAriaLabel": "Варианты часового пояса",
-    "showingFirst": "Показаны первые 50 из {total} результатов",
     "invalidTimezone": "Неверный часовой пояс. Выберите из списка или введите корректное имя часового пояса IANA."
   },
   "pluginDetail": {
