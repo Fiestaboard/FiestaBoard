@@ -208,6 +208,60 @@ class TestGitUrlValidation:
         assert ok
 
 
+# ── _validate_git_ref ────────────────────────────────────────────────────────
+
+
+class TestValidateGitRef:
+    """The allow-list that keeps a user-supplied branch safe as a git argument.
+
+    ``POST /plugins/install`` lets a caller name a branch, and that value ends
+    up as the last element of ``["git", "fetch", "--depth=1", "origin", ...]``.
+    Nothing is escaped anywhere, and nothing needs to be: ``subprocess.run``
+    gets a list with ``shell=False``, so there is no shell to inject into, and
+    this allow-list is what stops the value being read as an *option* instead.
+
+    CodeQL reports the fetch as ``py/command-line-injection`` (alert #56)
+    because it cannot see this guard. These tests pin the properties that make
+    that a false positive, so it cannot quietly stop being one.
+    """
+
+    def test_rejects_option_like_ref(self):
+        """A leading '-' would make git parse the branch as a flag."""
+        from src.plugins.sources import _validate_git_ref
+
+        for ref in ("--upload-pack=touch /tmp/pwned", "-o", "--exec=sh"):
+            ok, _ = _validate_git_ref(ref)
+            assert not ok, f"option-like ref {ref!r} must be rejected"
+
+    def test_rejects_shell_metacharacters_and_whitespace(self):
+        from src.plugins.sources import _validate_git_ref
+
+        for ref in ("main; rm -rf /", "main && id", "main|id", "$(id)", "`id`", "main branch", "main\nx"):
+            ok, _ = _validate_git_ref(ref)
+            assert not ok, f"ref {ref!r} must be rejected"
+
+    def test_rejects_traversal_and_refspec_punctuation(self):
+        from src.plugins.sources import _validate_git_ref
+
+        for ref in ("../../etc/passwd", "refs/heads/a..b", "a//b", "main:refs/heads/hijack"):
+            ok, _ = _validate_git_ref(ref)
+            assert not ok, f"ref {ref!r} must be rejected"
+
+    def test_rejects_non_strings_and_empty(self):
+        from src.plugins.sources import _validate_git_ref
+
+        assert not _validate_git_ref(None)[0]
+        assert not _validate_git_ref(["main"])[0]
+        assert not _validate_git_ref("")[0]
+
+    def test_accepts_ordinary_branch_and_tag_names(self):
+        from src.plugins.sources import _validate_git_ref
+
+        for ref in ("main", "develop", "release/1.2.3", "v8.32.16", "feat_x-1"):
+            ok, err = _validate_git_ref(ref)
+            assert ok, f"ref {ref!r} should be accepted, got {err!r}"
+
+
 # ── clone_or_update_repo ─────────────────────────────────────────────────────
 
 
@@ -253,6 +307,24 @@ class TestCloneOrUpdateRepo:
         fetch_cmd = mock_run.call_args_list[1][0][0]
         assert "fetch" in fetch_cmd
         assert fetch_cmd[-1] == "develop", "Explicit branch should be the final fetch argument"
+
+    @mock.patch("src.plugins.sources.subprocess.run")
+    def test_rejects_option_like_branch_before_running_git(self, mock_run, tmp_path):
+        """A branch git could read as an option never reaches a subprocess.
+
+        This is the sink CodeQL flags as py/command-line-injection (#56). The
+        argv is a list and there is no shell, so the only real risk is option
+        injection — and the branch is refused before any git runs at all.
+        """
+        ok, err = clone_or_update_repo(
+            "https://github.com/Org/repo",
+            "my_plugin",
+            branch="--upload-pack=touch /tmp/pwned",
+            external_dir=tmp_path,
+        )
+        assert not ok
+        assert "Invalid branch/tag" in err
+        mock_run.assert_not_called()
 
     @mock.patch("src.plugins.sources.subprocess.run")
     def test_fetch_reset_existing(self, mock_run, tmp_path):
