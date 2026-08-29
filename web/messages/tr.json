@@ -2104,6 +2104,11 @@
     "displayOutput": "Ekran çıkışı",
     "displayOutputHint": "Bu panel /p/display adresinde gösterilir — FiestaPi HDMI çıkışının kullandığı URL.",
     "noDisplayTitle": "Ekran çıkışı olarak ayarlanmış panel yok",
-    "noDisplayBody": "FiestaBoard'da Ayarlar → Donanım → FiestaPanel'i açın ve bir panelde “Ekran çıkışı”nı etkinleştirin."
+    "noDisplayBody": "FiestaBoard'da Ayarlar → Donanım → FiestaPanel'i açın ve bir panelde “Ekran çıkışı”nı etkinleştirin.",
+    "hdmiTitle": "Bu FiestaPi'de HDMI çıkışı",
+    "hdmiHelp": "Bu Pi'nin HDMI bağlantı noktasına bağlı ekranda görüntü panelini gösterir. Etkinleştirme küçük bir kiosk tarayıcısı kurar (birkaç dakika sürer).",
+    "hdmiInstalling": "HDMI kiosk kuruluyor — Pi'ye bir tarayıcı yükleniyor, birkaç dakika sürebilir…",
+    "hdmiEnabledHint": "HDMI ekranı, yukarıda “Ekran çıkışı” açık olan paneli gösterir.",
+    "hdmiFailed": "Son HDMI kiosk değişikliği başarısız oldu. Yeniden deneyin veya Pi'yi yeniden başlatın."
   }
 }

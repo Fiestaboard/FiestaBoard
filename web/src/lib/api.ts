@@ -110,6 +110,14 @@ export interface PanelPublicConfig extends Panel {
   code62_glyph: "degree" | "heart" | null;
 }
 
+/** FiestaPi HDMI kiosk state (Settings → FiestaPanel; pi profile only). */
+export interface HdmiKioskStatus {
+  supported: boolean;
+  status: "unsupported" | "unknown" | "in_progress" | "enabled" | "disabled" | "failed";
+  action?: string;
+  error?: string;
+}
+
 // Public frame served by GET /panel/{id}/frame (no auth).
 export interface PanelFrame {
   characters: number[][] | null;
@@ -2168,6 +2176,13 @@ export const api = {
   deletePanel: (panelId: string) =>
     fetchApi<{ status: string }>(`/panels/${encodeURIComponent(panelId)}`, {
       method: "DELETE",
+    }),
+  getHdmiKiosk: () => fetchApi<HdmiKioskStatus>("/settings/hdmi-kiosk"),
+  setHdmiKiosk: (enabled: boolean) =>
+    fetchApi<{ status: string; action?: string }>("/settings/hdmi-kiosk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
     }),
   // Public viewer endpoints — reachable with no session (TV browsers).
   getPanel: (panelId: string) => fetchApi<PanelPublicConfig>(`/panel/${encodeURIComponent(panelId)}`),

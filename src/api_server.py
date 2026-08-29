@@ -7478,6 +7478,69 @@ async def get_panel_frame(panel_id: str):
     }
 
 
+def _hdmi_kiosk_supported() -> bool:
+    """The in-app HDMI kiosk controls exist only on FiestaPi installs with a
+    reachable fiestaupdater sidecar — the sidecar is the sole component that
+    can mutate the host OS (via its Docker socket)."""
+    return _fiestaboard_profile() == "pi" and _updater_probe()
+
+
+@app.get("/settings/hdmi-kiosk")
+async def get_hdmi_kiosk_status():
+    """Status of the FiestaPi HDMI kiosk (Settings → FiestaPanel UI)."""
+    if not _hdmi_kiosk_supported():
+        return {"supported": False, "status": "unsupported"}
+    status: dict = {"status": "unknown"}
+    try:
+        resp = requests.get(f"{_updater_url()}/hdmi/status", timeout=3)
+        if resp.status_code == 200:
+            body = resp.json()
+            if isinstance(body, dict):
+                status = body
+    except Exception as e:
+        logger.debug("fiestaupdater /hdmi/status fetch failed: %s", e)
+    return {"supported": True, **status}
+
+
+@app.post("/settings/hdmi-kiosk")
+async def set_hdmi_kiosk(request: dict):
+    """Enable or disable the HDMI kiosk on this FiestaPi.
+
+    Proxies to the sidecar's fixed /hdmi/enable | /hdmi/disable verbs; the
+    sidecar performs the host-side install through its Docker socket. Body:
+    ``{"enabled": bool}``.
+    """
+    if "enabled" not in request or not isinstance(request["enabled"], bool):
+        raise HTTPException(status_code=400, detail="enabled (boolean) is required")
+    if not _hdmi_kiosk_supported():
+        raise HTTPException(
+            status_code=400,
+            detail="HDMI kiosk controls are only available on FiestaPi installs with the updater sidecar",
+        )
+    verb = "enable" if request["enabled"] else "disable"
+    try:
+        resp = requests.post(
+            f"{_updater_url()}/hdmi/{verb}",
+            headers={"Authorization": f"Bearer {_updater_token()}"},
+            timeout=10,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not reach the updater sidecar: {e}") from e
+    if resp.status_code == 404:
+        # Fleet sidecar predates the hdmi verbs. The Pi's boot service pulls
+        # the newest sidecar image on every boot, so a reboot upgrades it.
+        raise HTTPException(
+            status_code=409,
+            detail="The updater sidecar on this Pi is too old for HDMI controls — reboot the Pi to update it, then try again",
+        )
+    if resp.status_code not in (200, 202):
+        raise HTTPException(status_code=502, detail=f"Updater sidecar error: {resp.status_code}")
+    try:
+        return resp.json()
+    except Exception:
+        return {"status": "queued", "action": f"hdmi_{verb}"}
+
+
 # =============================================================================
 # Pages Endpoints
 # =============================================================================

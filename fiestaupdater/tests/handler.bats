@@ -463,3 +463,64 @@ SH
     # Rollback target must NOT be removed.
     ! grep -q 'image rm rollbackimg' "${SANDBOX}/docker.calls"
 }
+
+# ---- /hdmi : kiosk enable/disable ------------------------------------------
+
+@test "GET /hdmi/status with no state file → unknown" {
+    req=$'GET /hdmi/status HTTP/1.1\r\nHost: x\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 200 OK" ]]
+    [[ "$out" == *'"status":"unknown"'* ]]
+}
+
+@test "GET /hdmi/status returns the persisted state" {
+    mkdir -p "${FIESTAUPDATER_STATE_DIR}"
+    printf '%s' '{"status":"enabled","action":"enable"}' > "${FIESTAUPDATER_STATE_DIR}/hdmi.json"
+    req=$'GET /hdmi/status HTTP/1.1\r\nHost: x\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 200 OK" ]]
+    [[ "$out" == *'"status":"enabled"'* ]]
+}
+
+@test "POST /hdmi/enable requires auth" {
+    req=$'POST /hdmi/enable HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 401 Unauthorized" ]]
+}
+
+@test "POST /hdmi/enable with valid token → 202 and runs the host-namespace helper" {
+    export FIESTAUPDATER_HDMI_SCRIPT="${SANDBOX}/setup.sh"
+    printf '%s\n' '#!/bin/bash' 'echo setup' > "${FIESTAUPDATER_HDMI_SCRIPT}"
+    req=$'POST /hdmi/enable HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 202 Accepted" ]]
+    [[ "$out" == *'"action":"hdmi_enable"'* ]]
+    sleep 1
+    # The worker must run a privileged host-namespace helper (nsenter into
+    # PID 1) using the service image, with the script fed over stdin.
+    grep -q -- "--privileged" "${SANDBOX}/docker.calls"
+    grep -q -- "--pid=host" "${SANDBOX}/docker.calls"
+    grep -q -- "nsenter" "${SANDBOX}/docker.calls"
+    grep -q -- "fiestaboard/fiestaboard:latest" "${SANDBOX}/docker.calls"
+    # Success is persisted for GET /hdmi/status.
+    grep -q '"status":"enabled"' "${FIESTAUPDATER_STATE_DIR}/hdmi.json"
+}
+
+@test "POST /hdmi/disable passes --disable to the setup script" {
+    export FIESTAUPDATER_HDMI_SCRIPT="${SANDBOX}/setup.sh"
+    printf '%s\n' '#!/bin/bash' 'echo setup' > "${FIESTAUPDATER_HDMI_SCRIPT}"
+    req=$'POST /hdmi/disable HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 202 Accepted" ]]
+    sleep 1
+    grep -q -- "--disable" "${SANDBOX}/docker.calls"
+    grep -q '"status":"disabled"' "${FIESTAUPDATER_STATE_DIR}/hdmi.json"
+}
+
+@test "POST /hdmi/enable with missing setup script → 500" {
+    export FIESTAUPDATER_HDMI_SCRIPT="${SANDBOX}/does-not-exist.sh"
+    req=$'POST /hdmi/enable HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-token-abc\r\nContent-Length: 0\r\n\r\n'
+    out=$(send "$req")
+    [[ "$(status_of "$out")" == "HTTP/1.1 500 Internal Server Error" ]]
+    [[ "$out" == *hdmi_script_missing* ]]
+}

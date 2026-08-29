@@ -36,6 +36,22 @@ Edit a panel any time — changes reach the TV within about 10 seconds, no reloa
 | **Auto-dim** | Fades the panel down during a nightly window (e.g. 22:00–07:00), using the TV's own clock. |
 | **Size calibration** | ±15% fine-tune for TVs whose browsers misreport their resolution or overscan the picture. |
 
+## FiestaPi HDMI Output
+
+Running FiestaBoard on a FiestaPi? The Pi can drive a TV or monitor directly over HDMI — no browser setup on the TV at all:
+
+1. Connect a screen to the Pi's HDMI port.
+2. In **Settings → Hardware → FiestaPanel**, turn on **HDMI output on this FiestaPi**. The Pi installs a minimal kiosk browser (a few minutes, one time) and boots it onto the screen, pointed at the reserved `/p/display` URL.
+3. Turn on **Display output** for the panel you want on that screen. Only one panel holds the role at a time — switching it re-points the screen from the app, no touching the Pi.
+
+Until a panel is designated, the screen shows a short instruction card. Turn the HDMI switch off to stop the kiosk and reclaim its memory.
+
+Notes:
+
+- The switch appears only on FiestaPi installs with the updater sidecar running (it performs the install). If it reports the sidecar is too old, reboot the Pi once — it refreshes the sidecar on every boot — and try again.
+- Fresh FiestaPi images also support a flash-time opt-in: drop an empty `fiestapi-hdmi.txt` on the SD card's boot partition and the kiosk is active from first boot.
+- Prefer the command line? The same setup is one SSH command — see the [Raspberry Pi guide](https://github.com/Fiestaboard/FiestaBoard/blob/main/docs/internal/setup/RASPBERRY_PI.md).
+
 ## TV Tips
 
 - **Fullscreen:** click or tap anywhere on the panel to toggle browser fullscreen. Many TV browsers are effectively fullscreen already.

@@ -2104,6 +2104,11 @@
     "displayOutput": "显示输出",
     "displayOutputHint": "此面板显示在 /p/display — FiestaPi HDMI 输出使用的网址。",
     "noDisplayTitle": "尚未将任何面板设为显示输出",
-    "noDisplayBody": "在 FiestaBoard 中打开 设置 → 硬件 → FiestaPanel，为某个面板开启“显示输出”。"
+    "noDisplayBody": "在 FiestaBoard 中打开 设置 → 硬件 → FiestaPanel，为某个面板开启“显示输出”。",
+    "hdmiTitle": "此 FiestaPi 的 HDMI 输出",
+    "hdmiHelp": "在连接到此 Pi HDMI 接口的屏幕上显示面板。启用时会安装一个小型信息亭浏览器（需要几分钟）。",
+    "hdmiInstalling": "正在设置 HDMI 信息亭 — 正在 Pi 上安装浏览器，可能需要几分钟…",
+    "hdmiEnabledHint": "HDMI 屏幕显示上方开启了“显示输出”的面板。",
+    "hdmiFailed": "上次 HDMI 信息亭更改失败。请重试，或重启 Pi 后再试。"
   }
 }

@@ -2104,6 +2104,11 @@
     "displayOutput": "Salida de pantalla",
     "displayOutputHint": "Este panel se muestra en /p/display, la URL que usa la salida HDMI de FiestaPi.",
     "noDisplayTitle": "Ningún panel está configurado como salida de pantalla",
-    "noDisplayBody": "En FiestaBoard, abre Ajustes → Hardware → FiestaPanel y activa «Salida de pantalla» en un panel."
+    "noDisplayBody": "En FiestaBoard, abre Ajustes → Hardware → FiestaPanel y activa «Salida de pantalla» en un panel.",
+    "hdmiTitle": "Salida HDMI en este FiestaPi",
+    "hdmiHelp": "Muestra el panel de pantalla en un monitor conectado al puerto HDMI de este Pi. Activarlo instala un pequeño navegador en modo quiosco (tarda unos minutos).",
+    "hdmiInstalling": "Configurando el quiosco HDMI — se está instalando un navegador en el Pi y puede tardar unos minutos…",
+    "hdmiEnabledHint": "La pantalla HDMI muestra el panel que tenga activada «Salida de pantalla» arriba.",
+    "hdmiFailed": "El último cambio del quiosco HDMI falló. Inténtalo de nuevo o reinicia el Pi."
   }
 }

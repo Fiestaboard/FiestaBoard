@@ -2104,6 +2104,11 @@
     "displayOutput": "Display output",
     "displayOutputHint": "This panel is shown at /p/display — the URL the FiestaPi HDMI output uses.",
     "noDisplayTitle": "No panel is set as the display output",
-    "noDisplayBody": "In FiestaBoard, open Settings → Hardware → FiestaPanel and turn on “Display output” for a panel."
+    "noDisplayBody": "In FiestaBoard, open Settings → Hardware → FiestaPanel and turn on “Display output” for a panel.",
+    "hdmiTitle": "HDMI output on this FiestaPi",
+    "hdmiHelp": "Show the display panel on a screen connected to this Pi's HDMI port. Enabling installs a small kiosk browser (takes a few minutes).",
+    "hdmiInstalling": "Setting up the HDMI kiosk — this installs a browser on the Pi and can take a few minutes…",
+    "hdmiEnabledHint": "The HDMI screen shows whichever panel has “Display output” turned on above.",
+    "hdmiFailed": "The last HDMI kiosk change failed. Try again, or reboot the Pi and retry."
   }
 }

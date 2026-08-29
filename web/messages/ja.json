@@ -2104,6 +2104,11 @@
     "displayOutput": "ディスプレイ出力",
     "displayOutputHint": "このパネルは /p/display に表示されます。FiestaPi の HDMI 出力が使う URL です。",
     "noDisplayTitle": "ディスプレイ出力に設定されたパネルがありません",
-    "noDisplayBody": "FiestaBoard の設定 → ハードウェア → FiestaPanel で、いずれかのパネルの「ディスプレイ出力」をオンにしてください。"
+    "noDisplayBody": "FiestaBoard の設定 → ハードウェア → FiestaPanel で、いずれかのパネルの「ディスプレイ出力」をオンにしてください。",
+    "hdmiTitle": "この FiestaPi の HDMI 出力",
+    "hdmiHelp": "この Pi の HDMI ポートに接続した画面にディスプレイパネルを表示します。有効化すると小さなキオスクブラウザをインストールします（数分かかります）。",
+    "hdmiInstalling": "HDMI キオスクを設定中 — Pi にブラウザをインストールしています。数分かかることがあります…",
+    "hdmiEnabledHint": "HDMI 画面には、上で「ディスプレイ出力」をオンにしたパネルが表示されます。",
+    "hdmiFailed": "前回の HDMI キオスクの変更に失敗しました。再試行するか、Pi を再起動してください。"
   }
 }

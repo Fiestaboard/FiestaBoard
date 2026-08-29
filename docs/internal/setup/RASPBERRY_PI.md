@@ -71,6 +71,44 @@ If `.local` doesn't resolve (some Windows networks), find the Pi's IP from your 
 
 The browser will land on the FiestaBoard setup wizard. Pick your board, enter the API key, and pick a starting plugin or two. That's it.
 
+## Optional: show a FiestaPanel on the Pi's HDMI port
+
+The Pi can drive a TV or monitor directly — it boots into a minimal kiosk
+browser showing the reserved `/p/display` FiestaPanel URL.
+
+1. After flashing (or any time later), put an **empty file named
+   `fiestapi-hdmi.txt`** on the boot partition — the same partition where
+   `fiestapi-wifi.txt` goes.
+2. Connect a screen over HDMI and boot.
+3. In **Settings → Hardware → FiestaPanel**, create a panel (pick the
+   screen's size) and turn on **Display output** for it. The screen follows
+   whichever panel holds that role — exactly one at a time — so you can
+   re-point it from the app without touching the Pi.
+
+Until a panel is designated, the screen shows an instruction card. To turn
+the kiosk off, delete `fiestapi-hdmi.txt` from the boot partition and
+reboot — the browser then never starts and its memory is reclaimed (worth
+doing on a Pi 3B you aren't using for HDMI output).
+
+### Already have a FiestaPi flashed?
+
+The easiest path needs no SSH at all: open **Settings → Hardware →
+FiestaPanel** and flip **HDMI output on this FiestaPi** — the updater
+sidecar installs the kiosk for you (it can mutate the host, unlike the
+app updater, which only refreshes the app itself). If the app says the
+sidecar is too old, reboot the Pi once (each boot pulls the newest
+sidecar) and flip the switch again.
+
+Prefer a terminal? The same retrofit is one command over SSH:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Fiestaboard/FiestaBoard/main/scripts/fiestapi-hdmi-setup.sh | sudo bash
+```
+
+It installs the same pieces new images ship with, so everything above
+applies afterwards. Disable later with
+`sudo /opt/fiestaboard/fiestapi-hdmi-setup.sh --disable`.
+
 ## Updating
 
 Updates are one click. When a new version is released, a banner appears in **Settings → System** with an **Update Now** button. Press it; the Pi pulls the new image and restarts FiestaBoard automatically. The page reloads when it's back. No SSH required.

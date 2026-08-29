@@ -19,6 +19,13 @@ A flashable Raspberry Pi OS image with FiestaBoard pre-installed and self-updati
 - mDNS hostname `fiestapi.local`
 - `FIESTABOARD_PROFILE=pi` env baked in (flips the in-app auto-update toggle to default ON, and seeds the instance name to "FiestaPi" on first boot)
 - First-boot script that generates a unique `FIESTAUPDATER_TOKEN`
+- **HDMI kiosk (opt-in):** drop an empty `fiestapi-hdmi.txt` on the boot partition and
+  the Pi boots straight into the FiestaPanel viewer on a connected screen (cage +
+  Chromium in kiosk mode at `http://localhost:4420/p/display`). Pick which panel the
+  screen shows in Settings → Hardware → FiestaPanel → "Display output" — the URL never
+  changes, so you re-point the screen from the app. Delete the file and reboot to turn
+  the kiosk (and Chromium's memory footprint) back off. See
+  `stage-fiestaboard/02-hdmi-kiosk/`.
 - Post-flash Wi-Fi provisioning: drop `fiestapi-wifi.txt` (with `SSID=`, `PASSWORD=`, optional `COUNTRY=`) on the boot partition — see [RASPBERRY_PI.md](../docs/internal/setup/RASPBERRY_PI.md). The first-boot script sets the wireless regulatory country and unblocks rfkill before connecting, so Wi-Fi works even on a fresh image.
 
 ## Building locally
