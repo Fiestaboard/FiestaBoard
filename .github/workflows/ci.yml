@@ -491,7 +491,20 @@ jobs:
     name: Build Test Image
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
+    # Runs on PRs *and* in the merge queue. The queue is the last gate before
+    # code reaches main and it tests the merged result, not the PR head; a
+    # PR-only gate lets two individually-green PRs land a semantic conflict
+    # that then surfaces as an "unrelated" E2E failure on the next branch to
+    # rebase. `plugins` is in the filter because plugin manifests drive the
+    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # identical across build-test-image and all four E2E jobs — the image
+    # build must be a superset of everything that consumes it.
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (needs.detect-changes.outputs.api == 'true'
+          || needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.plugins == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 10
 
     # Builds the test Docker image once and warms the `build-test` GHA
@@ -541,7 +554,20 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     needs: [detect-changes, build-test-image]
-    if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
+    # Runs on PRs *and* in the merge queue. The queue is the last gate before
+    # code reaches main and it tests the merged result, not the PR head; a
+    # PR-only gate lets two individually-green PRs land a semantic conflict
+    # that then surfaces as an "unrelated" E2E failure on the next branch to
+    # rebase. `plugins` is in the filter because plugin manifests drive the
+    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # identical across build-test-image and all four E2E jobs — the image
+    # build must be a superset of everything that consumes it.
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (needs.detect-changes.outputs.api == 'true'
+          || needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.plugins == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 15
 
     steps:
@@ -672,7 +698,7 @@ jobs:
       - name: Run E2E tests
         working-directory: web
         timeout-minutes: 10
-        run: npx playwright test --reporter=github
+        run: npx playwright test
         env:
           CI: true
           WORKER_URLS: ${{ env.WORKER_URLS }}
@@ -687,19 +713,40 @@ jobs:
             docker rm -f fiestaboard-$i mock-board-$i mock-cloud-$i 2>/dev/null || true
           done
 
+      - name: Report flaky tests
+        # Runs even when the suite failed: a run can have both a real failure
+        # and a retry-masked flake, and the flake is the one nothing else says.
+        if: ${{ !cancelled() }}
+        run: node scripts/summarize-playwright-flakes.mjs web/playwright-report.json e2e
+
       - name: Upload test results
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-results
-          path: web/playwright-test-results/
+          path: |
+            web/playwright-test-results/
+            web/playwright-report.json
           retention-days: 7
 
   ai-mcp-e2e-tests:
     name: AI + MCP E2E Tests
     runs-on: ubuntu-latest
     needs: [detect-changes, build-test-image]
-    if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
+    # Runs on PRs *and* in the merge queue. The queue is the last gate before
+    # code reaches main and it tests the merged result, not the PR head; a
+    # PR-only gate lets two individually-green PRs land a semantic conflict
+    # that then surfaces as an "unrelated" E2E failure on the next branch to
+    # rebase. `plugins` is in the filter because plugin manifests drive the
+    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # identical across build-test-image and all four E2E jobs — the image
+    # build must be a superset of everything that consumes it.
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (needs.detect-changes.outputs.api == 'true'
+          || needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.plugins == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 12
 
     steps:
@@ -822,7 +869,7 @@ jobs:
       - name: Run AI + MCP E2E tests
         working-directory: web
         timeout-minutes: 8
-        run: npx playwright test ai.spec.ts mcp.spec.ts --reporter=github --workers=1
+        run: npx playwright test ai.spec.ts mcp.spec.ts --workers=1
         env:
           CI: true
           RUN_AI_TESTS: "1"
@@ -843,19 +890,40 @@ jobs:
         run: |
           docker rm -f fiestaboard-ai mock-llm 2>/dev/null || true
 
+      - name: Report flaky tests
+        # Runs even when the suite failed: a run can have both a real failure
+        # and a retry-masked flake, and the flake is the one nothing else says.
+        if: ${{ !cancelled() }}
+        run: node scripts/summarize-playwright-flakes.mjs web/playwright-report.json ai-mcp
+
       - name: Upload test results
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-ai-mcp-results
-          path: web/playwright-test-results/
+          path: |
+            web/playwright-test-results/
+            web/playwright-report.json
           retention-days: 7
 
   auth-e2e-tests:
     name: Auth E2E Tests
     runs-on: ubuntu-latest
     needs: [detect-changes, build-test-image]
-    if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
+    # Runs on PRs *and* in the merge queue. The queue is the last gate before
+    # code reaches main and it tests the merged result, not the PR head; a
+    # PR-only gate lets two individually-green PRs land a semantic conflict
+    # that then surfaces as an "unrelated" E2E failure on the next branch to
+    # rebase. `plugins` is in the filter because plugin manifests drive the
+    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # identical across build-test-image and all four E2E jobs — the image
+    # build must be a superset of everything that consumes it.
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (needs.detect-changes.outputs.api == 'true'
+          || needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.plugins == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 10
 
     steps:
@@ -941,7 +1009,7 @@ jobs:
       - name: Run auth E2E tests
         working-directory: web
         timeout-minutes: 5
-        run: npx playwright test auth.spec.ts --reporter=github --workers=1
+        run: npx playwright test auth.spec.ts --workers=1
         env:
           CI: true
           RUN_AUTH_TESTS: "1"
@@ -955,19 +1023,40 @@ jobs:
         if: always()
         run: docker rm -f fiestaboard-auth 2>/dev/null || true
 
+      - name: Report flaky tests
+        # Runs even when the suite failed: a run can have both a real failure
+        # and a retry-masked flake, and the flake is the one nothing else says.
+        if: ${{ !cancelled() }}
+        run: node scripts/summarize-playwright-flakes.mjs web/playwright-report.json auth
+
       - name: Upload test results
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-auth-results
-          path: web/playwright-test-results/
+          path: |
+            web/playwright-test-results/
+            web/playwright-report.json
           retention-days: 7
 
   ingress-e2e-tests:
     name: HA Ingress E2E Tests
     runs-on: ubuntu-latest
     needs: [detect-changes, build-test-image]
-    if: github.event_name == 'pull_request' && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.shared == 'true')
+    # Runs on PRs *and* in the merge queue. The queue is the last gate before
+    # code reaches main and it tests the merged result, not the PR head; a
+    # PR-only gate lets two individually-green PRs land a semantic conflict
+    # that then surfaces as an "unrelated" E2E failure on the next branch to
+    # rebase. `plugins` is in the filter because plugin manifests drive the
+    # Integrations routes that integrations.spec.ts covers. Keep this gate
+    # identical across build-test-image and all four E2E jobs — the image
+    # build must be a superset of everything that consumes it.
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+      && (needs.detect-changes.outputs.api == 'true'
+          || needs.detect-changes.outputs.ui == 'true'
+          || needs.detect-changes.outputs.plugins == 'true'
+          || needs.detect-changes.outputs.shared == 'true')
     timeout-minutes: 10
 
     steps:
@@ -1054,7 +1143,7 @@ jobs:
       - name: Run ingress E2E tests
         working-directory: web
         timeout-minutes: 5
-        run: npx playwright test ingress.spec.ts --reporter=github --workers=1
+        run: npx playwright test ingress.spec.ts --workers=1
         env:
           CI: true
           RUN_INGRESS_TESTS: "1"
@@ -1070,12 +1159,20 @@ jobs:
         if: always()
         run: docker rm -f fiestaboard ha-ingress-proxy 2>/dev/null || true; docker network rm ingress-net 2>/dev/null || true
 
+      - name: Report flaky tests
+        # Runs even when the suite failed: a run can have both a real failure
+        # and a retry-masked flake, and the flake is the one nothing else says.
+        if: ${{ !cancelled() }}
+        run: node scripts/summarize-playwright-flakes.mjs web/playwright-report.json ingress
+
       - name: Upload test results
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-ingress-results
-          path: web/playwright-test-results/
+          path: |
+            web/playwright-test-results/
+            web/playwright-report.json
           retention-days: 7
 
   build:

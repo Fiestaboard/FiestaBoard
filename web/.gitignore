@@ -50,3 +50,4 @@ yarn-error.log*
 /playwright/.cache/
 /screenshot-results/
 /draw-mode-demo-results/
+/playwright-report.json
