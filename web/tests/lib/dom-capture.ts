@@ -63,44 +63,78 @@ export interface CaptureEntry {
 }
 
 /**
- * Strip what is provably inert, and normalise what is provably unstable.
+ * Strip what is provably inert, then serialise the subtree.
  *
- * Deliberately conservative. Measured against a real Settings capture, removing
- * every attribute that renders identically saves ~1% of the gzipped bytes — not
- * worth the risk of stripping something a Tailwind selector depends on. Note
- * that `data-slot` and `data-current-char`/`data-target-char` DO change the
- * render (they drive component styling and the split-flap tiles) and must
- * survive; so must `data-orientation` and `data-[state]`, which style tabs.
+ * Operates on a real parsed DOM — never on serialised markup. An earlier
+ * version did all four removals with regexes over the `outerHTML` string, and
+ * every one of them was wrong in the way HTML-stripping regexes always are:
+ * `/<script\b[^>]*>[\s\S]*?<\/script>/` does not match the perfectly legal
+ * `</script >`, `\son[a-z]+="[^"]*"` sees only double-quoted handlers, and a
+ * `>` inside an attribute value (Chrome serialises Tailwind's `has-[>svg]:`
+ * arbitrary variants literally) ends `[^>]*` early and lets the match run on
+ * through unrelated markup. CodeQL flagged all three as `js/bad-tag-filter`
+ * and `js/incomplete-multi-character-sanitization`; a parser has none of those
+ * failure modes, and `removeAttribute` cannot corrupt neighbouring markup.
+ *
+ * The same function runs in two places, which is the point: the capture path
+ * hands it a cloned subtree inside the browser (so serialisation stays
+ * Chrome's, byte-for-byte), and the unit tests hand it a jsdom tree. It must
+ * therefore stay self-contained — Playwright ships it to the page by source,
+ * so it may reference only DOM globals, never module scope.
+ *
+ * Deliberately conservative about what goes. Measured against a real Settings
+ * capture, removing every attribute that renders identically saves ~1% of the
+ * gzipped bytes — not worth the risk of stripping something a Tailwind
+ * selector depends on. Note that `data-slot` and
+ * `data-current-char`/`data-target-char` DO change the render (they drive
+ * component styling and the split-flap tiles) and must survive; so must
+ * `data-orientation` and `data-[state]`, which style tabs.
  *
  * `stripAttrs` may be extended per-screen by `verifyStripsAreSafe`, which
  * proves a candidate is neutral by re-rendering and comparing pixels.
  */
-export function sanitize(html: string, stripAttrs: readonly string[] = []): string {
-  let out = html;
-
+export function stripInertMarkup(root: Element, stripAttrs: readonly string[] = []): string {
   // React Router's streaming-hydration scripts come along with outerHTML and
   // throw ("Cannot read properties of undefined (reading 'streamController')")
   // in every docs page that embeds the capture. They can never do useful work
   // outside the app, so they always go.
-  out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  root.querySelectorAll("script").forEach((el) => el.remove());
 
   // Toasts are transient by definition — one run caught a Sonner toast that
   // the next had already dismissed, so the capture differed by a whole
   // subtree. A notification that has already faded has no place in a docs
-  // screenshot regardless.
-  out = out.replace(/<ol\b[^>]*data-sonner-toaster[\s\S]*?<\/ol>/gi, "");
+  // screenshot regardless. `removeVolatileUi` already takes these out of the
+  // live page; this is the belt to that pair of braces.
+  root.querySelectorAll("[data-sonner-toaster], [data-sonner-toast]").forEach((el) => el.remove());
 
-  // Inline event handlers cannot fire (the capture is inert) but should not be
-  // shipped either.
-  out = out.replace(/\son[a-z]+="[^"]*"/gi, "");
+  const extra = new Set(stripAttrs.map((a) => a.toLowerCase()));
+  const scrub = (el: Element) => {
+    for (const name of el.getAttributeNames()) {
+      const lower = name.toLowerCase();
+      // Inline event handlers cannot fire (the capture is inert) but should
+      // not be shipped either. Nothing in a capture should be focusable
+      // (`inert` on the wrapper already enforces that; dropping `tabindex`
+      // keeps the markup honest).
+      if (/^on[a-z]+$/.test(lower) || lower === "tabindex" || extra.has(lower)) {
+        el.removeAttribute(name);
+      }
+    }
+    for (const child of Array.from(el.children)) scrub(child);
+  };
+  scrub(root);
 
-  // Nothing in a capture should be focusable; `inert` on the wrapper already
-  // enforces that, this keeps the markup honest.
-  out = out.replace(/\stabindex="[^"]*"/gi, "");
+  return root.outerHTML;
+}
 
-  for (const attr of stripAttrs) {
-    out = out.replace(new RegExp(`\\s${attr}="[^"]*"`, "gi"), "");
-  }
+/**
+ * Normalise the ids that churn between two identical runs.
+ *
+ * Pure string rewriting over already-serialised markup — no HTML parsing, and
+ * nothing here decides what is safe to ship. Structural removal is
+ * `stripInertMarkup`'s job and happens before serialisation.
+ */
+export function normaliseVolatileIds(html: string): string {
+  let out = html;
 
   // Entity ids are minted by the server every time the fixtures are seeded, so
   // the same page created by two runs carries two different UUIDs and every
@@ -201,11 +235,11 @@ async function settleBoards(page: Page, timeoutMs = 12_000) {
  * silently — it retries, then marks the entry `unstable` and warns, rather
  * than quietly committing churn.
  */
-async function readStable(page: Page) {
-  let last = await readScreen(page);
+async function readStable(page: Page, stripAttrs: readonly string[] = []) {
+  let last = await readScreen(page, stripAttrs);
   for (let attempt = 0; attempt < 3; attempt++) {
     await page.waitForTimeout(800);
-    const next = await readScreen(page);
+    const next = await readScreen(page, stripAttrs);
     if (next.html === last.html) return { ...next, unstable: false };
     last = next;
   }
@@ -242,25 +276,39 @@ async function fittedHeight(page: Page, width: number, fallback: number): Promis
   return Math.min(900, Math.max(600, natural));
 }
 
-/** Read the wrapper class + runtime vars + markup for the current viewport. */
-async function readScreen(page: Page) {
-  return page.evaluate(
+/**
+ * Read the wrapper class + runtime vars + markup for the current viewport.
+ *
+ * The subtree is CLONED before it is stripped, so the live page is never
+ * mutated — a test may take further shots after a capture — and serialisation
+ * stays Chrome's own, which is what keeps the committed captures free of
+ * re-serialisation churn.
+ */
+async function readScreen(page: Page, stripAttrs: readonly string[] = []) {
+  const meta = await page.evaluate(
     (vars: readonly string[]) => {
-      const root = document.querySelector("#root") ?? document.body;
       const cs = getComputedStyle(document.documentElement);
       const collected: Record<string, string> = {};
       for (const v of vars) {
         const value = cs.getPropertyValue(v).trim();
         if (value) collected[v] = value;
       }
-      return {
-        html: root.outerHTML,
-        wrapperClass: document.body.className,
-        vars: collected,
-      };
+      return { wrapperClass: document.body.className, vars: collected };
     },
     RUNTIME_VARS as unknown as string[],
   );
+
+  const clone = await page.evaluateHandle(
+    () => (document.querySelector("#root") ?? document.body).cloneNode(true) as Element,
+  );
+  try {
+    // `JSHandle.evaluate` calls the function in the page with the handle as its
+    // first argument, so `stripInertMarkup` runs against a real Chrome DOM.
+    const html = await clone.evaluate(stripInertMarkup, [...stripAttrs]);
+    return { html, ...meta };
+  } finally {
+    await clone.dispose();
+  }
 }
 
 /**
@@ -300,7 +348,7 @@ export async function captureScreen(
   // Prove the screen is settled BEFORE freezing the clock. Checking afterwards
   // is worthless — a paused clock makes anything look stable, including a demo
   // board frozen halfway through a flip.
-  const settled = await readStable(page);
+  const settled = await readStable(page, opts.stripAttrs);
 
   // Then stop the clock so timer-driven UI cannot change mid-capture. Paused
   // only for the duration of the capture — the PNG for this screen has already
@@ -340,13 +388,13 @@ export async function captureScreen(
     }
     // Let the breakpoint change settle before reading layout-derived vars.
     await page.waitForTimeout(400);
-    byViewport[label] = { ...(await readStable(page)), unstable: settled.unstable };
+    byViewport[label] = { ...(await readStable(page, opts.stripAttrs)), unstable: settled.unstable };
   }
   await page.setViewportSize(original);
   await page.clock.resume();
 
   const labels = Object.keys(CAPTURE_VIEWPORTS);
-  const sanitised = Object.fromEntries(labels.map((l) => [l, sanitize(byViewport[l].html, opts.stripAttrs)]));
+  const sanitised = Object.fromEntries(labels.map((l) => [l, normaliseVolatileIds(byViewport[l].html)]));
   const identical = labels.every((l) => sanitised[l] === sanitised[labels[0]]);
 
   fs.mkdirSync(outDir, { recursive: true });
