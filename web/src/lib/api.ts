@@ -5,6 +5,7 @@
 import type { BoardPreviewEntry } from "@fiestaboard/ui";
 
 import { apiUrl, appUrl, stripBasePath } from "./base-path";
+import { isPanelPath } from "./chromeless";
 
 // Types for API responses
 export interface StatusResponse {
@@ -51,6 +52,71 @@ export interface BoardCurrentMessageResponse {
   cached_at: string | null;
   api_mode: "local" | "cloud";
   board_id?: string | null;
+}
+
+// ---- FiestaPanel (mirrors src/panels/models.py) ----
+
+export interface PanelAutoDim {
+  enabled: boolean;
+  start: string; // "HH:MM" 24h
+  end: string;
+}
+
+export type PanelBackdrop = "wall" | "dark" | "none";
+
+export interface Panel {
+  id: string;
+  /** Small sequential number behind the TV-typable /p/{n} viewer URL. */
+  short_code: number;
+  name: string;
+  board_id: string;
+  screen_diagonal_inches: number;
+  calibration_scale: number;
+  /** Mechanical flip animation on the viewer; off = frames snap into place. */
+  animations_enabled: boolean;
+  /** Exactly one panel serves the reserved /p/display URL (HDMI kiosk). */
+  is_display: boolean;
+  backdrop: PanelBackdrop;
+  auto_dim: PanelAutoDim;
+  created_at: string;
+  updated_at: string;
+  // Attached by the API from the panel's virtual board (null/true when the
+  // board was deleted out from under the panel). rows/cols are the board's
+  // auto-fit grid, for display in the app.
+  device_type?: DeviceType | null;
+  board_missing?: boolean;
+  rows?: number | null;
+  cols?: number | null;
+}
+
+export interface PanelCreateRequest {
+  name: string;
+  screen_diagonal_inches: number;
+}
+
+export interface PanelUpdateRequest {
+  name?: string;
+  screen_diagonal_inches?: number;
+  calibration_scale?: number;
+  animations_enabled?: boolean;
+  is_display?: boolean;
+  backdrop?: PanelBackdrop;
+  auto_dim?: PanelAutoDim;
+}
+
+// Public viewer config served by GET /panel/{id} (no auth).
+export interface PanelPublicConfig extends Panel {
+  board_color: "black" | "white" | null;
+  code62_glyph: "degree" | "heart" | null;
+}
+
+// Public frame served by GET /panel/{id}/frame (no auth).
+export interface PanelFrame {
+  characters: number[][] | null;
+  message: string | null;
+  rows: number;
+  cols: number;
+  updated_at: string | null;
 }
 
 export interface ActionResponse {
@@ -583,7 +649,7 @@ export interface BoardInstance {
   paused?: boolean;
   /** Per-board schedule mode (issue #1242). Emitted on every GET /settings/board. */
   schedule_enabled?: boolean;
-  api_mode: "local" | "cloud";
+  api_mode: "local" | "cloud" | "virtual";
   host: string;
   /** Local API port (default 7000). */
   port?: number;
@@ -1526,6 +1592,9 @@ function redirectToLoginIfNeeded(res: globalThis.Response): boolean {
   // Compare app-relative routes: under HA Ingress the raw pathname is
   // "<prefix>/login", which a bare "/login" check would miss and loop.
   if (stripBasePath(window.location.pathname).startsWith("/login")) return false;
+  // The FiestaPanel viewer runs on TVs with no session; a stray 401/409
+  // from a background query must never bounce the wall display to /login.
+  if (isPanelPath(window.location.pathname)) return false;
   if (res.status === 401 || res.status === 409) {
     // For 409 only redirect when the body actually says setup_required —
     // other 409s (e.g. "already set up") should bubble up as errors.
@@ -2082,6 +2151,27 @@ export const api = {
         body: JSON.stringify({ paused }),
       },
     ),
+  // ---- FiestaPanel ----
+  listPanels: () => fetchApi<{ panels: Panel[]; total: number }>("/panels"),
+  createPanel: (data: PanelCreateRequest) =>
+    fetchApi<{ status: string; panel: Panel }>("/panels", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+  updatePanel: (panelId: string, data: PanelUpdateRequest) =>
+    fetchApi<{ status: string; panel: Panel }>(`/panels/${encodeURIComponent(panelId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+  deletePanel: (panelId: string) =>
+    fetchApi<{ status: string }>(`/panels/${encodeURIComponent(panelId)}`, {
+      method: "DELETE",
+    }),
+  // Public viewer endpoints — reachable with no session (TV browsers).
+  getPanel: (panelId: string) => fetchApi<PanelPublicConfig>(`/panel/${encodeURIComponent(panelId)}`),
+  getPanelFrame: (panelId: string) => fetchApi<PanelFrame>(`/panel/${encodeURIComponent(panelId)}/frame`),
   detectBoardSize: (boardId: string) =>
     fetchApi<DetectBoardSizeResponse>(`/settings/board/${boardId}/detect-size`, {
       method: "POST",

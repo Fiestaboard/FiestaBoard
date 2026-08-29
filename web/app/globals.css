@@ -239,3 +239,26 @@
     transition: none !important;
   }
 }
+
+/* FiestaPanel seamless grid: the package board renders note arrays with a
+   physical-seam margin between 15×3 blocks (data-note-*-seam hooks, inline
+   seamGap style). A TV panel is one continuous virtual board, so the panel
+   viewer zeroes those seams and tiles sit at the normal gutter end to end.
+   !important is required to beat the inline style; the data-* attributes
+   are the package's stable styling hooks. A `seamGap` prop on BoardDisplay
+   is the eventual FiestaUI-side home for this. */
+.panel-seamless [data-note-row-seam="true"] {
+  margin-top: 0 !important;
+}
+.panel-seamless [data-note-col-seam="true"] {
+  margin-left: 0 !important;
+}
+
+/* FiestaPanel page mode: while the viewer is mounted nothing behind it may
+   scroll or show a non-black background — TV browsers otherwise paint their
+   default page background at the edges and float scrollbars over the board. */
+.panel-mode,
+.panel-mode body {
+  overflow: hidden !important;
+  background: #000 !important;
+}

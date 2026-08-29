@@ -688,6 +688,17 @@ def board_client_from_board_dict(board: dict) -> Optional["BoardClient"]:
     api_mode = (board.get("api_mode") or "local").lower()
     use_cloud = api_mode == "cloud"
 
+    # Virtual boards (FiestaPanel): no hardware, frames render to memory.
+    if api_mode == "virtual":
+        from .virtual_board_client import VirtualBoardClient
+
+        return VirtualBoardClient(
+            device_type=board.get("device_type") or "flagship",
+            board_id=board.get("id"),
+            notes_wide=board.get("notes_wide") or 1,
+            notes_tall=board.get("notes_tall") or 1,
+        )
+
     # Note-array boards: detected by device_type (not api_mode).
     # Local mode (api_mode == "local" with saved tiles) fans out per-tile
     # local POSTs; otherwise they use the Cloud API with X-Vestaboard-Token.

@@ -230,6 +230,10 @@ Use the visual calendar to schedule which page displays at which time. Set diffe
 
 Create pages for both Vestaboard Flagship (22x6) and Note (15x3). The editor and preview adapt to each device's dimensions automatically.
 
+### FiestaPanel (Virtual Boards)
+
+Turn any TV or screen with a web browser into a split-flap display that fills the screen — no Vestaboard hardware required. A FiestaPanel is a virtual board sized automatically to your screen (every flap at real Vestaboard scale, borderless edge to edge), driven by the same pages, schedules, and plugins as a physical board; the TV just opens a URL and shows it, with an optional full flip animation. See the [FiestaPanel guide](docs/features/fiestapanel.md).
+
 ### AI Page Drafts (Optional)
 
 Click the **Gen AI** button in the page editor, describe what you want ("commute home dashboard with weather and the next two Muni arrivals"), and an LLM drafts the page for you. You always review and click **Save** — nothing is auto-published to your board.

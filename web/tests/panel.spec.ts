@@ -1,0 +1,142 @@
+/**
+ * FiestaPanel viewer E2E: the chrome-less /panel/:panelId page.
+ *
+ * Covers the TV contract: the page renders with no app chrome and no login
+ * bounce, shows the virtual board's content, and picks up new frames from
+ * the 2s poll after the platform drives the board.
+ */
+import { API_URL, authHeaders, ensureAuthForFetch, expect, test } from "./helpers";
+
+interface CreatedPanel {
+  id: string;
+  short_code: number;
+  board_id: string;
+}
+
+async function createPanel(name: string): Promise<CreatedPanel> {
+  const res = await fetch(`${API_URL}/panels`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ name, screen_diagonal_inches: 43 }),
+  });
+  expect(res.ok).toBe(true);
+  const body = (await res.json()) as { panel: CreatedPanel };
+  return body.panel;
+}
+
+async function deletePanel(panelId: string): Promise<void> {
+  await fetch(`${API_URL}/panels/${panelId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+}
+
+async function driveBoard(boardId: string, lines: string[]): Promise<void> {
+  const res = await fetch(`${API_URL}/templates/render/live`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ template: lines, board_id: boardId }),
+  });
+  expect(res.ok).toBe(true);
+}
+
+test.describe("FiestaPanel viewer", () => {
+  test.beforeEach(async () => {
+    await ensureAuthForFetch();
+  });
+
+  test("renders chrome-less without a session and shows the driven frame", async ({ page }) => {
+    const panel = await createPanel("E2E Panel");
+    try {
+      await driveBoard(panel.board_id, ["PANEL E2E OK", "", ""]);
+
+      // Deliberately NO loginIfNeeded: a TV browser has no session cookie.
+      // Use the TV-typable short alias — the long /panel/{id} form shares
+      // the same module and API resolution.
+      expect(panel.short_code).toBeGreaterThan(0);
+      await page.goto(`/p/${panel.short_code}`);
+
+      const board = page.getByRole("img");
+      await expect(board).toBeVisible({ timeout: 15000 });
+      await expect(board).toHaveAttribute("aria-label", /PANEL E2E OK/, { timeout: 10000 });
+
+      // Still on the panel route (no /login redirect) and chrome-less.
+      expect(new URL(page.url()).pathname).toContain(`/p/${panel.short_code}`);
+      await expect(page.getByRole("navigation")).toHaveCount(0);
+
+      // Seamless grid: the renderer's note-array block seams are zeroed on
+      // the panel, so tiles sit at the normal gutter end to end. The 43"
+      // auto-fit board is 15×9 (3 notes tall) → row seams exist to check.
+      const seamTile = page.locator('[data-note-row-seam="true"]').first();
+      await expect(seamTile).toBeAttached();
+      await expect(seamTile).toHaveCSS("margin-top", "0px");
+    } finally {
+      await deletePanel(panel.id);
+    }
+  });
+
+  test("picks up a new frame from the poll without reloading", async ({ page }) => {
+    const panel = await createPanel("E2E Live Panel");
+    try {
+      await driveBoard(panel.board_id, ["FIRST FRAME", "", ""]);
+      await page.goto(`/panel/${panel.id}`);
+      await expect(page.getByRole("img")).toHaveAttribute("aria-label", /FIRST FRAME/, {
+        timeout: 15000,
+      });
+
+      await driveBoard(panel.board_id, ["SECOND FRAME", "", ""]);
+      // 2s poll cadence + flap animation time.
+      await expect(page.getByRole("img")).toHaveAttribute("aria-label", /SECOND FRAME/, {
+        timeout: 10000,
+      });
+    } finally {
+      await deletePanel(panel.id);
+    }
+  });
+
+  test("/p/display follows the designated panel", async ({ page }) => {
+    const first = await createPanel("E2E Display A");
+    const second = await createPanel("E2E Display B");
+    try {
+      await driveBoard(first.board_id, ["FIRST BOARD", "", ""]);
+      await driveBoard(second.board_id, ["SECOND BOARD", "", ""]);
+
+      // No designation yet: the kiosk URL asks for one.
+      await page.goto("/p/display");
+      await expect(page.getByText("No panel is set as the display output")).toBeVisible({
+        timeout: 15000,
+      });
+
+      const designate = async (panelId: string) => {
+        const res = await fetch(`${API_URL}/panels/${panelId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({ is_display: true }),
+        });
+        expect(res.ok).toBe(true);
+      };
+
+      await designate(first.id);
+      await page.reload();
+      await expect(page.getByRole("img")).toHaveAttribute("aria-label", /FIRST BOARD/, {
+        timeout: 15000,
+      });
+
+      // Re-pointing the display moves the same URL to the other panel.
+      await designate(second.id);
+      await page.reload();
+      await expect(page.getByRole("img")).toHaveAttribute("aria-label", /SECOND BOARD/, {
+        timeout: 15000,
+      });
+    } finally {
+      await deletePanel(first.id);
+      await deletePanel(second.id);
+    }
+  });
+
+  test("shows the not-found state for an unknown panel", async ({ page }) => {
+    await page.goto("/panel/doesnotexist000");
+    await expect(page.getByText("This panel no longer exists")).toBeVisible({ timeout: 15000 });
+    expect(new URL(page.url()).pathname).toContain("/panel/doesnotexist000");
+  });
+});
