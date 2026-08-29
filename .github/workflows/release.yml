@@ -153,7 +153,7 @@ jobs:
       - name: Commit version bump
         id: commit
         run: |
-          git add package.json web/package.json src/__init__.py
+          git add package.json web/package.json web/package-lock.json src/__init__.py
           git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
 
           # Push with retry to handle transient failures or rare race conditions
