@@ -284,7 +284,10 @@ test.describe("regression: settings.network", () => {
     await ssidRow.getByRole("button", { name: /^Connect$/i }).click();
 
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10_000 });
-    await page.getByLabel(/Password/i).fill("hunter2-secure");
+    // SecretInput ships a reveal toggle labelled "Show password", so a loose
+    // /Password/i match now resolves to both it and the field. Match the
+    // field's own label exactly, as the other password specs already do.
+    await page.getByLabel("Password", { exact: true }).fill("hunter2-secure");
 
     const connectBtn = page.getByRole("dialog").getByRole("button", { name: /^Connect$/i });
     await connectBtn.click();
