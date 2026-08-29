@@ -61,13 +61,19 @@ class AIGenerationError(Exception):
 _SAFE_ERROR_MESSAGE_RE = re.compile(r"[ -~]{1,500}")
 
 
-def _user_safe_error_message(exc: BaseException) -> str:
+def _user_safe_error_message(exc: BaseException, fallback: str = "AI provider error") -> str:
     """Return a curated, user-safe message from ``exc``.
 
     ``AIGenerationError`` instances carry curated single-line strings that
     are safe to show to API consumers.  This helper strips control
     characters / multi-line traceback fragments and bounds the length so
     static analysis sees a sanitized string flow, not raw exception data.
+
+    Args:
+        exc: The exception to derive a message from.
+        fallback: Returned when ``exc`` carries nothing usable.  Callers
+            outside the provider path pass their own wording so the
+            fallback still describes what actually failed.
     """
     raw = exc.args[0] if exc.args else ""
     candidate = raw if isinstance(raw, str) else ""
@@ -75,7 +81,7 @@ def _user_safe_error_message(exc: BaseException) -> str:
     candidate = candidate.replace("\n", " ").replace("\r", " ").replace("\t", " ").strip()
     match = _SAFE_ERROR_MESSAGE_RE.match(candidate)
     if not match:
-        return "AI provider error"
+        return fallback
     return match.group(0)
 
 

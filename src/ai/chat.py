@@ -959,10 +959,19 @@ class _FenceParser:
         try:
             tool = parse_tool_call(parsed)
         except ToolCallValidationError as exc:
+            # ``parse_tool_call`` wraps *any* exception raised by
+            # ``model_validate``, so ``exc`` can carry a multi-line Pydantic
+            # report — or, if validation ever fails for an unexpected reason,
+            # internal detail that has no business on the wire. This handler
+            # is the source CodeQL traces into the SSE stream
+            # (``py/stack-trace-exposure``): keep the full text in the server
+            # log and send the client a bounded, single-line copy.
+            logger.warning("Invalid fiestaboard tool block: %s", exc)
+            detail = _user_safe_error_message(exc, fallback="schema validation failed")
             return [
                 {
                     "event": "warning",
-                    "data": {"message": f"Invalid fiestaboard tool block: {exc}"},
+                    "data": {"message": f"Invalid fiestaboard tool block: {detail}"},
                 }
             ]
 
