@@ -466,6 +466,41 @@ def test_fence_parser_invalid_op_emits_warning():
     assert "Unknown tool op" in warnings[0]["data"]["message"]
 
 
+def test_fence_parser_schema_failure_does_not_leak_raw_exception_text():
+    """A validation failure reaches the client sanitized, not verbatim.
+
+    ``parse_tool_call`` wraps whatever ``model_validate`` raises, so the
+    exception text is a multi-line Pydantic report (and, for an unexpected
+    failure, could be arbitrary internal detail). The warning event is
+    streamed straight to the browser over SSE, so it must be a single
+    bounded line of printable ASCII — this is CodeQL's
+    ``py/stack-trace-exposure`` sink.
+    """
+    p = _FenceParser()
+    body = json.dumps(
+        {
+            "op": "apply_patch",
+            "args": {
+                "changes": [
+                    {"type": "replace_line", "index": "not-an-int", "text": "HI"},
+                    {"type": "replace_line", "index": -5, "text": 42},
+                ]
+            },
+        }
+    )
+    events = _events(p, f"```fiestaboard\n{body}\n```")
+
+    warnings = [e for e in events if e["event"] == "warning"]
+    assert len(warnings) == 1
+    message = warnings[0]["data"]["message"]
+    assert message.startswith("Invalid fiestaboard tool block: ")
+    # Single line, printable ASCII, bounded length. The raw Pydantic report
+    # is multi-line and unbounded; none of it may survive as-is.
+    assert "\n" not in message and "\r" not in message
+    assert all(" " <= ch <= "~" for ch in message)
+    assert len(message) <= len("Invalid fiestaboard tool block: ") + 500
+
+
 def test_fence_parser_unterminated_fence():
     p = _FenceParser()
     events = _events(p, "```fiestaboard\nstart of json...")
