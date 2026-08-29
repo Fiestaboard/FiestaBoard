@@ -8,19 +8,19 @@ keywords: [FiestaPanel, virtual board, virtual Vestaboard, split-flap TV, split 
 
 FiestaPanel turns any screen with a web browser — most usefully a TV on a wall — into a realistic split-flap display that fills the screen. No Vestaboard hardware required.
 
-A panel is a **virtual board**: FiestaBoard drives it exactly like a physical board (pages, schedules, plugins, transitions), and a full-screen web page renders whatever was last sent to it, flipping its tiles with the same mechanical animation as the real thing.
+A panel is a **virtual board**: FiestaBoard drives it exactly like a physical board (pages, schedules, plugins, transitions), and a full-screen web page renders whatever was last sent to it, optionally flipping its tiles with the same mechanical animation as the real thing.
 
 ## Overview
 
 - **Auto-fit, true to life.** Tell FiestaBoard your screen's diagonal size and it builds the largest board that fits: every flap renders at real Vestaboard size, and the grid grows with the screen — a 65″ TV gets a 30×12 board, an 85″ TV gets 45×18. The board is borderless and frameless, filling the screen edge to edge (with up to a 10% gentle stretch to close any remaining gap).
-- **Live.** The panel polls for new frames every 2 seconds, so anything that drives the board — a schedule flipping pages, a plugin update, the page editor's Live Output — appears on the TV within moments, with a full mechanical flip animation.
+- **Live.** The panel polls for new frames every 2 seconds, so anything that drives the board — a schedule flipping pages, a plugin update, the page editor's Live Output — appears on the TV within moments (with a full mechanical flip animation when you turn it on).
 - **No login on the TV.** The panel URL works in any browser with no account or session. You configure everything in the FiestaBoard app; the TV just displays.
 
 ## Quick Setup
 
 1. Open **Settings → Hardware → FiestaPanel** and click **Create panel**.
 2. Give it a name and choose your TV's diagonal size (presets from 32″ to 85″, or a custom value). The board's grid is computed automatically.
-3. Open the panel URL in the TV's web browser. Every panel gets a TV-typable short URL — the first panel is `/p/1` (for example `http://192.168.1.50:4420/p/1`) — plus a QR code and a copy button in Settings.
+3. Open the panel URL in the TV's web browser. Every panel gets a short URL that's easy to type on a TV — the first panel is `/p/1` (for example `http://192.168.1.50:4420/p/1`) — plus a QR code and a copy button in Settings.
 4. Give the panel content the same way you would any board: it appears in the board selector, so set its active page, add it to schedules, or point plugins at it. Panels use note-array layouts (blocks of 15×3), which the page editor supports natively.
 
 That's it. The TV shows a blank board until the first frame arrives.

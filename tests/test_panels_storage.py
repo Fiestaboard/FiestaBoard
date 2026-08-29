@@ -47,14 +47,17 @@ class TestPanelStorage:
 
     def test_update_unknown_id_returns_none(self, tmp_path):
         storage = PanelStorage(storage_file=str(tmp_path / "panels.json"))
-        assert storage.update("nope", {"name": "X"}) is None
+        updated = storage.update("nope", {"name": "X"})
+        assert updated is None
 
     def test_delete(self, tmp_path):
         storage = PanelStorage(storage_file=str(tmp_path / "panels.json"))
         panel = storage.create(_panel())
-        assert storage.delete(panel.id) is True
+        deleted = storage.delete(panel.id)
+        assert deleted is True
         assert storage.get(panel.id) is None
-        assert storage.delete(panel.id) is False
+        deleted_again = storage.delete(panel.id)
+        assert deleted_again is False
 
     def test_list_all_sorted_by_name(self, tmp_path):
         storage = PanelStorage(storage_file=str(tmp_path / "panels.json"))
