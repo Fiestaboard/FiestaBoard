@@ -2248,7 +2248,14 @@ export default function IntegrationsPage() {
           <DialogTitle>{t("gitInstallTitle")}</DialogTitle>
           <DialogDescription>{t("gitInstallDescription")}</DialogDescription>
         </DialogHeader>
-        <Alert className="border-yellow-600 text-yellow-700 [&>svg]:text-yellow-600 dark:border-yellow-500 dark:text-yellow-400 dark:[&>svg]:text-yellow-500">
+        {/* `variant="warning"` rather than the `default` variant hand-tinted with raw
+            `border-yellow-600 text-yellow-700 …` classes: @fiestaboard/ui 6 owns the
+            warning recipe (border, 8% fill, and `[&>svg]:text-warning` on the icon,
+            in both themes) and derives the announcement role from the variant. The
+            hand-rolled version rendered `role="status"`, so this warning — that
+            external code is about to run on the reader's device — stopped announcing
+            assertively and `getByRole("alert")` stopped finding it. */}
+        <Alert variant="warning">
           <ShieldAlert className="h-4 w-4" />
           <AlertTitle>{t("securityWarningTitle")}</AlertTitle>
           <AlertDescription>{t("securityWarning")}</AlertDescription>
