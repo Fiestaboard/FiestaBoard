@@ -649,11 +649,19 @@ class WiFiConnectResponse(BaseModel):
 def _run_startup_migrations() -> None:
     """Run the one-shot config migrations that used to fire from read paths.
 
+    ``migrate_silence_schedule_to_per_board`` seeds each configured board's
+    silence override from the install-wide window, and
     ``migrate_silence_schedule_to_utc`` converts pre-UTC ``HH:MM`` silence
-    times.  It is idempotent, so running it once per boot is enough; doing it
-    here keeps ``GET /silence-status`` a pure read (#1746).  Failures are
-    logged, never fatal — a migration must not stop the API from booting.
+    times.  Seeding runs first so the UTC pass converts the per-board windows
+    in the same boot.  Both are idempotent, so running them once per boot is
+    enough; doing it here keeps ``GET /silence-status`` a pure read (#1746).
+    Failures are logged, never fatal — a migration must not stop the API from
+    booting.
     """
+    try:
+        get_config_manager().migrate_silence_schedule_to_per_board()
+    except Exception:
+        logger.warning("Silence-schedule per-board migration failed on startup", exc_info=True)
     try:
         get_config_manager().migrate_silence_schedule_to_utc()
     except Exception:
@@ -4357,9 +4365,13 @@ async def update_general_config(request: dict):
 
 
 @app.get("/silence-status")
-async def get_silence_status():
+async def get_silence_status(board_id: str | None = None):
     """
     Get current silence mode status with UTC times.
+
+    Args:
+        board_id: Optional board to read (query param). Omitted → the
+            install-wide schedule, legacy behavior (issue #1788).
 
     Returns:
     - enabled: Whether silence schedule is enabled
@@ -4368,7 +4380,9 @@ async def get_silence_status():
     - end_time_utc: End time in UTC ISO format
     - current_time_utc: Current UTC time
     - next_change_utc: Time of next status change
+    - board_id: Echo of the requested board (null when unscoped)
     """
+    from .config import resolve_silence_schedule
     from .time_service import get_time_service
 
     time_service = get_time_service()
@@ -4377,14 +4391,12 @@ async def get_silence_status():
     # No migration here: this is a read the UI polls on a timer, and the
     # migration is a config write.  It runs once at startup instead
     # (``_run_startup_migrations``) — see #1746.
-    silence_config = config_manager.get_feature("silence_schedule")
-    enabled = silence_config.get("enabled", False)
-    start_time = silence_config.get("start_time", "20:00+00:00")
-    end_time = silence_config.get("end_time", "07:00+00:00")
-    mode = silence_config.get("mode", "freeze")
-    if mode not in ("indicator", "freeze", "page"):
-        mode = "freeze"
-    page_id = silence_config.get("page_id")
+    silence_config = resolve_silence_schedule(config_manager.get_feature("silence_schedule"), board_id)
+    enabled = silence_config["enabled"]
+    start_time = silence_config["start_time"]
+    end_time = silence_config["end_time"]
+    mode = silence_config["mode"]
+    page_id = silence_config["page_id"]
 
     # Check if currently active
     active = False
@@ -4423,8 +4435,9 @@ async def get_silence_status():
         "seconds_until_next_change": seconds_until_next_change,
         "mode": mode,
         "page_id": page_id,
-        "indicator_text": silence_config.get("indicator_text", "SNOOZING"),
-        "indicator_position": silence_config.get("indicator_position", "center"),
+        "indicator_text": silence_config["indicator_text"],
+        "indicator_position": silence_config["indicator_position"],
+        "board_id": board_id,
     }
 
 
@@ -4438,6 +4451,9 @@ class SilenceScheduleRequest(BaseModel):
     page_id: str | None = None  # Page id to display when mode == "page"
     indicator_text: str | None = None  # Custom text to display when mode == "indicator"
     indicator_position: str | None = None  # Position: center, top-left, top-right, bottom-left, bottom-right
+    # Board to target (issue #1788). Omitted → the install-wide schedule.
+    # Deliberately in the BODY, not the URL, so the endpoint path is unchanged.
+    board_id: str | None = None
 
 
 @app.put("/settings/silence-schedule")
@@ -4453,8 +4469,17 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
       - "indicator" (default) - show a clean "SNOOZING" message sized to the device
       - "freeze" - leave whatever is on the board, stop sending updates
       - "page" - display the page identified by `page_id` and freeze it
+
+    `board_id` (optional, issue #1788) targets one board: the write lands in
+    `features.silence_schedule.by_board[board_id]` and the install-wide layer
+    is left alone. Omitted → the install-wide layer is written, which is what
+    every board without its own override resolves to.
     """
     config_manager = get_config_manager()
+
+    board_id = request.board_id
+    if board_id is not None and _find_board(board_id) is None:
+        raise HTTPException(status_code=404, detail=f"Board not found: {board_id}")
 
     # Validate mode and page_id together
     mode = request.mode if request.mode in ("indicator", "freeze", "page") else "freeze"
@@ -4482,6 +4507,15 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
     _valid_positions = ("center", "top-left", "top-right", "bottom-left", "bottom-right")
     indicator_position = request.indicator_position if request.indicator_position in _valid_positions else "center"
 
+    # Enforce page<->board size compatibility (issue #1788, mirroring #1245's
+    # rule on PUT /settings/active-page). Without this a 22x6 Flagship page
+    # could be selected as the silence page of a 15x3 Note board. There is no
+    # board to validate against on an install-wide write.
+    if board_id is not None and page_id:
+        compat = check_ref_board_compatibility(page_id, board_id)
+        if not compat.ok:
+            raise HTTPException(status_code=400, detail=compat.error)
+
     updated = {
         "enabled": request.enabled,
         "start_time": request.start_time,
@@ -4492,7 +4526,10 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         "indicator_position": indicator_position,
     }
 
-    success = config_manager.set_feature("silence_schedule", updated)
+    if board_id is not None:
+        success = config_manager.set_silence_schedule_for_board(board_id, updated)
+    else:
+        success = config_manager.set_feature("silence_schedule", updated)
     if not success:
         raise HTTPException(
             status_code=500,
@@ -4500,7 +4537,9 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         )
 
     logger.info(
-        "Silence schedule updated: enabled=%s, start=%s, end=%s, mode=%s, page_id=%s, indicator_text=%s, indicator_position=%s",
+        "Silence schedule updated for board=%s: enabled=%s, start=%s, end=%s, mode=%s, page_id=%s, "
+        "indicator_text=%s, indicator_position=%s",
+        board_id or "(install-wide)",
         request.enabled,
         request.start_time,
         request.end_time,
@@ -4510,9 +4549,17 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         indicator_position,
     )
 
+    if board_id is not None:
+        from .config import resolve_silence_schedule
+
+        config = resolve_silence_schedule(config_manager.get_feature("silence_schedule"), board_id)
+    else:
+        config = config_manager.get_feature("silence_schedule") or updated
+
     return {
         "status": "success",
-        "config": config_manager.get_feature("silence_schedule") or updated,
+        "config": config,
+        "board_id": board_id,
     }
 
 

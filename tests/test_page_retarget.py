@@ -171,6 +171,43 @@ class TestFindIncompatibleReferences:
             "schedule_id": schedule.id,
         } in refs
 
+    def test_silence_page_reference_reported(self, env, monkeypatch):
+        """A board's silence page is a third surface that can go stale (#1788)."""
+        page = env["flagship_page"]
+        monkeypatch.setattr(
+            "src.pages.service.silence_page_id_for_board",
+            lambda board_id: page.id if board_id == "board-flagship" else None,
+        )
+        retargeted = env["page_service"].update_page(page.id, PageUpdate(device_type="note"))
+        refs = find_incompatible_references(retargeted)
+        assert refs == [
+            {
+                "board_id": "board-flagship",
+                "board_name": "Kitchen",
+                "surface": "silence",
+                "schedule_id": None,
+            }
+        ]
+
+    def test_silence_page_reference_via_collection_reported(self, env, monkeypatch):
+        page = env["flagship_page"]
+        other = env["page_service"].create_page(PageCreate(name="Other Flag", type="template", template=["b"]))
+        collection = env["collection_service"].create_collection(
+            CollectionCreate(name="Mixed", page_ids=[page.id, other.id])
+        )
+        monkeypatch.setattr(
+            "src.pages.service.silence_page_id_for_board",
+            lambda board_id: collection.id if board_id == "board-flagship" else None,
+        )
+        retargeted = env["page_service"].update_page(page.id, PageUpdate(device_type="note"))
+        refs = find_incompatible_references(retargeted)
+        assert {
+            "board_id": "board-flagship",
+            "board_name": "Kitchen",
+            "surface": "silence",
+            "schedule_id": None,
+        } in refs
+
     def test_no_references_when_still_compatible(self, env):
         page = env["flagship_page"]
         _schedule(env, page.id)

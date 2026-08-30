@@ -21,6 +21,60 @@ _SILENCE_KEYS = (
     "indicator_position",
 )
 
+SILENCE_INDICATOR_POSITIONS = ("center", "top-left", "top-right", "bottom-left", "bottom-right")
+SILENCE_MODES = ("indicator", "freeze", "page")
+
+
+def resolve_silence_schedule(feature: dict | None, board_id: str | None = None) -> dict:
+    """Resolve a ``silence_schedule`` feature dict for one board (issue #1788).
+
+    Shared by :meth:`Config.silence_config_for` and the ``/silence-status``
+    endpoint so both apply exactly the same layering and normalization.
+
+    Args:
+        feature: The raw ``features.silence_schedule`` dict (may be None).
+        board_id: Board to resolve, or None for the install-wide layer.
+
+    Returns:
+        A normalized dict with exactly the seven silence keys — never
+        ``by_board``.
+    """
+    feature = feature or {}
+    layer = dict(feature)
+    layer.pop("by_board", None)
+
+    if board_id:
+        by_board = feature.get("by_board")
+        if isinstance(by_board, dict):
+            entry = by_board.get(board_id)
+            if isinstance(entry, dict):
+                layer.update({k: v for k, v in entry.items() if k in _SILENCE_KEYS})
+
+    mode = layer.get("mode", "freeze")
+    if mode not in SILENCE_MODES:
+        mode = "freeze"
+
+    page_id = layer.get("page_id")
+    if not (isinstance(page_id, str) and page_id.strip()):
+        page_id = None
+
+    text = layer.get("indicator_text", "SNOOZING")
+    indicator_text = text.strip().upper() if isinstance(text, str) and text.strip() else "SNOOZING"
+
+    position = layer.get("indicator_position", "center")
+    if position not in SILENCE_INDICATOR_POSITIONS:
+        position = "center"
+
+    return {
+        "enabled": bool(layer.get("enabled", False)),
+        "start_time": layer.get("start_time", "20:00"),
+        "end_time": layer.get("end_time", "07:00"),
+        "mode": mode,
+        "page_id": page_id,
+        "indicator_text": indicator_text,
+        "indicator_position": position,
+    }
+
 
 class classproperty:
     """Descriptor that acts like @property but on the class itself.
@@ -552,41 +606,7 @@ class Config:
             A normalized dict with exactly the seven silence keys. Never
             contains ``by_board``.
         """
-        feature = cls._get_feature("silence_schedule") or {}
-        layer = dict(feature)
-        layer.pop("by_board", None)
-
-        if board_id:
-            by_board = feature.get("by_board")
-            if isinstance(by_board, dict):
-                entry = by_board.get(board_id)
-                if isinstance(entry, dict):
-                    layer.update({k: v for k, v in entry.items() if k in _SILENCE_KEYS})
-
-        mode = layer.get("mode", "freeze")
-        if mode not in ("indicator", "freeze", "page"):
-            mode = "freeze"
-
-        page_id = layer.get("page_id")
-        if not (isinstance(page_id, str) and page_id.strip()):
-            page_id = None
-
-        text = layer.get("indicator_text", "SNOOZING")
-        indicator_text = text.strip().upper() if isinstance(text, str) and text.strip() else "SNOOZING"
-
-        position = layer.get("indicator_position", "center")
-        if position not in ("center", "top-left", "top-right", "bottom-left", "bottom-right"):
-            position = "center"
-
-        return {
-            "enabled": bool(layer.get("enabled", False)),
-            "start_time": layer.get("start_time", "20:00"),
-            "end_time": layer.get("end_time", "07:00"),
-            "mode": mode,
-            "page_id": page_id,
-            "indicator_text": indicator_text,
-            "indicator_position": position,
-        }
+        return resolve_silence_schedule(cls._get_feature("silence_schedule"), board_id)
 
     @classproperty
     def SILENCE_SCHEDULE_ENABLED(cls) -> bool:
