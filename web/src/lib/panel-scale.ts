@@ -35,7 +35,6 @@ export function screenPpi(screenWidthPx: number, screenHeightPx: number, diagona
  * uniform scale keeps both axes true. Mirrors src/panels/autofit.py.
  */
 export const NOTE_COL_PITCH_IN = 24.5 / 15;
-export const NOTE_ROW_PITCH_IN = NOTE_COL_PITCH_IN * (1.145 / 0.845);
 
 /** Max stretch beyond true flap size allowed to close the gap to the screen edge. */
 export const MAX_FILL_STRETCH = 1.1;
@@ -81,26 +80,4 @@ export function panelAutofitScale(opts: PanelAutofitScaleOptions): number {
   const fill = Math.min(screenWidthPx / (gridWidthPx * trueScale), screenHeightPx / (gridHeightPx * trueScale));
   const stretch = Math.min(MAX_FILL_STRETCH, Math.max(1, fill));
   return trueScale * stretch * calibration;
-}
-
-export interface PanelBoardScaleOptions {
-  screenWidthPx: number;
-  screenHeightPx: number;
-  diagonalInches: number;
-  deviceType: "flagship" | "note";
-  /** Measured unscaled width of the rendered board (bezel included). */
-  boardNaturalWidthPx: number;
-  /** User fine-tune for TVs that misreport resolution or overscan. */
-  calibration: number;
-}
-
-/** CSS transform scale that puts the rendered board at physical size. */
-export function panelBoardScale(opts: PanelBoardScaleOptions): number {
-  const { screenWidthPx, screenHeightPx, diagonalInches, deviceType, boardNaturalWidthPx, calibration } = opts;
-  if (boardNaturalWidthPx <= 0) {
-    throw new Error(`panelBoardScale requires a positive measured board width (got ${boardNaturalWidthPx})`);
-  }
-  const ppi = screenPpi(screenWidthPx, screenHeightPx, diagonalInches);
-  const targetWidthPx = PANEL_PHYSICAL_WIDTH_IN[deviceType] * ppi;
-  return (targetWidthPx / boardNaturalWidthPx) * calibration;
 }
