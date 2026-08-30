@@ -344,7 +344,12 @@ class TestUtcMigrationFansOut:
         path = tmp_path / "config.json"
         _write_config(
             path,
-            {**GLOBAL, "start_time": "20:00", "end_time": "07:00", "by_board": {"b1": {"start_time": "21:00", "end_time": "06:00"}}},
+            {
+                **GLOBAL,
+                "start_time": "20:00",
+                "end_time": "07:00",
+                "by_board": {"b1": {"start_time": "21:00", "end_time": "06:00"}},
+            },
         )
         ConfigManager._instance = None
         manager = ConfigManager(config_path=str(path))

@@ -1540,7 +1540,9 @@ class ConfigManager:
         """
         with self._file_lock:
             features = self._config.setdefault("features", {})
-            silence = features.setdefault("silence_schedule", self._deep_copy(DEFAULT_CONFIG["features"]["silence_schedule"]))
+            silence = features.setdefault(
+                "silence_schedule", self._deep_copy(DEFAULT_CONFIG["features"]["silence_schedule"])
+            )
             by_board = silence.get("by_board")
             if not isinstance(by_board, dict):
                 by_board = {}
