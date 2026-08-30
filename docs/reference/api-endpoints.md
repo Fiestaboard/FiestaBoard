@@ -123,6 +123,8 @@ pickers filter to the boards they're compatible with (see
 | `DELETE` | `/settings/board/{id}` | Remove a board instance |
 | `GET` | `/settings/active-page` | Get a board's active page id (`?board_id=`) |
 | `PUT` | `/settings/active-page` | Set a board's active page (renders and sends immediately) |
+| `GET` | `/silence-status` | Get a board's silence schedule status (`?board_id=`) |
+| `PUT` | `/settings/silence-schedule` | Set a board's silence schedule (`board_id` in the body) |
 | `POST` | `/pages/{id}/send` | Send a page (`?target=board&board_id=`) |
 | `GET` | `/board/current-message` | Read a board's current display (`?board_id=`) |
 
@@ -140,6 +142,27 @@ pickers filter to the boards they're compatible with (see
 |-------|------|-------------|
 | `page_id` | string \| null | Page (or collection) id to activate, or `null` to clear |
 | `board_id` | string | Optional. Omitted → primary board (legacy behavior) |
+
+#### `PUT /settings/silence-schedule` — request body fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | boolean | Whether silence is on for this board |
+| `start_time` | string | Window start, UTC ISO (e.g. `"04:00+00:00"`) |
+| `end_time` | string | Window end, UTC ISO |
+| `mode` | string | `"freeze"` (default), `"indicator"`, or `"page"` |
+| `page_id` | string \| null | Page shown when `mode` is `"page"`. Required in that mode, and validated against the target board's size |
+| `indicator_text` | string \| null | Text shown when `mode` is `"indicator"`. Uppercased; defaults to `SNOOZING` |
+| `indicator_position` | string \| null | `"center"` (default), `"top-left"`, `"top-right"`, `"bottom-left"`, `"bottom-right"` |
+| `board_id` | string | Optional. Unknown board → `404`. **Note the exception below** |
+
+Silence is the one per-board setting where omitting `board_id` does *not*
+mean "the primary board": it writes the **install-wide** schedule, which every
+board without its own override resolves to. That way an existing install keeps
+one set of quiet hours until you deliberately give a board its own, and a board
+you add later inherits the install's quiet hours rather than staying loud.
+`GET /silence-status?board_id=` returns the resolved values for that board and
+echoes `board_id` back.
 
 #### Board Instance Fields
 
