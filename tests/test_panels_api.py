@@ -262,6 +262,49 @@ class TestPanelOrchestration:
         board = fake_settings.boards[0]
         assert (board["notes_wide"], board["notes_tall"]) == (3, 6)
 
+    def test_create_with_aspect_sizes_the_grid_and_round_trips(self, client, tmp_path):
+        """The aspect must both size the board AND persist on the panel —
+        the first implementation computed the 21:9 grid but silently stored
+        16:9, so the next size edit would have re-fit the wrong shape."""
+        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
+        fake_settings = self._fake_settings_service()
+        with (
+            patch("src.api_server.get_panel_service", return_value=real_service),
+            patch("src.api_server.get_settings_service", return_value=fake_settings),
+            patch("src.api_server._reinitialize_board_clients"),
+        ):
+            created = client.post(
+                "/panels",
+                json={"name": "Wide TV", "screen_diagonal_inches": 55, "screen_aspect_w": 21, "screen_aspect_h": 9},
+            ).json()["panel"]
+        assert created["screen_aspect_w"] == 21
+        assert created["screen_aspect_h"] == 9
+        board = fake_settings.boards[0]
+        assert (board["notes_wide"], board["notes_tall"]) == (2, 3)
+        stored = real_service.get_panel(created["id"])
+        assert stored is not None
+        assert (stored.screen_aspect_w, stored.screen_aspect_h) == (21, 9)
+
+    def test_aspect_change_refits_the_grid(self, client, tmp_path):
+        """Changing the aspect ratio re-fits the board like a size change:
+        a 55" 16:9 panel is 1×4; the same TV declared 21:9 fits 2×3."""
+        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
+        fake_settings = self._fake_settings_service()
+        with (
+            patch("src.api_server.get_panel_service", return_value=real_service),
+            patch("src.api_server.get_settings_service", return_value=fake_settings),
+            patch("src.api_server._reinitialize_board_clients"),
+        ):
+            created = client.post("/panels", json={"name": "Wide TV", "screen_diagonal_inches": 55}).json()["panel"]
+            board = fake_settings.boards[0]
+            assert (board["notes_wide"], board["notes_tall"]) == (1, 4)
+
+            response = client.patch(f"/panels/{created['id']}", json={"screen_aspect_w": 21, "screen_aspect_h": 9})
+        assert response.status_code == 200
+        assert response.json()["panel"]["screen_aspect_w"] == 21
+        board = fake_settings.boards[0]
+        assert (board["notes_wide"], board["notes_tall"]) == (2, 3)
+
     def test_delete_panel_removes_virtual_board(self, client, tmp_path):
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service(

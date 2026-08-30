@@ -19,7 +19,7 @@ from .models import Panel
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 4
+CURRENT_SCHEMA_VERSION = 5
 
 
 def _migrate_v1_to_v2(panels_data: list[dict]) -> int:
@@ -67,12 +67,30 @@ def _migrate_v3_to_v4(panels_data: list[dict]) -> int:
     return migrated
 
 
+def _migrate_v4_to_v5(panels_data: list[dict]) -> int:
+    """Migration 4 -> 5: stamp the default 16:9 screen aspect explicitly.
+
+    Panels created before aspect ratios existed were all sized assuming a
+    16:9 screen, so that is what they keep.
+    """
+    migrated = 0
+    for panel_data in panels_data:
+        if isinstance(panel_data, dict) and (
+            "screen_aspect_w" not in panel_data or "screen_aspect_h" not in panel_data
+        ):
+            panel_data.setdefault("screen_aspect_w", 16.0)
+            panel_data.setdefault("screen_aspect_h", 9.0)
+            migrated += 1
+    return migrated
+
+
 # Ordered migrations: (target_version, function). Each function takes the raw
 # panels list, mutates in place, and returns the number of entries processed.
 MIGRATIONS: list[tuple[int, Callable[[list[dict]], int]]] = [
     (2, _migrate_v1_to_v2),
     (3, _migrate_v2_to_v3),
     (4, _migrate_v3_to_v4),
+    (5, _migrate_v4_to_v5),
 ]
 
 

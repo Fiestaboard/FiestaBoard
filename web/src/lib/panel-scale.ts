@@ -35,6 +35,46 @@ export function screenPpi(screenWidthPx: number, screenHeightPx: number, diagona
  * uniform scale keeps both axes true. Mirrors src/panels/autofit.py.
  */
 export const NOTE_COL_PITCH_IN = 24.5 / 15;
+export const NOTE_ROW_PITCH_IN = NOTE_COL_PITCH_IN * (1.145 / 0.845);
+
+/** One auto-fit building block: a 15×3 Note at physical pitch. */
+export const BLOCK_WIDTH_IN = 15 * NOTE_COL_PITCH_IN;
+export const BLOCK_HEIGHT_IN = 3 * NOTE_ROW_PITCH_IN;
+
+/** Grid axes never exceed this many Note blocks (mirrors src/devices.py). */
+const MAX_NOTES_PER_AXIS = 8;
+
+/**
+ * (width, height) in inches of an aspectW:aspectH screen with the given
+ * diagonal. Mirrors src/panels/autofit.py screen_dimensions_in().
+ */
+export function screenDimensionsIn(diagonalInches: number, aspectW = 16, aspectH = 9): [number, number] {
+  if (diagonalInches <= 0 || aspectW <= 0 || aspectH <= 0) {
+    throw new Error(`screenDimensionsIn requires positive inputs (got ${diagonalInches}" @ ${aspectW}:${aspectH})`);
+  }
+  const hyp = Math.hypot(aspectW, aspectH);
+  return [(diagonalInches * aspectW) / hyp, (diagonalInches * aspectH) / hyp];
+}
+
+/**
+ * (notesWide, notesTall) of the largest true-scale grid that fits the
+ * screen. Mirrors src/panels/autofit.py compute_autofit_grid() — the panel
+ * editor previews the grid live with this, and the backend computes the
+ * board it actually creates with the Python twin; their tests share the
+ * same example cases so drift fails loudly.
+ */
+export function computeAutofitGrid(
+  diagonalInches: number,
+  aspectW = 16,
+  aspectH = 9,
+): { notesWide: number; notesTall: number } {
+  const [widthIn, heightIn] = screenDimensionsIn(diagonalInches, aspectW, aspectH);
+  const clamp = (blocks: number) => Math.max(1, Math.min(MAX_NOTES_PER_AXIS, blocks));
+  return {
+    notesWide: clamp(Math.floor(widthIn / BLOCK_WIDTH_IN)),
+    notesTall: clamp(Math.floor(heightIn / BLOCK_HEIGHT_IN)),
+  };
+}
 
 /** Max stretch beyond true flap size allowed to close the gap to the screen edge. */
 export const MAX_FILL_STRETCH = 1.1;
@@ -57,7 +97,12 @@ export interface PanelAutofitScaleOptions {
 /**
  * Scale for a borderless auto-fit grid: flaps at true physical size, then
  * gently stretched (≤ MAX_FILL_STRETCH) toward the nearest screen edge.
- * Never shrinks below true size to fill.
+ *
+ * Never shrinks below true size to fill — EXCEPT when the grid overflows
+ * the screen at true size. Auto-fit always picks a grid that fits, so that
+ * only happens on a screen smaller than one Note block (the 3" pocket
+ * displays panels support): there the whole block shrinks to fit instead
+ * of showing a life-size crop of its top-left corner.
  */
 export function panelAutofitScale(opts: PanelAutofitScaleOptions): number {
   const {
@@ -78,6 +123,6 @@ export function panelAutofitScale(opts: PanelAutofitScaleOptions): number {
   const ppi = screenPpi(screenWidthPx, screenHeightPx, diagonalInches);
   const trueScale = (cols * colPitchIn * ppi) / gridWidthPx;
   const fill = Math.min(screenWidthPx / (gridWidthPx * trueScale), screenHeightPx / (gridHeightPx * trueScale));
-  const stretch = Math.min(MAX_FILL_STRETCH, Math.max(1, fill));
+  const stretch = fill < 1 ? fill : Math.min(MAX_FILL_STRETCH, fill);
   return trueScale * stretch * calibration;
 }

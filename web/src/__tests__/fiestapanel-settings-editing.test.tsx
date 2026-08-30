@@ -32,6 +32,8 @@ const PANEL: Panel = {
   name: "Living Room TV",
   board_id: "vboard-1",
   screen_diagonal_inches: 55,
+  screen_aspect_w: 16,
+  screen_aspect_h: 9,
   calibration_scale: 1,
   animations_enabled: true,
   is_display: false,
@@ -131,6 +133,45 @@ describe("FiestaPanelSettings — edit dialog", () => {
     expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining("Morning Board"), expect.anything());
     const message = vi.mocked(toast.warning).mock.calls[0][0] as string;
     expect(message.match(/Morning Board/g)).toHaveLength(1);
+  });
+
+  it("previews the aspect-ratio grid live and sends the aspect on save", async () => {
+    mockList();
+    let patchBody: Record<string, unknown> | null = null;
+    server.use(
+      http.patch("/api/panels/abc123def456", async ({ request }) => {
+        patchBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ status: "success", panel: PANEL });
+      }),
+    );
+    const user = userEvent.setup();
+    await openEditDialog(user);
+
+    // 55" 16:9 auto-fits 1×4 Note blocks (15 × 12 flaps)…
+    expect(screen.getByTestId("tv-preview-meta")).toHaveTextContent("15 × 12 flaps · 1 × 4 Note blocks");
+    expect(screen.getAllByTestId("tv-preview-block")).toHaveLength(4);
+
+    // …and the same TV declared 21:9 fits 2×3 (30 × 9 flaps), live.
+    await user.click(screen.getByRole("button", { name: "21:9" }));
+    expect(screen.getByTestId("tv-preview-meta")).toHaveTextContent("30 × 9 flaps · 2 × 3 Note blocks");
+    expect(screen.getAllByTestId("tv-preview-block")).toHaveLength(6);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(patchBody).not.toBeNull());
+    expect(patchBody!.screen_aspect_w).toBe(21);
+    expect(patchBody!.screen_aspect_h).toBe(9);
+  });
+
+  it("accepts a 3 inch pocket screen but not less", async () => {
+    mockList();
+    const user = userEvent.setup();
+    await openEditDialog(user);
+
+    fireEvent.change(screen.getByLabelText("Custom (inches)"), { target: { value: "3" } });
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText("Custom (inches)"), { target: { value: "2" } });
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("does not warn when a save changes nothing size-related", async () => {

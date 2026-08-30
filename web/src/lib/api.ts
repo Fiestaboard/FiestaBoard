@@ -77,6 +77,10 @@ export interface Panel {
   name: string;
   board_id: string;
   screen_diagonal_inches: number;
+  /** Screen aspect ratio (width:height); 16:9 unless the owner said
+   * otherwise. Optional for payloads cached before the field existed. */
+  screen_aspect_w?: number;
+  screen_aspect_h?: number;
   calibration_scale: number;
   /** Mechanical flip animation on the viewer; off = frames snap into place. */
   animations_enabled: boolean;
@@ -98,11 +102,15 @@ export interface Panel {
 export interface PanelCreateRequest {
   name: string;
   screen_diagonal_inches: number;
+  screen_aspect_w?: number;
+  screen_aspect_h?: number;
 }
 
 export interface PanelUpdateRequest {
   name?: string;
   screen_diagonal_inches?: number;
+  screen_aspect_w?: number;
+  screen_aspect_h?: number;
   calibration_scale?: number;
   animations_enabled?: boolean;
   is_display?: boolean;

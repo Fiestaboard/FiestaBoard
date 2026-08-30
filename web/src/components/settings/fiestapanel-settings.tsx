@@ -33,6 +33,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { TvPreview } from "@/components/panel/tv-preview";
 import { TimePicker } from "@/components/ui/time-picker";
 import { useTranslations } from "@/i18n/translations";
 import { api, type HdmiKioskStatus, type Panel } from "@/lib/api";
@@ -40,6 +41,20 @@ import { appUrl } from "@/lib/base-path";
 
 /** TV-diagonal presets offered as one-tap chips (inches) — never translated. */
 const SIZE_PRESETS = [32, 43, 50, 55, 65, 75, 85] as const;
+
+/** Aspect-ratio presets (never translated); custom W:H inputs cover the rest. */
+const ASPECT_PRESETS: ReadonlyArray<{ label: string; w: number; h: number }> = [
+  { label: "16:9", w: 16, h: 9 },
+  { label: "21:9", w: 21, h: 9 },
+  { label: "4:3", w: 4, h: 3 },
+  { label: "9:16", w: 9, h: 16 },
+];
+
+/** Screen bounds — mirror the backend's Panel model. */
+const DIAGONAL_MIN = 3;
+const DIAGONAL_MAX = 200;
+const ASPECT_MIN = 1;
+const ASPECT_MAX = 100;
 
 const PANELS_QUERY_KEY = ["panels"] as const;
 const HDMI_QUERY_KEY = ["hdmi-kiosk"] as const;
@@ -59,6 +74,8 @@ interface EditorState {
   panelId?: string;
   name: string;
   diagonal: number;
+  aspectW: number;
+  aspectH: number;
   animationsEnabled: boolean;
   autoDimEnabled: boolean;
   autoDimStart: string;
@@ -74,6 +91,8 @@ const NEW_PANEL: EditorState = {
   mode: "create",
   name: "",
   diagonal: 55,
+  aspectW: 16,
+  aspectH: 9,
   // Mirrors the backend default (off): create sends only name + size, so a
   // different value here would misrepresent what the server will store.
   animationsEnabled: false,
@@ -89,6 +108,8 @@ function editorFromPanel(panel: Panel): EditorState {
     panelId: panel.id,
     name: panel.name,
     diagonal: panel.screen_diagonal_inches,
+    aspectW: panel.screen_aspect_w ?? 16,
+    aspectH: panel.screen_aspect_h ?? 9,
     animationsEnabled: panel.animations_enabled,
     autoDimEnabled: panel.auto_dim.enabled,
     autoDimStart: panel.auto_dim.start,
@@ -146,6 +167,8 @@ export function FiestaPanelSettings() {
       api.createPanel({
         name: state.name,
         screen_diagonal_inches: state.diagonal,
+        screen_aspect_w: state.aspectW,
+        screen_aspect_h: state.aspectH,
       }),
     onSuccess: () => {
       invalidate();
@@ -160,6 +183,8 @@ export function FiestaPanelSettings() {
       api.updatePanel(state.panelId ?? "", {
         name: state.name,
         screen_diagonal_inches: state.diagonal,
+        screen_aspect_w: state.aspectW,
+        screen_aspect_h: state.aspectH,
         animations_enabled: state.animationsEnabled,
         auto_dim: { enabled: state.autoDimEnabled, start: state.autoDimStart, end: state.autoDimEnd },
         calibration_scale: state.calibration,
@@ -361,8 +386,8 @@ export function FiestaPanelSettings() {
                     <Input
                       id="panel-custom-size"
                       type="number"
-                      min={10}
-                      max={200}
+                      min={DIAGONAL_MIN}
+                      max={DIAGONAL_MAX}
                       step={0.5}
                       className="w-24"
                       value={editor.diagonal}
@@ -372,6 +397,62 @@ export function FiestaPanelSettings() {
                       }}
                     />
                   </Flex>
+                </Stack>
+                <Stack gap="2">
+                  <Label>{t("aspectRatioLabel")}</Label>
+                  <Flex gap="2" align="center" wrap>
+                    {ASPECT_PRESETS.map((preset) => (
+                      <Button
+                        key={preset.label}
+                        type="button"
+                        size="sm"
+                        variant={editor.aspectW === preset.w && editor.aspectH === preset.h ? "default" : "outline"}
+                        onClick={() => setEditor({ ...editor, aspectW: preset.w, aspectH: preset.h })}
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                    <Flex gap="1" align="center">
+                      <Input
+                        aria-label={t("aspectWidthLabel")}
+                        type="number"
+                        min={ASPECT_MIN}
+                        max={ASPECT_MAX}
+                        step={1}
+                        className="w-16"
+                        value={editor.aspectW}
+                        onChange={(e) => {
+                          const parsed = Number(e.target.value);
+                          if (Number.isFinite(parsed)) setEditor({ ...editor, aspectW: parsed });
+                        }}
+                      />
+                      <Text as="span" size="xs" tone="muted">
+                        :
+                      </Text>
+                      <Input
+                        aria-label={t("aspectHeightLabel")}
+                        type="number"
+                        min={ASPECT_MIN}
+                        max={ASPECT_MAX}
+                        step={1}
+                        className="w-16"
+                        value={editor.aspectH}
+                        onChange={(e) => {
+                          const parsed = Number(e.target.value);
+                          if (Number.isFinite(parsed)) setEditor({ ...editor, aspectH: parsed });
+                        }}
+                      />
+                    </Flex>
+                  </Flex>
+                </Stack>
+                <Stack gap="2">
+                  <Label>{t("tvPreviewLabel")}</Label>
+                  {editor.aspectW >= ASPECT_MIN &&
+                    editor.aspectH >= ASPECT_MIN &&
+                    editor.diagonal >= DIAGONAL_MIN &&
+                    editor.diagonal <= DIAGONAL_MAX && (
+                      <TvPreview diagonalInches={editor.diagonal} aspectW={editor.aspectW} aspectH={editor.aspectH} />
+                    )}
                   <Text size="xs" tone="muted">
                     {t("autoFitHint")}
                   </Text>
@@ -453,8 +534,12 @@ export function FiestaPanelSettings() {
                   disabled={
                     saving ||
                     !editor.name.trim() ||
-                    editor.diagonal < 10 ||
-                    editor.diagonal > 200 ||
+                    editor.diagonal < DIAGONAL_MIN ||
+                    editor.diagonal > DIAGONAL_MAX ||
+                    editor.aspectW < ASPECT_MIN ||
+                    editor.aspectW > ASPECT_MAX ||
+                    editor.aspectH < ASPECT_MIN ||
+                    editor.aspectH > ASPECT_MAX ||
                     editor.calibration < CALIBRATION_MIN ||
                     editor.calibration > CALIBRATION_MAX
                   }

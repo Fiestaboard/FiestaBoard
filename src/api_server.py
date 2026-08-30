@@ -7653,7 +7653,9 @@ async def create_panel(data: PanelCreate):
 
     settings_service = get_settings_service()
     board_id = str(uuid.uuid4())
-    notes_wide, notes_tall = compute_autofit_grid(data.screen_diagonal_inches)
+    notes_wide, notes_tall = compute_autofit_grid(
+        data.screen_diagonal_inches, data.screen_aspect_w, data.screen_aspect_h
+    )
     settings_service.add_board(
         {
             "id": board_id,
@@ -7695,12 +7697,19 @@ async def update_panel(panel_id: str, data: PanelUpdate):
         raise HTTPException(status_code=404, detail="Panel not found")
 
     incompatible_references: list[dict] | None = None
-    if data.model_dump(exclude_unset=True).get("screen_diagonal_inches") is not None:
+    updates = data.model_dump(exclude_unset=True)
+    screen_changed = any(
+        updates.get(field) is not None
+        for field in ("screen_diagonal_inches", "screen_aspect_w", "screen_aspect_h")
+    )
+    if screen_changed:
         settings_service = get_settings_service()
         boards = [dict(b) for b in (settings_service.get_board_settings().boards or [])]
         target = next((b for b in boards if b.get("id") == panel.board_id), None)
         if target is not None and target.get("api_mode") == "virtual":
-            notes_wide, notes_tall = compute_autofit_grid(panel.screen_diagonal_inches)
+            notes_wide, notes_tall = compute_autofit_grid(
+                panel.screen_diagonal_inches, panel.screen_aspect_w, panel.screen_aspect_h
+            )
             if (target.get("notes_wide"), target.get("notes_tall")) != (notes_wide, notes_tall) or target.get(
                 "device_type"
             ) != "note_array":

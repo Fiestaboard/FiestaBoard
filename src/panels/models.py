@@ -49,7 +49,12 @@ class Panel(BaseModel):
     short_code: int = Field(default=0, ge=0)
     name: str = Field(min_length=1, max_length=100)
     board_id: str
-    screen_diagonal_inches: float = Field(default=55.0, ge=10.0, le=200.0)
+    screen_diagonal_inches: float = Field(default=55.0, ge=3.0, le=200.0)
+    # Screen aspect ratio (width:height). 16:9 covers almost every TV;
+    # ultrawides (21:9), 4:3 signage and portrait installs (9:16) change
+    # how many Note blocks the auto-fit grid can hold.
+    screen_aspect_w: float = Field(default=16.0, ge=1.0, le=100.0)
+    screen_aspect_h: float = Field(default=9.0, ge=1.0, le=100.0)
     calibration_scale: float = Field(default=1.0, ge=0.85, le=1.15)
     # Mechanical flip animation on the viewer. Off by default: on a large
     # auto-fit grid the spin reads slow and busy — characters just update
@@ -73,14 +78,18 @@ class PanelCreate(BaseModel):
     """
 
     name: str = Field(min_length=1, max_length=100)
-    screen_diagonal_inches: float = Field(default=55.0, ge=10.0, le=200.0)
+    screen_diagonal_inches: float = Field(default=55.0, ge=3.0, le=200.0)
+    screen_aspect_w: float = Field(default=16.0, ge=1.0, le=100.0)
+    screen_aspect_h: float = Field(default=9.0, ge=1.0, le=100.0)
 
 
 class PanelUpdate(BaseModel):
     """Request model for updating a panel; all fields optional."""
 
     name: str | None = Field(default=None, min_length=1, max_length=100)
-    screen_diagonal_inches: float | None = Field(default=None, ge=10.0, le=200.0)
+    screen_diagonal_inches: float | None = Field(default=None, ge=3.0, le=200.0)
+    screen_aspect_w: float | None = Field(default=None, ge=1.0, le=100.0)
+    screen_aspect_h: float | None = Field(default=None, ge=1.0, le=100.0)
     calibration_scale: float | None = Field(default=None, ge=0.85, le=1.15)
     animations_enabled: bool | None = None
     is_display: bool | None = None

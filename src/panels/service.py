@@ -47,6 +47,8 @@ class PanelService:
             name=data.name,
             board_id=board_id,
             screen_diagonal_inches=data.screen_diagonal_inches,
+            screen_aspect_w=data.screen_aspect_w,
+            screen_aspect_h=data.screen_aspect_h,
         )
         return self.storage.create(panel)
 

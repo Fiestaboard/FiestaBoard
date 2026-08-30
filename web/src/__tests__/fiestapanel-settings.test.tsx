@@ -70,6 +70,8 @@ describe("FiestaPanelSettings", () => {
       expect(body).toEqual({
         name: "Kitchen TV",
         screen_diagonal_inches: 65,
+        screen_aspect_w: 16,
+        screen_aspect_h: 9,
       }),
     );
   });
