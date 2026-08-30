@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "Modalità pianificazione disattivata",
     "collectionSizeWarning": "{count} pagine su {total} in questa raccolta non corrispondono alle dimensioni di questa board e verranno saltate.",
     "turnOffLiveModeAriaLabel": "Disattiva la modalità dal vivo",
-    "liveModeBadge": "Modalità dal vivo"
+    "liveModeBadge": "Modalità dal vivo",
+    "composeOneOff": "Scrivi un messaggio"
   },
   "forceSetDialog": {
     "title": "Forza impostazione board",
@@ -748,6 +749,26 @@
     "setting": "Impostazione…",
     "toastSuccess": "Mostro «{pageName}» per {minutes} min",
     "toastError": "Impossibile impostare la sostituzione"
+  },
+  "composeDialog": {
+    "title": "Scrivi un messaggio",
+    "description": "Scrivi qualcosa e invialo direttamente al tabellone. Salvarlo come pagina è facoltativo.",
+    "messageLabel": "Messaggio",
+    "messagePlaceholder": "Scrivi il tuo messaggio…",
+    "previewLabel": "Anteprima",
+    "tooManyLines": "Troppe righe: questo tabellone ne mostra {max}.",
+    "saveAsPage": "Salva come pagina",
+    "pageNameLabel": "Nome della pagina",
+    "pageNamePlaceholder": "Dai un nome a questa pagina",
+    "save": "Salva",
+    "saving": "Salvataggio…",
+    "send": "Invia al tabellone",
+    "sending": "Invio…",
+    "cancel": "Annulla",
+    "toastSent": "Inviato al tabellone",
+    "toastSendError": "Invio del messaggio non riuscito",
+    "toastSaved": "Salvato \"{pageName}\"",
+    "toastSaveError": "Salvataggio della pagina non riuscito"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Impossibile raggiungere l'app. Controlla la rete o che FiestaBoard sia in esecuzione.",

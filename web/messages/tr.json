@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "Zamanlama modu devre dışı bırakıldı",
     "collectionSizeWarning": "Bu koleksiyondaki {total} sayfadan {count} tanesi bu panonun boyutuna uymuyor ve atlanacak.",
     "turnOffLiveModeAriaLabel": "Canlı Modu kapat",
-    "liveModeBadge": "Canlı Mod"
+    "liveModeBadge": "Canlı Mod",
+    "composeOneOff": "Mesaj yaz"
   },
   "forceSetDialog": {
     "title": "Board'u Zorla Ayarla",
@@ -748,6 +749,26 @@
     "setting": "Ayarlanıyor…",
     "toastSuccess": "\"{pageName}\" {minutes} dk gösteriliyor",
     "toastError": "Geçersiz kılma ayarlanamadı"
+  },
+  "composeDialog": {
+    "title": "Mesaj yaz",
+    "description": "Bir şeyler yazın ve doğrudan panoya gönderin. Sayfa olarak kaydetmek isteğe bağlıdır.",
+    "messageLabel": "Mesaj",
+    "messagePlaceholder": "Mesajınızı yazın…",
+    "previewLabel": "Önizleme",
+    "tooManyLines": "Çok fazla satır: bu pano {max} satır gösterir.",
+    "saveAsPage": "Sayfa olarak kaydet",
+    "pageNameLabel": "Sayfa adı",
+    "pageNamePlaceholder": "Bu sayfaya bir ad verin",
+    "save": "Kaydet",
+    "saving": "Kaydediliyor…",
+    "send": "Panoya gönder",
+    "sending": "Gönderiliyor…",
+    "cancel": "İptal",
+    "toastSent": "Panoya gönderildi",
+    "toastSendError": "Mesaj gönderilemedi",
+    "toastSaved": "\"{pageName}\" kaydedildi",
+    "toastSaveError": "Sayfa kaydedilemedi"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Uygulamaya ulaşılamıyor. Ağınızı veya FiestaBoard'un çalışıp çalışmadığını kontrol edin.",

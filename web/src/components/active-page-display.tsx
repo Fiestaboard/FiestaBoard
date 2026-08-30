@@ -36,6 +36,7 @@ import {
   Loader2,
   Moon,
   Pause,
+  PencilLine,
   Radio,
   Timer,
   UploadCloud,
@@ -44,6 +45,7 @@ import {
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { ComposePageDialog } from "@/components/compose-page-dialog";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { ForceSetDialog } from "@/components/force-set-dialog";
 import { PageGridSelector } from "@/components/page-grid-selector";
@@ -96,6 +98,8 @@ export function ActivePageDisplay() {
   const [forceSetPageId, setForceSetPageId] = useState<string | null>(null);
   // Schedule mode choice dialog (shown before page selector when schedule is active)
   const [changeModeOpen, setChangeModeOpen] = useState(false);
+  // One-off compose dialog (issue #1787)
+  const [composeOpen, setComposeOpen] = useState(false);
   // When true, the page selector treats selection as manual (after disabling schedule)
   const [openSheetAsManual, setOpenSheetAsManual] = useState(false);
 
@@ -731,6 +735,24 @@ export function ActivePageDisplay() {
           <SheetHeader>
             <SheetTitle>{t("selectPageTitle")}</SheetTitle>
             <SheetDescription>{t("selectPageDescription")}</SheetDescription>
+            {/* The one-off escape hatch (issue #1787). It lives in the sheet
+                header rather than the change-mode dialog because the sheet is
+                reachable in both schedule and manual mode, while the dialog
+                only appears in schedule mode. */}
+            <Flex justify="start" className="pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  setIsSheetOpen(false);
+                  setComposeOpen(true);
+                }}
+              >
+                <PencilLine className="h-4 w-4" />
+                {t("composeOneOff")}
+              </Button>
+            </Flex>
           </SheetHeader>
 
           <Box className="mt-6">
@@ -759,6 +781,20 @@ export function ActivePageDisplay() {
           </Box>
         </SheetContent>
       </Sheet>
+
+      {/* Compose a one-off message and send it without saving it (issue #1787) */}
+      <ComposePageDialog
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        deviceType={currentBoard?.device_type ?? activeDeviceType}
+        notesWide={currentBoard?.notes_wide ?? 1}
+        notesTall={currentBoard?.notes_tall ?? 1}
+        boardColor={currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
+        code62Glyph={resolveCode62Glyph(
+          activeDeviceType,
+          currentBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
+        )}
+      />
 
       {/* Force Set dialog — opened when user picks a page while in schedule mode */}
       <ForceSetDialog

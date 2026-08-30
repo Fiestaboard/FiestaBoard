@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "Mode planning désactivé",
     "collectionSizeWarning": "{count} des {total} pages de cette collection ne correspondent pas à la taille de ce tableau et seront ignorées.",
     "turnOffLiveModeAriaLabel": "Désactiver le mode direct",
-    "liveModeBadge": "Mode direct"
+    "liveModeBadge": "Mode direct",
+    "composeOneOff": "Rédiger un message"
   },
   "forceSetDialog": {
     "title": "Forcer l'affichage",
@@ -748,6 +749,26 @@
     "setting": "Application…",
     "toastSuccess": "Affichage de « {pageName} » pendant {minutes} min",
     "toastError": "Échec du remplacement"
+  },
+  "composeDialog": {
+    "title": "Rédiger un message",
+    "description": "Écrivez quelque chose et envoyez-le directement au tableau. L’enregistrer comme page est facultatif.",
+    "messageLabel": "Message",
+    "messagePlaceholder": "Saisissez votre message…",
+    "previewLabel": "Aperçu",
+    "tooManyLines": "Trop de lignes : ce tableau en affiche {max}.",
+    "saveAsPage": "Enregistrer comme page",
+    "pageNameLabel": "Nom de la page",
+    "pageNamePlaceholder": "Nommez cette page",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "send": "Envoyer au tableau",
+    "sending": "Envoi…",
+    "cancel": "Annuler",
+    "toastSent": "Envoyé au tableau",
+    "toastSendError": "Échec de l’envoi du message",
+    "toastSaved": "« {pageName} » enregistré",
+    "toastSaveError": "Échec de l’enregistrement de la page"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Application inaccessible. Vérifiez votre réseau ou que FiestaBoard est en cours d'exécution.",

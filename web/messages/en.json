@@ -691,7 +691,8 @@
     "changeModeDisableSuccess": "Schedule mode disabled",
     "collectionSizeWarning": "{count} of {total} pages in this collection don't fit this board's size and will be skipped.",
     "turnOffLiveModeAriaLabel": "Turn off Live Mode",
-    "liveModeBadge": "Live Mode"
+    "liveModeBadge": "Live Mode",
+    "composeOneOff": "Compose a message"
   },
   "forceSetDialog": {
     "title": "Force Set Board",
@@ -704,6 +705,26 @@
     "setting": "Setting…",
     "toastSuccess": "Showing \"{pageName}\" for {minutes} min",
     "toastError": "Failed to set override"
+  },
+  "composeDialog": {
+    "title": "Compose a message",
+    "description": "Type something and send it straight to the board. Saving it as a page is optional.",
+    "messageLabel": "Message",
+    "messagePlaceholder": "Type your message…",
+    "previewLabel": "Preview",
+    "tooManyLines": "Too many lines: this board shows {max}.",
+    "saveAsPage": "Save as Page",
+    "pageNameLabel": "Page name",
+    "pageNamePlaceholder": "Name this page",
+    "save": "Save",
+    "saving": "Saving…",
+    "send": "Send to board",
+    "sending": "Sending…",
+    "cancel": "Cancel",
+    "toastSent": "Sent to the board",
+    "toastSendError": "Failed to send the message",
+    "toastSaved": "Saved \"{pageName}\"",
+    "toastSaveError": "Failed to save the page"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Cannot reach the app. Check your network or that FiestaBoard is running.",

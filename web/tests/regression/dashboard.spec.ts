@@ -133,6 +133,77 @@ test.describe("regression: dashboard", () => {
   });
 
   /**
+   * UX node: dashboard.actions.compose-one-off
+   * Route: /
+   * Preconditions: board:configured, schedule:disabled (manual mode)
+   * Interactions: click:change-page → click:compose → type:message → click:send
+   * Expected:
+   *   - "Compose a message" opens the compose dialog from the page-selector sheet
+   *   - Send posts an inline temporary override carrying the typed template
+   *   - No page is created: the saved-page list is unchanged afterwards
+   *   - The override is indefinite (expires_at is null), so the message stays
+   *     on the board until it is cancelled (issue #1787)
+   * Source refs: web/src/components/compose-page-dialog.tsx, web/src/components/active-page-display.tsx
+   * Coverage status: covered
+   */
+  test("dashboard.actions.compose-one-off — a composed message is sent without being saved as a page", async ({
+    page,
+  }) => {
+    await deleteAllPagesAuthed();
+    const pageId = await createPageAuthed(`Compose Base ${Date.now()}`);
+    await setActivePageAuthed(pageId);
+    await setScheduleEnabledAuthed(false);
+
+    try {
+      await page.goto("/");
+      await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
+
+      // Manual mode → Change Page opens the sheet directly
+      await page.getByRole("button", { name: /Change Page/i }).click();
+      await expect(page.getByRole("heading", { name: "Select Page" })).toBeVisible({ timeout: 5_000 });
+
+      // The compose entry point lives in the sheet header
+      await page.getByRole("button", { name: /Compose a message/i }).click();
+      await expect(page.getByRole("heading", { name: "Compose a message" })).toBeVisible({ timeout: 5_000 });
+
+      // Send is inert until there is something to send
+      const sendBtn = page.getByRole("button", { name: /Send to board/i });
+      await expect(sendBtn).toBeDisabled();
+
+      await page.getByRole("textbox", { name: /Message/i }).fill("ONE OFF HELLO");
+      await expect(sendBtn).toBeEnabled();
+      await sendBtn.click();
+
+      // Dialog closes and the override badge takes over the mode badge
+      await expect(page.getByRole("heading", { name: "Compose a message" })).toHaveCount(0, { timeout: 10_000 });
+
+      // The override carries the inline content and never expires on its own
+      await expect
+        .poll(
+          async () => {
+            const res = await fetch(`${API_URL}/settings/temporary-override`, { headers: authHeaders() });
+            return await res.json();
+          },
+          { timeout: 10_000 },
+        )
+        .toMatchObject({
+          active: true,
+          page_id: null,
+          expires_at: null,
+          template: ["ONE OFF HELLO"],
+        });
+
+      // Nothing was persisted: still just the one page we created up front
+      const pagesRes = await fetch(`${API_URL}/pages`, { headers: authHeaders() });
+      const pagesData = await pagesRes.json();
+      expect(pagesData.pages).toHaveLength(1);
+      expect(pagesData.pages[0].id).toBe(pageId);
+    } finally {
+      await fetch(`${API_URL}/settings/temporary-override`, { method: "DELETE", headers: authHeaders() });
+    }
+  });
+
+  /**
    * UX node: dashboard.home.live-empty
    * Route: /
    * Preconditions: board:configured, pages:[]

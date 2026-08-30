@@ -817,20 +817,44 @@ export interface ScheduleValidationResult {
   gaps: Gap[];
 }
 
+/** Mirrors `TemporaryOverride` in src/settings/service.py. */
 export interface TemporaryOverrideStatus {
   active: boolean;
   page_id: string | null;
+  // Null when the override is indefinite — it runs until it is cancelled
+  // (issue #1787), which is what a manual-mode one-off message needs.
   expires_at: string | null;
   remaining_seconds: number | null;
   revert_mode: "schedule" | "blank" | "page" | null;
   revert_page_id: string | null;
+  // Inline one-off content, set instead of page_id
+  template?: string[] | null;
+  line_metadata?: LineMetadata[] | null;
+  device_type?: string | null;
+  notes_wide?: number | null;
+  notes_tall?: number | null;
 }
 
-export interface SetTemporaryOverrideRequest {
-  page_id: string;
-  duration_minutes: number;
-  revert_mode: "schedule";
-}
+/**
+ * An override carries exactly one of `page_id` or `template`; the server
+ * rejects both-or-neither with a 422. `duration_minutes` is optional —
+ * omitting it makes the override indefinite.
+ */
+export type SetTemporaryOverrideRequest = {
+  duration_minutes?: number;
+  revert_mode?: "schedule" | "blank" | "page";
+  revert_page_id?: string;
+} & (
+  | { page_id: string; template?: never }
+  | {
+      page_id?: never;
+      template: string[];
+      line_metadata?: LineMetadata[];
+      device_type?: string;
+      notes_wide?: number;
+      notes_tall?: number;
+    }
+);
 
 export interface ActiveScheduleResponse {
   page_id: string | null;

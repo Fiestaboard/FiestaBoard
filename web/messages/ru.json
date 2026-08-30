@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "Режим расписания отключён",
     "collectionSizeWarning": "{count} из {total} страниц в этой коллекции не подходят под размер этой доски и будут пропущены.",
     "turnOffLiveModeAriaLabel": "Отключить живой режим",
-    "liveModeBadge": "Живой режим"
+    "liveModeBadge": "Живой режим",
+    "composeOneOff": "Написать сообщение"
   },
   "forceSetDialog": {
     "title": "Принудительно установить board",
@@ -748,6 +749,26 @@
     "setting": "Настройка…",
     "toastSuccess": "Показ «{pageName}» в течение {minutes} мин",
     "toastError": "Не удалось задать переопределение"
+  },
+  "composeDialog": {
+    "title": "Написать сообщение",
+    "description": "Введите текст и отправьте его прямо на табло. Сохранять как страницу необязательно.",
+    "messageLabel": "Сообщение",
+    "messagePlaceholder": "Введите сообщение…",
+    "previewLabel": "Предпросмотр",
+    "tooManyLines": "Слишком много строк: это табло показывает {max}.",
+    "saveAsPage": "Сохранить как страницу",
+    "pageNameLabel": "Название страницы",
+    "pageNamePlaceholder": "Назовите эту страницу",
+    "save": "Сохранить",
+    "saving": "Сохранение…",
+    "send": "Отправить на табло",
+    "sending": "Отправка…",
+    "cancel": "Отмена",
+    "toastSent": "Отправлено на табло",
+    "toastSendError": "Не удалось отправить сообщение",
+    "toastSaved": "Страница «{pageName}» сохранена",
+    "toastSaveError": "Не удалось сохранить страницу"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Не удаётся подключиться к приложению. Проверьте сеть или запущен ли FiestaBoard.",
