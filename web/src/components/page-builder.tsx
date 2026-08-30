@@ -64,6 +64,7 @@ import {
 import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
+import { useCurrentBoard } from "@/components/current-board-context";
 import type { StrokeCell } from "@/components/drawable-board-preview";
 import { DrawableBoardPreview } from "@/components/drawable-board-preview";
 import { PlainTextEditor } from "@/components/plain-text-editor";
@@ -79,7 +80,6 @@ import {
   paintLine,
   renderPositionalLine,
 } from "@/components/tiptap-template-editor/utils/draw-mode";
-import { useCurrentBoard } from "@/components/current-board-context";
 import {
   getEffectiveBoardColor,
   getEffectiveCode62Glyph,
