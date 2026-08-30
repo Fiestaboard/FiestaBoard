@@ -95,8 +95,13 @@ export function SystemUpdate() {
     // header. Only this component can know; the answer is in its own query.
     <PageSection>
       <TooltipProvider>
-        <Alert className="border-warning/50 bg-warning/10">
-          <ArrowUpCircle className="h-4 w-4 text-warning" />
+        {/* `variant="warning"` rather than the `default` variant tinted with raw
+            `border-warning/50 bg-warning/10` classes: @fiestaboard/ui 6 owns the
+            warning recipe (border, 8% fill, and `[&>svg]:text-warning` on the
+            icon) and derives the announcement role from the variant, so the
+            hand-rolled version rendered `role="status"` and stopped announcing. */}
+        <Alert variant="warning">
+          <ArrowUpCircle className="h-4 w-4" />
           <AlertDescription className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <Flex align="center" gap="2" wrap>
               <Text as="span" weight="medium">

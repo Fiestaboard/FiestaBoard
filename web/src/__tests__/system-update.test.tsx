@@ -197,6 +197,39 @@ describe("SystemUpdate", () => {
     expect(section).toContainElement(screen.getByRole("alert"));
   });
 
+  /**
+   * @fiestaboard/ui 6 derives an Alert's announcement urgency from its
+   * `variant`: only `destructive` and `warning` get `role="alert"`
+   * (assertive), everything else gets `role="status"` (polite). This banner
+   * must stay in the assertive group — the whole point of the update notice
+   * is that the reader hears it, and both this file and
+   * tests/regression/settings-system.spec.ts locate the banner by
+   * `role="alert"`. Styling it with raw `border-warning/50 bg-warning/10`
+   * classes over the `default` variant looks identical but announces
+   * politely, so assert the semantics, not the colour.
+   */
+  it("announces the update banner assertively", async () => {
+    server.use(
+      http.get(`${API_BASE}/system/update-check`, () => {
+        return HttpResponse.json({
+          current_version: "2.0.1",
+          latest_version: "2.0.2",
+          update_available: true,
+          package_url: "https://github.com/Fiestaboard/FiestaBoard/releases/latest",
+          error: null,
+          is_production: true,
+        });
+      }),
+    );
+
+    render(<SystemUpdate />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("Update Available")).toBeInTheDocument();
+    });
+    expect(document.querySelector('[data-slot="alert"]')).toHaveAttribute("role", "alert");
+  });
+
   it("renders nothing in non-production mode with no update", async () => {
     server.use(
       http.get(`${API_BASE}/system/update-check`, () => {
