@@ -19,14 +19,17 @@ import {
 import { Spinner } from "@fiestaboard/ui/components/feedback/spinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Moon } from "lucide-react";
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useCurrentBoard } from "@/components/current-board-context";
 import { TimePicker } from "@/components/ui/time-picker";
-import { usePages } from "@/hooks/use-board";
+import { queryKeys, usePages } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
 import { api } from "@/lib/api";
+import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { resolveSilenceConfig } from "@/lib/silence-config";
 import { localTimeToUTC, utcToLocalTime } from "@/lib/timezone-utils";
 
 type SilenceMode = "indicator" | "freeze" | "page";
@@ -35,6 +38,12 @@ export function SilenceSchedule() {
   const t = useTranslations("generalSettings");
   const tc = useTranslations("common");
   const queryClient = useQueryClient();
+
+  // Silence settings are per board (issue #1788). Scope only in multi-board
+  // installs so a single-board install behaves exactly as before.
+  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
+  const isMultiBoard = boards.length > 1;
+  const scopedBoardId = isMultiBoard && currentBoardId ? currentBoardId : undefined;
 
   const [hasChanges, setHasChanges] = useState(false);
   const [silenceEnabled, setSilenceEnabled] = useState(false);
@@ -58,14 +67,17 @@ export function SilenceSchedule() {
   // of replacing 20:00/07:00 a render later (react-hooks/set-state-in-effect,
   // issue #1568). The "once" guard is state, not a ref, because refs must not
   // be read during render either.
-  const [initialized, setInitialized] = useState(false);
-  const configChanged = useDepsChanged([deferredSilenceConfig, generalConfig?.timezone]);
+  // Keyed by board rather than a bare boolean: switching boards must re-seed
+  // the form from that board's own settings (issue #1788).
+  const [initializedFor, setInitializedFor] = useState<string | null>(null);
+  const seedKey = scopedBoardId ?? "";
+  const configChanged = useDepsChanged([deferredSilenceConfig, generalConfig?.timezone, seedKey]);
 
-  if (configChanged && !initialized) {
+  if (configChanged && initializedFor !== seedKey) {
     const rawConfig = (deferredSilenceConfig as { config?: Record<string, unknown> } | undefined)?.config;
     if (rawConfig && generalConfig?.timezone) {
       const userTimezone = generalConfig.timezone ?? "America/Los_Angeles";
-      const config = rawConfig;
+      const config = resolveSilenceConfig(rawConfig as never, scopedBoardId) as Record<string, unknown>;
 
       setSilenceEnabled((config.enabled as boolean) ?? false);
 
@@ -83,7 +95,7 @@ export function SilenceSchedule() {
       setSilenceIndicatorPosition(((config.indicator_position as string) ?? "") || "center");
 
       setHasChanges(false);
-      setInitialized(true);
+      setInitializedFor(seedKey);
     }
   }
 
@@ -91,7 +103,11 @@ export function SilenceSchedule() {
     mutationFn: (data: Parameters<typeof api.updateSilenceSchedule>[0]) => api.updateSilenceSchedule(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-settings"], refetchType: "active" });
-      queryClient.invalidateQueries({ queryKey: ["silence-status"], refetchType: "active" });
+      // Unscoped key = prefix match, so every board-scoped variant refetches
+      // too. This used to invalidate ["silence-status"] (hyphenated) while the
+      // consumers read ["silenceStatus"] (camelCase), so the invalidation
+      // silently missed and the banner kept a stale window.
+      queryClient.invalidateQueries({ queryKey: queryKeys.silenceStatus(), refetchType: "active" });
       toast.success(t("toastSettingsSaved"));
     },
     onError: (error: Error) => {
@@ -100,7 +116,15 @@ export function SilenceSchedule() {
   });
 
   const { data: pagesData } = usePages();
-  const availablePages = pagesData?.pages ?? [];
+  // Only offer pages that fit this board (issue #1788): a 22x6 Flagship page
+  // used to be selectable as a 15x3 Note board's silence page and then
+  // silently mis-rendered. The current selection is always kept so an
+  // existing (possibly stale) choice stays visible instead of vanishing.
+  const availablePages = useMemo(() => {
+    const pages = pagesData?.pages ?? [];
+    if (!currentBoard) return pages;
+    return pages.filter((p) => p.id === silencePageId || pagesCompatibleWithBoard(p, currentBoard));
+  }, [pagesData?.pages, currentBoard, silencePageId]);
 
   const isSaving = updateSilenceMutation.isPending;
 
@@ -152,6 +176,9 @@ export function SilenceSchedule() {
         page_id: silencePageId || null,
         indicator_text: silenceIndicatorText || null,
         indicator_position: silenceIndicatorPosition || null,
+        // Multi-board installs target the selected board; single-board
+        // installs send exactly the body they always did.
+        ...(scopedBoardId ? { board_id: scopedBoardId } : {}),
       });
     }
     setHasChanges(false);

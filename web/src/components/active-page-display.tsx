@@ -165,8 +165,8 @@ export function ActivePageDisplay() {
 
   // Fetch silence mode status to show snoozing indicator
   const { data: silenceStatus } = useQuery<SilenceStatus>({
-    queryKey: ["silenceStatus"],
-    queryFn: api.getSilenceStatus,
+    queryKey: queryKeys.silenceStatus(scopedBoardId),
+    queryFn: () => api.getSilenceStatus(scopedBoardId),
   });
 
   // Fetch live board state so the Home display reflects what was last sent

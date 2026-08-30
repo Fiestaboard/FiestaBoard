@@ -20,6 +20,10 @@ export const queryKeys = {
   boardSettings: ["boardSettings"] as const,
   collections: ["collections"] as const,
   schedules: (boardId: string) => ["schedules", boardId] as const,
+  // Silence windows are per board (issue #1788). Calling this without a
+  // boardId yields the legacy unscoped key, which also works as an
+  // invalidation prefix matching every board-scoped variant.
+  silenceStatus: (boardId?: string) => (boardId ? (["silenceStatus", boardId] as const) : (["silenceStatus"] as const)),
 };
 
 // Pair with the backend's adaptive post-send refresh (max ~3s). Early tick
