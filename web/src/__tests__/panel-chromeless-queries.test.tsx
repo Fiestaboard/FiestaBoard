@@ -11,6 +11,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CurrentBoardProvider } from "@/components/current-board-context";
 import { GlobalAiPanelProvider } from "@/components/global-ai-panel-context";
+import { PageEditorBridgeProvider } from "@/components/page-editor-bridge-context";
+import { ScheduleEditorBridgeProvider } from "@/components/schedule-editor-bridge-context";
 import { SidebarProvider } from "@/components/sidebar-context";
 import { ConfigOverridesProvider } from "@/hooks/use-config-overrides";
 import { FormatPreferencesProvider } from "@/hooks/use-format-preferences";
@@ -25,7 +27,9 @@ vi.mock("@/hooks/use-router", () => ({
 }));
 
 // Must import after mocking.
+import { GlobalAiChatDrawer } from "@/components/global-ai-chat-drawer";
 import { NavigationSidebar } from "@/components/navigation-sidebar";
+import { ReduceMotionApplier } from "@/components/reduce-motion-applier";
 
 function Wrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({
@@ -33,19 +37,23 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   });
   return (
     <QueryClientProvider client={queryClient}>
-      <GlobalAiPanelProvider>
-        <SidebarProvider>
-          <CurrentBoardProvider>
-            <ConfigOverridesProvider>
-              <FormatPreferencesProvider>
-                <ThemeProvider attribute="class" defaultTheme="light">
-                  {children}
-                </ThemeProvider>
-              </FormatPreferencesProvider>
-            </ConfigOverridesProvider>
-          </CurrentBoardProvider>
-        </SidebarProvider>
-      </GlobalAiPanelProvider>
+      <ScheduleEditorBridgeProvider>
+        <PageEditorBridgeProvider>
+          <GlobalAiPanelProvider>
+            <SidebarProvider>
+              <CurrentBoardProvider>
+                <ConfigOverridesProvider>
+                  <FormatPreferencesProvider>
+                    <ThemeProvider attribute="class" defaultTheme="light">
+                      {children}
+                    </ThemeProvider>
+                  </FormatPreferencesProvider>
+                </ConfigOverridesProvider>
+              </CurrentBoardProvider>
+            </SidebarProvider>
+          </GlobalAiPanelProvider>
+        </PageEditorBridgeProvider>
+      </ScheduleEditorBridgeProvider>
     </QueryClientProvider>
   );
 }
@@ -79,12 +87,23 @@ describe("chromeless routes do not fire app-shell queries", () => {
     window.history.pushState({}, "", "/");
   });
 
+  /** Everything the root layout mounts on every route, panel viewer included. */
+  function AppShell() {
+    return (
+      <>
+        <ReduceMotionApplier />
+        <NavigationSidebar />
+        <GlobalAiChatDrawer />
+      </>
+    );
+  }
+
   it("panel viewer path: no board/settings/ai/beta requests", async () => {
     window.history.pushState({}, "", "/panel/abc123def456");
     mockPathname.mockReturnValue("/panel/abc123def456");
     const hits = trackShellRequests();
 
-    render(<NavigationSidebar />, { wrapper: Wrapper });
+    render(<AppShell />, { wrapper: Wrapper });
     // Give any (wrongly) enabled query a beat to fire.
     await new Promise((resolve) => setTimeout(resolve, 200));
 
@@ -97,11 +116,12 @@ describe("chromeless routes do not fire app-shell queries", () => {
     mockPathname.mockReturnValue("/pages");
     const hits = trackShellRequests();
 
-    render(<NavigationSidebar />, { wrapper: Wrapper });
+    render(<AppShell />, { wrapper: Wrapper });
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     expect(hits).toContain("/settings/board");
     expect(hits).toContain("/settings/ai");
     expect(hits).toContain("/settings/beta");
+    expect(hits).toContain("/settings/all");
   });
 });

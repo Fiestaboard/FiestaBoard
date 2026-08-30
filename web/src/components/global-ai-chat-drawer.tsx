@@ -31,6 +31,7 @@ import type {
   UpdateSettingArgs,
 } from "@/lib/ai-chat-types";
 import { type AISettings, api } from "@/lib/api";
+import { isChromelessPath } from "@/lib/chromeless";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -142,9 +143,13 @@ export function GlobalAiChatDrawer() {
   // Task list state — updated by update_task_list ops from the AI.
   const [taskList, setTaskList] = useState<TaskItem[]>([]);
 
+  // The FiestaPanel TV viewer must not fire this authenticated query — see
+  // CurrentBoardProvider for why this reads window.location, not useLocation().
+  const chromeless = typeof window !== "undefined" && isChromelessPath(window.location.pathname);
   const { data: aiSettings } = useQuery<AISettings>({
     queryKey: ["ai-settings"],
     queryFn: () => api.getAiSettings(),
+    enabled: !chromeless,
   });
 
   const { data: pagesData } = useQuery({
@@ -816,7 +821,8 @@ export function GlobalAiChatDrawer() {
 
   const hasProviders = (aiSettings?.providers?.length ?? 0) > 0;
 
-  if (!hasProviders) return null;
+  // A wall display never grows an AI drawer.
+  if (chromeless || !hasProviders) return null;
 
   return (
     <Box
