@@ -12,7 +12,8 @@ from .board_client import BoardClient, board_client_from_board_dict
 from .collections.models import is_collection_id
 from .collections.service import get_collection_service
 from .config import Config
-from .devices import get_dimensions, resolve_dimensions
+from .devices import DEFAULT_DEVICE_TYPE, get_dimensions, resolve_dimensions
+from .pages.models import LineMetadata, Page
 from .pages.service import get_page_service
 from .schedules.service import get_schedule_service
 from .settings.service import get_settings_service
@@ -25,6 +26,12 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+# Sentinel id used for the in-memory Page built from a one-off (inline)
+# temporary override. It is never persisted and never looked up — it only
+# needs to differ from every real page id so the display loop's
+# "content unchanged" dedupe treats a one-off as its own page (issue #1787).
+ADHOC_PAGE_ID = "__adhoc__"
 
 
 class BoardRuntime:
@@ -658,13 +665,22 @@ class DisplayService:
             # silence; only this user-initiated path bypasses it.
             active_page_id = None
             override_active = False
+            inline_page = None
             if is_primary:
                 override = settings_service.consume_temporary_override()
                 if override is not None:
                     if not override.is_expired():
-                        active_page_id = override.page_id
+                        if override.is_inline:
+                            # One-off content (issue #1787): build an in-memory
+                            # Page so the normal template render path applies.
+                            # Nothing is persisted and nothing is looked up.
+                            inline_page = self._page_from_inline_override(override)
+                            active_page_id = ADHOC_PAGE_ID
+                            logger.debug("Temporary override active: inline one-off content")
+                        else:
+                            active_page_id = override.page_id
+                            logger.debug(f"Temporary override active: using page {active_page_id}")
                         override_active = True
-                        logger.debug(f"Temporary override active: using page {active_page_id}")
                     elif not silence_mode_active:
                         # Override just expired — apply revert before resuming.
                         # Skip during silence: the silence dispatch owns the
@@ -711,28 +727,37 @@ class DisplayService:
                 logger.debug("Board %s: no active page available", board_id or "(default)")
                 return False
 
-            # Resolve collections: if the active ref is a collection, determine
-            # which underlying page should be shown right now.
-            collection_service = get_collection_service()
-            if is_collection_id(active_page_id):
-                resolved = collection_service.resolve_page_id(active_page_id)
-                if not resolved:
-                    logger.warning(f"Collection not found or empty: {active_page_id}")
+            if inline_page is not None:
+                # One-off override: render the in-memory page directly. There is
+                # no stored page to look up and no preview cache to bypass.
+                page = inline_page
+                result = page_service.render_page(inline_page)
+                if not result or not result.available:
+                    logger.warning("Failed to render one-off override content")
                     return False
-                logger.debug(f"Collection {active_page_id} resolved to page {resolved}")
-                active_page_id = resolved
+            else:
+                # Resolve collections: if the active ref is a collection, determine
+                # which underlying page should be shown right now.
+                collection_service = get_collection_service()
+                if is_collection_id(active_page_id):
+                    resolved = collection_service.resolve_page_id(active_page_id)
+                    if not resolved:
+                        logger.warning(f"Collection not found or empty: {active_page_id}")
+                        return False
+                    logger.debug(f"Collection {active_page_id} resolved to page {resolved}")
+                    active_page_id = resolved
 
-            page = page_service.get_page(active_page_id)
-            if not page:
-                logger.warning(f"Active page not found: {active_page_id}")
-                return False
+                page = page_service.get_page(active_page_id)
+                if not page:
+                    logger.warning(f"Active page not found: {active_page_id}")
+                    return False
 
-            # Render with fresh data — force_refresh bypasses the preview cache
-            # so template variables (weather, time, stocks, etc.) are current.
-            result = page_service.preview_page(active_page_id, force_refresh=True)
-            if not result or not result.available:
-                logger.warning(f"Failed to render active page: {active_page_id}")
-                return False
+                # Render with fresh data — force_refresh bypasses the preview cache
+                # so template variables (weather, time, stocks, etc.) are current.
+                result = page_service.preview_page(active_page_id, force_refresh=True)
+                if not result or not result.available:
+                    logger.warning(f"Failed to render active page: {active_page_id}")
+                    return False
 
             # --- Silence dispatch (per-board delivery, sized to this board) ---
             # A user-initiated temporary override (primary only) wins over
@@ -818,6 +843,33 @@ class DisplayService:
     # ------------------------------------------------------------------ #
     # Temporary override helpers
     # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _page_from_inline_override(override) -> "Page":
+        """Build the in-memory Page for a one-off (inline) override.
+
+        Nothing here is persisted: the Page exists only so the override's
+        content goes through the same template render path a saved page uses
+        (issue #1787). Bad line_metadata is dropped rather than raised — a
+        one-off with unusable metadata should still reach the board.
+        """
+        line_metadata = None
+        if override.line_metadata:
+            try:
+                line_metadata = [LineMetadata(**m) for m in override.line_metadata]
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Ignoring invalid line_metadata on one-off override: {e}")
+
+        return Page(
+            id=ADHOC_PAGE_ID,
+            name="One-off",
+            type="template",
+            template=override.template,
+            line_metadata=line_metadata,
+            device_type=override.device_type or DEFAULT_DEVICE_TYPE,
+            notes_wide=override.notes_wide or 1,
+            notes_tall=override.notes_tall or 1,
+        )
 
     def _send_blank_board(self, rt: BoardRuntime | None = None) -> bool:
         """Send a fully blank board when a temporary override expires with revert_mode='blank'."""
