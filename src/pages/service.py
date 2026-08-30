@@ -876,3 +876,73 @@ def find_incompatible_references(page: Page) -> list[dict]:
     except Exception:  # pragma: no cover - defensive: never let the scan break a save
         logger.exception("Stale-reference detection failed; returning partial results")
     return refs
+
+
+def find_incompatible_board_references(board: dict) -> list[dict]:
+    """Find schedule/active-page refs whose pages no longer fit *board*.
+
+    Board-side mirror of :func:`find_incompatible_references` for surfaces
+    that reshape a board in place — a FiestaPanel TV-size edit re-fits its
+    virtual board's grid, and pages authored for the old grid stay
+    referenced but can no longer render (the send loop rejects the
+    mismatched shape and the panel freezes on its last frame).
+
+    Scans only *board*'s own references:
+
+      - schedule entries whose page (direct, or via a containing collection)
+        no longer matches the board's size (``surface: "schedule"``)
+      - the board's manual active page, likewise (``surface: "active_page"``)
+
+    Warn-only by design, like the page-side scan: nothing is mutated.
+    Returns ``[{page_id, page_name, surface, schedule_id}]``; failures
+    degrade to partial results rather than breaking the panel save.
+    """
+    refs: list[dict] = []
+    try:
+        board_id = (board or {}).get("id") or ""
+        page_service = get_page_service()
+        settings = get_settings_service()
+
+        try:
+            from src.collections.service import get_collection_service
+
+            collection_pages = {c.id: list(c.page_ids) for c in get_collection_service().list_collections()}
+        except Exception:
+            logger.exception("Collection scan failed during board-side stale-reference detection")
+            collection_pages = {}
+
+        def misfit_pages(ref: str | None) -> list:
+            """Pages behind *ref* (a page id or collection id) that no longer fit."""
+            if not ref:
+                return []
+            out = []
+            for page_id in collection_pages.get(ref, [ref]):
+                page = page_service.get_page(page_id)
+                if page is not None and not pages_compatible_with_board(page, board):
+                    out.append(page)
+            return out
+
+        from src.schedules.service import get_schedule_service
+
+        for schedule in get_schedule_service().list_schedules(board_id=board_id):
+            for page in misfit_pages(schedule.page_id):
+                refs.append(
+                    {
+                        "page_id": page.id,
+                        "page_name": page.name,
+                        "surface": "schedule",
+                        "schedule_id": schedule.id,
+                    }
+                )
+        for page in misfit_pages(settings.get_active_page_id(board_id=board_id)):
+            refs.append(
+                {
+                    "page_id": page.id,
+                    "page_name": page.name,
+                    "surface": "active_page",
+                    "schedule_id": None,
+                }
+            )
+    except Exception:  # pragma: no cover - defensive: never let the scan break a save
+        logger.exception("Board-side stale-reference detection failed; returning partial results")
+    return refs

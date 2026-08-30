@@ -74,6 +74,18 @@ class TestLookupByRef:
         assert service.get_panel_by_ref("999") is None
         assert service.get_panel_by_ref("doesnotexist") is None
 
+    def test_non_decimal_unicode_digit_ref_returns_none(self, tmp_path):
+        """The public viewer must 404, not 500, on refs like "²".
+
+        str.isdigit() is True for superscripts and other non-decimal digits,
+        but int() raises on them — so the short-code branch must only take
+        decimal digits.
+        """
+        service = _service(tmp_path)
+        service.create_panel(PanelCreate(name="TV"), board_id="b1")
+        assert service.get_panel_by_ref("²") is None
+        assert service.get_panel_by_ref("²²") is None
+
 
 class TestDisplayDesignation:
     def test_set_display_designates_exactly_one(self, tmp_path):
@@ -101,6 +113,25 @@ class TestDisplayDesignation:
         service = _service(tmp_path)
         service.create_panel(PanelCreate(name="A"), board_id="b1")
         assert service.get_panel_by_ref("display") is None
+
+    def test_designating_unknown_panel_keeps_current_holder(self, tmp_path):
+        """A failed is_display PATCH must not demote the existing display panel.
+
+        The single-holder invariant is enforced by clearing the current
+        holder — but only once the target panel is known to exist, or a
+        404-ing request (stale tab, deleted panel) silently blanks the
+        /p/display kiosk.
+        """
+        service = _service(tmp_path)
+        holder = service.create_panel(PanelCreate(name="A"), board_id="b1")
+        service.update_panel(holder.id, PanelUpdate(is_display=True))
+
+        assert service.update_panel("nope", PanelUpdate(is_display=True)) is None
+
+        refreshed = service.get_panel(holder.id)
+        assert refreshed is not None
+        assert refreshed.is_display is True
+        assert service.get_panel_by_ref("display") is not None
 
     def test_display_can_be_turned_off(self, tmp_path):
         service = _service(tmp_path)

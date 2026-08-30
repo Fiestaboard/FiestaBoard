@@ -1229,6 +1229,12 @@ export const handlers = [
     });
   }),
 
+  // FiestaPanel panels: DisplaySettings queries the list to guard removal of
+  // a panel's virtual board. Default: no panels; tests override per-case.
+  http.get(`${API_BASE}/panels`, () => {
+    return HttpResponse.json({ panels: [], total: 0 });
+  }),
+
   // Location settings endpoints
   http.get(`${API_BASE}/settings/location`, () => {
     return HttpResponse.json({

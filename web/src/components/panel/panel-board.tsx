@@ -1,7 +1,7 @@
 "use client";
 
 import { BoardDisplay, Box, type Code62Glyph, type DeviceType } from "@fiestaboard/ui";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useTranslations } from "@/i18n/translations";
 import { NOTE_COL_PITCH_IN, PANEL_PHYSICAL_WIDTH_IN, panelAutofitScale } from "@/lib/panel-scale";
@@ -26,6 +26,9 @@ interface GridRect {
   width: number;
   height: number;
 }
+
+/** How long to keep the board hidden while waiting for a first measurement. */
+const MEASURE_GRACE_MS = 1500;
 
 /** Transform-free offset of `el` relative to the positioned `container`. */
 function offsetWithin(el: HTMLElement, container: HTMLElement): { x: number; y: number } {
@@ -75,6 +78,12 @@ export function PanelBoard({
   const wrapRef = useRef<HTMLDivElement>(null);
   const [grid, setGrid] = useState<GridRect | null>(null);
   const [scale, setScale] = useState(1);
+  // Safety valve: the pre-measurement state hides the board (opacity 0 avoids
+  // a flash of unscaled content). If measurement never succeeds — e.g. the
+  // config's rows/cols disagree with the rendered grid so the corner tiles
+  // aren't found — the TV must NOT stay pure black forever; after a grace
+  // period the board shows uncropped and unscaled instead.
+  const [measureTimedOut, setMeasureTimedOut] = useState(false);
 
   const messageLabel = useCallback((m: string) => t("withMessage", { message: m }), [t]);
 
@@ -122,6 +131,12 @@ export function PanelBoard({
     return () => observer.disconnect();
   }, [diagonalInches, deviceType, calibration, rows, cols]);
 
+  useEffect(() => {
+    if (grid) return;
+    const timer = setTimeout(() => setMeasureTimedOut(true), MEASURE_GRACE_MS);
+    return () => clearTimeout(timer);
+  }, [grid]);
+
   return (
     <Box
       data-testid="panel-board-scaler"
@@ -131,7 +146,7 @@ export function PanelBoard({
       <Box
         data-testid="panel-board-crop"
         className="panel-seamless relative overflow-hidden"
-        style={grid ? { width: grid.width, height: grid.height } : { opacity: 0 }}
+        style={grid ? { width: grid.width, height: grid.height } : measureTimedOut ? undefined : { opacity: 0 }}
       >
         <Box ref={wrapRef} className="absolute" style={grid ? { left: -grid.x, top: -grid.y } : undefined}>
           <BoardDisplay

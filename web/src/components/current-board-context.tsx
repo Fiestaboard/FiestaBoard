@@ -6,6 +6,7 @@ import { flushSync } from "react-dom";
 import { useBoardSettings } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import type { BoardInstance } from "@/lib/api";
+import { isChromelessPath } from "@/lib/chromeless";
 
 const STORAGE_KEY = "fiestaboard_current_board";
 
@@ -82,7 +83,13 @@ function readStoredBoardId(): string | null {
 }
 
 export function CurrentBoardProvider({ children }: { children: React.ReactNode }) {
-  const { data: boardSettings } = useBoardSettings();
+  // The FiestaPanel TV viewer mounts the whole provider tree but must not
+  // fire authenticated queries — an unauthenticated TV browser would spam
+  // 401s (with retries) on every load. window.location, not useLocation():
+  // this provider is also rendered router-less in tests, and a TV's page
+  // lifecycle never client-navigates between panel and app routes.
+  const chromeless = typeof window !== "undefined" && isChromelessPath(window.location.pathname);
+  const { data: boardSettings } = useBoardSettings({ enabled: !chromeless });
 
   // Memoize so the boards array identity is stable between renders when the
   // query data is unchanged; downstream effects depend on it.

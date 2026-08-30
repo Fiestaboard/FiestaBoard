@@ -185,20 +185,31 @@ class TestPublicPanelEndpoints:
 class TestPanelOrchestration:
     """POST/DELETE co-manage the virtual board through the settings service."""
 
-    def _fake_settings_service(self):
-        boards: list[dict] = []
+    def _fake_settings_service(self, initial_boards: list[dict] | None = None):
+        boards: list[dict] = [dict(b) for b in (initial_boards or [])]
 
         def add_board(board: dict):
             boards.append(dict(board))
 
         def remove_board(board_id: str):
+            # Mirror the real service's last-board rule — hiding it here is
+            # exactly what masked the stranded-virtual-board bug.
+            if len(boards) <= 1:
+                raise ValueError("Cannot remove the last board. At least one board is required.")
             before = len(boards)
             boards[:] = [b for b in boards if b.get("id") != board_id]
             if len(boards) == before:
-                raise ValueError(f"Board not found: {board_id}")
+                raise ValueError(f"Board with ID '{board_id}' not found")
+            return SimpleNamespace(to_dict=lambda: {"boards": boards})
 
         def set_boards(new_boards: list[dict]):
-            boards[:] = [dict(b) for b in new_boards]
+            if not new_boards:
+                raise ValueError("At least one board instance is required")
+            # The real service normalizes each dict through BoardInstance,
+            # which generates a fresh id when none is provided.
+            from src.devices import BoardInstance
+
+            boards[:] = [BoardInstance.from_dict(dict(b)).to_dict() for b in new_boards]
 
         return SimpleNamespace(
             add_board=add_board,
@@ -253,6 +264,50 @@ class TestPanelOrchestration:
 
     def test_delete_panel_removes_virtual_board(self, client, tmp_path):
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
+        fake_settings = self._fake_settings_service(
+            initial_boards=[{"id": "physical-1", "device_type": "flagship", "api_mode": "local"}]
+        )
+        with (
+            patch("src.api_server.get_panel_service", return_value=real_service),
+            patch("src.api_server.get_settings_service", return_value=fake_settings),
+            patch("src.api_server._reinitialize_board_clients"),
+        ):
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            assert len(fake_settings.boards) == 2
+            response = client.delete(f"/panels/{created['id']}")
+        assert response.status_code == 200
+        assert [b["id"] for b in fake_settings.boards] == ["physical-1"]
+        assert real_service.get_panel(created["id"]) is None
+
+    def test_delete_panel_releases_the_boards_virtual_frame_state(self, client, tmp_path):
+        """The shared in-memory 'glass' must not outlive the panel's board."""
+        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
+        fake_settings = self._fake_settings_service(
+            initial_boards=[{"id": "physical-1", "device_type": "flagship", "api_mode": "local"}]
+        )
+        with (
+            patch("src.api_server.get_panel_service", return_value=real_service),
+            patch("src.api_server.get_settings_service", return_value=fake_settings),
+            patch("src.api_server._reinitialize_board_clients"),
+        ):
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            vclient = VirtualBoardClient(
+                device_type="note_array", board_id=created["board_id"], notes_wide=1, notes_tall=3
+            )
+            vclient.send_characters([[1] * 15 for _ in range(9)])
+            client.delete(f"/panels/{created['id']}")
+
+        fresh = VirtualBoardClient(device_type="note_array", board_id=created["board_id"], notes_wide=1, notes_tall=3)
+        assert fresh.read_current_message() is None
+
+    def test_delete_last_panel_swaps_in_a_default_board(self, client, tmp_path):
+        """Deleting the only panel when its virtual board is the only board
+        must not strand the virtual board as an unremovable primary.
+
+        The last-board rule forbids removing it outright, so the route swaps
+        in a fresh default board — the same state a data reset produces.
+        """
+        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
         fake_settings = self._fake_settings_service()
         with (
             patch("src.api_server.get_panel_service", return_value=real_service),
@@ -260,11 +315,63 @@ class TestPanelOrchestration:
             patch("src.api_server._reinitialize_board_clients"),
         ):
             created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
-            assert len(fake_settings.boards) == 1
+            assert len(fake_settings.boards) == 1  # the virtual board is the only board
             response = client.delete(f"/panels/{created['id']}")
         assert response.status_code == 200
-        assert fake_settings.boards == []
         assert real_service.get_panel(created["id"]) is None
+        assert len(fake_settings.boards) == 1
+        replacement = fake_settings.boards[0]
+        assert replacement["id"] != created["board_id"]
+        assert replacement.get("api_mode") != "virtual"
+
+    def test_resize_reports_references_the_board_no_longer_fits(self, client, tmp_path):
+        """A TV-size change reshapes the grid; refs to now-misfit pages are
+        reported warn-only, mirroring PUT /pages/{id} (issue #1250)."""
+        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
+        fake_settings = self._fake_settings_service()
+        stale = [{"page_id": "p1", "page_name": "Big Page", "surface": "schedule", "schedule_id": "s1"}]
+        with (
+            patch("src.api_server.get_panel_service", return_value=real_service),
+            patch("src.api_server.get_settings_service", return_value=fake_settings),
+            patch("src.api_server._reinitialize_board_clients"),
+            patch("src.api_server.find_incompatible_board_references", return_value=stale) as finder,
+        ):
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+
+            resized = client.patch(f"/panels/{created['id']}", json={"screen_diagonal_inches": 85})
+            assert resized.status_code == 200
+            assert resized.json()["incompatible_references"] == stale
+            assert finder.called
+
+            finder.reset_mock()
+            renamed = client.patch(f"/panels/{created['id']}", json={"name": "Lounge TV"})
+        assert renamed.status_code == 200
+        assert "incompatible_references" not in renamed.json()
+        assert not finder.called
+
+    def test_remove_board_endpoint_refuses_a_panel_backed_board(self, client, tmp_path):
+        """DELETE /settings/board/{id} on a board a panel still references
+        must 409 — removing it blanks the TV and orphans the panel."""
+        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
+        fake_settings = self._fake_settings_service(
+            initial_boards=[{"id": "physical-1", "device_type": "flagship", "api_mode": "local"}]
+        )
+        with (
+            patch("src.api_server.get_panel_service", return_value=real_service),
+            patch("src.api_server.get_settings_service", return_value=fake_settings),
+            patch("src.api_server._reinitialize_board_clients"),
+        ):
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+
+            response = client.delete(f"/settings/board/{created['board_id']}")
+            assert response.status_code == 409
+            assert "Hall TV" in response.json()["detail"]
+            assert any(b["id"] == created["board_id"] for b in fake_settings.boards)
+
+            # Unreferenced boards still remove normally.
+            response = client.delete("/settings/board/physical-1")
+        assert response.status_code == 200
+        assert [b["id"] for b in fake_settings.boards] == [created["board_id"]]
 
     def test_delete_tolerates_already_deleted_board(self, client, tmp_path):
         real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))

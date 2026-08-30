@@ -79,6 +79,7 @@ import {
   paintLine,
   renderPositionalLine,
 } from "@/components/tiptap-template-editor/utils/draw-mode";
+import { useCurrentBoard } from "@/components/current-board-context";
 import {
   getEffectiveBoardColor,
   getEffectiveCode62Glyph,
@@ -229,6 +230,7 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Fetch board settings for display type
   const { data: boardSettings } = useBoardSettings();
+  const { currentBoardId } = useCurrentBoard();
 
   // Device type: from prop (new pages) or from existing page (editing)
   const [deviceType, setDeviceType] = useState<DeviceType>(deviceTypeProp);
@@ -804,16 +806,23 @@ export const PageBuilder = forwardRef<PageBuilderHandle, PageBuilderProps>(funct
 
   // Seed note-array grid dimensions for a NEW note_array page from the
   // configured note_array board, so the editor previews at the board's real
-  // size before the page has ever been saved. Existing pages source their dims
-  // from the load effect above; flagship/note pages never run this branch and
-  // stay 1×1 (which resolves to their fixed device size).
+  // size before the page has ever been saved. The currently selected board
+  // wins when it IS a note array — with several note-array boards (e.g. a
+  // physical array plus a FiestaPanel's virtual board), seeding from the
+  // first match would author a page sized for a different board than the
+  // one the user is looking at. Existing pages source their dims from the
+  // load effect above; flagship/note pages never run this branch and stay
+  // 1×1 (which resolves to their fixed device size).
   useEffect(() => {
     if (pageId || deviceType !== "note_array" || !boardSettings?.boards) return;
-    const board = boardSettings.boards.find((b) => b.device_type === "note_array");
+    const boards = boardSettings.boards;
+    const board =
+      boards.find((b) => b.id === currentBoardId && b.device_type === "note_array") ??
+      boards.find((b) => b.device_type === "note_array");
     if (!board) return;
     setNotesWide(board.notes_wide ?? 1);
     setNotesTall(board.notes_tall ?? 1);
-  }, [pageId, deviceType, boardSettings?.boards]);
+  }, [pageId, deviceType, boardSettings?.boards, currentBoardId]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {

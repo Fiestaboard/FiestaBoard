@@ -176,12 +176,13 @@ export function useCollections() {
 }
 
 // Board settings query - for UI display preferences
-export function useBoardSettings() {
+export function useBoardSettings(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: queryKeys.boardSettings,
     queryFn: api.getBoardSettings,
     retry: 1,
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    enabled: options.enabled ?? true,
   });
 }
 

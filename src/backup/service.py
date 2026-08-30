@@ -8,6 +8,8 @@ user-mutable state:
 * ``data/pages.json`` — user pages
 * ``data/collections.json`` — user collections
 * ``data/schedules.json`` — user schedules
+* ``data/panels.json`` — FiestaPanel panels (their virtual boards live in
+  settings.json, so restoring one without the other orphans them)
 * metadata about installed external plugins so they can be re-cloned on
   the new instance
 
@@ -55,6 +57,7 @@ DATA_FILES: tuple[str, ...] = (
     "pages.json",
     "collections.json",
     "schedules.json",
+    "panels.json",
 )
 
 
@@ -426,6 +429,7 @@ def _reload_services() -> list[str]:
         ("src.pages.service", "_page_service"),
         ("src.collections.service", "_collection_service"),
         ("src.schedules.service", "_schedule_service"),
+        ("src.panels.service", "_panel_service"),
     ):
         try:
             import importlib

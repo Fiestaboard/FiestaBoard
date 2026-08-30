@@ -27,7 +27,7 @@ import {
   ToggleCardGroup,
 } from "@fiestaboard/ui";
 import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   Check,
@@ -42,6 +42,7 @@ import {
   Plus,
   Smartphone,
   Trash2,
+  Tv,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -513,6 +514,15 @@ export function DisplaySettings() {
 
   const boards = boardSettings?.boards ?? [];
 
+  // Panels, to recognize which virtual board backs which FiestaPanel: its
+  // card must not offer credentials, and removing it out from under a live
+  // panel (blanking the TV) is blocked — the panel editor owns that board.
+  const { data: panelsData } = useQuery({
+    queryKey: ["panels"],
+    queryFn: () => api.listPanels(),
+  });
+  const panelNameByBoardId = new Map((panelsData?.panels ?? []).map((p) => [p.board_id, p.name]));
+
   const handleAddBoard = (deviceType: DeviceType) => {
     if (deviceType === "note_array") {
       // Arrays start as the smallest real layout (the "2 side-by-side"
@@ -648,6 +658,12 @@ export function DisplaySettings() {
         {boards.map((board) => {
           const isPaused = board.paused === true;
           const apiMode = board.api_mode ?? "local";
+          // Virtual boards (FiestaPanel) render to memory: there is no
+          // connection to configure, so they are never "Not configured"
+          // and none of the credential/type controls apply (issue: a
+          // freshly created panel showed as needing API credentials).
+          const isVirtual = apiMode === "virtual";
+          const panelName = isVirtual ? panelNameByBoardId.get(board.id) : undefined;
           const hasLocalKey = board.local_api_key === "***" || Boolean(board.local_api_key);
           const hasCloudKey = board.cloud_key === "***" || Boolean(board.cloud_key);
           const hasHost = Boolean(board.host);
@@ -655,9 +671,11 @@ export function DisplaySettings() {
           // connect via assigned tiles, token-only arrays via the Cloud
           // token (even in local mode — the backend's cloud fallback),
           // flagship/note via the selected API mode's credentials.
-          const isConnected = isNoteArray(board.device_type)
-            ? isArrayConfigured(board)
-            : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
+          const isConnected = isVirtual
+            ? true
+            : isNoteArray(board.device_type)
+              ? isArrayConfigured(board)
+              : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
 
           return (
             <Collapsible
@@ -713,7 +731,12 @@ export function DisplaySettings() {
                       {t("pause.badge")}
                     </BadgeUI>
                   )}
-                  {isConnected ? (
+                  {isVirtual ? (
+                    <BadgeUI variant="secondary" className="text-[10px] h-5" data-testid="board-virtual-badge">
+                      <Tv className="h-2.5 w-2.5 mr-0.5" />
+                      {t("virtualBadge")}
+                    </BadgeUI>
+                  ) : isConnected ? (
                     <BadgeUI variant="default" className="text-[10px] h-5 bg-board-green">
                       <Check className="h-2.5 w-2.5 mr-0.5" />
                       {t("connected")}
@@ -767,32 +790,45 @@ export function DisplaySettings() {
                   {/* Type + Color row */}
                   <Stack gap="2">
                     <Flex align="center" gap="4" wrap>
-                      <Flex align="center" gap="2">
-                        <Text as="span" tone="muted" className="text-[11px]">
-                          {t("typeLabel")}
-                        </Text>
-                        <Select value={currentConfigValue(board)} onValueChange={(v) => handleConfigChange(board, v)}>
-                          <SelectTrigger className="h-7 w-[200px] text-xs" aria-label={t("deviceTypeAriaLabel")}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              <SelectLabel>{t("deviceGroupLabel")}</SelectLabel>
-                              <SelectItem value="flagship">{t("flagshipLabel")}</SelectItem>
-                              <SelectItem value="note">{t("noteLabel")}</SelectItem>
-                            </SelectGroup>
-                            <SelectGroup>
-                              <SelectLabel>{t("noteArrayGroupLabel")}</SelectLabel>
-                              {NOTE_ARRAY_PRESETS.map((p) => (
-                                <SelectItem key={p.id} value={`preset:${p.id}`}>
-                                  {t(`presets.${p.id}`)}
-                                </SelectItem>
-                              ))}
-                              <SelectItem value="custom">{t("customLabel")}</SelectItem>
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      </Flex>
+                      {isVirtual ? (
+                        // A panel's grid is auto-fit from its TV size — the
+                        // type/preset picker would desync it from the panel.
+                        <Flex align="center" gap="2">
+                          <Text as="span" tone="muted" className="text-[11px]">
+                            {t("typeLabel")}
+                          </Text>
+                          <Text as="span" size="xs" tone="muted">
+                            {t("virtualSizeHint")}
+                          </Text>
+                        </Flex>
+                      ) : (
+                        <Flex align="center" gap="2">
+                          <Text as="span" tone="muted" className="text-[11px]">
+                            {t("typeLabel")}
+                          </Text>
+                          <Select value={currentConfigValue(board)} onValueChange={(v) => handleConfigChange(board, v)}>
+                            <SelectTrigger className="h-7 w-[200px] text-xs" aria-label={t("deviceTypeAriaLabel")}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                <SelectLabel>{t("deviceGroupLabel")}</SelectLabel>
+                                <SelectItem value="flagship">{t("flagshipLabel")}</SelectItem>
+                                <SelectItem value="note">{t("noteLabel")}</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>{t("noteArrayGroupLabel")}</SelectLabel>
+                                {NOTE_ARRAY_PRESETS.map((p) => (
+                                  <SelectItem key={p.id} value={`preset:${p.id}`}>
+                                    {t(`presets.${p.id}`)}
+                                  </SelectItem>
+                                ))}
+                                <SelectItem value="custom">{t("customLabel")}</SelectItem>
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </Flex>
+                      )}
                       <Flex align="center" gap="2">
                         <Text as="span" tone="muted" className="text-[11px]">
                           {t("colorLabel")}
@@ -861,8 +897,9 @@ export function DisplaySettings() {
                       </Text>
                     )}
 
-                    {/* Custom W×H inputs (note arrays only) */}
-                    {(customOpen[board.id] || currentConfigValue(board) === "custom") && (
+                    {/* Custom W×H inputs (note arrays only; never for a
+                        panel's auto-fit board) */}
+                    {!isVirtual && (customOpen[board.id] || currentConfigValue(board) === "custom") && (
                       <Stack gap="1">
                         <Flex align="end" gap="2">
                           <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
@@ -903,8 +940,9 @@ export function DisplaySettings() {
                         arrays: their shape is defined by assigning tiles, so
                         a local read could only echo the configured W×H back.
                         Detection is meaningful via the Cloud API (which
-                        knows the array's real shape) and for single boards. */}
-                    {!(isNoteArray(board.device_type) && (board.api_mode ?? "cloud") === "local") && (
+                        knows the array's real shape) and for single boards.
+                        Virtual boards have nothing to detect. */}
+                    {!isVirtual && !(isNoteArray(board.device_type) && (board.api_mode ?? "cloud") === "local") && (
                       <Stack gap="1">
                         <Button
                           type="button"
@@ -935,23 +973,45 @@ export function DisplaySettings() {
                     )}
                   </Stack>
 
-                  {/* Connection section */}
+                  {/* Connection section. Virtual boards render to memory:
+                      offering the Local/Cloud credentials form here is what
+                      made panels read as "needing API credentials", and
+                      switching the mode would silently break the panel. */}
                   <Box className="border-t pt-3">
-                    <BoardConnectionForm board={board} onUpdate={handleUpdateBoard} />
+                    {isVirtual ? (
+                      <Flex align="start" gap="2" data-testid="virtual-board-hint">
+                        <Tv className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-muted-foreground" />
+                        <Text size="xs" tone="muted">
+                          {panelName
+                            ? t("virtualConnectionHintNamed", { name: panelName })
+                            : t("virtualConnectionHint")}
+                        </Text>
+                      </Flex>
+                    ) : (
+                      <BoardConnectionForm board={board} onUpdate={handleUpdateBoard} />
+                    )}
                   </Box>
 
-                  {/* Remove board - bottom */}
+                  {/* Remove board - bottom. A virtual board still referenced
+                      by a panel is removed by deleting the panel, not here —
+                      pulling it out from under a live panel blanks the TV. */}
                   <Box className="border-t pt-2">
                     <Button
                       variant="ghost"
                       size="sm"
                       className="text-[11px] text-muted-foreground hover:text-destructive h-7 px-2"
                       onClick={() => handleRemoveBoard(board.id)}
-                      disabled={boards.length <= 1}
+                      disabled={boards.length <= 1 || (isVirtual && panelName !== undefined)}
+                      title={isVirtual && panelName !== undefined ? t("virtualRemoveHint") : undefined}
                     >
                       <Trash2 className="h-3 w-3 mr-1" />
                       {t("removeBoard")}
                     </Button>
+                    {isVirtual && panelName !== undefined && (
+                      <Text as="p" tone="muted" className="mt-1 text-[10px]">
+                        {t("virtualRemoveHint")}
+                      </Text>
+                    )}
                   </Box>
                 </Stack>
               </CollapsibleContent>

@@ -33,6 +33,13 @@ class _VirtualBoardState:
     """The shared 'glass' of one virtual board."""
 
     def __init__(self) -> None:
+        # Guards every field mutation/read below. The state is shared across
+        # client instances by design (display loop + throwaway live-render
+        # clients), and each instance's transition lock is instance-local, so
+        # without this a live-edit send racing the loop can desync the dedupe
+        # cache from the displayed frame — after which a real send is skipped
+        # as "unchanged" and the TV sticks on the wrong frame.
+        self.lock = threading.Lock()
         # Skip-unchanged dedupe cache (cleared by clear_cache to force a re-send).
         self.last_characters: list[list[int]] | None = None
         # What the panel actually shows (survives clear_cache).
@@ -56,6 +63,19 @@ def _state_for(board_id: str | None) -> _VirtualBoardState:
             state = _VirtualBoardState()
             _states[board_id] = state
         return state
+
+
+def release_virtual_board_state(board_id: str | None) -> None:
+    """Drop a board's shared frame state from the registry.
+
+    Called when a panel (and its virtual board) is deleted so the stored
+    grids don't outlive the board. Safe for unknown or None ids; live client
+    instances keep their reference and simply expire with them.
+    """
+    if board_id is None:
+        return
+    with _states_lock:
+        _states.pop(board_id, None)
 
 
 class VirtualBoardClient(TransitionRenderMixin):
@@ -167,23 +187,34 @@ class VirtualBoardClient(TransitionRenderMixin):
             return (False, False)
 
         state = self._state
-        if self.skip_unchanged and not force and state.last_characters == characters:
-            logger.debug("Character array unchanged, skipping virtual send")
-            return (True, False)
+        with state.lock:
+            if self.skip_unchanged and not force and state.last_characters == characters:
+                logger.debug("Character array unchanged, skipping virtual send")
+                return (True, False)
 
-        state.last_characters = [row[:] for row in characters]
-        state.displayed_characters = [row[:] for row in characters]
-        state.last_text = None
-        state.last_sent_at = time.time()
+            state.last_characters = [row[:] for row in characters]
+            state.displayed_characters = [row[:] for row in characters]
+            state.last_text = None
+            state.last_sent_at = time.time()
         logger.debug("Virtual board frame stored (%d×%d)", self.rows, self.cols)
         return (True, True)
 
     def read_current_message(self, sync_cache: bool = False) -> list[list[int]] | None:
-        """Return a copy of the displayed frame; the memory IS the board."""
-        displayed = self._state.displayed_characters
-        if displayed is None:
-            return None
-        return [row[:] for row in displayed]
+        """Return a copy of the displayed frame; the memory IS the board.
+
+        A frame whose shape no longer matches the board's dimensions is
+        treated as absent: a panel TV-size edit re-fits the board's grid,
+        and serving the old-shape frame would leave the viewer rendering
+        stale mismatched content forever (config says the new size, frame
+        carries the old one).
+        """
+        with self._state.lock:
+            displayed = self._state.displayed_characters
+            if displayed is None:
+                return None
+            if len(displayed) != self.rows or any(len(row) != self.cols for row in displayed):
+                return None
+            return [row[:] for row in displayed]
 
     def clear_cache(self) -> None:
         """Clear the skip-unchanged cache WITHOUT blanking the displayed frame.
@@ -193,8 +224,9 @@ class VirtualBoardClient(TransitionRenderMixin):
         displayed frame and last_sent_at survive so FiestaPanel viewers
         keep showing the board's content.
         """
-        self._state.last_characters = None
-        self._state.last_text = None
+        with self._state.lock:
+            self._state.last_characters = None
+            self._state.last_text = None
         logger.debug("Virtual board cache cleared")
 
     def get_cache_status(self) -> dict:

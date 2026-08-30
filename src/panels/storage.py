@@ -248,8 +248,17 @@ class PanelStorage:
         return None
 
     def _next_short_code(self) -> int:
-        """Lowest positive integer not already in use."""
+        """Lowest positive integer not already in use.
+
+        Codes held by unparseable preserved entries count as in use too —
+        those entries round-trip through every save, so reissuing their code
+        would put two panels with the same short_code on disk and make
+        /p/{n} resolution order-dependent.
+        """
         used = {p.short_code for p in self._panels.values()}
+        for entry in self._failed_entries:
+            if isinstance(entry, dict) and isinstance(entry.get("short_code"), int):
+                used.add(entry["short_code"])
         code = 1
         while code in used:
             code += 1

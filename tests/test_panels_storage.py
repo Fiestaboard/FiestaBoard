@@ -95,6 +95,37 @@ class TestShortCodes:
         assert reloaded is not None
         assert reloaded.short_code == panel.short_code
 
+    def test_codes_held_by_unparseable_entries_are_not_reissued(self, tmp_path):
+        """A failed-to-parse entry keeps its short code reserved.
+
+        Unparseable entries are preserved in storage (never silently
+        deleted); handing their code to a new panel would put two entries
+        with the same short_code on disk, making /p/{n} resolution
+        dict-order dependent.
+        """
+        path = tmp_path / "panels.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "schema_version": CURRENT_SCHEMA_VERSION,
+                    "panels": [
+                        {"id": "validvalid12", "short_code": 1, "name": "ok", "board_id": "b1"},
+                        # Missing required "name" → fails Pydantic validation
+                        # on load but is preserved with its code.
+                        {"id": "brokenbroken", "short_code": 2, "board_id": "b2"},
+                    ],
+                }
+            )
+        )
+        storage = PanelStorage(storage_file=str(path))
+        assert storage.count() == 1  # the broken entry did not parse
+
+        created = storage.create(_panel(name="new"))
+        assert created.short_code == 3
+
+        codes = [p.get("short_code") for p in json.loads(path.read_text())["panels"]]
+        assert sorted(codes) == [1, 2, 3]
+
 
 class TestSchemaMigrationV2:
     def test_v1_panels_get_short_codes_backfilled(self, tmp_path):

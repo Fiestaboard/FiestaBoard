@@ -110,6 +110,17 @@ export interface PanelUpdateRequest {
   auto_dim?: PanelAutoDim;
 }
 
+/**
+ * A schedule/active-page reference to a page that no longer fits the panel's
+ * re-fit board (returned warn-only by PATCH /panels/{id} on a size change).
+ */
+export interface PanelIncompatibleReference {
+  page_id: string;
+  page_name: string;
+  surface: "schedule" | "active_page";
+  schedule_id: string | null;
+}
+
 // Public viewer config served by GET /panel/{id} (no auth).
 export interface PanelPublicConfig extends Panel {
   board_color: "black" | "white" | null;
@@ -2217,11 +2228,14 @@ export const api = {
       body: JSON.stringify(data),
     }),
   updatePanel: (panelId: string, data: PanelUpdateRequest) =>
-    fetchApi<{ status: string; panel: Panel }>(`/panels/${encodeURIComponent(panelId)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }),
+    fetchApi<{ status: string; panel: Panel; incompatible_references?: PanelIncompatibleReference[] }>(
+      `/panels/${encodeURIComponent(panelId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      },
+    ),
   deletePanel: (panelId: string) =>
     fetchApi<{ status: string }>(`/panels/${encodeURIComponent(panelId)}`, {
       method: "DELETE",

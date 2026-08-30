@@ -34,7 +34,10 @@ class PanelService:
         """
         if ref == "display":
             return self.storage.get_display_panel()
-        if ref.isdigit() and len(ref) <= 6:
+        # isdecimal(), not isdigit(): isdigit() accepts superscripts and other
+        # non-decimal digit characters that int() then raises on — and this
+        # runs on the unauthenticated viewer path, where "²" must 404, not 500.
+        if ref.isdecimal() and len(ref) <= 6:
             return self.storage.get_by_short_code(int(ref))
         return self.storage.get(ref)
 
@@ -55,6 +58,11 @@ class PanelService:
         """
         updates = data.model_dump(exclude_unset=True)
         if updates.get("is_display"):
+            # Confirm the target exists BEFORE demoting the current holder:
+            # a 404-ing request (stale tab, deleted panel) must not blank the
+            # /p/display kiosk by clearing the role and then failing.
+            if self.storage.get(panel_id) is None:
+                return None
             current = self.storage.get_display_panel()
             if current is not None and current.id != panel_id:
                 self.storage.update(current.id, {"is_display": False})

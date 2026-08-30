@@ -35,7 +35,7 @@ import { toast } from "sonner";
 
 import { TimePicker } from "@/components/ui/time-picker";
 import { useTranslations } from "@/i18n/translations";
-import { api, type Panel } from "@/lib/api";
+import { api, type HdmiKioskStatus, type Panel } from "@/lib/api";
 import { appUrl } from "@/lib/base-path";
 
 /** TV-diagonal presets offered as one-tap chips (inches) — never translated. */
@@ -43,6 +43,9 @@ const SIZE_PRESETS = [32, 43, 50, 55, 65, 75, 85] as const;
 
 const PANELS_QUERY_KEY = ["panels"] as const;
 const HDMI_QUERY_KEY = ["hdmi-kiosk"] as const;
+
+/** How long to keep polling for the sidecar's "in_progress" after an enable. */
+const HDMI_KICKOFF_GRACE_MS = 120_000;
 
 function panelViewerUrl(panel: Pick<Panel, "id" | "short_code">): string {
   // Prefer the TV-typable short URL (/p/1); fall back to the full id for
@@ -63,11 +66,17 @@ interface EditorState {
   calibration: number;
 }
 
+/** Calibration bounds — mirror the backend's Panel.calibration_scale. */
+const CALIBRATION_MIN = 0.85;
+const CALIBRATION_MAX = 1.15;
+
 const NEW_PANEL: EditorState = {
   mode: "create",
   name: "",
   diagonal: 55,
-  animationsEnabled: true,
+  // Mirrors the backend default (off): create sends only name + size, so a
+  // different value here would misrepresent what the server will store.
+  animationsEnabled: false,
   autoDimEnabled: false,
   autoDimStart: "22:00",
   autoDimEnd: "07:00",
@@ -99,12 +108,32 @@ export function FiestaPanelSettings() {
     queryFn: () => api.listPanels(),
   });
 
+  // POST /settings/hdmi-kiosk is fire-and-forget: the sidecar reports
+  // "in_progress" only once the install actually starts, so a single
+  // post-toggle refetch can land before the flip and polling would never
+  // begin — the switch appears to snap back while a multi-minute install
+  // runs invisibly. Keep polling through a grace window after an enable.
+  // "Awaiting" is DERIVED (kickoff recent + status not yet moved) rather
+  // than cleared in an effect (react-hooks/set-state-in-effect).
+  const [installKickedOffAt, setInstallKickedOffAt] = useState<number | null>(null);
+
+  const withinKickoffGrace = (status: HdmiKioskStatus["status"] | undefined) =>
+    installKickedOffAt !== null &&
+    Date.now() - installKickedOffAt < HDMI_KICKOFF_GRACE_MS &&
+    (status === "disabled" || status === "unknown");
+
   const hdmi = useQuery({
     queryKey: HDMI_QUERY_KEY,
     queryFn: () => api.getHdmiKiosk(),
     // Installs take minutes (apt on a Pi); poll while one is running.
-    refetchInterval: (query) => (query.state.data?.status === "in_progress" ? 3000 : false),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === "in_progress" || withinKickoffGrace(status)) return 3000;
+      return false;
+    },
   });
+
+  const awaitingInstallStart = withinKickoffGrace(hdmi.data?.status);
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: PANELS_QUERY_KEY });
@@ -135,18 +164,31 @@ export function FiestaPanelSettings() {
         auto_dim: { enabled: state.autoDimEnabled, start: state.autoDimStart, end: state.autoDimEnd },
         calibration_scale: state.calibration,
       }),
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidate();
       setEditor(null);
       toast.success(t("saved"));
+      // A TV-size change re-fits the board's grid; pages authored for the
+      // old grid stay referenced but can no longer render on this panel.
+      const staleRefs = result.incompatible_references ?? [];
+      if (staleRefs.length > 0) {
+        const names = [...new Set(staleRefs.map((ref) => ref.page_name))];
+        toast.warning(t("resizeStaleRefs", { pages: names.join(", ") }), { duration: 10000 });
+      }
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
   const hdmiMutation = useMutation({
     mutationFn: (enabled: boolean) => api.setHdmiKiosk(enabled),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: HDMI_QUERY_KEY }),
-    onError: (error: Error) => toast.error(error.message),
+    onSuccess: (_result, enabled) => {
+      if (enabled) setInstallKickedOffAt(Date.now());
+      void queryClient.invalidateQueries({ queryKey: HDMI_QUERY_KEY });
+    },
+    onError: (error: Error) => {
+      setInstallKickedOffAt(null);
+      toast.error(error.message);
+    },
   });
 
   const displayMutation = useMutation({
@@ -217,7 +259,7 @@ export function FiestaPanelSettings() {
                   <Switch
                     id={`panel-display-${panel.id}`}
                     checked={panel.is_display}
-                    disabled={displayMutation.isPending}
+                    disabled={displayMutation.isPending && displayMutation.variables?.panelId === panel.id}
                     onCheckedChange={(checked) =>
                       displayMutation.mutate({ panelId: panel.id, isDisplay: checked === true })
                     }
@@ -262,14 +304,14 @@ export function FiestaPanelSettings() {
           <Flex gap="3" align="center">
             <Switch
               id="hdmi-kiosk"
-              checked={hdmi.data.status === "enabled" || hdmi.data.status === "in_progress"}
-              disabled={hdmi.data.status === "in_progress" || hdmiMutation.isPending}
+              checked={hdmi.data.status === "enabled" || hdmi.data.status === "in_progress" || awaitingInstallStart}
+              disabled={hdmi.data.status === "in_progress" || awaitingInstallStart || hdmiMutation.isPending}
               onCheckedChange={(checked) => hdmiMutation.mutate(checked === true)}
             />
             <Label htmlFor="hdmi-kiosk">{t("hdmiTitle")}</Label>
           </Flex>
           <Text size="xs" tone="muted">
-            {hdmi.data.status === "in_progress"
+            {hdmi.data.status === "in_progress" || awaitingInstallStart
               ? t("hdmiInstalling")
               : hdmi.data.status === "failed"
                 ? t("hdmiFailed")
@@ -377,8 +419,8 @@ export function FiestaPanelSettings() {
                       <Input
                         id="panel-calibration"
                         type="number"
-                        min={0.85}
-                        max={1.15}
+                        min={CALIBRATION_MIN}
+                        max={CALIBRATION_MAX}
                         step={0.01}
                         className="w-24"
                         value={editor.calibration}
@@ -387,9 +429,15 @@ export function FiestaPanelSettings() {
                           if (Number.isFinite(parsed)) setEditor({ ...editor, calibration: parsed });
                         }}
                       />
-                      <Text size="xs" tone="muted">
-                        {t("calibrationHelp")}
-                      </Text>
+                      {editor.calibration >= CALIBRATION_MIN && editor.calibration <= CALIBRATION_MAX ? (
+                        <Text size="xs" tone="muted">
+                          {t("calibrationHelp")}
+                        </Text>
+                      ) : (
+                        <Text role="alert" size="xs" tone="destructive">
+                          {t("calibrationRange", { min: CALIBRATION_MIN, max: CALIBRATION_MAX })}
+                        </Text>
+                      )}
                     </Stack>
                   </>
                 )}
@@ -402,7 +450,14 @@ export function FiestaPanelSettings() {
                   onClick={() =>
                     editor.mode === "create" ? createMutation.mutate(editor) : updateMutation.mutate(editor)
                   }
-                  disabled={saving || !editor.name.trim() || editor.diagonal < 10 || editor.diagonal > 200}
+                  disabled={
+                    saving ||
+                    !editor.name.trim() ||
+                    editor.diagonal < 10 ||
+                    editor.diagonal > 200 ||
+                    editor.calibration < CALIBRATION_MIN ||
+                    editor.calibration > CALIBRATION_MAX
+                  }
                 >
                   {editor.mode === "create" ? t("create") : t("save")}
                 </Button>
