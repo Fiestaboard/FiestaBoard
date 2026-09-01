@@ -896,6 +896,7 @@
     "disabledLabel": "Disattivato",
     "blackAriaLabel": "Nero",
     "whiteAriaLabel": "Bianco",
+    "boardNameLabel": "Nome",
     "boardNamePlaceholder": "es. Board cucina, Note ufficio",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",

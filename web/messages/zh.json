@@ -896,6 +896,7 @@
     "disabledLabel": "已禁用",
     "blackAriaLabel": "黑色",
     "whiteAriaLabel": "白色",
+    "boardNameLabel": "名称",
     "boardNamePlaceholder": "例如:厨房 Board、办公室 Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",

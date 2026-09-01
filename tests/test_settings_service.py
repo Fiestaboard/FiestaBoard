@@ -449,6 +449,23 @@ class TestSettingsServiceBoard:
         with pytest.raises(ValueError, match="At least one board"):
             settings_service.set_boards([])
 
+    def test_set_boards_roundtrips_renamed_board(self, settings_service):
+        """A custom name saved via the boards[] round-trip persists (issue #1792)."""
+        settings_service.set_boards([{"device_type": "flagship", "name": "Kitchen Board"}])
+        board = settings_service.get_board_settings().boards[0]
+        assert board["name"] == "Kitchen Board"
+
+        # Rename the same board (matched by id) and read it back.
+        settings_service.set_boards([{"id": board["id"], "device_type": "flagship", "name": "Garage Board"}])
+        assert settings_service.get_board_settings().boards[0]["name"] == "Garage Board"
+
+    def test_set_boards_empty_name_restores_default(self, settings_service):
+        """Clearing the name falls back to the BoardInstance default (issue #1792)."""
+        settings_service.set_boards([{"device_type": "flagship", "name": "Kitchen Board"}])
+        board_id = settings_service.get_board_settings().boards[0]["id"]
+        settings_service.set_boards([{"id": board_id, "device_type": "flagship", "name": ""}])
+        assert settings_service.get_board_settings().boards[0]["name"] == "My Board"
+
     def test_add_board(self, settings_service):
         result = settings_service.add_board({"device_type": "note"})
         assert len(result.boards) == 2

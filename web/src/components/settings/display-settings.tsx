@@ -672,6 +672,28 @@ export function DisplaySettings() {
 
               <CollapsibleContent>
                 <Stack gap="3" className="border-t px-4 pb-4 pt-3">
+                  {/* Board name (issue #1792). Trimmed on save; clearing it
+                      saves "" and the backend restores its default name. */}
+                  <Stack gap="1">
+                    <label className="text-xs font-medium" htmlFor={`board-name-${board.id}`}>
+                      {t("boardNameLabel")}
+                    </label>
+                    <input
+                      id={`board-name-${board.id}`}
+                      type="text"
+                      defaultValue={board.name ?? ""}
+                      onBlur={(e) => {
+                        const trimmed = e.target.value.trim();
+                        if (trimmed !== (board.name ?? "")) {
+                          handleUpdateBoard(board.id, { name: trimmed });
+                        }
+                      }}
+                      placeholder={t("boardNamePlaceholder")}
+                      className="w-full h-8 px-2 text-xs rounded-md border bg-background"
+                      data-testid="board-name-input"
+                    />
+                  </Stack>
+
                   {/* Pause / Resume row (issue #970) */}
                   <Flex
                     align="center"

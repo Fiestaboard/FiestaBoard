@@ -896,6 +896,7 @@
     "disabledLabel": "Отключено",
     "blackAriaLabel": "Чёрный",
     "whiteAriaLabel": "Белый",
+    "boardNameLabel": "Название",
     "boardNamePlaceholder": "напр. Кухонный Board, Офисный Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",

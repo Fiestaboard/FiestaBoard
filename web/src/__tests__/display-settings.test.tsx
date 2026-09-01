@@ -194,6 +194,59 @@ describe("DisplaySettings — note-array selector", () => {
   });
 });
 
+describe("DisplaySettings — board name field (#1792)", () => {
+  it("shows the current name and saves an edited, trimmed name on blur", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship" });
+    const card = await renderAndExpand(user);
+
+    const nameInput = (await within(card).findByLabelText("Name")) as HTMLInputElement;
+    expect(nameInput.value).toBe("My Board");
+
+    fireEvent.change(nameInput, { target: { value: "  Kitchen Board  " } });
+    fireEvent.blur(nameInput);
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    const saved = put.body!.boards![0];
+    // Trimmed before saving; the rest of the board rides along unchanged in
+    // the boards[] round-trip.
+    expect(saved.name).toBe("Kitchen Board");
+    expect(saved.device_type).toBe("flagship");
+    // The card header picks up the new name after the refetch.
+    expect(await screen.findByText("Kitchen Board")).toBeInTheDocument();
+  });
+
+  it("blurring without changing the name fires no PUT", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship" });
+    const card = await renderAndExpand(user);
+
+    const nameInput = (await within(card).findByLabelText("Name")) as HTMLInputElement;
+    nameInput.focus();
+    nameInput.blur();
+    // Whitespace-only padding around the same name is also not a change.
+    fireEvent.change(nameInput, { target: { value: " My Board " } });
+    fireEvent.blur(nameInput);
+
+    expect(put.body).toBeNull();
+  });
+
+  it("clearing the name saves an empty string so the backend restores its default", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship", name: "Kitchen Board" });
+    render(<DisplaySettings />, { wrapper: TestWrapper });
+    await user.click(await screen.findByText("Kitchen Board"));
+    const card = await screen.findByTestId("board-card");
+
+    const nameInput = (await within(card).findByLabelText("Name")) as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: "   " } });
+    fireEvent.blur(nameInput);
+
+    await waitFor(() => expect(put.body).not.toBeNull());
+    expect(put.body!.boards![0].name).toBe("");
+  });
+});
+
 describe("DisplaySettings — custom W×H inputs", () => {
   it("selecting Custom reveals the W×H inputs", async () => {
     const user = userEvent.setup();

@@ -896,6 +896,7 @@
     "disabledLabel": "비활성화",
     "blackAriaLabel": "검은색",
     "whiteAriaLabel": "흰색",
+    "boardNameLabel": "이름",
     "boardNamePlaceholder": "예: 주방 Board, 사무실 Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",

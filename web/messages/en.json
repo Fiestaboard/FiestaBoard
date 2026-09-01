@@ -858,6 +858,7 @@
     },
     "blackAriaLabel": "Black",
     "whiteAriaLabel": "White",
+    "boardNameLabel": "Name",
     "boardNamePlaceholder": "e.g. Kitchen Board, Office Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
