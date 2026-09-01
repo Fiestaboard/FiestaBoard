@@ -298,7 +298,7 @@ class CommandHandler:
             logger.info("MQTT send_message blocked by silence mode")
             return
         from src.api_server import get_service
-        from src.text_to_board import text_to_board_array
+        from src.text_to_board import text_to_board_array, wrap_message_text
 
         service = get_service()
         if not service or (board_id is None and not service.vb_client):
@@ -319,11 +319,15 @@ class CommandHandler:
             logger.info("MQTT send_message blocked: board is paused")
             return
         transition = settings.get_transition_settings()
-        if board is not None:
-            dims = self._board_dims(board)
-            board_array = text_to_board_array(message, rows=dims.rows, cols=dims.cols)
-        else:
-            board_array = text_to_board_array(message)
+        # Grid sized to the target board (issue #1793): the named board when
+        # given, else the primary board, else the flagship 6x22 default.
+        # Plain-string payloads (what HA's text entity sends) used to fall
+        # back to 6x22 even on a Note, so columns 16+ went nowhere.
+        dims = self._board_dims(board if board is not None else self._resolve_board(None)[1])
+        # Word-wrap to the board width and honor \n / literal "\n" line
+        # breaks instead of truncating everything past the first row.
+        wrapped = wrap_message_text(message, rows=dims.rows, cols=dims.cols)
+        board_array = text_to_board_array(wrapped, rows=dims.rows, cols=dims.cols)
         client.send_characters(
             board_array,
             strategy=transition.strategy,

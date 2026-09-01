@@ -10,6 +10,7 @@ from src.text_to_board import (
     format_board_array_preview,
     text_to_board_array,
     validate_board_array,
+    wrap_message_text,
 )
 
 # ---------------------------------------------------------------------------
@@ -424,3 +425,33 @@ class TestNoteFillSpaceEndToEnd:
         assert board[0][0] == 1  # A
         assert board[0][1] == 71  # filled
         assert board[0][2] == 2  # B
+
+
+# ---------------------------------------------------------------------------
+# wrap_message_text — free-form message preparation (issue #1793)
+# ---------------------------------------------------------------------------
+
+
+class TestWrapMessageText:
+    def test_short_text_unchanged(self):
+        assert wrap_message_text("HELLO", rows=3, cols=15) == "HELLO"
+
+    def test_wraps_long_line_at_word_boundaries(self):
+        result = wrap_message_text("TACO TUESDAY PARTY TIME", rows=3, cols=15)
+        assert result == "TACO TUESDAY\nPARTY TIME"
+
+    def test_explicit_newlines_preserved_and_wrapping_fills_within(self):
+        result = wrap_message_text("HI\nTACO TUESDAY PARTY TIME", rows=6, cols=15)
+        assert result == "HI\nTACO TUESDAY\nPARTY TIME"
+
+    def test_literal_backslash_n_becomes_line_break(self):
+        result = wrap_message_text("HI\\nTHERE", rows=3, cols=15)
+        assert result == "HI\nTHERE"
+
+    def test_truncates_wrapped_output_to_rows(self):
+        result = wrap_message_text("AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH IIII JJJJ", rows=3, cols=15)
+        assert result == "AAAA BBBB CCCC\nDDDD EEEE FFFF\nGGGG HHHH IIII"
+
+    def test_truncates_explicit_lines_to_rows(self):
+        result = wrap_message_text("A\nB\nC\nD", rows=3, cols=15)
+        assert result == "A\nB\nC"

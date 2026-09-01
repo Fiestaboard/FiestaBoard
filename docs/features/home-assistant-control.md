@@ -106,6 +106,13 @@ Once connected, FiestaBoard appears as a device with **24 entities** — control
 | **Previous Page** | Button | Navigate to the previous page in the page list (wraps around) |
 | **Refresh Interval** | Number | Set how often the board refreshes (30–3600 seconds). *Categorized as config.* |
 
+**Send Message formatting:** text longer than the board width word-wraps onto
+the following rows automatically, sized to your board's real geometry (6 rows ×
+22 columns on Flagship, 3 × 15 on Note). The text entity is single-line, so to
+force a line break type the literal two-character sequence `\n` where you want
+the break (e.g. `TACO\nTUESDAY`) — wrapping still fills within those breaks.
+Lines beyond the board's row count are dropped.
+
 ### Sensors (read-only status from FiestaBoard)
 
 | Entity | Type | Description |

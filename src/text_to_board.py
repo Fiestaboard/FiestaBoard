@@ -37,6 +37,38 @@ COLOR_MARKER_PATTERN = re.compile(
 )
 
 
+def wrap_message_text(text: str, rows: int = 6, cols: int = 22) -> str:
+    """Prepare free-form user text for ``text_to_board_array`` (issue #1793).
+
+    - Converts the literal two-character sequence backslash-n (``"\\\\n"``)
+      into a real newline, so single-line clients (e.g. Home Assistant text
+      entities) can request a line break.
+    - Word-wraps to ``cols`` characters (greedy, at word boundaries) so text
+      longer than the board width flows onto the next row instead of being
+      silently truncated. Explicit newlines are respected; wrapping fills
+      within them.
+    - Truncates to ``rows`` lines.
+
+    ``text_to_board_array`` itself keeps its contract of truncating each line
+    at the column limit — wrapping happens here, upstream.
+
+    Args:
+        text: Raw user message.
+        rows: Target board rows (default 6 for flagship, 3 for note).
+        cols: Target board columns (default 22 for flagship, 15 for note).
+
+    Returns:
+        Newline-separated text that fits within rows x cols at word
+        boundaries (a single word longer than ``cols`` still gets truncated
+        downstream).
+    """
+    from src.formatters.message_formatter import MessageFormatter
+
+    unescaped = text.replace("\\n", "\n")
+    lines = MessageFormatter(rows=rows, cols=cols).split_into_lines(unescaped, max_lines=rows)
+    return "\n".join(lines)
+
+
 def text_to_board_array(text: str, use_color_tiles: bool = True, rows: int = 6, cols: int = 22) -> list[list[int]]:
     """
     Convert formatted text to board character array.

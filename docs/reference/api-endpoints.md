@@ -208,8 +208,15 @@ curl http://localhost:4420/api/status
 ```bash
 curl -X POST http://localhost:4420/api/send-message \
   -H "Content-Type: application/json" \
-  -d '{"message": "Hello World!"}'
+  -d '{"text": "Hello World!"}'
 ```
+
+Message formatting: text longer than the board width is word-wrapped onto
+the following rows automatically, sized to your board's real geometry
+(6 rows × 22 columns on Flagship, 3 × 15 on Note). A newline (`\n`) — or the
+literal two-character sequence `\n` typed in a single-line field — starts a
+new row, and wrapping fills within those explicit breaks. Lines beyond the
+board's row count are dropped.
 
 ### List Plugins
 
