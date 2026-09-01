@@ -6,8 +6,15 @@ from pathlib import Path
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
+import plugins.countdown as countdown_module
 from plugins.countdown import CountdownPlugin
 from src.devices import BoardContext
+
+# Patch the module object captured at import time rather than the
+# "plugins.countdown" dotted path. The plugin loader replaces the
+# sys.modules entry when it loads plugins (src/plugins/loader.py), so in a
+# full-suite run the dotted path resolves to a different module object than
+# the one CountdownPlugin above was defined in — and the mock never applies.
 
 
 class TestCountdownPlugin:
@@ -63,7 +70,7 @@ class TestCountdownPlugin:
         errors = plugin.validate_config(config)
         assert len(errors) == 0
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_fetch_data_future_event(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data with a future target date."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -88,7 +95,7 @@ class TestCountdownPlugin:
         assert int(data["seconds"]) >= 0
         assert int(data["total_seconds"]) > 0
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_fetch_data_exact_values(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data returns correct countdown values."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -107,7 +114,7 @@ class TestCountdownPlugin:
         assert data["minutes"] == "10"
         assert data["seconds"] == "0"
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_fetch_data_expired_event(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data when the event has already passed."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -159,7 +166,7 @@ class TestCountdownPlugin:
         assert result.available is False
         assert result.error is not None
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_fetch_data_all_variables(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data returns all expected variables from manifest."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -183,7 +190,7 @@ class TestCountdownPlugin:
         for var in var_names:
             assert var in data, f"Variable '{var}' declared in manifest but not in data"
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_fetch_data_formatted_lines(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data returns formatted lines for the board."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -198,7 +205,7 @@ class TestCountdownPlugin:
         assert result.formatted_lines is not None
         assert len(result.formatted_lines) == 6
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_get_formatted_display(self, mock_datetime, sample_manifest, sample_config):
         """Test get_formatted_display returns 6 lines."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -217,7 +224,7 @@ class TestCountdownPlugin:
         assert "HOURS" in lines[4].upper()
         assert "MINUTES" in lines[5].upper()
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_get_formatted_display_expired(self, mock_datetime, sample_manifest, sample_config):
         """Test formatted display when event has passed."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -241,7 +248,7 @@ class TestCountdownPlugin:
 
         assert lines is None
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_fetch_data_formatted_string(self, mock_datetime, sample_manifest, sample_config):
         """Test the formatted countdown string."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -255,7 +262,7 @@ class TestCountdownPlugin:
 
         assert result.data["formatted"] == "21D 3H 10M"
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_fetch_data_dst_spring_forward(self, mock_datetime, sample_manifest):
         """Countdown across the DST spring-forward boundary loses an hour (#926).
 
@@ -286,7 +293,7 @@ class TestCountdownPlugin:
         assert data["hours"] == "23"
         assert data["total_seconds"] == "82800"
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_fetch_data_dst_fall_back(self, mock_datetime, sample_manifest):
         """Countdown across the DST fall-back boundary gains an hour (#926)."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -310,7 +317,7 @@ class TestCountdownPlugin:
         assert data["hours"] == "1"
         assert data["total_seconds"] == "90000"
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_fetch_data_default_event_name(self, mock_datetime, sample_manifest):
         """Test default event name when not configured."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -331,7 +338,7 @@ class TestCountdownPlugin:
 class TestCountdownCountUp:
     """Count-up ("days since") mode — #1795."""
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_count_up_past_target_counts_elapsed_time(self, mock_datetime, sample_manifest, sample_config):
         """With count_up on and a past target, values count upward from it."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -354,7 +361,7 @@ class TestCountdownCountUp:
         assert data["is_count_up"] == "true"
         assert data["formatted"] == "30D 20H 50M"
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_count_up_flagship_display_says_since(self, mock_datetime, sample_manifest, sample_config):
         """Flagship display announces time SINCE the event, not a passed event."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -372,7 +379,7 @@ class TestCountdownCountUp:
         assert not any("PASSED" in line.upper() for line in lines)
         assert "30 DAYS" in lines[3].upper()
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_count_up_note_compact_says_since(self, mock_datetime, sample_manifest, sample_config):
         """Note (15x3) count-up layout fits and says SINCE instead of TO GO."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -389,7 +396,7 @@ class TestCountdownCountUp:
         assert any("SINCE" in line.upper() for line in lines)
         assert not any("TO GO" in line.upper() for line in lines)
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_count_up_future_target_counts_down_until_it_arrives(self, mock_datetime, sample_manifest, sample_config):
         """count_up with a future target counts down to it (then up after)."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -409,7 +416,7 @@ class TestCountdownCountUp:
         assert data["is_count_up"] == "false"
         assert data["formatted"] == "21D 3H 10M"
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_count_up_off_past_target_still_reports_expired_zeros(self, mock_datetime, sample_manifest, sample_config):
         """Default (count_up off) keeps the historical expired behavior exactly."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -486,7 +493,7 @@ class TestCountdownManifestMetadata:
 class TestCountdownBoardAwareness:
     """The countdown display adapts to the board it renders on."""
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_flagship_unchanged_six_lines(self, mock_datetime, sample_manifest, sample_config):
         """Flagship (22x6) keeps the full six-line labelled layout."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -503,7 +510,7 @@ class TestCountdownBoardAwareness:
         assert all(len(line) <= 22 for line in lines)
         assert "COUNTDOWN" in lines[0].upper()
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_note_compact_three_lines(self, mock_datetime, sample_manifest, sample_config):
         """Note (15x3) drops to a compact three-line layout that fits 15 cols."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -519,7 +526,7 @@ class TestCountdownBoardAwareness:
         assert len(lines) == 3
         assert all(len(line) <= 15 for line in lines)
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_note_compact_expired(self, mock_datetime, sample_manifest, sample_config):
         """An expired event on a Note still fits the compact three-line layout."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -535,7 +542,7 @@ class TestCountdownBoardAwareness:
         assert all(len(line) <= 15 for line in lines)
         assert any("PASSED" in line.upper() for line in lines)
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_per_board_cache_isolation(self, mock_datetime, sample_manifest, sample_config):
         """Flagship and Note renders cache independently (no cross-contamination)."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -554,7 +561,7 @@ class TestCountdownBoardAwareness:
         # not the 3-line note variant that was cached afterwards.
         assert len(plugin.get_data(BoardContext.from_device_type("flagship")).formatted_lines) == 6
 
-    @patch("plugins.countdown.datetime")
+    @patch.object(countdown_module, "datetime")
     def test_no_board_defaults_to_flagship(self, mock_datetime, sample_manifest, sample_config):
         """With no board bound, output matches the historical 22x6 layout."""
         tz = ZoneInfo("America/Los_Angeles")
