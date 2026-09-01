@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "Kunde inte ställa in standardsida",
     "toastSwitchSuccess": "Bytte till aktiv sida",
     "toastSwitchFailed": "Kunde inte byta sida",
+    "toastSwitchNotSent": "Sidan byttes, men det gick inte att skicka till tavlan",
     "updatedExternally": "Board ändrades av en annan app",
     "resendToBoard": "Återställ",
     "toastResendSuccess": "Board återställd",

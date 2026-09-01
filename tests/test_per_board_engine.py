@@ -600,3 +600,62 @@ class TestSilencePageGeometryValidation:
         secondary_rows = clients["b2"].render.call_args.args[0]
         assert len(secondary_rows) == 3 and len(secondary_rows[0]) == 15
         assert svc.runtimes["b2"].last_active_page_id != "__silence_page__:sil"
+
+
+class TestSendFailureTracking:
+    """check_and_send_for_board records why a send attempt failed on the
+    runtime (issue #1791) so API endpoints can report it instead of
+    conflating 'failed' with benign skips."""
+
+    def test_render_unavailable_records_error(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        pages.preview_page.side_effect = lambda pid, force_refresh=False: SimpleNamespace(
+            available=False, formatted="", error="plugin data unavailable"
+        )
+        schedule = _schedule_service({"b1": "pA"})
+
+        sent = _drive(svc, boards, pages=pages, schedule=schedule)
+
+        assert sent is False
+        assert svc.get_last_send_error("b1") == "plugin data unavailable"
+        assert svc.get_last_send_error() == "plugin data unavailable"  # default → primary
+
+    def test_board_write_failure_records_error(self):
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].render.return_value = (False, False)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+
+        sent = _drive(svc, boards, pages=pages, schedule=schedule)
+
+        assert sent is False
+        assert "pA" in (svc.get_last_send_error("b1") or "")
+
+    def test_successful_send_clears_previous_error(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        svc.runtimes["b1"].last_send_error = "stale error from an earlier tick"
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+
+        sent = _drive(svc, boards, pages=pages, schedule=schedule)
+
+        assert sent is True
+        assert svc.get_last_send_error("b1") is None
+
+    def test_unchanged_content_skip_is_not_an_error(self):
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+
+        _drive(svc, boards, pages=pages, schedule=schedule)
+        clients["b1"].render.reset_mock()
+        sent = _drive(svc, boards, pages=pages, schedule=schedule)
+
+        assert sent is False
+        clients["b1"].render.assert_not_called()
+        assert svc.get_last_send_error("b1") is None

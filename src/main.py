@@ -81,6 +81,13 @@ class BoardRuntime:
         self.last_silence_mode_active: bool = False
         self.snoozing_message_sent: bool = False
 
+        # Why the most recent check_and_send_for_board pass failed for this
+        # board, or None when it succeeded or skipped benignly (paused,
+        # silence, unchanged content, no active page). Lets API endpoints
+        # report real send failures instead of silently claiming success
+        # (issue #1791).
+        self.last_send_error: str | None = None
+
         # Board-state read cache (populated by the poll thread / adaptive
         # refresh). Board-state polling stays primary-only (see
         # ``_board_poll_loop``), but the cache lives on the runtime so a
@@ -200,6 +207,16 @@ class DisplayService:
     def get_runtime(self, board_id) -> BoardRuntime | None:
         """Return the runtime for a board id, or None."""
         return self.runtimes.get(board_id)
+
+    def get_last_send_error(self, board_id=None) -> str | None:
+        """Failure reason for a board's most recent active-page send attempt.
+
+        None means the last ``check_and_send_for_board`` pass either sent
+        successfully or skipped benignly (paused, silence, unchanged content,
+        no active page). ``board_id`` omitted → the primary board.
+        """
+        rt = self.runtimes.get(board_id) if board_id is not None else self._primary_runtime()
+        return rt.last_send_error if rt is not None else None
 
     # -- State shims aliasing the primary runtime (read + write). --------- #
 
@@ -723,6 +740,10 @@ class DisplayService:
             True if content was sent to this board, False otherwise.
         """
         try:
+            # Each pass starts clean: a benign skip must not leave a stale
+            # failure reason behind (issue #1791).
+            rt.last_send_error = None
+
             settings_service = get_settings_service()
             page_service = get_page_service()
             schedule_service = get_schedule_service()
@@ -901,6 +922,8 @@ class DisplayService:
                 # so template variables (weather, time, stocks, etc.) are current.
                 result = page_service.preview_page(active_page_id, force_refresh=True)
                 if not result or not result.available:
+                    render_error = getattr(result, "error", None) if result else None
+                    rt.last_send_error = render_error or f"Failed to render active page: {active_page_id}"
                     logger.warning(f"Failed to render active page: {active_page_id}")
                     return False
 
@@ -966,6 +989,7 @@ class DisplayService:
             logger.info(f"Board {board_id}: active page content changed, sending: {active_page_id}")
 
             if not rt.client:
+                rt.last_send_error = "Board client not initialized"
                 logger.warning("Board client not initialized")
                 return False
 
@@ -1008,10 +1032,12 @@ class DisplayService:
                 else:
                     logger.debug("Active page unchanged at board level")
                 return was_sent
+            rt.last_send_error = f"Failed to send active page to board: {active_page_id}"
             logger.error(f"Board {board_id}: failed to send active page: {active_page_id}")
             return False
 
         except Exception as e:
+            rt.last_send_error = str(e) or e.__class__.__name__
             logger.error(f"Error checking active page for board {board_id}: {e}")
             return False
 

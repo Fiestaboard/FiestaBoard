@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "Nie udało się ustawić domyślnej strony",
     "toastSwitchSuccess": "Przełączono na aktywną stronę",
     "toastSwitchFailed": "Nie udało się przełączyć strony",
+    "toastSwitchNotSent": "Przełączono stronę, ale nie udało się wysłać na tablicę",
     "updatedExternally": "Board został zmieniony przez inną aplikację",
     "resendToBoard": "Przywróć",
     "toastResendSuccess": "Board przywrócony",

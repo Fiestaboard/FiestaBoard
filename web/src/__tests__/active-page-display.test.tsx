@@ -521,4 +521,57 @@ describe("ActivePageDisplay", () => {
 
     toastSpy.mockRestore();
   });
+
+  it("shows an error toast when the page switches but the board send fails", async () => {
+    // Issue #1791: the backend persists the page but reports the render/send
+    // failure via error + sent_to_board=false on a 200 response. That must
+    // NOT be toasted as a success.
+    const errorToastSpy = vi.spyOn((await import("sonner")).toast, "error");
+    const successToastSpy = vi.spyOn((await import("sonner")).toast, "success");
+    server.use(
+      http.put(`${API_BASE}/settings/active-page`, () =>
+        HttpResponse.json({
+          status: "success",
+          page_id: "page-2",
+          sent_to_board: false,
+          paused: false,
+          board_id: null,
+          error: "Weather API unreachable",
+        }),
+      ),
+    );
+
+    const user = userEvent.setup();
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Change Page/i })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /Change Page/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Select Page")).toBeInTheDocument();
+    });
+
+    await waitFor(
+      () => {
+        expect(screen.queryByText("Custom Template")).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
+
+    await user.click(screen.getByText("Custom Template"));
+
+    await waitFor(
+      () => {
+        expect(errorToastSpy).toHaveBeenCalledWith("Page switched, but sending to the board failed");
+      },
+      { timeout: 3000 },
+    );
+    expect(successToastSpy).not.toHaveBeenCalledWith("Switched to active page");
+
+    errorToastSpy.mockRestore();
+    successToastSpy.mockRestore();
+  });
 });

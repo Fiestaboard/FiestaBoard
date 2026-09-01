@@ -372,8 +372,16 @@ export function ActivePageDisplay() {
       // Manual mode (or after the user chose to disable schedule): switch immediately.
       setOpenSheetAsManual(false);
       setActivePageMutation.mutate(pageId, {
-        onSuccess: (_result) => {
+        onSuccess: (result) => {
           setIsSheetOpen(false);
+          // The page selection persisted, but the render/send to the board
+          // can still fail (e.g. plugin/network outage) — the backend reports
+          // that via error + sent_to_board=false on a 200 response, same
+          // contract page-builder consumes (issue #1791).
+          if (result.error) {
+            toast.error(t("toastSwitchNotSent"));
+            return;
+          }
           startTransition(() => {
             toast.success(t("toastSwitchSuccess"));
           });

@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "Échec de la définition de la page par défaut",
     "toastSwitchSuccess": "Page active changée",
     "toastSwitchFailed": "Échec du changement de page",
+    "toastSwitchNotSent": "Page changée, mais l'envoi vers le tableau a échoué",
     "updatedExternally": "Le board a été modifié par une autre application",
     "resendToBoard": "Restaurer",
     "toastResendSuccess": "Board restauré",

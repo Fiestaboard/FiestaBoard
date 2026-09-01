@@ -329,6 +329,41 @@ def test_apply_env_overrides_does_not_override_existing_note_array_token(monkeyp
     assert cm.get_board()["note_array_token"] == "ui-stored-token"
 
 
+def test_apply_env_overrides_board_api_mode_takes_effect_over_merged_default(monkeypatch, tmp_path):
+    """BOARD_API_MODE from the environment must take effect (issue #1791).
+
+    The defaults merge fills board.api_mode with "local" before
+    ``_apply_env_overrides`` runs, so a falsy-only guard silently ignored
+    the env var forever (dead code). An env var must win over a value that
+    is still the schema default.
+    """
+    monkeypatch.setenv("BOARD_API_MODE", "cloud")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {}, "features": {}, "general": {}}))
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_board()["api_mode"] == "cloud"
+
+
+def test_apply_env_overrides_board_api_mode_persisted_default_still_overridden(monkeypatch, tmp_path):
+    """A previously persisted default (written back by the defaults merge on an
+    earlier boot) is still overridable — only a user-customized value wins."""
+    monkeypatch.setenv("BOARD_API_MODE", "cloud")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {"api_mode": "local"}, "features": {}, "general": {}}))
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_board()["api_mode"] == "cloud"
+
+
+def test_apply_env_overrides_preserves_user_customized_api_mode(monkeypatch, tmp_path):
+    """A non-default api_mode stored in config (set via the wizard/UI) is not
+    clobbered by an env var — UI changes are preserved."""
+    monkeypatch.setenv("BOARD_API_MODE", "local")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {"api_mode": "cloud"}, "features": {}, "general": {}}))
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_board()["api_mode"] == "cloud"
+
+
 def test_apply_env_overrides_invalid_int_value(monkeypatch, tmp_path):
     """Handles invalid int env var values."""
     monkeypatch.setenv("BOARD_TRANSITION_INTERVAL_MS", "not_a_number")

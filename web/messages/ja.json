@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "デフォルトページの設定に失敗しました",
     "toastSwitchSuccess": "アクティブページに切り替えました",
     "toastSwitchFailed": "ページの切り替えに失敗しました",
+    "toastSwitchNotSent": "ページを切り替えましたが、ボードへの送信に失敗しました",
     "updatedExternally": "ボードが別のアプリで変更されました",
     "resendToBoard": "復元",
     "toastResendSuccess": "ボードを復元しました",

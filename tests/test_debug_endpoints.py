@@ -477,3 +477,97 @@ class TestGetFirstBoardDims:
         with patch("src.api_server.get_settings_service", return_value=ss):
             dims = _get_first_board_dims()
         assert (dims.rows, dims.cols) == (6, 22)
+
+
+class TestConnectionInfoSource:
+    """/debug/system-info and /debug/info must report the connection mode and
+    board IP the live send path actually uses — the boards[] store — not the
+    wizard-era legacy config.json values (issue #1791)."""
+
+    @staticmethod
+    def _ss_with_board(board, send_to_board=False):
+        ss = Mock()
+        ss.should_send_to_board.return_value = send_to_board
+        ss.is_paused.return_value = False
+        board_settings = Mock()
+        board_settings.boards = [board] if board is not None else []
+        ss.get_board_settings.return_value = board_settings
+        return ss
+
+    def test_system_info_uses_boards_store_not_legacy_config(self, client):
+        """boards[0] says cloud; stale config.json says local → report cloud."""
+        board = {
+            "id": "b1",
+            "api_mode": "cloud",
+            "host": "10.0.0.42",
+            "cloud_key": "test-rw-key",
+            "device_type": "flagship",
+        }
+        with (
+            patch("src.api_server.get_settings_service", return_value=self._ss_with_board(board)),
+            patch("src.api_server.Config") as mock_config,
+        ):
+            mock_config.BOARD_API_MODE = "local"
+            mock_config.BOARD_HOST = "192.168.1.99"
+            response = client.get("/debug/system-info")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["connection_mode"] == "cloud"
+        assert data["board_ip"] == "10.0.0.42"
+        assert data["board_configured"] is True
+
+    def test_system_info_unusable_board_entry_not_configured(self, client):
+        """A boards[0] entry without usable credentials reports board_configured False."""
+        board = {"id": "b1", "api_mode": "cloud", "host": "", "cloud_key": "", "device_type": "flagship"}
+        with (
+            patch("src.api_server.get_settings_service", return_value=self._ss_with_board(board)),
+            patch("src.api_server.Config") as mock_config,
+        ):
+            mock_config.BOARD_API_MODE = "local"
+            mock_config.BOARD_HOST = "192.168.1.99"
+            mock_config.BOARD_LOCAL_API_KEY = "legacy-key"
+            mock_config.BOARD_READ_WRITE_KEY = ""
+            response = client.get("/debug/system-info")
+        assert response.status_code == 200
+        assert response.json()["board_configured"] is False
+
+    def test_system_info_falls_back_to_legacy_config_without_boards(self, client):
+        """No boards[] entries → legacy Config keeps working (pre-boards installs)."""
+        with (
+            patch("src.api_server.get_settings_service", return_value=self._ss_with_board(None)),
+            patch("src.api_server._get_board_client", return_value=None),
+            patch("src.api_server.Config") as mock_config,
+        ):
+            mock_config.BOARD_API_MODE = "local"
+            mock_config.BOARD_HOST = "192.168.1.50"
+            mock_config.BOARD_LOCAL_API_KEY = "legacy-key"
+            mock_config.BOARD_READ_WRITE_KEY = ""
+            response = client.get("/debug/system-info")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["connection_mode"] == "local"
+        assert data["board_ip"] == "192.168.1.50"
+        assert data["board_configured"] is True
+
+    def test_debug_info_board_text_uses_boards_store(self, client, mock_board_client):
+        """The on-board debug text reports the boards[] mode/host, not legacy Config."""
+        board = {
+            "id": "b1",
+            "api_mode": "cloud",
+            "host": "10.0.0.42",
+            "cloud_key": "test-rw-key",
+            "device_type": "flagship",
+        }
+        ss = self._ss_with_board(board, send_to_board=False)
+        with (
+            patch("src.api_server.get_settings_service", return_value=ss),
+            patch("src.api_server.Config") as mock_config,
+        ):
+            mock_config.BOARD_API_MODE = "local"
+            mock_config.BOARD_HOST = "192.168.1.99"
+            response = client.post("/debug/info")
+        assert response.status_code == 200
+        debug_info = response.json()["debug_info"]
+        assert "CLOUD API" in debug_info
+        assert "10.0.0.42" in debug_info
+        assert "192.168.1.99" not in debug_info
