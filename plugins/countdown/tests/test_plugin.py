@@ -328,6 +328,114 @@ class TestCountdownPlugin:
         assert result.data["event_name"] == "Event"
 
 
+class TestCountdownCountUp:
+    """Count-up ("days since") mode — #1795."""
+
+    @patch("plugins.countdown.datetime")
+    def test_count_up_past_target_counts_elapsed_time(self, mock_datetime, sample_manifest, sample_config):
+        """With count_up on and a past target, values count upward from it."""
+        tz = ZoneInfo("America/Los_Angeles")
+        # 30 days, 20 hours, 50 minutes after the 2025-06-15T00:00:00 target.
+        mock_datetime.now.return_value = datetime(2025, 7, 15, 20, 50, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = {**sample_config, "count_up": True}
+        result = plugin.fetch_data()
+
+        assert result.available is True
+        data = result.data
+        assert data["days"] == "30"
+        assert data["hours"] == "20"
+        assert data["minutes"] == "50"
+        assert data["seconds"] == "0"
+        assert data["total_seconds"] == "2667000"
+        assert data["is_expired"] == "true"
+        assert data["is_count_up"] == "true"
+        assert data["formatted"] == "30D 20H 50M"
+
+    @patch("plugins.countdown.datetime")
+    def test_count_up_flagship_display_says_since(self, mock_datetime, sample_manifest, sample_config):
+        """Flagship display announces time SINCE the event, not a passed event."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 7, 15, 20, 50, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = {**sample_config, "count_up": True}
+        lines = plugin.get_data(BoardContext.from_device_type("flagship")).formatted_lines
+
+        assert lines is not None
+        assert len(lines) == 6
+        assert all(len(line) <= 22 for line in lines)
+        assert "SINCE" in lines[0].upper()
+        assert not any("PASSED" in line.upper() for line in lines)
+        assert "30 DAYS" in lines[3].upper()
+
+    @patch("plugins.countdown.datetime")
+    def test_count_up_note_compact_says_since(self, mock_datetime, sample_manifest, sample_config):
+        """Note (15x3) count-up layout fits and says SINCE instead of TO GO."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 7, 15, 20, 50, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = {**sample_config, "count_up": True}
+        lines = plugin.get_data(BoardContext.from_device_type("note")).formatted_lines
+
+        assert lines is not None
+        assert len(lines) == 3
+        assert all(len(line) <= 15 for line in lines)
+        assert any("SINCE" in line.upper() for line in lines)
+        assert not any("TO GO" in line.upper() for line in lines)
+
+    @patch("plugins.countdown.datetime")
+    def test_count_up_future_target_counts_down_until_it_arrives(self, mock_datetime, sample_manifest, sample_config):
+        """count_up with a future target counts down to it (then up after)."""
+        tz = ZoneInfo("America/Los_Angeles")
+        # 21 days, 3 hours, 10 minutes before the target.
+        mock_datetime.now.return_value = datetime(2025, 5, 24, 20, 50, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = {**sample_config, "count_up": True}
+        result = plugin.fetch_data()
+
+        data = result.data
+        assert data["days"] == "21"
+        assert data["hours"] == "3"
+        assert data["minutes"] == "10"
+        assert data["is_expired"] == "false"
+        assert data["is_count_up"] == "false"
+        assert data["formatted"] == "21D 3H 10M"
+
+    @patch("plugins.countdown.datetime")
+    def test_count_up_off_past_target_still_reports_expired_zeros(self, mock_datetime, sample_manifest, sample_config):
+        """Default (count_up off) keeps the historical expired behavior exactly."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.now.return_value = datetime(2025, 7, 1, 0, 0, 0, tzinfo=tz)
+        mock_datetime.fromisoformat = datetime.fromisoformat
+
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = sample_config
+        data = plugin.fetch_data().data
+
+        assert data["is_expired"] == "true"
+        assert data["is_count_up"] == "false"
+        assert data["total_seconds"] == "0"
+        assert data["formatted"] == "Event has passed"
+
+    def test_manifest_declares_count_up_boolean_default_off(self):
+        """count_up is a boolean setting defaulting to false in the schema."""
+        manifest_path = Path(__file__).parent.parent / "manifest.json"
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        prop = manifest["settings_schema"]["properties"]["count_up"]
+        assert prop["type"] == "boolean"
+        assert prop["default"] is False
+
+
 class TestCountdownManifestMetadata:
     """Tests for the rich metadata format in the countdown manifest."""
 
