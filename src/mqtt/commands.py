@@ -80,6 +80,66 @@ class CommandHandler:
                 logger.debug("Mark display updated failed: %s", e)
 
     # ------------------------------------------------------------------ #
+    # Out-of-band write / force-send helpers (issue #1794)
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _display_service():
+        """The existing DisplayService instance, or None (never creates one)."""
+        from src.api_server import peek_service
+
+        return peek_service()
+
+    def _invalidate_board_content(self, board_id: str | None) -> None:
+        """Clear a board's display-loop dedupe + client caches after an
+        out-of-band board write, so the next check-and-send cycle restores
+        the active page instead of skipping at the content-unchanged guard.
+        ``None`` targets the primary board.
+        """
+        service = self._display_service()
+        if service is None or not hasattr(service, "invalidate_board_content"):
+            return
+        try:
+            if board_id is None:
+                from src.settings.service import get_settings_service
+
+                board_id = get_settings_service().get_primary_board_id()
+            service.invalidate_board_content(board_id)
+        except Exception as e:
+            logger.debug("Board content invalidation failed: %s", e)
+
+    def _force_send_active_page(self, board_id: str | None) -> None:
+        """Invalidate dedupe state and immediately push the active page.
+
+        Mirrors what PUT /settings/active-page does for the web UI. The
+        display loop alone would skip at its content-dedupe guard, so
+        re-selecting the currently-set page over MQTT would never restore
+        it after an out-of-band write (issue #1794).
+        """
+        service = self._display_service()
+        if service is None:
+            return
+        try:
+            self._invalidate_board_content(board_id)
+            if board_id is not None and hasattr(service, "check_and_send_for_board"):
+                rt = service.get_runtime(board_id) if hasattr(service, "get_runtime") else None
+                if rt is not None:
+                    is_primary = False
+                    try:
+                        from src.settings.service import get_settings_service
+
+                        is_primary = get_settings_service().get_primary_board_id() == board_id
+                    except Exception as e:
+                        logger.debug("Primary board lookup failed: %s", e)
+                    _bid, board = self._resolve_board(board_id)
+                    service.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
+                    return
+            if hasattr(service, "check_and_send_active_page"):
+                service.check_and_send_active_page()
+        except Exception as e:
+            logger.warning("MQTT active_page: immediate send failed: %s", e)
+
+    # ------------------------------------------------------------------ #
     # Per-board routing helpers (issue #1244)
     # ------------------------------------------------------------------ #
 
@@ -221,7 +281,22 @@ class CommandHandler:
                 else:
                     get_settings_service().set_active_page_id(page.id)
                     self._publish_event("page_changed", "page_switched", {"page_name": page.name})
+                # Push the page immediately (issue #1794): re-selecting the
+                # currently-set page must still restore it to the board after
+                # an out-of-band write.
+                self._force_send_active_page(board_id)
                 return
+        from .discovery import NO_ACTIVE_PAGE_OPTION
+
+        if payload_lower == NO_ACTIVE_PAGE_OPTION.lower():
+            # The HA select's stable no-page option (issue #1794): clear the
+            # board's manual active page. (A real page named like the option
+            # wins — the name match above runs first.)
+            if board_id is not None:
+                get_settings_service().set_active_page_id(None, board_id=board_id)
+            else:
+                get_settings_service().set_active_page_id(None)
+            return
         logger.warning("MQTT active_page: no page named %r", page_name)
 
     def _handle_transition_style(self, payload: str) -> None:
@@ -241,8 +316,14 @@ class CommandHandler:
         # JSON payloads may target a specific board (issue #1244):
         # {"board_id": "..."} or {"board": "Kitchen"}. Anything else (e.g.
         # the HA button's "PRESS") keeps the legacy all-boards refresh.
+        #
+        # This is a FORCE refresh (issue #1794): dedupe caches are dropped
+        # first so unchanged content is re-sent (restoring the active page
+        # after an out-of-band write), and display_updated only fires when
+        # something was actually sent.
         _, board_ref = self._parse_board_payload(payload)
         service = get_service()
+        sent = False
         if service and board_ref:
             board_id, board = self._resolve_board(board_ref)
             rt = service.get_runtime(board_id) if (board_id and hasattr(service, "get_runtime")) else None
@@ -254,13 +335,28 @@ class CommandHandler:
                     is_primary = get_settings_service().get_primary_board_id() == board_id
                 except Exception as e:
                     logger.debug("Primary board lookup failed: %s", e)
-                service.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
+                self._invalidate_service_boards(service, board_id)
+                sent = service.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
             elif hasattr(service, "check_and_send_active_page"):
-                service.check_and_send_active_page()
+                self._invalidate_service_boards(service)
+                sent = service.check_and_send_active_page()
         elif service and hasattr(service, "check_and_send_active_page"):
-            service.check_and_send_active_page()
-        self._mark_display_updated()
-        self._publish_event("display_updated", "page_refreshed")
+            self._invalidate_service_boards(service)
+            sent = service.check_and_send_active_page()
+        if sent:
+            self._mark_display_updated()
+            self._publish_event("display_updated", "page_refreshed")
+
+    @staticmethod
+    def _invalidate_service_boards(service, board_id: str | None = None) -> None:
+        """Drop the dedupe caches for one board (or all) ahead of a force refresh."""
+        try:
+            if board_id is not None and hasattr(service, "invalidate_board_content"):
+                service.invalidate_board_content(board_id)
+            elif board_id is None and hasattr(service, "invalidate_all_board_content"):
+                service.invalidate_all_board_content()
+        except Exception as e:
+            logger.debug("Board content invalidation failed: %s", e)
 
     def _handle_blank_board(self, payload: str = "") -> None:
         # JSON payloads may target a specific board (issue #1244); the
@@ -299,6 +395,9 @@ class CommandHandler:
         dims = self._board_dims(board if board is not None else self._resolve_board(None)[1])
         blank_array = [[0] * dims.cols for _ in range(dims.rows)]
         client.send_characters(blank_array, force=True)
+        # Out-of-band write (issue #1794): let the display loop restore the
+        # active page on its next cycle.
+        self._invalidate_board_content(board_id)
         self._mark_display_updated()
         self._publish_event("display_updated", "board_blanked")
 
@@ -378,6 +477,9 @@ class CommandHandler:
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
         )
+        # Out-of-band write (issue #1794): let the display loop restore the
+        # active page on its next cycle.
+        self._invalidate_board_content(board_id)
         self._mark_display_updated()
         self._publish_event("display_updated", "message_sent")
 

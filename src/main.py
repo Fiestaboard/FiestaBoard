@@ -572,6 +572,16 @@ class DisplayService:
         if rt.client is not None:
             rt.client.clear_cache()
 
+    def invalidate_all_board_content(self) -> None:
+        """Invalidate every board's dedupe + client caches (issue #1794).
+
+        Used by force-refresh paths (e.g. the MQTT "Refresh Display" button)
+        so the next check-and-send cycle unconditionally re-sends each
+        board's content instead of skipping at the content-dedupe guard.
+        """
+        for board_id in list(self.runtimes):
+            self.invalidate_board_content(board_id)
+
     # ------------------------------------------------------------------ #
     # Board-state polling (primary board only; state lives on the runtime)
     # ------------------------------------------------------------------ #

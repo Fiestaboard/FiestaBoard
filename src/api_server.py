@@ -1039,6 +1039,54 @@ def get_service() -> DisplayService | None:
     return _service
 
 
+def peek_service() -> DisplayService | None:
+    """Return the existing DisplayService instance without creating one.
+
+    For callers that only need to touch state that already exists (e.g.
+    invalidating dedupe caches after an out-of-band board write, issue
+    #1794): when no service exists there is nothing to invalidate, and
+    building one as a side effect would be wrong.
+    """
+    return _service
+
+
+def _publish_mqtt_state_update() -> None:
+    """Push fresh MQTT state after an out-of-band board write (issue #1794).
+
+    No-op when the MQTT integration isn't wired. Errors are swallowed —
+    MQTT reporting must never fail the board write that triggered it.
+    """
+    try:
+        from .mqtt import get_mqtt_client
+
+        client = get_mqtt_client()
+        publisher = getattr(client, "_state_publisher", None) if client else None
+        if publisher is None:
+            return
+        publisher.mark_display_updated()
+        publisher.gather_and_publish()
+    except Exception as e:
+        logger.debug(f"MQTT state publish after board write failed: {e}")
+
+
+def _invalidate_primary_board_content() -> None:
+    """Clear the display loop's dedupe caches after an out-of-band write to
+    the primary board (issue #1794), so the next cycle restores the active
+    page instead of skipping at the content-unchanged guard.
+    """
+    service = peek_service()
+    if service is None:
+        return
+    try:
+        board_id = get_settings_service().get_primary_board_id()
+    except Exception:
+        board_id = None
+    try:
+        service.invalidate_board_content(board_id)
+    except Exception as e:
+        logger.debug(f"Board content invalidation failed: {e}")
+
+
 def run_service_background():
     """Run the service in a background thread with auto-restart on failure."""
     global _service_running, _service_start_time
@@ -3557,6 +3605,14 @@ async def send_message(request: MessageRequest):
         )
         if success:
             if was_sent:
+                # Out-of-band write (issue #1794): clear the display loop's
+                # dedupe caches so the active page can be restored, and push
+                # fresh MQTT state so HA reflects the update.
+                try:
+                    service.invalidate_board_content(settings_service.get_primary_board_id())
+                except Exception as e:
+                    logger.debug(f"Board content invalidation failed: {e}")
+                _publish_mqtt_state_update()
                 service.request_board_refresh()
                 return {"status": "success", "message": "Message sent successfully"}
             else:
@@ -7460,6 +7516,9 @@ async def debug_blank_board():
         success, was_sent = client.send_characters(blank_array, force=True)
 
         if success:
+            # Out-of-band write (issue #1794): let the display loop restore
+            # the active page on its next cycle.
+            _invalidate_primary_board_content()
             return {"status": "success", "message": "Board blanked successfully"}
         else:
             raise HTTPException(status_code=500, detail="Failed to blank board")
@@ -7504,6 +7563,9 @@ async def debug_fill_board(request: dict):
         success, was_sent = client.send_characters(fill_array, force=True)
 
         if success:
+            # Out-of-band write (issue #1794): let the display loop restore
+            # the active page on its next cycle.
+            _invalidate_primary_board_content()
             return {"status": "success", "message": f"Board filled with character {character_code}"}
         else:
             raise HTTPException(status_code=500, detail="Failed to fill board")
@@ -7573,6 +7635,9 @@ V{version[:7]} {timestamp}"""
         success, was_sent = client.send_characters(board_array, force=True)
 
         if success:
+            # Out-of-band write (issue #1794): let the display loop restore
+            # the active page on its next cycle.
+            _invalidate_primary_board_content()
             return {"status": "success", "message": "Debug info sent to board", "debug_info": debug_text}
         else:
             raise HTTPException(status_code=500, detail="Failed to send debug info")

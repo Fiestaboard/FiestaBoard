@@ -571,3 +571,53 @@ class TestConnectionInfoSource:
         assert "CLOUD API" in debug_info
         assert "10.0.0.42" in debug_info
         assert "192.168.1.99" not in debug_info
+
+
+class TestDebugOutOfBandInvalidation:
+    """Issue #1794: debug board writes are out-of-band — they must clear the
+    display loop's dedupe caches so the active page is restored next cycle."""
+
+    @staticmethod
+    def _ss():
+        ss = _mock_ss("flagship")
+        ss.get_primary_board_id.return_value = "b1"
+        return ss
+
+    def test_blank_invalidates_display_dedupe(self, client, mock_board_client):
+        service = Mock()
+        with (
+            patch("src.api_server.get_settings_service", return_value=self._ss()),
+            patch("src.api_server.peek_service", return_value=service),
+        ):
+            response = client.post("/debug/blank")
+        assert response.status_code == 200
+        service.invalidate_board_content.assert_called_once_with("b1")
+
+    def test_fill_invalidates_display_dedupe(self, client, mock_board_client):
+        service = Mock()
+        with (
+            patch("src.api_server.get_settings_service", return_value=self._ss()),
+            patch("src.api_server.peek_service", return_value=service),
+        ):
+            response = client.post("/debug/fill", json={"character_code": 63})
+        assert response.status_code == 200
+        service.invalidate_board_content.assert_called_once_with("b1")
+
+    def test_info_invalidates_display_dedupe(self, client, mock_board_client):
+        service = Mock()
+        with (
+            patch("src.api_server.get_settings_service", return_value=self._ss()),
+            patch("src.api_server.peek_service", return_value=service),
+        ):
+            response = client.post("/debug/info")
+        assert response.status_code == 200
+        service.invalidate_board_content.assert_called_once_with("b1")
+
+    def test_blank_without_service_instance_is_safe(self, client, mock_board_client):
+        """No display service yet → nothing to invalidate, blank still succeeds."""
+        with (
+            patch("src.api_server.get_settings_service", return_value=self._ss()),
+            patch("src.api_server.peek_service", return_value=None),
+        ):
+            response = client.post("/debug/blank")
+        assert response.status_code == 200
