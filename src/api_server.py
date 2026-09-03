@@ -9093,15 +9093,25 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
     if not registry.get_plugin(plugin_id):
         raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
 
+    # Resolve the "***" placeholders before anything sees the payload. Config
+    # goes out masked, so any client that echoes back what it read — the
+    # settings form, or an MCP client working from list_installed_plugins() —
+    # posts the sentinel where the secret used to be. Un-masking here rather
+    # than only inside ConfigManager keeps the mask out of the live plugin as
+    # well, whose validate_config()/on_config_change() would otherwise run
+    # against three asterisks (issue #1743).
+    config_manager = get_config_manager()
+    stored_config = config_manager.get_plugin_config(plugin_id) or {}
+    config = unmask_sensitive_values(request.config, stored_config)
+
     # Validate configuration against manifest schema
-    errors = registry.set_plugin_config(plugin_id, request.config)
+    errors = registry.set_plugin_config(plugin_id, config)
     if errors:
         logger.error(f"Plugin '{plugin_id}' config validation failed: {errors}")
         raise HTTPException(status_code=400, detail={"errors": errors})
 
     # Save to config file
-    config_manager = get_config_manager()
-    config_manager.set_plugin_config(plugin_id, request.config)
+    config_manager.set_plugin_config(plugin_id, config)
 
     # Reset services to pick up new config
     reset_display_service()

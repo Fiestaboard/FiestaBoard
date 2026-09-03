@@ -327,6 +327,12 @@ def unmask_sensitive_values(values: dict[str, Any], stored: dict[str, Any]) -> d
     the field was explicitly submitted, so it should end up present and empty
     rather than silently absent.
 
+    Nested dicts and lists are walked too, mirroring
+    :meth:`ConfigManager._mask_sensitive`, which masks at any depth. A flat
+    un-mask left every nested secret — a plugin's ``sources[0].api_key``, say —
+    reading ``"***"`` on the way out and persisting ``"***"`` on the way back
+    in (issue #1743). List elements are matched to *stored* by position.
+
     Args:
         values: Incoming settings, possibly carrying masked placeholders.
         stored: The currently persisted settings to restore secrets from.
@@ -334,11 +340,27 @@ def unmask_sensitive_values(values: dict[str, Any], stored: dict[str, Any]) -> d
     Returns:
         A new dict; *values* is not mutated.
     """
-    merged = dict(values)
-    for key, value in values.items():
-        if key in SENSITIVE_FIELDS and value == MASKED_VALUE:
-            merged[key] = stored.get(key, "")
-    return merged
+    return _unmask_node(values, stored)
+
+
+def _unmask_node(value: Any, stored: Any) -> Any:
+    """Recursive worker for :func:`unmask_sensitive_values`."""
+    if isinstance(value, dict):
+        stored_dict = stored if isinstance(stored, dict) else {}
+        merged: dict[str, Any] = {}
+        for key, item in value.items():
+            if key in SENSITIVE_FIELDS and item == MASKED_VALUE:
+                merged[key] = stored_dict.get(key, "")
+            else:
+                merged[key] = _unmask_node(item, stored_dict.get(key))
+        return merged
+    if isinstance(value, list):
+        stored_list = stored if isinstance(stored, list) else []
+        return [
+            _unmask_node(item, stored_list[index] if index < len(stored_list) else None)
+            for index, item in enumerate(value)
+        ]
+    return value
 
 
 class ConfigManager:
