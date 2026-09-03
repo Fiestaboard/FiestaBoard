@@ -474,8 +474,23 @@ jobs:
     - name: Start Storybook static server
       working-directory: web
       run: |
-        npx http-server storybook-static --port 6006 --silent &
-        sleep 5
+        npx --yes http-server storybook-static --port 6006 --silent &
+        # `http-server` is not a dependency, so npx has to fetch it before
+        # the server can bind. A fixed `sleep 5` raced that download: on a
+        # busy runner the port was still closed when the next step ran and
+        # the test runner bailed out with "It seems that your Storybook
+        # instance is not running at: http://localhost:6006", which reads
+        # like an a11y failure but is really a startup race. Poll the port
+        # instead, and fail loudly with a real message if it never opens.
+        for _ in $(seq 1 60); do
+          if curl -sfo /dev/null http://localhost:6006; then
+            echo "Storybook static server is serving on port 6006"
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "::error::Storybook static server never started listening on port 6006"
+        exit 1
 
     - name: Run Storybook a11y tests
       working-directory: web
