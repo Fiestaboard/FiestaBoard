@@ -37,6 +37,7 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -85,12 +86,12 @@ COVERED = {
     "uninstall_plugin",
     "configure_plugin",
     "get_plugin_data",
+    "update_plugin",
 }
 
 #: Tools not yet covered here, each with the reason. Not an exemption list.
 UNCOVERED = {
     "list_registry_plugins": "hits the network-backed registry; needs a fixture",
-    "update_plugin": "reload_plugin() re-clones from git; needs a local git fixture",
     "set_active_page": "delegates to the REST handler; needs board render wiring",
     "set_schedule_mode": "routes through SettingsService; needs settings wiring",
 }
@@ -144,11 +145,11 @@ PLUGIN_ID = "harness_tide"
 UNINSTALLED_PLUGIN_ID = "harness_surf"
 
 
-def _manifest(plugin_id: str) -> dict[str, Any]:
+def _manifest(plugin_id: str, version: str = "1.0.0") -> dict[str, Any]:
     return {
         "id": plugin_id,
         "name": plugin_id.replace("_", " ").title(),
-        "version": "1.0.0",
+        "version": version,
         "description": "Fixture plugin for MCP state-effect tests.",
         "author": "FiestaBoard Tests",
         "icon": "puzzle",
@@ -198,10 +199,10 @@ class HarnessPlugin(PluginBase):
 '''
 
 
-def _write_plugin(directory: Path, plugin_id: str) -> None:
+def _write_plugin(directory: Path, plugin_id: str, version: str = "1.0.0") -> None:
     """Write a real, loadable plugin package to *directory*."""
     directory.mkdir(parents=True, exist_ok=True)
-    (directory / "manifest.json").write_text(json.dumps(_manifest(plugin_id)), encoding="utf-8")
+    (directory / "manifest.json").write_text(json.dumps(_manifest(plugin_id, version)), encoding="utf-8")
     (directory / "__init__.py").write_text(_PLUGIN_SOURCE.format(plugin_id=plugin_id), encoding="utf-8")
 
 
@@ -821,3 +822,197 @@ def test_plugin_configured_over_mcp_survives_a_container_recreate(mcp, plugins):
         "the plugin came back unconfigured after a restart"
     )
     assert PLUGIN_ID in restarted.get_all_variables(), "the plugin's template variables did not come back"
+
+
+# ---------------------------------------------------------------------------
+# Deleting something that is not there — #1742
+#
+# Both services return a boolean; both tools threw it away and reported
+# success. REST 404s in the same case, and ``delete_page`` was already fixed
+# for exactly this. The assertions below are on the tool's own envelope,
+# because there is no state to re-read — that is the whole point.
+# ---------------------------------------------------------------------------
+
+
+def test_delete_schedule_reports_an_error_for_an_unknown_id(mcp, services):
+    result = call(mcp, "delete_schedule", schedule_id="no-such-schedule")
+    assert result.get("status") == "error", f"deleting a schedule that does not exist reported success: {result}"
+
+
+def test_delete_collection_reports_an_error_for_an_unknown_id(mcp, services):
+    result = call(mcp, "delete_collection", collection_id="no-such-collection")
+    assert result.get("status") == "error", f"deleting a collection that does not exist reported success: {result}"
+
+
+# ---------------------------------------------------------------------------
+# Template variables — #1739
+#
+# ``get_template_variables`` documents ``{plugin: {var: {description, ...}}}``
+# but called ``get_all_variables()``, which returns ``{plugin: [name, ...]}``.
+# The existing shape test above passes vacuously: its fixture enables no
+# plugin, so the payload is ``{}`` and every nested assertion is skipped.
+# These enable one.
+# ---------------------------------------------------------------------------
+
+
+def call_resource(mcp: Any, uri: str) -> Any:
+    """Read a registered MCP resource by URI, awaiting it if it is async."""
+    resource = mcp._resource_manager._resources.get(uri)
+    if resource is None:
+        raise KeyError(f"resource {uri!r} is not registered; have: {sorted(mcp._resource_manager._resources)}")
+    result = resource.fn()
+    if asyncio.iscoroutine(result):
+        result = asyncio.run(result)
+    return result
+
+
+def _enable_harness_plugin(mcp: Any) -> None:
+    assert_ok(
+        call(mcp, "configure_plugin", plugin_id=PLUGIN_ID, config={"station_id": "9447427"}),
+        "configure_plugin",
+    )
+    assert_ok(call(mcp, "enable_plugin", plugin_id=PLUGIN_ID), "enable_plugin")
+
+
+def test_get_template_variables_describes_each_variable_with_metadata(mcp, plugins):
+    _enable_harness_plugin(mcp)
+
+    result = assert_ok(call(mcp, "get_template_variables"), "get_template_variables")
+
+    assert PLUGIN_ID in result, f"an enabled plugin's variables are missing entirely: {result}"
+    variables = result[PLUGIN_ID]
+    assert isinstance(variables, dict), (
+        f"the documented shape is {{variable: {{description, ...}}}}, got {type(variables).__name__}: {variables}"
+    )
+    assert variables["next_high"]["description"] == "Time of the next high tide"
+
+
+def test_variables_resource_renders_for_an_enabled_plugin(mcp, plugins):
+    """The resource calls ``.items()`` on each plugin's entry.
+
+    Against a list that is an AttributeError, which the resource caught and
+    returned as its whole body — so every install with at least one enabled
+    plugin got an error string instead of its variables.
+    """
+    _enable_harness_plugin(mcp)
+
+    content = call_resource(mcp, "fiestaboard://variables")
+
+    assert not content.lstrip().startswith("Error:"), f"the variables resource failed to render: {content}"
+    assert f"{{{{{PLUGIN_ID}.next_high}}}}" in content, (
+        f"an enabled plugin's variable is not listed in the resource: {content}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# update_plugin — #1741
+#
+# The tool called ``registry.reload_plugin()`` and nothing else: no git
+# fetch, so it re-imported the code already on disk and reported "updated
+# successfully" without any new code existing. It also skipped every guard
+# ``POST /plugins/{id}/update`` applies — built-in rejection, realpath
+# containment of ``local_path`` inside the external plugins directory, and
+# the ``.git`` check — so it would happily "update" a built-in plugin or a
+# directory that is not a checkout at all.
+#
+# The fixture below is a real local git remote, so the version change is
+# observed rather than mocked.
+# ---------------------------------------------------------------------------
+
+#: External plugin cloned from a real git remote, so it can actually update.
+GIT_PLUGIN_ID = "harness_git"
+
+#: Built-in plugin — must be rejected by update_plugin, never reloaded.
+BUILTIN_PLUGIN_ID = "harness_builtin"
+
+
+def _git(cwd: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-c", "user.name=FiestaBoard Tests", "-c", "user.email=tests@example.com", *args],
+        cwd=str(cwd),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+@pytest.fixture
+def updatable_plugins(plugins, tmp_path, monkeypatch):
+    """A git-backed external plugin, a built-in plugin, and a plain directory.
+
+    ``publish(version)`` commits a new manifest version to the remote. Nothing
+    in the update path is stubbed: the tool has to run a real ``git fetch``
+    against a real remote for the version to change.
+    """
+    external_dir = tmp_path / "external_plugins"
+    builtin_dir = tmp_path / "builtin_plugins"
+
+    remote = tmp_path / "remote" / GIT_PLUGIN_ID
+    _write_plugin(remote, GIT_PLUGIN_ID, version="1.0.0")
+    _git(remote, "init", "--quiet", "--initial-branch=main")
+    _git(remote, "add", "-A")
+    _git(remote, "commit", "--quiet", "-m", "v1.0.0")
+
+    _git(tmp_path, "clone", "--quiet", f"file://{remote}", str(external_dir / GIT_PLUGIN_ID))
+
+    _write_plugin(builtin_dir / BUILTIN_PLUGIN_ID, BUILTIN_PLUGIN_ID)
+
+    monkeypatch.setattr("src.plugins.sources.get_external_plugins_dir", lambda *a, **k: external_dir)
+
+    registry = plugins["restart"]()
+    assert registry.get_manifest(GIT_PLUGIN_ID) is not None, "fixture failed to load the git-backed plugin"
+    assert registry.get_manifest(BUILTIN_PLUGIN_ID) is not None, "fixture failed to load the built-in plugin"
+
+    def publish(version: str) -> None:
+        _write_plugin(remote, GIT_PLUGIN_ID, version=version)
+        _git(remote, "add", "-A")
+        _git(remote, "commit", "--quiet", "-m", f"v{version}")
+
+    yield {"registry": registry, "publish": publish, "external_dir": external_dir}
+
+
+def test_update_plugin_fetches_the_new_version_from_the_remote(mcp, updatable_plugins):
+    """The state effect: the manifest on disk and in the registry both move."""
+    registry = updatable_plugins["registry"]
+    assert registry.get_manifest(GIT_PLUGIN_ID).version == "1.0.0"
+
+    updatable_plugins["publish"]("2.0.0")
+
+    assert_ok(call(mcp, "update_plugin", plugin_id=GIT_PLUGIN_ID), "update_plugin")
+
+    on_disk = json.loads(
+        (updatable_plugins["external_dir"] / GIT_PLUGIN_ID / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert on_disk["version"] == "2.0.0", "update_plugin reported success but never fetched the new code"
+    assert registry.get_manifest(GIT_PLUGIN_ID).version == "2.0.0", (
+        "the new version was fetched but the registry still serves the old manifest"
+    )
+
+
+def test_update_plugin_refuses_a_builtin_plugin(mcp, updatable_plugins):
+    """``POST /plugins/{id}/update`` 400s here; the MCP tool reloaded it."""
+    result = call(mcp, "update_plugin", plugin_id=BUILTIN_PLUGIN_ID)
+
+    assert result.get("status") == "error", f"a built-in plugin was reported as updated: {result}"
+    assert "built-in" in str(result.get("error", "")).lower(), (
+        f"the rejection did not say why a built-in cannot be updated: {result}"
+    )
+
+
+def test_update_plugin_refuses_a_plugin_that_is_not_a_git_checkout(mcp, updatable_plugins):
+    """``harness_tide`` was copied into place, not cloned — there is no remote.
+
+    Without the REST path's ``.git`` check the tool reports success for a
+    directory it has no way to update.
+    """
+    result = call(mcp, "update_plugin", plugin_id=PLUGIN_ID)
+
+    assert result.get("status") == "error", f"a plugin with no git checkout was reported as updated: {result}"
+    assert "git" in str(result.get("error", "")).lower(), (
+        f"the rejection did not name the missing git checkout: {result}"
+    )
+
+
+def test_update_plugin_reports_an_error_for_an_unknown_plugin(mcp, updatable_plugins):
+    result = call(mcp, "update_plugin", plugin_id="not_a_plugin")
+    assert result.get("status") == "error", f"updating a plugin that does not exist reported success: {result}"
