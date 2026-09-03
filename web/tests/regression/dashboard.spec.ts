@@ -45,6 +45,14 @@ async function createPageAuthed(name: string, template: string[] = ["TEST", "", 
   return data.page.id;
 }
 
+/** Sorted ids of every saved page, for before/after comparison. */
+async function listPageIdsAuthed(): Promise<string[]> {
+  const res = await fetch(`${API_URL}/pages`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`listPages failed: ${res.status}`);
+  const data = await res.json();
+  return (data.pages || []).map((p: { id: string }) => p.id).sort();
+}
+
 async function setActivePageAuthed(id: string | null): Promise<void> {
   const res = await fetch(`${API_URL}/settings/active-page`, {
     method: "PUT",
@@ -154,6 +162,14 @@ test.describe("regression: dashboard", () => {
     await setActivePageAuthed(pageId);
     await setScheduleEnabledAuthed(false);
 
+    // Snapshot the store rather than assuming a count: deleting the LAST page
+    // makes the backend auto-create a "Welcome" default (src/pages/service.py),
+    // so `deleteAllPagesAuthed` never actually leaves zero pages. The contract
+    // under test is "the send adds nothing", which is what a before/after
+    // comparison states — a hardcoded length would only restate the fixture.
+    const pageIdsBefore = await listPageIdsAuthed();
+    expect(pageIdsBefore).toContain(pageId);
+
     try {
       await page.goto("/");
       await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15_000 });
@@ -193,11 +209,9 @@ test.describe("regression: dashboard", () => {
           template: ["ONE OFF HELLO"],
         });
 
-      // Nothing was persisted: still just the one page we created up front
-      const pagesRes = await fetch(`${API_URL}/pages`, { headers: authHeaders() });
-      const pagesData = await pagesRes.json();
-      expect(pagesData.pages).toHaveLength(1);
-      expect(pagesData.pages[0].id).toBe(pageId);
+      // Nothing was persisted: the page store is byte-for-byte the set it was
+      // before the send.
+      expect(await listPageIdsAuthed()).toEqual(pageIdsBefore);
     } finally {
       await fetch(`${API_URL}/settings/temporary-override`, { method: "DELETE", headers: authHeaders() });
     }
