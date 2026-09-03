@@ -3025,6 +3025,11 @@ async def get_status():
     # boards list must never break the legacy top-level status fields.
     try:
         boards = settings_service.get_board_settings().boards or []
+        # Why each board failed to get a client, when it failed (issue #1749).
+        # A board skipped at startup is visible here instead of only in the log.
+        init_errors = getattr(service, "board_init_errors", None)
+        if not isinstance(init_errors, dict):
+            init_errors = {}
         for board in boards:
             if not isinstance(board, dict) or not board.get("id"):
                 continue
@@ -3036,10 +3041,14 @@ async def get_status():
             active_page_id = settings_service.get_active_page_id(board_id=bid)
             if not isinstance(active_page_id, str):
                 active_page_id = None
+            init_error = init_errors.get(bid)
+            if not isinstance(init_error, str):
+                init_error = None
             status.boards[bid] = {
                 "configured": configured,
                 "paused": _board_is_paused(bid),
                 "active_page_id": active_page_id,
+                "error": init_error,
             }
     except Exception as e:
         logger.debug(f"Per-board status unavailable: {e}")

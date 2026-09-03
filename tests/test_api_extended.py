@@ -2200,9 +2200,25 @@ class TestStatusPerBoard:
 
         assert response.status_code == 200
         boards = response.json()["boards"]
-        assert boards["b1"] == {"configured": True, "paused": False, "active_page_id": "page1"}
+        assert boards["b1"] == {"configured": True, "paused": False, "active_page_id": "page1", "error": None}
         assert boards["b2"]["configured"] is False
         assert boards["b2"]["paused"] is True
+
+    def test_status_surfaces_why_a_board_has_no_client(self, client, mock_service, mock_settings_service):
+        """A board skipped at startup must be observable, not just logged
+        (issue #1749)."""
+        _configure_boards(mock_settings_service)
+        mock_settings_service.get_active_page_id.return_value = "page1"
+        mock_service.get_board_client = Mock(side_effect=lambda bid: None if bid == "b1" else Mock())
+        mock_service.board_init_errors = {"b1": "api_key is required"}
+
+        with patch("src.api_server._service_running", True):
+            response = client.get("/status")
+
+        assert response.status_code == 200
+        boards = response.json()["boards"]
+        assert boards["b1"]["error"] == "api_key is required"
+        assert boards["b2"]["error"] is None
 
     def test_status_keeps_top_level_fields(self, client, mock_service, mock_settings_service):
         _configure_boards(mock_settings_service)
