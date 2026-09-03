@@ -1,0 +1,1639 @@
+{
+  "_comment": "Golden snapshot of src.api_server.app route table (issue #1731). Do not hand-edit: regenerate with `UPDATE_ROUTE_INVENTORY=1 pytest tests/test_route_inventory.py` and review the diff.",
+  "routes": [
+    {
+      "path": "/",
+      "methods": [
+        "GET"
+      ],
+      "name": "root",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/change-password",
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_change_password",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/change-username",
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_change_username",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/disable",
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_disable",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/login",
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_login",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/logout",
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_logout",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/mcp-token",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "auth_mcp_token_clear",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/mcp-token",
+      "methods": [
+        "GET"
+      ],
+      "name": "auth_mcp_token_status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/mcp-token",
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_mcp_token_rotate",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/preference",
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_preference",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/setup",
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_setup",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/auth/status",
+      "methods": [
+        "GET"
+      ],
+      "name": "auth_status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/backup/export",
+      "methods": [
+        "GET"
+      ],
+      "name": "export_backup",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/backup/import",
+      "methods": [
+        "POST"
+      ],
+      "name": "import_backup",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/baywheels/stations",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_all_baywheels_stations",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/baywheels/stations/nearby",
+      "methods": [
+        "GET"
+      ],
+      "name": "find_nearby_baywheels_stations",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/baywheels/stations/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_baywheels_stations_by_address",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/board/current-message",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_board_current_message",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/cache-status",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_cache_status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/clear-cache",
+      "methods": [
+        "POST"
+      ],
+      "name": "clear_cache",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/collections",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_collections",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/collections",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_collection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/collections/{collection_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_collection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/collections/{collection_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_collection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/collections/{collection_id}",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_collection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/config",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_config",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/config/board",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "reset_board_config",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/config/board",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_board_config",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/config/board",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_board_config",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/config/board/enable-local-api",
+      "methods": [
+        "POST"
+      ],
+      "name": "enable_local_api",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/config/board/scan",
+      "methods": [
+        "POST"
+      ],
+      "name": "scan_for_boards",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/config/board/test",
+      "methods": [
+        "POST"
+      ],
+      "name": "test_board_connection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/config/full",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_full_config",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/config/general",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_general_config",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/config/general",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_general_config",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/config/validate",
+      "methods": [
+        "GET"
+      ],
+      "name": "validate_config",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/debug/blank",
+      "methods": [
+        "POST"
+      ],
+      "name": "debug_blank_board",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/debug/cache-status",
+      "methods": [
+        "GET"
+      ],
+      "name": "debug_get_cache_status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/debug/clear-cache",
+      "methods": [
+        "POST"
+      ],
+      "name": "debug_clear_cache",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/debug/fill",
+      "methods": [
+        "POST"
+      ],
+      "name": "debug_fill_board",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/debug/info",
+      "methods": [
+        "POST"
+      ],
+      "name": "debug_show_info",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/debug/network-diagnostics",
+      "methods": [
+        "GET"
+      ],
+      "name": "debug_network_diagnostics",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/debug/system-info",
+      "methods": [
+        "GET"
+      ],
+      "name": "debug_get_system_info",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/debug/test-connection",
+      "methods": [
+        "POST"
+      ],
+      "name": "debug_test_connection",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/displays",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_displays",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/displays/raw/batch",
+      "methods": [
+        "POST"
+      ],
+      "name": "get_displays_raw_batch",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/displays/{display_type}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_display",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/displays/{display_type}/raw",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_display_raw",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/displays/{display_type}/send",
+      "methods": [
+        "POST"
+      ],
+      "name": "send_display",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/docs",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "swagger_ui_html",
+      "kind": "Route"
+    },
+    {
+      "path": "/docs/oauth2-redirect",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "swagger_ui_redirect",
+      "kind": "Route"
+    },
+    {
+      "path": "/force-refresh",
+      "methods": [
+        "POST"
+      ],
+      "name": "force_refresh",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/generic-data/test-fetch",
+      "methods": [
+        "POST"
+      ],
+      "name": "generic_data_test_fetch",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/health",
+      "methods": [
+        "GET"
+      ],
+      "name": "health",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/health",
+      "methods": [
+        "HEAD"
+      ],
+      "name": "health_head",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/home-assistant/entities",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_home_assistant_entities",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/logs",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_logs",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/mcp",
+      "methods": [],
+      "name": null,
+      "kind": "Mount"
+    },
+    {
+      "path": "/mqtt/republish-discovery",
+      "methods": [
+        "POST"
+      ],
+      "name": "mqtt_republish_discovery",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/mqtt/status",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_mqtt_status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/muni/stops",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_all_muni_stops",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/muni/stops/nearby",
+      "methods": [
+        "GET"
+      ],
+      "name": "find_nearby_muni_stops",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/muni/stops/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_muni_stops_by_address",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/network/wifi/capability",
+      "methods": [
+        "GET"
+      ],
+      "name": "wifi_capability",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/network/wifi/connect",
+      "methods": [
+        "POST"
+      ],
+      "name": "wifi_connect",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/network/wifi/disconnect",
+      "methods": [
+        "POST"
+      ],
+      "name": "wifi_disconnect",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/network/wifi/saved",
+      "methods": [
+        "GET"
+      ],
+      "name": "wifi_saved",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/network/wifi/saved/{con_name}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "wifi_forget",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/network/wifi/scan",
+      "methods": [
+        "POST"
+      ],
+      "name": "wifi_scan",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/network/wifi/status",
+      "methods": [
+        "GET"
+      ],
+      "name": "wifi_status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/openapi.json",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "openapi",
+      "kind": "Route"
+    },
+    {
+      "path": "/pages",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_pages",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/ai/chat",
+      "methods": [
+        "POST"
+      ],
+      "name": "chat_ai_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/ai/context",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_ai_context",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/ai/generate",
+      "methods": [
+        "POST"
+      ],
+      "name": "generate_ai_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/cache/clear",
+      "methods": [
+        "POST"
+      ],
+      "name": "clear_page_cache",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/cache/stats",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_page_cache_stats",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/current-display",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_current_display",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/import",
+      "methods": [
+        "POST"
+      ],
+      "name": "import_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/import/preview",
+      "methods": [
+        "POST"
+      ],
+      "name": "preview_page_import",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/preview/batch",
+      "methods": [
+        "POST"
+      ],
+      "name": "preview_pages_batch",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}/preview",
+      "methods": [
+        "POST"
+      ],
+      "name": "preview_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}/send",
+      "methods": [
+        "POST"
+      ],
+      "name": "send_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/pages/{page_id}/share",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_page_share_string",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/panel/{panel_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_panel_public",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/panel/{panel_id}/frame",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_panel_frame",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/panels",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_panels",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/panels",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_panel",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/panels/{panel_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_panel",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/panels/{panel_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "name": "update_panel",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_plugins",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/errors",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_plugin_errors",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/install",
+      "methods": [
+        "POST"
+      ],
+      "name": "install_external_plugin",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/registry",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_registry_plugins",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/registry/{plugin_id}/install",
+      "methods": [
+        "POST"
+      ],
+      "name": "install_registry_plugin",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/updates",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_plugin_updates",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/updates/apply",
+      "methods": [
+        "POST"
+      ],
+      "name": "apply_all_plugin_updates",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/updates/check",
+      "methods": [
+        "POST"
+      ],
+      "name": "trigger_plugin_update_check",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/variables/all",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_all_plugin_variables",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_plugin",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/config",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_plugin_config",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/data",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_plugin_data",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/demo-page",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_plugin_demo_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/demo-page",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_plugin_demo_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/disable",
+      "methods": [
+        "POST"
+      ],
+      "name": "disable_plugin",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/enable",
+      "methods": [
+        "POST"
+      ],
+      "name": "enable_plugin",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/instances",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_plugin_instances",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/instances",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_plugin_instance",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/instances/{instance_label}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_plugin_instance",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/manifest",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_plugin_manifest",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/options/{options_id}",
+      "methods": [
+        "POST"
+      ],
+      "name": "get_plugin_options_endpoint",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/receive",
+      "methods": [
+        "POST"
+      ],
+      "name": "receive_plugin_payload",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/uninstall",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "uninstall_external_plugin",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/update",
+      "methods": [
+        "POST"
+      ],
+      "name": "update_plugin",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/plugins/{plugin_id}/variables",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_plugin_variables",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/redoc",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "redoc_html",
+      "kind": "Route"
+    },
+    {
+      "path": "/refresh",
+      "methods": [
+        "POST"
+      ],
+      "name": "refresh_display",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_schedules",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_schedule",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules/active/page",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_active_schedule",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules/default-page",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_default_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules/default-page",
+      "methods": [
+        "PUT"
+      ],
+      "name": "set_default_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules/enabled",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_schedule_enabled",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules/enabled",
+      "methods": [
+        "PUT"
+      ],
+      "name": "set_schedule_enabled",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules/validate",
+      "methods": [
+        "POST"
+      ],
+      "name": "validate_schedules",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules/{schedule_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_schedule",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules/{schedule_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_schedule",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/schedules/{schedule_id}",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_schedule",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/send-message",
+      "methods": [
+        "POST"
+      ],
+      "name": "send_message",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/send-welcome-message",
+      "methods": [
+        "POST"
+      ],
+      "name": "send_welcome_message",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/active-page",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_active_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/active-page",
+      "methods": [
+        "PUT"
+      ],
+      "name": "set_active_page",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/ai",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_ai_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/ai",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_ai_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/ai/test",
+      "methods": [
+        "POST"
+      ],
+      "name": "test_ai_provider",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/all",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_all_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/beta",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_beta_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/beta",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_beta_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/board",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_board_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/board",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_board_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/board/add",
+      "methods": [
+        "POST"
+      ],
+      "name": "add_board_instance",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/board/{board_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "remove_board_instance",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/board/{board_id}/detect-size",
+      "methods": [
+        "POST"
+      ],
+      "name": "detect_board_size",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/board/{board_id}/identify",
+      "methods": [
+        "POST"
+      ],
+      "name": "identify_board_tiles",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/board/{board_id}/pause",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_board_paused",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/display",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_display_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/display",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_display_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/hdmi-kiosk",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_hdmi_kiosk_status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/hdmi-kiosk",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_hdmi_kiosk",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/location",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_location_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/location",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_location_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/location/sun-times",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_location_sun_times",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/location/sun-times-week",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_location_sun_times_week",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/mqtt",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_mqtt_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/mqtt",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_mqtt_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/output",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_output_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/output",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_output_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/plugins",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_plugin_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/plugins",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_plugin_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/polling",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_polling_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/polling",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_polling_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/silence-schedule",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_silence_schedule",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/temporary-override",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "clear_temporary_override",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/temporary-override",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_temporary_override",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/temporary-override",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_temporary_override",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/transitions",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_transition_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/settings/transitions",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_transition_settings",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/silence-status",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_silence_status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/staff-picks",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_staff_picks",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/staff-picks/{pick_id}/share",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_staff_pick_share",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/start",
+      "methods": [
+        "POST"
+      ],
+      "name": "start_service",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/status",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/stocks/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_stock_symbols",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/stocks/validate",
+      "methods": [
+        "POST"
+      ],
+      "name": "validate_stock_symbol",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/stop",
+      "methods": [
+        "POST"
+      ],
+      "name": "stop_service",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/system/restart",
+      "methods": [
+        "POST"
+      ],
+      "name": "system_restart",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/system/shutdown",
+      "methods": [
+        "POST"
+      ],
+      "name": "system_shutdown",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/system/update",
+      "methods": [
+        "POST"
+      ],
+      "name": "system_update_apply",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/system/update-check",
+      "methods": [
+        "GET"
+      ],
+      "name": "system_update_check",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/system/update/auto",
+      "methods": [
+        "POST"
+      ],
+      "name": "system_update_set_auto",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/system/update/rollback",
+      "methods": [
+        "POST"
+      ],
+      "name": "system_update_rollback",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/system/update/status",
+      "methods": [
+        "GET"
+      ],
+      "name": "system_update_status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/templates/formula-functions",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_formula_functions",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/templates/render",
+      "methods": [
+        "POST"
+      ],
+      "name": "render_template",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/templates/render/live",
+      "methods": [
+        "POST"
+      ],
+      "name": "render_template_live",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/templates/validate",
+      "methods": [
+        "POST"
+      ],
+      "name": "validate_template",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/templates/variables",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_template_variables",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/traffic/routes/geocode",
+      "methods": [
+        "POST"
+      ],
+      "name": "geocode_address",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/traffic/routes/validate",
+      "methods": [
+        "POST"
+      ],
+      "name": "validate_traffic_route",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/transit/cache/status",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_transit_cache_status",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/transitions/plugins",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_transition_plugins",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/transitions/preview",
+      "methods": [
+        "POST"
+      ],
+      "name": "preview_transition",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/transitions/restore",
+      "methods": [
+        "POST"
+      ],
+      "name": "restore_after_transition_test",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/transitions/test-live",
+      "methods": [
+        "POST"
+      ],
+      "name": "run_live_transition_test",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/triggers",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_triggers",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/triggers/active",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_active_trigger",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/triggers/check",
+      "methods": [
+        "POST"
+      ],
+      "name": "check_triggers",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/triggers/clear",
+      "methods": [
+        "POST"
+      ],
+      "name": "clear_triggers",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/triggers/{trigger_id}/dismiss",
+      "methods": [
+        "POST"
+      ],
+      "name": "dismiss_trigger",
+      "kind": "APIRoute"
+    },
+    {
+      "path": "/version",
+      "methods": [
+        "GET"
+      ],
+      "name": "version",
+      "kind": "APIRoute"
+    }
+  ]
+}
