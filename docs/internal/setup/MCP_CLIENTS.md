@@ -44,6 +44,14 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 > in **Settings → Integrations** are disabled. To manage the token from the UI
 > again, unset the variable and restart the container.
 
+> **Once a token exists, `/api/mcp/` requires it** — in every auth mode,
+> including `FIESTABOARD_AUTH_ENABLED=false`. Turning off the browser login
+> is a UI convenience; it does not switch off a credential you configured on
+> purpose. Requests without a valid `Authorization: Bearer` header get a 401,
+> so every client needs the token in its config. If you have no token
+> configured, nothing changes: `/api/mcp/` follows whatever the auth mode
+> says.
+
 ## Why local hosting makes this awkward
 
 The MCP ecosystem is converging on three transports — stdio, HTTP, and
