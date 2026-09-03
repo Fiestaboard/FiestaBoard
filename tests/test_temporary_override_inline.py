@@ -340,6 +340,11 @@ class TestPostInlineOverride:
 # ---------------------------------------------------------------------------
 
 
+SAVED_PAGE_ID = "saved-page"
+SAVED_PAGE_TEXT = "SAVED PAGE"
+ONE_OFF_TEXT = "ONE OFF"
+
+
 @pytest.fixture
 def display_service():
     from unittest.mock import Mock
@@ -353,7 +358,13 @@ def display_service():
 
 
 def _display_loop_mocks(override):
-    """Settings/page/schedule mocks for one un-silenced, un-paused primary tick."""
+    """Settings/page/schedule mocks for one un-silenced, un-paused primary tick.
+
+    A saved page IS configured as the manual active page, and it renders
+    different text from the one-off. That is what makes the inline assertions
+    discriminating: if the loop ever fell back to the saved-page path it would
+    succeed anyway, but with the wrong content and via get_page/preview_page.
+    """
     from unittest.mock import Mock
 
     from src.displays.service import DisplayResult
@@ -361,20 +372,33 @@ def _display_loop_mocks(override):
     settings = Mock()
     settings.is_paused.return_value = False
     settings.is_schedule_enabled.return_value = False
-    settings.get_active_page_id.return_value = None
+    settings.get_active_page_id.return_value = SAVED_PAGE_ID
     settings.consume_temporary_override.return_value = override
     settings.get_board_settings.return_value = Mock(boards=[{"device_type": "flagship"}])
     settings.get_transition_settings.return_value = Mock(strategy=None, step_interval_ms=500, step_size=1)
 
+    saved_page = Mock(
+        id=SAVED_PAGE_ID,
+        device_type="flagship",
+        notes_wide=1,
+        notes_tall=1,
+        transition_strategy=None,
+        transition_interval_ms=None,
+        transition_step_size=None,
+    )
+
     page_service = Mock()
-    # Nothing is persisted: any get_page/preview_page lookup means the loop
-    # went down the saved-page path instead of rendering the inline content.
-    page_service.get_page.return_value = None
-    page_service.preview_page.return_value = None
-    page_service.list_pages.return_value = []
+    page_service.get_page.return_value = saved_page
+    page_service.list_pages.return_value = [saved_page]
+    page_service.preview_page.return_value = DisplayResult(
+        display_type="page:template",
+        formatted=SAVED_PAGE_TEXT,
+        raw={},
+        available=True,
+    )
     page_service.render_page.return_value = DisplayResult(
         display_type="page:template",
-        formatted="ONE OFF",
+        formatted=ONE_OFF_TEXT,
         raw={},
         available=True,
     )
@@ -412,11 +436,18 @@ class TestDisplayLoopRendersInlineOverride:
         display_service.vb_client.render.assert_called_once()
 
     def test_inline_override_never_touches_the_page_store(self, display_service):
-        override = TemporaryOverride(template=["ONE OFF"], device_type="flagship")
+        """The inline path must not read, resolve or render any stored page.
+
+        A saved page is configured and renders different text, so falling back
+        to it would still "work" — and would still be a bug.
+        """
+        override = TemporaryOverride(template=[ONE_OFF_TEXT], device_type="flagship")
         _, page_service = self._run(display_service, override)
 
         page_service.get_page.assert_not_called()
         page_service.preview_page.assert_not_called()
+        # The one-off reached the board, not the saved active page.
+        assert display_service._last_active_page_content == ONE_OFF_TEXT
 
     def test_inline_override_is_sized_to_its_own_device_type(self, display_service):
         override = TemporaryOverride(template=["NOTE ONE OFF"], device_type="note")

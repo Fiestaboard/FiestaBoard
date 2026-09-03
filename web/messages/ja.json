@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "メッセージを作成",
     "description": "入力した内容をそのままボードへ送信します。ページとして保存するかどうかは自由です。",
+    "primaryBoardNote": "単発メッセージは常にプライマリーボードの {boardName} に送信されます。選択中のボードではありません。",
     "messageLabel": "メッセージ",
     "messagePlaceholder": "メッセージを入力…",
     "previewLabel": "プレビュー",

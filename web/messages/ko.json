@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "메시지 작성",
     "description": "입력한 내용을 보드로 바로 보냅니다. 페이지로 저장하는 것은 선택 사항입니다.",
+    "primaryBoardNote": "일회성 메시지는 선택한 보드가 아니라 항상 기본 보드인 {boardName}(으)로 전송됩니다.",
     "messageLabel": "메시지",
     "messagePlaceholder": "메시지를 입력하세요…",
     "previewLabel": "미리 보기",

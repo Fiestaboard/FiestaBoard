@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "Scrivi un messaggio",
     "description": "Scrivi qualcosa e invialo direttamente al tabellone. Salvarlo come pagina è facoltativo.",
+    "primaryBoardNote": "I messaggi estemporanei vanno sempre a {boardName}, il tuo tabellone principale, non a quello selezionato.",
     "messageLabel": "Messaggio",
     "messagePlaceholder": "Scrivi il tuo messaggio…",
     "previewLabel": "Anteprima",

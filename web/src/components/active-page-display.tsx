@@ -84,6 +84,11 @@ export function ActivePageDisplay() {
   const scopedBoardId = isMultiBoard && currentBoardId ? currentBoardId : undefined;
   // Live board polling (and Live Output) only track the primary board.
   const isPrimaryBoard = !scopedBoardId || scopedBoardId === boards[0]?.id;
+  // One-off messages always drive the primary board (issue #1787), so the
+  // compose surface is sized to it and says so when that isn't the board the
+  // sidebar has selected.
+  const composeTargetBoard = boards[0];
+  const composeTargetsAnotherBoard = isMultiBoard && !!composeTargetBoard && currentBoardId !== composeTargetBoard.id;
 
   // Sheet open state
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -782,18 +787,27 @@ export function ActivePageDisplay() {
         </SheetContent>
       </Sheet>
 
-      {/* Compose a one-off message and send it without saving it (issue #1787) */}
+      {/* Compose a one-off message and send it without saving it (issue #1787).
+
+          Sized to the PRIMARY board, not the selected one: the temporary
+          override store is primary-only ("triggers and temporary overrides are
+          the PRIMARY board's feature set", src/main.py), so this is the board
+          the message actually lands on. Sizing the surface to `currentBoard`
+          would preview a 15x3 Note and then send to a 22x6 Flagship — the
+          preview would be lying about its own destination. When those differ,
+          `targetBoardName` makes the dialog say where the message is going. */}
       <ComposePageDialog
         open={composeOpen}
         onOpenChange={setComposeOpen}
-        deviceType={currentBoard?.device_type ?? activeDeviceType}
-        notesWide={currentBoard?.notes_wide ?? 1}
-        notesTall={currentBoard?.notes_tall ?? 1}
-        boardColor={currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
+        deviceType={composeTargetBoard?.device_type ?? getEffectiveDeviceType(boardSettings)}
+        notesWide={composeTargetBoard?.notes_wide ?? 1}
+        notesTall={composeTargetBoard?.notes_tall ?? 1}
+        boardColor={composeTargetBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
         code62Glyph={resolveCode62Glyph(
-          activeDeviceType,
-          currentBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
+          composeTargetBoard?.device_type ?? getEffectiveDeviceType(boardSettings),
+          composeTargetBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
         )}
+        targetBoardName={composeTargetsAnotherBoard ? composeTargetBoard?.name : undefined}
       />
 
       {/* Force Set dialog — opened when user picks a page while in schedule mode */}

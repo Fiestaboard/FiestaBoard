@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "Mesaj yaz",
     "description": "Bir şeyler yazın ve doğrudan panoya gönderin. Sayfa olarak kaydetmek isteğe bağlıdır.",
+    "primaryBoardNote": "Tek seferlik mesajlar seçtiğiniz panoya değil, her zaman birincil panonuz olan {boardName} panosuna gider.",
     "messageLabel": "Mesaj",
     "messagePlaceholder": "Mesajınızı yazın…",
     "previewLabel": "Önizleme",

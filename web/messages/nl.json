@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "Bericht opstellen",
     "description": "Typ iets en stuur het direct naar het bord. Opslaan als pagina is optioneel.",
+    "primaryBoardNote": "Eenmalige berichten gaan altijd naar {boardName}, je primaire bord — niet naar het bord dat je hebt geselecteerd.",
     "messageLabel": "Bericht",
     "messagePlaceholder": "Typ je bericht…",
     "previewLabel": "Voorbeeld",

@@ -709,6 +709,7 @@
   "composeDialog": {
     "title": "Compose a message",
     "description": "Type something and send it straight to the board. Saving it as a page is optional.",
+    "primaryBoardNote": "One-off messages always go to {boardName}, your primary board — not the board you have selected.",
     "messageLabel": "Message",
     "messagePlaceholder": "Type your message…",
     "previewLabel": "Preview",

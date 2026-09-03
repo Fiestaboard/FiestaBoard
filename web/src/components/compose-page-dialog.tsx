@@ -15,7 +15,7 @@ import {
   Text,
 } from "@fiestaboard/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilLine, Save, Send } from "lucide-react";
+import { MonitorSmartphone, PencilLine, Save, Send } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -33,12 +33,22 @@ const PREVIEW_DEBOUNCE_MS = 250;
 interface ComposePageDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Geometry of the board this message is being composed for. */
+  /**
+   * Geometry of the board this message will be SENT to — which is the primary
+   * board, not necessarily the one selected in the sidebar. The caller resolves
+   * that; the dialog just previews and validates against what it is given.
+   */
   deviceType?: DeviceType;
   notesWide?: number;
   notesTall?: number;
   boardColor?: "black" | "white";
   code62Glyph?: "degree" | "heart";
+  /**
+   * Name of the destination board, set only when it differs from the board the
+   * user currently has selected. Renders a short note so a multi-board user is
+   * never surprised by which board lights up.
+   */
+  targetBoardName?: string;
 }
 
 /**
@@ -62,6 +72,7 @@ export function ComposePageDialog({
   notesTall = 1,
   boardColor = "black",
   code62Glyph,
+  targetBoardName,
 }: ComposePageDialogProps) {
   const t = useTranslations("composeDialog");
   const queryClient = useQueryClient();
@@ -165,6 +176,15 @@ export function ComposePageDialog({
         </DialogHeader>
 
         <Stack gap="4" className="py-2">
+          {targetBoardName && (
+            <Flex align="start" gap="2" className="rounded-md border border-border bg-muted/40 p-3">
+              <MonitorSmartphone className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <Text size="xs" tone="muted">
+                {t("primaryBoardNote", { boardName: targetBoardName })}
+              </Text>
+            </Flex>
+          )}
+
           <Stack gap="2">
             <Label htmlFor={messageId}>{t("messageLabel")}</Label>
             <PlainTextEditor

@@ -200,6 +200,16 @@ describe("ComposePageDialog", () => {
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 
+  it("says nothing about a destination board when it is the one already selected", () => {
+    renderDialog();
+    expect(screen.queryByText(/primary board/i)).not.toBeInTheDocument();
+  });
+
+  it("names the destination board when the message will land somewhere else", () => {
+    renderDialog({ targetBoardName: "Living Room" });
+    expect(screen.getByText(/Living Room/)).toBeInTheDocument();
+  });
+
   it("warns when the message has more lines than the board can show", async () => {
     renderDialog({ deviceType: "note" });
     typeMessage("A\nB\nC\nD");

@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "Escrever uma mensagem",
     "description": "Escreva algo e envie direto para o quadro. Salvar como página é opcional.",
+    "primaryBoardNote": "Mensagens avulsas vão sempre para {boardName}, o seu quadro principal — não para o quadro selecionado.",
     "messageLabel": "Mensagem",
     "messagePlaceholder": "Digite sua mensagem…",
     "previewLabel": "Pré-visualização",

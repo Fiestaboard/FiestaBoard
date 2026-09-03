@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "Nachricht verfassen",
     "description": "Schreibe etwas und sende es direkt an die Tafel. Das Speichern als Seite ist optional.",
+    "primaryBoardNote": "Einmalige Nachrichten gehen immer an {boardName}, deine Hauptanzeigetafel – nicht an die ausgewählte Tafel.",
     "messageLabel": "Nachricht",
     "messagePlaceholder": "Nachricht eingeben …",
     "previewLabel": "Vorschau",

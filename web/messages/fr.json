@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "Rédiger un message",
     "description": "Écrivez quelque chose et envoyez-le directement au tableau. L’enregistrer comme page est facultatif.",
+    "primaryBoardNote": "Les messages ponctuels vont toujours vers {boardName}, votre tableau principal, et non vers le tableau sélectionné.",
     "messageLabel": "Message",
     "messagePlaceholder": "Saisissez votre message…",
     "previewLabel": "Aperçu",

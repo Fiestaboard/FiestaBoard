@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "Skriv ett meddelande",
     "description": "Skriv något och skicka det direkt till tavlan. Att spara det som en sida är valfritt.",
+    "primaryBoardNote": "Engångsmeddelanden går alltid till {boardName}, din primära tavla – inte till tavlan du har valt.",
     "messageLabel": "Meddelande",
     "messagePlaceholder": "Skriv ditt meddelande…",
     "previewLabel": "Förhandsvisning",

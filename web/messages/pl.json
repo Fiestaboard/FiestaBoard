@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "Napisz wiadomość",
     "description": "Wpisz treść i wyślij ją prosto na tablicę. Zapisanie jako strona jest opcjonalne.",
+    "primaryBoardNote": "Jednorazowe wiadomości zawsze trafiają na {boardName}, Twoją tablicę główną — nie na wybraną tablicę.",
     "messageLabel": "Wiadomość",
     "messagePlaceholder": "Wpisz swoją wiadomość…",
     "previewLabel": "Podgląd",

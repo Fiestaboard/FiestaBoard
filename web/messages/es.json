@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "Redactar un mensaje",
     "description": "Escribe algo y envíalo directamente al tablero. Guardarlo como página es opcional.",
+    "primaryBoardNote": "Los mensajes puntuales siempre se envían a {boardName}, tu tablero principal, no al tablero que tienes seleccionado.",
     "messageLabel": "Mensaje",
     "messagePlaceholder": "Escribe tu mensaje…",
     "previewLabel": "Vista previa",

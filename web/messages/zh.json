@@ -753,6 +753,7 @@
   "composeDialog": {
     "title": "撰写消息",
     "description": "输入内容并直接发送到看板。是否保存为页面由你决定。",
+    "primaryBoardNote": "一次性消息始终发送到主看板 {boardName}，而不是你当前选中的看板。",
     "messageLabel": "消息",
     "messagePlaceholder": "输入你的消息…",
     "previewLabel": "预览",
