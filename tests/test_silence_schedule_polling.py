@@ -197,3 +197,78 @@ class TestExitingSilence:
         sent_array = svc.vb_client.render.call_args.args[0]
         last_row_text = "".join(chr(c + 64) if 1 <= c <= 26 else "?" for c in sent_array[-1])
         assert "SNOOZING" not in last_row_text
+
+
+def _sleep_that_stops_after(svc, iterations, on_iteration=None):
+    """Fake ``time.sleep`` that drives the run loop for a fixed number of ticks.
+
+    Replaces the wall clock entirely: each call is one simulated second, so a
+    silence window can be walked tick by tick without any real waiting.
+    """
+    state = {"ticks": 0}
+
+    def _fake_sleep(_seconds):
+        state["ticks"] += 1
+        if on_iteration is not None:
+            on_iteration(state["ticks"])
+        if state["ticks"] >= iterations:
+            svc.running = False
+
+    return _fake_sleep
+
+
+class TestSilenceBoundaryDetector:
+    """The 1 Hz boundary detector must fire once per boundary, not once per
+    second, even when the board's update path returns early (issue #1740)."""
+
+    def test_paused_board_does_not_force_an_update_every_second_during_silence(self, service_factory):
+        svc, mocks, _page_service = service_factory(is_silence=True)
+        mocks["settings"].return_value.is_paused.return_value = True
+
+        with (
+            patch.object(svc, "check_and_send_active_page", wraps=svc.check_and_send_active_page) as drive,
+            patch("src.main.schedule"),
+            patch("src.main.time.sleep", _sleep_that_stops_after(svc, 5)),
+        ):
+            svc.run()
+
+        # Only the initial update before the loop; the detector must stay quiet.
+        assert drive.call_count == 1
+
+    def test_render_failure_does_not_force_an_update_every_second_during_silence(self, service_factory):
+        svc, mocks, page_service = service_factory(is_silence=True)
+        failed_preview = Mock()
+        failed_preview.available = False
+        page_service.preview_page.return_value = failed_preview
+        mocks["settings"].return_value.is_paused.return_value = False
+
+        with (
+            patch.object(svc, "check_and_send_active_page", wraps=svc.check_and_send_active_page) as drive,
+            patch.object(svc, "_check_trigger_override", return_value=None),
+            patch("src.main.schedule"),
+            patch("src.main.time.sleep", _sleep_that_stops_after(svc, 5)),
+        ):
+            svc.run()
+
+        assert drive.call_count == 1
+
+    def test_crossing_into_silence_forces_exactly_one_update(self, service_factory):
+        svc, mocks, _page_service = service_factory(is_silence=False)
+        mocks["settings"].return_value.is_paused.return_value = True
+
+        silence = {"active": False}
+        mocks["config"].is_silence_mode_active.side_effect = lambda: silence["active"]
+
+        def _flip_at_tick_3(tick):
+            if tick == 3:
+                silence["active"] = True
+
+        with (
+            patch.object(svc, "check_and_send_active_page", wraps=svc.check_and_send_active_page) as drive,
+            patch("src.main.schedule"),
+            patch("src.main.time.sleep", _sleep_that_stops_after(svc, 6, _flip_at_tick_3)),
+        ):
+            svc.run()
+
+        # One initial update + exactly one forced update at the boundary.
+        assert drive.call_count == 2
