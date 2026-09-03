@@ -152,7 +152,7 @@ pickers filter to the boards they're compatible with (see
 | `end_time` | string | Window end, UTC ISO |
 | `mode` | string | `"freeze"` (default), `"indicator"`, or `"page"` |
 | `page_id` | string \| null | Page shown when `mode` is `"page"`. Required in that mode, and validated against the target board's size |
-| `indicator_text` | string \| null | Text shown when `mode` is `"indicator"`. Uppercased; defaults to `SNOOZING` |
+| `indicator_text` | string \| null | Text shown when `mode` is `"indicator"`. Trimmed and forced to uppercase; defaults to `SNOOZING` |
 | `indicator_position` | string \| null | `"center"` (default), `"top-left"`, `"top-right"`, `"bottom-left"`, `"bottom-right"` |
 | `board_id` | string | Optional. Unknown board → `404`. **Note the exception below** |
 
