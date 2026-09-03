@@ -63,11 +63,13 @@ def _time_service():
     return svc
 
 
-def _settings_service(boards, *, paused=(), schedule_off=(), manual=None, override=None):
+def _settings_service(boards, *, paused=(), schedule_off=(), manual=None, override=None, send_to_board=True):
     """A settings service mock with per-board resolution.
 
     ``manual`` maps board_id -> manual active page id (used when that
     board's schedule mode is off). ``override`` is the consume result.
+    ``send_to_board`` is the OutputSettings.target decision
+    (``target="ui"`` -> False).
     """
     manual = manual or {}
     svc = MagicMock()
@@ -78,6 +80,7 @@ def _settings_service(boards, *, paused=(), schedule_off=(), manual=None, overri
     svc.get_active_page_id.side_effect = lambda board_id=None: manual.get(board_id)
     svc.get_transition_settings.return_value = TRANSITIONS
     svc.consume_temporary_override.return_value = override
+    svc.should_send_to_board.return_value = send_to_board
     return svc
 
 
@@ -390,9 +393,102 @@ class TestBoardRuntime:
         assert rt.client is None
         assert rt.last_active_page_content is None
         assert rt.last_active_page_id is None
+        assert rt.last_geometry_mismatch is None
         assert rt.last_silence_mode_active is False
         assert rt.snoozing_message_sent is False
         assert rt.polled_characters is None
         assert rt.polled_at is None
         assert rt.refresh_thread is None
         assert rt.refresh_cancel is None
+
+
+class TestOutputTarget:
+    """The display loop must honor OutputSettings.target (issue #1748).
+
+    ``should_send_to_board()`` is False only for ``target="ui"``; the
+    background loop used to write to hardware anyway.
+    """
+
+    def test_ui_only_target_does_not_write_to_hardware(self):
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=False)
+
+        sent = _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_not_called()
+        assert sent is False
+
+    def test_board_target_still_writes_to_hardware(self):
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=True)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_called_once()
+
+    def test_ui_only_target_does_not_write_to_secondary_hardware(self):
+        boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}, "pB": {"content": "BETA"}})
+        schedule = _schedule_service({"b1": "pA", "b2": "pB"})
+        settings = _settings_service(boards, send_to_board=False)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b2"].render.assert_not_called()
+
+
+class TestSendTimeGeometryValidation:
+    """A page must match its destination board's geometry (issue #1748).
+
+    Render geometry came from the page, so a retargeted page could push a
+    6x22 grid at a 3x15 Note.
+    """
+
+    def test_page_not_matching_primary_board_geometry_is_not_sent(self):
+        boards = [_board("b1", "Small", device_type="note")]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA", "device_type": "flagship"}})
+        schedule = _schedule_service({"b1": "pA"})
+
+        sent = _drive(svc, boards, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_not_called()
+        assert sent is False
+
+    def test_page_not_matching_secondary_board_geometry_is_not_sent(self):
+        boards = [_board("b1", "One"), _board("b2", "Small", device_type="note", port=7001)]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service(
+            {
+                "pA": {"content": "ALPHA", "device_type": "flagship"},
+                "pB": {"content": "BETA", "device_type": "flagship"},
+            }
+        )
+        schedule = _schedule_service({"b1": "pA", "b2": "pB"})
+
+        _drive(svc, boards, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_called_once()
+        clients["b2"].render.assert_not_called()
+
+    def test_skipped_mismatch_does_not_poison_the_content_cache(self):
+        """After the page is resized to fit, the next tick sends it."""
+        boards = [_board("b1", "Small", device_type="note")]
+        svc, clients = _service_with_runtimes(boards)
+        schedule = _schedule_service({"b1": "pA"})
+        mismatched = _page_service({"pA": {"content": "ALPHA", "device_type": "flagship"}})
+        fixed = _page_service({"pA": {"content": "ALPHA", "device_type": "note"}})
+
+        _drive(svc, boards, pages=mismatched, schedule=schedule)
+        _drive(svc, boards, pages=fixed, schedule=schedule)
+
+        clients["b1"].render.assert_called_once()
+        rows = clients["b1"].render.call_args.args[0]
+        assert len(rows) == 3 and len(rows[0]) == 15
