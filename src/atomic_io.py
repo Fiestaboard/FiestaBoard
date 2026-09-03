@@ -18,8 +18,11 @@ atomic: staging file and target are still siblings, so the rename is still a
 same-filesystem rename.
 """
 
+import contextlib
+import json
 import os
 from pathlib import Path
+from typing import Any
 
 
 def staging_path(target: Path) -> Path:
@@ -28,3 +31,26 @@ def staging_path(target: Path) -> Path:
     ``data/pages.json`` becomes ``data/pages.json.<pid>.tmp``.
     """
     return target.with_suffix(f"{target.suffix}.{os.getpid()}.tmp")
+
+
+def write_json_atomic(target: Path, data: Any, *, indent: int | None = 2) -> None:
+    """Serialise *data* as JSON onto *target* without ever truncating it.
+
+    Stages the JSON in the process-scoped sibling from :func:`staging_path` and
+    ``os.replace``s it into place. A crash (OOM, SIGKILL, power loss) partway
+    through the write leaves the previous contents of *target* fully intact, and
+    the partial staging file is removed on any failure rather than leaked.
+
+    Parent directories are created if missing. Exceptions propagate — the caller
+    decides whether a failed save is fatal.
+    """
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = staging_path(target)
+    try:
+        with tmp_path.open("w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=indent)
+        tmp_path.replace(target)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            tmp_path.unlink(missing_ok=True)
+        raise
