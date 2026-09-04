@@ -516,14 +516,24 @@ class TestSendTimeGeometryValidation:
 class TestSilencePageGeometryValidation:
     """The silence page must also match its destination board (issue #1748).
 
-    Since #1801 silence config is per board
-    (``features.silence_schedule.by_board[board_id]``) with the install-wide
-    values as fallback, but the *page* it names is global, so silence mode
-    "page" reached the wire sized from the page rather than the board — the
-    same mismatch the normal send path guards, through a different door. The
-    mismatch case here survives via that inherited install-wide default. On
-    mismatch we fall back to the board-sized SNOOZING indicator so the board
-    still reads as snoozing.
+    Since #1788/#1801 silence settings resolve per board from
+    ``features.silence_schedule.by_board[board_id]``, with the install-wide
+    values as the fallback for every key a board does not override —
+    ``page_id`` included. Differently shaped boards therefore inherit the
+    *same* silence page, which can only fit one of them.
+
+    #1801 fixed the array's **shape**: ``_send_silence_page`` now sizes the
+    array from the board (``_silence_geometry``) instead of the page. But
+    ``text_to_board_array`` crops rather than reflows, so a flagship page on a
+    Note still arrives 3x15 with its bottom rows and right-hand columns simply
+    gone. This gate fixes the **content**: on mismatch we send the board-sized
+    SNOOZING indicator instead, so the board reads as snoozing rather than
+    showing a mangled page.
+
+    That split is why these tests assert on *which path ran*
+    (``last_active_page_id``) and not on dimensions alone — since #1801 both
+    paths produce board-sized output, so the shape no longer discriminates
+    (issue #1836).
     """
 
     def test_silence_page_not_matching_board_falls_back_to_board_sized_indicator(self):
