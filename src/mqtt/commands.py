@@ -289,13 +289,28 @@ class CommandHandler:
         from .discovery import NO_ACTIVE_PAGE_OPTION
 
         if payload_lower == NO_ACTIVE_PAGE_OPTION.lower():
-            # The HA select's stable no-page option (issue #1794): clear the
-            # board's manual active page. (A real page named like the option
-            # wins — the name match above runs first.)
-            if board_id is not None:
-                get_settings_service().set_active_page_id(None, board_id=board_id)
+            # The HA select's stable no-page option (issue #1794). It exists
+            # so an empty active page is a *representable state* — HA rejects
+            # published states that aren't in the options list.
+            #
+            # As a command it only works on a secondary board, which goes
+            # dark when no page is set. The primary never goes dark:
+            # check_and_send_for_board re-defaults it to pages[0] and
+            # persists that on the next tick, so accepting the selection here
+            # would just make the select bounce back within one polling
+            # interval. Refuse it instead; handle()'s trailing
+            # gather_and_publish re-publishes the real state, so the select
+            # snaps back immediately rather than lying for 15 seconds.
+            # (A real page named like the option wins — the name match above
+            # runs first.)
+            settings_service = get_settings_service()
+            if board_id is not None and board_id != settings_service.get_primary_board_id():
+                settings_service.set_active_page_id(None, board_id=board_id)
             else:
-                get_settings_service().set_active_page_id(None)
+                logger.info(
+                    "MQTT active_page: %r ignored on the primary board, which never goes dark",
+                    NO_ACTIVE_PAGE_OPTION,
+                )
             return
         logger.warning("MQTT active_page: no page named %r", page_name)
 
@@ -395,9 +410,11 @@ class CommandHandler:
         dims = self._board_dims(board if board is not None else self._resolve_board(None)[1])
         blank_array = [[0] * dims.cols for _ in range(dims.rows)]
         client.send_characters(blank_array, force=True)
-        # Out-of-band write (issue #1794): let the display loop restore the
-        # active page on its next cycle.
-        self._invalidate_board_content(board_id)
+        # NOTE: deliberately does NOT invalidate the display loop's dedupe
+        # cache. Doing so made the blank self-destruct on the next engine
+        # tick (<=15s), breaking the "Blank the Board at Bedtime" automation
+        # in our own HA docs. Restoring the page is a pull: Refresh Display,
+        # re-selecting a page, or an actual content change.
         self._mark_display_updated()
         self._publish_event("display_updated", "board_blanked")
 
@@ -477,9 +494,9 @@ class CommandHandler:
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
         )
-        # Out-of-band write (issue #1794): let the display loop restore the
-        # active page on its next cycle.
-        self._invalidate_board_content(board_id)
+        # NOTE: deliberately does NOT invalidate the display loop's dedupe
+        # cache — see _handle_blank_board. The message must outlive the next
+        # engine tick, or "Welcome Home John!" lasts 15 seconds.
         self._mark_display_updated()
         self._publish_event("display_updated", "message_sent")
 

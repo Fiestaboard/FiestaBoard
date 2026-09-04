@@ -1184,6 +1184,34 @@ class TestNoteArrayConstraints:
         assert mock_post.call_count == 2
 
     @patch("src.board_client.requests.post")
+    def test_throttled_send_is_reported_via_last_send_throttled(
+        self, mock_post, note_array_client_with_clock, valid_3x60_grid, other_3x60_grid
+    ):
+        """A throttled send and an unchanged-content skip both return
+        ``(True, False)``, but only the first means the board never got the
+        content. Callers need to tell them apart (issue #1794 review)."""
+        mock_post.return_value.raise_for_status = Mock()
+        client = note_array_client_with_clock(_clock(0.0, 10.0), "na-throttle-flag")
+
+        client.send_characters(valid_3x60_grid)
+        assert client.last_send_throttled is False
+
+        assert client.send_characters(other_3x60_grid) == (True, False)
+        assert client.last_send_throttled is True
+
+    @patch("src.board_client.requests.post")
+    def test_unchanged_content_skip_is_not_reported_as_throttled(
+        self, mock_post, note_array_client_with_clock, valid_3x60_grid
+    ):
+        """Re-sending identical content skips, but the frame IS on the board."""
+        mock_post.return_value.raise_for_status = Mock()
+        client = note_array_client_with_clock(_clock(0.0, 100.0), "na-unchanged-flag")
+
+        client.send_characters(valid_3x60_grid)
+        assert client.send_characters(valid_3x60_grid) == (True, False)
+        assert client.last_send_throttled is False
+
+    @patch("src.board_client.requests.post")
     def test_note_array_first_send_always_goes_through(self, mock_post, note_array_client_with_clock, valid_3x60_grid):
         mock_post.return_value.raise_for_status = Mock()
         # Token never previously seen in _note_array_last_send.

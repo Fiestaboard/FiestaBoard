@@ -573,9 +573,10 @@ class TestConnectionInfoSource:
         assert "192.168.1.99" not in debug_info
 
 
-class TestDebugOutOfBandInvalidation:
-    """Issue #1794: debug board writes are out-of-band — they must clear the
-    display loop's dedupe caches so the active page is restored next cycle."""
+class TestDebugOutOfBandWritesSurviveTheDisplayLoop:
+    """Issue #1794: debug board writes are out-of-band, and must NOT clear the
+    display loop's dedupe caches — that would make the next engine tick
+    (<=15s) paint the active page straight over the debug output."""
 
     @staticmethod
     def _ss():
@@ -583,7 +584,7 @@ class TestDebugOutOfBandInvalidation:
         ss.get_primary_board_id.return_value = "b1"
         return ss
 
-    def test_blank_invalidates_display_dedupe(self, client, mock_board_client):
+    def test_blank_leaves_the_dedupe_state_alone(self, client, mock_board_client):
         service = Mock()
         with (
             patch("src.api_server.get_settings_service", return_value=self._ss()),
@@ -591,9 +592,9 @@ class TestDebugOutOfBandInvalidation:
         ):
             response = client.post("/debug/blank")
         assert response.status_code == 200
-        service.invalidate_board_content.assert_called_once_with("b1")
+        service.invalidate_board_content.assert_not_called()
 
-    def test_fill_invalidates_display_dedupe(self, client, mock_board_client):
+    def test_fill_leaves_the_dedupe_state_alone(self, client, mock_board_client):
         service = Mock()
         with (
             patch("src.api_server.get_settings_service", return_value=self._ss()),
@@ -601,9 +602,9 @@ class TestDebugOutOfBandInvalidation:
         ):
             response = client.post("/debug/fill", json={"character_code": 63})
         assert response.status_code == 200
-        service.invalidate_board_content.assert_called_once_with("b1")
+        service.invalidate_board_content.assert_not_called()
 
-    def test_info_invalidates_display_dedupe(self, client, mock_board_client):
+    def test_info_leaves_the_dedupe_state_alone(self, client, mock_board_client):
         service = Mock()
         with (
             patch("src.api_server.get_settings_service", return_value=self._ss()),
@@ -611,7 +612,7 @@ class TestDebugOutOfBandInvalidation:
         ):
             response = client.post("/debug/info")
         assert response.status_code == 200
-        service.invalidate_board_content.assert_called_once_with("b1")
+        service.invalidate_board_content.assert_not_called()
 
     def test_blank_without_service_instance_is_safe(self, client, mock_board_client):
         """No display service yet → nothing to invalidate, blank still succeeds."""

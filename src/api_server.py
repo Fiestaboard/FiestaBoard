@@ -1069,24 +1069,6 @@ def _publish_mqtt_state_update() -> None:
         logger.debug(f"MQTT state publish after board write failed: {e}")
 
 
-def _invalidate_primary_board_content() -> None:
-    """Clear the display loop's dedupe caches after an out-of-band write to
-    the primary board (issue #1794), so the next cycle restores the active
-    page instead of skipping at the content-unchanged guard.
-    """
-    service = peek_service()
-    if service is None:
-        return
-    try:
-        board_id = get_settings_service().get_primary_board_id()
-    except Exception:
-        board_id = None
-    try:
-        service.invalidate_board_content(board_id)
-    except Exception as e:
-        logger.debug(f"Board content invalidation failed: {e}")
-
-
 def run_service_background():
     """Run the service in a background thread with auto-restart on failure."""
     global _service_running, _service_start_time
@@ -3605,13 +3587,12 @@ async def send_message(request: MessageRequest):
         )
         if success:
             if was_sent:
-                # Out-of-band write (issue #1794): clear the display loop's
-                # dedupe caches so the active page can be restored, and push
-                # fresh MQTT state so HA reflects the update.
-                try:
-                    service.invalidate_board_content(settings_service.get_primary_board_id())
-                except Exception as e:
-                    logger.debug(f"Board content invalidation failed: {e}")
+                # Push fresh MQTT state so HA reflects the update. The
+                # display loop's dedupe cache is deliberately left alone:
+                # invalidating it here made the message self-destruct on the
+                # next engine tick (<=15s). Restoring the active page is a
+                # pull — /force-refresh, MQTT Refresh Display, re-selecting
+                # a page, or an actual content change (issue #1794).
                 _publish_mqtt_state_update()
                 service.request_board_refresh()
                 return {"status": "success", "message": "Message sent successfully"}
@@ -7516,9 +7497,6 @@ async def debug_blank_board():
         success, was_sent = client.send_characters(blank_array, force=True)
 
         if success:
-            # Out-of-band write (issue #1794): let the display loop restore
-            # the active page on its next cycle.
-            _invalidate_primary_board_content()
             return {"status": "success", "message": "Board blanked successfully"}
         else:
             raise HTTPException(status_code=500, detail="Failed to blank board")
@@ -7563,9 +7541,6 @@ async def debug_fill_board(request: dict):
         success, was_sent = client.send_characters(fill_array, force=True)
 
         if success:
-            # Out-of-band write (issue #1794): let the display loop restore
-            # the active page on its next cycle.
-            _invalidate_primary_board_content()
             return {"status": "success", "message": f"Board filled with character {character_code}"}
         else:
             raise HTTPException(status_code=500, detail="Failed to fill board")
@@ -7635,9 +7610,6 @@ V{version[:7]} {timestamp}"""
         success, was_sent = client.send_characters(board_array, force=True)
 
         if success:
-            # Out-of-band write (issue #1794): let the display loop restore
-            # the active page on its next cycle.
-            _invalidate_primary_board_content()
             return {"status": "success", "message": "Debug info sent to board", "debug_info": debug_text}
         else:
             raise HTTPException(status_code=500, detail="Failed to send debug info")
@@ -9358,6 +9330,13 @@ async def force_refresh():
         service.vb_client.clear_cache()
     for client in service.board_clients.values():
         client.clear_cache()
+    # The board clients are only half of it: the display loop skips at its
+    # own per-runtime content-dedupe guard, so clearing the client caches
+    # alone left "Resend to board" doing nothing (issue #1794).
+    try:
+        service.invalidate_all_board_content()
+    except Exception as e:
+        logger.debug(f"Board content invalidation failed: {e}")
 
     try:
         sent, error = _send_with_status(

@@ -775,3 +775,58 @@ class TestSendStatusReporting:
 
         assert sent is True
         assert error is None
+
+
+class TestThrottledSendDoesNotPrimeDedupeCache:
+    """Issue #1794 review: a note-array send skipped by
+    ``NOTE_ARRAY_MIN_SEND_INTERVAL`` returns ``(True, False)`` — success, but
+    the content never reached the board. Priming the dedupe cache with it
+    strands the board on the previous frame forever, because no later tick
+    re-attempts unchanged content."""
+
+    @staticmethod
+    def _throttled_env():
+        boards = [_note_array_board("b1", "Notes", notes_wide=2, notes_tall=2)]
+        svc, clients = _service_with_runtimes(boards)
+        client = clients["b1"]
+        client.render.return_value = (True, False)
+        client.last_send_throttled = True
+        pages = _page_service(
+            {"pA": {"content": "ALPHA", "device_type": "note_array", "notes_wide": 2, "notes_tall": 2}}
+        )
+        schedule = _schedule_service({"b1": "pA"})
+        return svc, boards, client, pages, schedule
+
+    def test_throttled_send_leaves_the_dedupe_cache_clear(self):
+        svc, boards, _client, pages, schedule = self._throttled_env()
+
+        _drive(svc, boards, pages=pages, schedule=schedule)
+
+        rt = svc.runtimes["b1"]
+        assert rt.last_active_page_content is None, "cached content the board never received"
+        assert rt.last_active_page_id is None
+
+    def test_a_later_tick_retries_a_throttled_send(self):
+        svc, boards, client, pages, schedule = self._throttled_env()
+
+        _drive(svc, boards, pages=pages, schedule=schedule)
+        # Throttle window has passed; this send lands.
+        client.render.return_value = (True, True)
+        client.last_send_throttled = False
+        _drive(svc, boards, pages=pages, schedule=schedule)
+
+        assert client.render.call_count == 2, "board left permanently stale after a throttled send"
+        assert svc.runtimes["b1"].last_active_page_content == "ALPHA"
+
+    def test_a_delivered_send_still_primes_the_cache(self):
+        """Regression guard: the unchanged-content skip (also (True, False))
+        means the frame IS on the board, so it must still prime."""
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].render.return_value = (True, False)
+        clients["b1"].last_send_throttled = False
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+
+        _drive(svc, boards, pages=pages, schedule=_schedule_service({"b1": "pA"}))
+
+        assert svc.runtimes["b1"].last_active_page_content == "ALPHA"

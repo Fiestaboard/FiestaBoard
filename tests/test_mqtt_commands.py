@@ -798,18 +798,74 @@ class TestActivePageRestore:
     @patch("src.api_server.peek_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.pages.service.get_page_service")
-    def test_active_page_none_option_clears_active_page(self, get_page, get_settings, peek, handler):
-        """Selecting the HA select's no-page option clears the active page."""
+    def test_active_page_none_option_clears_a_secondary_board(self, get_page, get_settings, peek, handler):
+        """Secondary boards go dark when no page is set, so the no-page option
+        is real there."""
+        page_svc = MagicMock()
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+        settings = TestCommandHandlerPerBoardRouting._settings_with_boards()
+        get_settings.return_value = settings
+        peek.return_value = None
+
+        handler.handle("active_page", '{"page": "None", "board": "Kitchen"}')
+
+        settings.set_active_page_id.assert_called_once_with(None, board_id="b2")
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_none_option_is_refused_on_the_primary_board(self, get_page, get_settings, peek, handler):
+        """The primary board never goes dark — check_and_send_for_board
+        re-defaults it to pages[0] and persists that within one polling
+        interval, so accepting the selection here would only make the HA
+        select bounce back 15s later (issue #1794 review).
+        """
         page_svc = MagicMock()
         page_svc.list_pages.return_value = []
         get_page.return_value = page_svc
         settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
         get_settings.return_value = settings
         peek.return_value = None
 
         handler.handle("active_page", "None")
 
-        settings.set_active_page_id.assert_called_once_with(None)
+        settings.set_active_page_id.assert_not_called()
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_active_page_none_option_republishes_so_the_select_snaps_back(
+        self, get_page, get_settings, peek, handler_with_publisher
+    ):
+        """Refusing the selection must not leave HA showing the wrong state."""
+        handler, publisher = handler_with_publisher
+        page_svc = MagicMock()
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+        settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
+        get_settings.return_value = settings
+        peek.return_value = None
+
+        handler.handle("active_page", "None")
+
+        publisher.gather_and_publish.assert_called()
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.pages.service.get_page_service")
+    def test_a_real_page_named_none_still_wins(self, get_page, get_settings, peek, handler):
+        get_page.return_value = _page_service_with(name="None", page_id="page-none-id")
+        settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
+        get_settings.return_value = settings
+        peek.return_value = None
+
+        handler.handle("active_page", "None")
+
+        settings.set_active_page_id.assert_called_once_with("page-none-id")
 
     @patch("src.api_server.peek_service")
     @patch("src.settings.service.get_settings_service")
@@ -878,16 +934,18 @@ class TestRefreshDisplayForce:
         publisher.mark_display_updated.assert_not_called()
 
 
-class TestOutOfBandInvalidation:
-    """Issue #1794: MQTT board writes must invalidate the display loop's
-    dedupe state so the active page can be restored afterwards."""
+class TestOutOfBandWritesSurviveTheDisplayLoop:
+    """Issue #1794: MQTT board writes must NOT invalidate the display loop's
+    dedupe state. Doing so made every message self-destruct on the next
+    engine tick (<=15s). Restoring the active page is a pull — Refresh
+    Display, re-selecting a page, or a real content change."""
 
     @patch("src.api_server.peek_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.text_to_board.text_to_board_array")
     @patch("src.api_server.get_service")
     @patch("src.config.Config")
-    def test_send_message_invalidates_board_content(
+    def test_send_message_leaves_the_dedupe_state_alone(
         self, mock_config, get_service, text_to_board, get_settings, peek, handler
     ):
         mock_config.is_silence_mode_active.return_value = False
@@ -905,13 +963,14 @@ class TestOutOfBandInvalidation:
         handler.handle("send_message", "Hello World")
 
         service.vb_client.send_characters.assert_called_once()
-        service.invalidate_board_content.assert_called_once_with("b1")
+        service.invalidate_board_content.assert_not_called()
+        service.invalidate_all_board_content.assert_not_called()
 
     @patch("src.api_server.peek_service")
     @patch("src.api_server.get_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
-    def test_send_message_board_targeted_invalidates_that_board(
+    def test_send_message_board_targeted_leaves_the_dedupe_state_alone(
         self, mock_config, get_settings, get_service, peek, handler
     ):
         mock_config.is_silence_mode_active.return_value = False
@@ -923,12 +982,12 @@ class TestOutOfBandInvalidation:
 
         handler.handle("send_message", '{"message": "HELLO", "board": "Kitchen"}')
 
-        service.invalidate_board_content.assert_called_once_with("b2")
+        service.invalidate_board_content.assert_not_called()
 
     @patch("src.api_server.peek_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.api_server._get_board_client")
-    def test_blank_board_invalidates_board_content(self, get_board, get_settings, peek, handler):
+    def test_blank_board_leaves_the_dedupe_state_alone(self, get_board, get_settings, peek, handler):
         board_client = MagicMock()
         get_board.return_value = board_client
         settings = MagicMock()
@@ -942,7 +1001,7 @@ class TestOutOfBandInvalidation:
         handler.handle("blank_board", "")
 
         board_client.send_characters.assert_called_once()
-        service.invalidate_board_content.assert_called_once_with("b1")
+        service.invalidate_board_content.assert_not_called()
 
 
 class TestDisplayServiceGuardIntegration:
@@ -1043,12 +1102,40 @@ class TestDisplayServiceGuardIntegration:
             handler.handle("active_page", "Alpha")
             assert client.render.call_count == 2
 
-    def test_refresh_display_resends_after_out_of_band_write(self, handler_with_publisher):
+    def test_refresh_display_breaks_the_content_dedupe_guard(self, handler_with_publisher):
+        """The force refresh itself must drop the dedupe state.
+
+        The previous version of this test let its own ``send_message`` step do
+        the invalidating, so it passed with every ``_invalidate_service_boards``
+        call deleted. Here nothing else touches the caches: the second tick is
+        asserted to dedupe first, so the third render can only come from
+        refresh_display invalidating.
+        """
+        handler, publisher = handler_with_publisher
+        svc, client, settings, page_svc = self._make_env()
+        with self._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            assert client.render.call_count == 1
+            # Guard is armed: unchanged content is skipped.
+            assert svc.check_and_send_active_page() is False
+            assert client.render.call_count == 1
+            publisher.reset_mock()
+
+            handler.handle("refresh_display", "PRESS")
+
+            assert client.render.call_count == 2, "refresh_display did not break the dedupe guard"
+            refreshed = [c for c in publisher.publish_event.call_args_list if c[0][1] == "page_refreshed"]
+            assert len(refreshed) == 1
+
+    def test_refresh_display_restores_the_page_after_an_out_of_band_write(self, handler_with_publisher):
+        """End to end: a custom message is on the board, Refresh Display puts
+        the active page back."""
         handler, publisher = handler_with_publisher
         svc, client, settings, page_svc = self._make_env()
         with self._env_patches(svc, settings, page_svc):
             assert svc.check_and_send_active_page() is True
             handler.handle("send_message", "HELLO")
+            client.send_characters.assert_called_once()
             publisher.reset_mock()
 
             handler.handle("refresh_display", "PRESS")
@@ -1056,6 +1143,38 @@ class TestDisplayServiceGuardIntegration:
             assert client.render.call_count == 2
             refreshed = [c for c in publisher.publish_event.call_args_list if c[0][1] == "page_refreshed"]
             assert len(refreshed) == 1
+
+    def test_engine_tick_does_not_overwrite_an_out_of_band_message(self, handler):
+        """An MQTT/HA message must survive the next display-loop tick.
+
+        Invalidating the dedupe cache on the *write* made the message
+        self-destruct within one polling interval (15s by default), which
+        breaks the "Welcome Home" automation in our own HA docs.
+        """
+        svc, client, settings, page_svc = self._make_env()
+        with self._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            handler.handle("send_message", "HELLO")
+            client.send_characters.assert_called_once()
+
+            resent = svc.check_and_send_active_page()
+
+            assert resent is False, "the next display-loop tick re-sent the active page over the user's message"
+            assert client.render.call_count == 1
+
+    def test_engine_tick_does_not_relight_a_blanked_board(self, handler):
+        """ "Blank the Board at Bedtime" must stay blank, not re-light in 15s."""
+        svc, client, settings, page_svc = self._make_env()
+        with self._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            with patch("src.api_server._get_board_client", return_value=client):
+                handler.handle("blank_board", "")
+            assert client.send_characters.called
+
+            resent = svc.check_and_send_active_page()
+
+            assert resent is False, "the next display-loop tick re-lit the board after a blank"
+            assert client.render.call_count == 1
 
     def test_refresh_display_without_send_publishes_no_event(self, handler_with_publisher):
         handler, publisher = handler_with_publisher

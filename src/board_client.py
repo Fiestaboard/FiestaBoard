@@ -381,9 +381,25 @@ class BoardClient(TransitionRenderMixin):
         self._is_note_array: bool = bool(note_array_token)
         # Injectable monotonic clock for the note-array send throttle (tests).
         self._time_func: Callable[[], float] = _time_func if _time_func is not None else _time_module.monotonic
+        # Whether the most recent send_characters call was dropped by the
+        # note-array rate limit (see the last_send_throttled property).
+        self._last_send_throttled: bool = False
 
         # Transition-plugin render state (lock, cancel event, runner slot).
         self._init_transition_state()
+
+    @property
+    def last_send_throttled(self) -> bool:
+        """True when the most recent send was dropped by the note-array rate limit.
+
+        That drop reports ``(True, False)`` — byte-identical to the
+        unchanged-content skip — but the two mean opposite things: after an
+        unchanged-content skip the frame IS on the board, whereas after a
+        throttle it never left. Callers that cache "what the board is
+        showing" must not do so on a throttle, or the board stays stale
+        forever because nothing re-attempts unchanged content (issue #1794).
+        """
+        return self._last_send_throttled
 
     @property
     def min_send_interval_ms(self) -> int:
@@ -513,6 +529,8 @@ class BoardClient(TransitionRenderMixin):
             step_interval_ms = None
             step_size = None
 
+        self._last_send_throttled = False
+
         # Rate-limit note-array sends to >= NOTE_ARRAY_MIN_SEND_INTERVAL seconds.
         # Read the clock once and reuse it for the success-path timestamp below.
         # The check+update below is not locked: FiestaBoard's send paths run on a
@@ -529,6 +547,7 @@ class BoardClient(TransitionRenderMixin):
                         elapsed,
                         NOTE_ARRAY_MIN_SEND_INTERVAL,
                     )
+                    self._last_send_throttled = True
                     return (True, False)
 
         # Check if characters have changed (client-side caching)

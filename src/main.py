@@ -1103,9 +1103,24 @@ class DisplayService:
             )
 
             if success:
+                # A note-array send dropped by NOTE_ARRAY_MIN_SEND_INTERVAL
+                # reports success with was_sent=False, exactly like an
+                # unchanged-content skip — but the content never reached the
+                # board. Caching it here would strand the board on the
+                # previous frame permanently, because no later tick
+                # re-attempts unchanged content (issue #1794). Keep the
+                # silence latch (#1817) either way, then leave the dedupe
+                # cache clear so the next tick retries.
+                rt.last_silence_mode_active = silence_mode_active
+                if getattr(rt.client, "last_send_throttled", False) is True:
+                    logger.warning(
+                        "Board %s: send throttled and did not reach the board; "
+                        "leaving dedupe cache clear so the next tick retries",
+                        board_id,
+                    )
+                    return False
                 rt.last_active_page_content = current_content
                 rt.last_active_page_id = active_page_id
-                rt.last_silence_mode_active = silence_mode_active
                 if was_sent:
                     logger.info(f"Board {board_id}: active page sent: {active_page_id}")
                     # Board-state adaptive refresh is primary-only (see
