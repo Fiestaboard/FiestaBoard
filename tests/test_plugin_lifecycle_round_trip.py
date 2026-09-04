@@ -178,8 +178,33 @@ class _LocalRegistry(PluginRegistry):
 # ── fixtures ────────────────────────────────────────────────────────────────
 
 
+#: Every ConfigManager ``plugin_env`` has constructed. The leak guard below
+#: is scoped to these so an unrelated singleton leak elsewhere in the suite
+#: (there are known ones — see #1730) cannot make this module fail.
+_MANAGERS_CREATED_HERE: list[ConfigManager] = []
+
+
+@pytest.fixture(autouse=True)
+def _config_manager_leak_guard():
+    """Fail if a previous test left ``plugin_env``'s ConfigManager installed.
+
+    Checked at *setup*, not teardown, because the leak is not observable from
+    inside the test that causes it: ``monkeypatch.undo()`` runs after every
+    fixture finalizer, so a singleton it restores only becomes visible to the
+    next test in the same xdist worker. That is exactly why the leak survived
+    ``plugin_env``'s ``finally``.
+    """
+    installed = ConfigManager._instance  # type: ignore[attr-defined]
+    assert installed is None or installed not in _MANAGERS_CREATED_HERE, (
+        "a previous test leaked plugin_env's ConfigManager "
+        f"({getattr(installed, '_config_path', '?')}); it points at a deleted "
+        "temp dir and every later test in this worker inherits it"
+    )
+    yield
+
+
 @pytest.fixture
-def plugin_env(tmp_path, monkeypatch):
+def plugin_env(tmp_path):
     """A real registry over stub plugins, wired to the app singletons.
 
     Teardown order matters and is hand-rolled. The plugin routes call
@@ -200,8 +225,15 @@ def plugin_env(tmp_path, monkeypatch):
 
     config_path = tmp_path / "config.json"
     ConfigManager._instance = None  # type: ignore[attr-defined]
+    # Constructing it installs it: ``ConfigManager.__new__`` assigns
+    # ``cls._instance``. Do NOT also pin it with ``monkeypatch.setattr`` —
+    # ``monkeypatch.undo()`` runs after every fixture finalizer in this test,
+    # so it would restore this temp-dir instance *after* the ``finally`` below
+    # cleared it, handing every later test in this xdist worker a
+    # ConfigManager pointing at a deleted ``tmp_path/config.json``. See
+    # ``test_monkeypatching_the_config_manager_singleton_outlives_a_fixture``.
     config_manager = ConfigManager(config_path=str(config_path))
-    monkeypatch.setattr("src.config_manager.ConfigManager._instance", config_manager, raising=False)
+    _MANAGERS_CREATED_HERE.append(config_manager)
 
     original_registry = registry_module._registry
     original_engine = engine_module._template_engine
@@ -528,3 +560,34 @@ def test_the_fixture_keeps_plugin_writes_out_of_the_repo_data_dir(client, plugin
     assert not (repo_data / "external_plugins" / EXTERNAL).exists()
     if (repo_data / "config.json").exists():
         assert HEALTHY not in json.loads((repo_data / "config.json").read_text()).get("plugins", {})
+
+
+def test_monkeypatching_the_config_manager_singleton_outlives_a_fixture(tmp_path):
+    """``monkeypatch.undo()`` runs after a fixture's own teardown, not before.
+
+    Deterministic reproduction of the hazard ``plugin_env`` used to have: it
+    both constructed the temp ConfigManager (which installs it) *and* pinned it
+    with ``monkeypatch.setattr``. The undo restored the pinned value after the
+    ``finally`` had cleared it, so the temp-dir singleton escaped the fixture.
+    ``_config_manager_leak_guard`` above catches a live regression; this pins
+    the mechanism so the comment in ``plugin_env`` cannot rot into folklore.
+    """
+    from _pytest.monkeypatch import MonkeyPatch
+
+    original = ConfigManager._instance  # type: ignore[attr-defined]
+    monkeypatch = MonkeyPatch()
+    try:
+        ConfigManager._instance = None  # type: ignore[attr-defined]
+        temp_manager = ConfigManager(config_path=str(tmp_path / "config.json"))
+        monkeypatch.setattr("src.config_manager.ConfigManager._instance", temp_manager, raising=False)
+
+        ConfigManager._instance = None  # type: ignore[attr-defined]  # the fixture's own teardown
+        monkeypatch.undo()  # ...which pytest runs afterwards, not before
+
+        assert ConfigManager._instance is temp_manager, (
+            "monkeypatch.undo() no longer resurrects the value — if pytest changed "
+            "this ordering, plugin_env's hand-rolled teardown can be simplified"
+        )
+    finally:
+        monkeypatch.undo()
+        ConfigManager._instance = original  # type: ignore[attr-defined]

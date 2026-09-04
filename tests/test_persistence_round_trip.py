@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import functools
 import json
+import uuid
 from pathlib import Path
 
 import pytest
@@ -403,7 +404,64 @@ def test_backup_import_restores_every_data_file_byte_for_byte(client, isolated_d
     assert client.post("/backup/import?reinstall_plugins=false", json=backup).status_code == 200
 
     after = {name: json.loads((isolated_data_dir / name).read_text()) for name in DATA_FILES}
+
+    # `config.json` legitimately gains one key the export did not carry, and
+    # only that one. #1817 made the restore path call
+    # `PluginRegistry.initialize(force=True)` (`_reload_services`) so restored
+    # plugin configs reach the live plugin objects. That reload runs the v2->v3
+    # plugin migration, which stamps `plugin_migrations.v2_completed` to record
+    # that it has now run for *this* config.
+    #
+    # This is derived state about the installation, not user data, and
+    # re-deriving it is what makes a v2-era backup restore correctly onto a v3
+    # instance: the migration is what re-installs plugin configs whose code was
+    # extracted out of the app, and the flag is what stops it resurrecting a
+    # deliberately-uninstalled plugin on the next boot (#937/#948/#1102/#1301).
+    # `_reload_services` reloads ConfigManager from disk *before* the registry
+    # reload, so the migration reads what the backup wrote rather than a stale
+    # in-memory copy — pinned by
+    # `test_backup_import_is_not_clobbered_by_the_pre_restore_config_manager`.
+    #
+    # So the contract is "restore loses nothing and alters nothing", not
+    # "restore reproduces the file byte for byte". Asserted as exactly that,
+    # which is stricter than ignoring the key: nothing else may be added, the
+    # added value must be the completed flag, and every exported byte must
+    # still come back unchanged.
+    added = set(after["config.json"]) - set(before["config.json"])
+    assert added == {"plugin_migrations"}, f"restore added unexpected config.json keys: {sorted(added)}"
+    assert after["config.json"].pop("plugin_migrations") == {"v2_completed": True}
     assert after == before
+
+
+def test_backup_import_is_not_clobbered_by_the_pre_restore_config_manager(client, isolated_data_dir):
+    """The plugin-registry reload that follows a restore must read the restored config.
+
+    `src.backup.service._reload_services` reloads ConfigManager from disk
+    *before* it calls `PluginRegistry.initialize(force=True)` (#1817). That
+    order is load-bearing and easy to lose: the registry reload runs the v2->v3
+    plugin migration, which writes back through ConfigManager. Run it against
+    the pre-restore in-memory config and the write lands on top of the file the
+    restore just produced — the "an upgrade stranded my plugin configs" failure
+    shape of #948/#1102/#1301, reached this time through a restore.
+
+    It is also the reason `test_backup_import_restores_every_data_file_byte_for_byte`
+    tolerates a re-derived `plugin_migrations` key: the migration is *supposed*
+    to run here, over restored data.
+    """
+    assert client.put("/settings/ai", json={"enabled": True, "providers": [_AI_PROVIDER]}).status_code == 200
+    backup = client.get("/backup/export").json()
+
+    # Diverge the live config (and the live ConfigManager) from the backup.
+    assert client.put("/settings/ai", json={"enabled": False, "providers": []}).status_code == 200
+    assert json.loads((isolated_data_dir / "config.json").read_text())["ai_providers"]["enabled"] is False
+
+    assert client.post("/backup/import?reinstall_plugins=false", json=backup).status_code == 200
+
+    on_disk = json.loads((isolated_data_dir / "config.json").read_text())
+    assert on_disk["ai_providers"]["enabled"] is True, (
+        "the post-restore reload wrote the pre-restore config back over the restored one"
+    )
+    assert [p["id"] for p in on_disk["ai_providers"]["providers"]] == [_AI_PROVIDER["id"]]
 
 
 def test_restored_state_survives_a_restart(client, isolated_data_dir):
@@ -436,18 +494,49 @@ def test_import_rejects_a_document_that_is_not_a_backup(client, isolated_data_di
 def test_the_isolation_fixture_keeps_writes_out_of_the_repo_data_dir(client, isolated_data_dir):
     """Guard for #1762: these tests must never touch the developer's data/.
 
-    If the fixture stops covering a store, that store writes into the repo and
-    this assertion is the thing that notices.
+    Every store is written with a marker unique to this run, then the repo's
+    ``data/`` is searched for it. Looking for *our own* content is what makes
+    this order-independent, the way the sibling guard in
+    ``test_plugin_lifecycle_round_trip.py`` does it.
+
+    A wholesale comparison of the repo's files — of mtimes or of bytes — would
+    be a cross-worker race instead of a guard: other suites in the same
+    ``-n auto`` run legitimately write ``<repo>/data/config.json``
+    (``test_config_manager.py`` does), so it would fail on their writes, not on
+    a leak from here. Verified: swapping this for a byte comparison fails 5 runs
+    in 6 alongside ``tests/test_config_manager.py``.
     """
+    from src.backup.service import DATA_FILES
+
+    marker = f"isolation-guard-{uuid.uuid4().hex}"
     repo_data = Path(__file__).resolve().parent.parent / "data"
-    before = {p.name: p.stat().st_mtime_ns for p in repo_data.glob("*.json")} if repo_data.exists() else {}
 
-    page = _create_page(client)
-    _create_schedule(client, page["id"])
-    _create_collection(client, page["id"])
-    assert client.put("/settings/display", json={"reduce_motion": True}).status_code == 200
-    assert client.put("/settings/ai", json={"enabled": True, "providers": [_AI_PROVIDER]}).status_code == 200
+    page = _create_page(client, name=marker)  # pages.json
+    _create_schedule(client, page["id"])  # schedules.json
+    _create_collection(client, page["id"])  # collections.json
+    assert client.put("/settings/mqtt", json={"broker_host": marker}).status_code == 200  # settings.json
+    ai = client.put("/settings/ai", json={"enabled": True, "providers": [{**_AI_PROVIDER, "name": marker}]})
+    assert ai.status_code == 200, ai.text  # config.json
 
-    assert (isolated_data_dir / "pages.json").exists(), "the fixture never redirected pages.json"
-    after = {p.name: p.stat().st_mtime_ns for p in repo_data.glob("*.json")} if repo_data.exists() else {}
-    assert after == before
+    # Both tokens are unique to this run: the marker string this test chose,
+    # and the id the API minted for its page.
+    written_token = {
+        "pages.json": marker,
+        "schedules.json": page["id"],
+        "collections.json": page["id"],
+        "settings.json": marker,
+        "config.json": marker,
+    }
+    assert set(written_token) == set(DATA_FILES), "DATA_FILES changed — give the new file a token"
+
+    for name, token in written_token.items():
+        written = isolated_data_dir / name
+        assert written.exists(), f"the fixture never redirected {name}"
+        assert token in written.read_text(), f"{name} did not receive this test's write"
+
+    for name in DATA_FILES:
+        leaked = repo_data / name
+        if leaked.exists():
+            text = leaked.read_text()
+            assert marker not in text, f"this test's data leaked into <repo>/data/{name}"
+            assert page["id"] not in text, f"this test's page leaked into <repo>/data/{name}"
