@@ -1,6 +1,8 @@
 """Extended tests for template engine - covering additional code paths."""
 
+import sys
 import time
+from contextlib import contextmanager
 from unittest.mock import Mock, patch
 
 import pytest
@@ -346,7 +348,7 @@ class TestWrapDetectionLinearTime:
     runners), these assert the growth property itself: a 4x larger input
     may not take quadratically (~16x) longer. Quadratic code fails at any
     machine speed; linear code passes at any machine speed — on a fast
-    machine via the FAST_ENOUGH short-circuit, on a slow one via the
+    machine via the FAST_ENOUGH absolute bound, on a slow one via the
     ratio. Measured on the old regex (repo test container): the "||wrap|"
     shape grew 1.28s -> 20.63s (16.1x) end to end, and the "{{|" shape
     grew 1.17s -> 18.74s (16.1x) at the detection step; the linear
@@ -359,23 +361,82 @@ class TestWrapDetectionLinearTime:
     end-to-end growth cannot be asserted on that shape.
     """
 
-    GROWTH_LIMIT = 8.0  # quadratic growth is ~16x for a 4x input
-    FAST_ENOUGH = 1.0  # seconds; below this, growth rate is irrelevant
+    GROWTH_LIMIT = 12.0  # quadratic growth is ~16x for a 4x input; linear measures ~4x
+    FAST_ENOUGH = 1.0  # seconds; below this, polynomial blowup is impossible at these sizes
     NOISE_FLOOR = 0.05  # seconds; keeps the ratio denominator meaningful
+    REPEATS = 3  # min-of-k; the adaptive specializer needs a warm-up pass (see below)
 
     @staticmethod
-    def _timed(fn):
-        start = time.perf_counter()
-        fn()
-        return time.perf_counter() - start
+    @contextmanager
+    def _tracing_suspended():
+        """Run the timed body with any ``sys.settrace`` tracer detached.
+
+        Under ``pytest --cov`` on Python 3.11 (what CI runs) coverage installs
+        a C tracer via ``sys.settrace``, and CPython disables the adaptive
+        specializing interpreter whenever a trace function is set. Without the
+        specializer there is no ``BINARY_OP_INPLACE_ADD_UNICODE``, so the
+        ``current_word += text[i]`` accumulation in ``_word_wrap_tiles`` loses
+        its amortized in-place resize and copies the whole buffer every
+        iteration: a genuinely linear routine is executed quadratically.
+
+        Measured on the CI interpreter (python:3.11, ``-n 4 --cov=src
+        --cov-branch``) for the ``"||wrap|"`` shape, n=7500 -> n=30000:
+
+            traced    0.05722s -> 0.56904s   9.94x
+            untraced  0.00781s -> 0.03169s   4.06x
+
+        4.06x for a 4x input is the linear signature this class exists to
+        assert. 9.94x is an artifact of the measuring instrument, and it is
+        what made GROWTH_LIMIT=8.0 a coin flip (issue #1820: CI observed
+        0.14s -> 1.15s, 8.01x). Suspending the tracer measures the production
+        code instead of the traced interpreter. Where coverage uses
+        ``sys.monitoring`` instead (Python 3.12+) ``sys.gettrace()`` is None,
+        this is a no-op, and no artifact exists there anyway.
+
+        The suspension only skips coverage accounting for these three timed
+        calls; the same lines are covered by the rest of this module.
+        """
+        previous = sys.gettrace()
+        if previous is None:
+            yield
+            return
+        sys.settrace(None)
+        try:
+            yield
+        finally:
+            sys.settrace(previous)
+
+    @classmethod
+    def _timed(cls, fn):
+        """Best of REPEATS wall-clock samples, measured with tracing detached.
+
+        Min-of-k is noise reduction, not the flake fix — the tracer suspension
+        above is. It earns its place because re-enabling the specializer starts
+        it cold: CPython only specializes an instruction after it has run
+        several times, so the first sample after ``sys.settrace(None)`` is
+        measured on unspecialized bytecode.
+        """
+        best = float("inf")
+        with cls._tracing_suspended():
+            for _ in range(cls.REPEATS):
+                start = time.perf_counter()
+                fn()
+                best = min(best, time.perf_counter() - start)
+        return best
 
     def _assert_linear_growth(self, run, make_template, n):
         small = self._timed(lambda: run(make_template(n)))
         large = self._timed(lambda: run(make_template(4 * n)))
-        if large < self.FAST_ENOUGH:
-            return
         ratio = large / max(small, self.NOISE_FLOOR)
-        assert ratio < self.GROWTH_LIMIT, (
+        # Two independent ways to be sub-quadratic, either of which discharges
+        # the property. The absolute bound is not an escape hatch: the old
+        # quadratic regex took 20.63s on the large leg of this very shape, 20x
+        # over FAST_ENOUGH, so finishing inside a second at these sizes rules
+        # polynomial backtracking out on its own. Sizing the inputs so the
+        # ratio always runs would need a ~6.6 MB template, and would make a
+        # quadratic regression take hours to surface instead of seconds --
+        # a regression guard has to fail fast to be worth having.
+        assert large < self.FAST_ENOUGH or ratio < self.GROWTH_LIMIT, (
             f"4x input grew {ratio:.1f}x ({small:.2f}s -> {large:.2f}s); "
             f"expected < {self.GROWTH_LIMIT}x for linear-time wrap detection"
         )
