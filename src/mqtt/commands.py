@@ -307,7 +307,19 @@ class CommandHandler:
                 return
         from src.config import Config
 
-        if Config.is_silence_mode_active():
+        # Silence is per board (issue #1788): resolve the window of the board
+        # this message targets, falling back to the primary board for a plain
+        # -string payload. Without this a Home Assistant send at 2am woke a
+        # board whose own override said it should be quiet.
+        from src.settings.service import get_settings_service
+
+        silence_board_id = board_id
+        if silence_board_id is None:
+            try:
+                silence_board_id = get_settings_service().get_primary_board_id()
+            except Exception:  # pragma: no cover - defensive
+                silence_board_id = None
+        if Config.is_silence_mode_active(silence_board_id):
             logger.info("MQTT send_message blocked by silence mode")
             return
         from src.api_server import get_service

@@ -97,8 +97,14 @@ class StatePublisher:
             # current_message
             out["current_message"] = self._get_current_message()
 
-            # silence_mode
-            silence_active = Config.is_silence_mode_active()
+            # silence_mode — scoped to the primary board (issue #1788).
+            # Every other field in this payload is primary-board scoped
+            # (active_page, transition_style, ...), so publishing the
+            # install-wide layer here made the Home Assistant sensor report
+            # OFF while the board it describes was snoozing. A per-board
+            # sensor set is a separate feature; this keeps the single entity
+            # honest about the board it already describes.
+            silence_active = Config.is_silence_mode_active(settings.get_primary_board_id())
             out["silence_mode"] = "ON" if silence_active else "OFF"
 
             # version

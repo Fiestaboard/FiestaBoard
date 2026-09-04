@@ -340,7 +340,8 @@ def live_env(monkeypatch, patched_registry):
     fake_service = SimpleNamespace(vb_client=board_client, get_board_client=lambda board_id: board_client)
     monkeypatch.setattr(api_server, "get_service", lambda: fake_service)
     monkeypatch.setattr(api_server, "get_page_service", _FakePageService)
-    monkeypatch.setattr(api_server.Config, "is_silence_mode_active", staticmethod(lambda: False))
+    # Since issue #1788 the guard resolves the target board, so the stub takes a board_id.
+    monkeypatch.setattr(api_server.Config, "is_silence_mode_active", staticmethod(lambda board_id=None: False))
     monkeypatch.setattr(api_server, "_board_is_paused", lambda board_id=None: False)
     monkeypatch.setattr(api_server, "LIVE_TEST_FROM_HOLD_SECONDS", 0)
     return board_client
@@ -398,7 +399,7 @@ def test_live_without_from_page_skips_snap(live_env):
 
 
 def test_live_blocked_by_silence_mode(live_env, monkeypatch):
-    monkeypatch.setattr(api_server.Config, "is_silence_mode_active", staticmethod(lambda: True))
+    monkeypatch.setattr(api_server.Config, "is_silence_mode_active", staticmethod(lambda board_id=None: True))
     with pytest.raises(HTTPException) as exc:
         _run(run_live_transition_test({"plugin_id": "fake_typewriter", "to_page_id": "page-to"}))
     assert exc.value.status_code == 409

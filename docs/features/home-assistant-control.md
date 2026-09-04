@@ -128,7 +128,7 @@ is never rewritten.
 |--------|------|-------------|
 | **Current Page** | Sensor | Name of the page currently displayed. *Includes JSON attributes (page_id, page_index).* |
 | **Board Message** | Sensor | Summary of what's currently on the board |
-| **Silence Mode** | Binary Sensor | Whether silence/quiet hours are active |
+| **Silence Mode** | Binary Sensor | Whether quiet hours are active on the **primary** board (silence is per board — see [Silence Schedule](./silence-schedule.md)) |
 | **Page Count** | Sensor | Number of pages configured *(state_class: measurement)* |
 
 ### Diagnostics (device health and info, grouped separately in HA)

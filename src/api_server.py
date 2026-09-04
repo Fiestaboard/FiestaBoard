@@ -3450,8 +3450,10 @@ async def send_message(request: MessageRequest):
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups
-    if Config.is_silence_mode_active():
+    # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups.
+    # This path drives the primary board's client, so it must resolve the
+    # primary board's window (issue #1788).
+    if _silence_active():
         logger.info("Silence mode is active - blocking manual message send to prevent wake-up")
         return {
             "status": "blocked",
@@ -3603,8 +3605,9 @@ async def send_welcome_message():
     """
     from .board_client import BoardClient
 
-    # Check silence mode
-    if Config.is_silence_mode_active():
+    # Check silence mode for the board this actually writes to (the primary
+    # board — the wizard has no board picker).
+    if _silence_active():
         logger.info("Silence mode is active - blocking welcome message to prevent wake-up")
         return {"status": "blocked", "message": "Welcome message blocked during silence mode", "silence_mode": True}
 
@@ -5877,7 +5880,7 @@ async def run_live_transition_test(request: dict):
 
     board, board_client = _resolve_live_board_client(board_id)
 
-    if Config.is_silence_mode_active():
+    if _silence_active(board_id):
         raise HTTPException(status_code=409, detail="Silence mode is active - live test blocked")
     if _board_is_paused(board_id):
         raise HTTPException(status_code=409, detail="Board is paused - live test blocked")
@@ -5971,7 +5974,7 @@ async def restore_after_transition_test(request: dict | None = None):
 
     board, board_client = _resolve_live_board_client(board_id)
 
-    if Config.is_silence_mode_active():
+    if _silence_active(board_id):
         raise HTTPException(status_code=409, detail="Silence mode is active - restore blocked")
     if _board_is_paused(board_id):
         raise HTTPException(status_code=409, detail="Board is paused - restore blocked")
@@ -7144,6 +7147,27 @@ def _board_is_paused(board_id: str | None = None) -> bool:
     return result is True
 
 
+def _silence_active(board_id: str | None = None) -> bool:
+    """Return True when the target board (or the primary board) is silenced.
+
+    Mirrors :func:`_board_is_paused`: silence is per board since issue #1788,
+    so every send guard must resolve the window of the board it is about to
+    touch. ``Config.is_silence_mode_active(None)`` deliberately keeps its
+    legacy install-wide meaning for the ~20 fixtures that call it zero-arg, so
+    the primary board is resolved here instead — without this an override on
+    the bedroom Note was ignored by every manual-send path and a 2am send from
+    the web UI or Home Assistant woke the board up.
+    """
+    resolved = board_id
+    if resolved is None:
+        try:
+            resolved = get_settings_service().get_primary_board_id()
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("Could not resolve primary board for silence check: %s", e)
+            resolved = None
+    return Config.is_silence_mode_active(resolved)
+
+
 def _paused_response(board_id: str | None = None) -> dict:
     """Standard payload returned by API endpoints that skip a send because
     the target board is paused."""
@@ -8167,8 +8191,9 @@ async def send_page(
     sent_to_board = False
     paused = False
     if send_to_board:
-        # CRITICAL: Block ALL manual sends during silence mode to prevent wake-ups
-        if Config.is_silence_mode_active():
+        # CRITICAL: Block ALL manual sends during silence mode to prevent
+        # wake-ups — for the board this send targets (issue #1788).
+        if _silence_active(board_id):
             logger.info("Silence mode is active - blocking manual page send to prevent wake-up")
             sent_to_board = False
             # Don't raise error, just skip sending

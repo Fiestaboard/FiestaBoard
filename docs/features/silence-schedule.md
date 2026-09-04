@@ -45,7 +45,15 @@ A few things follow from this:
   flipping at 3 AM.
 - **The silence page picker only offers pages that fit that board.** A 22×6
   Flagship page cannot be chosen for a 15×3 Note.
-- **Single-board installs see no difference.** There is just the one schedule.
+- **Single-board installs see no difference.** There is just the one board, so
+  its schedule is the schedule.
+- **Manual sends respect the target board's window.** Sending a message or a
+  page from the Web UI, the API, or Home Assistant is blocked while *that*
+  board is silenced, so a 2 AM send cannot wake a board whose own quiet hours
+  say it should be asleep.
+- **The Home Assistant `silence_mode` sensor reports the primary board.** Like
+  the other entities in that payload (active page, transition style), it
+  describes the primary board rather than the install as a whole.
 
 ## How It Works
 
