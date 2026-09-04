@@ -1938,7 +1938,13 @@ def _resolve_auto_update_interval(state: dict[str, Any]) -> str:
 
 
 async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
-    """Silently apply pending plugin updates in the background update loop."""
+    """Silently apply pending plugin updates in the background update loop.
+
+    Runs unattended from ``_plugin_update_check_loop`` once an hour, so the git
+    fetch and the module reimport go to worker threads: inline they would seize
+    the event loop for up to 120 s per plugin with nobody having asked for
+    anything, and the board would simply stop updating (#1750).
+    """
     import os as _os
     from pathlib import Path as _Path
 
@@ -1968,13 +1974,13 @@ async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
             failed.append(plugin_id)
             continue
 
-        ok, err = clone_or_update_repo("", plugin_id, external_dir=_ext_dir)
+        ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=_ext_dir)
         if not ok:
             logger.warning("Auto-update: git fetch failed for %s: %s", plugin_id, err)
             failed.append(plugin_id)
             continue
 
-        reloaded = registry.reload_plugin(plugin_id)
+        reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
         if reloaded is None:
             logger.warning("Auto-update: reload failed for %s", plugin_id)
             failed.append(plugin_id)

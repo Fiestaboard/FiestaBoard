@@ -21,7 +21,7 @@ from unittest.mock import Mock, patch
 import httpx
 import pytest
 
-from src.api_server import app
+from src.api_server import _auto_apply_plugin_updates, app
 
 # Wall-clock cap on every blocking stub.  The worker keeps running after the
 # request that started it, so an uncapped stub would wedge the suite; the cap
@@ -157,3 +157,29 @@ async def test_a_slow_bulk_update_does_not_block_the_event_loop():
 
     health, waited, still_running = await _health_while_in_flight(_apply)
     _assert_loop_stayed_free(health, waited, still_running, "bulk update")
+
+
+@pytest.mark.asyncio
+async def test_a_slow_auto_update_does_not_block_the_event_loop():
+    """The hourly auto-update loop fetches and reimports with no user watching.
+
+    ``_auto_apply_plugin_updates`` is driven by ``_plugin_update_check_loop``
+    every hour.  Blocking there is the worst of the set: nobody pressed a
+    button, so an unattended two-minute freeze just looks like the board
+    having died.
+    """
+
+    async def _auto_update(_ac, release):
+        registry = Mock()
+        registry.get_plugin_source.return_value = Mock(source_type="external", local_path="/fake/path")
+        registry.reload_plugin.return_value = Mock()
+        registry._update_status = {"plugin_a": True}
+        with (
+            patch("pathlib.Path.is_dir", return_value=True),
+            patch("src.plugins.sources.get_external_plugins_dir", return_value=Path("/fake")),
+            patch("src.plugins.sources.clone_or_update_repo", _blocking(release, (True, ""))),
+        ):
+            return await _auto_apply_plugin_updates(registry, ["plugin_a"])
+
+    health, waited, still_running = await _health_while_in_flight(_auto_update)
+    _assert_loop_stayed_free(health, waited, still_running, "auto-update")
