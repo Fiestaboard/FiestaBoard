@@ -183,7 +183,7 @@ export function PanelView({ panelId, frameIntervalMs, configIntervalMs }: PanelV
     content = (
       <PanelBoard
         message={frame.data?.message ?? null}
-        animationsEnabled={config.data.animations_enabled ?? true}
+        animationsEnabled={config.data.animations_enabled ?? false}
         deviceType={deviceType}
         notesWide={deviceType === "note_array" ? Math.max(1, Math.round(cols / 15)) : 1}
         notesTall={deviceType === "note_array" ? Math.max(1, Math.round(rows / 3)) : 1}

@@ -40,6 +40,14 @@ def _seed_data_dir(data_dir: Path) -> None:
     )
     (data_dir / "collections.json").write_text(json.dumps({"schema_version": 1, "collections": []}))
     (data_dir / "schedules.json").write_text(json.dumps({"schedules": [], "default_page_id": None}))
+    (data_dir / "panels.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 4,
+                "panels": [{"id": "abcdefghijkl", "short_code": 1, "name": "TV", "board_id": "vb1"}],
+            }
+        )
+    )
 
 
 def test_build_backup_includes_all_data_files(tmp_path):
@@ -57,6 +65,9 @@ def test_build_backup_includes_all_data_files(tmp_path):
     assert backup["data"]["settings"]["transitions"]["strategy"] == "column"
     assert backup["data"]["collections"] == {"schema_version": 1, "collections": []}
     assert backup["data"]["schedules"]["schedules"] == []
+    # FiestaPanels round-trip too — losing panels.json orphans every panel's
+    # virtual board on restore and kills the TVs' /p/{n} URLs.
+    assert backup["data"]["panels"]["panels"][0]["id"] == "abcdefghijkl"
     assert isinstance(backup["installed_plugins"], list)
 
 
@@ -66,7 +77,7 @@ def test_build_backup_with_missing_files_uses_none(tmp_path):
 
     backup = service.build_backup()
 
-    for key in ("config", "settings", "pages", "collections", "schedules"):
+    for key in ("config", "settings", "pages", "collections", "schedules", "panels"):
         assert backup["data"][key] is None
 
 
@@ -99,10 +110,27 @@ def test_round_trip_export_then_import(tmp_path):
         "pages.json",
         "collections.json",
         "schedules.json",
+        "panels.json",
     }
     # Data was actually written to the destination.
     assert json.loads((dst_dir / "config.json").read_text())["board"]["host"] == "fiestaboard.example.test"
     assert json.loads((dst_dir / "pages.json").read_text())["pages"][0]["id"] == "p1"
+    assert json.loads((dst_dir / "panels.json").read_text())["panels"][0]["id"] == "abcdefghijkl"
+
+
+def test_reload_services_resets_panel_service_singleton(tmp_path):
+    """After a restore, panel reads must come from the restored panels.json."""
+    import src.panels.service as panels_service_module
+    from src.backup.service import _reload_services
+    from src.panels.storage import PanelStorage
+
+    # Reached through the module object rather than a second `from ... import`
+    # of the same module, which the code-quality bot flags as a duplicate.
+    panels_service_module._panel_service = panels_service_module.PanelService(
+        storage=PanelStorage(storage_file=str(tmp_path / "panels.json"))
+    )
+    _reload_services()
+    assert panels_service_module._panel_service is None
 
 
 def test_import_preserves_existing_files_as_pre_restore_backup(tmp_path):

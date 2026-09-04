@@ -169,3 +169,48 @@ class TestSharedStatePerBoard:
         b = VirtualBoardClient(device_type="flagship")
         a.send_characters(_grid(fill=2))
         assert b.read_current_message() is None
+
+
+class TestReshapeAndRelease:
+    """A panel TV-size edit reshapes the board; state must not go stale."""
+
+    def test_reshaped_board_does_not_serve_the_old_shape_frame(self):
+        """After a re-fit, a client with the new dims must read None, not the
+        old-shape frame.
+
+        Repro of the live bug: resize a 55" panel (12×15) to 85" (18×45) —
+        GET /panel/{ref}/frame kept returning the stale 12×15 grid while the
+        config reported 18×45, so the TV rendered mismatched content forever.
+        """
+        before = VirtualBoardClient(device_type="note_array", board_id="b-resize", notes_wide=1, notes_tall=4)
+        before.send_characters(_grid(rows=12, cols=15, fill=5))
+
+        after = VirtualBoardClient(device_type="note_array", board_id="b-resize", notes_wide=3, notes_tall=6)
+        assert after.read_current_message() is None
+
+    def test_reshaped_board_accepts_new_shape_sends(self):
+        """The stale dedupe cache must not block or corrupt the first new-shape send."""
+        before = VirtualBoardClient(device_type="note_array", board_id="b-resize-2", notes_wide=1, notes_tall=4)
+        before.send_characters(_grid(rows=12, cols=15, fill=5))
+
+        after = VirtualBoardClient(device_type="note_array", board_id="b-resize-2", notes_wide=3, notes_tall=6)
+        ok, sent = after.send_characters(_grid(rows=18, cols=45, fill=7))
+        assert (ok, sent) == (True, True)
+        assert after.read_current_message() == _grid(rows=18, cols=45, fill=7)
+
+    def test_release_state_frees_a_deleted_boards_frames(self):
+        """Deleting a panel must drop its board's shared state from the registry."""
+        from src.virtual_board_client import release_virtual_board_state
+
+        a = VirtualBoardClient(device_type="flagship", board_id="b-released")
+        a.send_characters(_grid(fill=3))
+        release_virtual_board_state("b-released")
+
+        fresh = VirtualBoardClient(device_type="flagship", board_id="b-released")
+        assert fresh.read_current_message() is None
+
+    def test_release_state_tolerates_unknown_and_none_ids(self):
+        from src.virtual_board_client import release_virtual_board_state
+
+        release_virtual_board_state("never-existed")
+        release_virtual_board_state(None)

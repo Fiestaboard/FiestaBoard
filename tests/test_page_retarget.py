@@ -20,7 +20,7 @@ from src.collections.models import CollectionCreate
 from src.collections.service import CollectionService
 from src.collections.storage import CollectionStorage
 from src.pages.models import PageCreate, PageUpdate, RowConfig
-from src.pages.service import PageService, find_incompatible_references
+from src.pages.service import PageService, find_incompatible_board_references, find_incompatible_references
 from src.pages.storage import PageStorage
 from src.schedules.models import ScheduleCreate
 from src.schedules.service import ScheduleService
@@ -213,6 +213,56 @@ class TestFindIncompatibleReferences:
         _schedule(env, page.id)
         env["active_by_board"]["board-flagship"] = page.id
         assert find_incompatible_references(page) == []
+
+    def test_board_side_schedule_reference_reported(self, env):
+        """Board-side mirror: a board reshape (FiestaPanel TV-size edit)
+        flags refs to pages that no longer fit the NEW shape."""
+        page = env["flagship_page"]
+        schedule = _schedule(env, page.id)
+        reshaped = {"id": "board-flagship", "name": "Kitchen", "device_type": "note"}
+        refs = find_incompatible_board_references(reshaped)
+        assert refs == [
+            {
+                "page_id": page.id,
+                "page_name": page.name,
+                "surface": "schedule",
+                "schedule_id": schedule.id,
+            }
+        ]
+
+    def test_board_side_active_page_reference_reported(self, env):
+        page = env["flagship_page"]
+        env["active_by_board"]["board-flagship"] = page.id
+        reshaped = {"id": "board-flagship", "name": "Kitchen", "device_type": "note"}
+        refs = find_incompatible_board_references(reshaped)
+        assert refs == [
+            {
+                "page_id": page.id,
+                "page_name": page.name,
+                "surface": "active_page",
+                "schedule_id": None,
+            }
+        ]
+
+    def test_board_side_collection_reference_reported(self, env):
+        page = env["flagship_page"]
+        collection = env["collection_service"].create_collection(CollectionCreate(name="Mix", page_ids=[page.id]))
+        schedule = _schedule(env, collection.id)
+        reshaped = {"id": "board-flagship", "name": "Kitchen", "device_type": "note"}
+        refs = find_incompatible_board_references(reshaped)
+        assert {
+            "page_id": page.id,
+            "page_name": page.name,
+            "surface": "schedule",
+            "schedule_id": schedule.id,
+        } in refs
+
+    def test_board_side_no_references_when_pages_still_fit(self, env):
+        page = env["flagship_page"]
+        _schedule(env, page.id)
+        env["active_by_board"]["board-flagship"] = page.id
+        unchanged = {"id": "board-flagship", "name": "Kitchen", "device_type": "flagship"}
+        assert find_incompatible_board_references(unchanged) == []
 
     def test_compatible_board_references_not_reported(self, env):
         """Refs on a board the page still fits are not stale."""

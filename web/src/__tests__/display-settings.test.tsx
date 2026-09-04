@@ -689,6 +689,100 @@ describe("DisplaySettings — note array connection (cloud token vs local tiles)
   });
 });
 
+describe("DisplaySettings — virtual boards (FiestaPanel)", () => {
+  /** A panel's backing virtual board, as created by POST /panels. */
+  const VIRTUAL_BOARD: BoardOverride = {
+    device_type: "note_array",
+    api_mode: "virtual",
+    notes_wide: 4,
+    notes_tall: 3,
+    name: "My Board",
+    local_api_key: "",
+    cloud_key: "",
+    note_array_token: "",
+    host: "",
+  };
+
+  function setupPanels(panels: Array<Record<string, unknown>>) {
+    server.use(http.get(`${API_BASE}/panels`, () => HttpResponse.json({ panels, total: panels.length })));
+  }
+
+  it("shows the FiestaPanel badge instead of Not configured", async () => {
+    setupBoard(VIRTUAL_BOARD);
+    render(<DisplaySettings />, { wrapper: TestWrapper });
+    await screen.findByText("My Board");
+
+    expect(screen.queryByText("Not configured")).not.toBeInTheDocument();
+    expect(screen.getByText("FiestaPanel")).toBeInTheDocument();
+  });
+
+  it("hides the connection credentials form and explains the virtual board", async () => {
+    const user = userEvent.setup();
+    setupBoard(VIRTUAL_BOARD);
+    const card = await renderAndExpand(user);
+
+    // No API-mode toggle: clicking Local/Cloud would flip the board out of
+    // virtual mode and silently break the panel.
+    expect(within(card).queryByRole("radio", { name: /Local API/ })).not.toBeInTheDocument();
+    expect(within(card).queryByRole("radio", { name: /Cloud API/ })).not.toBeInTheDocument();
+    // "Cloud API Token" / "Board Host" are deliberately NOT asserted here:
+    // neither renders for a note_array board on main either, so they would
+    // pass with this change reverted. The radios and the hint below are what
+    // actually discriminate.
+    expect(within(card).getByTestId("virtual-board-hint")).toBeInTheDocument();
+  });
+
+  it("hides the type selector and auto-detect (grid is owned by the panel's TV size)", async () => {
+    const user = userEvent.setup();
+    setupBoard(VIRTUAL_BOARD);
+    const card = await renderAndExpand(user);
+
+    expect(within(card).queryByLabelText("Board type and size")).not.toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Auto-detect from board" })).not.toBeInTheDocument();
+  });
+
+  /** Two-board fixture (physical + virtual) so the last-board guard doesn't
+   *  mask the panel guard; returns the expanded virtual board's card. */
+  async function renderTwoBoardsAndExpandVirtual(user: ReturnType<typeof userEvent.setup>) {
+    const boards = [
+      { id: "b1", name: "Physical", device_type: "flagship", api_mode: "cloud", cloud_key: "***" },
+      { ...VIRTUAL_BOARD, id: "b2", name: "Living Room (Panel)" },
+    ];
+    server.use(
+      http.get(`${API_BASE}/settings/board`, () =>
+        HttpResponse.json({
+          board_type: "black",
+          boards,
+          devices: boards.map((b) => b.device_type),
+        }),
+      ),
+    );
+    render(<DisplaySettings />, { wrapper: TestWrapper });
+    const trigger = await screen.findByText("Living Room (Panel)");
+    await user.click(trigger);
+    const cards = await screen.findAllByTestId("board-card");
+    const card = cards.find((c) => within(c).queryByText("Living Room (Panel)") !== null);
+    expect(card).toBeDefined();
+    return card!;
+  }
+
+  it("disables Remove Board while a panel still references the virtual board", async () => {
+    const user = userEvent.setup();
+    setupPanels([{ id: "p1", short_code: 1, name: "Living Room", board_id: "b2" }]);
+
+    const card = await renderTwoBoardsAndExpandVirtual(user);
+    await waitFor(() => expect(within(card).getByRole("button", { name: "Remove Board" })).toBeDisabled());
+  });
+
+  it("keeps Remove Board enabled for an orphaned virtual board (its panel is gone)", async () => {
+    const user = userEvent.setup();
+    setupPanels([]);
+
+    const card = await renderTwoBoardsAndExpandVirtual(user);
+    expect(within(card).getByRole("button", { name: "Remove Board" })).toBeEnabled();
+  });
+});
+
 describe("DisplaySettings — auto-detect", () => {
   it("success → note array resolves the matching preset and persists", async () => {
     const user = userEvent.setup();

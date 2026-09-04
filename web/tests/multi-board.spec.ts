@@ -608,7 +608,7 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
     // Note tab should NOT be visible with only Flagship
-    await expect(page.getByRole("tab", { name: "Note" })).toHaveCount(0, {
+    await expect(page.getByRole("tab", { name: "Note", exact: true })).toHaveCount(0, {
       timeout: 3_000,
     });
 
@@ -622,7 +622,7 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await page.reload();
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole("tab", { name: "Note" })).toBeVisible({
+    await expect(page.getByRole("tab", { name: "Note", exact: true })).toBeVisible({
       timeout: 5_000,
     });
     await expect(page.getByRole("tab", { name: "Flagship" })).toBeVisible();
@@ -639,7 +639,7 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await page.goto("/pages");
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole("tab", { name: "Note" })).toBeVisible({
+    await expect(page.getByRole("tab", { name: "Note", exact: true })).toBeVisible({
       timeout: 5_000,
     });
 
@@ -657,7 +657,7 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await page.reload();
     await expect(page.getByRole("heading", { name: "Pages", exact: true })).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole("tab", { name: "Note" })).toHaveCount(0, {
+    await expect(page.getByRole("tab", { name: "Note", exact: true })).toHaveCount(0, {
       timeout: 3_000,
     });
   });

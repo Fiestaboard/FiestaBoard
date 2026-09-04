@@ -18,9 +18,15 @@ Physical anchoring:
   own ratio (rather than the Note unit's bezel-heavy height) is what lets
   a uniform scale keep BOTH axes true on screen.
 
-The screen's width/height are derived from the user-entered diagonal
-assuming a 16:9 panel — the overwhelmingly common TV shape; the viewer's
-±10% stretch-to-fill and the calibration nudge absorb small deviations.
+The screen's width/height are derived from the user-entered diagonal and
+aspect ratio (default 16:9 — the overwhelmingly common TV shape); the
+viewer's ±10% stretch-to-fill and the calibration nudge absorb small
+deviations. A screen smaller than one Note block still gets a 1×1 grid,
+which the viewer shrinks to fit (3" pocket displays).
+
+``compute_autofit_grid`` is mirrored in ``web/src/lib/panel-scale.ts``
+(computeAutofitGrid) so the panel editor can preview the grid live —
+keep the two in lockstep (their tests share the same example cases).
 """
 
 import math
@@ -40,30 +46,40 @@ ROW_PITCH_IN = COL_PITCH_IN * (_ROW_PITCH_RATIO / _COL_PITCH_RATIO)
 BLOCK_WIDTH_IN = NOTE_COLS * COL_PITCH_IN
 BLOCK_HEIGHT_IN = NOTE_ROWS * ROW_PITCH_IN
 
-# Assumed screen aspect when only the diagonal is known.
+# Default screen aspect when only the diagonal is known.
 _ASPECT_W = 16
 _ASPECT_H = 9
 
 
-def screen_dimensions_in(diagonal_inches: float) -> tuple[float, float]:
-    """(width, height) in inches of a 16:9 screen with the given diagonal."""
+def screen_dimensions_in(
+    diagonal_inches: float,
+    aspect_w: float = _ASPECT_W,
+    aspect_h: float = _ASPECT_H,
+) -> tuple[float, float]:
+    """(width, height) in inches of an aspect_w:aspect_h screen of the given diagonal."""
     if diagonal_inches <= 0:
         raise ValueError(f"diagonal must be positive (got {diagonal_inches})")
-    hyp = math.hypot(_ASPECT_W, _ASPECT_H)
+    if aspect_w <= 0 or aspect_h <= 0:
+        raise ValueError(f"aspect ratio must be positive (got {aspect_w}:{aspect_h})")
+    hyp = math.hypot(aspect_w, aspect_h)
     return (
-        diagonal_inches * _ASPECT_W / hyp,
-        diagonal_inches * _ASPECT_H / hyp,
+        diagonal_inches * aspect_w / hyp,
+        diagonal_inches * aspect_h / hyp,
     )
 
 
-def compute_autofit_grid(diagonal_inches: float) -> tuple[int, int]:
+def compute_autofit_grid(
+    diagonal_inches: float,
+    aspect_w: float = _ASPECT_W,
+    aspect_h: float = _ASPECT_H,
+) -> tuple[int, int]:
     """(notes_wide, notes_tall) of the largest true-scale grid that fits.
 
     Always returns at least 1×1 (a screen smaller than one Note block gets
-    a Note-sized grid that overflows-to-fit via the viewer's scaling) and
-    at most MAX_NOTES_PER_AXIS per axis.
+    a Note-sized grid that the viewer shrinks to fit) and at most
+    MAX_NOTES_PER_AXIS per axis.
     """
-    width_in, height_in = screen_dimensions_in(diagonal_inches)
+    width_in, height_in = screen_dimensions_in(diagonal_inches, aspect_w, aspect_h)
 
     def clamp(blocks: int) -> int:
         return max(1, min(MAX_NOTES_PER_AXIS, blocks))

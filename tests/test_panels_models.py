@@ -35,9 +35,14 @@ class TestPanelDefaults:
 
 
 class TestPanelValidation:
-    def test_rejects_tiny_screen(self):
+    def test_accepts_tiny_pocket_screen(self):
+        """3" is the floor — small 16:9 modules are real FiestaPanel targets;
+        the viewer shrinks the single Note block to fit them."""
+        assert _panel(screen_diagonal_inches=3).screen_diagonal_inches == 3
+
+    def test_rejects_sub_minimum_screen(self):
         with pytest.raises(ValidationError):
-            _panel(screen_diagonal_inches=5)
+            _panel(screen_diagonal_inches=2.9)
 
     def test_rejects_out_of_range_calibration(self):
         with pytest.raises(ValidationError):
@@ -67,9 +72,12 @@ class TestRequestModels:
         req = PanelCreate(name="TV", screen_diagonal_inches=43)
         assert req.screen_diagonal_inches == 43
 
-    def test_create_rejects_tiny_screen(self):
+    def test_create_accepts_tiny_pocket_screen(self):
+        assert PanelCreate(name="TV", screen_diagonal_inches=3).screen_diagonal_inches == 3
+
+    def test_create_rejects_sub_minimum_screen(self):
         with pytest.raises(ValidationError):
-            PanelCreate(name="TV", screen_diagonal_inches=5)
+            PanelCreate(name="TV", screen_diagonal_inches=2.9)
 
     def test_update_is_all_optional(self):
         update = PanelUpdate()

@@ -45,7 +45,12 @@ from .displays.service import get_display_service, reset_display_service  # noqa
 from .main import DisplayService  # noqa: E402
 from .network.wifi import WiFiError, get_wifi_service  # noqa: E402
 from .pages.models import PageCreate, PageUpdate  # noqa: E402
-from .pages.service import check_ref_board_compatibility, find_incompatible_references, get_page_service  # noqa: E402
+from .pages.service import (  # noqa: E402
+    check_ref_board_compatibility,
+    find_incompatible_board_references,
+    find_incompatible_references,
+    get_page_service,
+)
 from .pages.share import decode_page, encode_page  # noqa: E402
 from .panels.models import PanelCreate, PanelUpdate  # noqa: E402
 from .panels.service import get_panel_service  # noqa: E402
@@ -56,6 +61,7 @@ from .templates.engine import get_template_engine, reset_template_engine  # noqa
 from .templates.expressions import function_signatures  # noqa: E402
 from .text_to_board import text_to_board_array, wrap_message_text  # noqa: E402
 from .time_service import reset_time_service  # noqa: E402
+from .virtual_board_client import release_virtual_board_state  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -6688,7 +6694,24 @@ async def add_board_instance(request: dict):
 
 @app.delete("/settings/board/{board_id}")
 async def remove_board_instance(board_id: str):
-    """Remove a board instance by ID."""
+    """Remove a board instance by ID.
+
+    A board still referenced by a FiestaPanel is removed by deleting the
+    panel — pulling it out from under a live panel blanks the TV and
+    orphans the panel, so that request is refused with a 409.
+    """
+    referencing_panel = next(
+        (p for p in get_panel_service().list_panels() if p.board_id == board_id),
+        None,
+    )
+    if referencing_panel is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Board is in use by FiestaPanel '{referencing_panel.name}'. "
+                "Delete the panel in Settings → FiestaPanel instead."
+            ),
+        )
     settings_service = get_settings_service()
     try:
         board = settings_service.remove_board(board_id)
@@ -7765,7 +7788,9 @@ async def create_panel(data: PanelCreate):
 
     settings_service = get_settings_service()
     board_id = str(uuid.uuid4())
-    notes_wide, notes_tall = compute_autofit_grid(data.screen_diagonal_inches)
+    notes_wide, notes_tall = compute_autofit_grid(
+        data.screen_diagonal_inches, data.screen_aspect_w, data.screen_aspect_h
+    )
     settings_service.add_board(
         {
             "id": board_id,
@@ -7806,12 +7831,20 @@ async def update_panel(panel_id: str, data: PanelUpdate):
     if panel is None:
         raise HTTPException(status_code=404, detail="Panel not found")
 
-    if data.model_dump(exclude_unset=True).get("screen_diagonal_inches") is not None:
+    incompatible_references: list[dict] | None = None
+    updates = data.model_dump(exclude_unset=True)
+    screen_changed = any(
+        updates.get(field) is not None
+        for field in ("screen_diagonal_inches", "screen_aspect_w", "screen_aspect_h")
+    )
+    if screen_changed:
         settings_service = get_settings_service()
         boards = [dict(b) for b in (settings_service.get_board_settings().boards or [])]
         target = next((b for b in boards if b.get("id") == panel.board_id), None)
         if target is not None and target.get("api_mode") == "virtual":
-            notes_wide, notes_tall = compute_autofit_grid(panel.screen_diagonal_inches)
+            notes_wide, notes_tall = compute_autofit_grid(
+                panel.screen_diagonal_inches, panel.screen_aspect_w, panel.screen_aspect_h
+            )
             if (target.get("notes_wide"), target.get("notes_tall")) != (notes_wide, notes_tall) or target.get(
                 "device_type"
             ) != "note_array":
@@ -7819,25 +7852,54 @@ async def update_panel(panel_id: str, data: PanelUpdate):
                 target["notes_wide"] = notes_wide
                 target["notes_tall"] = notes_tall
                 settings_service.set_boards(boards)
+                # Drop the old-shape frame BEFORE rebuilding the client.
+                # read_current_message already refuses to serve a frame whose
+                # shape no longer matches the board, but `_last_characters` is
+                # read unguarded by /board/current-message (both the secondary
+                # branch and the primary's `expected_characters`), which would
+                # keep rendering the old grid — the exact stale-shape bug this
+                # reshape path exists to prevent. Releasing the shared state
+                # clears `displayed_characters` and `last_characters` together.
+                release_virtual_board_state(panel.board_id)
                 _reinitialize_board_clients()
+                # The grid changed shape: pages authored for the old grid stay
+                # referenced but can no longer render here. Warn-only, exactly
+                # like PUT /pages/{id} after a size retarget (issue #1250).
+                incompatible_references = find_incompatible_board_references(target)
 
     board = _find_board(panel.board_id)
-    return {
+    response = {
         "status": "success",
         "panel": {**panel.model_dump(mode="json"), **_panel_board_fields(board)},
     }
+    if incompatible_references is not None:
+        response["incompatible_references"] = incompatible_references
+    return response
 
 
 @app.delete("/panels/{panel_id}")
 async def delete_panel(panel_id: str):
-    """Delete a panel and its virtual board (tolerating an already-gone board)."""
+    """Delete a panel and its virtual board (tolerating an already-gone board).
+
+    When the virtual board is the ONLY board, the last-board rule forbids
+    removing it outright — deleting the panel would otherwise strand an
+    unremovable virtual board as the primary. A fresh default board is
+    swapped in instead (the same state a data reset produces).
+    """
     panel_service = get_panel_service()
     panel = panel_service.delete_panel(panel_id)
     if panel is None:
         raise HTTPException(status_code=404, detail="Panel not found")
     settings_service = get_settings_service()
-    with contextlib.suppress(ValueError):
+    try:
         settings_service.remove_board(panel.board_id)
+    except ValueError:
+        # Either the board is already gone (fine) or it is the last board.
+        boards = settings_service.get_board_settings().boards or []
+        if len(boards) == 1 and boards[0].get("id") == panel.board_id:
+            with contextlib.suppress(Exception):
+                settings_service.set_boards([{"device_type": "flagship"}])
+    release_virtual_board_state(panel.board_id)
     _reinitialize_board_clients()
     return {"status": "success"}
 

@@ -67,9 +67,9 @@ import {
 } from "@/hooks/use-board";
 import { useDepsChanged } from "@/hooks/use-deps-changed";
 import { useTranslations } from "@/i18n/translations";
-import type { BoardCurrentMessageResponse, Collection, SilenceStatus } from "@/lib/api";
+import type { BoardCurrentMessageResponse, Collection, DeviceType, SilenceStatus } from "@/lib/api";
 import { api, isCollectionId } from "@/lib/api";
-import { pagesCompatibleWithBoard } from "@/lib/board-dimensions";
+import { classifyDimensions, pagesCompatibleWithBoard } from "@/lib/board-dimensions";
 import { onLiveOutputMessageChange, readLiveOutputMessage, writeLiveOutputMessage } from "@/lib/live-output-channel";
 
 export function ActivePageDisplay() {
@@ -312,23 +312,47 @@ export function ActivePageDisplay() {
   // Fetch all pages for default page selection and sheet display
   const { data: pagesData, isLoading: isLoadingPages } = usePages();
 
-  // Default to first page if no active page is set (only in manual mode)
+  // Default to the first page if no active page is set (only in manual mode)
   const pages = useMemo(() => pagesData?.pages || [], [pagesData]);
+  // One attempt per board: without this, a failing auto-select re-fires on
+  // every render (the mutation object's identity changes) — with an
+  // incompatible page that meant an endless 400 retry loop and a stream of
+  // "Failed to set default page" toasts.
+  const autoDefaultAttemptedForRef = useRef<string | null>(null);
   useEffect(() => {
-    // Only auto-select first page in manual mode, not in schedule mode
+    // Only auto-select a page in manual mode, not in schedule mode.
     // In schedule mode, null activePageId means a gap with no default (intentional)
-    if (!scheduleEnabled && !isLoadingActivePage && !isLoadingPages && !activePageId && pages.length > 0) {
-      const firstPage = pages[0];
-      setActivePageMutation.mutate(firstPage.id, {
-        onSuccess: (_result) => {
-          toast.success(t("toastSetActivePage", { pageName: firstPage.name }));
-        },
-        onError: () => {
-          toast.error(t("toastSetDefaultFailed"));
-        },
-      });
-    }
-  }, [scheduleEnabled, isLoadingActivePage, isLoadingPages, activePageId, pages, setActivePageMutation, t]);
+    if (scheduleEnabled || isLoadingActivePage || isLoadingPages || activePageId || pages.length === 0) return;
+    const attemptKey = scopedBoardId ?? "";
+    if (autoDefaultAttemptedForRef.current === attemptKey) return;
+
+    // Only a page that actually fits the selected board can be auto-set —
+    // pages[0] on e.g. a FiestaPanel's auto-fit note-array board was the
+    // flagship Welcome page, which the backend rightly refuses (issue
+    // #1249 size compatibility). No fitting page → leave the board idle.
+    const defaultPage = currentBoard ? pages.find((p) => pagesCompatibleWithBoard(p, currentBoard)) : pages[0];
+    if (!defaultPage) return;
+
+    autoDefaultAttemptedForRef.current = attemptKey;
+    setActivePageMutation.mutate(defaultPage.id, {
+      onSuccess: (_result) => {
+        toast.success(t("toastSetActivePage", { pageName: defaultPage.name }));
+      },
+      onError: () => {
+        toast.error(t("toastSetDefaultFailed"));
+      },
+    });
+  }, [
+    scheduleEnabled,
+    isLoadingActivePage,
+    isLoadingPages,
+    activePageId,
+    pages,
+    currentBoard,
+    scopedBoardId,
+    setActivePageMutation,
+    t,
+  ]);
 
   // Handle page selection with debouncing and optimistic updates
   const handleSelectPage = useCallback(
@@ -458,15 +482,33 @@ export function ActivePageDisplay() {
   const fallbackPageId = needsPreviewFallback && activePageId && !isCollectionId(activePageId) ? activePageId : null;
   const { data: fallbackPreview } = usePagePreview(fallbackPageId, { enabled: needsPreviewFallback });
 
-  // Derive device type from board state dimensions, falling back to the
-  // selected board's settings.
-  const activeDeviceType = useMemo((): "flagship" | "note" => {
-    if (boardState) {
-      if (boardState.rows === 3 && boardState.cols === 15) return "note";
-      return "flagship";
+  // Derive the full board geometry from the live board state's dimensions,
+  // falling back to the selected board's settings. Note arrays — including
+  // every FiestaPanel virtual board, which is always an auto-fit array —
+  // must render their true W×H: the old "anything that isn't exactly 3×15
+  // is a flagship" rule squeezed a 12×15 panel's content into a 6×22 grid
+  // (the dashboard preview showed "weird shapes" at the wrong size).
+  const activeGeometry = useMemo((): { deviceType: DeviceType; notesWide: number; notesTall: number } => {
+    if (boardState?.rows && boardState?.cols) {
+      try {
+        const classified = classifyDimensions(boardState.rows, boardState.cols);
+        return {
+          deviceType: classified.device_type as DeviceType,
+          notesWide: classified.notes_wide ?? 1,
+          notesTall: classified.notes_tall ?? 1,
+        };
+      } catch {
+        // Unclassifiable dims (defensive) — fall through to board settings.
+      }
     }
-    if (currentBoard?.device_type) return currentBoard.device_type === "note" ? "note" : "flagship";
-    return getEffectiveDeviceType(boardSettings);
+    if (currentBoard?.device_type) {
+      return {
+        deviceType: currentBoard.device_type,
+        notesWide: currentBoard.notes_wide ?? 1,
+        notesTall: currentBoard.notes_tall ?? 1,
+      };
+    }
+    return { deviceType: getEffectiveDeviceType(boardSettings), notesWide: 1, notesTall: 1 };
   }, [boardState, currentBoard, boardSettings]);
 
   // The display message: prefer live output (page editor override), then the
@@ -709,12 +751,14 @@ export function ActivePageDisplay() {
               isLoading={!boardState && !liveMessageForBoard}
               size="md"
               boardType={currentBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
-              deviceType={activeDeviceType}
+              deviceType={activeGeometry.deviceType}
+              notesWide={activeGeometry.notesWide}
+              notesTall={activeGeometry.notesTall}
               // Which code-62 flap this board carries (issue #1657) — the
               // preview has to draw what is on the wall, and only the owner
               // can tell a heart-era Flagship from a degree-era one.
               code62Glyph={resolveCode62Glyph(
-                activeDeviceType,
+                activeGeometry.deviceType,
                 currentBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
               )}
             />
