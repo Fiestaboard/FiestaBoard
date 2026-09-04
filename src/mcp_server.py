@@ -403,20 +403,34 @@ def _build_mcp_server() -> Any:
         )
 
     @mcp.tool()
-    def update_plugin(plugin_id: str) -> dict[str, Any]:
-        """Update an installed plugin to its latest registry version.
+    async def update_plugin(plugin_id: str) -> dict[str, Any]:
+        """Update an installed plugin to its latest version from its git remote.
+
+        Built-in plugins cannot be updated this way.
 
         Args:
             plugin_id: The plugin identifier (from list_installed_plugins()).
         """
-        try:
-            from .plugins import get_plugin_registry
+        from fastapi import HTTPException
 
-            registry = get_plugin_registry()
-            registry.reload_plugin(plugin_id)
-            return _ok(f"Plugin '{plugin_id}' updated successfully.", plugin_id=plugin_id)
+        from .api_server import update_plugin as _rest_update_plugin
+
+        # #1741: this used to call ``registry.reload_plugin()`` and nothing
+        # else — re-importing the code already on disk and reporting
+        # "updated successfully" without ever fetching anything, for any
+        # id at all. It also skipped every guard the REST handler applies
+        # (built-in rejection, realpath containment of the plugin's
+        # local_path inside the external plugins directory, and the .git
+        # check) before it lets a path near ``git``. Same lesson as #1588:
+        # go through the REST handler, do not re-derive its checks here.
+        try:
+            await _rest_update_plugin(plugin_id)
+        except HTTPException as exc:
+            return _err(f"Error updating plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
             return _err(f"Error updating plugin '{plugin_id}': {exc}")
+
+        return _ok(f"Plugin '{plugin_id}' updated successfully.", plugin_id=plugin_id)
 
     @mcp.tool()
     def get_template_variables() -> dict[str, Any]:
@@ -431,7 +445,10 @@ def _build_mcp_server() -> Any:
             from .plugins import get_plugin_registry
 
             registry = get_plugin_registry()
-            return _serialize(registry.get_all_variables())
+            # #1739: get_all_variables() returns {plugin: [name, ...]}, not the
+            # nested metadata this tool documents. GET /templates/variables
+            # already uses the *_with_metadata variant; this call site drifted.
+            return _serialize(registry.get_all_variables_with_metadata())
         except Exception as exc:
             return _err(str(exc))
 
@@ -793,7 +810,12 @@ def _build_mcp_server() -> Any:
             from .schedules.service import get_schedule_service
 
             svc = get_schedule_service()
-            svc.delete_schedule(schedule_id)
+            # #1742: delete_schedule() returns False when the id does not
+            # exist. Discarding it made every delete look successful, so a
+            # typo'd id read back as "deleted" — DELETE /schedules/{id} 404s
+            # in the same case. Same drift delete_page was fixed for.
+            if not svc.delete_schedule(schedule_id):
+                return _err(f"Schedule '{schedule_id}' not found.")
             return _ok(f"Schedule '{schedule_id}' deleted successfully.", schedule_id=schedule_id)
         except Exception as exc:
             return _err(f"Error deleting schedule '{schedule_id}': {exc}")
@@ -965,7 +987,9 @@ def _build_mcp_server() -> Any:
             from .collections.service import get_collection_service
 
             svc = get_collection_service()
-            svc.delete_collection(collection_id)
+            # #1742: same as delete_schedule above — the boolean was dropped.
+            if not svc.delete_collection(collection_id):
+                return _err(f"Collection '{collection_id}' not found.")
             return _ok(
                 f"Collection '{collection_id}' deleted successfully.",
                 collection_id=collection_id,
@@ -1153,7 +1177,11 @@ def _build_mcp_server() -> Any:
             from .plugins import get_plugin_registry
 
             registry = get_plugin_registry()
-            variables = registry.get_all_variables()
+            # #1739: the loop below reads `meta.get("description")`, so it needs
+            # the metadata mapping. Against get_all_variables()'s list payload
+            # `.items()` raised AttributeError, and this handler returned that
+            # as the resource body on every install with an enabled plugin.
+            variables = registry.get_all_variables_with_metadata()
             lines = ["# Available Template Variables\n", "Use these in page templates as `{{plugin.variable}}`.\n"]
             for plugin_id, vars_dict in variables.items():
                 lines.append(f"\n## {plugin_id}")
