@@ -50,14 +50,7 @@ _SINGLETONS: tuple[tuple[str, str], ...] = (
 
 
 def _drop_singletons() -> None:
-    """Forget every cached service instance, as a process restart would.
-
-    ``ConfigManager`` is cleared through the class imported at module scope,
-    never through ``src.config_manager.ConfigManager``: the isolation fixture
-    rebinds that name to a ``functools.partial``, and assigning ``_instance``
-    on the partial leaves the class-level singleton — pointing at the repo's
-    real ``data/config.json`` — very much alive.
-    """
+    """Forget every cached service instance, as a process restart would."""
     import importlib
 
     ConfigManager._instance = None  # type: ignore[attr-defined]
@@ -70,6 +63,26 @@ def _bind_backup_service(data_dir: Path) -> None:
     import src.backup.service as backup_module
 
     backup_module._backup_service = backup_module.BackupService(data_dir=data_dir)
+
+
+def _bind_config_manager(data_dir: Path) -> None:
+    """Rebuild the ConfigManager singleton against *data_dir*.
+
+    ``ConfigManager`` cannot be redirected the way the storage classes are,
+    by rebinding ``src.config_manager.ConfigManager`` to a pre-bound
+    constructor: ``_apply_env_overrides`` reaches the *class* through that
+    same module global (``ConfigManager._is_placeholder``, config_manager.py),
+    and a constructor stand-in carries no class attributes. That path only
+    runs when a board env var is set — which CI does (``BOARD_READ_WRITE_KEY``)
+    and a bare local shell does not — so the rebind raised ``AttributeError``
+    on CI only.
+
+    Constructing the singleton directly is also the more faithful restart:
+    it is what ``_bind_backup_service`` already does, and it re-reads
+    ``config.json`` off disk exactly as a fresh process would.
+    """
+    ConfigManager._instance = None  # type: ignore[attr-defined]
+    ConfigManager(config_path=str(data_dir / "config.json"))
 
 
 @pytest.fixture
@@ -89,7 +102,6 @@ def isolated_data_dir(tmp_path, monkeypatch):
     data_dir.mkdir()
 
     bindings = (
-        ("src.config_manager.ConfigManager", ConfigManager, {"config_path": str(data_dir / "config.json")}),
         ("src.settings.service.SettingsService", SettingsService, {"settings_file": str(data_dir / "settings.json")}),
         ("src.pages.service.PageStorage", PageStorage, {"storage_file": str(data_dir / "pages.json")}),
         (
@@ -107,9 +119,11 @@ def isolated_data_dir(tmp_path, monkeypatch):
         monkeypatch.setattr(target, functools.partial(cls, **kwargs))
 
     _drop_singletons()
-    # BackupService takes its data dir up front, so the *instance* is bound
-    # rather than the class; _drop_singletons has to run first or it clears it.
+    # BackupService and ConfigManager take their path up front, so the
+    # *instance* is bound rather than the class; _drop_singletons has to run
+    # first or it clears them.
     _bind_backup_service(data_dir)
+    _bind_config_manager(data_dir)
     try:
         yield data_dir
     finally:
@@ -135,6 +149,7 @@ def _restart(data_dir: Path) -> TestClient:
 
     _drop_singletons()
     _bind_backup_service(data_dir)
+    _bind_config_manager(data_dir)
     return TestClient(app)
 
 
