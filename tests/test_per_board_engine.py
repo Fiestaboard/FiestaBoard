@@ -736,6 +736,35 @@ class TestSendStatusReporting:
         # which is exactly why the endpoint must not read it back.
         assert rt.last_send_error == "engine tick failure"
 
+    def test_one_off_override_render_failure_is_reported(self):
+        """The one-off send path (#1789) is a second render that can fail. It
+        must report too, or /refresh on a failing one-off returns success."""
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        override = SimpleNamespace(
+            is_inline=True,
+            is_expired=lambda: False,
+            template=["ONE OFF"],
+            line_metadata=None,
+            device_type="flagship",
+            notes_wide=1,
+            notes_tall=1,
+            revert_mode="schedule",
+            revert_page_id=None,
+            page_id=None,
+        )
+        settings = _settings_service(boards, override=override)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        pages.render_page.side_effect = lambda page: SimpleNamespace(
+            available=False, formatted="", error="one-off render failed"
+        )
+        schedule = _schedule_service({"b1": "pA"})
+
+        sent, error = _drive(svc, boards, settings=settings, pages=pages, schedule=schedule, with_status=True)
+
+        assert sent is False
+        assert error == "one-off render failed"
+
     def test_successful_pass_reports_no_reason(self):
         boards = [_board("b1", "One")]
         svc, _clients = _service_with_runtimes(boards)
