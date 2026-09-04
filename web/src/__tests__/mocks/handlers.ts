@@ -865,9 +865,11 @@ export const handlers = [
     });
   }),
 
-  // Silence status endpoint
-  http.get(`${API_BASE}/silence-status`, () => {
-    return HttpResponse.json(mockSilenceStatus);
+  // Silence status endpoint. Echoes board_id back like the real endpoint
+  // (issue #1788); the window itself is the install-wide one.
+  http.get(`${API_BASE}/silence-status`, ({ request }) => {
+    const boardId = new URL(request.url).searchParams.get("board_id");
+    return HttpResponse.json({ ...mockSilenceStatus, board_id: boardId });
   }),
 
   // Silence schedule update endpoint (system feature, not a plugin)
@@ -876,10 +878,12 @@ export const handlers = [
       enabled: boolean;
       start_time: string;
       end_time: string;
+      board_id?: string;
     };
     return HttpResponse.json({
       status: "success",
       config: body,
+      board_id: body.board_id ?? null,
     });
   }),
 

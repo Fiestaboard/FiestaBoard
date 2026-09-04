@@ -103,6 +103,11 @@ class DisplayService:
         # so a skipped board is visible in the UI instead of only in the log.
         self.board_init_errors: dict[str, str] = {}
 
+        # board_id -> silence-active, as of the last run()-loop boundary check
+        # (issue #1788). Empty until the first check; see _silence_baseline for
+        # what a board that is not in it yet compares against.
+        self._last_silence_snapshot: dict[str, bool] = {}
+
         # Board state polling (background thread reads actual board state).
         self._poll_thread: threading.Thread | None = None
 
@@ -671,8 +676,8 @@ class DisplayService:
         Respects schedule mode (per board) - uses schedule-based page selection
         when that board's schedule is enabled, otherwise the board's manual
         active page. Triggers and temporary overrides are the PRIMARY board's
-        feature set (locked epic decision); silence is a global decision with
-        per-board delivery. All state reads/writes go through ``rt``.
+        feature set (locked epic decision); silence is resolved and delivered
+        per board (issue #1788). All state reads/writes go through ``rt``.
 
         Returns:
             True if content was sent to this board, False otherwise.
@@ -690,10 +695,12 @@ class DisplayService:
             # This runs BEFORE the pause short-circuit so that even a fully
             # hands-off board records where the silence window stands: the 1 Hz
             # boundary detector in ``run()`` compares this flag against
-            # ``Config.is_silence_mode_active()``, so any exit path that leaves
-            # it stale makes the detector see a permanent mismatch and re-drive
-            # every board once per second for the whole window (issue #1740).
-            silence_mode_active = Config.is_silence_mode_active()
+            # ``Config.is_silence_mode_active(board_id)``, so any exit path that
+            # leaves it stale makes the detector see a permanent mismatch and
+            # re-drive every board once per second for the whole window
+            # (issue #1740).
+            silence_config = Config.silence_config_for(board_id)
+            silence_mode_active = Config.is_silence_mode_active(board_id)
             entering_silence_mode = silence_mode_active and not rt.last_silence_mode_active
             exiting_silence_mode = not silence_mode_active and rt.last_silence_mode_active
 
@@ -840,14 +847,8 @@ class DisplayService:
             # A user-initiated temporary override (primary only) wins over
             # silence (issue #949); everything else is silenced.
             if silence_mode_active and not override_active:
-                silence_mode = Config.SILENCE_SCHEDULE_MODE
-                if is_primary:
-                    silence_dt = self._silence_device_type()
-                    silence_nw = silence_nt = 1
-                else:
-                    silence_dt = (board or {}).get("device_type") or "flagship"
-                    silence_nw = (board or {}).get("notes_wide", 1) or 1
-                    silence_nt = (board or {}).get("notes_tall", 1) or 1
+                silence_mode = silence_config["mode"]
+                silence_dt, silence_nw, silence_nt = self._silence_geometry(board, is_primary=is_primary)
                 if silence_mode == "freeze":
                     if entering_silence_mode:
                         logger.info("⏸️  Entering silence mode (freeze) - leaving board untouched")
@@ -857,8 +858,10 @@ class DisplayService:
                     rt.snoozing_message_sent = True
                     return False
                 if silence_mode == "page":
-                    return self._send_silence_page(rt)
-                return self._send_silence_indicator(silence_dt, rt, silence_nw, silence_nt)
+                    return self._send_silence_page(rt, silence_config, silence_dt, silence_nw, silence_nt)
+                return self._send_silence_indicator(
+                    silence_dt, rt, silence_nw, silence_nt, silence_config=silence_config
+                )
 
             # --- Normal send (content changed) ---
             current_content = result.formatted
@@ -1001,20 +1004,111 @@ class DisplayService:
             logger.warning("Could not determine device type from board settings: %s", e)
         return "flagship"
 
-    def _build_silence_indicator_array(self, device_type: str, notes_wide: int = 1, notes_tall: int = 1):
-        """Build a clean board array with 'SNOOZING' centered.
+    def _silence_baseline(self, key: str, board_id=None) -> bool:
+        """What the boundary detector last knew about one board's silence.
+
+        Prefers the detector's own snapshot, then the board runtime's
+        ``last_silence_mode_active`` latch — the flag
+        ``check_and_send_for_board`` writes on *every* exit path, including the
+        pause short-circuit and every render failure (issue #1740). Without the
+        latch fallback, an install that boots **inside** its silence window
+        reports a boundary on the detector's very first pass and forces one
+        spurious extra update, because the initial
+        ``check_and_send_active_page()`` has already handled it.
+        """
+        if key in self._last_silence_snapshot:
+            return self._last_silence_snapshot[key]
+        # Runtimes are keyed by the raw board id, which is not always a string
+        # (the primary fallback key, or a test double).
+        rt = self.runtimes.get(board_id if board_id is not None else key)
+        return bool(rt.last_silence_mode_active) if rt is not None else False
+
+    def _silence_state_changed(self) -> bool:
+        """True when any board's silence state flipped since the last check.
+
+        Backs the ``run()`` loop's 1-second boundary detector. Silence windows
+        are per board (issue #1788), so watching only the primary would leave a
+        secondary board's transition waiting for the next poll tick.
+
+        Records the new snapshot, so a change is reported exactly once — a
+        board the drive path never touches (a disabled secondary, say) must not
+        re-trigger a forced update every second for the whole window.
+        """
+        snapshot: dict[str, bool] = {}
+        try:
+            board_ids = [b.get("id") for b in (get_settings_service().get_board_settings().boards or []) if b.get("id")]
+        except Exception as e:
+            logger.debug(f"Silence boundary check failed to read boards: {e}")
+            board_ids = []
+        if not board_ids:
+            board_ids = [self._primary_board_id]
+
+        for board_id in board_ids:
+            key = str(board_id)
+            try:
+                snapshot[key] = bool(Config.is_silence_mode_active(board_id))
+            except Exception as e:
+                logger.debug(f"Silence boundary check failed for board {board_id}: {e}")
+                snapshot[key] = self._silence_baseline(key, board_id)
+
+        baselines = {str(bid): self._silence_baseline(str(bid), bid) for bid in board_ids}
+        changed = any(active != baselines[bid] for bid, active in snapshot.items())
+        if changed:
+            logger.debug(
+                "Silence boundary crossed (now=%s, was=%s) - forcing immediate update",
+                snapshot,
+                self._last_silence_snapshot,
+            )
+        self._last_silence_snapshot = snapshot
+        return changed
+
+    def _silence_geometry(self, board: dict | None, *, is_primary: bool) -> tuple[str, int, int]:
+        """Resolve (device_type, notes_wide, notes_tall) for a board's silence display.
+
+        Secondary boards carry their own settings dict. The primary is driven
+        with ``board=None``, so its geometry comes from the first configured
+        board — including its note-array grid, which the old primary path
+        hardcoded to 1x1 (issue #1788).
+        """
+        if board is None and is_primary:
+            try:
+                boards = get_settings_service().get_board_settings().boards or []
+                if boards and isinstance(boards[0], dict):
+                    board = boards[0]
+            except Exception as e:
+                logger.warning("Could not determine device type from board settings: %s", e)
+        if not isinstance(board, dict):
+            return "flagship", 1, 1
+        device_type = board.get("device_type")
+        if device_type not in ("flagship", "note", "note_array"):
+            device_type = "flagship"
+        return device_type, board.get("notes_wide", 1) or 1, board.get("notes_tall", 1) or 1
+
+    def _build_silence_indicator_array(
+        self,
+        device_type: str,
+        notes_wide: int = 1,
+        notes_tall: int = 1,
+        silence_config: dict | None = None,
+    ):
+        """Build a clean board array with the silence indicator text centered.
 
         Sized via resolve_dimensions so it fits the Note (15 cols), the
         Flagship (22 cols), and any note-array grid without overlaying content.
+
+        ``silence_config`` is the target board's resolved silence settings
+        (issue #1788); omitted falls back to the install-wide values.
         """
+        if silence_config is None:
+            silence_config = Config.silence_config_for()
         dims = resolve_dimensions(device_type, notes_wide, notes_tall)
         board_array = [[BoardChars.SPACE] * dims.cols for _ in range(dims.rows)]
 
-        indicator = Config.SILENCE_SCHEDULE_INDICATOR_TEXT
+        indicator = silence_config["indicator_text"]
         # Truncate to fit if a future device is narrower.
         text = indicator[: dims.cols]
 
-        position = Config.SILENCE_SCHEDULE_INDICATOR_POSITION
+        position = silence_config["indicator_position"]
         if position == "top-left":
             row, start_col = 0, 0
         elif position == "top-right":
@@ -1033,25 +1127,29 @@ class DisplayService:
         return board_array
 
     def _send_silence_indicator(
-        self, page_device_type: str, rt: BoardRuntime | None = None, notes_wide: int = 1, notes_tall: int = 1
+        self,
+        page_device_type: str,
+        rt: BoardRuntime | None = None,
+        notes_wide: int = 1,
+        notes_tall: int = 1,
+        silence_config: dict | None = None,
     ) -> bool:
-        """Send a clean SNOOZING-only board sized for the device."""
+        """Send a clean indicator-only board sized for the device."""
         rt = rt if rt is not None else self._ensure_primary_runtime()
         if rt is None or rt.client is None:
             logger.warning("Board client not initialized")
             return False
 
-        # Primary board: prefer the first configured board's device type
-        # (legacy behavior). Secondary boards pass their own resolved geometry.
-        if rt.board_id == self._primary_board_id:
-            device_type = self._silence_device_type() or page_device_type
-        else:
-            device_type = page_device_type
-        logger.info(f"⏸️  Entering silence mode (indicator) - displaying SNOOZING for {device_type}")
+        # Every caller now resolves the TARGET BOARD's geometry via
+        # _silence_geometry (issue #1788), so it is used verbatim. The old
+        # primary-only override through _silence_device_type() collapsed a
+        # note-array primary down to "flagship".
+        device_type = page_device_type
+        logger.info(f"⏸️  Entering silence mode (indicator) - displaying indicator for {device_type}")
 
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
-        board_array = self._build_silence_indicator_array(device_type, notes_wide, notes_tall)
+        board_array = self._build_silence_indicator_array(device_type, notes_wide, notes_tall, silence_config)
 
         success, was_sent = rt.client.render(
             board_array,
@@ -1072,18 +1170,36 @@ class DisplayService:
         logger.error("Failed to send silence indicator to board")
         return False
 
-    def _send_silence_page(self, rt: BoardRuntime | None = None) -> bool:
-        """Render the configured silence page once and freeze it on the board.
+    def _send_silence_page(
+        self,
+        rt: BoardRuntime | None = None,
+        silence_config: dict | None = None,
+        device_type: str | None = None,
+        notes_wide: int = 1,
+        notes_tall: int = 1,
+    ) -> bool:
+        """Render the target board's silence page once and freeze it there.
 
         Variables in the page are rendered with the values present at the
         moment silence begins; the board is not refreshed afterwards.
+
+        The array is sized to the **board**, never to the page's own declared
+        device type (issue #1788): a 22x6 Flagship page used to be handed to a
+        15x3 Note client verbatim. ``device_type``/``notes_wide``/``notes_tall``
+        come from :meth:`_silence_geometry`; omitted, they fall back to the
+        primary board's geometry.
         """
         rt = rt if rt is not None else self._ensure_primary_runtime()
         if rt is None or rt.client is None:
             logger.warning("Board client not initialized")
             return False
 
-        page_id = Config.SILENCE_SCHEDULE_PAGE_ID
+        if silence_config is None:
+            silence_config = Config.silence_config_for(rt.board_id)
+        if device_type is None:
+            device_type, notes_wide, notes_tall = self._silence_geometry(None, is_primary=True)
+
+        page_id = silence_config["page_id"]
         page_service = get_page_service()
         page = page_service.get_page(page_id) if page_id else None
 
@@ -1092,14 +1208,14 @@ class DisplayService:
                 "Silence mode 'page' selected but page %r not found - falling back to indicator",
                 page_id,
             )
-            return self._send_silence_indicator(self._silence_device_type(), rt)
+            return self._send_silence_indicator(device_type, rt, notes_wide, notes_tall, silence_config)
 
         logger.info(f"⏸️  Entering silence mode (page) - displaying {page.id}")
 
         result = page_service.preview_page(page.id, force_refresh=True)
         if not result or not result.available:
             logger.warning("Silence page %s could not be rendered - falling back to indicator", page.id)
-            return self._send_silence_indicator(page.device_type, rt)
+            return self._send_silence_indicator(device_type, rt, notes_wide, notes_tall, silence_config)
 
         settings_service = get_settings_service()
         system_transition = settings_service.get_transition_settings()
@@ -1111,7 +1227,7 @@ class DisplayService:
         )
         step_size = page.transition_step_size if page.transition_step_size is not None else system_transition.step_size
 
-        dims = resolve_dimensions(page.device_type, page.notes_wide, page.notes_tall)
+        dims = resolve_dimensions(device_type, notes_wide, notes_tall)
         board_array = text_to_board_array(result.formatted, rows=dims.rows, cols=dims.cols)
 
         success, was_sent = rt.client.render(
@@ -1119,7 +1235,7 @@ class DisplayService:
             strategy=strategy,
             step_interval_ms=interval_ms,
             step_size=step_size,
-            device_type=page.device_type,
+            device_type=device_type,
         )
 
         if success:
@@ -1260,19 +1376,10 @@ class DisplayService:
                 # fires check_and_send_active_page every polling_interval seconds,
                 # so without this the silence page could appear up to ~15s after
                 # the configured start time (longer if the user raised the poll
-                # interval). A cheap is_silence_mode_active() call each second
-                # lets us catch the transition within ~1s.
-                try:
-                    silence_now = Config.is_silence_mode_active()
-                except Exception as e:
-                    logger.debug(f"Silence boundary check failed: {e}")
-                    silence_now = self._last_silence_mode_active
-                if silence_now != self._last_silence_mode_active:
-                    logger.debug(
-                        "Silence boundary crossed (now=%s, was=%s) - forcing immediate update",
-                        silence_now,
-                        self._last_silence_mode_active,
-                    )
+                # interval). A cheap per-board silence check each second lets us
+                # catch the transition within ~1s. Windows are per board
+                # (issue #1788), so ANY board flipping forces the update.
+                if self._silence_state_changed():
                     self.check_and_send_active_page()
 
                 # When a collection is active, poll at its mode-specific cadence:

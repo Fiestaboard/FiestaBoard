@@ -618,6 +618,8 @@ export interface SilenceStatus {
   page_id?: string | null;
   indicator_text?: string;
   indicator_position?: string;
+  /** Echo of the requested board (issue #1788); null when unscoped. */
+  board_id?: string | null;
 }
 
 export interface PollingSettings {
@@ -1108,6 +1110,12 @@ export interface SilenceScheduleConfig {
   page_id: string | null;
   indicator_text: string | null;
   indicator_position: string | null;
+  /**
+   * Per-board overrides (issue #1788): board_id -> partial override. The keys
+   * above are the install-wide default every board without an entry resolves
+   * to. Read it through `resolveSilenceConfig` rather than indexing directly.
+   */
+  by_board?: Record<string, Partial<Omit<SilenceScheduleConfig, "by_board">>>;
 }
 
 export interface SilenceScheduleSettings {
@@ -2130,10 +2138,20 @@ export const api = {
       body: JSON.stringify(config),
     }),
 
-  // Silence mode status
-  getSilenceStatus: () => fetchApi<SilenceStatus>("/silence-status"),
+  // Silence mode status (optional boardId reads that board's window).
+  // boardId is only honored when it's a non-empty string: this wrapper is
+  // handed to TanStack Query as a bare reference, which would otherwise pass
+  // the query context as boardId (issue #1244).
+  getSilenceStatus: (boardId?: string) =>
+    fetchApi<SilenceStatus>(
+      typeof boardId === "string" && boardId
+        ? `/silence-status?board_id=${encodeURIComponent(boardId)}`
+        : "/silence-status",
+    ),
 
-  // Silence schedule (system feature, not a plugin)
+  // Silence schedule (system feature, not a plugin).
+  // board_id targets one board (issue #1788); omitted writes the install-wide
+  // layer. It goes in the BODY, mirroring PUT /settings/active-page.
   updateSilenceSchedule: (data: {
     enabled: boolean;
     start_time: string;
@@ -2142,6 +2160,7 @@ export const api = {
     page_id?: string | null;
     indicator_text?: string | null;
     indicator_position?: string | null;
+    board_id?: string;
   }) =>
     fetchApi<{ status: string; config: Record<string, unknown> }>("/settings/silence-schedule", {
       method: "PUT",

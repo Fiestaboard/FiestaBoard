@@ -779,17 +779,35 @@ def _board_geometry(board: dict) -> tuple[str, int, int]:
     )
 
 
-def find_incompatible_references(page: Page) -> list[dict]:
-    """Find schedule/active-page references the page no longer fits (issue #1250).
+def silence_page_id_for_board(board_id: str | None) -> str | None:
+    """The page ref a board shows during silence, or None (issue #1788).
 
-    After a device/size retarget, existing references may point the page at
-    boards whose size no longer matches. This scans, for every board the page
-    is now incompatible with:
+    Only meaningful when that board's silence mode is ``page``. Never raises —
+    a failure here must not break a page save.
+    """
+    try:
+        from src.config import Config
+
+        silence = Config.silence_config_for(board_id)
+        return silence["page_id"] if silence["mode"] == "page" else None
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Could not resolve silence page for board %s", board_id)
+        return None
+
+
+def find_incompatible_references(page: Page) -> list[dict]:
+    """Find schedule/active-page/silence references the page no longer fits.
+
+    Issue #1250, extended by #1788. After a device/size retarget, existing
+    references may point the page at boards whose size no longer matches. This
+    scans, for every board the page is now incompatible with:
 
       - schedule entries referencing the page directly or via a collection
         that contains it (``surface: "schedule"``, with ``schedule_id``)
       - the board's manual active page, direct or via a containing collection
         (``surface: "active_page"``)
+      - the board's silence page when its silence mode is ``page``
+        (``surface: "silence"``)
 
     Warn-only by design: nothing is mutated or auto-fixed — callers surface
     the returned refs to the user. Returns
@@ -843,6 +861,15 @@ def find_incompatible_references(page: Page) -> list[dict]:
                         "board_id": board_id,
                         "board_name": board_name,
                         "surface": "active_page",
+                        "schedule_id": None,
+                    }
+                )
+            if references_page(silence_page_id_for_board(board_id)):
+                refs.append(
+                    {
+                        "board_id": board_id,
+                        "board_name": board_name,
+                        "surface": "silence",
                         "schedule_id": None,
                     }
                 )

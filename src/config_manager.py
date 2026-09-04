@@ -27,6 +27,19 @@ logger = logging.getLogger(__name__)
 # config. Used by the boot-time snapshot guard below.
 APP_VERSION_SEEN_KEY = "app_version_seen"
 
+# The silence-schedule keys that can be overridden per board (issue #1788).
+# Anything outside this tuple (notably ``by_board`` itself) is never copied
+# into a per-board entry.
+SILENCE_SCHEDULE_KEYS = (
+    "enabled",
+    "start_time",
+    "end_time",
+    "mode",
+    "page_id",
+    "indicator_text",
+    "indicator_position",
+)
+
 # Mapping from legacy feature keys to plugin IDs.
 # silence_schedule is a system feature and is NOT migrated here.
 FEATURE_TO_PLUGIN_MAP = {
@@ -253,6 +266,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "indicator_position": "center",
             # Page id to display when mode == "page" (variables are frozen at silence-start)
             "page_id": None,
+            # Per-board overrides (issue #1788): board_id -> partial dict of the
+            # seven keys above. A board with no entry inherits the values above,
+            # which act as the install-wide default. MUST stay in DEFAULT_CONFIG:
+            # set_feature() whitelists keys against it and would otherwise drop
+            # this one silently.
+            "by_board": {},
         },
         "stocks": {
             "enabled": False,
@@ -1405,10 +1424,25 @@ class ConfigManager:
                 return True
         return False
 
+    @staticmethod
+    def _needs_utc_migration(start_time: Any, end_time: Any) -> bool:
+        """True when a window pair is still in the legacy local "HH:MM" format.
+
+        Old format: "20:00" (5 chars). New format: "20:00+00:00" (11 chars).
+        """
+        return (
+            isinstance(start_time, str)
+            and isinstance(end_time, str)
+            and len(start_time) == 5
+            and ":" in start_time
+            and len(end_time) == 5
+            and ":" in end_time
+        )
+
     def migrate_silence_schedule_to_utc(self) -> bool:
         """Migrate silence_schedule times from old HH:MM format to UTC ISO format.
 
-        This method detects if the silence_schedule is using the old local time format
+        This method detects if a silence window is using the old local time format
         (e.g., "20:00") and converts it to the new UTC ISO format (e.g., "04:00+00:00").
 
         Held under ``_file_lock`` — the lock that guards config data — for the
@@ -1417,22 +1451,33 @@ class ConfigManager:
         read racing other config writers and stalled every thread calling
         ``ConfigManager()`` for the duration of the disk I/O (#1746).
 
+        The 5-char heuristic is applied **per window** — to the install-wide
+        default and to every ``by_board`` entry independently (issue #1788).
+        Applying it once for the whole feature would strand every per-board
+        window in local time as soon as the global one had been migrated.
+
+        Idempotent: a window already in UTC ISO format is left untouched.
+
         Returns:
-            True if migration was performed, False if no migration needed
+            True if any window was migrated, False if no migration was needed.
         """
         with self._file_lock:
             silence_config = self.get_feature("silence_schedule")
-            start_time = silence_config.get("start_time", "")
-            end_time = silence_config.get("end_time", "")
+            by_board = silence_config.get("by_board")
+            if not isinstance(by_board, dict):
+                by_board = {}
 
-            # Check if migration is needed (old format is just HH:MM, 5 chars)
-            if not start_time or not end_time:
-                return False
+            global_needs = self._needs_utc_migration(
+                silence_config.get("start_time", ""), silence_config.get("end_time", "")
+            )
+            board_needs = [
+                board_id
+                for board_id, entry in by_board.items()
+                if isinstance(entry, dict)
+                and self._needs_utc_migration(entry.get("start_time", ""), entry.get("end_time", ""))
+            ]
 
-            # Old format: "20:00" (5 chars), New format: "20:00-08:00" (11+ chars)
-            needs_migration = len(start_time) == 5 and ":" in start_time and len(end_time) == 5 and ":" in end_time
-
-            if not needs_migration:
+            if not global_needs and not board_needs:
                 logger.debug("Silence schedule already in UTC format, no migration needed")
                 return False
 
@@ -1447,25 +1492,171 @@ class ConfigManager:
 
             logger.info(f"Migrating silence schedule from local time to UTC using timezone: {timezone}")
 
-            # Convert times to UTC
             time_service = get_time_service()
-            start_utc = time_service.local_to_utc_iso(start_time, timezone)
-            end_utc = time_service.local_to_utc_iso(end_time, timezone)
 
-            # Update the config
-            silence_config["start_time"] = start_utc
-            silence_config["end_time"] = end_utc
+            if global_needs:
+                start_time = silence_config["start_time"]
+                end_time = silence_config["end_time"]
+                silence_config["start_time"] = time_service.local_to_utc_iso(start_time, timezone)
+                silence_config["end_time"] = time_service.local_to_utc_iso(end_time, timezone)
+                logger.info(
+                    "Migrating install-wide silence window: %s → %s, %s → %s",
+                    start_time,
+                    silence_config["start_time"],
+                    end_time,
+                    silence_config["end_time"],
+                )
+
+            for board_id in board_needs:
+                entry = by_board[board_id]
+                entry["start_time"] = time_service.local_to_utc_iso(entry["start_time"], timezone)
+                entry["end_time"] = time_service.local_to_utc_iso(entry["end_time"], timezone)
+            if board_needs:
+                silence_config["by_board"] = by_board
+                logger.info("Migrated %d per-board silence window(s) to UTC", len(board_needs))
 
             success = self.set_feature("silence_schedule", silence_config)
 
             if success:
-                logger.info(
-                    f"Successfully migrated silence schedule: {start_time} → {start_utc}, {end_time} → {end_utc}"
-                )
+                logger.info("Successfully migrated silence schedule to UTC")
             else:
                 logger.error("Failed to save migrated silence schedule")
 
             return success
+
+    def set_silence_schedule_for_board(self, board_id: str, values: dict[str, Any]) -> bool:
+        """Write one board's silence-schedule override (issue #1788).
+
+        Only ``features.silence_schedule.by_board[board_id]`` is touched — the
+        install-wide default (the top-level keys) is left alone so other boards
+        keep resolving to it.
+
+        Args:
+            board_id: Board whose override to write.
+            values: Full or partial dict of the seven silence keys.
+
+        Returns:
+            True if the write was persisted.
+        """
+        with self._file_lock:
+            features = self._config.setdefault("features", {})
+            silence = features.setdefault(
+                "silence_schedule", self._deep_copy(DEFAULT_CONFIG["features"]["silence_schedule"])
+            )
+            by_board = silence.get("by_board")
+            if not isinstance(by_board, dict):
+                by_board = {}
+            entry = dict(by_board.get(board_id) or {}) if isinstance(by_board.get(board_id), dict) else {}
+            entry.update({k: v for k, v in values.items() if k in SILENCE_SCHEDULE_KEYS})
+            by_board[board_id] = entry
+            silence["by_board"] = by_board
+            self._save_internal()
+        logger.info("Silence schedule for board %s updated", board_id)
+        return True
+
+    def prune_silence_schedule_for_board(self, board_id: str) -> bool:
+        """Drop one board's silence-schedule override (issue #1788 review).
+
+        Used in two places:
+
+        * ``SettingsService.remove_board`` — a removed board must not leave an
+          orphan entry behind. Harmless on its own (``resolve_silence_schedule``
+          falls back cleanly for an unknown id) but the orphans accumulate.
+        * The install-wide write path — see
+          ``PUT /settings/silence-schedule``. A single-board install has no
+          meaningful distinction between "the install default" and "this
+          board", so a lingering override there can only shadow the value the
+          user just saved.
+
+        Returns:
+            True if an entry was removed (and the config resaved).
+        """
+        with self._file_lock:
+            silence = self._config.get("features", {}).get("silence_schedule")
+            if not isinstance(silence, dict):
+                return False
+            by_board = silence.get("by_board")
+            if not isinstance(by_board, dict) or board_id not in by_board:
+                return False
+            by_board.pop(board_id)
+            # Keep the on-disk snapshot in step so the structural migration
+            # guard still sees this install as migrated.
+            raw = self._raw_features.get("silence_schedule")
+            if isinstance(raw, dict) and isinstance(raw.get("by_board"), dict):
+                raw["by_board"].pop(board_id, None)
+            self._save_internal()
+        logger.info("Pruned silence schedule override for board %s", board_id)
+        return True
+
+    def migrate_silence_schedule_to_per_board(self) -> int:
+        """Seed per-board silence overrides from the install-wide values (issue #1788).
+
+        Before #1788 the silence schedule was a single global window. On the
+        first boot after upgrading, every configured board is given an explicit
+        copy of it so nothing changes behaviourally.
+
+        ``config.json`` has no integer schema_version runner, so the guard is
+        structural and reads ``self._raw_features`` — the features section as it
+        existed **on disk before** the defaults merge (which would otherwise
+        supply an empty ``by_board`` and make every install look migrated). A
+        ``by_board`` key in the stored file means this install has already been
+        migrated. That cannot double-apply, and it also means a user who
+        deliberately deletes a board's override does not get it silently
+        re-seeded on the next boot (the resolution rule already falls back to
+        the install-wide values for them).
+
+        Returns:
+            Number of boards seeded (0 when nothing needed migrating).
+        """
+        # Resolve the board list BEFORE taking the file lock. ``_file_lock`` is
+        # a plain (non-reentrant) ``threading.Lock`` and
+        # ``get_settings_service()`` constructs a ``SettingsService`` whose
+        # ``__init__`` reads ``FB_TRANSITION_STRATEGY`` ->
+        # ``Config._get_board()`` -> ``ConfigManager.get_board()``, which takes
+        # that same lock. Calling it from inside the ``with`` block deadlocks
+        # the whole process: the lock is never released, so every config read
+        # blocks forever with no exception and no timeout. Every production
+        # caller happens to warm the settings service first, which is the only
+        # reason this was latent rather than a hang on boot.
+        board_ids = self._configured_board_ids()
+
+        with self._file_lock:
+            stored = self._raw_features.get("silence_schedule")
+            if isinstance(stored, dict) and isinstance(stored.get("by_board"), dict):
+                logger.debug("Silence schedule already per-board, no migration needed")
+                return 0
+
+            features = self._config.setdefault("features", {})
+            silence = features.setdefault(
+                "silence_schedule", self._deep_copy(DEFAULT_CONFIG["features"]["silence_schedule"])
+            )
+            legacy = {k: silence[k] for k in SILENCE_SCHEDULE_KEYS if k in silence}
+            silence["by_board"] = {board_id: dict(legacy) for board_id in board_ids}
+            # Mark the stored snapshot as migrated too, so a second call in the
+            # same process short-circuits without re-reading the file.
+            self._raw_features.setdefault("silence_schedule", {})["by_board"] = self._deep_copy(silence["by_board"])
+            self._save_internal()
+
+        if board_ids:
+            logger.info(
+                "Migrated silence schedule to per-board: seeded %d board(s) from the install-wide window",
+                len(board_ids),
+            )
+        else:
+            logger.info("Migrated silence schedule to per-board: seeded 0 board(s) (none configured)")
+        return len(board_ids)
+
+    @staticmethod
+    def _configured_board_ids() -> list[str]:
+        """Board ids from the multi-board settings service (empty on any failure)."""
+        try:
+            from .settings.service import get_settings_service
+
+            boards = get_settings_service().get_board_settings().boards or []
+        except Exception:  # pragma: no cover - defensive: never break boot
+            logger.warning("Could not read board settings for silence migration", exc_info=True)
+            return []
+        return [str(b["id"]) for b in boards if isinstance(b, dict) and b.get("id")]
 
     # ==================== Plugin Configuration Methods ====================
 

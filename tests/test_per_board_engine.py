@@ -156,6 +156,17 @@ def _drive(svc, boards, *, settings=None, pages=None, schedule=None, silence=Fal
         cfg.SILENCE_SCHEDULE_INDICATOR_TEXT = "SNOOZING"
         cfg.SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
         cfg.SILENCE_SCHEDULE_PAGE_ID = None
+        # Silence is resolved per board since issue #1788; every board here
+        # shares the same window, which is what `silence=` toggles.
+        cfg.silence_config_for.return_value = {
+            "enabled": True,
+            "start_time": "04:00+00:00",
+            "end_time": "15:00+00:00",
+            "mode": "indicator",
+            "page_id": None,
+            "indicator_text": "SNOOZING",
+            "indicator_position": "center",
+        }
         return svc.check_and_send_active_page()
 
 

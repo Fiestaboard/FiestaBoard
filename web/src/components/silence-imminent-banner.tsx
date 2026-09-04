@@ -6,7 +6,8 @@ import { Moon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { useActivePage, usePages } from "@/hooks/use-board";
+import { useCurrentBoard } from "@/components/current-board-context";
+import { queryKeys, useActivePage, usePages } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { ActiveScheduleResponse, SilenceStatus } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -29,9 +30,14 @@ export function SilenceImminentBanner() {
     return () => clearInterval(id);
   }, []);
 
+  // Silence windows are per board (issue #1788). Scope only in multi-board
+  // installs so single-board behavior is completely unchanged.
+  const { currentBoardId, boards } = useCurrentBoard();
+  const scopedBoardId = boards.length > 1 && currentBoardId ? currentBoardId : undefined;
+
   const { data: silenceStatus } = useQuery<SilenceStatus>({
-    queryKey: ["silenceStatus"],
-    queryFn: api.getSilenceStatus,
+    queryKey: queryKeys.silenceStatus(scopedBoardId),
+    queryFn: () => api.getSilenceStatus(scopedBoardId),
     refetchInterval: 30_000,
   });
 

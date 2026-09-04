@@ -10,6 +10,71 @@ from .config_manager import get_config_manager
 
 logger = logging.getLogger(__name__)
 
+# Silence-schedule keys a per-board override may carry (issue #1788).
+_SILENCE_KEYS = (
+    "enabled",
+    "start_time",
+    "end_time",
+    "mode",
+    "page_id",
+    "indicator_text",
+    "indicator_position",
+)
+
+SILENCE_INDICATOR_POSITIONS = ("center", "top-left", "top-right", "bottom-left", "bottom-right")
+SILENCE_MODES = ("indicator", "freeze", "page")
+
+
+def resolve_silence_schedule(feature: dict | None, board_id: str | None = None) -> dict:
+    """Resolve a ``silence_schedule`` feature dict for one board (issue #1788).
+
+    Shared by :meth:`Config.silence_config_for` and the ``/silence-status``
+    endpoint so both apply exactly the same layering and normalization.
+
+    Args:
+        feature: The raw ``features.silence_schedule`` dict (may be None).
+        board_id: Board to resolve, or None for the install-wide layer.
+
+    Returns:
+        A normalized dict with exactly the seven silence keys — never
+        ``by_board``.
+    """
+    feature = feature or {}
+    layer = dict(feature)
+    layer.pop("by_board", None)
+
+    if board_id:
+        by_board = feature.get("by_board")
+        if isinstance(by_board, dict):
+            entry = by_board.get(board_id)
+            if isinstance(entry, dict):
+                layer.update({k: v for k, v in entry.items() if k in _SILENCE_KEYS})
+
+    mode = layer.get("mode", "freeze")
+    if mode not in SILENCE_MODES:
+        mode = "freeze"
+
+    page_id = layer.get("page_id")
+    if not (isinstance(page_id, str) and page_id.strip()):
+        page_id = None
+
+    text = layer.get("indicator_text", "SNOOZING")
+    indicator_text = text.strip().upper() if isinstance(text, str) and text.strip() else "SNOOZING"
+
+    position = layer.get("indicator_position", "center")
+    if position not in SILENCE_INDICATOR_POSITIONS:
+        position = "center"
+
+    return {
+        "enabled": bool(layer.get("enabled", False)),
+        "start_time": layer.get("start_time", "20:00"),
+        "end_time": layer.get("end_time", "07:00"),
+        "mode": mode,
+        "page_id": page_id,
+        "indicator_text": indicator_text,
+        "indicator_position": position,
+    }
+
 
 class classproperty:
     """Descriptor that acts like @property but on the class itself.
@@ -517,64 +582,85 @@ class Config:
 
     # ==================== Silence Schedule Configuration ====================
 
+    @classmethod
+    def silence_config_for(cls, board_id: str | None = None) -> dict:
+        """Resolve the effective silence schedule for one board (issue #1788).
+
+        Silence settings are stored per board under
+        ``features.silence_schedule.by_board[board_id]``; the top-level keys of
+        the feature are the **install-wide default**.
+
+        Resolution rule: a board's own entry wins key-by-key; anything it does
+        not define — including a board with no entry at all — falls back to the
+        install-wide values. This deliberately differs from
+        :class:`~src.settings.service.ActivePageSettings`, where the legacy
+        mirror is only consulted for the *primary* board. Here a newly added
+        board should inherit the install's quiet hours rather than be
+        unexpectedly loud at 3am.
+
+        Args:
+            board_id: Board to resolve. ``None`` returns the install-wide layer
+                (what the seven ``SILENCE_SCHEDULE_*`` classproperties read).
+
+        Returns:
+            A normalized dict with exactly the seven silence keys. Never
+            contains ``by_board``.
+        """
+        return resolve_silence_schedule(cls._get_feature("silence_schedule"), board_id)
+
     @classproperty
     def SILENCE_SCHEDULE_ENABLED(cls) -> bool:
-        """Whether silence schedule is enabled."""
-        return cls._get_feature("silence_schedule").get("enabled", False)
+        """Whether the install-wide silence schedule is enabled."""
+        return cls.silence_config_for()["enabled"]
 
     @classproperty
     def SILENCE_SCHEDULE_START_TIME(cls) -> str:
-        """Silence schedule start time (HH:MM format)."""
-        return cls._get_feature("silence_schedule").get("start_time", "20:00")
+        """Install-wide silence schedule start time (HH:MM format)."""
+        return cls.silence_config_for()["start_time"]
 
     @classproperty
     def SILENCE_SCHEDULE_END_TIME(cls) -> str:
-        """Silence schedule end time (HH:MM format)."""
-        return cls._get_feature("silence_schedule").get("end_time", "07:00")
+        """Install-wide silence schedule end time (HH:MM format)."""
+        return cls.silence_config_for()["end_time"]
 
     @classproperty
-    def SILENCE_SCHEDULE_MODE(self) -> str:
+    def SILENCE_SCHEDULE_MODE(cls) -> str:
         """Silence behaviour: 'freeze' (default), 'indicator', or 'page'."""
-        mode = self._get_feature("silence_schedule").get("mode", "freeze")
-        if mode not in ("indicator", "freeze", "page"):
-            return "freeze"
-        return mode
+        return cls.silence_config_for()["mode"]
 
     @classproperty
-    def SILENCE_SCHEDULE_PAGE_ID(self):
+    def SILENCE_SCHEDULE_PAGE_ID(cls):
         """Page id to display when SILENCE_SCHEDULE_MODE == 'page'."""
-        page_id = self._get_feature("silence_schedule").get("page_id")
-        if isinstance(page_id, str) and page_id.strip():
-            return page_id
-        return None
+        return cls.silence_config_for()["page_id"]
 
     @classproperty
-    def SILENCE_SCHEDULE_INDICATOR_TEXT(self) -> str:
+    def SILENCE_SCHEDULE_INDICATOR_TEXT(cls) -> str:
         """Custom text to display when SILENCE_SCHEDULE_MODE == 'indicator'. Defaults to 'SNOOZING'."""
-        text = self._get_feature("silence_schedule").get("indicator_text", "SNOOZING")
-        if isinstance(text, str) and text.strip():
-            return text.strip().upper()
-        return "SNOOZING"
+        return cls.silence_config_for()["indicator_text"]
 
     @classproperty
-    def SILENCE_SCHEDULE_INDICATOR_POSITION(self) -> str:
+    def SILENCE_SCHEDULE_INDICATOR_POSITION(cls) -> str:
         """Position of indicator text: 'center' (default), 'top-left', 'top-right', 'bottom-left', 'bottom-right'."""
-        pos = self._get_feature("silence_schedule").get("indicator_position", "center")
-        if pos not in ("center", "top-left", "top-right", "bottom-left", "bottom-right"):
-            return "center"
-        return pos
+        return cls.silence_config_for()["indicator_position"]
 
     @classmethod
-    def is_silence_mode_active(cls) -> bool:
-        """Check if we're currently in silence mode.
+    def is_silence_mode_active(cls, board_id: str | None = None) -> bool:
+        """Check if a board is currently in silence mode.
 
-        Uses TimeService to check if current UTC time is within the configured
-        silence window. Times are stored in UTC ISO format.
+        Uses TimeService to check if current UTC time is within that board's
+        configured silence window. Times are stored in UTC ISO format.
+
+        Args:
+            board_id: Board to check. ``None`` keeps the legacy meaning — the
+                install-wide window — so existing zero-arg callers (MQTT state,
+                the AI chat surfaces, manual-send guards) are unchanged.
 
         Returns:
-            True if silence schedule is enabled and current time is within the silence window.
+            True if silence is enabled for that board and the current time is
+            within its silence window.
         """
-        if not cls.SILENCE_SCHEDULE_ENABLED:
+        silence = cls.silence_config_for(board_id)
+        if not silence["enabled"]:
             return False
 
         try:
@@ -582,18 +668,21 @@ class Config:
             from .config_manager import get_config_manager
 
             config_manager = get_config_manager()
+            # Seed per-board overrides first (issue #1788) so the UTC migration
+            # below converts them in the same pass. Both are cheap no-ops once
+            # they have run.
+            config_manager.migrate_silence_schedule_to_per_board()
             config_manager.migrate_silence_schedule_to_utc()
 
-            # Get times (should now be in UTC ISO format)
-            start_time = cls.SILENCE_SCHEDULE_START_TIME
-            end_time = cls.SILENCE_SCHEDULE_END_TIME
+            # Re-resolve: the migration may have rewritten the window in place.
+            silence = cls.silence_config_for(board_id)
 
             # Use TimeService to check if we're in the window
             from .time_service import get_time_service
 
             time_service = get_time_service()
 
-            return time_service.is_time_in_window(start_time, end_time)
+            return time_service.is_time_in_window(silence["start_time"], silence["end_time"])
 
         except (ValueError, AttributeError) as e:
             logger.warning(f"Invalid silence schedule time format: {e}")

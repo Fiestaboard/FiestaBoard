@@ -42,6 +42,18 @@ def service_factory():
         mocks["config"].SILENCE_SCHEDULE_INDICATOR_TEXT = "SNOOZING"
         mocks["config"].SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
         mocks["config"].SILENCE_SCHEDULE_PAGE_ID = None
+        # Since issue #1788 the engine resolves a board's silence settings via
+        # Config.silence_config_for(board_id); the classproperties above are
+        # only the install-wide mirror.
+        mocks["config"].silence_config_for.return_value = {
+            "enabled": True,
+            "start_time": "04:00+00:00",
+            "end_time": "15:00+00:00",
+            "mode": "indicator",
+            "page_id": None,
+            "indicator_text": "SNOOZING",
+            "indicator_position": "center",
+        }
 
         settings_service = Mock()
         settings_service.is_schedule_enabled.return_value = False
@@ -257,7 +269,10 @@ class TestSilenceBoundaryDetector:
         mocks["settings"].return_value.is_paused.return_value = True
 
         silence = {"active": False}
-        mocks["config"].is_silence_mode_active.side_effect = lambda: silence["active"]
+        # Since issue #1788 the engine resolves silence per board, so the stub
+        # has to accept the board_id the drive path and the boundary detector
+        # both pass.
+        mocks["config"].is_silence_mode_active.side_effect = lambda board_id=None: silence["active"]
 
         def _flip_at_tick_3(tick):
             if tick == 3:

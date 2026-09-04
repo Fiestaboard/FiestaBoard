@@ -135,6 +135,103 @@ test.describe("regression: settings.behavior", () => {
       }),
     });
   });
+
+  /**
+   * UX node: settings.behavior.silence-per-board
+   * Route: /settings (Behavior tab)
+   * Issue #1788: silence settings used to be global, so a Note and a Flagship
+   * were forced to share one quiet period and one (single-sized) silence page.
+   * A per-board write must land on the targeted board only and leave the other
+   * board resolving to the install-wide window. `/silence-status` without a
+   * board_id describes the PRIMARY board (PR #1801 review) — it is a runtime
+   * status endpoint, so the install-wide layer is read from the stored config.
+   */
+  test("settings.behavior.silence-per-board — a per-board write does not move the other board's window", async ({
+    page,
+  }) => {
+    // Snapshot the raw stored config: `/silence-status` reports the PRIMARY
+    // board (issue #1788), so the install-wide layer has to be read from the
+    // config itself, not from the status endpoint.
+    const readStored = async () => {
+      const res = await fetch(`${API_URL}/settings/all`, { headers: authHeaders() });
+      return (await res.json()).silence_schedule?.config ?? {};
+    };
+    const originalStored = await readStored();
+
+    // Resolve the primary board id from the boards list.
+    const boardsRes = await fetch(`${API_URL}/settings/board`, { headers: authHeaders() });
+    const boards = (await boardsRes.json()).boards ?? [];
+    const primaryId: string | undefined = boards[0]?.id;
+    expect(primaryId, "at least one board must be configured").toBeTruthy();
+
+    // Write a distinctive window for the primary board only.
+    const putRes = await fetch(`${API_URL}/settings/silence-schedule`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        enabled: true,
+        start_time: "01:11+00:00",
+        end_time: "02:22+00:00",
+        mode: "freeze",
+        board_id: primaryId,
+      }),
+    });
+    expect(putRes.status).toBe(200);
+    expect((await putRes.json()).board_id).toBe(primaryId);
+
+    // That board reads back its own window...
+    const scopedRes = await fetch(`${API_URL}/silence-status?board_id=${encodeURIComponent(primaryId!)}`, {
+      headers: authHeaders(),
+    });
+    const scoped = await scopedRes.json();
+    expect(scoped.start_time_utc).toBe("01:11+00:00");
+    expect(scoped.board_id).toBe(primaryId);
+
+    // ...while the install-wide layer in the stored config is untouched, so a
+    // board with no override of its own still resolves to it.
+    const storedAfter = await readStored();
+    expect(storedAfter.start_time).toBe(originalStored.start_time);
+    expect(storedAfter.end_time).toBe(originalStored.end_time);
+    expect(storedAfter.by_board?.[primaryId!]?.start_time).toBe("01:11+00:00");
+
+    // Unscoped status describes the primary board, not the install-wide layer.
+    const unscopedRes = await fetch(`${API_URL}/silence-status`, { headers: authHeaders() });
+    const unscoped = await unscopedRes.json();
+    expect(unscoped.start_time_utc).toBe("01:11+00:00");
+    expect(unscoped.board_id).toBe(primaryId);
+
+    // An unknown board is a 404, not a silent global write.
+    const ghostRes = await fetch(`${API_URL}/settings/silence-schedule`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        enabled: true,
+        start_time: "03:33+00:00",
+        end_time: "04:44+00:00",
+        board_id: "no-such-board",
+      }),
+    });
+    expect(ghostRes.status).toBe(404);
+
+    // The Behavior tab still renders the silence card for the current board.
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("tab", { name: "Behavior", exact: true }).click();
+    await expect(page.getByLabel("Silence Schedule")).toBeVisible({ timeout: 10_000 });
+
+    // Restore: write the original window back to that board.
+    await fetch(`${API_URL}/settings/silence-schedule`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        enabled: originalStored.enabled ?? false,
+        start_time: originalStored.start_time,
+        end_time: originalStored.end_time,
+        mode: originalStored.mode ?? "freeze",
+        board_id: primaryId,
+      }),
+    });
+  });
 });
 
 test.describe("regression: settings.integrations (AI / MCP / MQTT)", () => {
