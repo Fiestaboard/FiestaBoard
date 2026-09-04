@@ -137,7 +137,16 @@ jobs:
           #   by Google Fonts; the JS wrapper / package metadata is MIT.
           #   Self-hosted (HA-Ingress-safe) via @fiestaboard/ui, which
           #   replaced Geist with these faces in v5.0.0.
+          # - zeroconf is LGPL-2.1-only. It has shipped in requirements.txt
+          #   since well before this allow-list existed; Dependency Review
+          #   only flags it when the pin moves, because a version change
+          #   reads as a newly-introduced dependency. FiestaBoard imports it
+          #   as an unmodified library from a separate PyPI wheel and does
+          #   not link it statically or modify it, which is the LGPL's
+          #   dynamic-linking case. Listing it records a decision already
+          #   made in practice rather than granting anything new.
           allow-dependencies-licenses: >-
+            pkg:pypi/zeroconf,
             pkg:npm/caniuse-lite,
             pkg:npm/%40fontsource-variable/archivo,
             pkg:npm/%40fontsource-variable/spline-sans-mono
@@ -474,8 +483,27 @@ jobs:
     - name: Start Storybook static server
       working-directory: web
       run: |
-        npx http-server storybook-static --port 6006 --silent &
-        sleep 5
+        # `http-server` is a devDependency, so the `npm ci` step above has
+        # already put it in node_modules and this runs the local binary
+        # without touching the registry. It used to be fetched on demand by
+        # `npx`; when that fetch stalled the server never bound, and the
+        # a11y step then failed with "It seems that your Storybook instance
+        # is not running at: http://localhost:6006" — which reads like an
+        # accessibility violation but means no story was ever visited.
+        npx http-server storybook-static --port 6006 --silent \
+          > /tmp/storybook-server.log 2>&1 &
+        # Poll rather than `sleep 5`: a fixed guess either wastes time or
+        # loses the race, and it hides why the server is missing.
+        for _ in $(seq 1 60); do
+          if curl -sfo /dev/null http://localhost:6006; then
+            echo "Storybook static server is serving on port 6006"
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "::error::Storybook static server never started listening on port 6006"
+        cat /tmp/storybook-server.log
+        exit 1
 
     - name: Run Storybook a11y tests
       working-directory: web

@@ -2150,3 +2150,87 @@ def test_build_template_context_returns_without_waiting_for_a_slow_plugin(
         assert "slow_plugin" not in context
     finally:
         released.set()
+
+
+# --- plugin lifecycle on reset (issue #1753) ---
+
+
+class _LifecyclePlugin(PluginBase):
+    """Real PluginBase subclass that records every fetch it performs.
+
+    The counter is shared across instances of the same plugin id so a test can
+    tell "the warm instance served its cache" from "a fresh instance refetched".
+    """
+
+    def __init__(self, manifest, fetches):
+        super().__init__(manifest)
+        self._fetches = fetches
+
+    @property
+    def plugin_id(self):
+        return self._manifest["id"]
+
+    def fetch_data(self):
+        self._fetches.append(self.plugin_id)
+        return PluginResult(available=True, data={"n": len(self._fetches)})
+
+
+def _lifecycle_manifest(plugin_id):
+    return {
+        "id": plugin_id,
+        "name": plugin_id.title(),
+        "version": "1.0.0",
+        "description": "",
+        "author": "",
+        "variables": {"simple": ["var1"]},
+        "max_lengths": {},
+    }
+
+
+def _two_generations(plugin_id, fetches):
+    """A live plugin instance plus the replacement a full reload would build."""
+    manifest = _lifecycle_manifest(plugin_id)
+    return _LifecyclePlugin(manifest, fetches), _LifecyclePlugin(manifest, fetches)
+
+
+def test_repeat_initialize_keeps_plugin_data_cached(registry, mock_loader, mock_manifest):
+    """A second initialize() must not swap in cold instances and refetch."""
+    fetches = []
+    live, replacement = _two_generations("beta", fetches)
+    mock_loader.load_all_plugins.side_effect = [{"beta": live}, {"beta": replacement}]
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"beta": {"enabled": True}}
+        registry.initialize()
+        registry.get_plugin("beta").get_data()
+
+        # What a plugin config save triggers today: reset_display_service()
+        # drops the DisplayService singleton, and rebuilding it re-initializes
+        # the already-initialized registry.
+        registry.initialize()
+        registry.get_plugin("beta").get_data()
+
+    assert fetches == ["beta"], "plugin beta refetched after an unrelated reset — its cache was thrown away"
+
+
+def test_recreating_the_display_service_keeps_the_live_plugin_instance(registry, mock_loader, mock_manifest):
+    """Rebuilding DisplayService must not re-instantiate the whole plugin set."""
+    from src.displays.service import DisplayService
+
+    fetches = []
+    live, replacement = _two_generations("beta", fetches)
+    mock_loader.load_all_plugins.side_effect = [{"beta": live}, {"beta": replacement}]
+    mock_loader.get_manifest.side_effect = lambda pid: mock_manifest
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"beta": {"enabled": True}}
+        registry.initialize()
+
+        with (
+            patch("src.displays.service.PLUGIN_SYSTEM_AVAILABLE", True),
+            patch("src.displays.service.get_plugin_registry", return_value=registry),
+        ):
+            DisplayService()
+
+    assert registry.get_plugin("beta") is live

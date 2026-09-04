@@ -88,7 +88,12 @@ def mock_registry():
         {"id": "openweather", "name": "OpenWeather", "description": "Weather data", "installed": True},
         {"id": "stocks", "name": "Stocks", "description": "Stock prices", "installed": False},
     ]
-    registry.get_all_variables.return_value = {
+    # #1739: these two return *different* shapes, and this mock used to give
+    # the metadata payload to `get_all_variables`. That made the drift
+    # invisible — the tool called the name-list method and the mock handed it
+    # metadata anyway. Each stub now matches its real signature.
+    registry.get_all_variables.return_value = {"openweather": ["temperature", "condition"]}
+    registry.get_all_variables_with_metadata.return_value = {
         "openweather": {
             "temperature": {"description": "Current temperature", "example": "72°F"},
             "condition": {"description": "Weather condition", "example": "Sunny"},
