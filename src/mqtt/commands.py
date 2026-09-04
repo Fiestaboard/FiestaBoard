@@ -142,10 +142,21 @@ class CommandHandler:
         for board in boards:
             if board.get("id") == board_ref:
                 return board["id"], board
+        # Name matching is kept for back-compat, but board names are
+        # user-editable in Settings -> Boards (issue #1792): a rename silently
+        # breaks any automation publishing {"board": "<name>"}, and nothing can
+        # rewrite those payloads for the user. Warn so the log says why the
+        # automation stopped working, and points at the stable id.
         ref_lower = str(board_ref).lower()
         for board in boards:
             name = board.get("name")
             if isinstance(name, str) and name.lower() == ref_lower:
+                logger.warning(
+                    "MQTT: resolved board by name %r; renaming this board will break it. "
+                    "Target the board id %r instead.",
+                    board_ref,
+                    board["id"],
+                )
                 return board["id"], board
         logger.warning("MQTT: unknown board %r", board_ref)
         return None, None

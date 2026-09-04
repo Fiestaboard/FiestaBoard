@@ -24,13 +24,26 @@ const API_BASE = "/api";
 type BoardOverride = Record<string, unknown>;
 type BoardRecord = Record<string, unknown>;
 
+/** Mirrors BoardInstance.__post_init__ (src/devices.py): strip, cap, default. */
+const MAX_BOARD_NAME_LENGTH = 64;
+function normalizeBoardName(name: unknown): string {
+  const trimmed = typeof name === "string" ? name.trim().slice(0, MAX_BOARD_NAME_LENGTH) : "";
+  return trimmed || "My Board";
+}
+
 /**
  * Stateful board fixture. GET returns the current board; PUT persists the
  * incoming boards and records the request body — mirroring the real backend
  * so the component's invalidate→refetch cycle reflects each save (the
- * controlled Select reads from the refetched query data, not local state).
+ * controlled Select and the name input read from the refetched query data,
+ * not local state).
  *
- * `put.body` is `null` until a PUT fires; reset it between assertions.
+ * The PUT handler applies the backend's own name normalization, so saving
+ * "" (or whitespace) reads back as "My Board" and the clear→reset round-trip
+ * is actually exercised rather than echoed verbatim (issue #1792).
+ *
+ * `put.body` is `null` until a PUT fires and `put.count` counts them; both are
+ * only meaningful after awaiting the request, since the handler is async.
  */
 function setupBoard(board: BoardOverride) {
   const state: { boards: BoardRecord[] } = {
@@ -45,7 +58,8 @@ function setupBoard(board: BoardOverride) {
       },
     ],
   };
-  const put: { body: { boards?: BoardRecord[] } | null } = { body: null };
+  state.boards = state.boards.map((b) => ({ ...b, name: normalizeBoardName(b.name) }));
+  const put: { body: { boards?: BoardRecord[] } | null; count: number } = { body: null, count: 0 };
 
   server.use(
     http.get(`${API_BASE}/settings/board`, () =>
@@ -58,10 +72,13 @@ function setupBoard(board: BoardOverride) {
     http.put(`${API_BASE}/settings/board`, async ({ request }) => {
       const body = (await request.json()) as { boards?: BoardRecord[] };
       put.body = body;
+      put.count += 1;
       if (body.boards) {
-        // Persist, masking the token like the real backend would on read-back.
+        // Persist the way the real backend does on read-back: mask the token
+        // and normalize the display name.
         state.boards = body.boards.map((b) => ({
           ...b,
+          name: normalizeBoardName(b.name),
           note_array_token: b.note_array_token ? "***" : b.note_array_token,
         }));
       }
@@ -89,6 +106,16 @@ async function renderAndExpand(user: ReturnType<typeof userEvent.setup>) {
   await user.click(trigger);
   const card = await screen.findByTestId("board-card");
   return card;
+}
+
+/**
+ * Assert no PUT lands beyond `expected`. The MSW handler is async, so a
+ * synchronous count check would pass even when a request is in flight; this
+ * waits long enough for one to arrive and fails if it does.
+ */
+async function expectNoFurtherPuts(put: { count: number }, expected: number) {
+  await expect(waitFor(() => expect(put.count).toBeGreaterThan(expected), { timeout: 300 })).rejects.toThrow();
+  expect(put.count).toBe(expected);
 }
 
 describe("DisplaySettings — note-array selector", () => {
@@ -206,7 +233,7 @@ describe("DisplaySettings — board name field (#1792)", () => {
     fireEvent.change(nameInput, { target: { value: "  Kitchen Board  " } });
     fireEvent.blur(nameInput);
 
-    await waitFor(() => expect(put.body).not.toBeNull());
+    await waitFor(() => expect(put.count).toBe(1));
     const saved = put.body!.boards![0];
     // Trimmed before saving; the rest of the board rides along unchanged in
     // the boards[] round-trip.
@@ -222,16 +249,20 @@ describe("DisplaySettings — board name field (#1792)", () => {
     const card = await renderAndExpand(user);
 
     const nameInput = (await within(card).findByLabelText("Name")) as HTMLInputElement;
-    nameInput.focus();
-    nameInput.blur();
+    fireEvent.focus(nameInput);
+    fireEvent.blur(nameInput);
     // Whitespace-only padding around the same name is also not a change.
     fireEvent.change(nameInput, { target: { value: " My Board " } });
     fireEvent.blur(nameInput);
 
+    // The PUT handler is async, so a synchronous assertion here passes whether
+    // or not a request fired. Give any request that WAS made time to land, and
+    // pin the request count rather than only the recorded body.
+    await expectNoFurtherPuts(put, 0);
     expect(put.body).toBeNull();
   });
 
-  it("clearing the name saves an empty string so the backend restores its default", async () => {
+  it("clearing the name saves an empty string and shows the restored default", async () => {
     const user = userEvent.setup();
     const put = setupBoard({ device_type: "flagship", name: "Kitchen Board" });
     render(<DisplaySettings />, { wrapper: TestWrapper });
@@ -242,8 +273,34 @@ describe("DisplaySettings — board name field (#1792)", () => {
     fireEvent.change(nameInput, { target: { value: "   " } });
     fireEvent.blur(nameInput);
 
-    await waitFor(() => expect(put.body).not.toBeNull());
+    await waitFor(() => expect(put.count).toBe(1));
     expect(put.body!.boards![0].name).toBe("");
+    // The backend restores its default, and the field must show what is
+    // actually stored — not the empty string the user left behind.
+    expect(await screen.findByText("My Board")).toBeInTheDocument();
+    await waitFor(() => expect(nameInput.value).toBe("My Board"));
+  });
+
+  it("re-blurring after a clear does not fire a second identical PUT", async () => {
+    const user = userEvent.setup();
+    const put = setupBoard({ device_type: "flagship", name: "Kitchen Board" });
+    render(<DisplaySettings />, { wrapper: TestWrapper });
+    await user.click(await screen.findByText("Kitchen Board"));
+    const card = await screen.findByTestId("board-card");
+
+    const nameInput = (await within(card).findByLabelText("Name")) as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: "" } });
+    fireEvent.blur(nameInput);
+
+    await waitFor(() => expect(put.count).toBe(1));
+    await screen.findByText("My Board");
+
+    // A field left showing "" while the server holds "My Board" reads as
+    // changed on every blur. Each PUT re-runs _reinitialize_board_clients()
+    // and rewrites config.json, so the repeat is not merely cosmetic.
+    fireEvent.focus(nameInput);
+    fireEvent.blur(nameInput);
+    await expectNoFurtherPuts(put, 1);
   });
 });
 

@@ -106,6 +106,60 @@ function isArrayConfigured(board: BoardInstance): boolean {
   return board.note_array_token === "***" || Boolean(board.note_array_token);
 }
 
+/**
+ * Controlled board display-name field (issue #1792).
+ *
+ * The stored name is normalized by the backend (trimmed, capped, empty →
+ * "My Board"), so the field cannot be uncontrolled: after clearing the name
+ * the input would keep showing "" while the board is actually called
+ * "My Board". That stale value also makes the blur handler see a change every
+ * time, firing an identical PUT on each focus/blur — and every PUT re-runs
+ * `_reinitialize_board_clients()` and rewrites config.json.
+ *
+ * So: local draft state for typing, re-synced whenever the server's name
+ * changes underneath it.
+ */
+function BoardNameField({ board, onRename }: { board: BoardInstance; onRename: (name: string) => void }) {
+  const t = useTranslations("displaySettings");
+  const storedName = board.name ?? "";
+  const [draft, setDraft] = useState(storedName);
+  const [syncedFrom, setSyncedFrom] = useState(storedName);
+
+  // Adjust state during render rather than in an effect: when the refetch
+  // brings back a different name (the server-normalized one), adopt it.
+  if (storedName !== syncedFrom) {
+    setSyncedFrom(storedName);
+    setDraft(storedName);
+  }
+
+  const handleBlur = () => {
+    const trimmed = draft.trim();
+    // Show what will actually be stored, so re-blurring is a no-op.
+    setDraft(trimmed);
+    if (trimmed !== storedName) {
+      onRename(trimmed);
+    }
+  };
+
+  return (
+    <Stack gap="1">
+      <label className="text-xs font-medium" htmlFor={`board-name-${board.id}`}>
+        {t("boardNameLabel")}
+      </label>
+      <input
+        id={`board-name-${board.id}`}
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={handleBlur}
+        placeholder={t("boardNamePlaceholder")}
+        className="w-full h-8 px-2 text-xs rounded-md border bg-background"
+        data-testid="board-name-input"
+      />
+    </Stack>
+  );
+}
+
 function BoardConnectionForm({
   board,
   onUpdate,
@@ -674,25 +728,7 @@ export function DisplaySettings() {
                 <Stack gap="3" className="border-t px-4 pb-4 pt-3">
                   {/* Board name (issue #1792). Trimmed on save; clearing it
                       saves "" and the backend restores its default name. */}
-                  <Stack gap="1">
-                    <label className="text-xs font-medium" htmlFor={`board-name-${board.id}`}>
-                      {t("boardNameLabel")}
-                    </label>
-                    <input
-                      id={`board-name-${board.id}`}
-                      type="text"
-                      defaultValue={board.name ?? ""}
-                      onBlur={(e) => {
-                        const trimmed = e.target.value.trim();
-                        if (trimmed !== (board.name ?? "")) {
-                          handleUpdateBoard(board.id, { name: trimmed });
-                        }
-                      }}
-                      placeholder={t("boardNamePlaceholder")}
-                      className="w-full h-8 px-2 text-xs rounded-md border bg-background"
-                      data-testid="board-name-input"
-                    />
-                  </Stack>
+                  <BoardNameField board={board} onRename={(name) => handleUpdateBoard(board.id, { name })} />
 
                   {/* Pause / Resume row (issue #970) */}
                   <Flex

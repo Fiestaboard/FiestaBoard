@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.devices import MAX_BOARD_NAME_LENGTH
 from src.settings.service import (
     VALID_OUTPUT_TARGETS,
     ActivePageSettings,
@@ -465,6 +466,23 @@ class TestSettingsServiceBoard:
         board_id = settings_service.get_board_settings().boards[0]["id"]
         settings_service.set_boards([{"id": board_id, "device_type": "flagship", "name": ""}])
         assert settings_service.get_board_settings().boards[0]["name"] == "My Board"
+
+    def test_set_boards_whitespace_only_name_restores_default(self, settings_service):
+        """A field cleared to spaces must not persist as a blank sidebar row —
+        ``"   "`` is truthy, so this needs the strip in BoardInstance (#1792)."""
+        settings_service.set_boards([{"device_type": "flagship", "name": "Kitchen Board"}])
+        board_id = settings_service.get_board_settings().boards[0]["id"]
+        settings_service.set_boards([{"id": board_id, "device_type": "flagship", "name": "   "}])
+        assert settings_service.get_board_settings().boards[0]["name"] == "My Board"
+
+    def test_set_boards_trims_a_padded_name(self, settings_service):
+        settings_service.set_boards([{"device_type": "flagship", "name": "  Kitchen Board  "}])
+        assert settings_service.get_board_settings().boards[0]["name"] == "Kitchen Board"
+
+    def test_set_boards_caps_an_overlong_name(self, settings_service):
+        settings_service.set_boards([{"device_type": "flagship", "name": "K" * 200}])
+        stored = settings_service.get_board_settings().boards[0]["name"]
+        assert stored == "K" * MAX_BOARD_NAME_LENGTH
 
     def test_add_board(self, settings_service):
         result = settings_service.add_board({"device_type": "note"})
