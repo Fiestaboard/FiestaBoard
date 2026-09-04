@@ -14,17 +14,51 @@ exists only for third-party callers. Two invariants matter:
 from __future__ import annotations
 
 import pytest
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
+from starlette.middleware import Middleware
 
-from src.api_server import app, cors_settings
+from src.api_server import CORS_ORIGINS_ENV, app, cors_settings
 
 # A third-party origin the operator never configured.
 EVIL = "https://evil.example"
 
 
 @pytest.fixture
-def client():
-    return TestClient(app, raise_server_exceptions=False)
+def client(monkeypatch):
+    """``app`` with its CORS middleware rebuilt from a scrubbed environment.
+
+    ``src.api_server`` calls ``load_dotenv()`` and evaluates
+    ``cors_settings()`` at *import* time, so the policy baked into ``app``
+    reflects whatever ``FIESTABOARD_CORS_ORIGINS`` the developer's ``.env``
+    (or the CI runner's environment) happened to hold. A plain
+    ``monkeypatch.delenv`` is too late to undo that. Swap in a middleware
+    entry built from the clean environment and drop the cached stack so the
+    next request rebuilds it, so the assertions below describe the shipped
+    *default* policy rather than the ambient operator config.
+
+    The real ``app`` — real routes, real middleware ordering — is still what
+    gets exercised; only the one env-derived argument is normalised.
+    """
+    monkeypatch.delenv(CORS_ORIGINS_ENV, raising=False)
+
+    original = list(app.user_middleware)
+    assert any(m.cls is CORSMiddleware for m in original), (
+        "app no longer installs CORSMiddleware — these tests would be vacuous"
+    )
+
+    def with_default_cors(entry):
+        if entry.cls is CORSMiddleware:
+            return Middleware(CORSMiddleware, **cors_settings())
+        return entry
+
+    app.user_middleware = [with_default_cors(m) for m in original]
+    app.middleware_stack = None  # force a rebuild on the next request
+    try:
+        yield TestClient(app, raise_server_exceptions=False)
+    finally:
+        app.user_middleware = original
+        app.middleware_stack = None
 
 
 def _headers(response):

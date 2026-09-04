@@ -52,6 +52,23 @@ client config — it replaces `<YOUR_TOKEN>` in the examples below.
 > configured, nothing changes: `/api/mcp/` follows whatever the auth mode
 > says.
 
+> **With the login disabled, pin the token with the env var.** The paragraph
+> above is about the `/api/mcp/` data path only. The *token management*
+> routes are not gated the same way: `_require_admin` in
+> `src/auth/routes.py` deliberately returns an `"anonymous"` sentinel when
+> `auth_mode()` is `disabled`, so that **Settings → Integrations** doesn't
+> bounce off a 401 into a login-redirect loop. The consequence is that on an
+> install with the login off, an unauthenticated caller who can reach the
+> port can `POST /auth/mcp-token` to mint a valid token, or
+> `DELETE /auth/mcp-token` to revoke the stored one and re-open `/api/mcp/`
+> outright. A token stored from the Settings page is therefore a guard
+> against accidental clients on such an install, **not** a boundary against
+> an attacker who can already reach FiestaBoard. Setting
+> `FIESTABOARD_MCP_TOKEN` is the configuration that holds: while it is set,
+> both management routes refuse with `409`, so the token cannot be rotated
+> or revoked over the network. Enabling the browser login also closes it.
+> Tracked in Fiestaboard/FiestaBoard#1825.
+
 ## Why local hosting makes this awkward
 
 The MCP ecosystem is converging on three transports — stdio, HTTP, and
