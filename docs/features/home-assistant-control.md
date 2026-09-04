@@ -112,7 +112,7 @@ will not paint over them on its next cycle. Put the active page back with
 **Refresh Display**, by selecting a page, or by letting that page's content
 change on its own. (The Active Page and Current Page entities still report the
 configured page, not the manual message — tracked separately in
-[#1794](https://github.com/Fiestaboard/FiestaBoard/issues/1794).)
+[#1831](https://github.com/Fiestaboard/FiestaBoard/issues/1831).)
 
 **Send Message formatting:** text longer than the board width word-wraps onto
 the following rows automatically, sized to your board's real geometry (6 rows ×
