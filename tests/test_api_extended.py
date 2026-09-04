@@ -1477,10 +1477,24 @@ class TestSendMessageWrapping:
         assert self._row_text(board_array[0]) == "TACO TUESDAY"
         assert self._row_text(board_array[1]) == "PARTY TIME"
 
-    def test_literal_backslash_n_breaks_line(self, client, mock_service, mock_settings_service):
+    def test_backslash_text_renders_exactly_as_before(self, client, mock_service, mock_settings_service):
+        """HTTP JSON bodies can carry a real newline, so /send-message must NOT
+        reinterpret a backslash. ``C:\\new`` keeps its N (issue #1793 review)."""
+        from src.text_to_board import text_to_board_array
+
+        board_array = self._sent_array(client, mock_service, "C:\\new")
+        assert board_array == text_to_board_array("C:\\new", rows=6, cols=22)
+
+    def test_literal_backslash_n_is_not_a_line_break(self, client, mock_service, mock_settings_service):
         board_array = self._sent_array(client, mock_service, "HI\\nTHERE")
-        assert self._row_text(board_array[0]) == "HI"
-        assert self._row_text(board_array[1]) == "THERE"
+        assert self._row_text(board_array[0]) == "HI NTHERE"
+        assert self._row_text(board_array[1]) == ""
+
+    def test_long_word_hard_breaks_instead_of_vanishing(self, client, mock_service, mock_settings_service):
+        board_array = self._sent_array(client, mock_service, "SEE SUPERCALIFRAGILISTICEXPIALIDOCIOUS")
+        assert self._row_text(board_array[0]) == "SEE"
+        assert self._row_text(board_array[1]) == "SUPERCALIFRAGILISTICEX"
+        assert self._row_text(board_array[2]) == "PIALIDOCIOUS"
 
     def test_explicit_newline_breaks_line(self, client, mock_service, mock_settings_service):
         board_array = self._sent_array(client, mock_service, "HI\nTHERE")

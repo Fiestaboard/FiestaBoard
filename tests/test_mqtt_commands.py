@@ -633,3 +633,51 @@ class TestCommandHandlerSendMessageWrapping:
         board_array = b1_client.send_characters.call_args[0][0]
         assert _row_text(board_array[0]) == "TACO TUESDAY"
         assert _row_text(board_array[1]) == "PARTY TIME"
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_colour_marker_costs_one_tile_when_wrapping(self, mock_config, get_settings, get_service, handler):
+        """Wrapping counts flaps: "{red} TACO TUESDAY" is 14 tiles and fits
+        one 15-wide Note row even though it is 18 characters."""
+        board_array = self._send(handler, get_settings, get_service, mock_config, "{red} TACO TUESDAY")
+        assert board_array[0][0] == 63  # red tile
+        assert _row_text(board_array[0]) == "  TACO TUESDAY"
+        assert _row_text(board_array[1]) == ""
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_escaped_backslash_n_stays_literal(self, mock_config, get_settings, get_service, handler):
+        """``\\\\n`` is the escape hatch for text that really contains a
+        backslash before an N (issue #1793 review)."""
+        board_array = self._send(handler, get_settings, get_service, mock_config, "C:\\\\new")
+        # One row: "C:" + an unmappable backslash (space) + "NEW" — the N survives.
+        assert _row_text(board_array[0]) == "C  NEW"
+        assert _row_text(board_array[1]) == ""
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_json_payload_does_not_unescape_backslash_n(self, mock_config, get_settings, get_service, handler):
+        """JSON payloads can already carry a real newline, so the escape
+        substitution is confined to the plain-string (HA text entity) path."""
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_note_primary()
+        service = MagicMock()
+        b1_client = MagicMock()
+        service.get_board_client.return_value = b1_client
+        get_service.return_value = service
+        # Raw MQTT payload: {"message": "HI\\nTHERE", "board": "Desk"}
+        handler.handle("send_message", '{"message": "HI\\\\nTHERE", "board": "Desk"}')
+        board_array = b1_client.send_characters.call_args[0][0]
+        assert _row_text(board_array[0]) == "HI NTHERE"
+        assert _row_text(board_array[1]) == ""
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_long_word_hard_breaks_instead_of_vanishing(self, mock_config, get_settings, get_service, handler):
+        board_array = self._send(handler, get_settings, get_service, mock_config, "SUPERCALIFRAGILISTIC")
+        assert _row_text(board_array[0]) == "SUPERCALIFRAGIL"
+        assert _row_text(board_array[1]) == "ISTIC"

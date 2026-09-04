@@ -3373,9 +3373,11 @@ async def send_message(request: MessageRequest):
             notes_wide = primary_board.get("notes_wide", 1)
             notes_tall = primary_board.get("notes_tall", 1)
         dims = resolve_dimensions(device_type, notes_wide, notes_tall)
-        # Word-wrap to the board width and honor \n / literal "\n" line
-        # breaks (issue #1793), then convert to a board array for proper
-        # character/color support.
+        # Word-wrap to the board width (in tiles) and honor real newlines
+        # (issue #1793), then convert to a board array for proper
+        # character/color support. Backslashes are left alone: a JSON body
+        # can carry a real newline, so rewriting "\n" here would only corrupt
+        # legitimate text like C:\new.
         wrapped = wrap_message_text(request.text, rows=dims.rows, cols=dims.cols)
         board_array = text_to_board_array(wrapped, rows=dims.rows, cols=dims.cols)
 

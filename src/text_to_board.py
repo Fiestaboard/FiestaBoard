@@ -37,35 +37,128 @@ COLOR_MARKER_PATTERN = re.compile(
 )
 
 
-def wrap_message_text(text: str, rows: int = 6, cols: int = 22) -> str:
-    """Prepare free-form user text for ``text_to_board_array`` (issue #1793).
+def count_tiles(text: str) -> int:
+    """Count how many flaps *text* occupies.
 
-    - Converts the literal two-character sequence backslash-n (``"\\\\n"``)
-      into a real newline, so single-line clients (e.g. Home Assistant text
-      entities) can request a line break.
-    - Word-wraps to ``cols`` characters (greedy, at word boundaries) so text
-      longer than the board width flows onto the next row instead of being
-      silently truncated. Explicit newlines are respected; wrapping fills
-      within them.
-    - Truncates to ``rows`` lines.
+    A colour marker (``{66}``, ``{green}``) is one tile regardless of how many
+    characters it takes to write. Closing tags (``{/green}``, ``{/}``) are
+    formatting artefacts and occupy none — matching :func:`text_to_board_array`,
+    which skips them without advancing ``col_idx``.
+    """
+    tiles = 0
+    pos = 0
+    while pos < len(text):
+        match = COLOR_MARKER_PATTERN.match(text, pos)
+        if match:
+            if not match.group(3):  # group(3) is the closing-tag alternative
+                tiles += 1
+            pos = match.end()
+            continue
+        tiles += 1
+        pos += 1
+    return tiles
 
-    ``text_to_board_array`` itself keeps its contract of truncating each line
-    at the column limit — wrapping happens here, upstream.
+
+def take_tiles(text: str, limit: int) -> tuple[str, str]:
+    """Split *text* into ``(head, tail)``, ``head`` at most *limit* tiles wide.
+
+    The split never lands inside a colour marker: a marker is taken whole or
+    left for the tail. Trailing closing tags cost no tiles, so they ride along
+    with ``head``.
+    """
+    if limit <= 0:
+        return "", text
+    tiles = 0
+    pos = 0
+    while pos < len(text):
+        match = COLOR_MARKER_PATTERN.match(text, pos)
+        cost = 1
+        end = pos + 1
+        if match:
+            cost = 0 if match.group(3) else 1
+            end = match.end()
+        if tiles + cost > limit:
+            break
+        tiles += cost
+        pos = end
+    return text[:pos], text[pos:]
+
+
+# Backslash escapes understood by ``unescape_message_newlines``. Only "\n"
+# and "\\" mean anything; every other sequence is passed through untouched.
+MESSAGE_ESCAPE_PATTERN = re.compile(r"\\(.)", re.DOTALL)
+
+
+def unescape_message_newlines(text: str) -> str:
+    r"""Interpret backslash escapes in a *single-line* message payload.
+
+    Home Assistant's ``text`` entity cannot type a real newline, so the
+    literal two-character sequence ``\n`` is how an MQTT plain-string
+    payload asks for a line break (issue #1793).
+
+    That substitution is destructive for text that legitimately contains a
+    backslash, so ``\\`` is the escape hatch: it collapses to one literal
+    backslash and the next character is left alone, making ``C:\\new``
+    render as ``C:\new``. Any other backslash sequence (``C:\temp``) is
+    passed through verbatim.
+
+    This is deliberately *not* applied to the HTTP ``/send-message`` body or
+    to JSON MQTT payloads — both can carry a real newline already, so they
+    keep their exact pre-#1793 rendering.
+    """
+
+    def _replace(match: re.Match[str]) -> str:
+        escaped = match.group(1)
+        if escaped == "n":
+            return "\n"
+        if escaped == "\\":
+            return "\\"
+        return match.group(0)
+
+    return MESSAGE_ESCAPE_PATTERN.sub(_replace, text)
+
+
+def wrap_message_text(text: str, rows: int = 6, cols: int = 22, unescape_newlines: bool = False) -> str:
+    r"""Prepare free-form user text for :func:`text_to_board_array` (issue #1793).
+
+    - Word-wraps to ``cols`` *tiles* (not characters — a colour marker like
+      ``{red}`` is one flap) so text longer than the board width flows onto
+      the next row instead of being silently truncated. Explicit newlines are
+      respected; wrapping fills within them.
+    - Truncates to ``rows`` lines, logging a warning when content is dropped.
+    - With ``unescape_newlines``, first turns the literal two-character
+      sequence ``\n`` into a real line break. Off by default because it
+      corrupts text that legitimately contains a backslash; see
+      :func:`unescape_message_newlines`.
+
+    :func:`text_to_board_array` itself keeps its contract of truncating each
+    line at the column limit — wrapping happens here, upstream.
 
     Args:
         text: Raw user message.
         rows: Target board rows (default 6 for flagship, 3 for note).
         cols: Target board columns (default 22 for flagship, 15 for note).
+        unescape_newlines: Treat ``\n`` as a line break (single-line clients).
 
     Returns:
-        Newline-separated text that fits within rows x cols at word
-        boundaries (a single word longer than ``cols`` still gets truncated
-        downstream).
+        Newline-separated text that fits within rows x cols.
     """
     from src.formatters.message_formatter import MessageFormatter
 
-    unescaped = text.replace("\\n", "\n")
-    lines = MessageFormatter(rows=rows, cols=cols).split_into_lines(unescaped, max_lines=rows)
+    if unescape_newlines:
+        text = unescape_message_newlines(text)
+
+    # Ask for one row more than fits so overflow is detectable rather than
+    # silently swallowed.
+    lines = MessageFormatter(rows=rows, cols=cols).split_into_lines(text, max_lines=rows + 1)
+    if len(lines) > rows:
+        logger.warning(
+            "Message too long for a %dx%d board: dropping everything past row %d",
+            rows,
+            cols,
+            rows,
+        )
+        lines = lines[:rows]
     return "\n".join(lines)
 
 

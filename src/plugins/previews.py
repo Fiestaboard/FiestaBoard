@@ -32,7 +32,10 @@ from typing import Any
 
 from src.board_chars import BoardChars
 from src.devices import DEVICE_DIMENSIONS, DeviceDimensions, resolve_dimensions
-from src.text_to_board import COLOR_MARKER_PATTERN, text_to_board_array
+
+# count_tiles lives beside COLOR_MARKER_PATTERN in text_to_board and is
+# re-exported here, where it was originally defined, for existing importers.
+from src.text_to_board import COLOR_MARKER_PATTERN, count_tiles, text_to_board_array
 
 logger = logging.getLogger(__name__)
 
@@ -108,28 +111,6 @@ def load_preview_seed(seed_path: Path | None = None) -> dict[str, dict[str, Any]
 
     logger.debug("Loaded previews for %d plugins from the seed", len(seeded))
     return seeded
-
-
-def count_tiles(text: str) -> int:
-    """Count how many flaps *text* occupies.
-
-    A colour marker (``{66}``, ``{green}``) is one tile regardless of how many
-    characters it takes to write. Closing tags (``{/green}``, ``{/}``) are
-    formatting artefacts and occupy none — matching ``text_to_board_array``,
-    which skips them without advancing ``col_idx``.
-    """
-    tiles = 0
-    pos = 0
-    while pos < len(text):
-        match = COLOR_MARKER_PATTERN.match(text, pos)
-        if match:
-            if not match.group(3):  # group(3) is the closing-tag alternative
-                tiles += 1
-            pos = match.end()
-            continue
-        tiles += 1
-        pos += 1
-    return tiles
 
 
 def _unmappable_characters(text: str) -> list[str]:

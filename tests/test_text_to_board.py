@@ -4,6 +4,8 @@ text_to_board contains pure, deterministic conversion logic — character
 mapping and board array construction. This addresses issue #505.
 """
 
+import logging
+
 from src.board_chars import BoardChars
 from src.text_to_board import (
     COLOR_CODES,
@@ -444,10 +446,6 @@ class TestWrapMessageText:
         result = wrap_message_text("HI\nTACO TUESDAY PARTY TIME", rows=6, cols=15)
         assert result == "HI\nTACO TUESDAY\nPARTY TIME"
 
-    def test_literal_backslash_n_becomes_line_break(self):
-        result = wrap_message_text("HI\\nTHERE", rows=3, cols=15)
-        assert result == "HI\nTHERE"
-
     def test_truncates_wrapped_output_to_rows(self):
         result = wrap_message_text("AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH IIII JJJJ", rows=3, cols=15)
         assert result == "AAAA BBBB CCCC\nDDDD EEEE FFFF\nGGGG HHHH IIII"
@@ -455,3 +453,85 @@ class TestWrapMessageText:
     def test_truncates_explicit_lines_to_rows(self):
         result = wrap_message_text("A\nB\nC\nD", rows=3, cols=15)
         assert result == "A\nB\nC"
+
+
+class TestWrapMessageTextMeasuresTilesNotCharacters:
+    """Wrapping must count flaps. ``{red}`` writes five characters but
+    occupies one tile, and ``{/green}`` occupies none (issue #1793 review)."""
+
+    def test_colour_marker_line_that_fits_stays_on_one_row(self):
+        # "{red} TACO TUESDAY" is 18 characters but only 14 tiles, so it
+        # fits a 15-wide Note row without wrapping.
+        assert wrap_message_text("{red} TACO TUESDAY", rows=3, cols=15) == "{red} TACO TUESDAY"
+
+    def test_closing_tag_costs_no_flaps_so_the_row_is_filled(self):
+        # "{green}HI{/green} TACO" is 8 tiles; "TUESDAY" pushes it to 16,
+        # so only TUESDAY moves down.
+        result = wrap_message_text("{green}HI{/green} TACO TUESDAY", rows=3, cols=15)
+        assert result == "{green}HI{/green} TACO\nTUESDAY"
+
+    def test_numeric_marker_counted_as_one_tile(self):
+        assert wrap_message_text("{63}{64}{65} HELLO WORLD", rows=3, cols=15) == "{63}{64}{65} HELLO WORLD"
+
+
+class TestWrapMessageTextLongWords:
+    """A word wider than the board is hard-broken across rows instead of
+    being silently cut mid-word (issue #1793 review)."""
+
+    def test_long_word_hard_breaks_onto_the_next_row(self):
+        result = wrap_message_text("SEE HTTPS://EXAMPLE.COM/VERYLONGPATH", rows=6, cols=22)
+        assert result == "SEE\nHTTPS://EXAMPLE.COM/VE\nRYLONGPATH"
+
+    def test_hard_break_never_splits_a_colour_marker(self):
+        # 21 tiles of A, then a marker: the marker cannot straddle the break.
+        result = wrap_message_text("A" * 21 + "{red}" + "B" * 4, rows=6, cols=22)
+        assert result == "A" * 21 + "{red}\n" + "B" * 4
+
+    def test_word_exactly_board_width_is_not_broken(self):
+        assert wrap_message_text("A" * 22, rows=6, cols=22) == "A" * 22
+
+
+class TestWrapMessageTextWhitespaceLines:
+    def test_whitespace_only_long_line_keeps_its_row(self):
+        # A blank spacer line longer than the board used to yield zero lines
+        # and eat a row (issue #1793 review).
+        result = wrap_message_text("TOP\n" + " " * 40 + "\nBOTTOM", rows=6, cols=22)
+        assert result == "TOP\n\nBOTTOM"
+
+
+class TestWrapMessageTextBackslashes:
+    """``\\n`` unescaping is opt-in, and has an escape hatch when on."""
+
+    def test_backslash_text_is_untouched_by_default(self):
+        assert wrap_message_text("C:\\new", rows=6, cols=22) == "C:\\new"
+
+    def test_backslash_text_is_untouched_by_default_mid_sentence(self):
+        assert wrap_message_text("GO \\north 5 MILES", rows=6, cols=22) == "GO \\north 5 MILES"
+
+    def test_opt_in_unescape_turns_backslash_n_into_a_line_break(self):
+        result = wrap_message_text("HI\\nTHERE", rows=3, cols=15, unescape_newlines=True)
+        assert result == "HI\nTHERE"
+
+    def test_doubled_backslash_is_the_escape_hatch_for_a_literal(self):
+        # Typing C:\\new asks for the literal text C:\new.
+        result = wrap_message_text("C:\\\\new", rows=6, cols=22, unescape_newlines=True)
+        assert result == "C:\\new"
+
+    def test_other_backslash_sequences_pass_through_when_unescaping(self):
+        result = wrap_message_text("C:\\temp", rows=6, cols=22, unescape_newlines=True)
+        assert result == "C:\\temp"
+
+
+class TestWrapMessageTextOverflowIsLogged:
+    """Content that does not fit is dropped, but no longer silently."""
+
+    def test_dropped_rows_are_logged(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="src.text_to_board"):
+            wrap_message_text("A\nB\nC\nD", rows=3, cols=15)
+        warnings = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+        assert any("too long" in msg.lower() for msg in warnings), warnings
+
+    def test_no_warning_when_everything_fits(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="src.text_to_board"):
+            wrap_message_text("A\nB\nC", rows=3, cols=15)
+        assert [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING] == []
