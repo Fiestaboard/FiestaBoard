@@ -586,6 +586,16 @@ test.describe("Cross-Feature – Board Config affects Pages", () => {
     await resetToSingleBoard();
     await suppressWizard(page);
     await deleteAllPages();
+    // deleteAllPages() cannot actually empty the store: deleting the *last*
+    // page regenerates a Welcome carrying that page's device_type (issue
+    // #1307, src/pages/service.py). If a note page happened to be deleted
+    // last — which an earlier spec on this worker's backend decides, not this
+    // one — the store is left holding a note-typed Welcome, and a note-typed
+    // PAGE keeps the Note tab alive on its own (issue #943). The state is
+    // self-perpetuating, so a retry sees it too. Anchor a flagship page so
+    // the store never empties, then clear the note pages.
+    await createPage(`Flagship Anchor ${Date.now() % 1_000_000}`);
+    await deletePagesByDevice("note");
   });
 
   test.afterEach(async () => {

@@ -2026,7 +2026,13 @@ def _resolve_auto_update_interval(state: dict[str, Any]) -> str:
 
 
 async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
-    """Silently apply pending plugin updates in the background update loop."""
+    """Silently apply pending plugin updates in the background update loop.
+
+    Runs unattended from ``_plugin_update_check_loop`` once an hour, so the git
+    fetch and the module reimport go to worker threads: inline they would seize
+    the event loop for up to 120 s per plugin with nobody having asked for
+    anything, and the board would simply stop updating (#1750).
+    """
     import os as _os
     from pathlib import Path as _Path
 
@@ -2056,13 +2062,13 @@ async def _auto_apply_plugin_updates(registry: Any, plugin_ids: list) -> None:
             failed.append(plugin_id)
             continue
 
-        ok, err = clone_or_update_repo("", plugin_id, external_dir=_ext_dir)
+        ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=_ext_dir)
         if not ok:
             logger.warning("Auto-update: git fetch failed for %s: %s", plugin_id, err)
             failed.append(plugin_id)
             continue
 
-        reloaded = registry.reload_plugin(plugin_id)
+        reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
         if reloaded is None:
             logger.warning("Auto-update: reload failed for %s", plugin_id)
             failed.append(plugin_id)
@@ -10084,12 +10090,16 @@ class ExternalPluginInstallRequest(BaseModel):
 async def install_registry_plugin(plugin_id: str):
     """
     Install a plugin from the curated registry by its id.
+
+    The install shells out to ``git`` (up to 120 s) and then imports the
+    plugin package, so it runs in a worker thread — inline it would seize the
+    event loop and freeze every other request for the whole clone (#1750).
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
         raise HTTPException(status_code=503, detail="Plugin system is not available.")
 
     registry = get_plugin_registry()
-    errors = registry.install_from_registry(plugin_id)
+    errors = await asyncio.to_thread(registry.install_from_registry, plugin_id)
 
     if errors:
         raise HTTPException(status_code=400, detail="; ".join(errors))
@@ -10108,6 +10118,9 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
 
     The repository does not need to follow the ``fiestaboard-plugin--``
     naming convention (that requirement only applies to registry plugins).
+
+    The clone runs in a worker thread so a slow or unreachable remote cannot
+    block the event loop (#1750).
     """
     if not PLUGIN_SYSTEM_AVAILABLE:
         raise HTTPException(status_code=503, detail="Plugin system is not available.")
@@ -10123,7 +10136,8 @@ async def install_external_plugin(request: ExternalPluginInstallRequest):
     safe_plugin_id = _sanitize_optional_plugin_id(request.plugin_id)
 
     registry = get_plugin_registry()
-    errors = registry.install_from_git(
+    errors = await asyncio.to_thread(
+        registry.install_from_git,
         request.repository,
         plugin_id=safe_plugin_id,
         branch=safe_branch,
@@ -10257,11 +10271,13 @@ async def update_plugin(plugin_id: str):
 
     # Pass the validated plugin_id — clone_or_update_repo resolves the path
     # internally so no user-controlled Path flows into subprocess sinks.
-    ok, err = clone_or_update_repo("", plugin_id, external_dir=_ext_dir)
+    # Both the git fetch and the module reimport go to a worker thread so the
+    # event loop keeps serving other requests during the update (#1750).
+    ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=_ext_dir)
     if not ok:
         raise HTTPException(status_code=500, detail=f"Update failed: {err}")
 
-    reloaded = registry.reload_plugin(plugin_id)
+    reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
     if reloaded is None:
         errors = registry.get_load_errors().get(plugin_id, [])
         detail = "; ".join(errors) if errors else "Plugin failed to reload after update."
@@ -10326,12 +10342,14 @@ async def apply_all_plugin_updates():
 
         # Pass the validated plugin_id — clone_or_update_repo resolves the path
         # internally so no user-controlled Path flows into subprocess sinks.
-        ok, err = clone_or_update_repo("", plugin_id, external_dir=_ext_dir)
+        # A bulk update is N sequential git fetches; keeping them on the loop
+        # would freeze the API for the sum of all of them (#1750).
+        ok, err = await asyncio.to_thread(clone_or_update_repo, "", plugin_id, external_dir=_ext_dir)
         if not ok:
             failed[plugin_id] = f"git fetch failed: {err}"
             continue
 
-        reloaded = registry.reload_plugin(plugin_id)
+        reloaded = await asyncio.to_thread(registry.reload_plugin, plugin_id)
         if reloaded is None:
             errors = registry.get_load_errors().get(plugin_id, [])
             failed[plugin_id] = "; ".join(errors) if errors else "Reload failed."
