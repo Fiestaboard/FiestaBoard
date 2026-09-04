@@ -474,6 +474,43 @@ class TestOutputTarget:
 
         clients["b1"].render.assert_called_once()
 
+    def test_paused_virtual_board_is_not_driven_under_ui_only_target(self):
+        """The virtual exemption must not reach above the pause short-circuit.
+
+        Pause (issue #970) is hands-off for every board, virtual included.
+        The exemption only skips the output-target gate; it must not turn a
+        paused panel back on.
+        """
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].is_virtual = True
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, paused=("b1",), send_to_board=False)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_not_called()
+
+    def test_silenced_virtual_board_shows_the_indicator_not_its_page(self):
+        """The virtual exemption must not reach below into silence handling.
+
+        A driven virtual board still goes through the silence dispatch, so a
+        snoozed panel shows the SNOOZING indicator rather than its page.
+        """
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].is_virtual = True
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=False)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule, silence=True)
+
+        clients["b1"].render.assert_called_once()
+        assert svc.runtimes["b1"].last_active_page_id == "__silence__"
+        assert svc.runtimes["b1"].last_active_page_content == "snoozing"
+
     def test_ui_only_target_does_not_write_to_secondary_hardware(self):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
         svc, clients = _service_with_runtimes(boards)
