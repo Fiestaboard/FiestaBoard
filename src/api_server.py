@@ -6080,9 +6080,26 @@ async def update_output_settings(request: dict):
 
     try:
         output = settings_service.set_output_target(request["target"])
-        return {"status": "success", "settings": output.to_dict()}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+    # Switching away from "ui" must resync the hardware (issue #1748). While
+    # target was "ui" the display loop short-circuited before rendering, so
+    # every board's content cache still holds whatever was last actually sent.
+    # Without this the next poll sees "content unchanged, skipping send" and
+    # the board stays stale until the content happens to change. The target is
+    # a global setting, so every board is invalidated, not just the primary.
+    svc = get_service()
+    runtimes = getattr(svc, "runtimes", None) if svc else None
+    # Only a real mapping is iterated (a Mock from an older fixture is not).
+    if isinstance(runtimes, dict):
+        for board_id in list(runtimes):
+            try:
+                svc.invalidate_board_content(board_id)
+            except Exception as e:  # never fail the settings write on a cache reset
+                logger.debug("Could not invalidate board %s after output-target change: %s", board_id, e)
+
+    return {"status": "success", "settings": output.to_dict()}
 
 
 def _resolve_active_page_id(page_id: str | None) -> str | None:

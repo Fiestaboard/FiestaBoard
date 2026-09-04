@@ -919,7 +919,14 @@ class DisplayService:
                     rt.snoozing_message_sent = True
                     return False
                 if silence_mode == "page":
-                    return self._send_silence_page(rt, silence_config, silence_dt, silence_nw, silence_nt)
+                    return self._send_silence_page(
+                        rt,
+                        silence_config,
+                        silence_dt,
+                        silence_nw,
+                        silence_nt,
+                        board=board if board is not None else self._board_dict_for(board_id),
+                    )
                 return self._send_silence_indicator(
                     silence_dt, rt, silence_nw, silence_nt, silence_config=silence_config
                 )
@@ -1265,6 +1272,8 @@ class DisplayService:
         device_type: str | None = None,
         notes_wide: int = 1,
         notes_tall: int = 1,
+        *,
+        board: dict | None = None,
     ) -> bool:
         """Render the target board's silence page once and freeze it there.
 
@@ -1275,7 +1284,12 @@ class DisplayService:
         device type (issue #1788): a 22x6 Flagship page used to be handed to a
         15x3 Note client verbatim. ``device_type``/``notes_wide``/``notes_tall``
         come from :meth:`_silence_geometry`; omitted, they fall back to the
-        primary board's geometry.
+        primary board's geometry. That same geometry sizes the SNOOZING
+        indicator this method falls back to.
+
+        ``board`` is the destination board dict, used to gate the page against
+        the board's geometry (issue #1748). ``None`` means "cannot validate,
+        don't block", matching the normal send path.
         """
         rt = rt if rt is not None else self._ensure_primary_runtime()
         if rt is None or rt.client is None:
@@ -1295,6 +1309,24 @@ class DisplayService:
             logger.warning(
                 "Silence mode 'page' selected but page %r not found - falling back to indicator",
                 page_id,
+            )
+            return self._send_silence_indicator(device_type, rt, notes_wide, notes_tall, silence_config)
+
+        # --- Silence-page geometry gate (issue #1748) ---
+        # The silence page id is per-board config, but the page it names is
+        # global, so a flagship silence page would be pushed at a Note board
+        # - the same page-vs-board mismatch this issue fixes on the normal send
+        # path, reached through a different door. Fall back to the board-sized
+        # SNOOZING indicator (as this method already does for a missing or
+        # unrenderable page) so the board still shows that it is snoozing,
+        # rather than showing a cropped page or nothing at all.
+        if board is not None and not pages_compatible_with_board(page, board):
+            logger.warning(
+                "Board %s: silence page %s size %s does not match board size %s - using indicator instead",
+                rt.board_id or "(default)",
+                page.id,
+                size_key(page.device_type, page.notes_wide, page.notes_tall),
+                _board_size_key(board),
             )
             return self._send_silence_indicator(device_type, rt, notes_wide, notes_tall, silence_config)
 
