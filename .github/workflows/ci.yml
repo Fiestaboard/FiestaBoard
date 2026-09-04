@@ -137,7 +137,16 @@ jobs:
           #   by Google Fonts; the JS wrapper / package metadata is MIT.
           #   Self-hosted (HA-Ingress-safe) via @fiestaboard/ui, which
           #   replaced Geist with these faces in v5.0.0.
+          # - zeroconf is LGPL-2.1-only. It has shipped in requirements.txt
+          #   since well before this allow-list existed; Dependency Review
+          #   only flags it when the pin moves, because a version change
+          #   reads as a newly-introduced dependency. FiestaBoard imports it
+          #   as an unmodified library from a separate PyPI wheel and does
+          #   not link it statically or modify it, which is the LGPL's
+          #   dynamic-linking case. Listing it records a decision already
+          #   made in practice rather than granting anything new.
           allow-dependencies-licenses: >-
+            pkg:pypi/zeroconf,
             pkg:npm/caniuse-lite,
             pkg:npm/%40fontsource-variable/archivo,
             pkg:npm/%40fontsource-variable/spline-sans-mono
