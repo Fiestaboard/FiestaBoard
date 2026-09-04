@@ -313,3 +313,38 @@ class TestSilenceBoundaryDetector:
         # Only the initial update before the loop — not one per simulated second.
         assert drive.call_count == 1
         assert page_service.preview_page.call_count == 1
+
+    def test_ui_only_target_during_silence_does_not_busy_loop(self, service_factory):
+        """A UI-only install must still latch the silence flag (issues #1748 + #1740).
+
+        ``OutputSettings.target == "ui"`` makes ``check_and_send_for_board``
+        return early without touching hardware. That early return sits BELOW
+        the ``rt.last_silence_mode_active`` latch on purpose: above it, the
+        flag never records that silence is active, so the 1 Hz boundary
+        detector in ``run()`` sees a permanent mismatch and re-drives every
+        board once per second for the whole silence window.
+
+        Note the fixture's settings service is a bare ``Mock()``, whose
+        ``should_send_to_board()`` returns a Mock — and ``Mock() is False`` is
+        False, so the short-circuit would never even run. This test pins a real
+        ``False`` so the UI-only path is genuinely exercised.
+        """
+        svc, mocks, _page_service = service_factory(is_silence=True)
+        settings_service = mocks["settings"].return_value
+        settings_service.is_paused.return_value = False
+        settings_service.should_send_to_board.return_value = False
+
+        # The guard is an identity check, so the fixture must yield real False.
+        assert settings_service.should_send_to_board() is False
+
+        with (
+            patch.object(svc, "check_and_send_active_page", wraps=svc.check_and_send_active_page) as drive,
+            patch("src.main.schedule"),
+            patch("src.main.time.sleep", _sleep_that_stops_after(svc, 5)),
+        ):
+            svc.run()
+
+        # Only the initial update before the loop - not one per simulated second.
+        assert drive.call_count == 1
+        # UI-only means the wire is never touched, silence window or not.
+        svc.vb_client.render.assert_not_called()

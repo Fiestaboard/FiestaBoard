@@ -252,3 +252,33 @@ class TestOutputAPIEndpoints:
         response = client.put("/settings/output", json={})
 
         assert response.status_code == 400
+
+    def test_update_output_invalidates_every_board_content_cache(self, client, mock_services):
+        """Switching ui -> board must resync the hardware (issue #1748).
+
+        While target was "ui" the display loop short-circuited before
+        rendering, so each board's content cache still holds the last frame
+        actually sent. Without an invalidation the next poll sees "content
+        unchanged, skipping send" and the board stays stale until the content
+        happens to change. The target is global, so every board is cleared -
+        note the fixture uses a real dict of runtimes, since a bare Mock is
+        not iterable and would skip the loop entirely.
+        """
+        mock_services["settings"].set_output_target.return_value = OutputSettings(target="board")
+        mock_services["main"].runtimes = {"b1": Mock(), "b2": Mock()}
+
+        response = client.put("/settings/output", json={"target": "board"})
+
+        assert response.status_code == 200
+        assert sorted(c.args[0] for c in mock_services["main"].invalidate_board_content.call_args_list) == ["b1", "b2"]
+
+    def test_update_output_survives_a_board_that_fails_to_invalidate(self, client, mock_services):
+        """A cache reset must never fail the settings write."""
+        mock_services["settings"].set_output_target.return_value = OutputSettings(target="board")
+        mock_services["main"].runtimes = {"b1": Mock()}
+        mock_services["main"].invalidate_board_content.side_effect = RuntimeError("board gone")
+
+        response = client.put("/settings/output", json={"target": "board"})
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "success"

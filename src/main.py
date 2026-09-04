@@ -12,7 +12,13 @@ from .board_client import BoardClient, board_client_from_board_dict
 from .collections.models import is_collection_id
 from .collections.service import get_collection_service
 from .config import Config
-from .devices import DEFAULT_DEVICE_TYPE, get_dimensions, resolve_dimensions
+from .devices import (
+    DEFAULT_DEVICE_TYPE,
+    get_dimensions,
+    pages_compatible_with_board,
+    resolve_dimensions,
+    size_key,
+)
 from .pages.models import LineMetadata, Page
 from .pages.service import get_page_service
 from .schedules.service import get_schedule_service
@@ -32,6 +38,15 @@ logger = logging.getLogger(__name__)
 # needs to differ from every real page id so the display loop's
 # "content unchanged" dedupe treats a one-off as its own page (issue #1787).
 ADHOC_PAGE_ID = "__adhoc__"
+
+
+def _board_size_key(board: dict) -> str:
+    """Canonical size key ("flagship:6x22", "note_array:6x30", ...) for a board dict."""
+    return size_key(
+        board.get("device_type") or DEFAULT_DEVICE_TYPE,
+        board.get("notes_wide") or 1,
+        board.get("notes_tall") or 1,
+    )
 
 
 class BoardRuntime:
@@ -56,6 +71,11 @@ class BoardRuntime:
         # Active-page send cache (dedupes unchanged sends per board).
         self.last_active_page_content: str | None = None
         self.last_active_page_id: str | None = None
+
+        # Last page/board geometry mismatch reported for this board, so the
+        # send-time validation warns once per distinct mismatch instead of
+        # every poll tick (issue #1748).
+        self.last_geometry_mismatch: str | None = None
 
         # Silence-mode state (global decision, per-board delivery).
         self.last_silence_mode_active: bool = False
@@ -617,6 +637,26 @@ class DisplayService:
         """Return the ID of the primary (first) configured board, or None."""
         return get_settings_service().get_primary_board_id()
 
+    @staticmethod
+    def _board_dict_for(board_id: str | None) -> dict | None:
+        """Resolve a board dict by id; ``None`` resolves to the primary board.
+
+        Returns None when the board (or any board at all) cannot be resolved —
+        callers treat that as "cannot validate, don't block" so the legacy
+        Config-only single-board path keeps working.
+        """
+        try:
+            settings = get_settings_service()
+            bid = board_id if board_id else settings.get_primary_board_id()
+            if not bid:
+                return None
+            for board in settings.get_board_settings().boards or []:
+                if isinstance(board, dict) and board.get("id") == bid:
+                    return board
+        except Exception as e:  # defensive: validation must never break a send
+            logger.debug("Could not resolve board dict for %s: %s", board_id, e)
+        return None
+
     # ------------------------------------------------------------------ #
     # Per-board display engine (single tick loop)
     # ------------------------------------------------------------------ #
@@ -719,6 +759,27 @@ class DisplayService:
             # leave the flag stale and busy-loop the detector (issue #1740).
             # The entering/exiting decisions above are already latched.
             rt.last_silence_mode_active = silence_mode_active
+
+            # --- Output target short-circuit (issue #1748) ---
+            # ``OutputSettings.target == "ui"`` means "preview in the web UI,
+            # never write hardware". Every API send path already honors this
+            # via should_send_to_board(); the background loop did not, so a
+            # UI-only install still had its boards driven every tick.
+            # Nothing below it - triggers, override revert, silence indicator,
+            # the page send - can reach the wire.
+            #
+            # This MUST stay BELOW the ``rt.last_silence_mode_active`` latch
+            # above. Returning before the latch leaves the silence flag stale
+            # on a UI-only install, so the 1 Hz boundary detector in ``run()``
+            # sees a permanent mismatch and re-fires every second for the whole
+            # silence window - exactly the busy-loop issue #1740 fixed.
+            # Covered by test_ui_only_target_during_silence_does_not_busy_loop.
+            if settings_service.should_send_to_board() is False:
+                logger.debug(
+                    "Output target is UI only - skipping board %s update",
+                    board_id or "(default)",
+                )
+                return False
 
             if silence_mode_active and rt.snoozing_message_sent:
                 # Steady-state silence: indicator is already on this board.
@@ -858,10 +919,44 @@ class DisplayService:
                     rt.snoozing_message_sent = True
                     return False
                 if silence_mode == "page":
-                    return self._send_silence_page(rt, silence_config, silence_dt, silence_nw, silence_nt)
+                    return self._send_silence_page(
+                        rt,
+                        silence_config,
+                        silence_dt,
+                        silence_nw,
+                        silence_nt,
+                        board=board if board is not None else self._board_dict_for(board_id),
+                    )
                 return self._send_silence_indicator(
                     silence_dt, rt, silence_nw, silence_nt, silence_config=silence_config
                 )
+
+            # --- Send-time geometry validation (issue #1748) ---
+            # Render geometry comes from the PAGE, so a page retargeted (or
+            # scheduled) onto a differently shaped board would push e.g. a
+            # 6x22 grid at a 3x15 Note. Write-time validation
+            # (check_ref_board_compatibility) only guards the API; the loop
+            # is the last gate before the wire. Skip + log on mismatch
+            # rather than truncate: the geometry is the page's identity
+            # here, and a silently cropped page is worse than an unchanged
+            # board. Placed after the silence dispatch so a snoozed board
+            # still shows its (board-sized) indicator.
+            board_dims_source = board if board is not None else self._board_dict_for(board_id)
+            if board_dims_source is not None and not pages_compatible_with_board(page, board_dims_source):
+                page_size = size_key(page.device_type, page.notes_wide, page.notes_tall)
+                board_size = _board_size_key(board_dims_source)
+                mismatch = f"{active_page_id}:{page_size}->{board_size}"
+                message = "Board %s: skipping page %s - page size %s does not match board size %s"
+                args = (board_id or "(default)", active_page_id, page_size, board_size)
+                # Warn once per distinct mismatch; the loop re-evaluates this
+                # every tick and a repeating warning would drown the log.
+                if rt.last_geometry_mismatch == mismatch:
+                    logger.debug(message, *args)
+                else:
+                    logger.warning(message, *args)
+                    rt.last_geometry_mismatch = mismatch
+                return False
+            rt.last_geometry_mismatch = None
 
             # --- Normal send (content changed) ---
             current_content = result.formatted
@@ -1177,6 +1272,8 @@ class DisplayService:
         device_type: str | None = None,
         notes_wide: int = 1,
         notes_tall: int = 1,
+        *,
+        board: dict | None = None,
     ) -> bool:
         """Render the target board's silence page once and freeze it there.
 
@@ -1187,7 +1284,12 @@ class DisplayService:
         device type (issue #1788): a 22x6 Flagship page used to be handed to a
         15x3 Note client verbatim. ``device_type``/``notes_wide``/``notes_tall``
         come from :meth:`_silence_geometry`; omitted, they fall back to the
-        primary board's geometry.
+        primary board's geometry. That same geometry sizes the SNOOZING
+        indicator this method falls back to.
+
+        ``board`` is the destination board dict, used to gate the page against
+        the board's geometry (issue #1748). ``None`` means "cannot validate,
+        don't block", matching the normal send path.
         """
         rt = rt if rt is not None else self._ensure_primary_runtime()
         if rt is None or rt.client is None:
@@ -1207,6 +1309,24 @@ class DisplayService:
             logger.warning(
                 "Silence mode 'page' selected but page %r not found - falling back to indicator",
                 page_id,
+            )
+            return self._send_silence_indicator(device_type, rt, notes_wide, notes_tall, silence_config)
+
+        # --- Silence-page geometry gate (issue #1748) ---
+        # The silence page id is per-board config, but the page it names is
+        # global, so a flagship silence page would be pushed at a Note board
+        # - the same page-vs-board mismatch this issue fixes on the normal send
+        # path, reached through a different door. Fall back to the board-sized
+        # SNOOZING indicator (as this method already does for a missing or
+        # unrenderable page) so the board still shows that it is snoozing,
+        # rather than showing a cropped page or nothing at all.
+        if board is not None and not pages_compatible_with_board(page, board):
+            logger.warning(
+                "Board %s: silence page %s size %s does not match board size %s - using indicator instead",
+                rt.board_id or "(default)",
+                page.id,
+                size_key(page.device_type, page.notes_wide, page.notes_tall),
+                _board_size_key(board),
             )
             return self._send_silence_indicator(device_type, rt, notes_wide, notes_tall, silence_config)
 

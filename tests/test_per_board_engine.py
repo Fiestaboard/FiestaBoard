@@ -63,11 +63,13 @@ def _time_service():
     return svc
 
 
-def _settings_service(boards, *, paused=(), schedule_off=(), manual=None, override=None):
+def _settings_service(boards, *, paused=(), schedule_off=(), manual=None, override=None, send_to_board=True):
     """A settings service mock with per-board resolution.
 
     ``manual`` maps board_id -> manual active page id (used when that
     board's schedule mode is off). ``override`` is the consume result.
+    ``send_to_board`` is the OutputSettings.target decision
+    (``target="ui"`` -> False).
     """
     manual = manual or {}
     svc = MagicMock()
@@ -78,6 +80,7 @@ def _settings_service(boards, *, paused=(), schedule_off=(), manual=None, overri
     svc.get_active_page_id.side_effect = lambda board_id=None: manual.get(board_id)
     svc.get_transition_settings.return_value = TRANSITIONS
     svc.consume_temporary_override.return_value = override
+    svc.should_send_to_board.return_value = send_to_board
     return svc
 
 
@@ -137,7 +140,17 @@ def _service_with_runtimes(boards):
     return svc, clients
 
 
-def _drive(svc, boards, *, settings=None, pages=None, schedule=None, silence=False):
+def _drive(
+    svc,
+    boards,
+    *,
+    settings=None,
+    pages=None,
+    schedule=None,
+    silence=False,
+    silence_mode="indicator",
+    silence_page_id=None,
+):
     settings = settings if settings is not None else _settings_service(boards)
     pages = pages if pages is not None else _page_service({})
     schedule = schedule if schedule is not None else _schedule_service({})
@@ -152,18 +165,21 @@ def _drive(svc, boards, *, settings=None, pages=None, schedule=None, silence=Fal
         patch.object(svc, "request_board_refresh"),
     ):
         cfg.is_silence_mode_active.return_value = silence
-        cfg.SILENCE_SCHEDULE_MODE = "indicator"
+        cfg.SILENCE_SCHEDULE_MODE = silence_mode
         cfg.SILENCE_SCHEDULE_INDICATOR_TEXT = "SNOOZING"
         cfg.SILENCE_SCHEDULE_INDICATOR_POSITION = "center"
-        cfg.SILENCE_SCHEDULE_PAGE_ID = None
+        cfg.SILENCE_SCHEDULE_PAGE_ID = silence_page_id
         # Silence is resolved per board since issue #1788; every board here
-        # shares the same window, which is what `silence=` toggles.
+        # shares the same window, which is what `silence=` toggles. The mode
+        # and page id ride on that per-board config, not on the Config class
+        # attributes, so `silence_mode=`/`silence_page_id=` must land here to
+        # reach the silence dispatch at all.
         cfg.silence_config_for.return_value = {
             "enabled": True,
             "start_time": "04:00+00:00",
             "end_time": "15:00+00:00",
-            "mode": "indicator",
-            "page_id": None,
+            "mode": silence_mode,
+            "page_id": silence_page_id,
             "indicator_text": "SNOOZING",
             "indicator_position": "center",
         }
@@ -390,9 +406,197 @@ class TestBoardRuntime:
         assert rt.client is None
         assert rt.last_active_page_content is None
         assert rt.last_active_page_id is None
+        assert rt.last_geometry_mismatch is None
         assert rt.last_silence_mode_active is False
         assert rt.snoozing_message_sent is False
         assert rt.polled_characters is None
         assert rt.polled_at is None
         assert rt.refresh_thread is None
         assert rt.refresh_cancel is None
+
+
+class TestOutputTarget:
+    """The display loop must honor OutputSettings.target (issue #1748).
+
+    ``should_send_to_board()`` is False only for ``target="ui"``; the
+    background loop used to write to hardware anyway.
+    """
+
+    def test_ui_only_target_does_not_write_to_hardware(self):
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=False)
+
+        sent = _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_not_called()
+        assert sent is False
+
+    def test_board_target_still_writes_to_hardware(self):
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=True)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_called_once()
+
+    def test_ui_only_target_does_not_write_to_secondary_hardware(self):
+        boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}, "pB": {"content": "BETA"}})
+        schedule = _schedule_service({"b1": "pA", "b2": "pB"})
+        settings = _settings_service(boards, send_to_board=False)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b2"].render.assert_not_called()
+
+
+class TestSendTimeGeometryValidation:
+    """A page must match its destination board's geometry (issue #1748).
+
+    Render geometry came from the page, so a retargeted page could push a
+    6x22 grid at a 3x15 Note.
+    """
+
+    def test_page_not_matching_primary_board_geometry_is_not_sent(self):
+        boards = [_board("b1", "Small", device_type="note")]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA", "device_type": "flagship"}})
+        schedule = _schedule_service({"b1": "pA"})
+
+        sent = _drive(svc, boards, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_not_called()
+        assert sent is False
+
+    def test_page_not_matching_secondary_board_geometry_is_not_sent(self):
+        boards = [_board("b1", "One"), _board("b2", "Small", device_type="note", port=7001)]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service(
+            {
+                "pA": {"content": "ALPHA", "device_type": "flagship"},
+                "pB": {"content": "BETA", "device_type": "flagship"},
+            }
+        )
+        schedule = _schedule_service({"b1": "pA", "b2": "pB"})
+
+        _drive(svc, boards, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_called_once()
+        clients["b2"].render.assert_not_called()
+
+    def test_skipped_mismatch_does_not_poison_the_content_cache(self):
+        """After the page is resized to fit, the next tick sends it."""
+        boards = [_board("b1", "Small", device_type="note")]
+        svc, clients = _service_with_runtimes(boards)
+        schedule = _schedule_service({"b1": "pA"})
+        mismatched = _page_service({"pA": {"content": "ALPHA", "device_type": "flagship"}})
+        fixed = _page_service({"pA": {"content": "ALPHA", "device_type": "note"}})
+
+        _drive(svc, boards, pages=mismatched, schedule=schedule)
+        _drive(svc, boards, pages=fixed, schedule=schedule)
+
+        clients["b1"].render.assert_called_once()
+        rows = clients["b1"].render.call_args.args[0]
+        assert len(rows) == 3 and len(rows[0]) == 15
+
+
+class TestSilencePageGeometryValidation:
+    """The silence page must also match its destination board (issue #1748).
+
+    ``SILENCE_SCHEDULE_PAGE_ID`` is a single global setting, but boards are
+    not all the same shape, so silence mode "page" reached the wire sized
+    from the page rather than the board — the same mismatch the normal send
+    path guards, through a different door. On mismatch we fall back to the
+    board-sized SNOOZING indicator so the board still reads as snoozing.
+    """
+
+    def test_silence_page_not_matching_board_falls_back_to_board_sized_indicator(self):
+        boards = [_board("b1", "Small", device_type="note")]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service(
+            {
+                "pA": {"content": "ALPHA", "device_type": "note"},
+                "sil": {"content": "QUIET", "device_type": "flagship"},
+            }
+        )
+        schedule = _schedule_service({"b1": "pA"})
+
+        _drive(
+            svc,
+            boards,
+            pages=pages,
+            schedule=schedule,
+            silence=True,
+            silence_mode="page",
+            silence_page_id="sil",
+        )
+
+        clients["b1"].render.assert_called_once()
+        rows = clients["b1"].render.call_args.args[0]
+        # Board-shaped (3x15 Note), not the flagship silence page's 6x22.
+        assert len(rows) == 3 and len(rows[0]) == 15
+
+    def test_matching_silence_page_is_still_sent(self):
+        """Control: a correctly shaped silence page must still reach the board."""
+        boards = [_board("b1", "Small", device_type="note")]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service(
+            {
+                "pA": {"content": "ALPHA", "device_type": "note"},
+                "sil": {"content": "QUIET", "device_type": "note"},
+            }
+        )
+        schedule = _schedule_service({"b1": "pA"})
+
+        _drive(
+            svc,
+            boards,
+            pages=pages,
+            schedule=schedule,
+            silence=True,
+            silence_mode="page",
+            silence_page_id="sil",
+        )
+
+        clients["b1"].render.assert_called_once()
+        assert svc.runtimes["b1"].last_active_page_id == "__silence_page__:sil"
+
+    def test_secondary_board_gets_indicator_when_global_silence_page_is_wrong_shape(self):
+        """The flagship silence page fits the primary but not the Note secondary."""
+        boards = [_board("b1", "One"), _board("b2", "Small", device_type="note", port=7001)]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service(
+            {
+                "pA": {"content": "ALPHA", "device_type": "flagship"},
+                "pB": {"content": "BETA", "device_type": "note"},
+                "sil": {"content": "QUIET", "device_type": "flagship"},
+            }
+        )
+        schedule = _schedule_service({"b1": "pA", "b2": "pB"})
+
+        _drive(
+            svc,
+            boards,
+            pages=pages,
+            schedule=schedule,
+            silence=True,
+            silence_mode="page",
+            silence_page_id="sil",
+        )
+
+        # Primary matches the silence page and receives it at 6x22.
+        primary_rows = clients["b1"].render.call_args.args[0]
+        assert len(primary_rows) == 6 and len(primary_rows[0]) == 22
+        assert svc.runtimes["b1"].last_active_page_id == "__silence_page__:sil"
+
+        # Secondary is a Note: indicator at 3x15, never the flagship page.
+        secondary_rows = clients["b2"].render.call_args.args[0]
+        assert len(secondary_rows) == 3 and len(secondary_rows[0]) == 15
+        assert svc.runtimes["b2"].last_active_page_id != "__silence_page__:sil"
