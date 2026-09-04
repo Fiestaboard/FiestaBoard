@@ -54,6 +54,14 @@ class BoardRuntime:
         self.last_silence_mode_active: bool = False
         self.snoozing_message_sent: bool = False
 
+        # Out-of-band content flag (issue #1831): True while the board shows
+        # content written outside the page rotation — MQTT send_message /
+        # blank_board, POST /send-message, the /debug/* endpoints. Set by those
+        # write paths and cleared when ``check_and_send_for_board`` next
+        # delivers a page, so MQTT state reflects what is actually on the board
+        # rather than the configured page.
+        self.showing_out_of_band: bool = False
+
         # Board-state read cache (populated by the poll thread / adaptive
         # refresh). Board-state polling stays primary-only (see
         # ``_board_poll_loop``), but the cache lives on the runtime so a
@@ -406,6 +414,46 @@ class DisplayService:
         rt.last_active_page_id = None
         if rt.client is not None:
             rt.client.clear_cache()
+
+    # ------------------------------------------------------------------ #
+    # Out-of-band content tracking (issue #1831)
+    # ------------------------------------------------------------------ #
+
+    def _resolve_runtime_for(self, board_id) -> BoardRuntime | None:
+        """Return the runtime for ``board_id``, resolving the primary fallback.
+
+        A ``None`` board id resolves to the primary runtime. Mirrors the
+        fallback logic in ``invalidate_board_content`` so out-of-band writes
+        that only know the primary board still find its runtime on legacy
+        installs keyed under the sentinel.
+        """
+        if board_id is None:
+            return self._primary_runtime()
+        rt = self.runtimes.get(board_id)
+        if rt is not None:
+            return rt
+        try:
+            primary_id = get_settings_service().get_primary_board_id()
+        except Exception:
+            primary_id = None
+        if board_id == primary_id:
+            return self._primary_runtime()
+        return None
+
+    def mark_out_of_band(self, board_id=None) -> None:
+        """Record that ``board_id`` now shows out-of-band (non-page) content.
+
+        Called by every write path that bypasses the page rotation so MQTT
+        state can report it instead of the configured page (issue #1831).
+        """
+        rt = self._resolve_runtime_for(board_id)
+        if rt is not None:
+            rt.showing_out_of_band = True
+
+    def is_showing_out_of_band(self, board_id=None) -> bool:
+        """Whether ``board_id`` currently shows out-of-band content."""
+        rt = self._resolve_runtime_for(board_id)
+        return bool(rt.showing_out_of_band) if rt is not None else False
 
     # ------------------------------------------------------------------ #
     # Board-state polling (primary board only; state lives on the runtime)
@@ -813,6 +861,9 @@ class DisplayService:
                 rt.last_active_page_id = active_page_id
                 rt.last_silence_mode_active = silence_mode_active
                 if was_sent:
+                    # A real page frame is now on the board — any prior
+                    # out-of-band content has been overwritten (issue #1831).
+                    rt.showing_out_of_band = False
                     logger.info(f"Board {board_id}: active page sent: {active_page_id}")
                     # Board-state adaptive refresh is primary-only (see
                     # _board_poll_loop). Secondary boards don't feed the

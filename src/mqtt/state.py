@@ -77,15 +77,25 @@ class StatePublisher:
             display_running = self._get_display_running()
             out["display_service"] = "ON" if display_running else "OFF"
 
-            # active_page, current_page: page name
-            active_id = settings.get_active_page_id()
-            page_name = "—"
-            if active_id:
-                page = page_service.get_page(active_id)
-                if page:
-                    page_name = page.name
-            out["active_page"] = page_name
-            out["current_page"] = page_name
+            # active_page, current_page: page name. When the board shows
+            # out-of-band content (MQTT send_message / blank_board, POST
+            # /send-message, /debug/*), report the synthetic option instead of
+            # the configured page so HA reflects what is actually on the board
+            # (issue #1831).
+            if self._is_showing_out_of_band():
+                from .discovery import OUT_OF_BAND_PAGE_OPTION
+
+                out["active_page"] = OUT_OF_BAND_PAGE_OPTION
+                out["current_page"] = OUT_OF_BAND_PAGE_OPTION
+            else:
+                active_id = settings.get_active_page_id()
+                page_name = "—"
+                if active_id:
+                    page = page_service.get_page(active_id)
+                    if page:
+                        page_name = page.name
+                out["active_page"] = page_name
+                out["current_page"] = page_name
 
             # transition_style
             trans = settings.get_transition_settings()
@@ -184,7 +194,10 @@ class StatePublisher:
             # current_page attributes: page_id and page_index
             active_id = settings.get_active_page_id()
             pages = page_service.list_pages()
-            page_attrs: dict = {"page_id": active_id or ""}
+            # ``out_of_band`` tells HA the board shows non-page content while
+            # ``page_id`` still names the configured page that would resume on
+            # the next rotation (issue #1831).
+            page_attrs: dict = {"page_id": active_id or "", "out_of_band": self._is_showing_out_of_band()}
             for idx, page in enumerate(pages):
                 if page.id == active_id:
                     page_attrs["page_index"] = idx
@@ -219,6 +232,24 @@ class StatePublisher:
         except Exception as e:
             logger.debug("Attributes gather error: %s", e)
         return out
+
+    @staticmethod
+    def _is_showing_out_of_band() -> bool:
+        """Whether the primary board currently shows out-of-band content (#1831).
+
+        Reads the already-created service via the module global rather than
+        ``get_service()`` so a state poll never lazily builds/initializes a
+        DisplayService as a side effect.
+        """
+        try:
+            from src import api_server
+
+            service = api_server._service
+            if service is not None and hasattr(service, "is_showing_out_of_band"):
+                return bool(service.is_showing_out_of_band())
+        except Exception:
+            logger.debug("Could not read out-of-band content state")
+        return False
 
     @staticmethod
     def _get_uptime() -> str:

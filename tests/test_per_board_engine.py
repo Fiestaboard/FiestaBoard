@@ -381,7 +381,58 @@ class TestBoardRuntime:
         assert rt.last_active_page_id is None
         assert rt.last_silence_mode_active is False
         assert rt.snoozing_message_sent is False
+        assert rt.showing_out_of_band is False
         assert rt.polled_characters is None
         assert rt.polled_at is None
         assert rt.refresh_thread is None
         assert rt.refresh_cancel is None
+
+
+class TestOutOfBandContent:
+    """Issue #1831: per-board out-of-band content tracking."""
+
+    def test_mark_and_query_out_of_band(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        assert svc.is_showing_out_of_band("b1") is False
+        svc.mark_out_of_band("b1")
+        assert svc.is_showing_out_of_band("b1") is True
+        assert svc.runtimes["b1"].showing_out_of_band is True
+
+    def test_mark_out_of_band_none_targets_primary(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        svc.mark_out_of_band()  # None -> primary
+        assert svc.runtimes["b1"].showing_out_of_band is True
+        assert svc.is_showing_out_of_band() is True
+
+    def test_delivering_a_page_clears_out_of_band(self):
+        """A real page send overwrites out-of-band content and clears the flag."""
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        svc.runtimes["b1"].showing_out_of_band = True
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+
+        _drive(svc, boards, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_called_once()
+        assert svc.runtimes["b1"].showing_out_of_band is False
+
+    def test_unchanged_page_does_not_clear_out_of_band(self):
+        """A skipped (unchanged) send leaves the out-of-band content in place."""
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+
+        # First tick delivers the page (was_sent True).
+        _drive(svc, boards, pages=pages, schedule=schedule)
+        # Now an out-of-band write lands; the rendered page is unchanged, so
+        # the next tick skips the send (returns before render) and must leave
+        # the flag set — the board still shows the out-of-band content.
+        svc.runtimes["b1"].showing_out_of_band = True
+        _drive(svc, boards, pages=pages, schedule=schedule)
+
+        assert clients["b1"].render.call_count == 1
+        assert svc.runtimes["b1"].showing_out_of_band is True

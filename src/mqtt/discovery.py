@@ -26,6 +26,13 @@ from src.mqtt.config import MQTTConfig
 # Valid entity types supported by HA MQTT Discovery
 VALID_ENTITY_TYPES = ["switch", "select", "sensor", "binary_sensor", "button", "text", "number", "event"]
 
+# Synthetic Active Page / Current Page value used when the board is showing
+# out-of-band content (MQTT send_message / blank_board, POST /send-message,
+# the /debug/* endpoints) rather than the configured page (issue #1831). It is
+# added to the active_page select's options so the reported state is always a
+# valid option, and reported as the current_page sensor value too.
+OUT_OF_BAND_PAGE_OPTION = "Other content"
+
 
 @dataclass
 class EntityDefinition:
@@ -431,9 +438,11 @@ def build_all_discovery_messages(
     messages = []
 
     for entity in ENTITY_DEFINITIONS:
-        # Inject dynamic page list into active_page entity
+        # Inject dynamic page list into active_page entity. The synthetic
+        # "out-of-band content" option is always appended so the select state
+        # stays valid whenever the board shows non-page content (issue #1831).
         if entity.object_id == "active_page" and page_names is not None:
-            entity = replace(entity, options=page_names)
+            entity = replace(entity, options=[*page_names, OUT_OF_BAND_PAGE_OPTION])
 
         topic = build_discovery_topic(config, entity)
         payload = build_discovery_payload(config, entity, device_info)

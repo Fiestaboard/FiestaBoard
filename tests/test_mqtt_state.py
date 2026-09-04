@@ -400,6 +400,125 @@ class TestStatePublisherEvents:
         assert "T" in pub._last_display_update
 
 
+class TestStatePublisherOutOfBand:
+    """Issue #1831: report out-of-band content instead of the configured page."""
+
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_out_of_band_content_reported_instead_of_page(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, mock_client
+    ):
+        from src.mqtt.discovery import OUT_OF_BAND_PAGE_OPTION
+
+        mock_config.is_silence_mode_active.return_value = False
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = "page-1"
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
+        get_settings.return_value = settings
+        page = MagicMock()
+        page.id = "page-1"
+        page.name = "Weather Dashboard"
+        page_svc = MagicMock()
+        page_svc.get_page.return_value = page
+        page_svc.list_pages.return_value = [page]
+        get_page.return_value = page_svc
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        # Board is showing out-of-band content (e.g. an MQTT send_message).
+        service = MagicMock()
+        service.is_showing_out_of_band.return_value = True
+
+        pub = StatePublisher(mock_client)
+        with patch("src.api_server._service", service):
+            pub.gather_and_publish()
+
+        calls = mock_client.publish_state.call_args_list
+        state = {c[0][0]: c[0][1] for c in calls}
+        # The bug: these reported "Weather Dashboard" while the board showed
+        # non-page content. They must now report the synthetic option.
+        assert state["active_page"] == OUT_OF_BAND_PAGE_OPTION
+        assert state["current_page"] == OUT_OF_BAND_PAGE_OPTION
+
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_configured_page_reported_when_not_out_of_band(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, mock_client
+    ):
+        mock_config.is_silence_mode_active.return_value = False
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = "page-1"
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
+        get_settings.return_value = settings
+        page = MagicMock()
+        page.id = "page-1"
+        page.name = "Weather Dashboard"
+        page_svc = MagicMock()
+        page_svc.get_page.return_value = page
+        page_svc.list_pages.return_value = [page]
+        get_page.return_value = page_svc
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        service = MagicMock()
+        service.is_showing_out_of_band.return_value = False
+
+        pub = StatePublisher(mock_client)
+        with patch("src.api_server._service", service):
+            pub.gather_and_publish()
+
+        calls = mock_client.publish_state.call_args_list
+        state = {c[0][0]: c[0][1] for c in calls}
+        assert state["active_page"] == "Weather Dashboard"
+        assert state["current_page"] == "Weather Dashboard"
+
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_out_of_band_attribute_on_current_page(
+        self, mock_config, get_settings, get_page, mock_client
+    ):
+        mock_config.is_silence_mode_active.return_value = False
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = "page-1"
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        get_settings.return_value = settings
+        page = MagicMock()
+        page.id = "page-1"
+        page.name = "Weather Dashboard"
+        page_svc = MagicMock()
+        page_svc.get_page.return_value = page
+        page_svc.list_pages.return_value = [page]
+        get_page.return_value = page_svc
+        service = MagicMock()
+        service.is_showing_out_of_band.return_value = True
+
+        pub = StatePublisher(mock_client)
+        with patch("src.api_server._service", service):
+            pub.gather_and_publish()
+
+        attrs_calls = mock_client.publish_attributes.call_args_list
+        attrs_topics = [c[0][0] for c in attrs_calls]
+        attrs = json.loads(attrs_calls[attrs_topics.index("current_page")][0][1])
+        # page_id still names the configured page that would resume.
+        assert attrs["page_id"] == "page-1"
+        assert attrs["out_of_band"] is True
+
+
 class TestStatePublisherPerBoardAttributes:
     """Issue #1244: current_page attributes include per-board active pages."""
 

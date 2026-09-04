@@ -179,6 +179,12 @@ class CommandHandler:
         page_name, board_ref = self._parse_board_payload(payload, value_keys=("page", "page_name", "name"))
         if not page_name:
             return
+        # The synthetic "out-of-band content" option is a read-only status
+        # value, not a selectable page — ignore it as a command (#1831).
+        from src.mqtt.discovery import OUT_OF_BAND_PAGE_OPTION
+
+        if page_name == OUT_OF_BAND_PAGE_OPTION:
+            return
         board_id = None
         if board_ref:
             board_id, _board = self._resolve_board(board_ref)
@@ -275,6 +281,12 @@ class CommandHandler:
         dims = self._board_dims(board if board is not None else self._resolve_board(None)[1])
         blank_array = [[0] * dims.cols for _ in range(dims.rows)]
         client.send_characters(blank_array, force=True)
+        # Board now shows out-of-band content, not the configured page (#1831).
+        from src.api_server import get_service
+
+        service = get_service()
+        if service is not None and hasattr(service, "mark_out_of_band"):
+            service.mark_out_of_band(board_id)
         self._mark_display_updated()
         self._publish_event("display_updated", "board_blanked")
 
@@ -330,6 +342,9 @@ class CommandHandler:
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
         )
+        # Board now shows out-of-band content, not the configured page (#1831).
+        if hasattr(service, "mark_out_of_band"):
+            service.mark_out_of_band(board_id)
         self._mark_display_updated()
         self._publish_event("display_updated", "message_sent")
 

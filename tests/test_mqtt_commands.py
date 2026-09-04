@@ -244,6 +244,28 @@ class TestCommandHandlerEventPublishing:
         assert args[1] == "message_sent"
         assert "timestamp" in args[2]
 
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.text_to_board.text_to_board_array")
+    @patch("src.api_server.get_service")
+    @patch("src.config.Config")
+    def test_send_message_marks_out_of_band(
+        self, mock_config, get_service, text_to_board, get_settings, handler
+    ):
+        """A plain-payload send marks the primary board as out-of-band (#1831)."""
+        mock_config.is_silence_mode_active.return_value = False
+        service = MagicMock()
+        service.vb_client = MagicMock()
+        get_service.return_value = service
+        text_to_board.return_value = [[0] * 22 for _ in range(6)]
+        settings = MagicMock()
+        settings.is_paused.return_value = False
+        settings.get_transition_settings.return_value = MagicMock(strategy="column", step_interval_ms=100, step_size=1)
+        get_settings.return_value = settings
+
+        handler.handle("send_message", "Hello World")
+
+        service.mark_out_of_band.assert_called_once_with(None)
+
 
 class TestCommandHandlerRefreshIntervalClamping:
     """Tests for refresh_interval clamping to 30-3600 bounds."""

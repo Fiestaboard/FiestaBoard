@@ -15,6 +15,7 @@ import pytest
 from src.mqtt.config import MQTTConfig
 from src.mqtt.discovery import (
     ENTITY_DEFINITIONS,
+    OUT_OF_BAND_PAGE_OPTION,
     VALID_ENTITY_TYPES,
     EntityDefinition,
     build_all_discovery_messages,
@@ -492,7 +493,9 @@ class TestBuildAllDiscoveryMessages:
                 break
 
         assert active_page_msg is not None
-        assert active_page_msg["options"] == page_names
+        # The synthetic out-of-band option is always appended so the select
+        # state stays valid when the board shows non-page content (#1831).
+        assert active_page_msg["options"] == [*page_names, OUT_OF_BAND_PAGE_OPTION]
 
     def test_sw_version_included(self, mqtt_config):
         """Software version should appear in device info."""

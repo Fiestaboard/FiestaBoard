@@ -3470,6 +3470,9 @@ async def send_message(request: MessageRequest):
         )
         if success:
             if was_sent:
+                # Board now shows out-of-band content, not the configured
+                # page — reflect that in MQTT state (issue #1831).
+                service.mark_out_of_band()
                 service.request_board_refresh()
                 return {"status": "success", "message": "Message sent successfully"}
             else:
@@ -6985,6 +6988,21 @@ def _get_board_client():
     return None
 
 
+def _mark_out_of_band(board_id=None) -> None:
+    """Record that the (primary) board now shows out-of-band content (#1831).
+
+    Best-effort: safe to call from any endpoint that writes directly to the
+    board (manual send, blank/fill/info debug) so MQTT state reports the
+    board's real content instead of the configured page. Never raises.
+    """
+    try:
+        service = get_service()
+        if service is not None and hasattr(service, "mark_out_of_band"):
+            service.mark_out_of_band(board_id)
+    except Exception as exc:
+        logger.debug("Could not mark out-of-band content: %s", exc)
+
+
 def _get_first_board_dims():
     """Return resolved dimensions for the first configured board.
 
@@ -7095,6 +7113,7 @@ async def debug_blank_board():
         success, was_sent = client.send_characters(blank_array, force=True)
 
         if success:
+            _mark_out_of_band()
             return {"status": "success", "message": "Board blanked successfully"}
         else:
             raise HTTPException(status_code=500, detail="Failed to blank board")
@@ -7139,6 +7158,7 @@ async def debug_fill_board(request: dict):
         success, was_sent = client.send_characters(fill_array, force=True)
 
         if success:
+            _mark_out_of_band()
             return {"status": "success", "message": f"Board filled with character {character_code}"}
         else:
             raise HTTPException(status_code=500, detail="Failed to fill board")
@@ -7206,6 +7226,7 @@ V{version[:7]} {timestamp}"""
         success, was_sent = client.send_characters(board_array, force=True)
 
         if success:
+            _mark_out_of_band()
             return {"status": "success", "message": "Debug info sent to board", "debug_info": debug_text}
         else:
             raise HTTPException(status_code=500, detail="Failed to send debug info")
