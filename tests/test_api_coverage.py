@@ -1027,18 +1027,35 @@ class TestSetActivePage:
 
 class TestRefreshFailureReporting:
     """POST /refresh and /force-refresh must report send failures instead of
-    unconditionally claiming success (issue #1791)."""
+    unconditionally claiming success (issue #1791).
 
-    def test_refresh_reports_primary_send_failure(self, client, mock_service):
-        mock_service.check_and_send_active_page.return_value = False
-        mock_service.get_last_send_error.return_value = "Failed to render active page: p1"
+    The reason comes back from the ``*_with_status`` call itself, never from a
+    follow-up read of ``last_send_error`` — that attribute is shared with the
+    engine thread, which can clear or overwrite it in between.
+    """
+
+    def test_refresh_reports_send_failure(self, client, mock_service):
+        mock_service.check_and_send_active_page_with_status.return_value = (
+            False,
+            "Failed to render active page: p1",
+        )
         response = client.post("/refresh")
         assert response.status_code == 500
         assert "Failed to render active page: p1" in response.json()["detail"]
 
+    def test_refresh_reports_a_secondary_boards_failure(self, client, mock_service):
+        """/refresh drives every board, so a failing secondary must not return
+        success even though the primary was fine."""
+        mock_service.check_and_send_active_page_with_status.return_value = (
+            True,
+            "board b2: Failed to send active page to board: p2",
+        )
+        response = client.post("/refresh")
+        assert response.status_code == 500
+        assert "board b2" in response.json()["detail"]
+
     def test_refresh_success_reports_sent_flag(self, client, mock_service):
-        mock_service.check_and_send_active_page.return_value = True
-        mock_service.get_last_send_error.return_value = None
+        mock_service.check_and_send_active_page_with_status.return_value = (True, None)
         response = client.post("/refresh")
         assert response.status_code == 200
         data = response.json()
@@ -1047,32 +1064,40 @@ class TestRefreshFailureReporting:
 
     def test_refresh_benign_skip_is_still_success(self, client, mock_service):
         """Not sending because nothing changed (or paused) is not a failure."""
-        mock_service.check_and_send_active_page.return_value = False
-        mock_service.get_last_send_error.return_value = None
+        mock_service.check_and_send_active_page_with_status.return_value = (False, None)
         response = client.post("/refresh")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
         assert data["sent"] is False
 
+    def test_refresh_does_not_read_last_send_error_after_the_call(self, client, mock_service):
+        """Guard against reintroducing the race: a stale/concurrent
+        ``last_send_error`` must not turn a clean pass into a 500."""
+        mock_service.check_and_send_active_page_with_status.return_value = (True, None)
+        mock_service.get_last_send_error.return_value = "engine thread failure from another tick"
+        response = client.post("/refresh")
+        assert response.status_code == 200
+        assert response.json()["sent"] is True
+
     def test_refresh_board_id_reports_that_boards_failure(self, client, mock_service, mock_settings_service):
         mock_settings_service.get_primary_board_id.return_value = "b1"
-        mock_service.check_and_send_for_board.return_value = False
-        mock_service.get_last_send_error.side_effect = lambda board_id=None: "send failed" if board_id == "b1" else None
+        mock_service.check_and_send_for_board_with_status.return_value = (False, "send failed")
         response = client.post("/refresh?board_id=b1")
         assert response.status_code == 500
         assert "send failed" in response.json()["detail"]
 
     def test_force_refresh_reports_send_failure(self, client, mock_service):
-        mock_service.check_and_send_active_page.return_value = False
-        mock_service.get_last_send_error.return_value = "Failed to send active page to board: p1"
+        mock_service.check_and_send_active_page_with_status.return_value = (
+            False,
+            "Failed to send active page to board: p1",
+        )
         response = client.post("/force-refresh")
         assert response.status_code == 500
         assert "Failed to send active page to board: p1" in response.json()["detail"]
 
     def test_force_refresh_success_reports_sent_flag(self, client, mock_service):
-        mock_service.check_and_send_active_page.return_value = True
-        mock_service.get_last_send_error.return_value = None
+        mock_service.check_and_send_active_page_with_status.return_value = (True, None)
         response = client.post("/force-refresh")
         assert response.status_code == 200
         assert response.json()["sent"] is True

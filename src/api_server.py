@@ -3209,24 +3209,29 @@ async def stop_service():
     return {"status": "stopped", "message": "Service stopped successfully"}
 
 
-def _service_send_error(service, board_id: str | None = None) -> str | None:
-    """The failure reason recorded by the service's last send attempt, or None.
+def _send_with_status(service, method: str, fallback: str, *args, **kwargs) -> tuple[bool, str | None]:
+    """Run a ``check_and_send_*`` pass and return ``(sent, failure reason)``.
 
     ``check_and_send_*`` swallow exceptions and return a bool that conflates
-    "failed" with benign skips; the recorded ``last_send_error`` is what lets
-    endpoints report real failures (issue #1791). Only a non-empty ``str``
-    counts — Mock services from older test fixtures return Mock attributes,
-    which must not read as failures (same convention as ``_board_is_paused``).
+    "failed" with benign skips, so endpoints reported silent failures as
+    success (issue #1791). The ``*_with_status`` wrappers capture the reason
+    for *this* call in a thread-local, which is why the reason must come back
+    from the call rather than be read off the runtime afterwards — the engine
+    thread rewrites ``last_send_error`` on its own cadence.
+
+    Falls back to the plain method (and no reason) when the service does not
+    expose the wrapper, so Mock services from older test fixtures still work.
+    Only a non-empty ``str`` counts as a reason, for the same Mock reason
+    (same convention as ``_board_is_paused``).
     """
-    getter = getattr(service, "get_last_send_error", None)
-    if not callable(getter):
-        return None
-    try:
-        error = getter(board_id) if board_id is not None else getter()
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.debug("Could not read last send error: %s", exc)
-        return None
-    return error if isinstance(error, str) and error else None
+    wrapper = getattr(service, method, None)
+    if callable(wrapper):
+        result = wrapper(*args, **kwargs)
+        if isinstance(result, tuple) and len(result) == 2:
+            sent, error = result
+            return sent is True, (error if isinstance(error, str) and error else None)
+    sent = getattr(service, fallback)(*args, **kwargs)
+    return sent is True, None
 
 
 @app.post("/refresh")
@@ -3247,15 +3252,18 @@ async def refresh_display(board_id: str | None = None, payload: dict | None = Bo
 
     try:
         if board_id is None:
-            sent = service.check_and_send_active_page()
-            error = _service_send_error(service)
+            # Every board is driven here, so a failing secondary must surface
+            # too — the wrapper aggregates across the whole pass (issue #1791).
+            sent, error = _send_with_status(
+                service, "check_and_send_active_page_with_status", "check_and_send_active_page"
+            )
             if error:
                 raise HTTPException(status_code=500, detail=f"Failed to refresh display: {error}")
             return {
                 "status": "success",
                 "message": "Display refreshed successfully",
                 "board_id": None,
-                "sent": sent is True,
+                "sent": sent,
             }
 
         board = _find_board(board_id)
@@ -3265,15 +3273,22 @@ async def refresh_display(board_id: str | None = None, payload: dict | None = Bo
         if rt is None:
             raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
         is_primary = board_id == get_settings_service().get_primary_board_id()
-        sent = service.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
-        error = _service_send_error(service, board_id)
+        sent, error = _send_with_status(
+            service,
+            "check_and_send_for_board_with_status",
+            "check_and_send_for_board",
+            board_id,
+            rt,
+            is_primary=is_primary,
+            board=board,
+        )
         if error:
             raise HTTPException(status_code=500, detail=f"Failed to refresh board {board_id}: {error}")
         return {
             "status": "success",
             "message": f"Board {board_id} refreshed successfully",
             "board_id": board_id,
-            "sent": sent is True,
+            "sent": sent,
         }
     except HTTPException:
         raise
@@ -9218,14 +9233,15 @@ async def force_refresh():
         client.clear_cache()
 
     try:
-        sent = service.check_and_send_active_page()
-        error = _service_send_error(service)
+        sent, error = _send_with_status(
+            service, "check_and_send_active_page_with_status", "check_and_send_active_page"
+        )
         if error:
             raise HTTPException(status_code=500, detail=f"Failed to force refresh: {error}")
         return {
             "status": "success",
             "message": "Display force-refreshed successfully",
-            "sent": sent is True,
+            "sent": sent,
         }
     except HTTPException:
         raise

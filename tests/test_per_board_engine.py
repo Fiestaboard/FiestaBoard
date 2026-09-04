@@ -14,6 +14,7 @@ each other's caches. Covers:
   - the note-array send routes through its own client at its own size
 """
 
+import threading
 from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -150,7 +151,10 @@ def _drive(
     silence=False,
     silence_mode="indicator",
     silence_page_id=None,
+    with_status=False,
 ):
+    """Run one full pass. ``with_status`` uses the wrapper the API endpoints
+    call, returning ``(sent, failure reason)`` instead of just ``sent``."""
     settings = settings if settings is not None else _settings_service(boards)
     pages = pages if pages is not None else _page_service({})
     schedule = schedule if schedule is not None else _schedule_service({})
@@ -183,6 +187,8 @@ def _drive(
             "indicator_text": "SNOOZING",
             "indicator_position": "center",
         }
+        if with_status:
+            return svc.check_and_send_active_page_with_status()
         return svc.check_and_send_active_page()
 
 
@@ -659,3 +665,84 @@ class TestSendFailureTracking:
         assert sent is False
         clients["b1"].render.assert_not_called()
         assert svc.get_last_send_error("b1") is None
+
+
+class TestSendStatusReporting:
+    """``check_and_send_active_page_with_status`` is what /refresh and
+    /force-refresh call, so it must report the failure THIS pass produced —
+    across every board, and without picking up the engine thread's writes
+    (issue #1791)."""
+
+    def test_secondary_board_failure_is_reported_by_the_aggregate_status(self):
+        """A failing secondary must not read as an unqualified success. Reading
+        only the primary runtime's error (as the endpoint used to) returned
+        None here, so /refresh reported success while board 2 went stale."""
+        boards = [_board("b1", "One"), _board("b2", "Two")]
+        svc, _clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}, "pB": {"content": "BETA"}})
+
+        def _preview(pid, force_refresh=False):
+            if pid == "pB":
+                return SimpleNamespace(available=False, formatted="", error="secondary board render failed")
+            return SimpleNamespace(available=True, formatted="ALPHA", error=None)
+
+        pages.preview_page.side_effect = _preview
+        schedule = _schedule_service({"b1": "pA", "b2": "pB"})
+
+        sent, error = _drive(svc, boards, pages=pages, schedule=schedule, with_status=True)
+
+        assert sent is True  # the primary board was driven fine
+        assert error == "board b2: secondary board render failed"
+
+    def test_primary_failure_reason_is_reported_unprefixed(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        pages.preview_page.side_effect = lambda pid, force_refresh=False: SimpleNamespace(
+            available=False, formatted="", error="plugin data unavailable"
+        )
+        schedule = _schedule_service({"b1": "pA"})
+
+        sent, error = _drive(svc, boards, pages=pages, schedule=schedule, with_status=True)
+
+        assert sent is False
+        assert error == "plugin data unavailable"
+
+    def test_status_ignores_a_concurrent_write_from_another_thread(self):
+        """``rt.last_send_error`` is shared with the engine thread, which can
+        set it between this pass returning and the endpoint reading it. The
+        status wrapper captures per-thread, so only this call's failures count.
+        """
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        rt = svc.runtimes["b1"]
+
+        def _render(*args, **kwargs):
+            # Stand-in for the engine thread ticking mid-request.
+            t = threading.Thread(target=svc._record_send_error, args=(rt, "b1", "engine tick failure"))
+            t.start()
+            t.join()
+            return (True, True)
+
+        clients["b1"].render.side_effect = _render
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+
+        sent, error = _drive(svc, boards, pages=pages, schedule=schedule, with_status=True)
+
+        assert sent is True
+        assert error is None
+        # The other thread's write did land on the shared runtime attribute —
+        # which is exactly why the endpoint must not read it back.
+        assert rt.last_send_error == "engine tick failure"
+
+    def test_successful_pass_reports_no_reason(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+
+        sent, error = _drive(svc, boards, pages=pages, schedule=schedule, with_status=True)
+
+        assert sent is True
+        assert error is None

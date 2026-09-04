@@ -884,13 +884,8 @@ class ConfigManager:
     def _apply_env_overrides(self) -> None:
         """Apply environment variable overrides to config.
 
-        An env var applies when the stored value is empty OR still the schema
-        default; a user-customized (non-default) value — e.g. set via the UI —
-        is preserved. The default-equality case matters because
-        ``_load_or_create`` merges defaults BEFORE this runs, so keys with a
-        truthy default (``board.api_mode`` = "local") are never empty and a
-        falsy-only guard made env vars like ``BOARD_API_MODE`` dead code
-        (issue #1791).
+        Only sets values if they're empty in config (allows env vars to provide defaults).
+        Environment variables take precedence for initial setup but UI changes are preserved.
         Placeholder values from .env (e.g. ``your_api_key_here``) are ignored.
         """
         changed = False
@@ -909,66 +904,51 @@ class ConfigManager:
                 self._config["features"][name] = {}
             return self._config["features"][name]
 
-        # Helper to apply string env var. ``default`` is the schema default
-        # for keys the defaults merge fills with a truthy value: a stored
-        # value still equal to it was never customized, so the env var wins.
-        def apply_str(config: dict, key: str, env_var: str, alt_env_var: str | None = None, default=None) -> bool:
+        # Helper to apply string env var
+        def apply_str(config: dict, key: str, env_var: str, alt_env_var: str | None = None) -> bool:
             value = os.getenv(env_var, "").strip()
             if not value and alt_env_var:
                 value = os.getenv(alt_env_var, "").strip()
             if value and ConfigManager._is_placeholder(value):
                 logger.debug(f"Ignoring placeholder value for {env_var}")
                 return False
-            current = config.get(key)
-            if value and (not current or current == default) and value != current:
+            if value and not config.get(key):
                 config[key] = value
                 logger.info(f"Applied {env_var} from environment variable")
                 return True
             return False
 
-        # Helper to apply int env var (same default-equality rule as apply_str)
-        def apply_int(config: dict, key: str, env_var: str, alt_env_var: str | None = None, default=None) -> bool:
+        # Helper to apply int env var
+        def apply_int(config: dict, key: str, env_var: str, alt_env_var: str | None = None) -> bool:
             value = os.getenv(env_var, "").strip()
             if not value and alt_env_var:
                 value = os.getenv(alt_env_var, "").strip()
-            current = config.get(key)
-            if value and (current is None or current == default):
+            if value and config.get(key) is None:
                 try:
-                    parsed = int(value)
-                except ValueError:
-                    logger.warning(f"Invalid {env_var} value: {value}")
-                    return False
-                if parsed != current:
-                    config[key] = parsed
+                    config[key] = int(value)
                     logger.info(f"Applied {env_var} from environment variable")
                     return True
+                except ValueError:
+                    logger.warning(f"Invalid {env_var} value: {value}")
             return False
 
-        # Helper to apply float env var (same default-equality rule as apply_str)
-        def apply_float(config: dict, key: str, env_var: str, default=None) -> bool:
+        # Helper to apply float env var
+        def apply_float(config: dict, key: str, env_var: str) -> bool:
             value = os.getenv(env_var, "").strip()
-            current = config.get(key)
-            if value and (current is None or current == default):
+            if value and config.get(key) is None:
                 try:
-                    parsed = float(value)
-                except ValueError:
-                    logger.warning(f"Invalid {env_var} value: {value}")
-                    return False
-                if parsed != current:
-                    config[key] = parsed
+                    config[key] = float(value)
                     logger.info(f"Applied {env_var} from environment variable")
                     return True
+                except ValueError:
+                    logger.warning(f"Invalid {env_var} value: {value}")
             return False
 
         board_config = self._config["board"]
         general_config = self._config["general"]
 
         # ==================== Board Configuration ====================
-        # api_mode has a truthy schema default ("local"), so its default must
-        # be passed for the env var to apply at all (see docstring / #1791).
-        changed |= apply_str(
-            board_config, "api_mode", "BOARD_API_MODE", "FB_API_MODE", default=DEFAULT_CONFIG["board"]["api_mode"]
-        )
+        changed |= apply_str(board_config, "api_mode", "BOARD_API_MODE", "FB_API_MODE")
         changed |= apply_str(board_config, "local_api_key", "BOARD_LOCAL_API_KEY", "FB_LOCAL_API_KEY")
         changed |= apply_str(board_config, "host", "BOARD_HOST", "FB_HOST")
         changed |= apply_str(board_config, "cloud_key", "BOARD_READ_WRITE_KEY", "FB_READ_WRITE_KEY")
@@ -982,17 +962,9 @@ class ConfigManager:
         )
 
         # ==================== General Configuration ====================
-        general_defaults = DEFAULT_CONFIG["general"]
-        changed |= apply_str(general_config, "timezone", "TIMEZONE", default=general_defaults["timezone"])
-        changed |= apply_int(
-            general_config,
-            "refresh_interval_seconds",
-            "REFRESH_INTERVAL_SECONDS",
-            default=general_defaults["refresh_interval_seconds"],
-        )
-        changed |= apply_str(
-            general_config, "output_target", "OUTPUT_TARGET", default=general_defaults["output_target"]
-        )
+        changed |= apply_str(general_config, "timezone", "TIMEZONE")
+        changed |= apply_int(general_config, "refresh_interval_seconds", "REFRESH_INTERVAL_SECONDS")
+        changed |= apply_str(general_config, "output_target", "OUTPUT_TARGET")
 
         # Silence schedule start/end times (enabling via env var is no longer supported;
         # use the UI or config.json to set silence_schedule.enabled)
@@ -1001,10 +973,9 @@ class ConfigManager:
 
         # ==================== Weather Feature ====================
         weather = get_feature("weather")
-        weather_defaults = DEFAULT_CONFIG["features"]["weather"]
         changed |= apply_str(weather, "api_key", "WEATHER_API_KEY")
-        changed |= apply_str(weather, "provider", "WEATHER_PROVIDER", default=weather_defaults["provider"])
-        changed |= apply_str(weather, "location", "WEATHER_LOCATION", default=weather_defaults["location"])
+        changed |= apply_str(weather, "provider", "WEATHER_PROVIDER")
+        changed |= apply_str(weather, "location", "WEATHER_LOCATION")
 
         # ==================== Guest WiFi Feature ====================
         guest_wifi = get_feature("guest_wifi")
