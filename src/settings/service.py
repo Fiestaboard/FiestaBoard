@@ -1349,6 +1349,16 @@ class SettingsService:
 
         self._board.boards = new_boards
         self._save_to_file()
+        # Drop the board's silence-schedule override too (issue #1788 review):
+        # nothing else ever removes it, so orphans accumulate in
+        # ``features.silence_schedule.by_board`` for boards that no longer
+        # exist.
+        try:
+            from src.config_manager import get_config_manager
+
+            get_config_manager().prune_silence_schedule_for_board(board_id)
+        except Exception:  # pragma: no cover - never block board removal
+            logger.warning("Could not prune silence override for %s", board_id, exc_info=True)
         logger.info(f"Removed board: {board_id}")
         return self._board
 

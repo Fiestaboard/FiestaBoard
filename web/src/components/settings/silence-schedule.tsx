@@ -39,11 +39,17 @@ export function SilenceSchedule() {
   const tc = useTranslations("common");
   const queryClient = useQueryClient();
 
-  // Silence settings are per board (issue #1788). Scope only in multi-board
-  // installs so a single-board install behaves exactly as before.
-  const { currentBoardId, currentBoard, boards } = useCurrentBoard();
-  const isMultiBoard = boards.length > 1;
-  const scopedBoardId = isMultiBoard && currentBoardId ? currentBoardId : undefined;
+  // Silence settings are per board (issue #1788), and the display engine
+  // resolves them per board on EVERY install — check_and_send_for_board() is
+  // always called with the primary board's id, never with null. So this form
+  // must always read and write the board-scoped layer too: scoping only in
+  // multi-board installs made a single-board install write the install-wide
+  // layer while the engine kept reading the board's own (migration-seeded)
+  // entry, and the entry won key by key. Silence looked off in the UI and
+  // stayed on for the board, with no feedback and no recovery short of
+  // hand-editing config.json (PR #1801 review, BLOCKER 1).
+  const { currentBoardId, currentBoard } = useCurrentBoard();
+  const scopedBoardId = currentBoardId ?? undefined;
 
   const [hasChanges, setHasChanges] = useState(false);
   const [silenceEnabled, setSilenceEnabled] = useState(false);
@@ -176,8 +182,9 @@ export function SilenceSchedule() {
         page_id: silencePageId || null,
         indicator_text: silenceIndicatorText || null,
         indicator_position: silenceIndicatorPosition || null,
-        // Multi-board installs target the selected board; single-board
-        // installs send exactly the body they always did.
+        // Always target the selected board so the layer written here is the
+        // layer the engine reads. Only an install with no board at all (the
+        // context has not resolved one yet) falls back to install-wide.
         ...(scopedBoardId ? { board_id: scopedBoardId } : {}),
       });
     }

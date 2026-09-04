@@ -7,8 +7,10 @@
 //
 // Covers:
 // - resolveSilenceConfig: per-board entry wins, unconfigured board falls back
-// - multi-board: the form seeds from the selected board's entry
-// - multi-board: PUT carries board_id; single-board: it does not (byte-identical)
+// - the form seeds from the selected board's entry
+// - PUT always carries board_id, single-board installs included: the engine
+//   resolves per board on every install, so the layer the form writes has to
+//   be the layer the engine reads (PR #1801 review, BLOCKER 1)
 // - the page picker only offers pages that fit the selected board
 // - saving invalidates the silenceStatus query key the consumers actually use
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -139,9 +141,15 @@ describe("SilenceSchedule - board scoping", () => {
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => server.resetHandlers());
 
-  it("sends no board_id on a single-board install", async () => {
-    const puts: unknown[] = [];
-    stub({ boards: [FLAGSHIP], onPut: (b) => puts.push(b) });
+  // This replaces an assertion that encoded the wrong contract
+  // (`expect(puts[0]).not.toHaveProperty("board_id")`). Omitting board_id on a
+  // single-board install writes the install-wide layer, but the engine always
+  // resolves per board (`check_and_send_for_board(primary_id, ...)`), so a
+  // seeded `by_board` entry shadowed the save key-by-key and the board kept
+  // snoozing at the old time forever.
+  it("sends the board_id on a single-board install so the save reaches the engine", async () => {
+    const puts: Array<Record<string, unknown>> = [];
+    stub({ boards: [FLAGSHIP], onPut: (b) => puts.push(b as Record<string, unknown>) });
     const user = userEvent.setup();
     const { Wrapper } = makeWrapper();
     render(<SilenceSchedule />, { wrapper: Wrapper });
@@ -151,7 +159,7 @@ describe("SilenceSchedule - board scoping", () => {
     await user.type(textInput, "ZZZZ");
 
     await waitFor(() => expect(puts.length).toBeGreaterThan(0), { timeout: 5000 });
-    expect(puts[0]).not.toHaveProperty("board_id");
+    expect(puts[0].board_id).toBe("flag-1");
   });
 
   it("sends the selected board_id on a multi-board install", async () => {
@@ -172,6 +180,22 @@ describe("SilenceSchedule - board scoping", () => {
   it("seeds the form from the selected board's own entry", async () => {
     stub({
       boards: [FLAGSHIP, NOTE],
+      silence: { by_board: { "flag-1": { indicator_text: "BEDTIME" } } },
+    });
+    const { Wrapper } = makeWrapper();
+    render(<SilenceSchedule />, { wrapper: Wrapper });
+
+    const text = await screen.findByLabelText(/message text/i);
+    await waitFor(() => expect((text as HTMLInputElement).value).toBe("BEDTIME"));
+  });
+
+  // The read half of the same bug: a single-board install that has a
+  // `by_board` entry (every upgraded install does — the seeding migration
+  // writes one) showed the install-wide values while the engine used the
+  // board entry, so the form and the board disagreed with no feedback.
+  it("seeds the form from the board's own entry on a single-board install", async () => {
+    stub({
+      boards: [FLAGSHIP],
       silence: { by_board: { "flag-1": { indicator_text: "BEDTIME" } } },
     });
     const { Wrapper } = makeWrapper();

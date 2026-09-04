@@ -4530,6 +4530,22 @@ async def update_silence_schedule(request: SilenceScheduleRequest):
         success = config_manager.set_silence_schedule_for_board(board_id, updated)
     else:
         success = config_manager.set_feature("silence_schedule", updated)
+        # The engine resolves silence per board on every install
+        # (``check_and_send_for_board(primary_id, ...)``), so an install-wide
+        # write that leaves a board-scoped copy in place is shadowed key by
+        # key: the user turns silence off, the API says 200, and the board
+        # keeps snoozing at the old time. On a single-board install there is
+        # no meaningful difference between "the install default" and "this
+        # board", so drop the override rather than let it win (issue #1788
+        # review). Multi-board installs are untouched — there the overrides
+        # are the whole point.
+        if success:
+            try:
+                boards = get_settings_service().get_board_settings().boards or []
+            except Exception:  # pragma: no cover - defensive: never fail the save
+                boards = []
+            if len(boards) == 1 and isinstance(boards[0], dict) and boards[0].get("id"):
+                config_manager.prune_silence_schedule_for_board(str(boards[0]["id"]))
     if not success:
         raise HTTPException(
             status_code=500,

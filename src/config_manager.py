@@ -1554,6 +1554,40 @@ class ConfigManager:
         logger.info("Silence schedule for board %s updated", board_id)
         return True
 
+    def prune_silence_schedule_for_board(self, board_id: str) -> bool:
+        """Drop one board's silence-schedule override (issue #1788 review).
+
+        Used in two places:
+
+        * ``SettingsService.remove_board`` — a removed board must not leave an
+          orphan entry behind. Harmless on its own (``resolve_silence_schedule``
+          falls back cleanly for an unknown id) but the orphans accumulate.
+        * The install-wide write path — see
+          ``PUT /settings/silence-schedule``. A single-board install has no
+          meaningful distinction between "the install default" and "this
+          board", so a lingering override there can only shadow the value the
+          user just saved.
+
+        Returns:
+            True if an entry was removed (and the config resaved).
+        """
+        with self._file_lock:
+            silence = self._config.get("features", {}).get("silence_schedule")
+            if not isinstance(silence, dict):
+                return False
+            by_board = silence.get("by_board")
+            if not isinstance(by_board, dict) or board_id not in by_board:
+                return False
+            by_board.pop(board_id)
+            # Keep the on-disk snapshot in step so the structural migration
+            # guard still sees this install as migrated.
+            raw = self._raw_features.get("silence_schedule")
+            if isinstance(raw, dict) and isinstance(raw.get("by_board"), dict):
+                raw["by_board"].pop(board_id, None)
+            self._save_internal()
+        logger.info("Pruned silence schedule override for board %s", board_id)
+        return True
+
     def migrate_silence_schedule_to_per_board(self) -> int:
         """Seed per-board silence overrides from the install-wide values (issue #1788).
 
@@ -1574,6 +1608,18 @@ class ConfigManager:
         Returns:
             Number of boards seeded (0 when nothing needed migrating).
         """
+        # Resolve the board list BEFORE taking the file lock. ``_file_lock`` is
+        # a plain (non-reentrant) ``threading.Lock`` and
+        # ``get_settings_service()`` constructs a ``SettingsService`` whose
+        # ``__init__`` reads ``FB_TRANSITION_STRATEGY`` ->
+        # ``Config._get_board()`` -> ``ConfigManager.get_board()``, which takes
+        # that same lock. Calling it from inside the ``with`` block deadlocks
+        # the whole process: the lock is never released, so every config read
+        # blocks forever with no exception and no timeout. Every production
+        # caller happens to warm the settings service first, which is the only
+        # reason this was latent rather than a hang on boot.
+        board_ids = self._configured_board_ids()
+
         with self._file_lock:
             stored = self._raw_features.get("silence_schedule")
             if isinstance(stored, dict) and isinstance(stored.get("by_board"), dict):
@@ -1585,7 +1631,6 @@ class ConfigManager:
                 "silence_schedule", self._deep_copy(DEFAULT_CONFIG["features"]["silence_schedule"])
             )
             legacy = {k: silence[k] for k in SILENCE_SCHEDULE_KEYS if k in silence}
-            board_ids = self._configured_board_ids()
             silence["by_board"] = {board_id: dict(legacy) for board_id in board_ids}
             # Mark the stored snapshot as migrated too, so a second call in the
             # same process short-circuits without re-reading the file.

@@ -97,8 +97,8 @@ class DisplayService:
         self.board_init_errors: dict[str, str] = {}
 
         # board_id -> silence-active, as of the last run()-loop boundary check
-        # (issue #1788). Empty on the first pass, so the first tick after boot
-        # only reports a change if some board is already silenced.
+        # (issue #1788). Empty until the first check; see _silence_baseline for
+        # what a board that is not in it yet compares against.
         self._last_silence_snapshot: dict[str, bool] = {}
 
         # Board state polling (background thread reads actual board state).
@@ -669,8 +669,8 @@ class DisplayService:
         Respects schedule mode (per board) - uses schedule-based page selection
         when that board's schedule is enabled, otherwise the board's manual
         active page. Triggers and temporary overrides are the PRIMARY board's
-        feature set (locked epic decision); silence is a global decision with
-        per-board delivery. All state reads/writes go through ``rt``.
+        feature set (locked epic decision); silence is resolved and delivered
+        per board (issue #1788). All state reads/writes go through ``rt``.
 
         Returns:
             True if content was sent to this board, False otherwise.
@@ -952,6 +952,25 @@ class DisplayService:
             logger.warning("Could not determine device type from board settings: %s", e)
         return "flagship"
 
+    def _silence_baseline(self, key: str, board_id=None) -> bool:
+        """What the boundary detector last knew about one board's silence.
+
+        Prefers the detector's own snapshot, then the board runtime's
+        ``last_silence_mode_active`` latch — the flag
+        ``check_and_send_for_board`` writes on *every* exit path, including the
+        pause short-circuit and every render failure (issue #1740). Without the
+        latch fallback, an install that boots **inside** its silence window
+        reports a boundary on the detector's very first pass and forces one
+        spurious extra update, because the initial
+        ``check_and_send_active_page()`` has already handled it.
+        """
+        if key in self._last_silence_snapshot:
+            return self._last_silence_snapshot[key]
+        # Runtimes are keyed by the raw board id, which is not always a string
+        # (the primary fallback key, or a test double).
+        rt = self.runtimes.get(board_id if board_id is not None else key)
+        return bool(rt.last_silence_mode_active) if rt is not None else False
+
     def _silence_state_changed(self) -> bool:
         """True when any board's silence state flipped since the last check.
 
@@ -959,7 +978,9 @@ class DisplayService:
         are per board (issue #1788), so watching only the primary would leave a
         secondary board's transition waiting for the next poll tick.
 
-        Records the new snapshot, so a change is reported exactly once.
+        Records the new snapshot, so a change is reported exactly once — a
+        board the drive path never touches (a disabled secondary, say) must not
+        re-trigger a forced update every second for the whole window.
         """
         snapshot: dict[str, bool] = {}
         try:
@@ -971,16 +992,15 @@ class DisplayService:
             board_ids = [self._primary_board_id]
 
         for board_id in board_ids:
+            key = str(board_id)
             try:
-                snapshot[str(board_id)] = bool(Config.is_silence_mode_active(board_id))
+                snapshot[key] = bool(Config.is_silence_mode_active(board_id))
             except Exception as e:
                 logger.debug(f"Silence boundary check failed for board {board_id}: {e}")
-                snapshot[str(board_id)] = self._last_silence_snapshot.get(str(board_id), False)
+                snapshot[key] = self._silence_baseline(key, board_id)
 
-        # A board not seen before defaults to "not silenced", matching the
-        # runtime's own initial state — so a quiet install does not report a
-        # change on its very first pass.
-        changed = any(active != self._last_silence_snapshot.get(bid, False) for bid, active in snapshot.items())
+        baselines = {str(bid): self._silence_baseline(str(bid), bid) for bid in board_ids}
+        changed = any(active != baselines[bid] for bid, active in snapshot.items())
         if changed:
             logger.debug(
                 "Silence boundary crossed (now=%s, was=%s) - forcing immediate update",

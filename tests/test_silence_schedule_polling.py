@@ -269,7 +269,10 @@ class TestSilenceBoundaryDetector:
         mocks["settings"].return_value.is_paused.return_value = True
 
         silence = {"active": False}
-        mocks["config"].is_silence_mode_active.side_effect = lambda: silence["active"]
+        # Since issue #1788 the engine resolves silence per board, so the stub
+        # has to accept the board_id the drive path and the boundary detector
+        # both pass.
+        mocks["config"].is_silence_mode_active.side_effect = lambda board_id=None: silence["active"]
 
         def _flip_at_tick_3(tick):
             if tick == 3:
