@@ -322,10 +322,21 @@ def unmask_sensitive_values(values: dict[str, Any], stored: dict[str, Any]) -> d
     through — or handing it to a plugin — replaces a working credential with
     three asterisks.
 
-    A masked key with nothing stored resolves to ``""`` rather than being
-    dropped, matching the persisted-config behaviour this was extracted from:
-    the field was explicitly submitted, so it should end up present and empty
-    rather than silently absent.
+    A masked key at a path that *does* exist in *stored* but holds nothing
+    resolves to ``""`` rather than being dropped, matching the persisted-config
+    behaviour this was extracted from: the field was explicitly submitted, so
+    it should end up present and empty rather than silently absent. That is a
+    key with no secret behind it, not a secret being erased.
+
+    Nested dicts and lists are walked too, mirroring
+    :meth:`ConfigManager._mask_sensitive`, which masks at any depth. A flat
+    un-mask left every nested secret — a plugin's ``sources[0].api_key``, say —
+    reading ``"***"`` on the way out and persisting ``"***"`` on the way back
+    in (issue #1743).
+
+    Inside a list, a secret is restored only into the element it belongs to.
+    See :func:`_match_stored_element` for how an element is identified and what
+    happens when it cannot be.
 
     Args:
         values: Incoming settings, possibly carrying masked placeholders.
@@ -334,11 +345,74 @@ def unmask_sensitive_values(values: dict[str, Any], stored: dict[str, Any]) -> d
     Returns:
         A new dict; *values* is not mutated.
     """
-    merged = dict(values)
-    for key, value in values.items():
-        if key in SENSITIVE_FIELDS and value == MASKED_VALUE:
-            merged[key] = stored.get(key, "")
-    return merged
+    return _unmask_node(values, stored)
+
+
+# Sentinel for "no stored counterpart could be identified for this node", as
+# distinct from "the stored counterpart is known and holds nothing". The first
+# means guessing; the second is an ordinary absent value.
+_UNMATCHED = object()
+
+# Fields that identify a list element across an edit, most specific first.
+IDENTITY_FIELDS = ("id", "name", "key")
+
+
+def _match_stored_element(item: Any, stored_list: list[Any]) -> Any:
+    """Return the stored element *item* is confidently the same as, or ``_UNMATCHED``.
+
+    Positional matching is not safe here: deleting, reordering, or inserting a
+    list element shifts every later index, and the secret restored into an
+    element would then be its neighbour's. A wrong-but-plausible credential is
+    worse than a visibly broken one — it fails as an auth error the user blames
+    on the provider, whereas ``"***"`` fails loudly and locally.
+
+    So an element is matched only on evidence: a unique hit on the first
+    :data:`IDENTITY_FIELDS` key it carries, or — when it carries none — a
+    unique stored element whose non-sensitive keys are all equal to its own.
+    Anything else (no candidate, several candidates, a renamed identity) is
+    ``_UNMATCHED``, and every masked field below it keeps the sentinel for the
+    schema layer to reject.
+    """
+    if not isinstance(item, dict):
+        return _UNMATCHED
+
+    candidates = [element for element in stored_list if isinstance(element, dict)]
+
+    for field in IDENTITY_FIELDS:
+        if field in item and isinstance(item[field], (str, int)) and not isinstance(item[field], bool):
+            matches = [element for element in candidates if element.get(field) == item[field]]
+            return matches[0] if len(matches) == 1 else _UNMATCHED
+
+    signature = _non_sensitive_keys(item)
+    matches = [element for element in candidates if _non_sensitive_keys(element) == signature]
+    return matches[0] if len(matches) == 1 else _UNMATCHED
+
+
+def _non_sensitive_keys(element: dict[str, Any]) -> dict[str, Any]:
+    """The part of *element* a client can echo back unchanged: everything unmasked."""
+    return {key: value for key, value in element.items() if key not in SENSITIVE_FIELDS}
+
+
+def _unmask_node(value: Any, stored: Any) -> Any:
+    """Recursive worker for :func:`unmask_sensitive_values`."""
+    if isinstance(value, dict):
+        unmatched = stored is _UNMATCHED
+        stored_dict = stored if isinstance(stored, dict) else {}
+        merged: dict[str, Any] = {}
+        for key, item in value.items():
+            if key in SENSITIVE_FIELDS and item == MASKED_VALUE:
+                # Under an unmatched element there is nothing to restore from,
+                # and "" would destroy a secret just as surely as "***" did.
+                merged[key] = MASKED_VALUE if unmatched else stored_dict.get(key, "")
+            else:
+                merged[key] = _unmask_node(item, _UNMATCHED if unmatched else stored_dict.get(key))
+        return merged
+    if isinstance(value, list):
+        if stored is _UNMATCHED:
+            return [_unmask_node(item, _UNMATCHED) for item in value]
+        stored_list = stored if isinstance(stored, list) else []
+        return [_unmask_node(item, _match_stored_element(item, stored_list)) for item in value]
+    return value
 
 
 class ConfigManager:
@@ -1451,12 +1525,13 @@ class ConfigManager:
             if plugin_id not in self._config["plugins"]:
                 self._config["plugins"][plugin_id] = {}
 
-            # Merge updates, preserving masked sensitive fields
-            for key, value in updates.items():
-                if key in SENSITIVE_FIELDS and value == "***":
-                    logger.debug(f"Preserving existing value for masked field: plugins.{plugin_id}.{key}")
-                    continue
-                self._config["plugins"][plugin_id][key] = value
+            # Merge updates, restoring masked sensitive fields from what is
+            # already stored. Shares unmask_sensitive_values with
+            # set_plugin_config: a flat top-level check here would go on
+            # persisting "***" over secrets nested in dicts and lists, which is
+            # exactly the drift that produced #1743.
+            existing = self._config["plugins"][plugin_id]
+            existing.update(unmask_sensitive_values(updates, existing))
 
             self._save_internal()
 
