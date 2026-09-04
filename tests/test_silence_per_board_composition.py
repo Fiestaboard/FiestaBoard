@@ -200,20 +200,36 @@ class TestBoardRemovalPrunesOverrides:
 
 
 class TestMigrationLockSafety:
-    def test_seeding_migration_does_not_reenter_the_config_file_lock(self, real_config):
-        """``_configured_board_ids()`` must not be called while holding ``_file_lock``.
+    def test_seeding_migration_does_not_hold_the_config_lock_across_the_board_lookup(self, real_config):
+        """``_configured_board_ids()`` must run OUTSIDE ``_file_lock``.
 
         ``get_settings_service()`` constructs a ``SettingsService`` whose
         ``__init__`` reads ``FB_TRANSITION_STRATEGY`` -> ``Config._get_board()``
-        -> ``ConfigManager.get_board()``, which takes the same non-reentrant
-        ``threading.Lock``.  Held forever, every config read in the process
-        blocks: total freeze, no exception, no timeout.
+        -> ``ConfigManager.get_board()``, which takes ``_file_lock``. Calling it
+        from inside the migration's ``with`` block self-deadlocked the whole
+        process while ``_file_lock`` was a plain ``threading.Lock``: held
+        forever, every config read blocked, no exception and no timeout.
 
-        Run on a worker thread with a join timeout so the failure is a red
-        test rather than a hung suite.
+        #1746 has since made ``_file_lock`` an ``RLock``, so the same-thread
+        re-entry no longer hangs — but that is an implementation detail of the
+        lock, not a property of this code. The invariant pinned here is the
+        durable one: the config lock is free while the settings service is
+        being built. A probe thread proves it, so this fails whether the lock
+        is reentrant or not.
         """
+        lock_was_free: dict[str, bool] = {}
 
         def _settings_service_that_reads_config():
+            # Another thread must be able to touch config while this runs.
+            def _probe():
+                acquired = real_config._file_lock.acquire(timeout=2)
+                lock_was_free["free"] = acquired
+                if acquired:
+                    real_config._file_lock.release()
+
+            probe = threading.Thread(target=_probe, daemon=True)
+            probe.start()
+            probe.join(timeout=5)
             # Exactly what SettingsService.__init__ does today.
             real_config.get_board()
             return _boards(BOARD_1)
@@ -232,11 +248,15 @@ class TestMigrationLockSafety:
 
         worker = threading.Thread(target=_run, daemon=True)
         worker.start()
-        worker.join(timeout=10)
+        worker.join(timeout=15)
 
         assert not worker.is_alive(), (
             "migrate_silence_schedule_to_per_board() deadlocked: it called "
             "get_settings_service() while holding ConfigManager._file_lock"
         )
         assert "error" not in result, result.get("error")
+        assert lock_was_free.get("free") is True, (
+            "ConfigManager._file_lock was held across get_settings_service(); "
+            "that call reads config through ConfigManager.get_board()"
+        )
         assert result["seeded"] == 1
