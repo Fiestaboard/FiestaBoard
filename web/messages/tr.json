@@ -918,6 +918,7 @@
     "disabledLabel": "Devre dışı",
     "blackAriaLabel": "Siyah",
     "whiteAriaLabel": "Beyaz",
+    "boardNameLabel": "Ad",
     "boardNamePlaceholder": "ör. Mutfak Board, Ofis Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",

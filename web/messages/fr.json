@@ -918,6 +918,7 @@
     "disabledLabel": "Désactivé",
     "blackAriaLabel": "Noir",
     "whiteAriaLabel": "Blanc",
+    "boardNameLabel": "Nom",
     "boardNamePlaceholder": "p. ex. Tableau cuisine, Note bureau",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",

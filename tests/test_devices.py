@@ -5,6 +5,7 @@ import pytest
 from src.devices import (
     DEVICE_DIMENSIONS,
     DEVICE_TYPES,
+    MAX_BOARD_NAME_LENGTH,
     MAX_NOTES_PER_AXIS,
     NOTE_ARRAY_PRESETS,
     NOTE_COLS,
@@ -1157,3 +1158,36 @@ class TestVirtualApiMode:
         """Arbitrary junk api_mode values keep falling back to local."""
         board = BoardInstance(api_mode="bogus")
         assert board.api_mode == "local"
+
+
+class TestBoardNameNormalization:
+    """``name`` is user-editable in Settings → Boards (issue #1792), so
+    ``__post_init__`` is the single place that normalizes what gets stored."""
+
+    def test_empty_name_falls_back_to_the_default(self):
+        assert BoardInstance(name="").name == "My Board"
+
+    def test_whitespace_only_name_falls_back_to_the_default(self):
+        """A whitespace-only name is truthy, so a falsy-only guard stored it
+        verbatim and the sidebar rendered a blank row."""
+        assert BoardInstance(name="   ").name == "My Board"
+
+    def test_surrounding_whitespace_is_stripped(self):
+        assert BoardInstance(name="  Kitchen Board  ").name == "Kitchen Board"
+
+    def test_overlong_name_is_capped(self):
+        """Names are shown in the sidebar, board selector and card headers;
+        an unbounded string is a layout hazard, so cap it at storage time."""
+        board = BoardInstance(name="K" * 200)
+        assert len(board.name) == MAX_BOARD_NAME_LENGTH
+        assert board.name == "K" * MAX_BOARD_NAME_LENGTH
+
+    def test_a_normal_name_is_left_alone(self):
+        assert BoardInstance(name="Kitchen Board").name == "Kitchen Board"
+
+    def test_non_string_name_falls_back_to_the_default(self):
+        assert BoardInstance(name=None).name == "My Board"
+
+    def test_from_dict_applies_the_same_normalization(self):
+        board = BoardInstance.from_dict({"device_type": "flagship", "name": "  Garage  "})
+        assert board.name == "Garage"

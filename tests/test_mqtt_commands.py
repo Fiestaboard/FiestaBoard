@@ -681,3 +681,40 @@ class TestCommandHandlerSendMessageWrapping:
         board_array = self._send(handler, get_settings, get_service, mock_config, "SUPERCALIFRAGILISTIC")
         assert _row_text(board_array[0]) == "SUPERCALIFRAGIL"
         assert _row_text(board_array[1]) == "ISTIC"
+
+
+class TestResolveBoardByName:
+    """``_resolve_board`` matches a board ref by id first, then by display name.
+
+    Board names became user-editable in Settings → Boards (issue #1792), so a
+    rename silently breaks any automation that targets a board by name. Nothing
+    can migrate those payloads for us, so resolving by name warns.
+    """
+
+    @staticmethod
+    def _settings(boards):
+        settings = MagicMock()
+        settings.get_board_settings.return_value = MagicMock(boards=boards)
+        return settings
+
+    def test_name_match_still_resolves(self):
+        boards = [{"id": "b1", "name": "Kitchen"}, {"id": "b2", "name": "Office"}]
+        with patch("src.settings.service.get_settings_service", return_value=self._settings(boards)):
+            assert CommandHandler._resolve_board("Office")[0] == "b2"
+
+    def test_name_match_warns_that_a_rename_will_break_it(self, caplog):
+        boards = [{"id": "b1", "name": "Kitchen"}]
+        with patch("src.settings.service.get_settings_service", return_value=self._settings(boards)):
+            with caplog.at_level("WARNING"):
+                CommandHandler._resolve_board("Kitchen")
+        messages = [r.getMessage() for r in caplog.records]
+        assert any("renaming this board will break it" in m for m in messages), messages
+        # The warning must name the stable id the user should switch to.
+        assert any("'b1'" in m for m in messages), messages
+
+    def test_id_match_does_not_warn(self, caplog):
+        boards = [{"id": "b1", "name": "Kitchen"}]
+        with patch("src.settings.service.get_settings_service", return_value=self._settings(boards)):
+            with caplog.at_level("WARNING"):
+                assert CommandHandler._resolve_board("b1")[0] == "b1"
+        assert caplog.records == []

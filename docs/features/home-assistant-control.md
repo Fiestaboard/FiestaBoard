@@ -430,6 +430,28 @@ FiestaBoard properly categorizes entities using Home Assistant's `entity_categor
 - Check that HA's MQTT integration is configured with the correct broker credentials
 - Check FiestaBoard logs for command processing errors
 
+### A Command Stopped Working After Renaming a Board
+
+Command payloads can target a specific board with a `board` field, which
+accepts either the board's id or its display name:
+
+```json
+{ "board": "Kitchen", "page_id": "weather" }
+```
+
+Display names are editable in **Settings → Boards**, so renaming a board
+breaks every automation that targets it by the old name — FiestaBoard cannot
+rewrite payloads that live in your Home Assistant config. When this happens
+the log records:
+
+```text
+MQTT: resolved board by name 'Kitchen'; renaming this board will break it. Target the board id 'b1' instead.
+```
+
+Target the board **id** instead. Ids never change, and they are what the
+discovery topics already use, so renaming a board never orphans its HA
+entities — only name-based `board` refs in your own automations.
+
 ## Branding
 
 ### Entity Icons

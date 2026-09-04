@@ -918,6 +918,7 @@
     "disabledLabel": "無効",
     "blackAriaLabel": "黒",
     "whiteAriaLabel": "白",
+    "boardNameLabel": "名前",
     "boardNamePlaceholder": "例: キッチンの Board、オフィスの Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",

@@ -196,7 +196,8 @@ export function StepBoardSetup({
         await api.updateBoardSettings({
           boards: [
             {
-              name: "My Board",
+              // No name: the backend fills in its default ("My Board");
+              // users rename boards in Settings → Boards (issue #1792).
               device_type: cfg.device_type,
               board_color: cfg.board_color,
               code62_glyph: cfg.code62_glyph,

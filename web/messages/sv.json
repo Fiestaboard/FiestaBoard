@@ -918,6 +918,7 @@
     "disabledLabel": "Inaktiverad",
     "blackAriaLabel": "Svart",
     "whiteAriaLabel": "Vit",
+    "boardNameLabel": "Namn",
     "boardNamePlaceholder": "t.ex. Köks-Board, Kontors-Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",

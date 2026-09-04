@@ -31,6 +31,12 @@ NOTE_ROWS: int = 3
 NOTE_COLS: int = 15
 MAX_NOTES_PER_AXIS: int = 8
 
+# Board display names are user-editable (issue #1792) and are rendered in the
+# sidebar board selector, Settings cards and page headers, so cap them at
+# storage time rather than letting every call site truncate.
+MAX_BOARD_NAME_LENGTH: int = 64
+DEFAULT_BOARD_NAME: str = "My Board"
+
 NOTE_ARRAY_PRESETS: list[dict] = [
     {"id": "2_wide", "label": "2 side-by-side", "notes_wide": 2, "notes_tall": 1},  # → 3 rows × 30 cols
     {"id": "4_wide", "label": "4 side-by-side", "notes_wide": 4, "notes_tall": 1},  # → 3 rows × 60 cols
@@ -167,8 +173,12 @@ class BoardInstance:
             self.enabled = bool(self.enabled)
         if not isinstance(self.paused, bool):
             self.paused = bool(self.paused)
+        # Name is user-editable (issue #1792): strip, cap, and fall back to
+        # the default. "   " is truthy, so a falsy-only guard stored
+        # whitespace verbatim and rendered a blank sidebar row.
+        self.name = self.name.strip()[:MAX_BOARD_NAME_LENGTH] if isinstance(self.name, str) else ""
         if not self.name:
-            self.name = "My Board"
+            self.name = DEFAULT_BOARD_NAME
         # Normalize notes_wide / notes_tall: must be positive ints (bool is a
         # subclass of int, so reject it explicitly), clamped to MAX_NOTES_PER_AXIS
         if isinstance(self.notes_wide, bool) or not isinstance(self.notes_wide, int) or self.notes_wide < 1:

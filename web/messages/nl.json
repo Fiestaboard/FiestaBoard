@@ -918,6 +918,7 @@
     "disabledLabel": "Uitgeschakeld",
     "blackAriaLabel": "Zwart",
     "whiteAriaLabel": "Wit",
+    "boardNameLabel": "Naam",
     "boardNamePlaceholder": "bijv. Keuken Board, Kantoor Note",
     "flagshipLabel": "Flagship",
     "noteLabel": "Note",
