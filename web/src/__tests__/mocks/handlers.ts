@@ -14,6 +14,7 @@ import type {
   PagesResponse,
   PluginDetailResponse,
   PreviewResponse,
+  SetTemporaryOverrideRequest,
   SilenceStatus,
   StatusResponse,
   TemplateRenderResponse,
@@ -285,9 +286,26 @@ export const requestStore: {
   lastTransitionUpdate?: Partial<TransitionSettings>;
   lastOutputUpdate?: { target: string };
   lastLiveRender?: { template: string | string[]; board_id?: string };
+  lastTemporaryOverride?: SetTemporaryOverrideRequest;
   liveRenderCallCount: number;
 } = {
   liveRenderCallCount: 0,
+};
+
+// Shared "nothing is overriding the board" payload, mirroring
+// TemporaryOverrideStatus in @/lib/api.
+const inactiveTemporaryOverride = {
+  active: false,
+  page_id: null,
+  expires_at: null,
+  remaining_seconds: null,
+  revert_mode: null,
+  revert_page_id: null,
+  template: null,
+  line_metadata: null,
+  device_type: null,
+  notes_wide: null,
+  notes_tall: null,
 };
 
 // Handlers with request validation
@@ -892,16 +910,35 @@ export const handlers = [
       page_id: "page-1",
       source: "manual",
       schedule_enabled: false,
-      temporary_override: {
-        active: false,
-        page_id: null,
-        expires_at: null,
-        remaining_seconds: null,
-        revert_mode: null,
-        revert_page_id: null,
-      },
+      temporary_override: inactiveTemporaryOverride,
       ...(url.searchParams.get("board_id") && { board_id: url.searchParams.get("board_id") }),
     });
+  }),
+
+  // Temporary override (saved-page form and inline one-off form, issue #1787)
+  http.get(`${API_BASE}/settings/temporary-override`, () => {
+    return HttpResponse.json(inactiveTemporaryOverride);
+  }),
+
+  http.post(`${API_BASE}/settings/temporary-override`, async ({ request }) => {
+    const body = (await request.json()) as SetTemporaryOverrideRequest;
+    requestStore.lastTemporaryOverride = body;
+    const durationMinutes = "duration_minutes" in body ? body.duration_minutes : undefined;
+    const expiresAt = durationMinutes ? new Date(Date.now() + durationMinutes * 60_000).toISOString() : null;
+    return HttpResponse.json({
+      ...inactiveTemporaryOverride,
+      active: true,
+      page_id: "page_id" in body ? (body.page_id ?? null) : null,
+      expires_at: expiresAt,
+      remaining_seconds: durationMinutes ? durationMinutes * 60 : null,
+      revert_mode: body.revert_mode ?? "schedule",
+      template: "template" in body ? (body.template ?? null) : null,
+      device_type: "device_type" in body ? (body.device_type ?? null) : null,
+    });
+  }),
+
+  http.delete(`${API_BASE}/settings/temporary-override`, () => {
+    return HttpResponse.json({ status: "cleared", revert_mode: "schedule" });
   }),
 
   // All settings endpoint (for general-settings)

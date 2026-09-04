@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "Modo programado desactivado",
     "collectionSizeWarning": "{count} de {total} páginas de esta colección no se ajustan al tamaño de este tablero y se omitirán.",
     "turnOffLiveModeAriaLabel": "Desactivar el modo en vivo",
-    "liveModeBadge": "Modo en vivo"
+    "liveModeBadge": "Modo en vivo",
+    "composeOneOff": "Redactar un mensaje"
   },
   "forceSetDialog": {
     "title": "Forzar pantalla",
@@ -748,6 +749,27 @@
     "setting": "Aplicando…",
     "toastSuccess": "Mostrando «{pageName}» durante {minutes} min",
     "toastError": "Error al aplicar la anulación"
+  },
+  "composeDialog": {
+    "title": "Redactar un mensaje",
+    "description": "Escribe algo y envíalo directamente al tablero. Guardarlo como página es opcional.",
+    "primaryBoardNote": "Los mensajes puntuales siempre se envían a {boardName}, tu tablero principal, no al tablero que tienes seleccionado.",
+    "messageLabel": "Mensaje",
+    "messagePlaceholder": "Escribe tu mensaje…",
+    "previewLabel": "Vista previa",
+    "tooManyLines": "Demasiadas líneas: este tablero muestra {max}.",
+    "saveAsPage": "Guardar como página",
+    "pageNameLabel": "Nombre de la página",
+    "pageNamePlaceholder": "Pon un nombre a esta página",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "send": "Enviar al tablero",
+    "sending": "Enviando…",
+    "cancel": "Cancelar",
+    "toastSent": "Enviado al tablero",
+    "toastSendError": "No se pudo enviar el mensaje",
+    "toastSaved": "Se guardó \"{pageName}\"",
+    "toastSaveError": "No se pudo guardar la página"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "No se puede conectar con la aplicación. Comprueba tu red o que FiestaBoard esté en ejecución.",

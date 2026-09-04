@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "Roostermodus uitgeschakeld",
     "collectionSizeWarning": "{count} van de {total} pagina's in deze collectie passen niet bij het formaat van dit bord en worden overgeslagen.",
     "turnOffLiveModeAriaLabel": "Live-modus uitschakelen",
-    "liveModeBadge": "Live-modus"
+    "liveModeBadge": "Live-modus",
+    "composeOneOff": "Bericht opstellen"
   },
   "forceSetDialog": {
     "title": "Board forceren",
@@ -748,6 +749,27 @@
     "setting": "Instellen…",
     "toastSuccess": "\"{pageName}\" wordt {minutes} min getoond",
     "toastError": "Override instellen mislukt"
+  },
+  "composeDialog": {
+    "title": "Bericht opstellen",
+    "description": "Typ iets en stuur het direct naar het bord. Opslaan als pagina is optioneel.",
+    "primaryBoardNote": "Eenmalige berichten gaan altijd naar {boardName}, je primaire bord — niet naar het bord dat je hebt geselecteerd.",
+    "messageLabel": "Bericht",
+    "messagePlaceholder": "Typ je bericht…",
+    "previewLabel": "Voorbeeld",
+    "tooManyLines": "Te veel regels: dit bord toont er {max}.",
+    "saveAsPage": "Opslaan als pagina",
+    "pageNameLabel": "Paginanaam",
+    "pageNamePlaceholder": "Geef deze pagina een naam",
+    "save": "Opslaan",
+    "saving": "Bezig met opslaan…",
+    "send": "Naar bord sturen",
+    "sending": "Bezig met verzenden…",
+    "cancel": "Annuleren",
+    "toastSent": "Naar het bord gestuurd",
+    "toastSendError": "Bericht verzenden mislukt",
+    "toastSaved": "\"{pageName}\" opgeslagen",
+    "toastSaveError": "Pagina opslaan mislukt"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Kan de app niet bereiken. Controleer je netwerk of of FiestaBoard draait.",

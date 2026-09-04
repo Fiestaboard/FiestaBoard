@@ -7,6 +7,8 @@ import { useTranslations } from "@/i18n/translations";
 import { cn } from "@/lib/utils";
 
 interface PlainTextEditorProps {
+  /** id on the underlying textarea, so a caller can point a <Label htmlFor> at it. */
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   onFocus?: () => void;
@@ -21,6 +23,7 @@ interface PlainTextEditorProps {
  * No line-count restrictions — a validation warning is shown when over the limit.
  */
 export function PlainTextEditor({
+  id,
   value,
   onChange,
   onFocus,
@@ -168,6 +171,7 @@ export function PlainTextEditor({
 
         {/* Textarea — border handled by wrapper above */}
         <Textarea
+          id={id}
           ref={textareaRef}
           value={value}
           onChange={handleChange}

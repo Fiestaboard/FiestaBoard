@@ -6190,34 +6190,78 @@ async def set_active_page(request: dict):
     return response
 
 
+def _temporary_override_payload(override) -> dict:
+    """Serialize a TemporaryOverride (or None) for the API.
+
+    One shape is shared by GET /settings/temporary-override, the POST response
+    and the inline block on GET /schedules/active/page, so the three can never
+    drift. ``remaining_seconds`` is None both when there is no override and
+    when the override is indefinite (issue #1787).
+    """
+    if override is None:
+        return {
+            "active": False,
+            "page_id": None,
+            "expires_at": None,
+            "remaining_seconds": None,
+            "revert_mode": None,
+            "revert_page_id": None,
+            "template": None,
+            "line_metadata": None,
+            "device_type": None,
+            "notes_wide": None,
+            "notes_tall": None,
+        }
+    remaining = override.remaining_seconds()
+    return {
+        "active": True,
+        "page_id": override.page_id,
+        "expires_at": override.expires_at,
+        "remaining_seconds": round(remaining, 1) if remaining is not None else None,
+        "revert_mode": override.revert_mode,
+        "revert_page_id": override.revert_page_id,
+        "template": override.template,
+        "line_metadata": override.line_metadata,
+        "device_type": override.device_type,
+        "notes_wide": override.notes_wide,
+        "notes_tall": override.notes_tall,
+    }
+
+
 @app.get("/settings/temporary-override")
 async def get_temporary_override():
     """Get the current temporary override status."""
     settings_service = get_settings_service()
-    override = settings_service.get_temporary_override()
-    return {
-        "active": override is not None,
-        "page_id": override.page_id if override else None,
-        "expires_at": override.expires_at if override else None,
-        "remaining_seconds": round(override.remaining_seconds(), 1) if override else None,
-        "revert_mode": override.revert_mode if override else None,
-        "revert_page_id": override.revert_page_id if override else None,
-    }
+    return _temporary_override_payload(settings_service.get_temporary_override())
 
 
 @app.post("/settings/temporary-override")
 async def set_temporary_override(request: dict):
     """
-    Activate a temporary page override for a set duration.
+    Activate a temporary override, from a saved page or from inline content.
+
+    Exactly one of ``page_id`` or ``template`` must be supplied.
 
     Body:
-      - page_id (str, required): Page to show during the override
-      - duration_minutes (int, required): How long to show it (1–480)
+      - page_id (str): Page (or collection) to show during the override
+      - template (list[str]): Inline one-off board content, never persisted as
+        a Page (issue #1787)
+      - line_metadata (list[dict], optional): Per-line alignment/wrap for the
+        inline form
+      - device_type (str, optional): Geometry the inline content was composed
+        for ("flagship" | "note" | "note_array"); defaults to flagship
+      - notes_wide / notes_tall (int, optional): note_array geometry
+      - duration_minutes (int, optional): How long to show it (1–480). Omit for
+        an indefinite override that lasts until the user cancels it.
       - revert_mode (str, optional): "schedule" | "blank" | "page" (default: "schedule")
       - revert_page_id (str, optional): Required when revert_mode is "page"
+
+    Deliberately not guarded by silence or pause: a user-initiated override is
+    meant to beat the silence schedule (issue #949).
     """
     from datetime import datetime, timedelta
 
+    from .devices import DEFAULT_DEVICE_TYPE, DEVICE_TYPES, MAX_NOTES_PER_AXIS
     from .settings.service import (
         TEMPORARY_OVERRIDE_DURATION_MAX,
         TEMPORARY_OVERRIDE_DURATION_MIN,
@@ -6229,30 +6273,78 @@ async def set_temporary_override(request: dict):
     page_service = get_page_service()
 
     page_id = request.get("page_id")
-    if not page_id:
-        raise HTTPException(status_code=422, detail="page_id is required")
+    template = request.get("template")
 
-    # Validate the page exists (collections are also valid)
-    if not is_collection_id(page_id):
-        if not page_service.get_page(page_id):
-            raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+    if page_id and template is not None:
+        raise HTTPException(status_code=422, detail="Supply either page_id or template, not both")
+    if not page_id and template is None:
+        raise HTTPException(status_code=422, detail="Either page_id or template is required")
+
+    device_type = None
+    line_metadata = None
+    notes_wide = None
+    notes_tall = None
+
+    if template is not None:
+        # --- Inline (one-off) form ---
+        if not isinstance(template, list) or not template:
+            raise HTTPException(status_code=422, detail="template must be a non-empty list of strings")
+        if not all(isinstance(line, str) for line in template):
+            raise HTTPException(status_code=422, detail="template must contain only strings")
+
+        device_type = request.get("device_type") or DEFAULT_DEVICE_TYPE
+        if device_type not in DEVICE_TYPES:
+            raise HTTPException(status_code=422, detail=f"device_type must be one of {list(DEVICE_TYPES)}")
+
+        line_metadata = request.get("line_metadata")
+        if line_metadata is not None and (
+            not isinstance(line_metadata, list) or not all(isinstance(m, dict) for m in line_metadata)
+        ):
+            raise HTTPException(status_code=422, detail="line_metadata must be a list of objects")
+
+        for key, raw in (("notes_wide", request.get("notes_wide")), ("notes_tall", request.get("notes_tall"))):
+            if raw is None:
+                continue
+            try:
+                value = int(raw)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=422, detail=f"{key} must be an integer") from None
+            if not (1 <= value <= MAX_NOTES_PER_AXIS):
+                raise HTTPException(status_code=422, detail=f"{key} must be between 1 and {MAX_NOTES_PER_AXIS}")
+            if key == "notes_wide":
+                notes_wide = value
+            else:
+                notes_tall = value
+
+        dims = resolve_dimensions(device_type, notes_wide or 1, notes_tall or 1)
+        if len(template) > dims.rows:
+            raise HTTPException(
+                status_code=422,
+                detail=f"template has {len(template)} lines but this board fits {dims.rows}",
+            )
     else:
-        collection_service = get_collection_service()
-        if not collection_service.get_collection(page_id):
-            raise HTTPException(status_code=404, detail=f"Collection not found: {page_id}")
+        # --- Saved page form (unchanged; collections are also valid) ---
+        if not is_collection_id(page_id):
+            if not page_service.get_page(page_id):
+                raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")
+        else:
+            collection_service = get_collection_service()
+            if not collection_service.get_collection(page_id):
+                raise HTTPException(status_code=404, detail=f"Collection not found: {page_id}")
 
     duration_minutes = request.get("duration_minutes")
-    if duration_minutes is None:
-        raise HTTPException(status_code=422, detail="duration_minutes is required")
-    try:
-        duration_minutes = int(duration_minutes)
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=422, detail="duration_minutes must be an integer") from None
-    if not (TEMPORARY_OVERRIDE_DURATION_MIN <= duration_minutes <= TEMPORARY_OVERRIDE_DURATION_MAX):
-        raise HTTPException(
-            status_code=422,
-            detail=f"duration_minutes must be between {TEMPORARY_OVERRIDE_DURATION_MIN} and {TEMPORARY_OVERRIDE_DURATION_MAX}",
-        )
+    expires_at = None
+    if duration_minutes is not None:
+        try:
+            duration_minutes = int(duration_minutes)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail="duration_minutes must be an integer") from None
+        if not (TEMPORARY_OVERRIDE_DURATION_MIN <= duration_minutes <= TEMPORARY_OVERRIDE_DURATION_MAX):
+            raise HTTPException(
+                status_code=422,
+                detail=f"duration_minutes must be between {TEMPORARY_OVERRIDE_DURATION_MIN} and {TEMPORARY_OVERRIDE_DURATION_MAX}",
+            )
+        expires_at = (datetime.now(UTC) + timedelta(minutes=duration_minutes)).isoformat()
 
     revert_mode = request.get("revert_mode", "schedule")
     if revert_mode not in VALID_REVERT_MODES:
@@ -6266,28 +6358,25 @@ async def set_temporary_override(request: dict):
             if not page_service.get_page(revert_page_id):
                 raise HTTPException(status_code=404, detail=f"Revert page not found: {revert_page_id}")
 
-    expires_at = (datetime.now(UTC) + timedelta(minutes=duration_minutes)).isoformat()
     override = TemporaryOverride(
-        page_id=page_id,
+        page_id=page_id or None,
         expires_at=expires_at,
         revert_mode=revert_mode,
         revert_page_id=revert_page_id,
+        template=template,
+        line_metadata=line_metadata,
+        device_type=device_type,
+        notes_wide=notes_wide,
+        notes_tall=notes_tall,
     )
     settings_service.set_temporary_override(override)
 
-    # Clear the display cache so the next poll sends the override page immediately
+    # Clear the display cache so the next poll sends the override immediately
     svc = get_service()
     if svc:
         svc._last_active_page_content = None
 
-    return {
-        "active": True,
-        "page_id": override.page_id,
-        "expires_at": override.expires_at,
-        "remaining_seconds": round(override.remaining_seconds(), 1),
-        "revert_mode": override.revert_mode,
-        "revert_page_id": override.revert_page_id,
-    }
+    return _temporary_override_payload(override)
 
 
 @app.delete("/settings/temporary-override")
@@ -8296,14 +8385,7 @@ async def get_active_schedule(board_id: str | None = None):
     # Include temporary override status so the frontend can show the countdown badge
     # without a separate API call.
     override = settings_service.get_temporary_override()
-    temporary_override_payload = {
-        "active": override is not None,
-        "page_id": override.page_id if override else None,
-        "expires_at": override.expires_at if override else None,
-        "remaining_seconds": round(override.remaining_seconds(), 1) if override else None,
-        "revert_mode": override.revert_mode if override else None,
-        "revert_page_id": override.revert_page_id if override else None,
-    }
+    temporary_override_payload = _temporary_override_payload(override)
 
     if not settings_service.is_schedule_enabled(board_id=board_id):
         manual_page_id = settings_service.get_active_page_id()

@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "일정 모드가 비활성화됨",
     "collectionSizeWarning": "이 컬렉션의 {total}개 페이지 중 {count}개가 이 보드의 크기와 맞지 않아 건너뜁니다.",
     "turnOffLiveModeAriaLabel": "실시간 모드 끄기",
-    "liveModeBadge": "실시간 모드"
+    "liveModeBadge": "실시간 모드",
+    "composeOneOff": "메시지 작성"
   },
   "forceSetDialog": {
     "title": "보드 강제 설정",
@@ -748,6 +749,27 @@
     "setting": "설정 중…",
     "toastSuccess": "\"{pageName}\"을(를) {minutes}분 동안 표시 중",
     "toastError": "재정의 설정 실패"
+  },
+  "composeDialog": {
+    "title": "메시지 작성",
+    "description": "입력한 내용을 보드로 바로 보냅니다. 페이지로 저장하는 것은 선택 사항입니다.",
+    "primaryBoardNote": "일회성 메시지는 선택한 보드가 아니라 항상 기본 보드인 {boardName}(으)로 전송됩니다.",
+    "messageLabel": "메시지",
+    "messagePlaceholder": "메시지를 입력하세요…",
+    "previewLabel": "미리 보기",
+    "tooManyLines": "줄이 너무 많습니다. 이 보드는 {max}줄까지 표시합니다.",
+    "saveAsPage": "페이지로 저장",
+    "pageNameLabel": "페이지 이름",
+    "pageNamePlaceholder": "페이지 이름을 입력하세요",
+    "save": "저장",
+    "saving": "저장 중…",
+    "send": "보드로 보내기",
+    "sending": "보내는 중…",
+    "cancel": "취소",
+    "toastSent": "보드로 보냈습니다",
+    "toastSendError": "메시지를 보내지 못했습니다",
+    "toastSaved": "\"{pageName}\"을(를) 저장했습니다",
+    "toastSaveError": "페이지를 저장하지 못했습니다"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "앱에 연결할 수 없습니다. 네트워크 또는 FiestaBoard 실행 여부를 확인하세요.",

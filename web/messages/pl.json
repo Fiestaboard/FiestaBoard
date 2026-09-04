@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "Tryb harmonogramu wyłączony",
     "collectionSizeWarning": "{count} z {total} stron w tej kolekcji nie pasuje do rozmiaru tej tablicy i zostaną pominięte.",
     "turnOffLiveModeAriaLabel": "Wyłącz tryb na żywo",
-    "liveModeBadge": "Tryb na żywo"
+    "liveModeBadge": "Tryb na żywo",
+    "composeOneOff": "Napisz wiadomość"
   },
   "forceSetDialog": {
     "title": "Wymuś ustawienie boarda",
@@ -748,6 +749,27 @@
     "setting": "Ustawianie…",
     "toastSuccess": "Wyświetlanie „{pageName}\" przez {minutes} min",
     "toastError": "Nie udało się ustawić nadpisania"
+  },
+  "composeDialog": {
+    "title": "Napisz wiadomość",
+    "description": "Wpisz treść i wyślij ją prosto na tablicę. Zapisanie jako strona jest opcjonalne.",
+    "primaryBoardNote": "Jednorazowe wiadomości zawsze trafiają na {boardName}, Twoją tablicę główną — nie na wybraną tablicę.",
+    "messageLabel": "Wiadomość",
+    "messagePlaceholder": "Wpisz swoją wiadomość…",
+    "previewLabel": "Podgląd",
+    "tooManyLines": "Za dużo wierszy: ta tablica pokazuje {max}.",
+    "saveAsPage": "Zapisz jako stronę",
+    "pageNameLabel": "Nazwa strony",
+    "pageNamePlaceholder": "Nadaj nazwę tej stronie",
+    "save": "Zapisz",
+    "saving": "Zapisywanie…",
+    "send": "Wyślij na tablicę",
+    "sending": "Wysyłanie…",
+    "cancel": "Anuluj",
+    "toastSent": "Wysłano na tablicę",
+    "toastSendError": "Nie udało się wysłać wiadomości",
+    "toastSaved": "Zapisano „{pageName}”",
+    "toastSaveError": "Nie udało się zapisać strony"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Nie można połączyć się z aplikacją. Sprawdź sieć lub czy FiestaBoard jest uruchomiony.",

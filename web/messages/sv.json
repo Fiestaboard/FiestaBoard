@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "Schemaläge inaktiverat",
     "collectionSizeWarning": "{count} av {total} sidor i den här samlingen passar inte den här tavlans storlek och hoppas över.",
     "turnOffLiveModeAriaLabel": "Stäng av liveläge",
-    "liveModeBadge": "Liveläge"
+    "liveModeBadge": "Liveläge",
+    "composeOneOff": "Skriv ett meddelande"
   },
   "forceSetDialog": {
     "title": "Tvinga inställning av board",
@@ -748,6 +749,27 @@
     "setting": "Ställer in…",
     "toastSuccess": "Visar ”{pageName}” i {minutes} min",
     "toastError": "Kunde inte sätta åsidosättning"
+  },
+  "composeDialog": {
+    "title": "Skriv ett meddelande",
+    "description": "Skriv något och skicka det direkt till tavlan. Att spara det som en sida är valfritt.",
+    "primaryBoardNote": "Engångsmeddelanden går alltid till {boardName}, din primära tavla – inte till tavlan du har valt.",
+    "messageLabel": "Meddelande",
+    "messagePlaceholder": "Skriv ditt meddelande…",
+    "previewLabel": "Förhandsvisning",
+    "tooManyLines": "För många rader: den här tavlan visar {max}.",
+    "saveAsPage": "Spara som sida",
+    "pageNameLabel": "Sidnamn",
+    "pageNamePlaceholder": "Ge sidan ett namn",
+    "save": "Spara",
+    "saving": "Sparar…",
+    "send": "Skicka till tavlan",
+    "sending": "Skickar…",
+    "cancel": "Avbryt",
+    "toastSent": "Skickat till tavlan",
+    "toastSendError": "Det gick inte att skicka meddelandet",
+    "toastSaved": "\"{pageName}\" sparades",
+    "toastSaveError": "Det gick inte att spara sidan"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Kan inte nå appen. Kontrollera nätverket eller att FiestaBoard körs.",

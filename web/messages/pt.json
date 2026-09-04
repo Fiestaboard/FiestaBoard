@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "Modo de agendamento desativado",
     "collectionSizeWarning": "{count} de {total} páginas desta coleção não se ajustam ao tamanho deste quadro e serão ignoradas.",
     "turnOffLiveModeAriaLabel": "Desativar o modo ao vivo",
-    "liveModeBadge": "Modo ao vivo"
+    "liveModeBadge": "Modo ao vivo",
+    "composeOneOff": "Escrever uma mensagem"
   },
   "forceSetDialog": {
     "title": "Forçar board",
@@ -748,6 +749,27 @@
     "setting": "A definir…",
     "toastSuccess": "A mostrar «{pageName}» durante {minutes} min",
     "toastError": "Falha ao definir substituição"
+  },
+  "composeDialog": {
+    "title": "Escrever uma mensagem",
+    "description": "Escreva algo e envie direto para o quadro. Salvar como página é opcional.",
+    "primaryBoardNote": "Mensagens avulsas vão sempre para {boardName}, o seu quadro principal — não para o quadro selecionado.",
+    "messageLabel": "Mensagem",
+    "messagePlaceholder": "Digite sua mensagem…",
+    "previewLabel": "Pré-visualização",
+    "tooManyLines": "Linhas demais: este quadro mostra {max}.",
+    "saveAsPage": "Salvar como página",
+    "pageNameLabel": "Nome da página",
+    "pageNamePlaceholder": "Dê um nome a esta página",
+    "save": "Salvar",
+    "saving": "Salvando…",
+    "send": "Enviar para o quadro",
+    "sending": "Enviando…",
+    "cancel": "Cancelar",
+    "toastSent": "Enviado para o quadro",
+    "toastSendError": "Falha ao enviar a mensagem",
+    "toastSaved": "Página \"{pageName}\" salva",
+    "toastSaveError": "Falha ao salvar a página"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "Não é possível alcançar o aplicativo. Verifique sua rede ou se o FiestaBoard está em execução.",

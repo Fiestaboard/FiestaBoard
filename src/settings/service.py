@@ -260,22 +260,57 @@ TEMPORARY_OVERRIDE_DURATION_MAX = 480
 
 @dataclass
 class TemporaryOverride:
-    """A user-initiated, time-limited page override.
+    """A user-initiated page override.
 
-    While active, the specified page is shown instead of the scheduled or
-    manual page. When it expires the revert_mode determines what happens next:
+    An override carries **exactly one** kind of content:
+
+    - ``page_id``: a saved Page (or Collection) reference, or
+    - ``template``: inline, never-persisted board content — the "one-off
+      message" of issue #1787, optionally with ``line_metadata`` and the
+      geometry it was composed for.
+
+    ``expires_at`` is optional. When it is ``None`` the override is
+    **indefinite**: it stays on the board until the user cancels it. A
+    one-off message that silently vanishes after N minutes is not what a
+    manual-mode user asks for, so the duration is opt-in.
+
+    When a *time-limited* override expires the revert_mode determines what
+    happens next:
       - "schedule": clear override, schedule resumes naturally
       - "blank": clear override, board is blanked
       - "page": clear override, active page is set to revert_page_id
     """
 
-    page_id: str
-    expires_at: str  # ISO 8601 UTC timestamp (e.g. "2026-05-16T21:30:00+00:00")
-    revert_mode: str  # "schedule" | "blank" | "page"
+    page_id: str | None = None
+    expires_at: str | None = None  # ISO 8601 UTC timestamp, or None for indefinite
+    revert_mode: str = "schedule"  # "schedule" | "blank" | "page"
     revert_page_id: str | None = None
 
+    # Inline (one-off) content — mutually exclusive with page_id
+    template: list[str] | None = None
+    line_metadata: list[dict] | None = None
+    device_type: str | None = None
+    notes_wide: int | None = None
+    notes_tall: int | None = None
+
+    def __post_init__(self) -> None:
+        has_page = bool(self.page_id)
+        has_template = bool(self.template)
+        if has_page == has_template:
+            raise ValueError("TemporaryOverride requires exactly one of page_id or template")
+
+    @property
+    def is_inline(self) -> bool:
+        """True when this override carries inline content instead of a page reference."""
+        return bool(self.template)
+
     def is_expired(self) -> bool:
-        """Return True when the override's expiry timestamp has passed."""
+        """Return True when the override's expiry timestamp has passed.
+
+        An indefinite override (``expires_at is None``) is never expired.
+        """
+        if self.expires_at is None:
+            return False
         try:
             expiry = datetime.fromisoformat(self.expires_at)
             if expiry.tzinfo is None:
@@ -284,8 +319,10 @@ class TemporaryOverride:
         except (ValueError, TypeError):
             return True
 
-    def remaining_seconds(self) -> float:
-        """Return the number of seconds remaining before expiry (0 if expired)."""
+    def remaining_seconds(self) -> float | None:
+        """Seconds remaining before expiry (0 if expired, None if indefinite)."""
+        if self.expires_at is None:
+            return None
         try:
             expiry = datetime.fromisoformat(self.expires_at)
             if expiry.tzinfo is None:
@@ -301,15 +338,25 @@ class TemporaryOverride:
             "expires_at": self.expires_at,
             "revert_mode": self.revert_mode,
             "revert_page_id": self.revert_page_id,
+            "template": self.template,
+            "line_metadata": self.line_metadata,
+            "device_type": self.device_type,
+            "notes_wide": self.notes_wide,
+            "notes_tall": self.notes_tall,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "TemporaryOverride":
         return cls(
-            page_id=data["page_id"],
-            expires_at=data["expires_at"],
+            page_id=data.get("page_id"),
+            expires_at=data.get("expires_at"),
             revert_mode=data.get("revert_mode", "schedule"),
             revert_page_id=data.get("revert_page_id"),
+            template=data.get("template"),
+            line_metadata=data.get("line_metadata"),
+            device_type=data.get("device_type"),
+            notes_wide=data.get("notes_wide"),
+            notes_tall=data.get("notes_tall"),
         )
 
 
@@ -534,7 +581,7 @@ class MQTTSettings:
 # pre-migration file is written to ``settings.json.v{N}_backup`` before the
 # first migration runs.
 
-CURRENT_SETTINGS_SCHEMA_VERSION = 1
+CURRENT_SETTINGS_SCHEMA_VERSION = 2
 
 _LEGACY_CAROUSEL_PREFIX = "carousel:"
 _COLLECTION_PREFIX = "collection:"
@@ -637,8 +684,34 @@ def _migrate_v0_to_v1(data: dict) -> int:
     return changes
 
 
+_INLINE_OVERRIDE_KEYS = ("template", "line_metadata", "device_type", "notes_wide", "notes_tall")
+
+
+def _migrate_v1_to_v2(data: dict) -> int:
+    """Migration 1 -> 2 (idempotent; operates on the raw settings dict).
+
+    ``temporary_override`` gained the inline one-off fields of issue #1787
+    (``template`` / ``line_metadata`` / ``device_type`` / note-array geometry).
+    A stored v1 override predates them, so stamp them as explicit nulls: the
+    persisted shape then matches what ``TemporaryOverride.to_dict`` writes and
+    a v1 file no longer round-trips into a different shape on first save.
+
+    Returns 1 when an override was backfilled, 0 otherwise (so re-running is a
+    no-op).
+    """
+    override = data.get("temporary_override")
+    if not isinstance(override, dict):
+        return 0
+    if all(key in override for key in _INLINE_OVERRIDE_KEYS):
+        return 0
+    for key in _INLINE_OVERRIDE_KEYS:
+        override.setdefault(key, None)
+    return 1
+
+
 MIGRATIONS: list[tuple[int, Callable[[dict], int]]] = [
     (1, _migrate_v0_to_v1),
+    (2, _migrate_v1_to_v2),
 ]
 
 
@@ -1583,9 +1656,9 @@ class SettingsService:
         self._temporary_override = override
         self._save_to_file()
         logger.info(
-            "Temporary override set: page=%s expires=%s revert=%s",
-            override.page_id,
-            override.expires_at,
+            "Temporary override set: %s expires=%s revert=%s",
+            "inline one-off" if override.is_inline else f"page={override.page_id}",
+            override.expires_at or "never",
             override.revert_mode,
         )
         return override

@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "Zeitplan-Modus deaktiviert",
     "collectionSizeWarning": "{count} von {total} Seiten in dieser Sammlung passen nicht zur Größe dieses Boards und werden übersprungen.",
     "turnOffLiveModeAriaLabel": "Live-Modus deaktivieren",
-    "liveModeBadge": "Live-Modus"
+    "liveModeBadge": "Live-Modus",
+    "composeOneOff": "Nachricht verfassen"
   },
   "forceSetDialog": {
     "title": "Board erzwingen",
@@ -748,6 +749,27 @@
     "setting": "Stelle ein…",
     "toastSuccess": "Zeige „{pageName}\" für {minutes} Min.",
     "toastError": "Übersteuerung konnte nicht gesetzt werden"
+  },
+  "composeDialog": {
+    "title": "Nachricht verfassen",
+    "description": "Schreibe etwas und sende es direkt an die Tafel. Das Speichern als Seite ist optional.",
+    "primaryBoardNote": "Einmalige Nachrichten gehen immer an {boardName}, deine Hauptanzeigetafel – nicht an die ausgewählte Tafel.",
+    "messageLabel": "Nachricht",
+    "messagePlaceholder": "Nachricht eingeben …",
+    "previewLabel": "Vorschau",
+    "tooManyLines": "Zu viele Zeilen: Diese Tafel zeigt {max}.",
+    "saveAsPage": "Als Seite speichern",
+    "pageNameLabel": "Seitenname",
+    "pageNamePlaceholder": "Seite benennen",
+    "save": "Speichern",
+    "saving": "Wird gespeichert …",
+    "send": "An Tafel senden",
+    "sending": "Wird gesendet …",
+    "cancel": "Abbrechen",
+    "toastSent": "An die Tafel gesendet",
+    "toastSendError": "Nachricht konnte nicht gesendet werden",
+    "toastSaved": "„{pageName}“ gespeichert",
+    "toastSaveError": "Seite konnte nicht gespeichert werden"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "App nicht erreichbar. Netzwerk prüfen oder prüfen, ob FiestaBoard läuft.",

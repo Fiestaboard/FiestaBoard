@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "スケジュールモードを無効化しました",
     "collectionSizeWarning": "このコレクションの{total}ページ中{count}ページがこのボードのサイズに合わないため、スキップされます。",
     "turnOffLiveModeAriaLabel": "ライブモードをオフにする",
-    "liveModeBadge": "ライブモード"
+    "liveModeBadge": "ライブモード",
+    "composeOneOff": "メッセージを作成"
   },
   "forceSetDialog": {
     "title": "ボードを強制設定",
@@ -748,6 +749,27 @@
     "setting": "設定中…",
     "toastSuccess": "「{pageName}」を {minutes} 分間表示しています",
     "toastError": "オーバーライドの設定に失敗"
+  },
+  "composeDialog": {
+    "title": "メッセージを作成",
+    "description": "入力した内容をそのままボードへ送信します。ページとして保存するかどうかは自由です。",
+    "primaryBoardNote": "単発メッセージは常にプライマリーボードの {boardName} に送信されます。選択中のボードではありません。",
+    "messageLabel": "メッセージ",
+    "messagePlaceholder": "メッセージを入力…",
+    "previewLabel": "プレビュー",
+    "tooManyLines": "行数が多すぎます。このボードは {max} 行まで表示できます。",
+    "saveAsPage": "ページとして保存",
+    "pageNameLabel": "ページ名",
+    "pageNamePlaceholder": "ページ名を入力",
+    "save": "保存",
+    "saving": "保存中…",
+    "send": "ボードに送信",
+    "sending": "送信中…",
+    "cancel": "キャンセル",
+    "toastSent": "ボードに送信しました",
+    "toastSendError": "メッセージを送信できませんでした",
+    "toastSaved": "「{pageName}」を保存しました",
+    "toastSaveError": "ページを保存できませんでした"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "アプリに接続できません。ネットワークまたは FiestaBoard の起動を確認してください。",

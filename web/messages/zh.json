@@ -735,7 +735,8 @@
     "changeModeDisableSuccess": "计划模式已禁用",
     "collectionSizeWarning": "此合集中的 {total} 个页面中有 {count} 个不适合此板的尺寸，将被跳过。",
     "turnOffLiveModeAriaLabel": "关闭实时模式",
-    "liveModeBadge": "实时模式"
+    "liveModeBadge": "实时模式",
+    "composeOneOff": "撰写消息"
   },
   "forceSetDialog": {
     "title": "强制设置 Board",
@@ -748,6 +749,27 @@
     "setting": "设置中…",
     "toastSuccess": "显示 \"{pageName}\" 共 {minutes} 分钟",
     "toastError": "设置覆盖失败"
+  },
+  "composeDialog": {
+    "title": "撰写消息",
+    "description": "输入内容并直接发送到看板。是否保存为页面由你决定。",
+    "primaryBoardNote": "一次性消息始终发送到主看板 {boardName}，而不是你当前选中的看板。",
+    "messageLabel": "消息",
+    "messagePlaceholder": "输入你的消息…",
+    "previewLabel": "预览",
+    "tooManyLines": "行数过多：此看板最多显示 {max} 行。",
+    "saveAsPage": "保存为页面",
+    "pageNameLabel": "页面名称",
+    "pageNamePlaceholder": "为该页面命名",
+    "save": "保存",
+    "saving": "正在保存…",
+    "send": "发送到看板",
+    "sending": "正在发送…",
+    "cancel": "取消",
+    "toastSent": "已发送到看板",
+    "toastSendError": "消息发送失败",
+    "toastSaved": "已保存“{pageName}”",
+    "toastSaveError": "页面保存失败"
   },
   "serviceStatus": {
     "disconnectedAriaLabel": "无法连接应用。请检查网络或 FiestaBoard 是否在运行。",

@@ -36,6 +36,7 @@ import {
   Loader2,
   Moon,
   Pause,
+  PencilLine,
   Radio,
   Timer,
   UploadCloud,
@@ -44,6 +45,7 @@ import {
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { ComposePageDialog } from "@/components/compose-page-dialog";
 import { useCurrentBoard } from "@/components/current-board-context";
 import { ForceSetDialog } from "@/components/force-set-dialog";
 import { PageGridSelector } from "@/components/page-grid-selector";
@@ -82,6 +84,11 @@ export function ActivePageDisplay() {
   const scopedBoardId = isMultiBoard && currentBoardId ? currentBoardId : undefined;
   // Live board polling (and Live Output) only track the primary board.
   const isPrimaryBoard = !scopedBoardId || scopedBoardId === boards[0]?.id;
+  // One-off messages always drive the primary board (issue #1787), so the
+  // compose surface is sized to it and says so when that isn't the board the
+  // sidebar has selected.
+  const composeTargetBoard = boards[0];
+  const composeTargetsAnotherBoard = isMultiBoard && !!composeTargetBoard && currentBoardId !== composeTargetBoard.id;
 
   // Sheet open state
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -96,6 +103,8 @@ export function ActivePageDisplay() {
   const [forceSetPageId, setForceSetPageId] = useState<string | null>(null);
   // Schedule mode choice dialog (shown before page selector when schedule is active)
   const [changeModeOpen, setChangeModeOpen] = useState(false);
+  // One-off compose dialog (issue #1787)
+  const [composeOpen, setComposeOpen] = useState(false);
   // When true, the page selector treats selection as manual (after disabling schedule)
   const [openSheetAsManual, setOpenSheetAsManual] = useState(false);
 
@@ -731,6 +740,24 @@ export function ActivePageDisplay() {
           <SheetHeader>
             <SheetTitle>{t("selectPageTitle")}</SheetTitle>
             <SheetDescription>{t("selectPageDescription")}</SheetDescription>
+            {/* The one-off escape hatch (issue #1787). It lives in the sheet
+                header rather than the change-mode dialog because the sheet is
+                reachable in both schedule and manual mode, while the dialog
+                only appears in schedule mode. */}
+            <Flex justify="start" className="pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  setIsSheetOpen(false);
+                  setComposeOpen(true);
+                }}
+              >
+                <PencilLine className="h-4 w-4" />
+                {t("composeOneOff")}
+              </Button>
+            </Flex>
           </SheetHeader>
 
           <Box className="mt-6">
@@ -759,6 +786,29 @@ export function ActivePageDisplay() {
           </Box>
         </SheetContent>
       </Sheet>
+
+      {/* Compose a one-off message and send it without saving it (issue #1787).
+
+          Sized to the PRIMARY board, not the selected one: the temporary
+          override store is primary-only ("triggers and temporary overrides are
+          the PRIMARY board's feature set", src/main.py), so this is the board
+          the message actually lands on. Sizing the surface to `currentBoard`
+          would preview a 15x3 Note and then send to a 22x6 Flagship — the
+          preview would be lying about its own destination. When those differ,
+          `targetBoardName` makes the dialog say where the message is going. */}
+      <ComposePageDialog
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        deviceType={composeTargetBoard?.device_type ?? getEffectiveDeviceType(boardSettings)}
+        notesWide={composeTargetBoard?.notes_wide ?? 1}
+        notesTall={composeTargetBoard?.notes_tall ?? 1}
+        boardColor={composeTargetBoard?.board_color ?? getEffectiveBoardColor(boardSettings)}
+        code62Glyph={resolveCode62Glyph(
+          composeTargetBoard?.device_type ?? getEffectiveDeviceType(boardSettings),
+          composeTargetBoard?.code62_glyph ?? getEffectiveCode62Glyph(boardSettings),
+        )}
+        targetBoardName={composeTargetsAnotherBoard ? composeTargetBoard?.name : undefined}
+      />
 
       {/* Force Set dialog — opened when user picks a page while in schedule mode */}
       <ForceSetDialog

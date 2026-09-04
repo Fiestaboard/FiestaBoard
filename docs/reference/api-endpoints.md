@@ -104,6 +104,37 @@ When creating or updating a page, the following fields are available:
 | `PUT` | `/settings/output` | Update output target |
 | `GET` | `/settings/board` | Get board configuration |
 | `PUT` | `/settings/board` | Update board configuration |
+| `GET` | `/settings/temporary-override` | Get the current temporary override |
+| `POST` | `/settings/temporary-override` | Show a saved page — or one-off content — until it expires or is cancelled |
+| `DELETE` | `/settings/temporary-override` | Cancel the override and apply its revert mode |
+
+### Temporary Override
+
+A temporary override puts something on the board ahead of whatever the
+schedule or manual active page would show. It carries **exactly one** of:
+
+- `page_id` — a saved page or collection, or
+- `template` — one-off content that is never saved as a page.
+
+A user-initiated override deliberately beats the silence schedule, so these
+endpoints are not blocked while a board is snoozing.
+
+#### `POST /settings/temporary-override` — request body fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `page_id` | string | Saved page or collection to show. Mutually exclusive with `template` |
+| `template` | string[] | One-off board lines, never persisted as a page. Mutually exclusive with `page_id` |
+| `line_metadata` | object[] | Per-line `{ alignment, wrap }` for the `template` form |
+| `device_type` | string | Geometry the one-off was composed for: `"flagship"`, `"note"`, or `"note_array"` (default `"flagship"`) |
+| `notes_wide` / `notes_tall` | number | Note-array grid dimensions for the `template` form |
+| `duration_minutes` | number | 1–480. **Omit for an indefinite override** that lasts until it is cancelled |
+| `revert_mode` | string | `"schedule"` (default), `"blank"`, or `"page"` — what happens when a timed override expires |
+| `revert_page_id` | string | Required when `revert_mode` is `"page"` |
+
+`remaining_seconds` is `null` in the response both when no override is active
+and when the active override is indefinite. The same override block is
+embedded in `GET /schedules/active/page` so the dashboard needs no extra call.
 
 ### Board Management
 
