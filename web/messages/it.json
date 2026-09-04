@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "Impossibile impostare la pagina predefinita",
     "toastSwitchSuccess": "Passato alla pagina attiva",
     "toastSwitchFailed": "Impossibile cambiare pagina",
+    "toastSwitchNotSent": "Pagina cambiata, ma invio alla bacheca non riuscito",
     "updatedExternally": "Il board è stato modificato da un'altra app",
     "resendToBoard": "Ripristina",
     "toastResendSuccess": "Board ripristinato",

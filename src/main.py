@@ -4,6 +4,7 @@ import logging
 import signal
 import threading
 import time
+from contextlib import contextmanager
 
 import schedule
 
@@ -81,6 +82,13 @@ class BoardRuntime:
         self.last_silence_mode_active: bool = False
         self.snoozing_message_sent: bool = False
 
+        # Why the most recent check_and_send_for_board pass failed for this
+        # board, or None when it succeeded or skipped benignly (paused,
+        # silence, unchanged content, no active page). Lets API endpoints
+        # report real send failures instead of silently claiming success
+        # (issue #1791).
+        self.last_send_error: str | None = None
+
         # Board-state read cache (populated by the poll thread / adaptive
         # refresh). Board-state polling stays primary-only (see
         # ``_board_poll_loop``), but the cache lives on the runtime so a
@@ -130,6 +138,15 @@ class DisplayService:
 
         # Board state polling (background thread reads actual board state).
         self._poll_thread: threading.Thread | None = None
+
+        # Per-thread capture of send failures for the pass currently running
+        # on THIS thread. ``rt.last_send_error`` is shared state that the
+        # engine thread rewrites on its own cadence, so an API endpoint that
+        # read it after ``check_and_send_*`` returned could see the engine's
+        # value instead of its own (issue #1791). The ``*_with_status``
+        # wrappers below read this instead, so a caller only ever sees the
+        # failures its own call produced.
+        self._send_capture = threading.local()
 
     # ------------------------------------------------------------------ #
     # Primary-runtime resolution + back-compat property shims
@@ -200,6 +217,75 @@ class DisplayService:
     def get_runtime(self, board_id) -> BoardRuntime | None:
         """Return the runtime for a board id, or None."""
         return self.runtimes.get(board_id)
+
+    def get_last_send_error(self, board_id=None) -> str | None:
+        """Failure reason for a board's most recent active-page send attempt.
+
+        None means the last ``check_and_send_for_board`` pass either sent
+        successfully or skipped benignly (paused, silence, unchanged content,
+        no active page). ``board_id`` omitted → the primary board.
+
+        This is shared state the engine thread also writes; callers that need
+        the reason for *their own* send should use the ``*_with_status``
+        wrappers instead of reading this after the fact.
+        """
+        rt = self.runtimes.get(board_id) if board_id is not None else self._primary_runtime()
+        return rt.last_send_error if rt is not None else None
+
+    def _record_send_error(self, rt: BoardRuntime, board_id, message: str) -> None:
+        """Record a send failure on the runtime and in this thread's capture."""
+        rt.last_send_error = message
+        errors = getattr(self._send_capture, "errors", None)
+        if errors is not None:
+            errors.append((board_id, message))
+
+    @contextmanager
+    def _capture_send_errors(self):
+        """Collect send failures recorded on this thread for the enclosed pass.
+
+        Nesting is a no-op for the inner block: the outermost capture owns the
+        list so ``check_and_send_active_page_with_status`` still sees failures
+        raised while driving secondary boards.
+        """
+        if getattr(self._send_capture, "errors", None) is not None:
+            yield None
+            return
+        errors: list[tuple] = []
+        self._send_capture.errors = errors
+        try:
+            yield errors
+        finally:
+            self._send_capture.errors = None
+
+    def check_and_send_for_board_with_status(
+        self, board_id, rt: BoardRuntime, *, is_primary: bool, board: dict | None = None
+    ) -> tuple[bool, str | None]:
+        """``check_and_send_for_board`` plus the reason THIS call failed.
+
+        Reading ``rt.last_send_error`` after the call returns races the engine
+        thread, which can clear or overwrite it in between and so produce a
+        false success or a spurious 500 (issue #1791).
+        """
+        with self._capture_send_errors() as errors:
+            sent = self.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
+            reason = errors[0][1] if errors else None
+        return sent, reason
+
+    def check_and_send_active_page_with_status(self) -> tuple[bool, str | None]:
+        """``check_and_send_active_page`` plus the first failure across ALL boards.
+
+        The pass drives the primary board and then every secondary; a failing
+        secondary must not read as an unqualified success, so the reason is
+        prefixed with the board id when it came from a non-primary board.
+        """
+        primary_id = self._get_first_board_id()
+        with self._capture_send_errors() as errors:
+            sent = self.check_and_send_active_page()
+            reason = None
+            if errors:
+                failed_board_id, message = errors[0]
+                reason = message if failed_board_id == primary_id else f"board {failed_board_id}: {message}"
+        return sent, reason
 
     # -- State shims aliasing the primary runtime (read + write). --------- #
 
@@ -706,6 +792,7 @@ class DisplayService:
             try:
                 self.check_and_send_for_board(board_id, rt, is_primary=False, board=board)
             except Exception as e:  # partial-failure isolation
+                self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
                 logger.error(f"Board {board_id}: update failed: {e}")
 
     def check_and_send_for_board(
@@ -723,6 +810,10 @@ class DisplayService:
             True if content was sent to this board, False otherwise.
         """
         try:
+            # Each pass starts clean: a benign skip must not leave a stale
+            # failure reason behind (issue #1791).
+            rt.last_send_error = None
+
             settings_service = get_settings_service()
             page_service = get_page_service()
             schedule_service = get_schedule_service()
@@ -878,6 +969,8 @@ class DisplayService:
                 page = inline_page
                 result = page_service.render_page(inline_page)
                 if not result or not result.available:
+                    render_error = getattr(result, "error", None) if result else None
+                    self._record_send_error(rt, board_id, render_error or "Failed to render one-off override content")
                     logger.warning("Failed to render one-off override content")
                     return False
             else:
@@ -901,6 +994,10 @@ class DisplayService:
                 # so template variables (weather, time, stocks, etc.) are current.
                 result = page_service.preview_page(active_page_id, force_refresh=True)
                 if not result or not result.available:
+                    render_error = getattr(result, "error", None) if result else None
+                    self._record_send_error(
+                        rt, board_id, render_error or f"Failed to render active page: {active_page_id}"
+                    )
                     logger.warning(f"Failed to render active page: {active_page_id}")
                     return False
 
@@ -966,6 +1063,7 @@ class DisplayService:
             logger.info(f"Board {board_id}: active page content changed, sending: {active_page_id}")
 
             if not rt.client:
+                self._record_send_error(rt, board_id, "Board client not initialized")
                 logger.warning("Board client not initialized")
                 return False
 
@@ -1008,10 +1106,12 @@ class DisplayService:
                 else:
                     logger.debug("Active page unchanged at board level")
                 return was_sent
+            self._record_send_error(rt, board_id, f"Failed to send active page to board: {active_page_id}")
             logger.error(f"Board {board_id}: failed to send active page: {active_page_id}")
             return False
 
         except Exception as e:
+            self._record_send_error(rt, board_id, str(e) or e.__class__.__name__)
             logger.error(f"Error checking active page for board {board_id}: {e}")
             return False
 

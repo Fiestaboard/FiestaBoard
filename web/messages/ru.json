@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "Не удалось установить страницу по умолчанию",
     "toastSwitchSuccess": "Переключено на активную страницу",
     "toastSwitchFailed": "Не удалось переключить страницу",
+    "toastSwitchNotSent": "Страница переключена, но не удалось отправить на доску",
     "updatedExternally": "Board был изменён другим приложением",
     "resendToBoard": "Восстановить",
     "toastResendSuccess": "Board восстановлен",

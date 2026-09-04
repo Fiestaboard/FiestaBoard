@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "Standaardpagina instellen mislukt",
     "toastSwitchSuccess": "Gewisseld naar actieve pagina",
     "toastSwitchFailed": "Pagina wisselen mislukt",
+    "toastSwitchNotSent": "Pagina gewisseld, maar verzenden naar bord mislukt",
     "updatedExternally": "Board is gewijzigd door een andere app",
     "resendToBoard": "Herstellen",
     "toastResendSuccess": "Board hersteld",

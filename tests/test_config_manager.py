@@ -329,6 +329,62 @@ def test_apply_env_overrides_does_not_override_existing_note_array_token(monkeyp
     assert cm.get_board()["note_array_token"] == "ui-stored-token"
 
 
+def test_apply_env_overrides_preserves_user_customized_api_mode(monkeypatch, tmp_path):
+    """A non-default api_mode stored in config (set via the wizard/UI) is not
+    clobbered by an env var — UI changes are preserved."""
+    monkeypatch.setenv("BOARD_API_MODE", "local")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {"api_mode": "cloud"}, "features": {}, "general": {}}))
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_board()["api_mode"] == "cloud"
+
+
+def test_apply_env_overrides_preserves_user_chosen_value_equal_to_default(monkeypatch, tmp_path):
+    """A stored value that happens to equal the schema default is still the
+    user's choice and must not be replaced by an env var.
+
+    ``_apply_env_overrides`` cannot distinguish "user deliberately selected
+    the default" from "never configured", so it must never override a
+    present value. ``board.api_mode`` defaults to "local"; a user who picks
+    Local API in Settings or the setup wizard stores exactly that string,
+    and ``BOARD_API_MODE=cloud`` in the compose-loaded ``.env`` must not
+    silently flip it back.
+    """
+    monkeypatch.setenv("BOARD_API_MODE", "cloud")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {"api_mode": "local"}, "features": {}, "general": {}}))
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_board()["api_mode"] == "local"
+
+
+def test_reload_does_not_revert_user_saved_board_api_mode(monkeypatch, tmp_path):
+    """``PUT /config/board`` calls ``Config.reload()`` inline, which re-runs
+    ``_apply_env_overrides``. A just-saved default-equal value must survive
+    that round-trip instead of reverting inside the same request.
+    """
+    monkeypatch.setenv("BOARD_API_MODE", "cloud")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {"api_mode": "cloud"}, "features": {}, "general": {}}))
+    cm = ConfigManager(config_path=str(config_path))
+
+    cm.set_board({"api_mode": "local"})
+    assert cm.get_board()["api_mode"] == "local"
+
+    cm.reload()
+    assert cm.get_board()["api_mode"] == "local"
+
+
+def test_apply_env_overrides_preserves_user_chosen_default_timezone(monkeypatch, tmp_path):
+    """The same rule for ``general.timezone``, which feeds schedule rotations
+    and sunrise/sunset: a stored value equal to the default is not replaced.
+    """
+    monkeypatch.setenv("TIMEZONE", "Europe/Berlin")
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"board": {}, "features": {}, "general": {"timezone": "America/Los_Angeles"}}))
+    cm = ConfigManager(config_path=str(config_path))
+    assert cm.get_general()["timezone"] == "America/Los_Angeles"
+
+
 def test_apply_env_overrides_invalid_int_value(monkeypatch, tmp_path):
     """Handles invalid int env var values."""
     monkeypatch.setenv("BOARD_TRANSITION_INTERVAL_MS", "not_a_number")

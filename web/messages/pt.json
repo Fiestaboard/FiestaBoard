@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "Falha ao definir página padrão",
     "toastSwitchSuccess": "Página ativa alterada",
     "toastSwitchFailed": "Falha ao trocar de página",
+    "toastSwitchNotSent": "Página trocada, mas falha ao enviar para o painel",
     "updatedExternally": "O board foi alterado por outra aplicação",
     "resendToBoard": "Restaurar",
     "toastResendSuccess": "Board restaurado",

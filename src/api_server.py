@@ -3209,6 +3209,31 @@ async def stop_service():
     return {"status": "stopped", "message": "Service stopped successfully"}
 
 
+def _send_with_status(service, method: str, fallback: str, *args, **kwargs) -> tuple[bool, str | None]:
+    """Run a ``check_and_send_*`` pass and return ``(sent, failure reason)``.
+
+    ``check_and_send_*`` swallow exceptions and return a bool that conflates
+    "failed" with benign skips, so endpoints reported silent failures as
+    success (issue #1791). The ``*_with_status`` wrappers capture the reason
+    for *this* call in a thread-local, which is why the reason must come back
+    from the call rather than be read off the runtime afterwards — the engine
+    thread rewrites ``last_send_error`` on its own cadence.
+
+    Falls back to the plain method (and no reason) when the service does not
+    expose the wrapper, so Mock services from older test fixtures still work.
+    Only a non-empty ``str`` counts as a reason, for the same Mock reason
+    (same convention as ``_board_is_paused``).
+    """
+    wrapper = getattr(service, method, None)
+    if callable(wrapper):
+        result = wrapper(*args, **kwargs)
+        if isinstance(result, tuple) and len(result) == 2:
+            sent, error = result
+            return sent is True, (error if isinstance(error, str) and error else None)
+    sent = getattr(service, fallback)(*args, **kwargs)
+    return sent is True, None
+
+
 @app.post("/refresh")
 async def refresh_display(board_id: str | None = None, payload: dict | None = Body(None)):
     """Manually trigger a display refresh.
@@ -3227,8 +3252,19 @@ async def refresh_display(board_id: str | None = None, payload: dict | None = Bo
 
     try:
         if board_id is None:
-            service.check_and_send_active_page()
-            return {"status": "success", "message": "Display refreshed successfully", "board_id": None}
+            # Every board is driven here, so a failing secondary must surface
+            # too — the wrapper aggregates across the whole pass (issue #1791).
+            sent, error = _send_with_status(
+                service, "check_and_send_active_page_with_status", "check_and_send_active_page"
+            )
+            if error:
+                raise HTTPException(status_code=500, detail=f"Failed to refresh display: {error}")
+            return {
+                "status": "success",
+                "message": "Display refreshed successfully",
+                "board_id": None,
+                "sent": sent,
+            }
 
         board = _find_board(board_id)
         if board is None:
@@ -3237,8 +3273,23 @@ async def refresh_display(board_id: str | None = None, payload: dict | None = Bo
         if rt is None:
             raise HTTPException(status_code=503, detail=f"Board client not initialized: {board_id}")
         is_primary = board_id == get_settings_service().get_primary_board_id()
-        service.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
-        return {"status": "success", "message": f"Board {board_id} refreshed successfully", "board_id": board_id}
+        sent, error = _send_with_status(
+            service,
+            "check_and_send_for_board_with_status",
+            "check_and_send_for_board",
+            board_id,
+            rt,
+            is_primary=is_primary,
+            board=board,
+        )
+        if error:
+            raise HTTPException(status_code=500, detail=f"Failed to refresh board {board_id}: {error}")
+        return {
+            "status": "success",
+            "message": f"Board {board_id} refreshed successfully",
+            "board_id": board_id,
+            "sent": sent,
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -6171,6 +6222,11 @@ async def set_active_page(request: dict):
       legacy behavior (issue #1244).
 
     When a page is set, it will be immediately rendered and sent to the board.
+
+    Response: ``sent_to_board`` reports whether content actually reached the
+    board, and ``error`` carries the render/send failure reason (null when the
+    send succeeded or was skipped benignly — paused board, UI-only output,
+    unchanged content). The page selection itself is persisted either way.
     """
     settings_service = get_settings_service()
     page_service = get_page_service()
@@ -6234,9 +6290,12 @@ async def set_active_page(request: dict):
     if service:
         send_client = service.get_board_client(board_id) if board_id is not None else service.vb_client
 
-    # Immediately send to board if a page is set
+    # Immediately send to board if a page is set. The page selection is
+    # persisted either way; a failed render/send is a partial failure that
+    # must be reported, not silently swallowed (issue #1791).
     sent_to_board = False
     paused = False
+    send_error: str | None = None
     if render_page_id and page and send_client and settings_service.should_send_to_board():
         # Skip immediate send when the board is paused (issue #970). The
         # active-page selection is still persisted so it takes effect when
@@ -6274,17 +6333,28 @@ async def set_active_page(request: dict):
                 )
                 sent_to_board = was_sent
                 if not success:
+                    send_error = f"Failed to send page to board: {page_id}"
                     logger.warning(f"Failed to send active page to board: {page_id}")
                 elif was_sent and (board_id is None or board_id == settings_service.get_primary_board_id()):
                     # Adaptive post-send refresh polls the primary board only.
                     service.request_board_refresh()
+            else:
+                # A network/plugin failure surfaces here as an unavailable
+                # render — report it instead of skipping silently (#1791).
+                render_error = getattr(result, "error", None) if result else None
+                send_error = render_error or f"Failed to render page: {render_page_id}"
+                logger.warning(f"Active page set but render unavailable, not sent: {render_page_id}")
 
+    # status stays "success" (the page selection itself was persisted); a
+    # render/send problem is reported via error + sent_to_board=False, the
+    # same partial-failure contract page-builder already consumes.
     response = {
         "status": "success",
         "page_id": page_id,
         "sent_to_board": sent_to_board,
         "paused": paused,
         "board_id": board_id,
+        "error": send_error,
     }
     if compat_warnings:
         response["warnings"] = compat_warnings
@@ -7195,6 +7265,47 @@ def _get_board_client():
     return None
 
 
+def _primary_board_entry() -> dict | None:
+    """First entry of the settings.boards store, or None when it is empty.
+
+    Safe to call from any endpoint — never raises (mirrors
+    ``_get_first_board_dims``).
+    """
+    try:
+        boards = get_settings_service().get_board_settings().boards or []
+        if isinstance(boards, list) and boards and isinstance(boards[0], dict):
+            return boards[0]
+    except Exception as exc:
+        logger.debug("Could not read boards list: %s", exc)
+    return None
+
+
+def _primary_connection_info() -> tuple[str, str]:
+    """Return ``(connection_mode, board_host)`` for the primary board.
+
+    Reads the boards[] store — the source the live clients are built from
+    and what Settings → Boards displays — then falls back to the live
+    primary client, and only then to legacy ``Config`` (config.json), which
+    only the setup wizard writes and therefore goes stale as soon as the
+    board is edited in Settings (issue #1791).
+    """
+    board = _primary_board_entry()
+    if board is not None:
+        mode = board.get("api_mode") or "local"
+        host = board.get("host") or ""
+        return (mode.lower() if isinstance(mode, str) else "local", host if isinstance(host, str) else "")
+
+    client = _get_board_client()
+    if client is not None:
+        # Strict-True guard so Mock clients from older test fixtures don't
+        # read as cloud (same convention as _board_is_paused).
+        mode = "cloud" if getattr(client, "use_cloud", False) is True else "local"
+        host = getattr(client, "host", "")
+        return mode, host if isinstance(host, str) else ""
+
+    return (Config.BOARD_API_MODE or "local").lower(), Config.BOARD_HOST or ""
+
+
 def _get_first_board_dims():
     """Return resolved dimensions for the first configured board.
 
@@ -7388,12 +7499,14 @@ async def debug_show_info():
     settings_service = get_settings_service()
     send_to_board = settings_service.should_send_to_board()
 
-    # Gather system info
-    board_ip = Config.BOARD_HOST or "not set"
+    # Gather system info. Mode/IP come from the boards[] store / live client,
+    # not wizard-era config.json (issue #1791).
+    connection_mode, board_ip = _primary_connection_info()
+    board_ip = board_ip or "not set"
+    connection_mode = connection_mode.upper()
     server_ip = _get_server_ip()
     uptime = _get_service_uptime()
     uptime_str = _format_uptime(uptime)
-    connection_mode = Config.BOARD_API_MODE.upper()
     version = __version__
 
     # Get current timestamp
@@ -7504,12 +7617,13 @@ async def debug_get_cache_status():
 @app.get("/debug/system-info")
 async def debug_get_system_info():
     """Get system information without sending to board."""
-    # Gather all system info
-    board_ip = Config.BOARD_HOST or ""
+    # Gather all system info. Connection mode and board IP come from the
+    # boards[] store / live client — the values the send path actually uses —
+    # not from wizard-era config.json (issue #1791).
+    connection_mode, board_ip = _primary_connection_info()
     server_ip = _get_server_ip()
     uptime_seconds = _get_service_uptime()
     uptime_formatted = _format_uptime(uptime_seconds)
-    connection_mode = Config.BOARD_API_MODE
     version = __version__
 
     # Get current timestamp
@@ -7522,14 +7636,24 @@ async def debug_get_system_info():
     client = _get_board_client()
     cache_status = client.get_cache_status() if client else None
 
-    # Check if board is configured
-    board_configured = bool(
-        board_ip
-        and (
-            (connection_mode == "local" and Config.BOARD_LOCAL_API_KEY)
-            or (connection_mode == "cloud" and Config.BOARD_READ_WRITE_KEY)
+    # Check if board is configured: for a boards[] entry the client factory is
+    # the authority on "has a usable connection"; legacy Config installs keep
+    # the old credential check.
+    board = _primary_board_entry()
+    if board is not None:
+        try:
+            board_configured = board_client_from_board_dict(board) is not None
+        except Exception as exc:
+            logger.debug("Could not evaluate board connection config: %s", exc)
+            board_configured = False
+    else:
+        board_configured = bool(
+            board_ip
+            and (
+                (connection_mode == "local" and Config.BOARD_LOCAL_API_KEY)
+                or (connection_mode == "cloud" and Config.BOARD_READ_WRITE_KEY)
+            )
         )
-    )
 
     return {
         "board_ip": board_ip,
@@ -7553,11 +7677,22 @@ async def debug_network_diagnostics():
     """
     from .network_diagnostics import run_full_diagnostics
 
-    board_host = Config.BOARD_HOST or None
-    board_port = 7000
-    board_api_key = Config.BOARD_LOCAL_API_KEY or None
-    use_cloud = (Config.BOARD_API_MODE or "local").lower() == "cloud"
-    cloud_key = Config.BOARD_READ_WRITE_KEY or None
+    # Diagnose the connection the send path actually uses: the boards[] store
+    # first, legacy Config (wizard-era config.json) only when no board is
+    # configured there (issue #1791).
+    board = _primary_board_entry()
+    if board is not None:
+        board_host = board.get("host") or None
+        board_port = board.get("port") or 7000
+        board_api_key = board.get("local_api_key") or None
+        use_cloud = (board.get("api_mode") or "local").lower() == "cloud"
+        cloud_key = board.get("cloud_key") or None
+    else:
+        board_host = Config.BOARD_HOST or None
+        board_port = 7000
+        board_api_key = Config.BOARD_LOCAL_API_KEY or None
+        use_cloud = (Config.BOARD_API_MODE or "local").lower() == "cloud"
+        cloud_key = Config.BOARD_READ_WRITE_KEY or None
 
     try:
         results = run_full_diagnostics(
@@ -9098,8 +9233,18 @@ async def force_refresh():
         client.clear_cache()
 
     try:
-        service.check_and_send_active_page()
-        return {"status": "success", "message": "Display force-refreshed successfully"}
+        sent, error = _send_with_status(
+            service, "check_and_send_active_page_with_status", "check_and_send_active_page"
+        )
+        if error:
+            raise HTTPException(status_code=500, detail=f"Failed to force refresh: {error}")
+        return {
+            "status": "success",
+            "message": "Display force-refreshed successfully",
+            "sent": sent,
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error force-refreshing display: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to force refresh: {str(e)}") from e

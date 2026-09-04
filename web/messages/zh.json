@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "设置默认页面失败",
     "toastSwitchSuccess": "已切换到活跃页面",
     "toastSwitchFailed": "切换页面失败",
+    "toastSwitchNotSent": "页面已切换，但发送到看板失败",
     "updatedExternally": "Board 已被另一个应用更改",
     "resendToBoard": "恢复",
     "toastResendSuccess": "Board 已恢复",

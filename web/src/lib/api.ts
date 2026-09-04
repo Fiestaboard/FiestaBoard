@@ -293,7 +293,12 @@ export interface SetActivePageResponse {
   status: string;
   page_id: string | null;
   sent_to_board: boolean;
+  paused?: boolean;
   board_id?: string | null;
+  // Render/send failure reason when the page was persisted but never reached
+  // the board (issue #1791). Null/absent when the send succeeded or was
+  // skipped benignly (paused board, UI-only output, unchanged content).
+  error?: string | null;
 }
 
 // Page types

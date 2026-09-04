@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "Varsayılan sayfa ayarlanamadı",
     "toastSwitchSuccess": "Aktif sayfaya geçildi",
     "toastSwitchFailed": "Sayfa değiştirilemedi",
+    "toastSwitchNotSent": "Sayfa değiştirildi ancak panoya gönderilemedi",
     "updatedExternally": "Board başka bir uygulama tarafından değiştirildi",
     "resendToBoard": "Geri Yükle",
     "toastResendSuccess": "Board geri yüklendi",

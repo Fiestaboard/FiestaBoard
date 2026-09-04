@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "Standardseite konnte nicht festgelegt werden",
     "toastSwitchSuccess": "Zur aktiven Seite gewechselt",
     "toastSwitchFailed": "Seitenwechsel fehlgeschlagen",
+    "toastSwitchNotSent": "Seite gewechselt, aber Senden an das Board fehlgeschlagen",
     "updatedExternally": "Board wurde von einer anderen App geändert",
     "resendToBoard": "Wiederherstellen",
     "toastResendSuccess": "Board wiederhergestellt",

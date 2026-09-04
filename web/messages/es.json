@@ -718,6 +718,7 @@
     "toastSetDefaultFailed": "Error al establecer la página predeterminada",
     "toastSwitchSuccess": "Se cambió a la página activa",
     "toastSwitchFailed": "Error al cambiar la página",
+    "toastSwitchNotSent": "Página cambiada, pero falló el envío al tablero",
     "updatedExternally": "La pantalla fue cambiada por otra aplicación",
     "resendToBoard": "Restaurar",
     "toastResendSuccess": "Pantalla restaurada",

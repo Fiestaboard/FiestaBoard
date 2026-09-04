@@ -674,6 +674,7 @@
     "toastSetDefaultFailed": "Failed to set default page",
     "toastSwitchSuccess": "Switched to active page",
     "toastSwitchFailed": "Failed to switch page",
+    "toastSwitchNotSent": "Page switched, but sending to the board failed",
     "updatedExternally": "Board was changed by another app",
     "resendToBoard": "Restore",
     "toastResendSuccess": "Board restored",
