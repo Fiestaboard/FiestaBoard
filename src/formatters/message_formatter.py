@@ -11,6 +11,7 @@ Use them as decorative indicators followed by a space, e.g., "{green} SSID: netw
 import logging
 
 from src.board_chars import get_weather_symbol
+from src.text_to_board import count_tiles, take_tiles
 
 logger = logging.getLogger(__name__)
 
@@ -357,41 +358,69 @@ class MessageFormatter:
 
     def split_into_lines(self, text: str, max_lines: int = MAX_ROWS) -> list[str]:
         """
-        Split text into lines, respecting max length.
+        Split text into lines that each fit the board width.
+
+        Width is measured in *flaps*, not characters: a colour marker such as
+        ``{red}`` writes five characters but occupies one tile, and a closing
+        tag such as ``{/green}`` occupies none. Measuring characters wrapped
+        text that actually fit and wasted the rest of the row (issue #1793).
+
+        A word wider than the board is hard-broken across rows rather than
+        left to be truncated at the column limit downstream, and a
+        whitespace-only line still yields the (blank) row it asked for.
 
         Args:
             text: Text to split
             max_lines: Maximum number of lines
 
         Returns:
-            List of lines (each at most self._cols characters)
+            List of lines (each at most self._cols tiles wide)
         """
-        lines = text.split("\n")
-        result = []
+        result: list[str] = []
 
-        for line in lines[:max_lines]:
-            # If line is too long, try to split on spaces
-            if len(line) > self._cols:
-                words = line.split()
-                current_line = ""
-
-                for word in words:
-                    if len(current_line) + len(word) + 1 <= self._cols:
-                        if current_line:
-                            current_line += " " + word
-                        else:
-                            current_line = word
-                    else:
-                        if current_line:
-                            result.append(current_line)
-                        current_line = word
-
-                if current_line:
-                    result.append(current_line)
-            else:
+        for line in text.split("\n")[:max_lines]:
+            if count_tiles(line) <= self._cols:
                 result.append(line)
+            else:
+                result.extend(self._wrap_line(line))
 
         return result[:max_lines]
+
+    def _wrap_line(self, line: str) -> list[str]:
+        """Greedy word-wrap one over-wide line into board-width rows."""
+        words = line.split()
+        if not words:
+            # Whitespace-only line: keep the blank row instead of returning
+            # nothing and silently shifting everything below it up.
+            return [""]
+
+        wrapped: list[str] = []
+        current = ""
+        current_tiles = 0
+
+        for word in words:
+            word_tiles = count_tiles(word)
+            if current and current_tiles + 1 + word_tiles <= self._cols:
+                current = f"{current} {word}"
+                current_tiles += 1 + word_tiles
+                continue
+            if current:
+                wrapped.append(current)
+                current, current_tiles = "", 0
+            # A single word wider than the board flows onto further rows
+            # instead of vanishing past the column limit.
+            while word_tiles > self._cols:
+                head, word = take_tiles(word, self._cols)
+                if not head:  # defensive: never loop forever on a 0-wide board
+                    break
+                wrapped.append(head)
+                word_tiles = count_tiles(word)
+            if word:
+                current, current_tiles = word, word_tiles
+
+        if current:
+            wrapped.append(current)
+        return wrapped
 
     def format_muni(self, muni_data: dict) -> str:
         """

@@ -167,11 +167,28 @@ class MQTTClient:
             page_names = [p.name for p in pages]
         except Exception:
             logger.debug("Could not retrieve page names for MQTT discovery")
+        max_message_length = None
+        try:
+            from src.devices import resolve_dimensions
+            from src.settings.service import get_settings_service
+
+            boards = get_settings_service().get_board_settings().boards or []
+            primary = next((b for b in boards if isinstance(b, dict) and b.get("id")), None)
+            if primary:
+                dims = resolve_dimensions(
+                    primary.get("device_type") or "flagship",
+                    primary.get("notes_wide") or 1,
+                    primary.get("notes_tall") or 1,
+                )
+                max_message_length = dims.rows * dims.cols
+        except Exception:
+            logger.debug("Could not resolve board capacity for MQTT discovery")
         messages = build_all_discovery_messages(
             self.config,
             sw_version=sw_version,
             configuration_url=configuration_url,
             page_names=page_names or [],
+            max_message_length=max_message_length,
         )
         for msg in messages:
             self._client.publish(

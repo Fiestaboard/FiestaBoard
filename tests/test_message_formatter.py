@@ -7,6 +7,7 @@ MessageFormatter contains pure formatting logic that is highly testable
 import pytest
 
 from src.formatters.message_formatter import MessageFormatter, get_message_formatter
+from src.text_to_board import count_tiles
 
 
 @pytest.fixture
@@ -212,6 +213,50 @@ class TestSplitIntoLines:
     def test_empty_string(self, fmt):
         lines = fmt.split_into_lines("")
         assert lines == [""]
+
+
+class TestSplitIntoLinesTileWidth:
+    """Width is measured in flaps, not characters (issue #1793 review)."""
+
+    def test_colour_marker_costs_one_tile_not_five_characters(self):
+        fmt = MessageFormatter(rows=3, cols=15)
+        # 18 characters, 14 tiles — fits one Note row.
+        assert fmt.split_into_lines("{red} TACO TUESDAY") == ["{red} TACO TUESDAY"]
+
+    def test_closing_tag_costs_no_tiles(self):
+        fmt = MessageFormatter(rows=3, cols=15)
+        assert fmt.split_into_lines("{green}HI{/green} TACO TUESDAY") == [
+            "{green}HI{/green} TACO",
+            "TUESDAY",
+        ]
+
+
+class TestSplitIntoLinesLongWords:
+    """A word wider than the board is broken across rows, not cut off."""
+
+    def test_over_long_word_is_hard_broken(self):
+        fmt = MessageFormatter(rows=6, cols=22)
+        assert fmt.split_into_lines("SEE HTTPS://EXAMPLE.COM/VERYLONGPATH") == [
+            "SEE",
+            "HTTPS://EXAMPLE.COM/VE",
+            "RYLONGPATH",
+        ]
+
+    def test_hard_break_does_not_split_a_colour_marker(self):
+        fmt = MessageFormatter(rows=6, cols=22)
+        assert fmt.split_into_lines("A" * 21 + "{red}" + "B" * 4) == ["A" * 21 + "{red}", "B" * 4]
+
+    def test_every_returned_line_fits_the_board(self):
+        fmt = MessageFormatter(rows=6, cols=22)
+        for line in fmt.split_into_lines("X" * 100):
+            assert count_tiles(line) <= 22
+
+
+class TestSplitIntoLinesWhitespaceOnly:
+    def test_long_whitespace_line_still_yields_a_row(self):
+        fmt = MessageFormatter(rows=6, cols=22)
+        # Used to return [] and silently eat the row (issue #1793 review).
+        assert fmt.split_into_lines("TOP\n" + " " * 40 + "\nBOTTOM") == ["TOP", "", "BOTTOM"]
 
 
 # ---------------------------------------------------------------------------

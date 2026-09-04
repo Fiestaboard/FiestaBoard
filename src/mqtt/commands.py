@@ -93,20 +93,33 @@ class CommandHandler:
         ``value_keys`` — e.g. ``{"message": "HI", "board": "Kitchen"}``.
         """
         text = payload or ""
-        if text.startswith("{") and text.endswith("}"):
-            try:
-                data = json.loads(text)
-            except ValueError:
-                return text, None
-            if isinstance(data, dict):
-                board_ref = data.get("board_id") or data.get("board")
-                value = ""
-                for key in value_keys:
-                    if data.get(key) not in (None, ""):
-                        value = str(data[key])
-                        break
-                return value, (str(board_ref) if board_ref not in (None, "") else None)
-        return text, None
+        data = CommandHandler._json_object(text)
+        if data is None:
+            return text, None
+        board_ref = data.get("board_id") or data.get("board")
+        value = ""
+        for key in value_keys:
+            if data.get(key) not in (None, ""):
+                value = str(data[key])
+                break
+        return value, (str(board_ref) if board_ref not in (None, "") else None)
+
+    @staticmethod
+    def _json_object(payload: str) -> dict | None:
+        """Parse *payload* as a JSON object, or ``None`` for a plain string.
+
+        Handlers use the ``None`` case to tell the legacy plain-string format
+        (what Home Assistant's single-line text entity publishes) from a
+        structured JSON payload, which can carry a real newline of its own.
+        """
+        text = payload or ""
+        if not (text.startswith("{") and text.endswith("}")):
+            return None
+        try:
+            data = json.loads(text)
+        except ValueError:
+            return None
+        return data if isinstance(data, dict) else None
 
     @staticmethod
     def _resolve_board(board_ref: str | None) -> tuple[str | None, dict | None]:
@@ -298,7 +311,7 @@ class CommandHandler:
             logger.info("MQTT send_message blocked by silence mode")
             return
         from src.api_server import get_service
-        from src.text_to_board import text_to_board_array
+        from src.text_to_board import text_to_board_array, wrap_message_text
 
         service = get_service()
         if not service or (board_id is None and not service.vb_client):
@@ -319,11 +332,23 @@ class CommandHandler:
             logger.info("MQTT send_message blocked: board is paused")
             return
         transition = settings.get_transition_settings()
-        if board is not None:
-            dims = self._board_dims(board)
-            board_array = text_to_board_array(message, rows=dims.rows, cols=dims.cols)
-        else:
-            board_array = text_to_board_array(message)
+        # Grid sized to the target board (issue #1793): the named board when
+        # given, else the primary board, else the flagship 6x22 default.
+        # Plain-string payloads (what HA's text entity sends) used to fall
+        # back to 6x22 even on a Note, so columns 16+ went nowhere.
+        dims = self._board_dims(board if board is not None else self._resolve_board(None)[1])
+        # Word-wrap to the board width instead of truncating everything past
+        # the first row. Only the legacy plain-string payload gets the literal
+        # "\n" line-break escape: that is the single-line HA text entity that
+        # cannot type a real newline, whereas a JSON payload can carry one, so
+        # confining the substitution keeps backslashes intact everywhere else.
+        wrapped = wrap_message_text(
+            message,
+            rows=dims.rows,
+            cols=dims.cols,
+            unescape_newlines=self._json_object(payload) is None,
+        )
+        board_array = text_to_board_array(wrapped, rows=dims.rows, cols=dims.cols)
         client.send_characters(
             board_array,
             strategy=transition.strategy,

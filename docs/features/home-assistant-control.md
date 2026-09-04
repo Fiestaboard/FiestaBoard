@@ -106,6 +106,22 @@ Once connected, FiestaBoard appears as a device with **24 entities** — control
 | **Previous Page** | Button | Navigate to the previous page in the page list (wraps around) |
 | **Refresh Interval** | Number | Set how often the board refreshes (30–3600 seconds). *Categorized as config.* |
 
+**Send Message formatting:** text longer than the board width word-wraps onto
+the following rows automatically, sized to your board's real geometry (6 rows ×
+22 columns on Flagship, 3 × 15 on Note). Width is counted in flaps, so a colour
+marker like `{red}` costs one tile, not five characters. A word wider than the
+board is split across rows rather than cut off. Lines beyond the board's row
+count are dropped.
+
+The text entity is single-line, so to force a line break type the literal
+two-character sequence `\n` where you want the break (e.g. `TACO\nTUESDAY`) —
+wrapping still fills within those breaks. If your text needs a real backslash
+before an `n`, double it: `C:\\new` renders as `C:\new`. Any other backslash
+(`C:\temp`) is left alone. This escape applies only to the plain-string
+payload the text entity publishes; a JSON payload such as
+`{"message": "TACO\nTUESDAY", "board": "Kitchen"}` can carry a real newline and
+is never rewritten.
+
 ### Sensors (read-only status from FiestaBoard)
 
 | Entity | Type | Description |

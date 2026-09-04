@@ -537,3 +537,147 @@ class TestCommandHandlerPerBoardRouting:
         handler.handle("active_page", "Weather")
 
         settings.set_active_page_id.assert_called_once_with("page-weather-id")
+
+
+def _row_text(row):
+    """Decode a board row of character codes back to letters/spaces."""
+    return "".join(chr(ord("A") + code - 1) if 1 <= code <= 26 else " " for code in row).rstrip()
+
+
+class TestCommandHandlerSendMessageWrapping:
+    """Issue #1793: send_message must use the target board's real geometry
+    and word-wrap long text instead of running off the first row."""
+
+    @staticmethod
+    def _settings_with_note_primary():
+        settings = MagicMock()
+        board_settings = MagicMock()
+        board_settings.boards = [
+            {"id": "b1", "name": "Desk", "device_type": "note", "notes_wide": 1, "notes_tall": 1},
+        ]
+        settings.get_board_settings.return_value = board_settings
+        settings.get_primary_board_id.return_value = "b1"
+        settings.should_send_to_board.return_value = True
+        settings.is_paused.return_value = False
+        settings.get_transition_settings.return_value = MagicMock(strategy="column", step_interval_ms=100, step_size=1)
+        return settings
+
+    def _send(self, handler, get_settings, get_service, mock_config, payload):
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_note_primary()
+        service = MagicMock()
+        get_service.return_value = service
+        handler.handle("send_message", payload)
+        service.vb_client.send_characters.assert_called_once()
+        return service.vb_client.send_characters.call_args[0][0]
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_plain_payload_sized_to_primary_note_board(self, mock_config, get_settings, get_service, handler):
+        """A plain-string payload gets a 3x15 grid on a Note, not flagship 6x22."""
+        board_array = self._send(handler, get_settings, get_service, mock_config, "HELLO")
+        assert len(board_array) == 3
+        assert len(board_array[0]) == 15
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_long_message_wraps_at_word_boundaries(self, mock_config, get_settings, get_service, handler):
+        board_array = self._send(handler, get_settings, get_service, mock_config, "TACO TUESDAY PARTY TIME")
+        assert _row_text(board_array[0]) == "TACO TUESDAY"
+        assert _row_text(board_array[1]) == "PARTY TIME"
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_explicit_newline_breaks_line(self, mock_config, get_settings, get_service, handler):
+        board_array = self._send(handler, get_settings, get_service, mock_config, "HI\nTHERE")
+        assert _row_text(board_array[0]) == "HI"
+        assert _row_text(board_array[1]) == "THERE"
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_literal_backslash_n_breaks_line(self, mock_config, get_settings, get_service, handler):
+        """The two-character sequence backslash-n acts as a line break so
+        single-line clients (HA text entities) can request one."""
+        board_array = self._send(handler, get_settings, get_service, mock_config, "HI\\nTHERE")
+        assert _row_text(board_array[0]) == "HI"
+        assert _row_text(board_array[1]) == "THERE"
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_text_beyond_rows_truncates_predictably(self, mock_config, get_settings, get_service, handler):
+        board_array = self._send(
+            handler, get_settings, get_service, mock_config, "AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH IIII JJJJ"
+        )
+        assert len(board_array) == 3
+        assert _row_text(board_array[0]) == "AAAA BBBB CCCC"
+        assert _row_text(board_array[1]) == "DDDD EEEE FFFF"
+        assert _row_text(board_array[2]) == "GGGG HHHH IIII"
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_json_payload_to_named_board_also_wraps(self, mock_config, get_settings, get_service, handler):
+        """The board-targeted JSON path wraps too, at that board's width."""
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_note_primary()
+        service = MagicMock()
+        b1_client = MagicMock()
+        service.get_board_client.return_value = b1_client
+        get_service.return_value = service
+        handler.handle("send_message", '{"message": "TACO TUESDAY PARTY TIME", "board": "Desk"}')
+        board_array = b1_client.send_characters.call_args[0][0]
+        assert _row_text(board_array[0]) == "TACO TUESDAY"
+        assert _row_text(board_array[1]) == "PARTY TIME"
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_colour_marker_costs_one_tile_when_wrapping(self, mock_config, get_settings, get_service, handler):
+        """Wrapping counts flaps: "{red} TACO TUESDAY" is 14 tiles and fits
+        one 15-wide Note row even though it is 18 characters."""
+        board_array = self._send(handler, get_settings, get_service, mock_config, "{red} TACO TUESDAY")
+        assert board_array[0][0] == 63  # red tile
+        assert _row_text(board_array[0]) == "  TACO TUESDAY"
+        assert _row_text(board_array[1]) == ""
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_escaped_backslash_n_stays_literal(self, mock_config, get_settings, get_service, handler):
+        """``\\\\n`` is the escape hatch for text that really contains a
+        backslash before an N (issue #1793 review)."""
+        board_array = self._send(handler, get_settings, get_service, mock_config, "C:\\\\new")
+        # One row: "C:" + an unmappable backslash (space) + "NEW" — the N survives.
+        assert _row_text(board_array[0]) == "C  NEW"
+        assert _row_text(board_array[1]) == ""
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_json_payload_does_not_unescape_backslash_n(self, mock_config, get_settings, get_service, handler):
+        """JSON payloads can already carry a real newline, so the escape
+        substitution is confined to the plain-string (HA text entity) path."""
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = self._settings_with_note_primary()
+        service = MagicMock()
+        b1_client = MagicMock()
+        service.get_board_client.return_value = b1_client
+        get_service.return_value = service
+        # Raw MQTT payload: {"message": "HI\\nTHERE", "board": "Desk"}
+        handler.handle("send_message", '{"message": "HI\\\\nTHERE", "board": "Desk"}')
+        board_array = b1_client.send_characters.call_args[0][0]
+        assert _row_text(board_array[0]) == "HI NTHERE"
+        assert _row_text(board_array[1]) == ""
+
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_long_word_hard_breaks_instead_of_vanishing(self, mock_config, get_settings, get_service, handler):
+        board_array = self._send(handler, get_settings, get_service, mock_config, "SUPERCALIFRAGILISTIC")
+        assert _row_text(board_array[0]) == "SUPERCALIFRAGIL"
+        assert _row_text(board_array[1]) == "ISTIC"
