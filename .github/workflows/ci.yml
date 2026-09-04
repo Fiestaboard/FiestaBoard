@@ -35,6 +35,7 @@ jobs:
       shared: ${{ steps.filter.outputs.shared }}
       docs: ${{ steps.filter.outputs.docs }}
       markdown: ${{ steps.filter.outputs.markdown }}
+      e2e_wiring: ${{ steps.filter.outputs.e2e_wiring }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -61,6 +62,18 @@ jobs:
               - 'start-dev.sh'
             plugins:
               - 'plugins/**'
+            e2e_wiring:
+              # The inputs to tests/test_e2e_spec_reachability.py, which
+              # proves no Playwright spec is unreachable by every workflow
+              # and that the merge queue gates on all of them (#1737).
+              # A new workflow, a new `RUN_*` gate in the Playwright config,
+              # or a new spec can each create a never-run test, so the guard
+              # has to re-run whenever one of them changes. Deliberately NOT
+              # folded into `shared` — that would rebuild the Docker image
+              # and run the whole E2E fleet for an unrelated workflow edit.
+              - '.github/workflows/**'
+              - 'web/playwright.config.ts'
+              - 'web/tests/**'
             shared:
               # Files that genuinely affect every test surface (Platform,
               # UI, Plugins, A11y, E2E, Build). Keep this list as an
@@ -156,7 +169,12 @@ jobs:
     name: Platform Tests
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.shared == 'true'
+    # `e2e_wiring` is here so the spec-reachability guard runs when a workflow
+    # or the Playwright config changes, even though no Python changed (#1737).
+    if: >-
+      needs.detect-changes.outputs.api == 'true'
+      || needs.detect-changes.outputs.shared == 'true'
+      || needs.detect-changes.outputs.e2e_wiring == 'true'
     timeout-minutes: 10
     
     steps:

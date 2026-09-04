@@ -9,7 +9,34 @@ This directory contains shared test infrastructure to reduce boilerplate and imp
 - `conftest.py` — Shared pytest fixtures for mocks and sample data
 - `factories.py` — Factory functions for creating test objects
 - `helpers.py` — Helper assertions for common test patterns
+- `golden/` — Reviewed snapshots that tests compare against (see below)
 - `__init__.py` — Public API exports for test helpers
+
+## Golden files
+
+### `golden/api_routes.json` — API route inventory
+
+`test_route_inventory.py` snapshots every route on `src.api_server.app`
+(path + sorted methods + endpoint name + route class) and fails on any drift.
+It exists so that refactors which move routes between modules cannot silently
+drop, re-path, or rename an endpoint — the change has to show up as a diff in
+the golden file that a reviewer reads.
+
+**Adding or changing a route is expected to fail this test once.** That is the
+point: regenerate the golden file deliberately, then read the diff.
+
+```bash
+docker compose -f docker-compose.dev.yml exec fiestaboard \
+    env UPDATE_ROUTE_INVENTORY=1 pytest tests/test_route_inventory.py
+git diff tests/golden/api_routes.json
+```
+
+Never regenerate to "make CI green" without reading that diff — a removed line
+is a broken client.
+
+Note that the inventory includes the `/mcp` mount, which only exists when the
+`mcp` package is installed. If that dependency ever goes missing the golden
+test fails rather than the MCP surface disappearing quietly.
 
 ## Usage
 
