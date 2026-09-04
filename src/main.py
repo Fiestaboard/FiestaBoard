@@ -869,13 +869,23 @@ class DisplayService:
             # Nothing below it - triggers, override revert, silence indicator,
             # the page send - can reach the wire.
             #
+            # A virtual board is exempt (issue #1835): its "frame" *is* the web
+            # UI, populated only by the render/``send_characters`` path here.
+            # ``GET /panel/{id}/frame`` is a pure read of stored state, so
+            # short-circuiting the display loop freezes every FiestaPanel on
+            # its last frame. "Preview in the web UI, don't touch hardware"
+            # must still drive the surface it exists to favor.
+            # ``VirtualBoardClient`` sets ``is_virtual = True``; a physical
+            # client has no such attribute. The strict ``is True`` guards
+            # against MagicMock fixtures whose auto-attributes are truthy.
+            #
             # This MUST stay BELOW the ``rt.last_silence_mode_active`` latch
             # above. Returning before the latch leaves the silence flag stale
             # on a UI-only install, so the 1 Hz boundary detector in ``run()``
             # sees a permanent mismatch and re-fires every second for the whole
             # silence window - exactly the busy-loop issue #1740 fixed.
             # Covered by test_ui_only_target_during_silence_does_not_busy_loop.
-            if settings_service.should_send_to_board() is False:
+            if settings_service.should_send_to_board() is False and getattr(rt.client, "is_virtual", False) is not True:
                 logger.debug(
                     "Output target is UI only - skipping board %s update",
                     board_id or "(default)",

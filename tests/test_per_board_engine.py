@@ -134,6 +134,10 @@ def _service_with_runtimes(boards):
         client = MagicMock()
         client.render.return_value = (True, True)
         client._last_characters = None
+        # Physical clients have no ``is_virtual`` attribute; a MagicMock would
+        # auto-create a truthy one, which the UI-only exemption (issue #1835)
+        # reads. Pin it False so these behave as real hardware clients.
+        client.is_virtual = False
         clients[board["id"]] = client
         runtimes[board["id"]] = BoardRuntime(client=client, board_id=board["id"])
     svc.runtimes = runtimes
@@ -446,6 +450,25 @@ class TestOutputTarget:
         pages = _page_service({"pA": {"content": "ALPHA"}})
         schedule = _schedule_service({"b1": "pA"})
         settings = _settings_service(boards, send_to_board=True)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_called_once()
+
+    def test_ui_only_target_still_drives_virtual_board(self):
+        """A virtual board is the web UI, not hardware (issue #1835).
+
+        ``target="ui"`` means "don't touch hardware", but a FiestaPanel's
+        frame is populated only by the render path here. Short-circuiting it
+        froze every virtual board on its last frame. ``VirtualBoardClient``
+        sets ``is_virtual = True``, which exempts it from the short-circuit.
+        """
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].is_virtual = True
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=False)
 
         _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
 
