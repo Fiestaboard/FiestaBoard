@@ -622,3 +622,68 @@ class TestDebugOutOfBandWritesSurviveTheDisplayLoop:
         ):
             response = client.post("/debug/blank")
         assert response.status_code == 200
+
+
+class TestDebugWritesReportOutOfBand:
+    """Issue #1831: the /debug/* board writes must mark the primary board as
+    showing out-of-band content and push fresh MQTT state, so Home Assistant
+    stops reporting the configured page while debug content is displayed."""
+
+    def test_debug_blank_marks_out_of_band_and_publishes(self, client, mock_board_client):
+        service = Mock()
+        with (
+            patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")),
+            patch("src.api_server.peek_service", return_value=service),
+            patch("src.api_server._publish_mqtt_state_update") as publish,
+        ):
+            response = client.post("/debug/blank")
+        assert response.status_code == 200
+        service.mark_showing_out_of_band.assert_called_once_with()
+        publish.assert_called_once_with()
+
+    def test_debug_fill_marks_out_of_band_and_publishes(self, client, mock_board_client):
+        service = Mock()
+        with (
+            patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")),
+            patch("src.api_server.peek_service", return_value=service),
+            patch("src.api_server._publish_mqtt_state_update") as publish,
+        ):
+            response = client.post("/debug/fill", json={"character_code": 63})
+        assert response.status_code == 200
+        service.mark_showing_out_of_band.assert_called_once_with()
+        publish.assert_called_once_with()
+
+    def test_debug_info_marks_out_of_band_and_publishes(self, client, mock_board_client):
+        service = Mock()
+        with (
+            patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")),
+            patch("src.api_server.peek_service", return_value=service),
+            patch("src.api_server._publish_mqtt_state_update") as publish,
+        ):
+            response = client.post("/debug/info")
+        assert response.status_code == 200
+        service.mark_showing_out_of_band.assert_called_once_with()
+        publish.assert_called_once_with()
+
+    def test_failed_debug_blank_does_not_mark_out_of_band(self, client, mock_board_client):
+        mock_board_client.send_characters.return_value = (False, False)
+        service = Mock()
+        with (
+            patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")),
+            patch("src.api_server.peek_service", return_value=service),
+            patch("src.api_server._publish_mqtt_state_update") as publish,
+        ):
+            response = client.post("/debug/blank")
+        assert response.status_code == 500
+        service.mark_showing_out_of_band.assert_not_called()
+        publish.assert_not_called()
+
+    def test_no_display_service_is_safe(self, client, mock_board_client):
+        """peek_service returning None must not fail the debug write."""
+        with (
+            patch("src.api_server.get_settings_service", return_value=_mock_ss("flagship")),
+            patch("src.api_server.peek_service", return_value=None),
+            patch("src.api_server._publish_mqtt_state_update"),
+        ):
+            response = client.post("/debug/blank")
+        assert response.status_code == 200

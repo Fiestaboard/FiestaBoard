@@ -73,6 +73,16 @@ class BoardRuntime:
         self.last_active_page_content: str | None = None
         self.last_active_page_id: str | None = None
 
+        # True while the board shows out-of-band content — a manual write
+        # that bypassed the display loop (MQTT send_message/blank_board,
+        # POST /send-message, the /debug/* writes). Out-of-band writes
+        # deliberately persist (issue #1794), so this flag is what lets the
+        # MQTT state publisher stop reporting the configured page while the
+        # board actually shows something else (issue #1831). Cleared whenever
+        # the engine delivers real content to this board. The stored active
+        # page id is never touched: it remains the restore target.
+        self.showing_out_of_band: bool = False
+
         # Last page/board geometry mismatch reported for this board, so the
         # send-time validation warns once per distinct mismatch instead of
         # every poll tick (issue #1748).
@@ -231,6 +241,41 @@ class DisplayService:
         """
         rt = self.runtimes.get(board_id) if board_id is not None else self._primary_runtime()
         return rt.last_send_error if rt is not None else None
+
+    def is_showing_out_of_band(self, board_id=None) -> bool:
+        """True while a board shows out-of-band content (issue #1831).
+
+        Out-of-band content is a manual write that bypassed the display loop
+        (MQTT send_message/blank_board, POST /send-message, /debug/* writes)
+        and deliberately persists (issue #1794). ``board_id`` omitted → the
+        primary board.
+        """
+        rt = self.runtimes.get(board_id) if board_id is not None else self._primary_runtime()
+        return rt.showing_out_of_band if rt is not None else False
+
+    def mark_showing_out_of_band(self, board_id=None) -> None:
+        """Record that a board now shows out-of-band content (issue #1831).
+
+        Called by the out-of-band write paths after a successful board write.
+        ``board_id`` omitted → the primary board. The flag is cleared when
+        ``check_and_send_for_board`` next delivers real content to the board.
+        """
+        if board_id is None:
+            self._ensure_primary_runtime().showing_out_of_band = True
+            return
+        rt = self.runtimes.get(board_id)
+        if rt is None:
+            # Legacy installs may key the primary runtime under the fallback
+            # sentinel rather than its settings board id (mirrors
+            # invalidate_board_content).
+            try:
+                primary_id = get_settings_service().get_primary_board_id()
+            except Exception:
+                primary_id = None
+            if board_id == primary_id:
+                rt = self._primary_runtime()
+        if rt is not None:
+            rt.showing_out_of_band = True
 
     def _record_send_error(self, rt: BoardRuntime, board_id, message: str) -> None:
         """Record a send failure on the runtime and in this thread's capture."""
@@ -1140,6 +1185,9 @@ class DisplayService:
                     return False
                 rt.last_active_page_content = current_content
                 rt.last_active_page_id = active_page_id
+                # The engine just painted the page over whatever was on the
+                # board, so any out-of-band content is gone (issue #1831).
+                rt.showing_out_of_band = False
                 if was_sent:
                     logger.info(f"Board {board_id}: active page sent: {active_page_id}")
                     # Board-state adaptive refresh is primary-only (see
@@ -1215,6 +1263,9 @@ class DisplayService:
         if success:
             rt.last_active_page_content = None
             rt.last_active_page_id = None
+            # Engine-owned write: the board no longer shows out-of-band
+            # content (issue #1831).
+            rt.showing_out_of_band = False
             logger.info("Temporary override expired (blank) - board cleared")
             if was_sent:
                 self.request_board_refresh()
@@ -1401,6 +1452,8 @@ class DisplayService:
         if success:
             rt.last_active_page_content = "snoozing"
             rt.last_active_page_id = "__silence__"
+            # Engine-owned write (issue #1831).
+            rt.showing_out_of_band = False
             rt.last_silence_mode_active = True
             rt.snoozing_message_sent = True
             logger.info("🔇 Silence mode active - further updates blocked until silence ends")
@@ -1505,6 +1558,8 @@ class DisplayService:
         if success:
             rt.last_active_page_content = result.formatted
             rt.last_active_page_id = f"__silence_page__:{page.id}"
+            # Engine-owned write (issue #1831).
+            rt.showing_out_of_band = False
             rt.last_silence_mode_active = True
             rt.snoozing_message_sent = True
             logger.info("🔇 Silence page sent - further updates blocked until silence ends")
@@ -1593,6 +1648,8 @@ class DisplayService:
         if success:
             rt.last_active_page_content = content
             rt.last_active_page_id = "__trigger__"
+            # Engine-owned write (issue #1831).
+            rt.showing_out_of_band = False
             if was_sent:
                 logger.info("Triggered message sent to board")
             return was_sent

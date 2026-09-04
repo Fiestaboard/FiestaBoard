@@ -88,6 +88,14 @@ class StatePublisher:
                 page = page_service.get_page(active_id)
                 if page:
                     page_name = page.name
+            # While the primary board shows out-of-band content (a manual
+            # MQTT/HTTP write, which persists per issue #1794), the board is
+            # NOT showing the configured page — report the same stable
+            # no-page option instead of lying (issue #1831). The stored
+            # active page id is untouched: selecting any page in HA still
+            # force-sends it (issue #1794), which is the restore path.
+            if self._primary_board_showing_out_of_band():
+                page_name = NO_ACTIVE_PAGE_OPTION
             out["active_page"] = page_name
             out["current_page"] = page_name
 
@@ -229,6 +237,23 @@ class StatePublisher:
         except Exception as e:
             logger.debug("Attributes gather error: %s", e)
         return out
+
+    @staticmethod
+    def _primary_board_showing_out_of_band() -> bool:
+        """True while the primary board shows out-of-band content (issue #1831).
+
+        Reads the existing DisplayService only (peek, never create): with no
+        service there has been no board write, so nothing is out of band.
+        """
+        try:
+            from src.api_server import peek_service
+
+            service = peek_service()
+            if service is not None and hasattr(service, "is_showing_out_of_band"):
+                return service.is_showing_out_of_band() is True
+        except Exception:
+            logger.debug("Could not read out-of-band display state")
+        return False
 
     @staticmethod
     def _get_uptime() -> str:

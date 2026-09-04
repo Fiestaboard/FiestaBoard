@@ -1185,3 +1185,214 @@ class TestDisplayServiceGuardIntegration:
             client.render.assert_not_called()
             publisher.publish_event.assert_not_called()
             publisher.mark_display_updated.assert_not_called()
+
+
+class TestOutOfBandFlagMarking:
+    """Issue #1831: the MQTT board-write commands must record that the board
+    now shows out-of-band content, so the state publisher stops reporting the
+    configured page while a manual message/blank is on the board."""
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.text_to_board.text_to_board_array")
+    @patch("src.api_server.get_service")
+    @patch("src.config.Config")
+    def test_send_message_marks_the_board_as_out_of_band(
+        self, mock_config, get_service, text_to_board, get_settings, peek, handler
+    ):
+        mock_config.is_silence_mode_active.return_value = False
+        service = MagicMock()
+        service.vb_client = MagicMock()
+        service.vb_client.send_characters.return_value = (True, True)
+        get_service.return_value = service
+        peek.return_value = service
+        text_to_board.return_value = [[0] * 22 for _ in range(6)]
+        settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
+        settings.is_paused.return_value = False
+        settings.get_transition_settings.return_value = MagicMock(strategy="column", step_interval_ms=100, step_size=1)
+        get_settings.return_value = settings
+
+        handler.handle("send_message", "Hello World")
+
+        service.mark_showing_out_of_band.assert_called_once_with(None)
+
+    @patch("src.api_server.peek_service")
+    @patch("src.api_server.get_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_send_message_board_targeted_marks_that_board(self, mock_config, get_settings, get_service, peek, handler):
+        mock_config.is_silence_mode_active.return_value = False
+        get_settings.return_value = TestCommandHandlerPerBoardRouting._settings_with_boards()
+        service = MagicMock()
+        board_client = MagicMock()
+        board_client.send_characters.return_value = (True, True)
+        service.get_board_client.return_value = board_client
+        get_service.return_value = service
+        peek.return_value = service
+
+        handler.handle("send_message", '{"message": "HELLO", "board": "Kitchen"}')
+
+        service.mark_showing_out_of_band.assert_called_once_with("b2")
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.text_to_board.text_to_board_array")
+    @patch("src.api_server.get_service")
+    @patch("src.config.Config")
+    def test_failed_send_message_does_not_mark_out_of_band(
+        self, mock_config, get_service, text_to_board, get_settings, peek, handler
+    ):
+        mock_config.is_silence_mode_active.return_value = False
+        service = MagicMock()
+        service.vb_client = MagicMock()
+        service.vb_client.send_characters.return_value = (False, False)
+        get_service.return_value = service
+        peek.return_value = service
+        text_to_board.return_value = [[0] * 22 for _ in range(6)]
+        settings = MagicMock()
+        settings.get_primary_board_id.return_value = "b1"
+        settings.is_paused.return_value = False
+        settings.get_transition_settings.return_value = MagicMock(strategy="column", step_interval_ms=100, step_size=1)
+        get_settings.return_value = settings
+
+        handler.handle("send_message", "Hello World")
+
+        service.mark_showing_out_of_band.assert_not_called()
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.api_server._get_board_client")
+    def test_blank_board_marks_the_board_as_out_of_band(self, get_board, get_settings, peek, handler):
+        board_client = MagicMock()
+        board_client.send_characters.return_value = (True, True)
+        get_board.return_value = board_client
+        settings = MagicMock()
+        settings.should_send_to_board.return_value = True
+        settings.is_paused.return_value = False
+        settings.get_primary_board_id.return_value = "b1"
+        get_settings.return_value = settings
+        service = MagicMock()
+        peek.return_value = service
+
+        handler.handle("blank_board", "")
+
+        service.mark_showing_out_of_band.assert_called_once_with(None)
+
+    @patch("src.api_server.peek_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.api_server._get_board_client")
+    def test_failed_blank_board_does_not_mark_out_of_band(self, get_board, get_settings, peek, handler):
+        board_client = MagicMock()
+        board_client.send_characters.return_value = (False, False)
+        get_board.return_value = board_client
+        settings = MagicMock()
+        settings.should_send_to_board.return_value = True
+        settings.is_paused.return_value = False
+        settings.get_primary_board_id.return_value = "b1"
+        get_settings.return_value = settings
+        service = MagicMock()
+        peek.return_value = service
+
+        handler.handle("blank_board", "")
+
+        service.mark_showing_out_of_band.assert_not_called()
+
+
+class TestOutOfBandStateReporting:
+    """Issue #1831: while a board shows out-of-band content, the Active Page
+    select / Current Page sensor must report the no-page option instead of
+    the configured page. Drives a REAL DisplayService and a REAL
+    StatePublisher so the flag's full lifecycle is exercised, not mocked."""
+
+    @staticmethod
+    def _publisher(mock_client):
+        from src.mqtt.state import StatePublisher
+
+        return StatePublisher(mock_client)
+
+    @staticmethod
+    def _published(mock_client, object_id):
+        """The last value published for an object_id, or None."""
+        values = [c[0][1] for c in mock_client.publish_state.call_args_list if c[0][0] == object_id]
+        return values[-1] if values else None
+
+    def test_out_of_band_write_flips_published_state_to_the_none_option(self, handler, mock_client):
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        env = TestDisplayServiceGuardIntegration
+        svc, _client, settings, page_svc = env._make_env()
+        pub = self._publisher(mock_client)
+        with env._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == "Alpha"
+
+            handler.handle("send_message", "HELLO")
+
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == NO_ACTIVE_PAGE_OPTION
+            assert self._published(mock_client, "current_page") == NO_ACTIVE_PAGE_OPTION
+
+    def test_reselecting_the_page_flips_state_back_and_resends(self, handler, mock_client):
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        env = TestDisplayServiceGuardIntegration
+        svc, client, settings, page_svc = env._make_env()
+        pub = self._publisher(mock_client)
+        with env._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            handler.handle("send_message", "HELLO")
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == NO_ACTIVE_PAGE_OPTION
+
+            # Restoring: picking the page (even the one already configured)
+            # force-sends it and flips the reported state back.
+            handler.handle("active_page", "Alpha")
+
+            assert client.render.call_count == 2, "re-selecting the page did not re-send it"
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == "Alpha"
+            assert self._published(mock_client, "current_page") == "Alpha"
+
+    def test_engine_tick_delivering_the_page_clears_the_flag(self, handler, mock_client):
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        env = TestDisplayServiceGuardIntegration
+        pages = {"pA": ("Alpha", "ALPHA CONTENT")}
+        svc, _client, settings, page_svc = env._make_env(pages=pages)
+        pub = self._publisher(mock_client)
+        with env._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            handler.handle("send_message", "HELLO")
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == NO_ACTIVE_PAGE_OPTION
+
+            # The page's content changes on its own -> the engine repaints the
+            # board with the page, so the board is no longer out of band.
+            pages["pA"] = ("Alpha", "NEW ALPHA CONTENT")
+            assert svc.check_and_send_active_page() is True
+
+            pub.gather_and_publish()
+            assert self._published(mock_client, "active_page") == "Alpha"
+
+    def test_sync_loop_does_not_flap_the_published_value(self, handler, mock_client):
+        """Engine ticks that dedupe (content unchanged) must leave the flag
+        set, and the periodic state publish must keep reporting the sentinel
+        without republishing it every cycle."""
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        env = TestDisplayServiceGuardIntegration
+        svc, _client, settings, page_svc = env._make_env()
+        pub = self._publisher(mock_client)
+        with env._env_patches(svc, settings, page_svc):
+            assert svc.check_and_send_active_page() is True
+            pub.gather_and_publish()
+            handler.handle("send_message", "HELLO")
+
+            for _ in range(3):
+                assert svc.check_and_send_active_page() is False, "sync tick repainted over the manual message"
+                pub.gather_and_publish()
+
+            values = [c[0][1] for c in mock_client.publish_state.call_args_list if c[0][0] == "active_page"]
+            assert values == ["Alpha", NO_ACTIVE_PAGE_OPTION], "published Active Page state flapped"

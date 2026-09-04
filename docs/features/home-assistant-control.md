@@ -108,11 +108,13 @@ Once connected, FiestaBoard appears as a device with **24 entities** — control
 
 **Manual writes stay on the board.** Send Message, Blank Board and the debug
 endpoints write straight to the board and are left there — the display loop
-will not paint over them on its next cycle. Put the active page back with
-**Refresh Display**, by selecting a page, or by letting that page's content
-change on its own. (The Active Page and Current Page entities still report the
-configured page, not the manual message — tracked separately in
-[#1831](https://github.com/Fiestaboard/FiestaBoard/issues/1831).)
+will not paint over them on its next cycle. While manual content is displayed,
+the Active Page select and Current Page sensor report `None` rather than the
+configured page, so Home Assistant shows that the board is not on a page. The
+configured page itself is kept as the restore target: put it back with
+**Refresh Display**, by selecting a page (re-selecting the same page works),
+or by letting that page's content change on its own — the entities switch back
+to the page name as soon as the page lands on the board.
 
 **Send Message formatting:** text longer than the board width word-wraps onto
 the following rows automatically, sized to your board's real geometry (6 rows ×

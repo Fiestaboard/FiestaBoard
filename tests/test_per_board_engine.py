@@ -910,3 +910,81 @@ class TestThrottledSendDoesNotPrimeDedupeCache:
         _drive(svc, boards, pages=pages, schedule=_schedule_service({"b1": "pA"}))
 
         assert svc.runtimes["b1"].last_active_page_content == "ALPHA"
+
+
+class TestOutOfBandContentFlag:
+    """Issue #1831: per-board "showing out-of-band content" state.
+
+    Set by the out-of-band write paths (MQTT send_message/blank_board, POST
+    /send-message, the /debug/* writes), cleared whenever the engine actually
+    delivers a page to that board. The stored active page id is untouched —
+    it remains the restore target (issue #1805)."""
+
+    def test_runtime_defaults_to_in_band(self):
+        rt = BoardRuntime(client=None, board_id="b1")
+        assert rt.showing_out_of_band is False
+
+    def test_mark_and_read_target_the_given_board(self):
+        boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
+        svc, _clients = _service_with_runtimes(boards)
+
+        svc.mark_showing_out_of_band("b2")
+
+        assert svc.is_showing_out_of_band("b2") is True
+        assert svc.is_showing_out_of_band("b1") is False
+
+    def test_mark_without_board_id_targets_the_primary_board(self):
+        boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]
+        svc, _clients = _service_with_runtimes(boards)
+
+        svc.mark_showing_out_of_band()
+
+        assert svc.is_showing_out_of_band() is True
+        assert svc.is_showing_out_of_band("b1") is True
+        assert svc.is_showing_out_of_band("b2") is False
+
+    def test_unknown_board_reads_as_in_band(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+
+        svc.mark_showing_out_of_band("nope")
+
+        assert svc.is_showing_out_of_band("nope") is False
+        assert svc.is_showing_out_of_band("b1") is False
+
+    def test_delivering_a_page_clears_the_flag(self):
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        svc.mark_showing_out_of_band("b1")
+
+        _drive(svc, boards, pages=pages, schedule=schedule)
+
+        assert svc.is_showing_out_of_band("b1") is False
+
+    def test_deduped_tick_leaves_the_flag_set(self):
+        """The engine skipping at the content-unchanged guard has NOT painted
+        over the manual content, so the flag must survive the tick."""
+        boards = [_board("b1", "One")]
+        svc, _clients = _service_with_runtimes(boards)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+
+        _drive(svc, boards, pages=pages, schedule=schedule)
+        svc.mark_showing_out_of_band("b1")
+        _drive(svc, boards, pages=pages, schedule=schedule)
+
+        assert svc.is_showing_out_of_band("b1") is True
+
+    def test_failed_send_leaves_the_flag_set(self):
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].render.return_value = (False, False)
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        svc.mark_showing_out_of_band("b1")
+
+        _drive(svc, boards, pages=pages, schedule=schedule)
+
+        assert svc.is_showing_out_of_band("b1") is True

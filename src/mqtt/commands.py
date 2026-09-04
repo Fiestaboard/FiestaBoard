@@ -108,6 +108,33 @@ class CommandHandler:
         except Exception as e:
             logger.debug("Board content invalidation failed: %s", e)
 
+    def _mark_out_of_band(self, board_id: str | None) -> None:
+        """Record that a board now shows out-of-band content (issue #1831).
+
+        Out-of-band writes persist (issue #1794), so this is what lets the
+        state publisher report the no-page option instead of the configured
+        page while the manual content is on the board. ``None`` targets the
+        primary board. No-op when no DisplayService exists yet.
+        """
+        service = self._display_service()
+        if service is None or not hasattr(service, "mark_showing_out_of_band"):
+            return
+        try:
+            service.mark_showing_out_of_band(board_id)
+        except Exception as e:
+            logger.debug("Out-of-band mark failed: %s", e)
+
+    @staticmethod
+    def _send_succeeded(result) -> bool:
+        """True when a client write reported success.
+
+        ``send_characters`` returns ``(success, was_sent)``; older fakes may
+        return a bare truthy value.
+        """
+        if isinstance(result, tuple):
+            return bool(result[0])
+        return bool(result)
+
     def _force_send_active_page(self, board_id: str | None) -> None:
         """Invalidate dedupe state and immediately push the active page.
 
@@ -409,12 +436,16 @@ class CommandHandler:
         # when given, else the primary board, else the flagship 6x22 default.
         dims = self._board_dims(board if board is not None else self._resolve_board(None)[1])
         blank_array = [[0] * dims.cols for _ in range(dims.rows)]
-        client.send_characters(blank_array, force=True)
+        result = client.send_characters(blank_array, force=True)
         # NOTE: deliberately does NOT invalidate the display loop's dedupe
         # cache. Doing so made the blank self-destruct on the next engine
         # tick (<=15s), breaking the "Blank the Board at Bedtime" automation
         # in our own HA docs. Restoring the page is a pull: Refresh Display,
         # re-selecting a page, or an actual content change.
+        if self._send_succeeded(result):
+            # The board now shows out-of-band content (issue #1831); the
+            # trailing gather_and_publish in handle() reports it to HA.
+            self._mark_out_of_band(board_id)
         self._mark_display_updated()
         self._publish_event("display_updated", "board_blanked")
 
@@ -488,7 +519,7 @@ class CommandHandler:
             unescape_newlines=self._json_object(payload) is None,
         )
         board_array = text_to_board_array(wrapped, rows=dims.rows, cols=dims.cols)
-        client.send_characters(
+        result = client.send_characters(
             board_array,
             strategy=transition.strategy,
             step_interval_ms=transition.step_interval_ms,
@@ -497,6 +528,10 @@ class CommandHandler:
         # NOTE: deliberately does NOT invalidate the display loop's dedupe
         # cache — see _handle_blank_board. The message must outlive the next
         # engine tick, or "Welcome Home John!" lasts 15 seconds.
+        if self._send_succeeded(result):
+            # The board now shows out-of-band content (issue #1831); the
+            # trailing gather_and_publish in handle() reports it to HA.
+            self._mark_out_of_band(board_id)
         self._mark_display_updated()
         self._publish_event("display_updated", "message_sent")
 
