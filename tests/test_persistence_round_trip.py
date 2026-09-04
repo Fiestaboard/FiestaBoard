@@ -19,7 +19,7 @@ Two things are deliberate:
 
 Data isolation (see #1762): the app has no single data-directory seam. Each
 store resolves its own path from ``Path(__file__)`` at construction time, so
-``isolated_data_dir`` has to rebind five different constructors to keep the
+``isolated_data_dir`` has to rebind every store's constructor to keep the
 suite off the developer's real ``data/`` directory. That fixture is the
 workaround, not the fix.
 """
@@ -46,6 +46,7 @@ _SINGLETONS: tuple[tuple[str, str], ...] = (
     ("src.pages.service", "_page_service"),
     ("src.collections.service", "_collection_service"),
     ("src.schedules.service", "_schedule_service"),
+    ("src.panels.service", "_panel_service"),
     ("src.backup.service", "_backup_service"),
 )
 
@@ -96,6 +97,7 @@ def isolated_data_dir(tmp_path, monkeypatch):
     """
     from src.collections.storage import CollectionStorage
     from src.pages.storage import PageStorage
+    from src.panels.storage import PanelStorage
     from src.schedules.storage import ScheduleStorage
     from src.settings.service import SettingsService
 
@@ -115,6 +117,7 @@ def isolated_data_dir(tmp_path, monkeypatch):
             CollectionStorage,
             {"storage_file": str(data_dir / "collections.json")},
         ),
+        ("src.panels.service.PanelStorage", PanelStorage, {"storage_file": str(data_dir / "panels.json")}),
     )
     for target, cls, kwargs in bindings:
         monkeypatch.setattr(target, functools.partial(cls, **kwargs))
@@ -197,6 +200,17 @@ def _create_collection(client: TestClient, page_id: str) -> dict:
     )
     assert response.status_code == 200, response.text
     return response.json()["collection"]
+
+
+def _create_panel(client: TestClient, name: str = "Kitchen TV") -> dict:
+    """Create a panel (and, implicitly, its backing virtual board).
+
+    ``panels.json`` joined ``DATA_FILES`` with the FiestaPanel work, so the
+    two whole-store guards below have to write it like every other store.
+    """
+    response = client.post("/panels", json={"name": name})
+    assert response.status_code == 200, response.text
+    return response.json()["panel"]
 
 
 # ── restart round-trips ─────────────────────────────────────────────────────
@@ -389,6 +403,7 @@ def test_backup_import_restores_every_data_file_byte_for_byte(client, isolated_d
     page = _create_page(client)
     _create_schedule(client, page["id"])
     _create_collection(client, page["id"])
+    _create_panel(client)
     assert client.put("/settings/display", json={"reduce_motion": True}).status_code == 200
     assert client.put("/settings/ai", json={"enabled": True, "providers": [_AI_PROVIDER]}).status_code == 200
 
@@ -517,6 +532,7 @@ def test_the_isolation_fixture_keeps_writes_out_of_the_repo_data_dir(client, iso
     assert client.put("/settings/mqtt", json={"broker_host": marker}).status_code == 200  # settings.json
     ai = client.put("/settings/ai", json={"enabled": True, "providers": [{**_AI_PROVIDER, "name": marker}]})
     assert ai.status_code == 200, ai.text  # config.json
+    _create_panel(client, name=marker)  # panels.json
 
     # Both tokens are unique to this run: the marker string this test chose,
     # and the id the API minted for its page.
@@ -526,6 +542,7 @@ def test_the_isolation_fixture_keeps_writes_out_of_the_repo_data_dir(client, iso
         "collections.json": page["id"],
         "settings.json": marker,
         "config.json": marker,
+        "panels.json": marker,
     }
     assert set(written_token) == set(DATA_FILES), "DATA_FILES changed — give the new file a token"
 

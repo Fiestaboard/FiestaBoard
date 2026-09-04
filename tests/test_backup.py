@@ -122,10 +122,11 @@ def test_reload_services_resets_panel_service_singleton(tmp_path):
     """After a restore, panel reads must come from the restored panels.json."""
     import src.panels.service as panels_service_module
     from src.backup.service import _reload_services
-    from src.panels.service import PanelService
     from src.panels.storage import PanelStorage
 
-    panels_service_module._panel_service = PanelService(
+    # Reached through the module object rather than a second `from ... import`
+    # of the same module, which the code-quality bot flags as a duplicate.
+    panels_service_module._panel_service = panels_service_module.PanelService(
         storage=PanelStorage(storage_file=str(tmp_path / "panels.json"))
     )
     _reload_services()
