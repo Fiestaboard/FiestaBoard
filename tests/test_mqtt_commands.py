@@ -248,9 +248,7 @@ class TestCommandHandlerEventPublishing:
     @patch("src.text_to_board.text_to_board_array")
     @patch("src.api_server.get_service")
     @patch("src.config.Config")
-    def test_send_message_marks_out_of_band(
-        self, mock_config, get_service, text_to_board, get_settings, handler
-    ):
+    def test_send_message_marks_out_of_band(self, mock_config, get_service, text_to_board, get_settings, handler):
         """A plain-payload send marks the primary board as out-of-band (#1831)."""
         mock_config.is_silence_mode_active.return_value = False
         service = MagicMock()

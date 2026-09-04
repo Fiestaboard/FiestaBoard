@@ -487,9 +487,7 @@ class TestStatePublisherOutOfBand:
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     @patch("src.config.Config")
-    def test_out_of_band_attribute_on_current_page(
-        self, mock_config, get_settings, get_page, mock_client
-    ):
+    def test_out_of_band_attribute_on_current_page(self, mock_config, get_settings, get_page, mock_client):
         mock_config.is_silence_mode_active.return_value = False
         settings = MagicMock()
         settings.is_schedule_enabled.return_value = False
