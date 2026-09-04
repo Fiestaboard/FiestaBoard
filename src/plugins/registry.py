@@ -96,6 +96,10 @@ class PluginRegistry:
         # Auto-discovery cache: maps plugin_id -> discovered variable names
         self._discovered_vars: dict[str, list[str]] = {}
 
+        # Set once initialize() has loaded the plugin set. Guards against a
+        # repeat call rebuilding every live plugin (issue #1753).
+        self._initialized = False
+
         logger.info("PluginRegistry initialized")
 
     # ── instance key helpers ────────────────────────────────────────────
@@ -253,14 +257,31 @@ class PluginRegistry:
         """Return only enabled plugins."""
         return {pid: plugin for pid, plugin in self._plugins.items() if self._enabled.get(pid, False)}
 
-    def initialize(self) -> None:
+    def initialize(self, force: bool = False) -> None:
         """Load all discovered plugins.
 
         This should be called once at startup. It will:
         1. Load all plugin modules from the plugins directory
         2. Read stored configurations from config manager
         3. Enable plugins that have enabled=true in their config
+
+        Repeat calls are a no-op. The registry is a singleton holding *live*
+        plugin objects: their data caches, and any thread or connection they
+        own, belong to the instance. Re-running the full load would swap in
+        cold replacements for every plugin, so one plugin's config save would
+        wipe every other plugin's cache (a refetch storm across the whole
+        board) and orphan their background resources (issue #1753). Config
+        changes reach the affected plugin through ``set_plugin_config`` /
+        ``reload_plugin``, which touch that plugin only.
+
+        Args:
+            force: Rescan and rebuild the plugin set even when already
+                initialized. Only for a genuine reload of what is on disk.
         """
+        if self._initialized and not force:
+            logger.debug("Plugin registry already initialized - skipping reload (pass force=True to rescan)")
+            return
+
         loaded = self._loader.load_all_plugins()
 
         # Self-heal directories left orphaned by a plugin rename: an update
@@ -318,6 +339,8 @@ class PluginRegistry:
         # Restore plugin instances from stored configs.
         # Instance configs have compound keys like "weather:sf".
         self._restore_instances(stored_configs)
+
+        self._initialized = True
 
         enabled_count = sum(1 for e in self._enabled.values() if e)
         logger.info(f"Initialized {len(self._plugins)} plugins ({enabled_count} enabled)")

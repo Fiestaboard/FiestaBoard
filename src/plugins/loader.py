@@ -8,6 +8,7 @@ import importlib.util
 import logging
 import re
 import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -459,7 +460,13 @@ class PluginLoader:
                 logger.warning("Plugin '%s': %s", plugin_name, message)
                 self._load_errors.setdefault(plugin_name, []).append(message)
 
-            # Store loaded plugin and class
+            # Store loaded plugin and class. A plugin loaded over a live one
+            # (re-install, forced rescan) replaces an object that may own a
+            # background thread or an open connection, so retire it first.
+            previous = self._loaded_plugins.get(manifest.id)
+            if previous is not None and previous[0] is not plugin_instance:
+                self._retire_instance(manifest.id, previous[0])
+
             self._loaded_plugins[manifest.id] = (plugin_instance, manifest)
             self._plugin_classes[manifest.id] = plugin_class
             self._plugin_sources[manifest.id] = self._source_for_dir(plugin_dir)
@@ -472,6 +479,31 @@ class PluginLoader:
             self._load_errors[plugin_name] = errors
             logger.exception(f"Error instantiating plugin {plugin_name}")
             return None
+
+    def _retire_instance(self, plugin_id: str, plugin: AnyPlugin) -> None:
+        """Run a replaced plugin instance's ``cleanup()`` off the caller's thread.
+
+        ``cleanup()`` is plugin code: it may close a socket, stop an MQTT
+        listener, or join a thread of its own, and nothing bounds how long that
+        takes. A replacement can happen behind a board render (the render path
+        builds the display service, which touches the registry), so the call is
+        handed to a short-lived daemon thread and never joined — a plugin wedged
+        in teardown must not stall a render or an API request.
+
+        The old object is left to finish whatever it is still doing: the
+        registry deliberately lets an abandoned fetch complete on its own thread
+        (see ``PluginRegistry.build_template_context``), and that thread holds
+        the only other reference to this instance. Nothing here cancels or
+        interrupts it; cleanup simply releases the resources the instance owns.
+        """
+
+        def _run() -> None:
+            try:
+                plugin.cleanup()
+            except Exception:
+                logger.exception("Error cleaning up replaced instance of plugin '%s'", plugin_id)
+
+        threading.Thread(target=_run, name=f"plugin-cleanup-{plugin_id}", daemon=True).start()
 
     def _find_plugin_class(self, module: Any, expected_type: str = "data") -> type[AnyPlugin] | None:
         """Find a plugin class in *module* matching *expected_type*.

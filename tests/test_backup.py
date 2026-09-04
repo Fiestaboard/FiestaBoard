@@ -176,6 +176,18 @@ def test_import_from_json_rejects_invalid_json(tmp_path):
         service.import_from_json("{not valid json")
 
 
+def test_restore_forces_a_full_plugin_registry_reload():
+    """A restore rewrites every plugin's stored config, so the live plugin
+    objects — which still hold the pre-restore config — must be rebuilt."""
+    from src.backup.service import _reload_services
+
+    fake_registry = MagicMock()
+    with patch("src.plugins.get_plugin_registry", return_value=fake_registry, create=True):
+        _reload_services()
+
+    fake_registry.initialize.assert_called_once_with(force=True)
+
+
 def test_collect_installed_plugins_skips_builtins(tmp_path):
     fake_source_builtin = MagicMock(source_type="builtin", repository_url="")
     fake_source_external = MagicMock(
