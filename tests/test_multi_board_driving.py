@@ -13,6 +13,7 @@ per-board caches) is covered by ``tests/test_per_board_engine.py``, which
 exercises the unified ``check_and_send_for_board`` path.
 """
 
+import threading
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -196,3 +197,198 @@ class TestInvalidateBoardContent:
 
         assert service._last_active_page_content is None
         client.clear_cache.assert_called_once()
+
+
+class TestPrimaryBoardFailureIsolation:
+    """A misconfigured primary board must not take down the rest of the fleet
+    (issue #1749).
+
+    Before the fix, ``boards[0]`` failing to yield a client dropped the build
+    into the legacy single-board ``Config`` fallback, which raises when no
+    legacy credential is configured — aborting ``_build_board_clients`` for
+    every board and making ``initialize()`` return False, so ``run()`` bailed
+    and no board was driven at all.
+    """
+
+    def test_secondary_board_gets_a_runtime_when_the_primary_client_raises(self, service):
+        boards = [_board("b1", "Broken"), _board("b2", "Good", port=7001)]
+        good = MagicMock()
+
+        def factory(board):
+            if board["id"] == "b1":
+                raise ValueError("api_key is required")
+            return good
+
+        with (
+            patch("src.main.get_settings_service", return_value=_settings_service(boards)),
+            patch("src.main.board_client_from_board_dict", side_effect=factory),
+        ):
+            service._build_board_clients(sync_cache=False)
+
+        assert service.get_board_client("b2") is good
+
+    def test_secondary_board_gets_a_runtime_when_the_primary_is_unconfigured(self, service):
+        """The primary has no usable credential (factory returns None). The
+        legacy Config fallback must not hijack the build."""
+        boards = [_board("b1", "Broken", local_api_key="", cloud_key=""), _board("b2", "Good", port=7001)]
+        good = MagicMock()
+
+        with (
+            patch("src.main.get_settings_service", return_value=_settings_service(boards)),
+            patch(
+                "src.main.board_client_from_board_dict",
+                side_effect=lambda b: None if b["id"] == "b1" else good,
+            ),
+        ):
+            service._build_board_clients(sync_cache=False)
+
+        assert service.get_board_client("b2") is good
+
+    def test_misconfigured_primary_does_not_build_the_legacy_config_client(self, service):
+        """With another board up, the legacy single-board fallback must stay
+        out of the way — it would claim the primary slot with a client built
+        from whatever is left in the legacy env config."""
+        boards = [_board("b1", "Broken", local_api_key="", cloud_key=""), _board("b2", "Good", port=7001)]
+
+        with (
+            patch("src.main.get_settings_service", return_value=_settings_service(boards)),
+            patch(
+                "src.main.board_client_from_board_dict",
+                side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
+            ),
+            patch("src.main.BoardClient") as legacy_client,
+        ):
+            service._build_board_clients(sync_cache=False)
+
+        legacy_client.assert_not_called()
+        assert service._PRIMARY_FALLBACK_KEY not in service.runtimes
+
+    def test_secondary_board_is_still_driven_when_the_primary_is_misconfigured(self, service):
+        """Acceptance (issue #1749): primary invalid + secondary valid ->
+        the secondary is still driven on the update tick."""
+        boards = [_board("b1", "Broken", local_api_key="", cloud_key=""), _board("b2", "Good", port=7001)]
+        driven = []
+
+        with (
+            patch("src.main.get_settings_service", return_value=_settings_service(boards)),
+            patch(
+                "src.main.board_client_from_board_dict",
+                side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
+            ),
+        ):
+            service._build_board_clients(sync_cache=False)
+            with patch.object(
+                service,
+                "check_and_send_for_board",
+                side_effect=lambda board_id, rt, **kw: driven.append(board_id) or True,
+            ):
+                service.check_and_send_active_page()
+
+        assert "b2" in driven
+
+    def test_initialize_succeeds_when_only_the_primary_board_is_misconfigured(self, service):
+        boards = [_board("b1", "Broken", local_api_key="", cloud_key=""), _board("b2", "Good", port=7001)]
+
+        with (
+            patch("src.main.get_settings_service", return_value=_settings_service(boards)),
+            patch(
+                "src.main.board_client_from_board_dict",
+                side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
+            ),
+            patch("src.main.Config.validate", return_value=True),
+            patch("src.main.Config.get_summary", return_value={}),
+            patch("src.main.Config.get_transition_settings", return_value={"strategy": None}),
+            patch("src.main.threading.Thread"),
+        ):
+            assert service.initialize() is True
+
+    def test_initialize_fails_when_no_board_has_a_connection(self, service):
+        """The all-boards-down case must still be a hard failure — the fix
+        must not turn a fully unconfigured install into a silent success."""
+        boards = [_board("b1", "Broken", local_api_key="", cloud_key="")]
+
+        with (
+            patch("src.main.get_settings_service", return_value=_settings_service(boards)),
+            patch("src.main.board_client_from_board_dict", return_value=None),
+            patch("src.main.Config.validate", return_value=True),
+            patch("src.main.BoardClient", side_effect=ValueError("api_key is required")),
+        ):
+            assert service.initialize() is False
+
+    def test_primary_failure_reason_is_recorded_for_surfacing(self, service):
+        """The skipped board's reason must be observable, not swallowed —
+        /status exposes it per board."""
+        boards = [_board("b1", "Broken"), _board("b2", "Good", port=7001)]
+
+        def factory(board):
+            if board["id"] == "b1":
+                raise ValueError("host is required for Local API")
+            return MagicMock()
+
+        with (
+            patch("src.main.get_settings_service", return_value=_settings_service(boards)),
+            patch("src.main.board_client_from_board_dict", side_effect=factory),
+        ):
+            service._build_board_clients(sync_cache=False)
+
+        assert "host is required for Local API" in service.board_init_errors["b1"]
+        assert "b2" not in service.board_init_errors
+
+    def test_repeated_initialize_reuses_the_live_board_state_poll_thread(self, service):
+        """``initialize()`` must not stack a second ``board-state-poll`` thread.
+
+        With the primary clientless, ``vb_client`` stays ``None`` for the life
+        of the process, so every startup gate that tests it re-enters
+        ``initialize()``: ``get_service()``, ``run_service_background()``'s
+        ``if not service.vb_client`` guard, and ``run()``'s
+        ``if not self.vb_client and not self.initialize()``. Each pass used to
+        start another poll thread, and ``run_service_background``'s backoff
+        loop repeated two of them on every auto-restart — an unbounded leak.
+        """
+        boards = [_board("b1", "Broken", local_api_key="", cloud_key=""), _board("b2", "Good", port=7001)]
+        pre_existing = {t.ident for t in threading.enumerate()}
+        release = threading.Event()
+
+        def _park(_self):
+            release.wait(10)
+
+        with (
+            patch("src.main.get_settings_service", return_value=_settings_service(boards)),
+            patch(
+                "src.main.board_client_from_board_dict",
+                side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
+            ),
+            patch("src.main.Config.validate", return_value=True),
+            patch("src.main.Config.get_summary", return_value={}),
+            patch("src.main.Config.get_transition_settings", return_value={"strategy": None}),
+            patch.object(DisplayService, "_board_poll_loop", _park),
+        ):
+            try:
+                for _ in range(3):
+                    assert service.initialize() is True
+                # The condition all three startup gates re-test.
+                assert service.vb_client is None
+                started = [
+                    t
+                    for t in threading.enumerate()
+                    if t.name == "board-state-poll" and t.is_alive() and t.ident not in pre_existing
+                ]
+                assert len(started) == 1, f"expected 1 live poll thread, found {len(started)}"
+            finally:
+                release.set()
+                for t in threading.enumerate():
+                    if t.name == "board-state-poll" and t.ident not in pre_existing:
+                        t.join(timeout=5)
+
+    def test_a_recovered_board_clears_its_recorded_error(self, service):
+        boards = [_board("b1", "One")]
+
+        with patch("src.main.get_settings_service", return_value=_settings_service(boards)):
+            with patch("src.main.board_client_from_board_dict", side_effect=ValueError("boom")):
+                service._build_board_clients(sync_cache=False)
+            assert "b1" in service.board_init_errors
+
+            with patch("src.main.board_client_from_board_dict", return_value=MagicMock()):
+                service._build_board_clients(sync_cache=False)
+
+        assert service.board_init_errors == {}

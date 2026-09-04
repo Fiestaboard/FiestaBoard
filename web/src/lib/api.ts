@@ -20,6 +20,12 @@ export interface BoardStatus {
   configured: boolean;
   paused: boolean;
   active_page_id: string | null;
+  /**
+   * Why this board has no client, when it has none (issue #1749). A board
+   * skipped at startup because of a bad config is surfaced here; the rest of
+   * the fleet keeps running.
+   */
+  error?: string | null;
 }
 
 export interface ConfigSummary {

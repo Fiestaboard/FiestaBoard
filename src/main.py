@@ -90,6 +90,12 @@ class DisplayService:
         self.runtimes: dict[str, BoardRuntime] = {}
         self._primary_board_id = None
 
+        # Why each configured board failed to get a client, keyed by board id
+        # (issue #1749). Rebuilt on every ``_build_board_clients`` pass so a
+        # fixed board clears its entry. Surfaced per board on ``GET /status``
+        # so a skipped board is visible in the UI instead of only in the log.
+        self.board_init_errors: dict[str, str] = {}
+
         # Board state polling (background thread reads actual board state).
         self._poll_thread: threading.Thread | None = None
 
@@ -278,6 +284,13 @@ class DisplayService:
         board without a usable connection. A pre-filter on local/cloud keys
         silently dropped note-array boards (issue #1243 item 3).
 
+        Per-board failure isolation (issue #1749): each board's client build
+        is independent, so one bad board — the primary included — is skipped
+        with its reason recorded in ``self.board_init_errors`` while every
+        other board still comes up. The legacy Config fallback only runs when
+        *no* configured board produced a client, so a misconfigured primary
+        can no longer drag the whole fleet through it.
+
         Args:
             sync_cache: read the primary board's current message to seed the
                 skip-unchanged cache. Startup wants this; reinitialization
@@ -288,6 +301,7 @@ class DisplayService:
         boards = settings_service.get_board_settings().boards or []
 
         new_runtimes: dict[str, BoardRuntime] = {}
+        init_errors: dict[str, str] = {}
         for board in boards:
             if not isinstance(board, dict):
                 continue
@@ -300,8 +314,17 @@ class DisplayService:
                 # Unchanged connection: keep the runtime so its caches survive.
                 new_runtimes[bid] = existing
                 continue
-            client = board_client_from_board_dict(board)
+            try:
+                client = board_client_from_board_dict(board)
+            except Exception as e:
+                # One board's bad config must never abort the loop for the
+                # rest of the fleet (issue #1749).
+                init_errors[bid] = str(e) or e.__class__.__name__
+                logger.error(f"Board {bid}: could not build client ({e}) - skipping this board")
+                continue
             if client is None:
+                init_errors[bid] = "Board is not fully configured (missing host, API key, or token)"
+                logger.error(f"Board {bid}: {init_errors[bid]} - skipping this board")
                 continue
             self._attach_transition_runner(client)
             rt = BoardRuntime(client=client, board_id=bid)
@@ -309,22 +332,43 @@ class DisplayService:
             new_runtimes[bid] = rt
 
         self.runtimes = new_runtimes
+        self.board_init_errors = init_errors
 
-        if boards and isinstance(boards[0], dict) and boards[0].get("id") in new_runtimes:
-            self._primary_board_id = boards[0]["id"]
+        primary_id = boards[0].get("id") if (boards and isinstance(boards[0], dict)) else None
+        if primary_id and primary_id in new_runtimes:
+            self._primary_board_id = primary_id
+        elif new_runtimes:
+            # The primary is misconfigured but other boards came up. Keep the
+            # primary id pointing at the configured primary (its clientless
+            # runtime is created lazily by ``_ensure_primary_runtime``) rather
+            # than dropping into the legacy Config fallback, which would raise
+            # on an install with no legacy credential and take every board
+            # down with it (issue #1749).
+            self._primary_board_id = primary_id
+            logger.error(
+                f"Primary board {primary_id or '(unidentified)'} is unavailable "
+                f"({init_errors.get(primary_id, 'no usable connection')}); "
+                f"continuing with {len(new_runtimes)} other board(s)"
+            )
         else:
             # Legacy single-board Config path: no usable settings.boards entry.
-            use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
-            client = BoardClient(
-                api_key=Config.get_board_api_key(),
-                host=Config.BOARD_HOST if not use_cloud else None,
-                use_cloud=use_cloud,
-                skip_unchanged=True,
-            )
-            self._attach_transition_runner(client)
-            key = self._PRIMARY_FALLBACK_KEY
-            self.runtimes[key] = BoardRuntime(client=client, board_id=key)
-            self._primary_board_id = key
+            # Its own failure is recorded rather than raised so callers see an
+            # empty fleet instead of an exception out of the whole build.
+            try:
+                use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
+                client = BoardClient(
+                    api_key=Config.get_board_api_key(),
+                    host=Config.BOARD_HOST if not use_cloud else None,
+                    use_cloud=use_cloud,
+                    skip_unchanged=True,
+                )
+                self._attach_transition_runner(client)
+                key = self._PRIMARY_FALLBACK_KEY
+                self.runtimes[key] = BoardRuntime(client=client, board_id=key)
+                self._primary_board_id = key
+            except Exception as e:
+                self._primary_board_id = primary_id
+                logger.error(f"No board connection available: legacy config client could not be built ({e})")
 
         if sync_cache:
             rt = self._primary_runtime()
@@ -371,9 +415,12 @@ class DisplayService:
                 # thread repopulates it on its next iteration.
                 rt.polled_characters = None
                 rt.polled_at = None
-                logger.info(f"Board clients rebuilt successfully ({len(self.runtimes)} runtime(s))")
-                return True
-            return False
+            # Success means *some* board is drivable — a misconfigured primary
+            # alongside healthy secondaries is still a usable rebuild (#1749).
+            if not self.board_clients:
+                return False
+            logger.info(f"Board clients rebuilt successfully ({len(self.runtimes)} runtime(s))")
+            return True
         except Exception as e:
             logger.error(f"Failed to rebuild board clients: {e}")
             return False
@@ -511,9 +558,17 @@ class DisplayService:
         # Initialize board runtimes from settings.boards (all boards) or Config
         try:
             self._build_board_clients()
-            if not self.vb_client:
+            # Gate on the FLEET, not on the primary board (issue #1749): a
+            # misconfigured primary used to fail initialization outright,
+            # which made ``run()`` bail and left every other board dark.
+            if not self.board_clients:
                 logger.error("No board connection configured (settings.boards or config)")
                 return False
+            if not self.vb_client:
+                logger.warning(
+                    "Primary board has no connection - it will be skipped until its "
+                    "configuration is fixed; other boards keep running"
+                )
             logger.info("Syncing cache with current board state...")
             # Log transition settings if configured
             transition = Config.get_transition_settings()
@@ -525,11 +580,19 @@ class DisplayService:
             logger.error(f"Failed to initialize board client: {e}")
             return False
 
-        # Start background thread that reads the actual board state periodically
-        self._poll_thread = threading.Thread(target=self._board_poll_loop, daemon=True, name="board-state-poll")
-        self._poll_thread.start()
-        interval = self._get_board_read_interval()
-        logger.info(f"Board state poll started (interval={interval}s)")
+        # Start background thread that reads the actual board state periodically.
+        # This must be idempotent: with a clientless primary ``vb_client`` stays
+        # None for the life of the process, so every startup gate that tests it
+        # re-enters initialize() -- ``get_service()``, ``run_service_background()``
+        # and ``run()`` -- and the backoff loop repeats that on each restart.
+        # Starting a thread per pass would leak them without bound.
+        if self._poll_thread is not None and self._poll_thread.is_alive():
+            logger.debug("Board state poll already running - reusing the existing thread")
+        else:
+            self._poll_thread = threading.Thread(target=self._board_poll_loop, daemon=True, name="board-state-poll")
+            self._poll_thread.start()
+            interval = self._get_board_read_interval()
+            logger.info(f"Board state poll started (interval={interval}s)")
 
         # Log configuration summary
         summary = Config.get_summary()
