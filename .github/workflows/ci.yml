@@ -1267,7 +1267,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.markdown == 'true' || needs.detect-changes.outputs.shared == 'true'
-    timeout-minutes: 5
+    # 5 minutes covered the lint steps but not `npm ci` ahead of them. On a cold
+    # cache the install alone repeatedly hit 5m00s, so the job was killed after
+    # installing and before linting anything -- a red "Lint Markdown" that had
+    # examined zero files. 15 matches the other Node jobs here.
+    timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v7
