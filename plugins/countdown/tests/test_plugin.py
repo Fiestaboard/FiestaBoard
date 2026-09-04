@@ -574,3 +574,21 @@ class TestCountdownBoardAwareness:
 
         assert result.formatted_lines is not None
         assert len(result.formatted_lines) == 6
+
+
+class TestCountdownCacheFreshness:
+    """The countdown plugin must never be served from a stale cache (#1738)."""
+
+    @patch.object(countdown_module, "datetime")
+    def test_get_data_reflects_advanced_clock(self, mock_datetime, sample_manifest, sample_config):
+        """A get_data() call after the wall clock moves reports the shorter remaining time."""
+        tz = ZoneInfo("America/Los_Angeles")
+        mock_datetime.fromisoformat = datetime.fromisoformat
+        plugin = CountdownPlugin(sample_manifest)
+        plugin.config = sample_config
+
+        mock_datetime.now.return_value = datetime(2025, 6, 14, 22, 0, 0, tzinfo=tz)
+        assert plugin.get_data().data["formatted"] == "0D 2H 0M"
+
+        mock_datetime.now.return_value = datetime(2025, 6, 14, 23, 0, 0, tzinfo=tz)
+        assert plugin.get_data().data["formatted"] == "0D 1H 0M"

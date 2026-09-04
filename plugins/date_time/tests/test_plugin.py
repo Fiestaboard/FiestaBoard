@@ -560,3 +560,20 @@ class TestDateTimeBoardAwareness:
         assert note == "Wed, Aug 27"
         # Flagship re-fetch within TTL still returns the full form.
         assert plugin.get_data(BoardContext.from_device_type("flagship")).data["date_pretty"] == flagship
+
+
+class TestDateTimeCacheFreshness:
+    """The clock plugin must never be served from a stale cache (#1738)."""
+
+    @patch("plugins.date_time.datetime")
+    def test_get_data_reflects_advanced_clock(self, mock_datetime, sample_manifest, sample_config):
+        """A get_data() call after the wall clock moves reports the new time."""
+        tz = ZoneInfo("America/Los_Angeles")
+        plugin = DateTimePlugin(sample_manifest)
+        plugin.config = sample_config
+
+        mock_datetime.now.return_value = datetime(2025, 8, 27, 9, 0, 0, tzinfo=tz)
+        assert plugin.get_data().data["time"] == "09:00"
+
+        mock_datetime.now.return_value = datetime(2025, 8, 27, 9, 4, 0, tzinfo=tz)
+        assert plugin.get_data().data["time"] == "09:04"
