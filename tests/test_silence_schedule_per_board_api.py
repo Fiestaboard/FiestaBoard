@@ -73,6 +73,7 @@ def boards():
     with patch("src.api_server.get_settings_service") as mock_get:
         svc = Mock()
         svc.get_board_settings.return_value = Mock(boards=[FLAGSHIP, NOTE])
+        svc.get_primary_board_id.return_value = FLAGSHIP["id"]
         mock_get.return_value = svc
         yield svc
 
@@ -94,14 +95,34 @@ class TestGetSilenceStatusPerBoard:
         assert data["start_time_utc"] == "04:00+00:00"
         assert data["board_id"] == "flag-1"
 
-    def test_omitting_board_id_keeps_legacy_global_reading(self, client, silence_store, boards):
+    def test_omitting_board_id_reports_the_primary_board(self, client, silence_store, boards):
+        """Runtime status, not a config dump: no board means the primary board.
+
+        This replaces an assertion that omitting ``board_id`` returns the
+        install-wide layer. That contract broke the single-board install: the
+        settings form writes the board layer, so the dashboard overlay, the
+        silence-imminent banner and this endpoint all kept reporting the
+        pre-save window (PR #1801 review). The install-wide layer is still
+        readable as raw config through ``GET /settings/all``.
+        """
+        _cm, store = silence_store
+        store["by_board"]["flag-1"] = {"start_time": "06:00+00:00", "end_time": "12:00+00:00"}
+
+        data = client.get("/silence-status").json()
+
+        assert data["start_time_utc"] == "06:00+00:00"
+        assert data["end_time_utc"] == "12:00+00:00"
+        assert data["board_id"] == "flag-1"
+
+    def test_a_board_without_its_own_entry_still_reads_the_install_wide_window(self, client, silence_store, boards):
+        """The primary board with no override inherits the install-wide values."""
         _cm, store = silence_store
         store["by_board"]["note-1"] = {"start_time": "06:00+00:00", "end_time": "12:00+00:00"}
 
         data = client.get("/silence-status").json()
 
         assert data["start_time_utc"] == "04:00+00:00"
-        assert data["board_id"] is None
+        assert data["board_id"] == "flag-1"
 
     def test_per_board_mode_and_page_are_reported(self, client, silence_store, boards):
         _cm, store = silence_store

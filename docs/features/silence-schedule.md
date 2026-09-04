@@ -53,7 +53,8 @@ A few things follow from this:
   say it should be asleep.
 - **The Home Assistant `silence_mode` sensor reports the primary board.** Like
   the other entities in that payload (active page, transition style), it
-  describes the primary board rather than the install as a whole.
+  describes the primary board rather than the install as a whole. The same is
+  true of `GET /silence-status` when you do not name a board.
 
 ## How It Works
 

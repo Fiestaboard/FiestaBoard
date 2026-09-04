@@ -260,3 +260,59 @@ class TestMigrationLockSafety:
             "that call reads config through ConfigManager.get_board()"
         )
         assert result["seeded"] == 1
+
+
+# ==================== /silence-status read layer ====================
+
+
+class TestSilenceStatusReadsTheBoardTheUiWrote:
+    """``GET /silence-status`` with no board must describe the primary board.
+
+    The dashboard SNOOZING overlay, the silence-imminent banner and the E2E
+    regression for #597 all poll this endpoint unscoped on a single-board
+    install. If it keeps returning the install-wide layer while the form
+    writes the board layer, the user toggles silence off and every one of
+    those surfaces still says it is on — the same disagreement as BLOCKER 1,
+    one layer up.
+    """
+
+    def test_unscoped_status_reports_the_primary_boards_window(self, real_config):
+        service = _boards(BOARD_1)
+        p1, p2 = _patch_settings(service)
+        with p1, p2:
+            real_config.migrate_silence_schedule_to_per_board()
+            client = TestClient(app)
+
+            # What the settings form now sends: a board-scoped save.
+            _save_via_api(
+                client,
+                {
+                    "enabled": False,
+                    "start_time": "22:30+00:00",
+                    "end_time": "07:00+00:00",
+                    "mode": "indicator",
+                    "board_id": "board-1",
+                },
+            )
+
+            status = client.get("/silence-status")
+
+        assert status.status_code == 200, status.text
+        body = status.json()
+        assert body["enabled"] is False
+        assert body["start_time_utc"] == "22:30+00:00"
+        assert body["board_id"] == "board-1"
+
+    def test_explicit_board_id_still_wins_over_the_primary(self, real_config):
+        service = _boards(BOARD_1, BOARD_2)
+        p1, p2 = _patch_settings(service)
+        with p1, p2:
+            real_config.set_silence_schedule_for_board(
+                "board-2", {"enabled": True, "start_time": "03:00+00:00", "end_time": "04:00+00:00"}
+            )
+            client = TestClient(app)
+            status = client.get("/silence-status?board_id=board-2")
+
+        assert status.status_code == 200, status.text
+        assert status.json()["start_time_utc"] == "03:00+00:00"
+        assert status.json()["board_id"] == "board-2"

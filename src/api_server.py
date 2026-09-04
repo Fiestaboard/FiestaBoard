@@ -4374,7 +4374,15 @@ async def get_silence_status(board_id: str | None = None):
 
     Args:
         board_id: Optional board to read (query param). Omitted → the
-            install-wide schedule, legacy behavior (issue #1788).
+            **primary** board (issue #1788), matching ``_silence_active`` and
+            ``_board_is_paused``. This is a runtime status endpoint, not a
+            config dump: "is silence on?" with no board means "on the board
+            you drive by default". Returning the install-wide layer instead
+            made the dashboard overlay, the silence-imminent banner and
+            ``GET /silence-status`` all report the pre-save window on a
+            single-board install, because the settings form writes the board
+            layer. The install-wide layer is still readable as raw config via
+            ``GET /settings/all``.
 
     Returns:
     - enabled: Whether silence schedule is enabled
@@ -4383,13 +4391,23 @@ async def get_silence_status(board_id: str | None = None):
     - end_time_utc: End time in UTC ISO format
     - current_time_utc: Current UTC time
     - next_change_utc: Time of next status change
-    - board_id: Echo of the requested board (null when unscoped)
+    - board_id: The board this status describes (the primary board when the
+      query param was omitted; null only when no board is configured)
     """
     from .config import resolve_silence_schedule
     from .time_service import get_time_service
 
     time_service = get_time_service()
     config_manager = get_config_manager()
+
+    if board_id is None:
+        try:
+            primary = get_settings_service().get_primary_board_id()
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("Could not resolve primary board for silence status: %s", e)
+            primary = None
+        # Coerce: an id that is not a string would land in the JSON response.
+        board_id = str(primary) if isinstance(primary, str) and primary else None
 
     # No migration here: this is a read the UI polls on a timer, and the
     # migration is a config write.  It runs once at startup instead
