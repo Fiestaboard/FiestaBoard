@@ -77,9 +77,13 @@ class StatePublisher:
             display_running = self._get_display_running()
             out["display_service"] = "ON" if display_running else "OFF"
 
-            # active_page, current_page: page name
+            # active_page, current_page: page name. With no active page,
+            # publish the select's stable no-page option — HA rejects
+            # states that aren't in the options list (issue #1794).
+            from .discovery import NO_ACTIVE_PAGE_OPTION
+
             active_id = settings.get_active_page_id()
-            page_name = "—"
+            page_name = NO_ACTIVE_PAGE_OPTION
             if active_id:
                 page = page_service.get_page(active_id)
                 if page:

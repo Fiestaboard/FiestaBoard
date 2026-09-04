@@ -115,6 +115,40 @@ class TestStatePublisherGather:
         assert second_state_count == first_state_count
         assert second_attrs_count == first_attrs_count
 
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_no_active_page_publishes_none_option(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, mock_client
+    ):
+        """Issue #1794: with no active page, publish the select's stable
+        no-page option (not an em dash HA rejects as an unknown option)."""
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        mock_config.is_silence_mode_active.return_value = False
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = None
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
+        get_settings.return_value = settings
+        page_svc = MagicMock()
+        page_svc.get_page.return_value = None
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+        state = {c[0][0]: c[0][1] for c in mock_client.publish_state.call_args_list}
+        assert state["active_page"] == NO_ACTIVE_PAGE_OPTION
+        assert state["current_page"] == NO_ACTIVE_PAGE_OPTION
+        assert NO_ACTIVE_PAGE_OPTION == "None"
+
     @patch("src.pages.service.get_page_service")
     @patch("src.settings.service.get_settings_service")
     def test_gather_handles_exception(self, get_settings, get_page, mock_client):

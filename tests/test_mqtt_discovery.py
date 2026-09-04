@@ -479,7 +479,8 @@ class TestBuildAllDiscoveryMessages:
             assert msg["topic"].endswith("/config")
 
     def test_dynamic_page_names_injected(self, mqtt_config):
-        """Active page entity should include provided page names as options."""
+        """Active page entity includes the page names as options, preceded by
+        the stable no-page option (contract change for issue #1794)."""
         page_names = ["Weather Dashboard", "Sports Scores", "Welcome Message"]
         messages = build_all_discovery_messages(mqtt_config, page_names=page_names)
 
@@ -492,7 +493,22 @@ class TestBuildAllDiscoveryMessages:
                 break
 
         assert active_page_msg is not None
-        assert active_page_msg["options"] == page_names
+        assert active_page_msg["options"] == ["None", *page_names]
+
+    def test_active_page_options_start_with_no_page_sentinel(self, mqtt_config):
+        """Issue #1794: the select always offers a representable no-page state."""
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        messages = build_all_discovery_messages(mqtt_config, page_names=["Weather"])
+        active_page_msg = None
+        for msg in messages:
+            payload = json.loads(msg["payload"])
+            if payload.get("unique_id", "").endswith("_active_page"):
+                active_page_msg = payload
+                break
+
+        assert active_page_msg is not None
+        assert active_page_msg["options"][0] == NO_ACTIVE_PAGE_OPTION
 
     def test_sw_version_included(self, mqtt_config):
         """Software version should appear in device info."""

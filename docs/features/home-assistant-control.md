@@ -97,14 +97,22 @@ Once connected, FiestaBoard appears as a device with **24 entities** — control
 |--------|------|-------------|
 | **Schedule** | Switch | Turn the FiestaBoard schedule on/off |
 | **Display Service** | Switch | Start/stop the FiestaBoard display service |
-| **Active Page** | Select | Choose which page to display (dynamically populated from your pages) |
+| **Active Page** | Select | Choose which page to display (dynamically populated from your pages). Selecting a page always re-sends it, even if it is already the active page — that is how you put the page back after a manual message. The list also carries a `None` option so "no page is active" is a state HA can show; as a *command* it only applies to secondary boards, since the primary board never goes dark. |
 | **Transition Style** | Select | Board transition animation (column, reverse-column, edges-to-center, row, diagonal, random) |
 | **Send Message** | Text | Send a text message to the board (up to 132 characters) |
-| **Refresh Display** | Button | Force a display refresh |
+| **Refresh Display** | Button | Force a display refresh. This is a *force* refresh: unchanged content is re-sent, so it restores the active page after something else wrote to the board. |
 | **Blank Board** | Button | Clear the board display (all blank) |
 | **Next Page** | Button | Navigate to the next page in the page list (wraps around) |
 | **Previous Page** | Button | Navigate to the previous page in the page list (wraps around) |
 | **Refresh Interval** | Number | Set how often the board refreshes (30–3600 seconds). *Categorized as config.* |
+
+**Manual writes stay on the board.** Send Message, Blank Board and the debug
+endpoints write straight to the board and are left there — the display loop
+will not paint over them on its next cycle. Put the active page back with
+**Refresh Display**, by selecting a page, or by letting that page's content
+change on its own. (The Active Page and Current Page entities still report the
+configured page, not the manual message — tracked separately in
+[#1831](https://github.com/Fiestaboard/FiestaBoard/issues/1831).)
 
 **Send Message formatting:** text longer than the board width word-wraps onto
 the following rows automatically, sized to your board's real geometry (6 rows ×

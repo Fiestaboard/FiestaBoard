@@ -1379,6 +1379,14 @@ class TestCacheEndpoints:
         response = client.post("/force-refresh")
         assert response.status_code == 500
 
+    def test_force_refresh_invalidates_the_display_loop_dedupe_state(self, client, mock_service):
+        """Clearing only the board clients' caches is not enough: the display
+        loop skips at its own content-dedupe guard, so "Resend to board" did
+        nothing when the content had not changed (issue #1794 review)."""
+        response = client.post("/force-refresh")
+        assert response.status_code == 200
+        mock_service.invalidate_all_board_content.assert_called_once_with()
+
 
 # ============================================================
 # Service Start / Stop / Refresh / Send Message
@@ -1451,6 +1459,48 @@ class TestServiceLifecycle:
         with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
             response = client.post("/send-message", json={"text": "Hello"})
         assert response.status_code == 500
+
+    def test_send_message_leaves_the_display_dedupe_state_alone(self, client, mock_service, mock_settings_service):
+        """Issue #1794: a manual send is an out-of-band write, and must survive
+        the next display-loop tick. Invalidating the dedupe cache here made the
+        engine repaint the active page over it within one polling interval."""
+        with patch("src.api_server.Config.is_silence_mode_active", return_value=False):
+            response = client.post("/send-message", json={"text": "Hello"})
+        assert response.status_code == 200
+        mock_service.invalidate_board_content.assert_not_called()
+        mock_service.invalidate_all_board_content.assert_not_called()
+
+    def test_send_message_success_publishes_mqtt_state(self, client, mock_service, mock_settings_service):
+        """Issue #1794: after a manual send, push fresh MQTT state so HA's
+        last-update sensor reflects the out-of-band write."""
+        mqtt_client = Mock()
+        publisher = Mock()
+        mqtt_client._state_publisher = publisher
+        with (
+            patch("src.api_server.Config.is_silence_mode_active", return_value=False),
+            patch("src.mqtt.get_mqtt_client", return_value=mqtt_client),
+        ):
+            response = client.post("/send-message", json={"text": "Hello"})
+        assert response.status_code == 200
+        publisher.mark_display_updated.assert_called_once()
+        publisher.gather_and_publish.assert_called_once()
+
+    def test_send_message_no_mqtt_client_is_safe(self, client, mock_service, mock_settings_service):
+        """No MQTT client wired: the send still succeeds."""
+        with (
+            patch("src.api_server.Config.is_silence_mode_active", return_value=False),
+            patch("src.mqtt.get_mqtt_client", return_value=None),
+        ):
+            response = client.post("/send-message", json={"text": "Hello"})
+        assert response.status_code == 200
+        assert response.json()["status"] == "success"
+
+    def test_peek_service_does_not_create_service(self):
+        """peek_service returns the existing instance only — never creates one."""
+        from src import api_server
+
+        with patch.object(api_server, "_service", None):
+            assert api_server.peek_service() is None
 
 
 class TestSendMessageWrapping:

@@ -80,6 +80,66 @@ class CommandHandler:
                 logger.debug("Mark display updated failed: %s", e)
 
     # ------------------------------------------------------------------ #
+    # Out-of-band write / force-send helpers (issue #1794)
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _display_service():
+        """The existing DisplayService instance, or None (never creates one)."""
+        from src.api_server import peek_service
+
+        return peek_service()
+
+    def _invalidate_board_content(self, board_id: str | None) -> None:
+        """Clear a board's display-loop dedupe + client caches after an
+        out-of-band board write, so the next check-and-send cycle restores
+        the active page instead of skipping at the content-unchanged guard.
+        ``None`` targets the primary board.
+        """
+        service = self._display_service()
+        if service is None or not hasattr(service, "invalidate_board_content"):
+            return
+        try:
+            if board_id is None:
+                from src.settings.service import get_settings_service
+
+                board_id = get_settings_service().get_primary_board_id()
+            service.invalidate_board_content(board_id)
+        except Exception as e:
+            logger.debug("Board content invalidation failed: %s", e)
+
+    def _force_send_active_page(self, board_id: str | None) -> None:
+        """Invalidate dedupe state and immediately push the active page.
+
+        Mirrors what PUT /settings/active-page does for the web UI. The
+        display loop alone would skip at its content-dedupe guard, so
+        re-selecting the currently-set page over MQTT would never restore
+        it after an out-of-band write (issue #1794).
+        """
+        service = self._display_service()
+        if service is None:
+            return
+        try:
+            self._invalidate_board_content(board_id)
+            if board_id is not None and hasattr(service, "check_and_send_for_board"):
+                rt = service.get_runtime(board_id) if hasattr(service, "get_runtime") else None
+                if rt is not None:
+                    is_primary = False
+                    try:
+                        from src.settings.service import get_settings_service
+
+                        is_primary = get_settings_service().get_primary_board_id() == board_id
+                    except Exception as e:
+                        logger.debug("Primary board lookup failed: %s", e)
+                    _bid, board = self._resolve_board(board_id)
+                    service.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
+                    return
+            if hasattr(service, "check_and_send_active_page"):
+                service.check_and_send_active_page()
+        except Exception as e:
+            logger.warning("MQTT active_page: immediate send failed: %s", e)
+
+    # ------------------------------------------------------------------ #
     # Per-board routing helpers (issue #1244)
     # ------------------------------------------------------------------ #
 
@@ -221,7 +281,37 @@ class CommandHandler:
                 else:
                     get_settings_service().set_active_page_id(page.id)
                     self._publish_event("page_changed", "page_switched", {"page_name": page.name})
+                # Push the page immediately (issue #1794): re-selecting the
+                # currently-set page must still restore it to the board after
+                # an out-of-band write.
+                self._force_send_active_page(board_id)
                 return
+        from .discovery import NO_ACTIVE_PAGE_OPTION
+
+        if payload_lower == NO_ACTIVE_PAGE_OPTION.lower():
+            # The HA select's stable no-page option (issue #1794). It exists
+            # so an empty active page is a *representable state* — HA rejects
+            # published states that aren't in the options list.
+            #
+            # As a command it only works on a secondary board, which goes
+            # dark when no page is set. The primary never goes dark:
+            # check_and_send_for_board re-defaults it to pages[0] and
+            # persists that on the next tick, so accepting the selection here
+            # would just make the select bounce back within one polling
+            # interval. Refuse it instead; handle()'s trailing
+            # gather_and_publish re-publishes the real state, so the select
+            # snaps back immediately rather than lying for 15 seconds.
+            # (A real page named like the option wins — the name match above
+            # runs first.)
+            settings_service = get_settings_service()
+            if board_id is not None and board_id != settings_service.get_primary_board_id():
+                settings_service.set_active_page_id(None, board_id=board_id)
+            else:
+                logger.info(
+                    "MQTT active_page: %r ignored on the primary board, which never goes dark",
+                    NO_ACTIVE_PAGE_OPTION,
+                )
+            return
         logger.warning("MQTT active_page: no page named %r", page_name)
 
     def _handle_transition_style(self, payload: str) -> None:
@@ -241,8 +331,14 @@ class CommandHandler:
         # JSON payloads may target a specific board (issue #1244):
         # {"board_id": "..."} or {"board": "Kitchen"}. Anything else (e.g.
         # the HA button's "PRESS") keeps the legacy all-boards refresh.
+        #
+        # This is a FORCE refresh (issue #1794): dedupe caches are dropped
+        # first so unchanged content is re-sent (restoring the active page
+        # after an out-of-band write), and display_updated only fires when
+        # something was actually sent.
         _, board_ref = self._parse_board_payload(payload)
         service = get_service()
+        sent = False
         if service and board_ref:
             board_id, board = self._resolve_board(board_ref)
             rt = service.get_runtime(board_id) if (board_id and hasattr(service, "get_runtime")) else None
@@ -254,13 +350,28 @@ class CommandHandler:
                     is_primary = get_settings_service().get_primary_board_id() == board_id
                 except Exception as e:
                     logger.debug("Primary board lookup failed: %s", e)
-                service.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
+                self._invalidate_service_boards(service, board_id)
+                sent = service.check_and_send_for_board(board_id, rt, is_primary=is_primary, board=board)
             elif hasattr(service, "check_and_send_active_page"):
-                service.check_and_send_active_page()
+                self._invalidate_service_boards(service)
+                sent = service.check_and_send_active_page()
         elif service and hasattr(service, "check_and_send_active_page"):
-            service.check_and_send_active_page()
-        self._mark_display_updated()
-        self._publish_event("display_updated", "page_refreshed")
+            self._invalidate_service_boards(service)
+            sent = service.check_and_send_active_page()
+        if sent:
+            self._mark_display_updated()
+            self._publish_event("display_updated", "page_refreshed")
+
+    @staticmethod
+    def _invalidate_service_boards(service, board_id: str | None = None) -> None:
+        """Drop the dedupe caches for one board (or all) ahead of a force refresh."""
+        try:
+            if board_id is not None and hasattr(service, "invalidate_board_content"):
+                service.invalidate_board_content(board_id)
+            elif board_id is None and hasattr(service, "invalidate_all_board_content"):
+                service.invalidate_all_board_content()
+        except Exception as e:
+            logger.debug("Board content invalidation failed: %s", e)
 
     def _handle_blank_board(self, payload: str = "") -> None:
         # JSON payloads may target a specific board (issue #1244); the
@@ -299,6 +410,11 @@ class CommandHandler:
         dims = self._board_dims(board if board is not None else self._resolve_board(None)[1])
         blank_array = [[0] * dims.cols for _ in range(dims.rows)]
         client.send_characters(blank_array, force=True)
+        # NOTE: deliberately does NOT invalidate the display loop's dedupe
+        # cache. Doing so made the blank self-destruct on the next engine
+        # tick (<=15s), breaking the "Blank the Board at Bedtime" automation
+        # in our own HA docs. Restoring the page is a pull: Refresh Display,
+        # re-selecting a page, or an actual content change.
         self._mark_display_updated()
         self._publish_event("display_updated", "board_blanked")
 
@@ -378,6 +494,9 @@ class CommandHandler:
             step_interval_ms=transition.step_interval_ms,
             step_size=transition.step_size,
         )
+        # NOTE: deliberately does NOT invalidate the display loop's dedupe
+        # cache — see _handle_blank_board. The message must outlive the next
+        # engine tick, or "Welcome Home John!" lasts 15 seconds.
         self._mark_display_updated()
         self._publish_event("display_updated", "message_sent")
 

@@ -1039,6 +1039,36 @@ def get_service() -> DisplayService | None:
     return _service
 
 
+def peek_service() -> DisplayService | None:
+    """Return the existing DisplayService instance without creating one.
+
+    For callers that only need to touch state that already exists (e.g.
+    invalidating dedupe caches after an out-of-band board write, issue
+    #1794): when no service exists there is nothing to invalidate, and
+    building one as a side effect would be wrong.
+    """
+    return _service
+
+
+def _publish_mqtt_state_update() -> None:
+    """Push fresh MQTT state after an out-of-band board write (issue #1794).
+
+    No-op when the MQTT integration isn't wired. Errors are swallowed —
+    MQTT reporting must never fail the board write that triggered it.
+    """
+    try:
+        from .mqtt import get_mqtt_client
+
+        client = get_mqtt_client()
+        publisher = getattr(client, "_state_publisher", None) if client else None
+        if publisher is None:
+            return
+        publisher.mark_display_updated()
+        publisher.gather_and_publish()
+    except Exception as e:
+        logger.debug(f"MQTT state publish after board write failed: {e}")
+
+
 def run_service_background():
     """Run the service in a background thread with auto-restart on failure."""
     global _service_running, _service_start_time
@@ -3557,6 +3587,13 @@ async def send_message(request: MessageRequest):
         )
         if success:
             if was_sent:
+                # Push fresh MQTT state so HA reflects the update. The
+                # display loop's dedupe cache is deliberately left alone:
+                # invalidating it here made the message self-destruct on the
+                # next engine tick (<=15s). Restoring the active page is a
+                # pull — /force-refresh, MQTT Refresh Display, re-selecting
+                # a page, or an actual content change (issue #1794).
+                _publish_mqtt_state_update()
                 service.request_board_refresh()
                 return {"status": "success", "message": "Message sent successfully"}
             else:
@@ -9293,6 +9330,13 @@ async def force_refresh():
         service.vb_client.clear_cache()
     for client in service.board_clients.values():
         client.clear_cache()
+    # The board clients are only half of it: the display loop skips at its
+    # own per-runtime content-dedupe guard, so clearing the client caches
+    # alone left "Resend to board" doing nothing (issue #1794).
+    try:
+        service.invalidate_all_board_content()
+    except Exception as e:
+        logger.debug(f"Board content invalidation failed: {e}")
 
     try:
         sent, error = _send_with_status(
