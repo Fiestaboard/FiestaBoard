@@ -444,7 +444,7 @@ breaks every automation that targets it by the old name — FiestaBoard cannot
 rewrite payloads that live in your Home Assistant config. When this happens
 the log records:
 
-```
+```text
 MQTT: resolved board by name 'Kitchen'; renaming this board will break it. Target the board id 'b1' instead.
 ```
 
