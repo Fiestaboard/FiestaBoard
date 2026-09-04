@@ -87,7 +87,16 @@ class CountdownPlugin(PluginBase):
             delta = target.astimezone(UTC) - now.astimezone(UTC)
             total_seconds = int(delta.total_seconds())
 
-            if total_seconds <= 0:
+            # Count-up ("days since") mode: once the target has passed, count
+            # upward from it instead of freezing at zero (#1795). While the
+            # target is still in the future, count down to it as usual.
+            count_up = bool(self.config.get("count_up", False))
+            counting_up = count_up and total_seconds <= 0
+
+            if counting_up:
+                total_seconds = -total_seconds
+
+            if total_seconds <= 0 and not counting_up:
                 data = {
                     "event_name": event_name,
                     "target_datetime": target_str,
@@ -97,6 +106,7 @@ class CountdownPlugin(PluginBase):
                     "seconds": "0",
                     "total_seconds": "0",
                     "is_expired": "true",
+                    "is_count_up": "false",
                     "formatted": "Event has passed",
                 }
             else:
@@ -113,7 +123,8 @@ class CountdownPlugin(PluginBase):
                     "minutes": str(minutes),
                     "seconds": str(seconds),
                     "total_seconds": str(total_seconds),
-                    "is_expired": "false",
+                    "is_expired": "true" if counting_up else "false",
+                    "is_count_up": "true" if counting_up else "false",
                     "formatted": f"{days}D {hours}H {minutes}M",
                 }
 
@@ -151,9 +162,18 @@ class CountdownPlugin(PluginBase):
 
         event_name = data.get("event_name", "Event")
         is_expired = data.get("is_expired") == "true"
+        is_count_up = data.get("is_count_up") == "true"
 
         if height <= 3:
             # Compact layout for short boards (e.g. Note).
+            if is_count_up:
+                days = data.get("days", "0")
+                hours = data.get("hours", "0")
+                return [
+                    event_name[:width].upper().center(width),
+                    f"{days}D {hours}H".center(width),
+                    "SINCE".center(width),
+                ]
             if is_expired:
                 return [
                     event_name[:width].upper().center(width),
@@ -168,7 +188,7 @@ class CountdownPlugin(PluginBase):
                 "TO GO".center(width),
             ]
 
-        if is_expired:
+        if is_expired and not is_count_up:
             lines = [
                 "COUNTDOWN",
                 event_name[:width].upper().center(width),
@@ -182,8 +202,9 @@ class CountdownPlugin(PluginBase):
             hours = data.get("hours", "0")
             minutes = data.get("minutes", "0")
 
+            header = "TIME SINCE" if is_count_up else "COUNTDOWN UNTIL"
             lines = [
-                "COUNTDOWN UNTIL".center(width),
+                header.center(width),
                 event_name[:width].upper().center(width),
                 "",
                 f"{days} DAYS".center(width),
