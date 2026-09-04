@@ -1451,3 +1451,76 @@ def test_get_removed_plugins_tolerates_garbage(tmp_path):
     )
     cm = ConfigManager(config_path=str(config_path))
     assert cm.get_removed_plugins() == ["stocks"]
+
+
+# ---------------------------------------------------------------------------
+# migrate_silence_schedule_to_utc takes the right lock (issue #1746)
+# ---------------------------------------------------------------------------
+
+
+def _config_needing_silence_migration() -> dict:
+    """Config whose silence times are still in the pre-UTC ``HH:MM`` format."""
+    return {
+        "board": {},
+        "features": {"silence_schedule": {"enabled": True, "start_time": "20:00", "end_time": "07:00"}},
+        "general": {"timezone": "America/Los_Angeles"},
+    }
+
+
+def _acquired_from_another_thread(lock, timeout: float = 0.25) -> bool:
+    """Whether a *different* thread can take ``lock`` right now."""
+    result: list[bool] = []
+
+    def attempt():
+        if lock.acquire(timeout=timeout):
+            result.append(True)
+            lock.release()
+        else:
+            result.append(False)
+
+    thread = threading.Thread(target=attempt)
+    thread.start()
+    thread.join()
+    return result[0]
+
+
+def _migrate_with_a_lock_probe(tmp_path, mock_time_service, lock_of) -> list[bool]:
+    """Run the silence migration, probing a lock from another thread mid-flight."""
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps(_config_needing_silence_migration()))
+    cm = ConfigManager(config_path=str(config_path))
+
+    probes: list[bool] = []
+
+    def probe_then_convert(local_time, timezone):
+        probes.append(_acquired_from_another_thread(lock_of(cm)))
+        return local_time
+
+    mock_time_service.local_to_utc_iso.side_effect = probe_then_convert
+
+    assert cm.migrate_silence_schedule_to_utc() is True, "the migration never ran — the test proves nothing"
+    assert probes, "the migration never reached the conversion step"
+    return probes
+
+
+def test_silence_migration_holds_the_config_file_lock(tmp_path, mock_time_service):
+    """#1746: the migration read-modify-writes config, so it must hold ``_file_lock``.
+
+    Without it another thread can write config between the migration's read
+    and its save, and lose that write.
+    """
+    probes = _migrate_with_a_lock_probe(tmp_path, mock_time_service, lambda cm: cm._file_lock)
+
+    assert not any(probes), "another thread took the config file lock while the migration was mid-flight"
+
+
+def test_silence_migration_does_not_hold_the_singleton_construction_lock(tmp_path, mock_time_service):
+    """#1746: holding the class-level ``_lock`` blocks ``ConfigManager()`` everywhere.
+
+    ``_lock`` guards singleton construction, not config data. Taking it for the
+    duration of a disk-writing migration stalls every other thread that merely
+    wants a ConfigManager handle.
+    """
+    probes = _migrate_with_a_lock_probe(tmp_path, mock_time_service, lambda cm: ConfigManager._lock)
+
+    assert all(probes), "the migration held the singleton construction lock while doing disk I/O"

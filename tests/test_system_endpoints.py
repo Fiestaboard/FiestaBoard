@@ -1189,3 +1189,99 @@ class TestUpdaterLastUpdateHelper:
 
         with patch("src.api_server.requests.get", return_value=Mock(status_code=500)):
             assert api._updater_last_update() == {}
+
+
+def _writes_to(fh, target) -> bool:
+    """True if the open file handle ``fh`` is writing ``target`` or its staging file."""
+    name = getattr(fh, "name", "")
+    return isinstance(name, str) and name.startswith(str(target))
+
+
+class TestSystemUpdateStateFileDurability:
+    """Durability of ``data/.system-update.json`` (issue #1745).
+
+    The file is read-modify-written from three places (the hourly auto-update
+    loop, ``POST /system/update`` and ``POST /system/update/auto``).  A
+    truncating ``open("w")`` with no lock around the read-modify-write can lose
+    the auto-update toggle outright.
+    """
+
+    def test_save_leaves_the_existing_file_intact_when_the_write_crashes(self):
+        """A crash mid-write must not truncate the state file.
+
+        The loader swallows a JSON error and returns ``{}``, so a truncated
+        file silently resets the auto-update toggle to its default.
+        """
+        from src import api_server
+
+        state_file = api_server.SYSTEM_UPDATE_STATE_FILE
+        api_server._system_update_state_save({"auto_update_interval": "weekly", "auto_update_enabled": True})
+        original_bytes = state_file.read_bytes()
+
+        real_dump = api_server.json.dump
+        crashed = []
+
+        def crashing_dump(obj, fh, *args, **kwargs):
+            # ``json`` is shared with every other store, so only sabotage the
+            # write that targets the system-update state file (or its staging
+            # sibling).
+            if not _writes_to(fh, state_file):
+                return real_dump(obj, fh, *args, **kwargs)
+            crashed.append(True)
+            fh.write('{"auto_update_interval"')
+            fh.flush()
+            raise OSError("Simulated crash mid-write")
+
+        with patch.object(api_server.json, "dump", crashing_dump):
+            api_server._system_update_state_save({"auto_update_interval": "monthly"})
+
+        assert crashed, "the sabotaged write never ran — the test proves nothing"
+        assert state_file.read_bytes() == original_bytes
+
+    def test_concurrent_updates_do_not_lose_each_others_fields(self, client, monkeypatch):
+        """Two writers racing on the state file must both survive.
+
+        ``POST /system/update/auto`` writes ``auto_update_interval`` while the
+        hourly loop writes ``last_check``; both do load -> mutate -> save.  With
+        no lock around that sequence the second writer's read is stale and one
+        of the two fields is lost.
+        """
+        import threading
+
+        from src import api_server
+
+        monkeypatch.setenv("FIESTABOARD_PROFILE", "docker")
+        state_file = api_server.SYSTEM_UPDATE_STATE_FILE
+        api_server._system_update_state_save({"auto_update_interval": "manual", "last_check": "stale"})
+
+        real_dump = api_server.json.dump
+        competitor: list = []
+
+        def dump_with_a_competing_update(obj, fh, *args, **kwargs):
+            # Interleave one full competing read-modify-write in the middle of
+            # the handler's own write.
+            if not competitor and _writes_to(fh, state_file):
+
+                def compete():
+                    state = api_server._system_update_state_load()
+                    state["last_check"] = "2026-01-01T00:00:00+00:00"
+                    api_server._system_update_state_save(state)
+
+                thread = threading.Thread(target=compete)
+                competitor.append(thread)
+                thread.start()
+                # A correctly locked writer blocks here; an unlocked one races.
+                thread.join(timeout=0.5)
+            return real_dump(obj, fh, *args, **kwargs)
+
+        with patch.object(api_server.json, "dump", dump_with_a_competing_update):
+            response = client.post("/system/update/auto", json={"interval": "weekly"})
+        assert response.status_code == 200
+
+        assert competitor, "the competing update never ran — the test proves nothing"
+        competitor[0].join(timeout=5)
+        assert not competitor[0].is_alive()
+
+        persisted = json.loads(state_file.read_text())
+        assert persisted["auto_update_interval"] == "weekly"
+        assert persisted["last_check"] == "2026-01-01T00:00:00+00:00"
