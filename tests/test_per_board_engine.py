@@ -134,6 +134,10 @@ def _service_with_runtimes(boards):
         client = MagicMock()
         client.render.return_value = (True, True)
         client._last_characters = None
+        # Physical clients have no ``is_virtual`` attribute; a MagicMock would
+        # auto-create a truthy one, which the UI-only exemption (issue #1835)
+        # reads. Pin it False so these behave as real hardware clients.
+        client.is_virtual = False
         clients[board["id"]] = client
         runtimes[board["id"]] = BoardRuntime(client=client, board_id=board["id"])
     svc.runtimes = runtimes
@@ -450,6 +454,62 @@ class TestOutputTarget:
         _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
 
         clients["b1"].render.assert_called_once()
+
+    def test_ui_only_target_still_drives_virtual_board(self):
+        """A virtual board is the web UI, not hardware (issue #1835).
+
+        ``target="ui"`` means "don't touch hardware", but a FiestaPanel's
+        frame is populated only by the render path here. Short-circuiting it
+        froze every virtual board on its last frame. ``VirtualBoardClient``
+        sets ``is_virtual = True``, which exempts it from the short-circuit.
+        """
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].is_virtual = True
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=False)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_called_once()
+
+    def test_paused_virtual_board_is_not_driven_under_ui_only_target(self):
+        """The virtual exemption must not reach above the pause short-circuit.
+
+        Pause (issue #970) is hands-off for every board, virtual included.
+        The exemption only skips the output-target gate; it must not turn a
+        paused panel back on.
+        """
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].is_virtual = True
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, paused=("b1",), send_to_board=False)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule)
+
+        clients["b1"].render.assert_not_called()
+
+    def test_silenced_virtual_board_shows_the_indicator_not_its_page(self):
+        """The virtual exemption must not reach below into silence handling.
+
+        A driven virtual board still goes through the silence dispatch, so a
+        snoozed panel shows the SNOOZING indicator rather than its page.
+        """
+        boards = [_board("b1", "One")]
+        svc, clients = _service_with_runtimes(boards)
+        clients["b1"].is_virtual = True
+        pages = _page_service({"pA": {"content": "ALPHA"}})
+        schedule = _schedule_service({"b1": "pA"})
+        settings = _settings_service(boards, send_to_board=False)
+
+        _drive(svc, boards, settings=settings, pages=pages, schedule=schedule, silence=True)
+
+        clients["b1"].render.assert_called_once()
+        assert svc.runtimes["b1"].last_active_page_id == "__silence__"
+        assert svc.runtimes["b1"].last_active_page_content == "snoozing"
 
     def test_ui_only_target_does_not_write_to_secondary_hardware(self):
         boards = [_board("b1", "One"), _board("b2", "Two", port=7001)]

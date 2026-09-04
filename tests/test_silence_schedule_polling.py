@@ -89,6 +89,12 @@ def service_factory():
         svc.vb_client = Mock()
         svc.vb_client.send_characters.return_value = (True, True)
         svc.vb_client.render.return_value = (True, True)
+        # Hardware clients have no ``is_virtual`` attribute, but a bare Mock
+        # auto-creates a truthy one. The UI-only short-circuit (issue #1835)
+        # reads it, so pin a real ``False``: these tests are about a physical
+        # board, and without this they would exercise the virtual exemption
+        # instead of the behaviour they name.
+        svc.vb_client.is_virtual = False
 
         return svc, mocks, page_service, patches
 
