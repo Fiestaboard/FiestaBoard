@@ -2,6 +2,8 @@
 export const NOTE_ROWS = 3;
 export const NOTE_COLS = 15;
 export const MAX_NOTES_PER_AXIS = 8;
+/** Board display names are capped at storage time by BoardInstance.__post_init__. */
+export const MAX_BOARD_NAME_LENGTH = 64;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface BoardDimensions {

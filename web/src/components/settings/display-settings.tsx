@@ -51,7 +51,7 @@ import { queryKeys, useBoardSettings } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
-import { isNoteArray, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
+import { isNoteArray, MAX_BOARD_NAME_LENGTH, MAX_NOTES_PER_AXIS, NOTE_ARRAY_PRESETS } from "@/lib/board-dimensions";
 
 import { TileGridAssignment } from "./tile-grid-assignment";
 
@@ -150,6 +150,9 @@ function BoardNameField({ board, onRename }: { board: BoardInstance; onRename: (
         id={`board-name-${board.id}`}
         type="text"
         value={draft}
+        // Matches the backend cap, so the field never shows more than what
+        // will actually be stored.
+        maxLength={MAX_BOARD_NAME_LENGTH}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={handleBlur}
         placeholder={t("boardNamePlaceholder")}
