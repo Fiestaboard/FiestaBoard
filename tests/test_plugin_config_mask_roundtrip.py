@@ -20,7 +20,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api_server import app
-from src.config_manager import ConfigManager
+from src.config_manager import ConfigManager, unmask_sensitive_values
 
 REAL_SECRET = "super-secret-key-abc123"
 NESTED_SECRET = "nested-secret-key-xyz789"
@@ -176,3 +176,112 @@ class TestMcpConfigurePluginMaskSentinel:
         assert result.get("success") is not False, result
         assert _applied_config(applied)["api_key"] == REAL_SECRET
         assert cm.get_plugin_config("test_plugin")["api_key"] == REAL_SECRET
+
+
+KEY_A = "key-for-source-a"
+KEY_B = "key-for-source-b"
+
+
+def _stored_two_sources() -> dict:
+    return {
+        "sources": [
+            {"name": "a", "api_key": KEY_A},
+            {"name": "b", "api_key": KEY_B},
+        ]
+    }
+
+
+class TestUnmaskListIdentity:
+    """Secrets inside a list must follow their element, not its index.
+
+    ``unmask_sensitive_values`` used to pair incoming list elements with stored
+    ones by position. Any edit that changes a list's shape — a delete, a
+    reorder, an insert — then restored the wrong element's secret, or wrote an
+    empty string where a secret belonged.
+    """
+
+    def test_deleting_an_earlier_source_does_not_hand_its_key_to_a_later_one(self):
+        stored = _stored_two_sources()
+        incoming = {"sources": [{"name": "b", "api_key": MASK}]}
+
+        result = unmask_sensitive_values(incoming, stored)
+
+        assert result["sources"] == [{"name": "b", "api_key": KEY_B}]
+
+    def test_reordering_sources_keeps_each_key_with_its_own_source(self):
+        stored = _stored_two_sources()
+        incoming = {"sources": [{"name": "b", "api_key": MASK}, {"name": "a", "api_key": MASK}]}
+
+        result = unmask_sensitive_values(incoming, stored)
+
+        assert result["sources"] == [
+            {"name": "b", "api_key": KEY_B},
+            {"name": "a", "api_key": KEY_A},
+        ]
+
+    def test_inserting_a_source_neither_cross_wires_nor_destroys_the_others(self):
+        stored = _stored_two_sources()
+        incoming = {
+            "sources": [
+                {"name": "c", "api_key": "brand-new-key-c"},
+                {"name": "a", "api_key": MASK},
+                {"name": "b", "api_key": MASK},
+            ]
+        }
+
+        result = unmask_sensitive_values(incoming, stored)
+
+        assert result["sources"] == [
+            {"name": "c", "api_key": "brand-new-key-c"},
+            {"name": "a", "api_key": KEY_A},
+            {"name": "b", "api_key": KEY_B},
+        ]
+
+    def test_an_unidentifiable_element_keeps_the_mask_rather_than_guessing(self):
+        stored = {"sources": [{"url": "https://example.com/one", "api_key": KEY_A}]}
+        incoming = {"sources": [{"url": "https://example.com/two", "api_key": MASK}]}
+
+        result = unmask_sensitive_values(incoming, stored)
+
+        # No stable identity ties the incoming element to the stored one, so
+        # the sentinel survives for the schema layer to reject. Restoring
+        # KEY_A here would authenticate the new URL with the old URL's key;
+        # writing "" would destroy a working credential.
+        assert result["sources"] == [{"url": "https://example.com/two", "api_key": MASK}]
+
+    def test_elements_without_an_id_field_match_on_their_other_keys(self):
+        stored = {
+            "sources": [
+                {"url": "https://example.com/one", "api_key": KEY_A},
+                {"url": "https://example.com/two", "api_key": KEY_B},
+            ]
+        }
+        incoming = {
+            "sources": [
+                {"url": "https://example.com/two", "api_key": MASK},
+                {"url": "https://example.com/one", "api_key": MASK},
+            ]
+        }
+
+        result = unmask_sensitive_values(incoming, stored)
+
+        assert result["sources"] == [
+            {"url": "https://example.com/two", "api_key": KEY_B},
+            {"url": "https://example.com/one", "api_key": KEY_A},
+        ]
+
+    def test_update_plugin_config_preserves_a_secret_nested_in_a_list(self, tmp_path):
+        """update_plugin_config must un-mask at depth, like set_plugin_config."""
+        saved_instance = ConfigManager._instance
+        ConfigManager._instance = None
+        ConfigManager._lock = threading.Lock()
+        try:
+            cm = ConfigManager(config_path=str(tmp_path / "config.json"))
+            cm.set_plugin_config("test_plugin", {"enabled": True, "sources": [{"name": "a", "api_key": KEY_A}]})
+
+            cm.update_plugin_config("test_plugin", {"sources": [{"name": "a", "api_key": MASK}]})
+
+            assert cm.get_plugin_config("test_plugin")["sources"] == [{"name": "a", "api_key": KEY_A}]
+        finally:
+            ConfigManager._instance = saved_instance
+            ConfigManager._lock = threading.Lock()
