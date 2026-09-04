@@ -419,3 +419,41 @@ class TestSilenceStatusSecondsUntilNextChange:
         # we count down to end_time (10:00 tomorrow = 21h away).
         assert data["active"] is True
         assert data["seconds_until_next_change"] == 21 * 3600
+
+
+def test_silence_status_performs_no_config_writes(client, mock_config_manager_for_silence):
+    """GET /silence-status is a read; it must not write config (#1746).
+
+    The handler used to call ``migrate_silence_schedule_to_utc()``, turning a
+    plain status poll — which the UI polls on a timer — into a config
+    read-modify-write. The migration belongs at startup instead.
+    """
+    cm, _store = mock_config_manager_for_silence
+
+    response = client.get("/silence-status")
+
+    assert response.status_code == 200
+    cm.migrate_silence_schedule_to_utc.assert_not_called()
+    cm.set_feature.assert_not_called()
+
+
+def test_startup_runs_the_silence_migration():
+    """#1746: the migration moves to startup, so it runs once per boot."""
+    from src import api_server
+
+    cm = Mock()
+    cm.migrate_silence_schedule_to_utc.return_value = True
+    with patch("src.api_server.get_config_manager", return_value=cm):
+        api_server._run_startup_migrations()
+
+    cm.migrate_silence_schedule_to_utc.assert_called_once_with()
+
+
+def test_startup_migration_failure_does_not_block_boot():
+    """A broken migration must not take the API down on startup."""
+    from src import api_server
+
+    cm = Mock()
+    cm.migrate_silence_schedule_to_utc.side_effect = RuntimeError("disk on fire")
+    with patch("src.api_server.get_config_manager", return_value=cm):
+        api_server._run_startup_migrations()  # must not raise

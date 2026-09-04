@@ -54,6 +54,9 @@ class DisplayService:
         if PLUGIN_SYSTEM_AVAILABLE:
             try:
                 self._plugin_registry = get_plugin_registry()
+                # No-op once the registry has loaded (issue #1753): this
+                # singleton is rebuilt on every config change, and rebuilding
+                # the live plugin set here would wipe every plugin's cache.
                 self._plugin_registry.initialize()
                 logger.info("DisplayService initialized with plugin system")
             except Exception as e:

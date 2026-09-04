@@ -51,9 +51,12 @@ SCANNED_MODULES = [
 MIN_RESOLVED_CALLS = {
     # Dropped 35 -> 34 in #1588: the mutating plugin tools now delegate to the
     # REST handlers instead of calling PluginRegistry themselves, so there is
-    # one fewer directly-resolvable service call in this module. Lower this
-    # only alongside a change that genuinely removes a direct service call.
-    "src/mcp_server.py": 34,
+    # one fewer directly-resolvable service call in this module. Dropped
+    # 34 -> 33 in #1741 for the same reason: update_plugin no longer calls
+    # registry.reload_plugin() itself, it awaits the REST handler so the
+    # built-in / realpath-containment / .git guards run. Lower this only
+    # alongside a change that genuinely removes a direct service call.
+    "src/mcp_server.py": 33,
     "src/mqtt/commands.py": 15,
 }
 

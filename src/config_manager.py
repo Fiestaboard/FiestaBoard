@@ -373,7 +373,12 @@ class ConfigManager:
         if self._initialized:
             return
 
-        self._file_lock = threading.Lock()
+        # Re-entrant so a method that needs the whole read-modify-write to be
+        # atomic (``migrate_silence_schedule_to_utc``) can hold it across the
+        # public accessors, which take it again.  A plain Lock would deadlock
+        # there, which is why that migration reached for the class-level
+        # singleton lock instead and blocked ConfigManager() everywhere (#1746).
+        self._file_lock = threading.RLock()
 
         # Determine config file path
         if config_path:
@@ -1332,10 +1337,16 @@ class ConfigManager:
         This method detects if the silence_schedule is using the old local time format
         (e.g., "20:00") and converts it to the new UTC ISO format (e.g., "04:00+00:00").
 
+        Held under ``_file_lock`` — the lock that guards config data — for the
+        whole read-modify-write.  It previously took the class-level ``_lock``,
+        which only guards singleton construction: that both left the migration's
+        read racing other config writers and stalled every thread calling
+        ``ConfigManager()`` for the duration of the disk I/O (#1746).
+
         Returns:
             True if migration was performed, False if no migration needed
         """
-        with self._lock:
+        with self._file_lock:
             silence_config = self.get_feature("silence_schedule")
             start_time = silence_config.get("start_time", "")
             end_time = silence_config.get("end_time", "")

@@ -7,8 +7,9 @@ Configure a target date and time, then watch the days, hours, and minutes tick d
 **What it does:**
 
 - Counts down to a target date and time in days, hours, minutes, and seconds
+- Optionally counts up from a past target instead ("days since" mode) — for anniversaries, launches, and streaks
 - Updates on every board refresh
-- Switches to "Event has passed" once the target is reached
+- Switches to "Event has passed" once the target is reached (unless count-up mode is on, in which case it keeps counting upward)
 - Respects an IANA timezone of your choice
 
 **Prerequisites:**
@@ -30,7 +31,8 @@ In the FiestaBoard web UI:
 2. Set the **Event Name** — for example, `Last Day of School`.
 3. Set the **Target Date & Time** in ISO 8601 format — for example, `2027-01-01T00:00:00`.
 4. Set the **Timezone** (defaults to `America/Los_Angeles`). The picker autocompletes IANA names.
-5. Click **Save Changes**.
+5. Optionally toggle **Count Up (Days Since)** to count upward from a past date — for example, an anniversary or "days since launch". If the target is still in the future, the plugin counts down to it, then counts up once it passes.
+6. Click **Save Changes**.
 
 ### 3. Add countdown variables to a page
 
@@ -57,15 +59,16 @@ Save the page. On the next refresh, your board will show the countdown.
 |----------|-------------|---------|
 | `{{countdown.event_name}}` | Configured event name | `Last Day of School` |
 | `{{countdown.target_datetime}}` | Target datetime (ISO 8601) | `2027-01-01T00:00:00` |
-| `{{countdown.days}}` | Whole days remaining | `86` |
-| `{{countdown.hours}}` | Hours remaining (0–23) | `14` |
-| `{{countdown.minutes}}` | Minutes remaining (0–59) | `30` |
-| `{{countdown.seconds}}` | Seconds remaining (0–59) | `45` |
-| `{{countdown.total_seconds}}` | Total seconds until target | `7482645` |
+| `{{countdown.days}}` | Whole days remaining (or elapsed in count-up mode) | `86` |
+| `{{countdown.hours}}` | Hours remaining or elapsed (0–23) | `14` |
+| `{{countdown.minutes}}` | Minutes remaining or elapsed (0–59) | `30` |
+| `{{countdown.seconds}}` | Seconds remaining or elapsed (0–59) | `45` |
+| `{{countdown.total_seconds}}` | Total seconds until (or since) the target | `7482645` |
 | `{{countdown.is_expired}}` | `"true"` once the target has passed | `"false"` |
+| `{{countdown.is_count_up}}` | `"true"` when values are counting up (count-up mode, past target) | `"false"` |
 | `{{countdown.formatted}}` | Pre-formatted summary | `86D 14H 30M` |
 
-> **Note:** When `is_expired` is `"true"`, `formatted` becomes `Event has passed` and the day/hour/minute counters are `0`.
+> **Note:** When `is_expired` is `"true"` and count-up mode is off, `formatted` becomes `Event has passed` and the day/hour/minute counters are `0`. With count-up mode on, the counters keep running upward instead.
 
 ## Configuration Reference
 
@@ -77,6 +80,7 @@ Save the page. On the next refresh, your board will show the countdown.
 | `event_name` | string | No | `Event` | Name shown via `{{countdown.event_name}}` |
 | `target_datetime` | string | Yes | — | Target date/time in ISO 8601 format (e.g. `2027-01-01T00:00:00`) |
 | `timezone` | string | No | `America/Los_Angeles` | IANA timezone name |
+| `count_up` | boolean | No | `false` | Count up from the target instead of down to it. A future target counts down until it arrives, then counts up |
 
 ### Environment variables
 
@@ -98,7 +102,7 @@ The target date/time is missing. Set `target_datetime` in the UI or `COUNTDOWN_T
 The configured timezone does not match the timezone you intended for the target. Verify the IANA name (for example, `America/Los_Angeles`, not `PST`).
 
 **Board shows "Event has passed".**
-The target datetime is in the past. Update it to a future date and time.
+The target datetime is in the past. Update it to a future date and time — or, if you want to track time *since* that date, enable **Count Up (Days Since)** instead.
 
 **Configuration save fails with "Invalid target datetime format".**
 The value must be ISO 8601 — `YYYY-MM-DDTHH:MM:SS`. For example, `2027-01-01T00:00:00`.

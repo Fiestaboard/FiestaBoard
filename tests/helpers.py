@@ -50,3 +50,37 @@ def validate_template_variables(template, variables):
     if missing:
         raise AssertionError(f"Template missing variable values: {missing}")
     return True
+
+
+# --- Board frame decoding -------------------------------------------------
+#
+# Board clients receive grids of Vestaboard character codes. Tests that assert
+# on what actually reached the hardware read much better against the words on
+# the flaps than against arrays of integers.
+
+_BOARD_CHAR_BY_CODE = {0: " "}
+for _i, _ch in enumerate("ABCDEFGHIJKLMNOPQRSTUVWXYZ", start=1):
+    _BOARD_CHAR_BY_CODE[_i] = _ch
+for _i, _ch in enumerate("123456789", start=27):
+    _BOARD_CHAR_BY_CODE[_i] = _ch
+_BOARD_CHAR_BY_CODE[36] = "0"
+
+
+def decode_board_rows(board_array):
+    """Board character grid -> one string per row, padding preserved.
+
+    Use this when *placement* on the board is the thing under test. Codes
+    outside the letters/digits/blank set decode to "?" — deliberately loud, so
+    a test never silently asserts against a character it did not mean.
+    """
+    return ["".join(_BOARD_CHAR_BY_CODE.get(code, "?") for code in row) for row in board_array]
+
+
+def decode_board_text(board_array):
+    """Board character grid -> the text an owner would read off the flaps.
+
+    Blank rows and padding are dropped, so an assertion reads as words rather
+    than as a fixed-width grid. Use :func:`decode_board_rows` when the exact
+    row/column placement matters.
+    """
+    return "\n".join(line.strip() for line in decode_board_rows(board_array) if line.strip())

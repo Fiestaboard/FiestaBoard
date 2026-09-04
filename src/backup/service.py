@@ -437,6 +437,19 @@ def _reload_services() -> list[str]:
             logger.exception("Failed to reset %s.%s", module_path, attr)
             errors.append(f"{module_path}: reset failed (see server logs)")
 
+    # Plugin registry: live plugin objects still hold the pre-restore
+    # configuration. A restore rewrites config.json wholesale, so this is one
+    # of the few places that genuinely must rebuild the whole plugin set —
+    # everywhere else a single plugin's config change reaches only that plugin
+    # (issue #1753).
+    try:
+        from src.plugins import get_plugin_registry
+
+        get_plugin_registry().initialize(force=True)
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Failed to reload plugin registry")
+        errors.append("plugins: reload failed (see server logs)")
+
     # Display service has its own reset helper.
     try:
         from src.displays.service import reset_display_service
