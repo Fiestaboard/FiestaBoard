@@ -8,8 +8,15 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+import plugins.date_time as date_time_module
 from plugins.date_time import DateTimePlugin, _time_to_english
 from src.devices import BoardContext
+
+# Patch the module object captured at import time rather than the
+# "plugins.date_time" dotted path. The plugin loader replaces the
+# sys.modules entry when it loads plugins (src/plugins/loader.py), so in a
+# full-suite run the dotted path resolves to a different module object than
+# the one DateTimePlugin above was defined in — and the mock never applies.
 
 
 class TestDateTimePlugin:
@@ -55,7 +62,7 @@ class TestDateTimePlugin:
         # Should use default and be valid
         assert len(errors) == 0
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_fetch_data_all_variables(self, mock_datetime, sample_manifest, sample_config):
         """Test fetch_data returns all expected variables."""
         # Mock datetime to return a specific date/time
@@ -101,7 +108,7 @@ class TestDateTimePlugin:
         assert "month_abbr" in data
         assert "timezone" in data
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_fetch_data_time_formats(self, mock_datetime, sample_manifest, sample_config):
         """Test time format variables."""
         # Test at 2:30 PM (14:30)
@@ -118,7 +125,7 @@ class TestDateTimePlugin:
         assert result.data["time"] == "14:30"  # Should match time_24h
         assert result.data["time_12h"] == "2:30 PM"  # Leading zero removed
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_fetch_data_time_formats_midnight(self, mock_datetime, sample_manifest, sample_config):
         """Test time formats at midnight (12:00 AM)."""
         mock_now = datetime(2025, 1, 15, 0, 0, 0)
@@ -133,7 +140,7 @@ class TestDateTimePlugin:
         assert result.data["time_24h"] == "00:00"
         assert result.data["time_12h"] == "12:00 AM"
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_fetch_data_time_formats_noon(self, mock_datetime, sample_manifest, sample_config):
         """Test time formats at noon (12:00 PM)."""
         mock_now = datetime(2025, 1, 15, 12, 0, 0)
@@ -148,7 +155,7 @@ class TestDateTimePlugin:
         assert result.data["time_24h"] == "12:00"
         assert result.data["time_12h"] == "12:00 PM"
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_fetch_data_date_formats(self, mock_datetime, sample_manifest, sample_config):
         """Test US date format variables."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
@@ -164,7 +171,7 @@ class TestDateTimePlugin:
         assert result.data["date_us"] == "01/15/2025"
         assert result.data["date_us_short"] == "01/15/25"
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_fetch_data_month_formats(self, mock_datetime, sample_manifest, sample_config):
         """Test month format variables."""
         # Test January (month 1)
@@ -193,7 +200,7 @@ class TestDateTimePlugin:
         assert result.data["month_number_padded"] == "12"
         assert result.data["month_abbr"] == "Dec"
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_fetch_data_timezone_info(self, mock_datetime, sample_manifest, sample_config):
         """Test timezone-related variables."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
@@ -211,7 +218,7 @@ class TestDateTimePlugin:
         assert result.data["timezone"] == "America/New_York"
         assert "timezone_abbr" in result.data  # Should have abbreviation like "EST" or "EDT"
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_fetch_data_day_of_week(self, mock_datetime, sample_manifest, sample_config):
         """Test day of week variable."""
         # Wednesday
@@ -233,7 +240,7 @@ class TestDateTimePlugin:
         assert result.data["quarter"] == "1"
         assert result.data["year"] == "2025"
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_fetch_data_variables_match_manifest(self, mock_datetime, sample_manifest, sample_config):
         """Test that fetch_data() output keys match the manifest-declared variables."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
@@ -290,7 +297,7 @@ class TestDateTimePlugin:
         assert result.data is not None
         assert result.data["timezone"] == "America/Denver"
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_get_formatted_display(self, mock_datetime, sample_manifest, sample_config):
         """Test formatted display output."""
         mock_now = datetime(2025, 1, 15, 14, 30, 0)
@@ -308,7 +315,7 @@ class TestDateTimePlugin:
         assert "2025-01-15" in lines[2]  # Date should be centered
         assert "14:30" in lines[3]  # Time should be centered
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_get_formatted_display_fetch_fails(self, mock_datetime, sample_manifest):
         """Test formatted display when fetch_data fails."""
         mock_datetime.now.side_effect = Exception("Test error")
@@ -487,7 +494,7 @@ class TestTimeToEnglish:
 class TestDateTimeBoardAwareness:
     """Date & Time adapts its content to the board it renders on."""
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_date_pretty_full_on_flagship(self, mock_datetime, sample_manifest, sample_config):
         """On a wide board, date_pretty spells the weekday and month out fully."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -501,7 +508,7 @@ class TestDateTimeBoardAwareness:
         assert data["month_adaptive"] == "August"
         assert data["date_pretty"] == "Wednesday, August 27"
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_date_pretty_abbreviated_on_note(self, mock_datetime, sample_manifest, sample_config):
         """On a narrow board (Note), date_pretty uses abbreviated forms that fit."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -516,7 +523,7 @@ class TestDateTimeBoardAwareness:
         assert data["date_pretty"] == "Wed, Aug 27"
         assert len(data["date_pretty"]) <= 15
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_no_board_defaults_to_full(self, mock_datetime, sample_manifest, sample_config):
         """With no board bound, the long form is used (backward compatible)."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -528,7 +535,7 @@ class TestDateTimeBoardAwareness:
 
         assert data["date_pretty"] == "Wednesday, August 27"
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_formatted_display_note_is_compact(self, mock_datetime, sample_manifest, sample_config):
         """get_formatted_display drops to 3 lines that fit 15 cols on a Note."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -544,7 +551,7 @@ class TestDateTimeBoardAwareness:
         assert all(len(line) <= 15 for line in lines)
         assert "WED" in lines[0].upper()
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_per_board_cache_isolation(self, mock_datetime, sample_manifest, sample_config):
         """Flagship and Note variables cache independently."""
         tz = ZoneInfo("America/Los_Angeles")
@@ -565,7 +572,7 @@ class TestDateTimeBoardAwareness:
 class TestDateTimeCacheFreshness:
     """The clock plugin must never be served from a stale cache (#1738)."""
 
-    @patch("plugins.date_time.datetime")
+    @patch.object(date_time_module, "datetime")
     def test_get_data_reflects_advanced_clock(self, mock_datetime, sample_manifest, sample_config):
         """A get_data() call after the wall clock moves reports the new time."""
         tz = ZoneInfo("America/Los_Angeles")
