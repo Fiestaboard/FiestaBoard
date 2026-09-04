@@ -1,6 +1,7 @@
 """Tests for PluginLoader - discovers and loads plugin modules."""
 
 import sys
+import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -437,6 +438,25 @@ def test_reload_plugin_loads_if_not_loaded(tmp_path):
     plugin = loader.reload_plugin("test_plugin")
     assert plugin is not None
     assert plugin.plugin_id == "test_plugin"
+
+
+def test_loading_over_a_live_plugin_cleans_up_the_replaced_instance(tmp_path):
+    """Replacing a loaded instance must run cleanup() on the one it drops.
+
+    Without it, whatever the old instance owns — a listener thread, an open
+    connection — is leaked for the lifetime of the process (issue #1753).
+    """
+    create_valid_plugin_dir(tmp_path, "test_plugin")
+    loader = _loader_for_tests(tmp_path)
+    first = loader.load_plugin("test_plugin")
+
+    cleaned_up = threading.Event()
+    first.cleanup = cleaned_up.set
+
+    second = loader.load_plugin("test_plugin")
+
+    assert second is not first
+    assert cleaned_up.wait(timeout=5), "the replaced plugin instance was dropped without cleanup()"
 
 
 # --- unload_plugin ---

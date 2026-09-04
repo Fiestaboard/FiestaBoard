@@ -619,22 +619,36 @@ class DisplayService:
             page_service = get_page_service()
             schedule_service = get_schedule_service()
 
-            # --- Pause short-circuit (issue #970) ---
-            # A paused board is completely hands-off: no rotation, no silence
-            # indicator, no trigger overrides, no override revert. Evaluate
-            # this BEFORE silence. Only a strict ``True`` counts as paused
-            # (guards against Mock returns from older fixtures).
-            if settings_service.is_paused(board_id=board_id) is True:
-                logger.debug("Board %s is paused - skipping update", board_id or "(default)")
-                return False
-
-            # --- Silence mode short-circuit (global decision, per-board state) ---
+            # --- Silence mode evaluation (global decision, per-board state) ---
             # Evaluate silence before any plugin/API work so a snoozed board
             # doesn't hit weather/transit/stocks APIs on every poll. We send
             # exactly one update on entering silence, then go quiet.
+            #
+            # This runs BEFORE the pause short-circuit so that even a fully
+            # hands-off board records where the silence window stands: the 1 Hz
+            # boundary detector in ``run()`` compares this flag against
+            # ``Config.is_silence_mode_active()``, so any exit path that leaves
+            # it stale makes the detector see a permanent mismatch and re-drive
+            # every board once per second for the whole window (issue #1740).
             silence_mode_active = Config.is_silence_mode_active()
             entering_silence_mode = silence_mode_active and not rt.last_silence_mode_active
             exiting_silence_mode = not silence_mode_active and rt.last_silence_mode_active
+
+            # --- Pause short-circuit (issue #970) ---
+            # A paused board is completely hands-off: no rotation, no silence
+            # indicator, no trigger overrides, no override revert. Evaluate
+            # this BEFORE acting on silence. Only a strict ``True`` counts as
+            # paused (guards against Mock returns from older fixtures).
+            if settings_service.is_paused(board_id=board_id) is True:
+                logger.debug("Board %s is paused - skipping update", board_id or "(default)")
+                rt.last_silence_mode_active = silence_mode_active
+                return False
+
+            # Record the boundary now, not on the success path: every early
+            # return below (no page, render failure, no client) would otherwise
+            # leave the flag stale and busy-loop the detector (issue #1740).
+            # The entering/exiting decisions above are already latched.
+            rt.last_silence_mode_active = silence_mode_active
 
             if silence_mode_active and rt.snoozing_message_sent:
                 # Steady-state silence: indicator is already on this board.

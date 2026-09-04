@@ -1,8 +1,8 @@
 {
   "id": "countdown",
   "name": "Countdown",
-  "version": "1.2.0",
-  "description": "Display the remaining time to an event in real time",
+  "version": "1.3.0",
+  "description": "Display the time until an event — or, in count-up mode, the time since it — in real time",
   "author": "FiestaBoard Team",
   "repository": "https://github.com/FiestaBoard/FiestaBoard",
   "documentation": "README.md",
@@ -34,6 +34,12 @@
         "description": "IANA timezone name (e.g., America/Los_Angeles)",
         "default": "America/Los_Angeles",
         "ui:widget": "timezone"
+      },
+      "count_up": {
+        "type": "boolean",
+        "title": "Count Up (Days Since)",
+        "description": "Count up from the target instead of down to it — for anniversaries and 'days since' events. While the target is still in the future, the plugin counts down to it, then counts up once it passes.",
+        "default": false
       }
     },
     "required": [
@@ -75,42 +81,49 @@
         "example": "2030-01-01T00:00:00"
       },
       "is_expired": {
-        "description": "Whether the countdown has reached zero",
+        "description": "Whether the target datetime has passed",
+        "type": "string",
+        "group": "event",
+        "max_length": 5,
+        "example": "false"
+      },
+      "is_count_up": {
+        "description": "Whether values are counting up (time since a past target in count-up mode)",
         "type": "string",
         "group": "event",
         "max_length": 5,
         "example": "false"
       },
       "days": {
-        "description": "Days remaining",
+        "description": "Days remaining (or elapsed in count-up mode)",
         "type": "number",
         "group": "countdown",
         "max_length": 5,
         "example": "86"
       },
       "hours": {
-        "description": "Hours remaining (0-23)",
+        "description": "Hours remaining or elapsed (0-23)",
         "type": "number",
         "group": "countdown",
         "max_length": 2,
         "example": "14"
       },
       "minutes": {
-        "description": "Minutes remaining (0-59)",
+        "description": "Minutes remaining or elapsed (0-59)",
         "type": "number",
         "group": "countdown",
         "max_length": 2,
         "example": "30"
       },
       "seconds": {
-        "description": "Seconds remaining (0-59)",
+        "description": "Seconds remaining or elapsed (0-59)",
         "type": "number",
         "group": "countdown",
         "max_length": 2,
         "example": "45"
       },
       "total_seconds": {
-        "description": "Total seconds until target",
+        "description": "Total seconds until the target (or since it in count-up mode)",
         "type": "number",
         "group": "countdown",
         "max_length": 10,

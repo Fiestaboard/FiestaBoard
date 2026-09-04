@@ -31,6 +31,7 @@ from pydantic import BaseModel, Field
 load_dotenv()
 
 from . import __version__  # noqa: E402
+from .atomic_io import write_json_atomic  # noqa: E402
 from .auth import is_auth_enabled  # noqa: E402
 from .auth.middleware import AuthMiddleware  # noqa: E402
 from .auth.routes import router as auth_router  # noqa: E402
@@ -645,6 +646,20 @@ class WiFiConnectResponse(BaseModel):
     message: str
 
 
+def _run_startup_migrations() -> None:
+    """Run the one-shot config migrations that used to fire from read paths.
+
+    ``migrate_silence_schedule_to_utc`` converts pre-UTC ``HH:MM`` silence
+    times.  It is idempotent, so running it once per boot is enough; doing it
+    here keeps ``GET /silence-status`` a pure read (#1746).  Failures are
+    logged, never fatal — a migration must not stop the API from booting.
+    """
+    try:
+        get_config_manager().migrate_silence_schedule_to_utc()
+    except Exception:
+        logger.warning("Silence-schedule UTC migration failed on startup", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events.
@@ -693,6 +708,9 @@ async def lifespan(app: FastAPI):
     except Exception:  # pragma: no cover - safety net must never block boot
         logger.debug("Post-upgrade auto-restore failed", exc_info=True)
     _log_config_boot_snapshot("post-restore")
+
+    # One-shot config migrations, before anything reads the migrated values.
+    _run_startup_migrations()
 
     # If the most recent settings snapshot looks materially richer than the
     # live config (more enabled plugins, etc.), tell the user loudly on
@@ -891,14 +909,65 @@ app = FastAPI(
     root_path="/api",
 )
 
+CORS_ORIGINS_ENV = "FIESTABOARD_CORS_ORIGINS"
+
+
+def cors_settings() -> dict:
+    """Resolve the CORS policy from the environment.
+
+    The UI is served from the same origin as the API (nginx fronts both),
+    so CORS only ever matters for third-party callers. Two regimes:
+
+    * ``FIESTABOARD_CORS_ORIGINS`` unset (the default) — allow any origin
+      but **without** credentials. Anonymous cross-origin reads keep
+      working exactly as before; what stops working is a browser sending
+      the session cookie (or any other credential) on behalf of a page
+      the operator never allow-listed.
+    * ``FIESTABOARD_CORS_ORIGINS`` set to a comma-separated list of
+      origins — only those origins are allowed, and they may send
+      credentials.
+
+    ``allow_origins=["*"]`` together with ``allow_credentials=True`` is
+    never emitted: browsers reject that pairing, and Starlette "helpfully"
+    works around it by echoing back whatever ``Origin`` the caller sent —
+    which is how every site on the internet ended up holding a
+    credentialed grant to a LAN board (#1744).
+    """
+    raw = os.environ.get(CORS_ORIGINS_ENV, "")
+    origins = [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
+
+    if not origins:
+        return {
+            "allow_origins": ["*"],
+            "allow_credentials": False,
+            "allow_methods": ["*"],
+            "allow_headers": ["*"],
+        }
+
+    if "*" in origins:
+        logger.warning(
+            "%s contains '*'; credentials disabled for CORS because a wildcard "
+            "origin cannot be combined with credentials. List explicit origins "
+            "to allow credentialed cross-origin requests.",
+            CORS_ORIGINS_ENV,
+        )
+        return {
+            "allow_origins": ["*"],
+            "allow_credentials": False,
+            "allow_methods": ["*"],
+            "allow_headers": ["*"],
+        }
+
+    return {
+        "allow_origins": origins,
+        "allow_credentials": True,
+        "allow_methods": ["*"],
+        "allow_headers": ["*"],
+    }
+
+
 # Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict this to your UI domain
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, **cors_settings())
 
 # Mount the MCP server at /mcp (accessible at /api/mcp via nginx).
 # Gracefully skipped if the mcp package is not installed.
@@ -1768,9 +1837,7 @@ async def _perform_update_check() -> "UpdateCheckResponse":
         if latest_version:
             update_available = _is_newer_version(latest_version, __version__)
             try:
-                _state = _system_update_state_load()
-                _state["last_check"] = datetime.now(UTC).isoformat()
-                _system_update_state_save(_state)
+                _system_update_state_update(last_check=datetime.now(UTC).isoformat())
             except Exception as e:
                 logger.debug("Could not persist update-check result (non-fatal): %s", e, exc_info=True)
             return UpdateCheckResponse(
@@ -1821,28 +1888,49 @@ def _is_newer_version(latest: str, current: str) -> bool:
 # because this state is system-level, not display-level.
 SYSTEM_UPDATE_STATE_FILE = Path("data/.system-update.json")
 
+# Serialises the read-modify-write of the state file.  Three writers share it —
+# the hourly auto-update loop, ``POST /system/update`` and
+# ``POST /system/update/auto`` — and each does load -> mutate -> save.  Without
+# this lock a writer's read goes stale and the other writer's field is lost
+# (#1745).  Re-entrant so a guarded update can call load/save directly.
+_SYSTEM_UPDATE_STATE_LOCK = threading.RLock()
+
 
 def _system_update_state_load() -> dict[str, Any]:
     """Read the system-update state file.  Returns a fresh dict on any error."""
-    try:
-        if SYSTEM_UPDATE_STATE_FILE.exists():
-            with SYSTEM_UPDATE_STATE_FILE.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    return data
-    except Exception as e:
-        logger.debug(f"Failed to read {SYSTEM_UPDATE_STATE_FILE}: {e}")
-    return {}
+    with _SYSTEM_UPDATE_STATE_LOCK:
+        try:
+            if SYSTEM_UPDATE_STATE_FILE.exists():
+                with SYSTEM_UPDATE_STATE_FILE.open("r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        return data
+        except Exception as e:
+            logger.debug(f"Failed to read {SYSTEM_UPDATE_STATE_FILE}: {e}")
+        return {}
 
 
 def _system_update_state_save(state: dict[str, Any]) -> None:
-    """Persist the system-update state file."""
-    try:
-        SYSTEM_UPDATE_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with SYSTEM_UPDATE_STATE_FILE.open("w", encoding="utf-8") as f:
-            json.dump(state, f, indent=2)
-    except Exception as e:
-        logger.warning(f"Failed to write {SYSTEM_UPDATE_STATE_FILE}: {e}")
+    """Persist the system-update state file atomically.
+
+    A truncating ``open("w")`` here used to leave a half-written file behind on
+    a crash; the loader swallows the resulting JSON error and returns ``{}``,
+    which silently resets the auto-update toggle to its default (#1745).
+    """
+    with _SYSTEM_UPDATE_STATE_LOCK:
+        try:
+            write_json_atomic(SYSTEM_UPDATE_STATE_FILE, state)
+        except Exception as e:
+            logger.warning(f"Failed to write {SYSTEM_UPDATE_STATE_FILE}: {e}")
+
+
+def _system_update_state_update(**changes: Any) -> dict[str, Any]:
+    """Merge *changes* into the state file as one locked read-modify-write."""
+    with _SYSTEM_UPDATE_STATE_LOCK:
+        state = _system_update_state_load()
+        state.update(changes)
+        _system_update_state_save(state)
+        return state
 
 
 def _is_update_check_due(state: dict[str, Any], period_days: int) -> bool:
@@ -2557,9 +2645,7 @@ async def system_update_apply():
     except ValueError as e:
         # fiestaupdater may return a non-JSON body (e.g. plain-text on error); fall back to empty dict.
         logger.debug("fiestaupdater response is not JSON, using empty body (non-fatal): %s", e)
-    state = _system_update_state_load()
-    state["last_update"] = datetime.now(UTC).isoformat()
-    _system_update_state_save(state)
+    _system_update_state_update(last_update=datetime.now(UTC).isoformat())
 
     return UpdateApplyResponse(
         status="queued",
@@ -2761,12 +2847,12 @@ async def system_update_set_auto(req: AutoUpdateRequest):
             detail="Request must include either 'interval' or 'enabled'.",
         )
 
-    state = _system_update_state_load()
-    state["auto_update_interval"] = interval
-    # Keep the legacy bool in sync so older clients reading the file see a
-    # consistent picture.
-    state["auto_update_enabled"] = interval != "manual"
-    _system_update_state_save(state)
+    _system_update_state_update(
+        auto_update_interval=interval,
+        # Keep the legacy bool in sync so older clients reading the file see a
+        # consistent picture.
+        auto_update_enabled=interval != "manual",
+    )
     return AutoUpdateResponse(enabled=interval != "manual", interval=interval)
 
 
@@ -4268,9 +4354,9 @@ async def get_silence_status():
     time_service = get_time_service()
     config_manager = get_config_manager()
 
-    # Trigger migration if needed
-    config_manager.migrate_silence_schedule_to_utc()
-
+    # No migration here: this is a read the UI polls on a timer, and the
+    # migration is a config write.  It runs once at startup instead
+    # (``_run_startup_migrations``) — see #1746.
     silence_config = config_manager.get_feature("silence_schedule")
     enabled = silence_config.get("enabled", False)
     start_time = silence_config.get("start_time", "20:00+00:00")
@@ -9175,15 +9261,25 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
     if not registry.get_plugin(plugin_id):
         raise HTTPException(status_code=404, detail=f"Plugin not found: {plugin_id}")
 
+    # Resolve the "***" placeholders before anything sees the payload. Config
+    # goes out masked, so any client that echoes back what it read — the
+    # settings form, or an MCP client working from list_installed_plugins() —
+    # posts the sentinel where the secret used to be. Un-masking here rather
+    # than only inside ConfigManager keeps the mask out of the live plugin as
+    # well, whose validate_config()/on_config_change() would otherwise run
+    # against three asterisks (issue #1743).
+    config_manager = get_config_manager()
+    stored_config = config_manager.get_plugin_config(plugin_id) or {}
+    config = unmask_sensitive_values(request.config, stored_config)
+
     # Validate configuration against manifest schema
-    errors = registry.set_plugin_config(plugin_id, request.config)
+    errors = registry.set_plugin_config(plugin_id, config)
     if errors:
         logger.error(f"Plugin '{plugin_id}' config validation failed: {errors}")
         raise HTTPException(status_code=400, detail={"errors": errors})
 
     # Save to config file
-    config_manager = get_config_manager()
-    config_manager.set_plugin_config(plugin_id, request.config)
+    config_manager.set_plugin_config(plugin_id, config)
 
     # Reset services to pick up new config
     reset_display_service()

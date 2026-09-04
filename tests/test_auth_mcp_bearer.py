@@ -146,12 +146,45 @@ def test_bearer_does_not_grant_access_to_non_mcp_paths(client, setup_user, with_
     assert not r.headers.get("WWW-Authenticate", "").startswith("Bearer")
 
 
-# --- Auth disabled -> token irrelevant -----------------------------------
+# --- Auth disabled -> a *configured* token is still enforced --------------
+#
+# The previous version of this section asserted the opposite
+# ("test_token_irrelevant_when_auth_disabled"): with auth mode "disabled"
+# a cookie-less request to /mcp/ was expected NOT to 401 even when a token
+# was configured. That encoded the wrong contract — it made
+# FIESTABOARD_MCP_TOKEN pure decoration on the exact deployments that set
+# it (Fiestaboard/FiestaBoard#1744). Auth mode governs the browser login
+# flow; it is not an instruction to ignore a credential the operator
+# deliberately configured.
 
 
-def test_token_irrelevant_when_auth_disabled(client, monkeypatch, with_token):
+@pytest.fixture
+def auth_disabled(monkeypatch):
+    """Pin the app's auth mode to ``disabled``."""
     monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "false")
+    yield
+    monkeypatch.delenv("FIESTABOARD_AUTH_ENABLED", raising=False)
+
+
+def test_mcp_rejects_missing_bearer_when_auth_disabled(client, auth_disabled, with_token):
+    """Auth mode ``disabled`` must not silently disable a configured token."""
     r = client.get("/mcp/")
-    # No auth means the middleware is a no-op; downstream may 404 or 405
-    # but should not 401.
+    assert r.status_code == 401
+    assert r.headers.get("WWW-Authenticate", "").startswith("Bearer")
+
+
+def test_mcp_rejects_wrong_bearer_when_auth_disabled(client, auth_disabled, with_token):
+    r = client.get("/mcp/", headers={"Authorization": "Bearer not-the-real-token"})
+    assert r.status_code == 401
+
+
+def test_mcp_accepts_valid_bearer_when_auth_disabled(client, auth_disabled, with_token):
+    """The token is the credential — presenting it must still work."""
+    r = client.get("/mcp/", headers={"Authorization": f"Bearer {with_token}"})
+    assert r.status_code != 401
+
+
+def test_mcp_open_when_auth_disabled_and_no_token(client, auth_disabled, no_token):
+    """Backward compatibility: no token configured -> nothing to enforce."""
+    r = client.get("/mcp/")
     assert r.status_code != 401

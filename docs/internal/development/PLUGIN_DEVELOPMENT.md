@@ -1107,7 +1107,7 @@ Your plugin must inherit from `PluginBase`:
 | `validate_config(config)` | No | Return a list of error strings; empty list means valid |
 | `on_config_change(old, new)` | No | Hook called after settings are updated |
 | `get_formatted_display()` | No | Legacy hook — not called by the platform; see note below |
-| `cleanup()` | No | Release resources when the plugin is disabled |
+| `cleanup()` | No | Release resources the instance owns (threads, connections). Called when the plugin is unloaded, deleted, or replaced by a reload — on a background thread, so it may overlap the replacement instance and must not block |
 | `check_triggers()` | No | Return a list of `TriggerResult` if `supports_triggers` is set |
 | `receive_payload(payload, headers, raw_body)` | No | Handle inbound webhooks (raise `PermissionError` → 403, `ValueError` → 400) |
 

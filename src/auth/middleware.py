@@ -10,12 +10,18 @@ Public paths (no auth required):
     * CORS preflight (``OPTIONS``) requests
 
 MCP endpoint (``/mcp/*``):
-    If ``FIESTABOARD_MCP_TOKEN`` is set, the MCP endpoint accepts an
-    ``Authorization: Bearer <token>`` header instead of (or in addition to)
-    the session cookie. This lets external MCP clients (Claude Desktop,
-    Claude Code) connect without needing to drive a browser login flow.
-    A 401 from this endpoint includes ``WWW-Authenticate: Bearer`` so the
-    client knows to send a pre-shared token rather than attempting OAuth.
+    If an MCP token is configured (``FIESTABOARD_MCP_TOKEN`` or the value
+    stored via Settings), the MCP endpoint requires an
+    ``Authorization: Bearer <token>`` header instead of the session
+    cookie. This lets external MCP clients (Claude Desktop, Claude Code)
+    connect without needing to drive a browser login flow. A 401 from
+    this endpoint includes ``WWW-Authenticate: Bearer`` so the client
+    knows to send a pre-shared token rather than attempting OAuth.
+
+    That check runs in **every** auth mode, ``disabled`` included — a
+    configured token is a credential the operator asked for, not a
+    formality that the UI login toggle can switch off. With no token
+    configured, nothing changes for anyone.
 """
 
 from __future__ import annotations
@@ -109,35 +115,43 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         mode = auth_mode()
-        if mode == "disabled":
-            return await call_next(request)
 
-        # Always allow CORS preflight.
+        # Always allow CORS preflight (browsers never attach credentials
+        # to it, so there is nothing to check).
         if request.method == "OPTIONS":
             return await call_next(request)
 
         path = request.url.path
+
+        # MCP endpoint: a *configured* bearer token is enforced in every
+        # auth mode, including "disabled". Auth mode governs the browser
+        # login flow; setting FIESTABOARD_MCP_TOKEN (or storing one via
+        # Settings) is a separate, deliberate act that must not be undone
+        # by opting out of the UI login. Without this, every mutating MCP
+        # tool is open to anything that can reach the port.
+        #
+        # When no token is configured there is nothing to enforce, so we
+        # fall through: auth-disabled installs stay open and cookie-auth
+        # installs keep using the session cookie.
+        if _is_mcp_path(path) and mcp_token() is not None:
+            supplied = _bearer_from(request)
+            # No Authorization header, or a bad one -> challenge. We skip
+            # the session-cookie fallback because Claude/etc. will never
+            # have a cookie, and a 401 with WWW-Authenticate is exactly
+            # the signal such a client needs.
+            if supplied is None or not verify_mcp_bearer(supplied):
+                return _mcp_unauthorized()
+            request.scope["auth_user"] = "mcp-client"
+            return await call_next(request)
+
+        if mode == "disabled":
+            return await call_next(request)
+
         if _is_public_path(path):
             return await call_next(request)
         for extra in self._extra_public:
             if path == extra or path.startswith(extra.rstrip("/") + "/"):
                 return await call_next(request)
-
-        # MCP endpoint: accept a Bearer token if one is configured. Falls
-        # through to cookie auth when no token env var is set so the UI's
-        # own MCP usage (and existing installs) keep working.
-        if _is_mcp_path(path) and mcp_token() is not None:
-            supplied = _bearer_from(request)
-            if supplied is not None:
-                if verify_mcp_bearer(supplied):
-                    request.scope["auth_user"] = "mcp-client"
-                    return await call_next(request)
-                return _mcp_unauthorized()
-            # No Authorization header — challenge the client. We skip the
-            # session-cookie fallback here because Claude/etc. will never
-            # have a cookie, and emitting a 401 with WWW-Authenticate is
-            # exactly the signal it needs.
-            return _mcp_unauthorized()
 
         svc = get_auth_service()
 
