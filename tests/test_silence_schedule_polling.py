@@ -272,3 +272,29 @@ class TestSilenceBoundaryDetector:
 
         # One initial update + exactly one forced update at the boundary.
         assert drive.call_count == 2
+
+    def test_clientless_primary_does_not_force_an_update_every_second_during_silence(self, service_factory):
+        """A primary board with a runtime but no client is a normal running
+        state since #1749/#1813 — the fleet keeps going while that one board is
+        skipped. Its silence flag must still be latched, or the 1 Hz boundary
+        detector sees a permanent mismatch and re-drives every board once per
+        second for the whole silence window (issue #1740).
+        """
+        svc, mocks, page_service = service_factory(is_silence=True)
+        svc.vb_client = None
+        assert svc._ensure_primary_runtime().client is None
+        mocks["settings"].return_value.is_paused.return_value = False
+
+        with (
+            # The fleet came up; only the primary lacks a client (issue #1749).
+            patch.object(svc, "initialize", return_value=True),
+            patch.object(svc, "check_and_send_active_page", wraps=svc.check_and_send_active_page) as drive,
+            patch.object(svc, "_check_trigger_override", return_value=None),
+            patch("src.main.schedule"),
+            patch("src.main.time.sleep", _sleep_that_stops_after(svc, 5)),
+        ):
+            svc.run()
+
+        # Only the initial update before the loop — not one per simulated second.
+        assert drive.call_count == 1
+        assert page_service.preview_page.call_count == 1

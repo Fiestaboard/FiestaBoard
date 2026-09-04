@@ -13,6 +13,7 @@ per-board caches) is covered by ``tests/test_per_board_engine.py``, which
 exercises the unified ``check_and_send_for_board`` path.
 """
 
+import threading
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -332,6 +333,52 @@ class TestPrimaryBoardFailureIsolation:
 
         assert "host is required for Local API" in service.board_init_errors["b1"]
         assert "b2" not in service.board_init_errors
+
+    def test_repeated_initialize_reuses_the_live_board_state_poll_thread(self, service):
+        """``initialize()`` must not stack a second ``board-state-poll`` thread.
+
+        With the primary clientless, ``vb_client`` stays ``None`` for the life
+        of the process, so every startup gate that tests it re-enters
+        ``initialize()``: ``get_service()``, ``run_service_background()``'s
+        ``if not service.vb_client`` guard, and ``run()``'s
+        ``if not self.vb_client and not self.initialize()``. Each pass used to
+        start another poll thread, and ``run_service_background``'s backoff
+        loop repeated two of them on every auto-restart — an unbounded leak.
+        """
+        boards = [_board("b1", "Broken", local_api_key="", cloud_key=""), _board("b2", "Good", port=7001)]
+        pre_existing = {t.ident for t in threading.enumerate()}
+        release = threading.Event()
+
+        def _park(_self):
+            release.wait(10)
+
+        with (
+            patch("src.main.get_settings_service", return_value=_settings_service(boards)),
+            patch(
+                "src.main.board_client_from_board_dict",
+                side_effect=lambda b: None if b["id"] == "b1" else MagicMock(),
+            ),
+            patch("src.main.Config.validate", return_value=True),
+            patch("src.main.Config.get_summary", return_value={}),
+            patch("src.main.Config.get_transition_settings", return_value={"strategy": None}),
+            patch.object(DisplayService, "_board_poll_loop", _park),
+        ):
+            try:
+                for _ in range(3):
+                    assert service.initialize() is True
+                # The condition all three startup gates re-test.
+                assert service.vb_client is None
+                started = [
+                    t
+                    for t in threading.enumerate()
+                    if t.name == "board-state-poll" and t.is_alive() and t.ident not in pre_existing
+                ]
+                assert len(started) == 1, f"expected 1 live poll thread, found {len(started)}"
+            finally:
+                release.set()
+                for t in threading.enumerate():
+                    if t.name == "board-state-poll" and t.ident not in pre_existing:
+                        t.join(timeout=5)
 
     def test_a_recovered_board_clears_its_recorded_error(self, service):
         boards = [_board("b1", "One")]

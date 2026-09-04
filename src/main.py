@@ -580,11 +580,19 @@ class DisplayService:
             logger.error(f"Failed to initialize board client: {e}")
             return False
 
-        # Start background thread that reads the actual board state periodically
-        self._poll_thread = threading.Thread(target=self._board_poll_loop, daemon=True, name="board-state-poll")
-        self._poll_thread.start()
-        interval = self._get_board_read_interval()
-        logger.info(f"Board state poll started (interval={interval}s)")
+        # Start background thread that reads the actual board state periodically.
+        # This must be idempotent: with a clientless primary ``vb_client`` stays
+        # None for the life of the process, so every startup gate that tests it
+        # re-enters initialize() -- ``get_service()``, ``run_service_background()``
+        # and ``run()`` -- and the backoff loop repeats that on each restart.
+        # Starting a thread per pass would leak them without bound.
+        if self._poll_thread is not None and self._poll_thread.is_alive():
+            logger.debug("Board state poll already running - reusing the existing thread")
+        else:
+            self._poll_thread = threading.Thread(target=self._board_poll_loop, daemon=True, name="board-state-poll")
+            self._poll_thread.start()
+            interval = self._get_board_read_interval()
+            logger.info(f"Board state poll started (interval={interval}s)")
 
         # Log configuration summary
         summary = Config.get_summary()
