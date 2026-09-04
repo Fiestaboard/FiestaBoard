@@ -516,11 +516,14 @@ class TestSendTimeGeometryValidation:
 class TestSilencePageGeometryValidation:
     """The silence page must also match its destination board (issue #1748).
 
-    ``SILENCE_SCHEDULE_PAGE_ID`` is a single global setting, but boards are
-    not all the same shape, so silence mode "page" reached the wire sized
-    from the page rather than the board — the same mismatch the normal send
-    path guards, through a different door. On mismatch we fall back to the
-    board-sized SNOOZING indicator so the board still reads as snoozing.
+    Since #1801 silence config is per board
+    (``features.silence_schedule.by_board[board_id]``) with the install-wide
+    values as fallback, but the *page* it names is global, so silence mode
+    "page" reached the wire sized from the page rather than the board — the
+    same mismatch the normal send path guards, through a different door. The
+    mismatch case here survives via that inherited install-wide default. On
+    mismatch we fall back to the board-sized SNOOZING indicator so the board
+    still reads as snoozing.
     """
 
     def test_silence_page_not_matching_board_falls_back_to_board_sized_indicator(self):
@@ -548,6 +551,11 @@ class TestSilencePageGeometryValidation:
         rows = clients["b1"].render.call_args.args[0]
         # Board-shaped (3x15 Note), not the flagship silence page's 6x22.
         assert len(rows) == 3 and len(rows[0]) == 15
+        # The shape alone does not discriminate: since #1801 a merely *cropped*
+        # page also arrives at 3x15. What pins the gate is that the *indicator*
+        # went out (id/content), not a cropped silence page.
+        assert svc.runtimes["b1"].last_active_page_id == "__silence__"
+        assert svc.runtimes["b1"].last_active_page_content == "snoozing"
 
     def test_matching_silence_page_is_still_sent(self):
         """Control: a correctly shaped silence page must still reach the board."""
@@ -605,7 +613,9 @@ class TestSilencePageGeometryValidation:
         # Secondary is a Note: indicator at 3x15, never the flagship page.
         secondary_rows = clients["b2"].render.call_args.args[0]
         assert len(secondary_rows) == 3 and len(secondary_rows[0]) == 15
-        assert svc.runtimes["b2"].last_active_page_id != "__silence_page__:sil"
+        # Pin the gate: the indicator went out, not a cropped silence page.
+        assert svc.runtimes["b2"].last_active_page_id == "__silence__"
+        assert svc.runtimes["b2"].last_active_page_content == "snoozing"
 
 
 class TestSendFailureTracking:
