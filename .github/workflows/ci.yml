@@ -474,14 +474,17 @@ jobs:
     - name: Start Storybook static server
       working-directory: web
       run: |
-        npx --yes http-server storybook-static --port 6006 --silent &
-        # `http-server` is not a dependency, so npx has to fetch it before
-        # the server can bind. A fixed `sleep 5` raced that download: on a
-        # busy runner the port was still closed when the next step ran and
-        # the test runner bailed out with "It seems that your Storybook
-        # instance is not running at: http://localhost:6006", which reads
-        # like an a11y failure but is really a startup race. Poll the port
-        # instead, and fail loudly with a real message if it never opens.
+        # `http-server` is a devDependency, so the `npm ci` step above has
+        # already put it in node_modules and this runs the local binary
+        # without touching the registry. It used to be fetched on demand by
+        # `npx`; when that fetch stalled the server never bound, and the
+        # a11y step then failed with "It seems that your Storybook instance
+        # is not running at: http://localhost:6006" — which reads like an
+        # accessibility violation but means no story was ever visited.
+        npx http-server storybook-static --port 6006 --silent \
+          > /tmp/storybook-server.log 2>&1 &
+        # Poll rather than `sleep 5`: a fixed guess either wastes time or
+        # loses the race, and it hides why the server is missing.
         for _ in $(seq 1 60); do
           if curl -sfo /dev/null http://localhost:6006; then
             echo "Storybook static server is serving on port 6006"
@@ -490,6 +493,7 @@ jobs:
           sleep 1
         done
         echo "::error::Storybook static server never started listening on port 6006"
+        cat /tmp/storybook-server.log
         exit 1
 
     - name: Run Storybook a11y tests
