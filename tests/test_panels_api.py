@@ -343,6 +343,39 @@ class TestPanelOrchestration:
         fresh = VirtualBoardClient(device_type="note_array", board_id=created["board_id"], notes_wide=1, notes_tall=3)
         assert fresh.read_current_message() is None
 
+    def test_resize_drops_the_old_shape_frame(self, client, tmp_path):
+        """A TV-size change must not leave the previous grid readable.
+
+        ``read_current_message`` refuses to serve a frame whose shape no
+        longer matches the board, but ``_last_characters`` is read unguarded
+        by ``/board/current-message`` — both the secondary-board branch and
+        the primary's ``expected_characters``. Without releasing the shared
+        state on reshape, the app dashboard keeps rendering the old grid.
+        """
+        real_service = PanelService(storage=PanelStorage(storage_file=str(tmp_path / "p.json")))
+        fake_settings = self._fake_settings_service()
+        with (
+            patch("src.api_server.get_panel_service", return_value=real_service),
+            patch("src.api_server.get_settings_service", return_value=fake_settings),
+            patch("src.api_server._reinitialize_board_clients"),
+        ):
+            created = client.post("/panels", json={"name": "Hall TV", "screen_diagonal_inches": 43}).json()["panel"]
+            board_id = created["board_id"]
+            # 43" auto-fits a 1x3 note array => 9 rows x 15 cols. Seed a frame
+            # at exactly that shape so the send lands (a mismatched seed would
+            # make this test pass vacuously).
+            old = VirtualBoardClient(device_type="note_array", board_id=board_id, notes_wide=1, notes_tall=3)
+            old.send_characters([[1] * 15 for _ in range(9)])
+            assert old.read_current_message() is not None, "seed frame never landed"
+
+            assert client.patch(f"/panels/{created['id']}", json={"screen_diagonal_inches": 85}).status_code == 200
+
+        # 85" re-fits to 3x6 => 18 rows x 45 cols. Neither the displayed frame
+        # nor the dedupe cache may still carry the 9x15 grid.
+        fresh = VirtualBoardClient(device_type="note_array", board_id=board_id, notes_wide=3, notes_tall=6)
+        assert fresh.read_current_message() is None
+        assert fresh._last_characters is None
+
     def test_delete_last_panel_swaps_in_a_default_board(self, client, tmp_path):
         """Deleting the only panel when its virtual board is the only board
         must not strand the virtual board as an unremovable primary.

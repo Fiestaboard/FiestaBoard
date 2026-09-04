@@ -725,8 +725,10 @@ describe("DisplaySettings — virtual boards (FiestaPanel)", () => {
     // virtual mode and silently break the panel.
     expect(within(card).queryByRole("radio", { name: /Local API/ })).not.toBeInTheDocument();
     expect(within(card).queryByRole("radio", { name: /Cloud API/ })).not.toBeInTheDocument();
-    expect(within(card).queryByText("Cloud API Token")).not.toBeInTheDocument();
-    expect(within(card).queryByText("Board Host")).not.toBeInTheDocument();
+    // "Cloud API Token" / "Board Host" are deliberately NOT asserted here:
+    // neither renders for a note_array board on main either, so they would
+    // pass with this change reverted. The radios and the hint below are what
+    // actually discriminate.
     expect(within(card).getByTestId("virtual-board-hint")).toBeInTheDocument();
   });
 

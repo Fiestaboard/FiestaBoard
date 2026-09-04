@@ -96,10 +96,14 @@ function usePanelBoard({
   pages,
   activePageId,
   boardMessage,
+  putStatus = 200,
 }: {
   pages: Array<Record<string, unknown>>;
   activePageId: string | null;
   boardMessage: string | null;
+  /** Status for PUT /settings/active-page; 400 mimics the backend refusing
+   *  a page the board cannot render, which is what used to retry forever. */
+  putStatus?: number;
 }) {
   const puts: Array<{ page_id?: string | null; board_id?: string }> = [];
   server.use(
@@ -123,6 +127,9 @@ function usePanelBoard({
     ),
     http.put(`${API_BASE}/settings/active-page`, async ({ request }) => {
       puts.push((await request.json()) as { page_id?: string | null; board_id?: string });
+      if (putStatus !== 200) {
+        return HttpResponse.json({ detail: "page does not fit board" }, { status: putStatus });
+      }
       return HttpResponse.json({ status: "success", sent_to_board: true });
     }),
   );
@@ -169,14 +176,38 @@ describe("ActivePageDisplay on a panel's note-array board", () => {
     expect(puts[0].board_id).toBe("board-panel");
   });
 
-  it("does not retry-loop when no page fits the board", async () => {
+  it("auto-selects nothing when no page fits the board", async () => {
+    // Pins the compatibility filter, NOT the retry guard: with only a
+    // flagship page the effect returns at `!defaultPage` and never reaches
+    // the mutation. The retry guard is pinned by the next test.
     const puts = usePanelBoard({ pages: [FLAGSHIP_PAGE], activePageId: null, boardMessage: null });
 
     render(<ActivePageDisplay />, { wrapper: TestWrapper });
     await screen.findByTestId("active-display-board-name");
 
-    // Give the (formerly looping) effect ample time to misbehave.
     await new Promise((resolve) => setTimeout(resolve, 600));
     expect(puts).toEqual([]);
+  });
+
+  it("does not retry-loop when the auto-selected page is rejected", async () => {
+    // The real #1249 loop: a page that DOES fit is auto-selected, the
+    // backend refuses it, and without `autoDefaultAttemptedForRef` the
+    // mutation re-fires on every render (the mutation object's identity
+    // changes each time), spraying 400s and error toasts.
+    const puts = usePanelBoard({
+      pages: [PANEL_PAGE],
+      activePageId: null,
+      boardMessage: null,
+      putStatus: 400,
+    });
+
+    render(<ActivePageDisplay />, { wrapper: TestWrapper });
+    await screen.findByTestId("active-display-board-name");
+
+    // One attempt must happen…
+    await waitFor(() => expect(puts.length).toBeGreaterThan(0), { timeout: 3000 });
+    // …and exactly one, however long the component keeps re-rendering.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(puts).toHaveLength(1);
   });
 });

@@ -7717,6 +7717,15 @@ async def update_panel(panel_id: str, data: PanelUpdate):
                 target["notes_wide"] = notes_wide
                 target["notes_tall"] = notes_tall
                 settings_service.set_boards(boards)
+                # Drop the old-shape frame BEFORE rebuilding the client.
+                # read_current_message already refuses to serve a frame whose
+                # shape no longer matches the board, but `_last_characters` is
+                # read unguarded by /board/current-message (both the secondary
+                # branch and the primary's `expected_characters`), which would
+                # keep rendering the old grid — the exact stale-shape bug this
+                # reshape path exists to prevent. Releasing the shared state
+                # clears `displayed_characters` and `last_characters` together.
+                release_virtual_board_state(panel.board_id)
                 _reinitialize_board_clients()
                 # The grid changed shape: pages authored for the old grid stay
                 # referenced but can no longer render here. Warn-only, exactly
