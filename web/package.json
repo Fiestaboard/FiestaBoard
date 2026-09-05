@@ -27,7 +27,7 @@
     "@codemirror/language": "^6.12.4",
     "@codemirror/state": "^6.7.2",
     "@codemirror/view": "^6.43.10",
-    "@fiestaboard/ui": "6.0.1",
+    "@fiestaboard/ui": "6.0.2",
     "@lezer/highlight": "^1.2.3",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@react-router/fs-routes": "^8.3.1",
