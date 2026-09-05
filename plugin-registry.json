@@ -126,6 +126,16 @@
       "category": "art"
     },
     {
+      "id": "generative_dashboard",
+      "name": "Generative Dashboard",
+      "description": "AI-curated dashboard composed from your other plugins' variables \u2014 live values, range-driven status lights, grid or prose",
+      "repository": "https://github.com/Fiestaboard/fiestaboard-plugin--generative-dashboard",
+      "author": "FiestaBoard Team",
+      "fiestaboard_version": ">=2.10.0",
+      "icon": "layout-dashboard",
+      "category": "data"
+    },
+    {
       "id": "guest_wifi",
       "name": "Guest WiFi",
       "description": "Display guest WiFi credentials on your board",
