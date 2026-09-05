@@ -1502,6 +1502,30 @@ class TestServiceLifecycle:
         with patch.object(api_server, "_service", None):
             assert api_server.peek_service() is None
 
+    def test_send_message_marks_the_board_as_out_of_band(self, client, mock_service, mock_settings_service):
+        """Issue #1831: a manual send replaces the page on the board, so the
+        board must be flagged as showing out-of-band content — that is what
+        makes the HA Active/Current Page entities stop reporting the page."""
+        with (
+            patch("src.api_server.Config.is_silence_mode_active", return_value=False),
+            patch("src.api_server.peek_service", return_value=mock_service),
+        ):
+            response = client.post("/send-message", json={"text": "Hello"})
+        assert response.status_code == 200
+        mock_service.mark_showing_out_of_band.assert_called_once_with()
+
+    def test_skipped_send_message_does_not_mark_out_of_band(self, client, mock_service, mock_settings_service):
+        """was_sent=False means the board already showed this content — nothing
+        was written, so the out-of-band state must not change."""
+        mock_service.vb_client.render.return_value = (True, False)
+        with (
+            patch("src.api_server.Config.is_silence_mode_active", return_value=False),
+            patch("src.api_server.peek_service", return_value=mock_service),
+        ):
+            response = client.post("/send-message", json={"text": "Hello"})
+        assert response.status_code == 200
+        mock_service.mark_showing_out_of_band.assert_not_called()
+
 
 class TestSendMessageWrapping:
     """Issue #1793: /send-message wraps long text to the board's geometry."""

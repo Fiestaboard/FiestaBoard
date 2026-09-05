@@ -1069,6 +1069,25 @@ def _publish_mqtt_state_update() -> None:
         logger.debug(f"MQTT state publish after board write failed: {e}")
 
 
+def _note_out_of_band_write() -> None:
+    """Record a successful out-of-band write to the primary board and push
+    fresh MQTT state (issue #1831).
+
+    The write bypassed the display loop and persists (issue #1794), so the
+    board no longer shows the configured page; flagging it lets the state
+    publisher report that instead of the page name. Peek only — with no
+    DisplayService there is nothing to flag, and reporting must never fail
+    the board write that triggered it.
+    """
+    service = peek_service()
+    if service is not None:
+        try:
+            service.mark_showing_out_of_band()
+        except Exception as e:
+            logger.debug(f"Out-of-band mark failed: {e}")
+    _publish_mqtt_state_update()
+
+
 def run_service_background():
     """Run the service in a background thread with auto-restart on failure."""
     global _service_running, _service_start_time
@@ -3587,13 +3606,14 @@ async def send_message(request: MessageRequest):
         )
         if success:
             if was_sent:
-                # Push fresh MQTT state so HA reflects the update. The
-                # display loop's dedupe cache is deliberately left alone:
+                # Flag the out-of-band write and push fresh MQTT state so HA
+                # reflects the update (issues #1794/#1831). The display
+                # loop's dedupe cache is deliberately left alone:
                 # invalidating it here made the message self-destruct on the
                 # next engine tick (<=15s). Restoring the active page is a
                 # pull — /force-refresh, MQTT Refresh Display, re-selecting
                 # a page, or an actual content change (issue #1794).
-                _publish_mqtt_state_update()
+                _note_out_of_band_write()
                 service.request_board_refresh()
                 return {"status": "success", "message": "Message sent successfully"}
             else:
@@ -7497,6 +7517,7 @@ async def debug_blank_board():
         success, was_sent = client.send_characters(blank_array, force=True)
 
         if success:
+            _note_out_of_band_write()
             return {"status": "success", "message": "Board blanked successfully"}
         else:
             raise HTTPException(status_code=500, detail="Failed to blank board")
@@ -7541,6 +7562,7 @@ async def debug_fill_board(request: dict):
         success, was_sent = client.send_characters(fill_array, force=True)
 
         if success:
+            _note_out_of_band_write()
             return {"status": "success", "message": f"Board filled with character {character_code}"}
         else:
             raise HTTPException(status_code=500, detail="Failed to fill board")
@@ -7610,6 +7632,7 @@ V{version[:7]} {timestamp}"""
         success, was_sent = client.send_characters(board_array, force=True)
 
         if success:
+            _note_out_of_band_write()
             return {"status": "success", "message": "Debug info sent to board", "debug_info": debug_text}
         else:
             raise HTTPException(status_code=500, detail="Failed to send debug info")

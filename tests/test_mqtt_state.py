@@ -479,3 +479,94 @@ class TestStatePublisherPerBoardAttributes:
         attrs = json.loads(attrs_calls[attrs_topics.index("current_page")][0][1])
         assert attrs["by_board"]["b1"] == {"page_id": "page-42", "page_name": "Weather"}
         assert attrs["by_board"]["b2"] == {"page_id": "page-7", "page_name": "Transit"}
+
+
+class TestStatePublisherOutOfBand:
+    """Issue #1831: while the primary board shows out-of-band content (a
+    manual MQTT/HTTP write), active_page/current_page must report the select's
+    stable no-page option instead of the configured page. The stored active
+    page id is untouched — it remains the restore target (issue #1794)."""
+
+    @staticmethod
+    def _wired(get_settings, get_page, mock_config, active_page_id="page-1", page_name="Weather"):
+        mock_config.is_silence_mode_active.return_value = False
+        settings = MagicMock()
+        settings.is_schedule_enabled.return_value = False
+        settings.get_active_page_id.return_value = active_page_id
+        settings.get_transition_settings.return_value = MagicMock(strategy="")
+        settings.get_polling_interval.return_value = 60
+        settings.get_output_settings.return_value = MagicMock(target="both")
+        get_settings.return_value = settings
+        page_svc = MagicMock()
+        page = MagicMock()
+        page.name = page_name
+        page.id = active_page_id
+        page_svc.get_page.return_value = page
+        page_svc.list_pages.return_value = []
+        get_page.return_value = page_svc
+
+    @patch("src.api_server.peek_service")
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_out_of_band_content_publishes_none_option(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, peek, mock_client
+    ):
+        from src.mqtt.discovery import NO_ACTIVE_PAGE_OPTION
+
+        self._wired(get_settings, get_page, mock_config)
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        service = MagicMock()
+        service.is_showing_out_of_band.return_value = True
+        peek.return_value = service
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+        state = {c[0][0]: c[0][1] for c in mock_client.publish_state.call_args_list}
+        assert state["active_page"] == NO_ACTIVE_PAGE_OPTION
+        assert state["current_page"] == NO_ACTIVE_PAGE_OPTION
+
+    @patch("src.api_server.peek_service")
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_in_band_content_still_publishes_the_page_name(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, peek, mock_client
+    ):
+        self._wired(get_settings, get_page, mock_config)
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        service = MagicMock()
+        service.is_showing_out_of_band.return_value = False
+        peek.return_value = service
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+        state = {c[0][0]: c[0][1] for c in mock_client.publish_state.call_args_list}
+        assert state["active_page"] == "Weather"
+        assert state["current_page"] == "Weather"
+
+    @patch("src.api_server.peek_service")
+    @patch("src.config_manager.ConfigManager")
+    @patch("src.api_server._get_board_client")
+    @patch("src.api_server._service_start_time", 1000000.0)
+    @patch("src.pages.service.get_page_service")
+    @patch("src.settings.service.get_settings_service")
+    @patch("src.config.Config")
+    def test_no_display_service_reports_the_page_name(
+        self, mock_config, get_settings, get_page, mock_board, mock_cm, peek, mock_client
+    ):
+        """No DisplayService instance -> nothing can be out of band."""
+        self._wired(get_settings, get_page, mock_config)
+        mock_board.return_value = None
+        mock_cm.return_value._config = {"plugins": {}}
+        peek.return_value = None
+        pub = StatePublisher(mock_client)
+        pub.gather_and_publish()
+        state = {c[0][0]: c[0][1] for c in mock_client.publish_state.call_args_list}
+        assert state["active_page"] == "Weather"
