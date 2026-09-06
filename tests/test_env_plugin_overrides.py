@@ -126,16 +126,32 @@ class TestEnvOverlayOnMigratedInstall:
         cm = ConfigManager(config_path=str(config_path))
         assert cm.get_plugin_config("weather")["api_key"] == "stored_key"
 
-    def test_overlay_applies_to_plugin_instances(self, tmp_path, monkeypatch):
-        """Instance keys like weather:sf share the base plugin's env overrides."""
+    def test_overlay_never_applies_to_named_instances(self, tmp_path, monkeypatch):
+        """Base env vars must not clobber ``base:label`` instances.
+
+        Reversed from ``test_overlay_applies_to_plugin_instances`` (#1864
+        review): inheriting the base plugin's overrides meant a years-inert
+        ``WEATHER_LOCATION`` in someone's compose file would, on upgrade,
+        override the one setting that makes ``weather:sf`` a different
+        instance — every named instance snapping to the base env value. Env
+        vars are named for the base plugin, so they scope to the base plugin
+        only; instances keep their stored values.
+        """
         config_path = tmp_path / "config.json"
         config = _write_migrated_install(config_path)
         config["plugins"]["weather:sf"] = {"enabled": True, "api_key": "sf_stored", "location": "San Francisco, CA"}
         config_path.write_text(json.dumps(config))
         monkeypatch.setenv("WEATHER_API_KEY", "test_key_env")
+        monkeypatch.setenv("WEATHER_LOCATION", "Env City")
 
         cm = ConfigManager(config_path=str(config_path))
-        assert cm.get_plugin_config("weather:sf")["api_key"] == "test_key_env"
+        instance = cm.get_plugin_config("weather:sf")
+        assert instance["api_key"] == "sf_stored"
+        assert instance["location"] == "San Francisco, CA"
+        # The base plugin still gets the overlay.
+        base = cm.get_plugin_config("weather")
+        assert base["api_key"] == "test_key_env"
+        assert base["location"] == "Env City"
 
     def test_typed_overrides_parse_int_and_list(self, tmp_path, monkeypatch):
         """Int and CSV-list env vars parse into their native types."""

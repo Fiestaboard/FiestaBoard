@@ -1486,6 +1486,16 @@ class ConfigManager:
                 logger.warning(f"Invalid {env_var} value: {raw!r} — ignoring override")
         return overrides
 
+    @staticmethod
+    def get_plugin_env_overrides(plugin_id: str) -> dict[str, Any]:
+        """Public read of the current env-var overlay for one plugin.
+
+        For callers seeding LIVE plugin config objects (the plugin registry)
+        or reporting which keys are env-controlled (the API's
+        ``env_overridden_keys``). Never persist the result.
+        """
+        return ConfigManager._plugin_env_overrides(plugin_id)
+
     def get_plugin_config(self, plugin_id: str, include_env_overrides: bool = True) -> dict[str, Any] | None:
         """Get configuration for a specific plugin.
 
