@@ -87,8 +87,17 @@ def _clear_schedule():
 
 
 @pytest.fixture(autouse=True)
-def _reset_triggers():
-    """The trigger-service singleton must never leak state across scenarios."""
+def _reset_triggers(tmp_path, monkeypatch):
+    """The trigger-service singleton must never leak state across scenarios —
+    and must never touch the real data/trigger_dismissals.json on a dev
+    machine (#1871 review): scenarios exercising the REAL TriggerService
+    would otherwise read (and prune) the developer's live dismissal store.
+    The ``_default_dismissals_file`` seam points the singleton at a
+    per-test tmp file instead."""
+    monkeypatch.setattr(
+        "src.triggers.service._default_dismissals_file",
+        lambda: tmp_path / "trigger_dismissals.json",
+    )
     reset_trigger_service()
     yield
     reset_trigger_service()
@@ -455,3 +464,16 @@ def test_temporary_override_inline(monkeypatch):
         pages=make_page_service({"page-home": "HELLO HOME"}),
     )
     check_golden("temporary_override_inline", result.sends)
+
+
+def test_trigger_scenarios_use_a_tmp_dismissals_store(tmp_path):
+    """#1871 review: the real-TriggerService scenarios ran the singleton on
+    its DEFAULT dismissals path — on a dev machine they read (and pruned)
+    the real data/trigger_dismissals.json. The suite must point the seam at
+    a per-test tmp file."""
+    from src.triggers.service import get_trigger_service
+
+    service = get_trigger_service()
+    assert str(service._dismissals_file).startswith(str(tmp_path)), (
+        f"trigger scenarios must not touch the real dismissals store: {service._dismissals_file}"
+    )
