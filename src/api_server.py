@@ -8849,19 +8849,6 @@ from .plugins.routes import router as plugins_router  # noqa: E402
 
 app.include_router(plugins_router)
 
-# Compatibility aliases: src/mcp_server.py still imports these plugin handler
-# names from api_server. The #1757 MCP commit repoints those tools at
-# PluginService and deletes this block.
-from .plugins.routes import (  # noqa: E402, F401
-    PluginConfigRequest,
-    disable_plugin,
-    enable_plugin,
-    install_registry_plugin,
-    uninstall_external_plugin,
-    update_plugin,
-    update_plugin_config,
-)
-
 # =============================================================================
 # Triggers — Event-based plugin messages
 # =============================================================================

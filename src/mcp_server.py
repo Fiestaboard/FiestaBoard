@@ -198,14 +198,22 @@ def _build_mcp_server() -> Any:
     # -----------------------------------------------------------------------
     # Plugin tools
     #
-    # The mutating ones delegate to the REST handlers in ``api_server``
-    # rather than driving ``PluginRegistry`` directly. Enabling or
-    # configuring a plugin is two writes, not one: the registry holds the
-    # live state, ConfigManager holds ``config.json``. #1588 is what going
-    # straight to the registry costs — every setting made over MCP looked
-    # fine until the container was recreated, then came back gone, because
-    # nothing had ever been written to disk.
+    # The mutating ones delegate to ``PluginService`` (#1757) — the same
+    # orchestration the REST handlers use — rather than driving
+    # ``PluginRegistry`` directly. Enabling or configuring a plugin is two
+    # writes, not one: the registry holds the live state, ConfigManager holds
+    # ``config.json``. #1588 is what going straight to the registry costs —
+    # every setting made over MCP looked fine until the container was
+    # recreated, then came back gone, because nothing had ever been written
+    # to disk. Going through the service (not ``api_server``'s handlers) is
+    # what keeps mcp_server importable without api_server.
     # -----------------------------------------------------------------------
+
+    def _plugin_service() -> Any:
+        """The shared plugin-orchestration service (never api_server)."""
+        from .plugins.service import PluginService
+
+        return PluginService()
 
     def _rest_detail(exc: Any) -> str:
         """Flatten an HTTPException detail into a single message.
@@ -276,10 +284,8 @@ def _build_mcp_server() -> Any:
         """
         from fastapi import HTTPException
 
-        from .api_server import install_registry_plugin as _rest_install_registry_plugin
-
         try:
-            await _rest_install_registry_plugin(plugin_id)
+            await _plugin_service().install_from_registry(plugin_id)
         except HTTPException as exc:
             return _err(f"Error installing plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
@@ -305,10 +311,8 @@ def _build_mcp_server() -> Any:
         """
         from fastapi import HTTPException
 
-        from .api_server import enable_plugin as _rest_enable_plugin
-
         try:
-            await _rest_enable_plugin(plugin_id)
+            _plugin_service().enable_plugin(plugin_id)
         except HTTPException as exc:
             return _err(f"Error enabling plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
@@ -327,10 +331,8 @@ def _build_mcp_server() -> Any:
         """
         from fastapi import HTTPException
 
-        from .api_server import disable_plugin as _rest_disable_plugin
-
         try:
-            await _rest_disable_plugin(plugin_id)
+            _plugin_service().disable_plugin(plugin_id)
         except HTTPException as exc:
             return _err(f"Error disabling plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
@@ -351,10 +353,8 @@ def _build_mcp_server() -> Any:
         """
         from fastapi import HTTPException
 
-        from .api_server import uninstall_external_plugin as _rest_uninstall_external_plugin
-
         try:
-            await _rest_uninstall_external_plugin(plugin_id)
+            _plugin_service().uninstall(plugin_id)
         except HTTPException as exc:
             return _err(f"Error uninstalling plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
@@ -383,8 +383,6 @@ def _build_mcp_server() -> Any:
         """
         from fastapi import HTTPException
 
-        from .api_server import PluginConfigRequest
-        from .api_server import update_plugin_config as _rest_update_plugin_config
         from .config_manager import get_config_manager
 
         try:
@@ -393,7 +391,7 @@ def _build_mcp_server() -> Any:
             # into config.json (issue #1761).
             existing = get_config_manager().get_plugin_config(plugin_id, include_env_overrides=False) or {}
             merged = {**existing, **config}
-            response = await _rest_update_plugin_config(plugin_id, PluginConfigRequest(config=merged))
+            masked = _plugin_service().update_plugin_config(plugin_id, merged)
         except HTTPException as exc:
             return _err(f"Error configuring plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
@@ -402,7 +400,7 @@ def _build_mcp_server() -> Any:
         return _ok(
             f"Configuration updated for '{plugin_id}'.",
             plugin_id=plugin_id,
-            config=_serialize(response.get("config", {})),
+            config=_serialize(masked),
         )
 
     @mcp.tool()
@@ -416,18 +414,17 @@ def _build_mcp_server() -> Any:
         """
         from fastapi import HTTPException
 
-        from .api_server import update_plugin as _rest_update_plugin
-
         # #1741: this used to call ``registry.reload_plugin()`` and nothing
         # else — re-importing the code already on disk and reporting
         # "updated successfully" without ever fetching anything, for any
-        # id at all. It also skipped every guard the REST handler applies
+        # id at all. It also skipped every guard the update path applies
         # (built-in rejection, realpath containment of the plugin's
         # local_path inside the external plugins directory, and the .git
         # check) before it lets a path near ``git``. Same lesson as #1588:
-        # go through the REST handler, do not re-derive its checks here.
+        # go through PluginService.apply_update — the shared, guarded
+        # path — do not re-derive its checks here.
         try:
-            await _rest_update_plugin(plugin_id)
+            await _plugin_service().apply_update(plugin_id)
         except HTTPException as exc:
             return _err(f"Error updating plugin '{plugin_id}': {_rest_detail(exc)}")
         except Exception as exc:
