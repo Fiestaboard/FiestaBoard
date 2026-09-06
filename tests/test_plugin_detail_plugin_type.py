@@ -55,8 +55,11 @@ class _FakeRegistry:
 
 
 class _FakeConfigManager:
-    def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:
+    def get_plugin_config(self, plugin_id: str, include_env_overrides: bool = True) -> dict[str, Any] | None:
         return None
+
+    def get_plugin_env_overrides(self, plugin_id: str) -> dict[str, Any]:
+        return {}
 
     def _mask_sensitive(self, config: dict[str, Any]) -> dict[str, Any]:
         return config
