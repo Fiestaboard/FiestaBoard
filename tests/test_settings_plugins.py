@@ -165,6 +165,9 @@ def test_auto_apply_updates_external_plugin(tmp_path):
     registry.get_plugin_source.return_value = source
     registry.reload_plugin.return_value = MagicMock()
     registry._update_status = {plugin_id: True}
+    # The auto-apply loop clears the flag through the public locked method
+    # (#1828); mirror the real registry's behavior on this mock.
+    registry.clear_update_status.side_effect = lambda pid: registry._update_status.pop(pid, None)
 
     with (
         patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path),
@@ -235,6 +238,7 @@ def test_auto_apply_handles_git_fetch_failure(tmp_path):
     source.local_path = str(plugin_dir)
     registry.get_plugin_source.return_value = source
     registry._update_status = {plugin_id: True}
+    registry.clear_update_status.side_effect = lambda pid: registry._update_status.pop(pid, None)
 
     with (
         patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path),
@@ -258,6 +262,7 @@ def test_auto_apply_handles_reload_failure(tmp_path):
     registry.get_plugin_source.return_value = source
     registry.reload_plugin.return_value = None  # reload failed
     registry._update_status = {plugin_id: True}
+    registry.clear_update_status.side_effect = lambda pid: registry._update_status.pop(pid, None)
 
     with (
         patch("src.plugins.sources.get_external_plugins_dir", return_value=tmp_path),
@@ -290,6 +295,7 @@ def test_auto_apply_multiple_plugins_partial_success(tmp_path):
     registry.get_plugin_source.side_effect = get_source
     registry.reload_plugin.return_value = MagicMock()
     registry._update_status = {good_id: True, bad_id: True}
+    registry.clear_update_status.side_effect = lambda pid: registry._update_status.pop(pid, None)
 
     def fake_clone(url, pid, external_dir):
         return (True, "") if pid == good_id else (False, "fetch error")

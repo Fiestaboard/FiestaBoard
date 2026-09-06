@@ -10,6 +10,7 @@ The PluginRegistry is the central point for:
 
 import logging
 import re
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait as futures_wait
 from dataclasses import replace
@@ -77,7 +78,16 @@ class PluginRegistry:
         Args:
             plugins_dir: Path to plugins directory
         """
-        self._loader = PluginLoader(plugins_dir)
+        # One re-entrant lock guards every mutable dict on the registry AND
+        # the loader's internal state (the loader is handed the same lock, so
+        # a registry->loader call chain re-enters one lock instead of having
+        # to order two).  Install/update endpoints run on worker threads since
+        # #1809, so these dicts mutate concurrently with request handlers that
+        # iterate them (#1828).  Iterating callers snapshot under the lock and
+        # iterate the snapshot; nothing slow — git, plugin ``get_data``, the
+        # context-build thread pool — ever runs while it is held.
+        self._lock = threading.RLock()
+        self._loader = PluginLoader(plugins_dir, lock=self._lock)
         self._plugins: dict[str, PluginBase] = {}
         self._manifests: dict[str, PluginManifest] = {}
         self._configs: dict[str, dict[str, Any]] = {}
@@ -167,27 +177,28 @@ class PluginRegistry:
             ]
         instance_label = instance_label.lower()
 
-        # Base plugin must exist
-        if plugin_id not in self._plugins:
-            return [f"Plugin not found: {plugin_id}"]
+        with self._lock:
+            # Base plugin must exist
+            if plugin_id not in self._plugins:
+                return [f"Plugin not found: {plugin_id}"]
 
-        compound_key = self.make_instance_key(plugin_id, instance_label)
+            compound_key = self.make_instance_key(plugin_id, instance_label)
 
-        # Must not already exist
-        if compound_key in self._plugins:
-            return [f"Instance already exists: {compound_key}"]
+            # Must not already exist
+            if compound_key in self._plugins:
+                return [f"Instance already exists: {compound_key}"]
 
-        # Create a fresh plugin object
-        new_plugin = self._loader.create_instance(plugin_id)
-        if new_plugin is None:
-            return [f"Failed to create instance of {plugin_id}"]
+            # Create a fresh plugin object
+            new_plugin = self._loader.create_instance(plugin_id)
+            if new_plugin is None:
+                return [f"Failed to create instance of {plugin_id}"]
 
-        # Register under compound key
-        base_manifest = self._manifests[plugin_id]
-        self._plugins[compound_key] = new_plugin
-        self._manifests[compound_key] = base_manifest
-        self._enabled[compound_key] = False
-        self._configs[compound_key] = {}
+            # Register under compound key
+            base_manifest = self._manifests[plugin_id]
+            self._plugins[compound_key] = new_plugin
+            self._manifests[compound_key] = base_manifest
+            self._enabled[compound_key] = False
+            self._configs[compound_key] = {}
 
         logger.info("Created plugin instance: %s", compound_key)
         return []
@@ -206,16 +217,17 @@ class PluginRegistry:
         """
         compound_key = self.make_instance_key(plugin_id, instance_label)
 
-        if compound_key not in self._plugins:
-            return [f"Instance not found: {compound_key}"]
+        with self._lock:
+            if compound_key not in self._plugins:
+                return [f"Instance not found: {compound_key}"]
 
-        # Clean up the plugin
-        self._plugins[compound_key].cleanup()
-        del self._plugins[compound_key]
-        self._manifests.pop(compound_key, None)
-        self._enabled.pop(compound_key, None)
-        self._configs.pop(compound_key, None)
-        self._discovered_vars.pop(compound_key, None)
+            # Clean up the plugin
+            self._plugins[compound_key].cleanup()
+            del self._plugins[compound_key]
+            self._manifests.pop(compound_key, None)
+            self._enabled.pop(compound_key, None)
+            self._configs.pop(compound_key, None)
+            self._discovered_vars.pop(compound_key, None)
 
         logger.info("Deleted plugin instance: %s", compound_key)
         return []
@@ -233,29 +245,33 @@ class PluginRegistry:
         instances: list[dict[str, Any]] = []
         prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
 
-        for key in sorted(self._plugins):
-            if key.startswith(prefix):
-                label = key[len(prefix) :]
-                instances.append(
-                    {
-                        "label": label,
-                        "key": key,
-                        "enabled": self._enabled.get(key, False),
-                        "has_config": bool(self._configs.get(key)),
-                    }
-                )
+        with self._lock:
+            for key in sorted(self._plugins):
+                if key.startswith(prefix):
+                    label = key[len(prefix) :]
+                    instances.append(
+                        {
+                            "label": label,
+                            "key": key,
+                            "enabled": self._enabled.get(key, False),
+                            "has_config": bool(self._configs.get(key)),
+                        }
+                    )
 
         return instances
 
     @property
     def plugins(self) -> dict[str, PluginBase]:
         """Return all loaded plugins."""
-        return self._plugins.copy()
+        with self._lock:
+            return self._plugins.copy()
 
     @property
     def enabled_plugins(self) -> dict[str, PluginBase]:
         """Return only enabled plugins."""
-        return {pid: plugin for pid, plugin in self._plugins.items() if self._enabled.get(pid, False)}
+        with self._lock:
+            items = list(self._plugins.items())
+            return {pid: plugin for pid, plugin in items if self._enabled.get(pid, False)}
 
     def initialize(self, force: bool = False) -> None:
         """Load all discovered plugins.
@@ -309,28 +325,29 @@ class PluginRegistry:
             # that their integrations "turned themselves off".
             logger.exception("Could not load stored plugin configs — all plugins will start disabled")
 
-        for plugin_id, plugin in loaded.items():
-            manifest = self._loader.get_manifest(plugin_id)
-            if manifest:
-                self._plugins[plugin_id] = plugin
-                self._manifests[plugin_id] = manifest
+        with self._lock:
+            for plugin_id, plugin in loaded.items():
+                manifest = self._loader.get_manifest(plugin_id)
+                if manifest:
+                    self._plugins[plugin_id] = plugin
+                    self._manifests[plugin_id] = manifest
 
-                # Check if plugin has stored config with enabled=true
-                plugin_config = stored_configs.get(plugin_id, {})
-                is_enabled = plugin_config.get("enabled", False)
+                    # Check if plugin has stored config with enabled=true
+                    plugin_config = stored_configs.get(plugin_id, {})
+                    is_enabled = plugin_config.get("enabled", False)
 
-                self._enabled[plugin_id] = is_enabled
+                    self._enabled[plugin_id] = is_enabled
 
-                # Apply stored config to the plugin
-                if plugin_config:
-                    self._configs[plugin_id] = plugin_config
-                    plugin.config = plugin_config
-                    plugin.enabled = is_enabled
+                    # Apply stored config to the plugin
+                    if plugin_config:
+                        self._configs[plugin_id] = plugin_config
+                        plugin.config = plugin_config
+                        plugin.enabled = is_enabled
 
-                if is_enabled:
-                    logger.info(f"Loaded and enabled plugin: {plugin_id}")
-                else:
-                    logger.debug(f"Loaded plugin (disabled): {plugin_id}")
+                    if is_enabled:
+                        logger.info(f"Loaded and enabled plugin: {plugin_id}")
+                    else:
+                        logger.debug(f"Loaded plugin (disabled): {plugin_id}")
 
         # Auto-install any plugins that were configured in V2 but are no longer
         # built-in (extracted to external repos in V3).
@@ -340,10 +357,10 @@ class PluginRegistry:
         # Instance configs have compound keys like "weather:sf".
         self._restore_instances(stored_configs)
 
-        self._initialized = True
-
-        enabled_count = sum(1 for e in self._enabled.values() if e)
-        logger.info(f"Initialized {len(self._plugins)} plugins ({enabled_count} enabled)")
+        with self._lock:
+            self._initialized = True
+            enabled_count = sum(1 for e in self._enabled.values() if e)
+            logger.info(f"Initialized {len(self._plugins)} plugins ({enabled_count} enabled)")
 
     def _restore_instances(self, stored_configs: dict[str, dict[str, Any]]) -> None:
         """Restore plugin instances from stored configuration.
@@ -467,7 +484,8 @@ class PluginRegistry:
             return
 
         first_run = not cm.is_v2_plugin_migration_done()
-        loaded_ids = set(self._plugins.keys())
+        with self._lock:
+            loaded_ids = set(self._plugins.keys())
 
         if first_run or cm.version_changed_on_load:
             # Full reconcile: (re)install every orphaned config — one that is
@@ -529,7 +547,8 @@ class PluginRegistry:
         we can retry just those on the next boot.
         """
         if loaded_ids is None:
-            loaded_ids = set(self._plugins.keys())
+            with self._lock:
+                loaded_ids = set(self._plugins.keys())
         # Instance keys (e.g. "countdown:fijiaustralia") are restored separately
         # by ``_restore_instances`` and must not be treated as orphaned base
         # plugins — their base ID is what gets installed from the registry.
@@ -621,16 +640,17 @@ class PluginRegistry:
 
             # install_from_registry() registers the plugin with enabled=False and
             # no config applied.  Restore the full stored config and enabled state.
-            plugin = self._plugins.get(plugin_id)
-            if plugin:
-                cfg = stored_configs[plugin_id]
-                is_enabled = cfg.get("enabled", False)
-                self._enabled[plugin_id] = is_enabled
-                self._configs[plugin_id] = cfg
-                plugin.config = cfg
-                plugin.enabled = is_enabled
-                migrated.append(plugin_id)
-                logger.info("V3 migration: restored '%s' (enabled=%s)", plugin_id, is_enabled)
+            with self._lock:
+                plugin = self._plugins.get(plugin_id)
+                if plugin:
+                    cfg = stored_configs[plugin_id]
+                    is_enabled = cfg.get("enabled", False)
+                    self._enabled[plugin_id] = is_enabled
+                    self._configs[plugin_id] = cfg
+                    plugin.config = cfg
+                    plugin.enabled = is_enabled
+                    migrated.append(plugin_id)
+                    logger.info("V3 migration: restored '%s' (enabled=%s)", plugin_id, is_enabled)
 
         if migrated:
             logger.info(
@@ -694,10 +714,12 @@ class PluginRegistry:
 
     def _plugin_in_use(self, plugin_id: str) -> bool:
         """Return True when the plugin or any of its instances is enabled."""
-        if self._enabled.get(plugin_id, False):
-            return True
-        prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
-        return any(key.startswith(prefix) and enabled for key, enabled in self._enabled.items())
+        with self._lock:
+            if self._enabled.get(plugin_id, False):
+                return True
+            prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
+            enabled_items = list(self._enabled.items())
+        return any(key.startswith(prefix) and enabled for key, enabled in enabled_items)
 
     def enable_plugin(self, plugin_id: str) -> bool:
         """Enable a plugin.
@@ -727,17 +749,18 @@ class PluginRegistry:
                 if errors:
                     logger.warning("On-demand install of '%s' failed: %s", plugin_id, errors)
 
-        if plugin_id not in self._plugins:
-            logger.warning(f"Cannot enable unknown plugin: {plugin_id}")
-            return False
+        with self._lock:
+            if plugin_id not in self._plugins:
+                logger.warning(f"Cannot enable unknown plugin: {plugin_id}")
+                return False
 
-        plugin = self._plugins[plugin_id]
-        plugin.enabled = True
-        self._enabled[plugin_id] = True
+            plugin = self._plugins[plugin_id]
+            plugin.enabled = True
+            self._enabled[plugin_id] = True
 
-        # Apply stored config
-        if plugin_id in self._configs:
-            plugin.config = self._configs[plugin_id]
+            # Apply stored config
+            if plugin_id in self._configs:
+                plugin.config = self._configs[plugin_id]
 
         logger.info(f"Enabled plugin: {plugin_id}")
         return True
@@ -751,12 +774,13 @@ class PluginRegistry:
         Returns:
             True if disabled successfully, False if plugin not found
         """
-        if plugin_id not in self._plugins:
-            return False
+        with self._lock:
+            if plugin_id not in self._plugins:
+                return False
 
-        plugin = self._plugins[plugin_id]
-        plugin.enabled = False
-        self._enabled[plugin_id] = False
+            plugin = self._plugins[plugin_id]
+            plugin.enabled = False
+            self._enabled[plugin_id] = False
 
         logger.info(f"Disabled plugin: {plugin_id}")
         return True
@@ -771,20 +795,21 @@ class PluginRegistry:
         Returns:
             List of validation errors (empty if valid)
         """
-        if plugin_id not in self._plugins:
-            return [f"Plugin not found: {plugin_id}"]
+        with self._lock:
+            if plugin_id not in self._plugins:
+                return [f"Plugin not found: {plugin_id}"]
 
-        plugin = self._plugins[plugin_id]
+            plugin = self._plugins[plugin_id]
 
-        # Validate config (base refresh_seconds + plugin-specific)
-        errors = plugin._validate_refresh_seconds(config)
-        errors.extend(plugin.validate_config(config))
-        if errors:
-            return errors
+            # Validate config (base refresh_seconds + plugin-specific)
+            errors = plugin._validate_refresh_seconds(config)
+            errors.extend(plugin.validate_config(config))
+            if errors:
+                return errors
 
-        # Store and apply config
-        self._configs[plugin_id] = config
-        plugin.config = config
+            # Store and apply config
+            self._configs[plugin_id] = config
+            plugin.config = config
 
         logger.debug(f"Updated config for {plugin_id}")
         return []
@@ -806,10 +831,11 @@ class PluginRegistry:
             List of validation errors. Non-empty means the config was applied
             anyway and the caller should log it.
         """
-        errors = self.set_plugin_config(plugin_id, config)
-        if errors and plugin_id in self._plugins:
-            self._configs[plugin_id] = config
-            self._plugins[plugin_id].config = config
+        with self._lock:
+            errors = self.set_plugin_config(plugin_id, config)
+            if errors and plugin_id in self._plugins:
+                self._configs[plugin_id] = config
+                self._plugins[plugin_id].config = config
         return errors
 
     def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:
@@ -834,13 +860,18 @@ class PluginRegistry:
         Returns:
             PluginResult with data or error
         """
-        if plugin_id not in self._plugins:
+        # Lookups only under the lock; the fetch itself runs unlocked because
+        # ``get_data`` is plugin code that may block on the network, and this
+        # method runs on build_template_context's worker threads.
+        with self._lock:
+            plugin = self._plugins.get(plugin_id)
+            enabled = self._enabled.get(plugin_id, False)
+
+        if plugin is None:
             return PluginResult(available=False, error=f"Plugin not found: {plugin_id}")
 
-        if not self._enabled.get(plugin_id, False):
+        if not enabled:
             return PluginResult(available=False, error=f"Plugin not enabled: {plugin_id}")
-
-        plugin = self._plugins[plugin_id]
 
         # Transition plugins animate sends; they have no data or template
         # variables.  Data-oriented callers (variable discovery, display
@@ -940,27 +971,34 @@ class PluginRegistry:
         Results are cached so the discovery fetch only happens once per
         plugin lifecycle.
         """
-        if plugin_id in self._discovered_vars:
-            return self._discovered_vars[plugin_id]
+        with self._lock:
+            cached = self._discovered_vars.get(plugin_id)
+        if cached is not None:
+            return cached
 
+        # The discovery fetch runs unlocked — it calls plugin code that may
+        # block on the network.
         try:
             result = self.fetch_plugin_data(plugin_id)
             if result.available and result.data:
                 discovered = [key for key, val in result.data.items() if isinstance(val, str | int | float | bool)]
-                self._discovered_vars[plugin_id] = discovered
+                with self._lock:
+                    self._discovered_vars[plugin_id] = discovered
                 return discovered
         except Exception:
             logger.debug("Auto-discovery fetch failed for %s", plugin_id)
 
-        self._discovered_vars[plugin_id] = []
+        with self._lock:
+            self._discovered_vars[plugin_id] = []
         return []
 
     def clear_discovered_cache(self, plugin_id: str | None = None) -> None:
         """Clear auto-discovery cache for one or all plugins."""
-        if plugin_id:
-            self._discovered_vars.pop(plugin_id, None)
-        else:
-            self._discovered_vars.clear()
+        with self._lock:
+            if plugin_id:
+                self._discovered_vars.pop(plugin_id, None)
+            else:
+                self._discovered_vars.clear()
 
     def get_all_variables(self) -> dict[str, list[str]]:
         """Get all template variables from enabled plugins.
@@ -974,11 +1012,17 @@ class PluginRegistry:
         """
         variables: dict[str, list[str]] = {}
 
-        for plugin_id, _plugin in self._plugins.items():
-            if not self._enabled.get(plugin_id, False):
-                continue
+        # Snapshot under the lock, iterate the snapshot: _discover_variables
+        # below may call plugin code, which must never run while the lock is
+        # held.
+        with self._lock:
+            snapshot = [
+                (plugin_id, self._manifests.get(plugin_id))
+                for plugin_id in list(self._plugins)
+                if self._enabled.get(plugin_id, False)
+            ]
 
-            manifest = self._manifests.get(plugin_id)
+        for plugin_id, manifest in snapshot:
             if not manifest:
                 continue
 
@@ -1048,12 +1092,13 @@ class PluginRegistry:
             ``{plugin_id: {group_id: {"label": "..."}}}``
         """
         result: dict[str, dict[str, dict[str, str]]] = {}
-        for plugin_id in self._plugins:
-            if not self._enabled.get(plugin_id, False):
-                continue
-            manifest = self._manifests.get(plugin_id)
-            if manifest and manifest.variables.groups:
-                result[plugin_id] = {gid: {"label": g.label} for gid, g in manifest.variables.groups.items()}
+        with self._lock:
+            for plugin_id in list(self._plugins):
+                if not self._enabled.get(plugin_id, False):
+                    continue
+                manifest = self._manifests.get(plugin_id)
+                if manifest and manifest.variables.groups:
+                    result[plugin_id] = {gid: {"label": g.label} for gid, g in manifest.variables.groups.items()}
         return result
 
     def get_all_max_lengths(self) -> dict[str, int]:
@@ -1064,18 +1109,19 @@ class PluginRegistry:
         """
         max_lengths: dict[str, int] = {}
 
-        for plugin_id in self._plugins:
-            if not self._enabled.get(plugin_id, False):
-                continue
+        with self._lock:
+            for plugin_id in list(self._plugins):
+                if not self._enabled.get(plugin_id, False):
+                    continue
 
-            manifest = self._manifests.get(plugin_id)
-            if not manifest:
-                continue
+                manifest = self._manifests.get(plugin_id)
+                if not manifest:
+                    continue
 
-            # Prefix variable names with plugin_id
-            for var_name, max_len in manifest.max_lengths.items():
-                full_name = f"{plugin_id}.{var_name}"
-                max_lengths[full_name] = max_len
+                # Prefix variable names with plugin_id
+                for var_name, max_len in manifest.max_lengths.items():
+                    full_name = f"{plugin_id}.{var_name}"
+                    max_lengths[full_name] = max_len
 
         return max_lengths
 
@@ -1103,7 +1149,10 @@ class PluginRegistry:
         """
         plugins = []
 
-        for plugin_id, _plugin in self._plugins.items():
+        with self._lock:
+            snapshot = list(self._plugins.items())
+
+        for plugin_id, _plugin in snapshot:
             manifest = self._manifests.get(plugin_id)
             base_id, instance_label = self.parse_instance_key(plugin_id)
             source = self._loader.get_source(base_id)
@@ -1145,48 +1194,54 @@ class PluginRegistry:
         Returns:
             Reloaded plugin instance or None if failed
         """
-        # Remember enabled state and config
-        was_enabled = self._enabled.get(plugin_id, False)
-        config = self._configs.get(plugin_id, {})
+        # The whole reload runs under the lock: between the unload and the
+        # re-add the id is absent from _plugins, and readers must never
+        # observe that window.  Nothing in here shells out — the loader's
+        # reload is importlib + file reads, and enable_plugin cannot hit its
+        # install-on-demand path because the plugin is present again by then.
+        with self._lock:
+            # Remember enabled state and config
+            was_enabled = self._enabled.get(plugin_id, False)
+            config = self._configs.get(plugin_id, {})
 
-        # Unload
-        if plugin_id in self._plugins:
-            self._plugins[plugin_id].cleanup()
-            del self._plugins[plugin_id]
-        if plugin_id in self._manifests:
-            del self._manifests[plugin_id]
+            # Unload
+            if plugin_id in self._plugins:
+                self._plugins[plugin_id].cleanup()
+                del self._plugins[plugin_id]
+            if plugin_id in self._manifests:
+                del self._manifests[plugin_id]
 
-        # Reload
-        plugin = self._loader.reload_plugin(plugin_id)
-        if plugin:
-            manifest = self._loader.get_manifest(plugin_id)
-            if manifest:
-                self._plugins[plugin_id] = plugin
-                self._manifests[plugin_id] = manifest
-                self.clear_discovered_cache(plugin_id)
+            # Reload
+            plugin = self._loader.reload_plugin(plugin_id)
+            if plugin:
+                manifest = self._loader.get_manifest(plugin_id)
+                if manifest:
+                    self._plugins[plugin_id] = plugin
+                    self._manifests[plugin_id] = manifest
+                    self.clear_discovered_cache(plugin_id)
 
-                # Restore state
-                if was_enabled:
-                    self.enable_plugin(plugin_id)
-                if config:
-                    errors = self.set_plugin_config(plugin_id, config)
-                    if errors:
-                        # New version's validate_config rejected the old config
-                        # (e.g. a required field was added/renamed).  Apply the
-                        # config directly so the user's data isn't silently lost.
-                        # The user can re-save through the UI to normalise it.
-                        logger.warning(
-                            "Config validation failed after reload for '%s': %s"
-                            " — applying raw config to avoid data loss",
-                            plugin_id,
-                            errors,
-                        )
-                        self._configs[plugin_id] = config
-                        plugin.config = config
+                    # Restore state
+                    if was_enabled:
+                        self.enable_plugin(plugin_id)
+                    if config:
+                        errors = self.set_plugin_config(plugin_id, config)
+                        if errors:
+                            # New version's validate_config rejected the old config
+                            # (e.g. a required field was added/renamed).  Apply the
+                            # config directly so the user's data isn't silently lost.
+                            # The user can re-save through the UI to normalise it.
+                            logger.warning(
+                                "Config validation failed after reload for '%s': %s"
+                                " — applying raw config to avoid data loss",
+                                plugin_id,
+                                errors,
+                            )
+                            self._configs[plugin_id] = config
+                            plugin.config = config
 
-                self._rebuild_instances(plugin_id, manifest)
+                    self._rebuild_instances(plugin_id, manifest)
 
-                return plugin
+                    return plugin
 
         return None
 
@@ -1203,39 +1258,41 @@ class PluginRegistry:
         being torn down.
         """
         prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
-        for compound_key in [k for k in self._plugins if k.startswith(prefix)]:
-            new_instance = self._loader.create_instance(plugin_id)
-            if new_instance is None:
-                logger.warning(
-                    "Failed to rebuild instance '%s' after reload — keeping the old instance",
-                    compound_key,
-                )
-                continue
-
-            old_instance = self._plugins[compound_key]
-            try:
-                old_instance.cleanup()
-            except Exception:
-                logger.exception("Error cleaning up old instance '%s'", compound_key)
-
-            self._plugins[compound_key] = new_instance
-            self._manifests[compound_key] = manifest
-            self.clear_discovered_cache(compound_key)
-
-            # Restore state (mirrors the base-plugin restore above)
-            if self._enabled.get(compound_key, False):
-                self.enable_plugin(compound_key)
-            instance_config = self._configs.get(compound_key, {})
-            if instance_config:
-                errors = self.apply_stored_config(compound_key, instance_config)
-                if errors:
+        with self._lock:
+            for compound_key in [k for k in list(self._plugins) if k.startswith(prefix)]:
+                new_instance = self._loader.create_instance(plugin_id)
+                if new_instance is None:
                     logger.warning(
-                        "Config validation failed after reload for '%s': %s — applying raw config to avoid data loss",
+                        "Failed to rebuild instance '%s' after reload — keeping the old instance",
                         compound_key,
-                        errors,
                     )
+                    continue
 
-            logger.info("Rebuilt plugin instance after reload: %s", compound_key)
+                old_instance = self._plugins[compound_key]
+                try:
+                    old_instance.cleanup()
+                except Exception:
+                    logger.exception("Error cleaning up old instance '%s'", compound_key)
+
+                self._plugins[compound_key] = new_instance
+                self._manifests[compound_key] = manifest
+                self.clear_discovered_cache(compound_key)
+
+                # Restore state (mirrors the base-plugin restore above)
+                if self._enabled.get(compound_key, False):
+                    self.enable_plugin(compound_key)
+                instance_config = self._configs.get(compound_key, {})
+                if instance_config:
+                    errors = self.apply_stored_config(compound_key, instance_config)
+                    if errors:
+                        logger.warning(
+                            "Config validation failed after reload for '%s': %s"
+                            " — applying raw config to avoid data loss",
+                            compound_key,
+                            errors,
+                        )
+
+                logger.info("Rebuilt plugin instance after reload: %s", compound_key)
 
     def get_load_errors(self) -> dict[str, list[str]]:
         """Get plugin load errors.
@@ -1285,13 +1342,15 @@ class PluginRegistry:
                     check.blocked_reason,
                 )
 
-        self._update_status = results
-        self._update_blocked = blocked
+        with self._lock:
+            self._update_status = results
+            self._update_blocked = blocked
         return results
 
     def get_update_status(self) -> dict[str, bool]:
         """Return cached update status from the last check_for_updates() call."""
-        return self._update_status.copy()
+        with self._lock:
+            return self._update_status.copy()
 
     def get_update_blocked_reasons(self) -> dict[str, str]:
         """Return why held-back updates were held back, by plugin id.
@@ -1299,7 +1358,18 @@ class PluginRegistry:
         Only contains plugins that have an upstream commit which the running
         core cannot run.  Empty for every plugin that is simply up to date.
         """
-        return self._update_blocked.copy()
+        with self._lock:
+            return self._update_blocked.copy()
+
+    def clear_update_status(self, plugin_id: str) -> None:
+        """Drop the cached update flag for one plugin.
+
+        Called after an update has been applied so ``/plugins/updates`` stops
+        advertising it.  Public so the API layer never mutates the cache
+        directly (it must go through the registry lock).
+        """
+        with self._lock:
+            self._update_status.pop(plugin_id, None)
 
     def get_plugin_source(self, plugin_id: str) -> PluginSource | None:
         """Get the source information for a loaded plugin.
@@ -1328,9 +1398,12 @@ class PluginRegistry:
         entries = load_registry()
         seed = load_preview_seed()
 
+        with self._lock:
+            installed_ids = set(self._plugins)
+
         result: list[dict[str, Any]] = []
         for e in entries:
-            installed = e.plugin_id in self._plugins
+            installed = e.plugin_id in installed_ids
             teaser, previews = self._board_previews_for(e.plugin_id, seed)
             result.append(
                 {
@@ -1399,23 +1472,26 @@ class PluginRegistry:
         if entry is None:
             return [f"Plugin '{plugin_id}' not found in the registry"]
 
+        # The clone runs unlocked — it is a network git operation, serialized
+        # per plugin directory inside sources.py.
         ok, err = install_registry_plugin(entry)
         if not ok:
             return [err]
 
-        # Reload external dirs and load the new plugin
-        self._loader._external_dirs = [get_external_plugins_dir()]
-        plugin = self._loader.load_plugin(plugin_id)
-        if plugin is None:
-            errors = self._loader.load_errors.get(plugin_id, [])
-            return errors or [f"Failed to load plugin after install: {plugin_id}"]
+        with self._lock:
+            # Reload external dirs and load the new plugin
+            self._loader._external_dirs = [get_external_plugins_dir()]
+            plugin = self._loader.load_plugin(plugin_id)
+            if plugin is None:
+                errors = self._loader.load_errors.get(plugin_id, [])
+                return errors or [f"Failed to load plugin after install: {plugin_id}"]
 
-        manifest = self._loader.get_manifest(plugin_id)
-        if manifest:
-            self._plugins[plugin_id] = plugin
-            self._manifests[plugin_id] = manifest
-            self._enabled[plugin_id] = False
-            logger.info("Installed registry plugin: %s", plugin_id)
+            manifest = self._loader.get_manifest(plugin_id)
+            if manifest:
+                self._plugins[plugin_id] = plugin
+                self._manifests[plugin_id] = manifest
+                self._enabled[plugin_id] = False
+                logger.info("Installed registry plugin: %s", plugin_id)
 
         self._clear_removed_tombstone(plugin_id)
         return []
@@ -1445,19 +1521,20 @@ class PluginRegistry:
             repo_name = repo_name_from_url(repo_url)
             plugin_id = plugin_id_from_repo_name(repo_name)
 
-        # Reload external dirs and load the new plugin
-        self._loader._external_dirs = [get_external_plugins_dir()]
-        plugin = self._loader.load_plugin(plugin_id)
-        if plugin is None:
-            errors = self._loader.load_errors.get(plugin_id, [])
-            return errors or [f"Failed to load plugin after install: {plugin_id}"]
+        with self._lock:
+            # Reload external dirs and load the new plugin
+            self._loader._external_dirs = [get_external_plugins_dir()]
+            plugin = self._loader.load_plugin(plugin_id)
+            if plugin is None:
+                errors = self._loader.load_errors.get(plugin_id, [])
+                return errors or [f"Failed to load plugin after install: {plugin_id}"]
 
-        manifest = self._loader.get_manifest(plugin_id)
-        if manifest:
-            self._plugins[plugin_id] = plugin
-            self._manifests[plugin_id] = manifest
-            self._enabled[plugin_id] = False
-            logger.info("Installed git plugin: %s from %s", plugin_id, repo_url)
+            manifest = self._loader.get_manifest(plugin_id)
+            if manifest:
+                self._plugins[plugin_id] = plugin
+                self._manifests[plugin_id] = manifest
+                self._enabled[plugin_id] = False
+                logger.info("Installed git plugin: %s from %s", plugin_id, repo_url)
 
         self._clear_removed_tombstone(plugin_id)
         return []
@@ -1479,26 +1556,27 @@ class PluginRegistry:
         if source.source_type == "builtin":
             return ["Cannot uninstall a built-in plugin"]
 
-        # Cascade-delete all named instances first
         instance_prefix = f"{plugin_id}{INSTANCE_SEPARATOR}"
-        for compound_key in [k for k in list(self._plugins) if k.startswith(instance_prefix)]:
-            self._plugins[compound_key].cleanup()
-            del self._plugins[compound_key]
-            self._manifests.pop(compound_key, None)
-            self._enabled.pop(compound_key, None)
-            self._configs.pop(compound_key, None)
-            self._discovered_vars.pop(compound_key, None)
-            logger.info("Removed instance on uninstall: %s", compound_key)
+        with self._lock:
+            # Cascade-delete all named instances first
+            for compound_key in [k for k in list(self._plugins) if k.startswith(instance_prefix)]:
+                self._plugins[compound_key].cleanup()
+                del self._plugins[compound_key]
+                self._manifests.pop(compound_key, None)
+                self._enabled.pop(compound_key, None)
+                self._configs.pop(compound_key, None)
+                self._discovered_vars.pop(compound_key, None)
+                logger.info("Removed instance on uninstall: %s", compound_key)
 
-        # Disable and unload base plugin
-        if plugin_id in self._plugins:
-            self._plugins[plugin_id].cleanup()
-            del self._plugins[plugin_id]
-        self._manifests.pop(plugin_id, None)
-        self._enabled.pop(plugin_id, None)
-        self._configs.pop(plugin_id, None)
+            # Disable and unload base plugin
+            if plugin_id in self._plugins:
+                self._plugins[plugin_id].cleanup()
+                del self._plugins[plugin_id]
+            self._manifests.pop(plugin_id, None)
+            self._enabled.pop(plugin_id, None)
+            self._configs.pop(plugin_id, None)
 
-        self._loader.unload_plugin(plugin_id)
+            self._loader.unload_plugin(plugin_id)
 
         # Remove the directory
         local_path = Path(source.local_path)
@@ -1527,11 +1605,9 @@ class PluginRegistry:
     @property
     def trigger_plugins(self) -> dict[str, PluginBase]:
         """Return enabled plugins that support event-based triggers."""
-        return {
-            pid: plugin
-            for pid, plugin in self._plugins.items()
-            if self._enabled.get(pid, False) and plugin.supports_triggers
-        }
+        with self._lock:
+            items = list(self._plugins.items())
+            return {pid: plugin for pid, plugin in items if self._enabled.get(pid, False) and plugin.supports_triggers}
 
     def build_template_context(self, board: BoardContext | None = None) -> dict[str, Any]:
         """Build context dictionary for template rendering.
@@ -1548,6 +1624,11 @@ class PluginRegistry:
             Dictionary mapping plugin_id to plugin data
         """
         context: dict[str, Any] = {}
+        # Snapshot-then-release: enabled_plugins copies under the registry
+        # lock and returns.  The lock must NEVER be held across the
+        # submit/wait below — the workers call fetch_plugin_data on other
+        # threads, which takes the lock for its lookups, so a held lock
+        # would deadlock the pool.
         enabled = list(self.enabled_plugins)
 
         if not enabled:

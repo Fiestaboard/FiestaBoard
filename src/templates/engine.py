@@ -1568,7 +1568,9 @@ class TemplateEngine:
             return {}
 
         max_lengths: dict[str, int] = {}
-        for plugin_id, manifest in self._plugin_registry._manifests.items():
+        # list() snapshots atomically, so a concurrent plugin install can't
+        # mutate the manifests dict mid-iteration (#1828).
+        for plugin_id, manifest in list(self._plugin_registry._manifests.items()):
             for var_name, max_len in manifest.max_lengths.items():
                 full_name = f"{plugin_id}.{var_name}"
                 max_lengths[full_name] = max_len

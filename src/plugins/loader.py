@@ -116,6 +116,7 @@ class PluginLoader:
         self,
         plugins_dir: Path | None = None,
         external_dirs: list[Path] | None = None,
+        lock: "threading.RLock | None" = None,
     ):
         """Initialize the plugin loader.
 
@@ -126,6 +127,10 @@ class PluginLoader:
             external_dirs: Additional directories to scan for plugins
                 (e.g. ``external_plugins/``).  When *None* the default
                 external directory is included automatically.
+            lock: Re-entrant lock guarding the loader's mutable state.
+                The registry passes its own lock so registry->loader call
+                chains re-enter one lock instead of ordering two (#1828).
+                When *None* a private lock is created.
         """
         if plugins_dir is None:
             project_root = Path(__file__).parent.parent.parent
@@ -140,6 +145,7 @@ class PluginLoader:
         else:
             self._external_dirs = list(external_dirs)
 
+        self._lock = lock or threading.RLock()
         self._loaded_plugins: dict[str, tuple[AnyPlugin, PluginManifest]] = {}
         self._plugin_classes: dict[str, type[AnyPlugin]] = {}
         self._load_errors: dict[str, list[str]] = {}
@@ -154,23 +160,27 @@ class PluginLoader:
     @property
     def loaded_plugins(self) -> dict[str, tuple[AnyPlugin, PluginManifest]]:
         """Return all successfully loaded plugins (data + transition)."""
-        return self._loaded_plugins.copy()
+        with self._lock:
+            return self._loaded_plugins.copy()
 
     @property
     def data_plugins(self) -> dict[str, tuple[PluginBase, PluginManifest]]:
         """Return only loaded *data* plugins (PluginBase subclasses)."""
-        return {pid: (inst, m) for pid, (inst, m) in self._loaded_plugins.items() if isinstance(inst, PluginBase)}
+        with self._lock:
+            items = list(self._loaded_plugins.items())
+        return {pid: (inst, m) for pid, (inst, m) in items if isinstance(inst, PluginBase)}
 
     @property
     def transition_plugins(self) -> dict[str, tuple[TransitionPluginBase, PluginManifest]]:
         """Return only loaded *transition* plugins."""
-        return {
-            pid: (inst, m) for pid, (inst, m) in self._loaded_plugins.items() if isinstance(inst, TransitionPluginBase)
-        }
+        with self._lock:
+            items = list(self._loaded_plugins.items())
+        return {pid: (inst, m) for pid, (inst, m) in items if isinstance(inst, TransitionPluginBase)}
 
     def get_transition_plugin(self, plugin_id: str) -> TransitionPluginBase | None:
         """Return a loaded transition plugin instance, or None."""
-        entry = self._loaded_plugins.get(plugin_id)
+        with self._lock:
+            entry = self._loaded_plugins.get(plugin_id)
         if entry is None:
             return None
         instance, _ = entry
@@ -181,12 +191,14 @@ class PluginLoader:
     @property
     def load_errors(self) -> dict[str, list[str]]:
         """Return load errors by plugin directory name."""
-        return self._load_errors.copy()
+        with self._lock:
+            return self._load_errors.copy()
 
     @property
     def plugin_sources(self) -> dict[str, PluginSource]:
         """Return source information for every loaded plugin."""
-        return self._plugin_sources.copy()
+        with self._lock:
+            return self._plugin_sources.copy()
 
     # ── discovery ────────────────────────────────────────────────────────
 
@@ -288,6 +300,16 @@ class PluginLoader:
         Returns:
             Loaded plugin instance, or None if loading failed
         """
+        # The whole load runs under the shared lock: it is a multi-step
+        # read-modify-write of _load_errors / _loaded_plugins /
+        # _plugin_classes / _plugin_sources plus sys.modules, and nothing in
+        # it shells out (importlib and file reads only), so holding the lock
+        # for the duration is safe.
+        with self._lock:
+            return self._load_plugin_locked(plugin_name)
+
+    def _load_plugin_locked(self, plugin_name: str) -> AnyPlugin | None:
+        """Body of :meth:`load_plugin`; the caller holds ``self._lock``."""
         plugin_dir = self._resolve_plugin_dir(plugin_name)
         errors: list[str] = []
 
@@ -546,9 +568,8 @@ class PluginLoader:
 
         logger.info(f"Loaded {len(loaded)}/{len(plugin_dirs)} plugins")
 
-        if self._load_errors:
-            for name, errors in self._load_errors.items():
-                logger.warning(f"Plugin {name} had errors: {errors}")
+        for name, errors in self.load_errors.items():
+            logger.warning(f"Plugin {name} had errors: {errors}")
 
         return loaded
 
@@ -577,7 +598,8 @@ class PluginLoader:
         Returns:
             Directory names that were removed (empty when nothing was stale).
         """
-        loaded_ids = set(self._loaded_plugins.keys())
+        with self._lock:
+            loaded_ids = set(self._loaded_plugins.keys())
         removed: list[str] = []
 
         for ext_dir in self._external_dirs:
@@ -606,7 +628,8 @@ class PluginLoader:
                     continue
 
                 if remove_external_plugin(item):
-                    self._load_errors.pop(item.name, None)
+                    with self._lock:
+                        self._load_errors.pop(item.name, None)
                     removed.append(item.name)
                     logger.info(
                         "Removed orphaned renamed plugin directory '%s' (manifest id '%s' installed elsewhere)",
@@ -625,19 +648,20 @@ class PluginLoader:
         Returns:
             Reloaded plugin instance, or None if failed
         """
-        # Unload if loaded
-        if plugin_id in self._loaded_plugins:
-            old_plugin, _ = self._loaded_plugins[plugin_id]
-            old_plugin.cleanup()
-            del self._loaded_plugins[plugin_id]
+        with self._lock:
+            # Unload if loaded
+            if plugin_id in self._loaded_plugins:
+                old_plugin, _ = self._loaded_plugins[plugin_id]
+                old_plugin.cleanup()
+                del self._loaded_plugins[plugin_id]
 
-            # Remove from sys.modules to force reimport
-            module_name = f"plugins.{plugin_id}"
-            if module_name in sys.modules:
-                del sys.modules[module_name]
+                # Remove from sys.modules to force reimport
+                module_name = f"plugins.{plugin_id}"
+                if module_name in sys.modules:
+                    del sys.modules[module_name]
 
-        # Load again
-        return self.load_plugin(plugin_id)
+            # Load again
+            return self.load_plugin(plugin_id)
 
     def unload_plugin(self, plugin_id: str) -> bool:
         """Unload a plugin.
@@ -648,17 +672,18 @@ class PluginLoader:
         Returns:
             True if unloaded, False if not loaded
         """
-        if plugin_id not in self._loaded_plugins:
-            return False
+        with self._lock:
+            if plugin_id not in self._loaded_plugins:
+                return False
 
-        plugin, _ = self._loaded_plugins[plugin_id]
-        plugin.cleanup()
-        del self._loaded_plugins[plugin_id]
+            plugin, _ = self._loaded_plugins[plugin_id]
+            plugin.cleanup()
+            del self._loaded_plugins[plugin_id]
 
-        # Remove from sys.modules
-        module_name = f"plugins.{plugin_id}"
-        if module_name in sys.modules:
-            del sys.modules[module_name]
+            # Remove from sys.modules
+            module_name = f"plugins.{plugin_id}"
+            if module_name in sys.modules:
+                del sys.modules[module_name]
 
         logger.info(f"Unloaded plugin: {plugin_id}")
         return True
@@ -672,8 +697,10 @@ class PluginLoader:
         Returns:
             PluginManifest or None if not loaded
         """
-        if plugin_id in self._loaded_plugins:
-            _, manifest = self._loaded_plugins[plugin_id]
+        with self._lock:
+            entry = self._loaded_plugins.get(plugin_id)
+        if entry is not None:
+            _, manifest = entry
             return manifest
         return None
 
@@ -715,16 +742,19 @@ class PluginLoader:
         Returns:
             A new PluginBase instance, or None if the plugin is not loaded.
         """
-        plugin_class = self._plugin_classes.get(plugin_id)
+        with self._lock:
+            plugin_class = self._plugin_classes.get(plugin_id)
+            entry = self._loaded_plugins.get(plugin_id)
+
         if plugin_class is None:
             logger.warning("Cannot create instance: plugin class not found for %s", plugin_id)
             return None
 
-        if plugin_id not in self._loaded_plugins:
+        if entry is None:
             logger.warning("Cannot create instance: plugin not loaded: %s", plugin_id)
             return None
 
-        _, manifest = self._loaded_plugins[plugin_id]
+        _, manifest = entry
 
         try:
             return plugin_class(manifest.raw)
