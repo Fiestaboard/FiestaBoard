@@ -421,3 +421,23 @@ class TestConcurrentWriters:
         reloaded = CollectionStorage(storage_file=str(tmp_path / "collections.json"))
         assert reloaded.get("collection:c1").name == "First Updated"
         assert reloaded.get("collection:c2").name == "Second Updated"
+
+    def test_panels_two_threads_updating_disjoint_panels_both_survive(self, tmp_path, monkeypatch):
+        from src.panels.models import Panel
+        from src.panels.storage import PanelStorage
+
+        storage = PanelStorage(storage_file=str(tmp_path / "panels.json"))
+        for pid in ("panel-1", "panel-2"):
+            storage.create(Panel(id=pid, name=pid, board_id="board-1"))
+
+        _force_write_overlap(monkeypatch)
+        errors = _run_pair(
+            lambda: storage.update("panel-1", {"name": "First Updated"}),
+            lambda: storage.update("panel-2", {"name": "Second Updated"}),
+        )
+        monkeypatch.undo()
+
+        assert errors == []
+        reloaded = PanelStorage(storage_file=str(tmp_path / "panels.json"))
+        assert reloaded.get("panel-1").name == "First Updated"
+        assert reloaded.get("panel-2").name == "Second Updated"
