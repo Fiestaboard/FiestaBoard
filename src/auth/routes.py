@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import secrets
 import time
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
@@ -179,6 +180,51 @@ def _clear_failures(ip: str) -> None:
     _FAILED_ATTEMPTS.pop(ip, None)
 
 
+# --- Stored-MCP-token possession gate --------------------------------------
+
+
+def _bearer_token(request: Request) -> str | None:
+    """Return the token from an ``Authorization: Bearer <token>`` header, else None."""
+    header = request.headers.get("authorization", "")
+    scheme, _, value = header.partition(" ")
+    if scheme.lower() == "bearer" and value.strip():
+        return value.strip()
+    return None
+
+
+def _guard_stored_mcp_token(request: Request, svc) -> None:
+    """Refuse to adopt an unclaimed install while a stored MCP token exists.
+
+    On a login-disabled install, provisioning the first admin
+    (``POST /auth/setup``) or flipping the preference back on
+    (``POST /auth/preference {"enabled": true}``) both hand the caller a
+    session that can rotate or revoke the stored MCP token — hijacking a
+    credential the operator deliberately configured. Two unauthenticated
+    requests from anyone who can reach the port would otherwise be enough.
+
+    When a stored token is present, require the caller to prove possession of
+    it (``Authorization: Bearer <token>``) before either provisioning path
+    succeeds, so the stored token also guards the takeover path. Installs with
+    no stored token — the common first-run case — are unaffected.
+
+    An env-pinned token (``FIESTABOARD_MCP_TOKEN``) is *not* a stored token:
+    it cannot be rotated or revoked from the UI (those endpoints 409), so
+    there is nothing to hijack and it is not gated here.
+    """
+    stored = svc.get_stored_mcp_token()
+    if stored is None:
+        return
+    supplied = _bearer_token(request)
+    if not supplied or not secrets.compare_digest(stored, supplied):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "This install has a stored MCP token. Present it as a Bearer "
+                "token to enable login, or clear the token first."
+            ),
+        )
+
+
 # --- Endpoints -------------------------------------------------------------
 
 
@@ -205,7 +251,7 @@ async def auth_status(request: Request) -> StatusResponse:
 
 
 @router.post("/preference", response_model=SimpleResponse)
-async def auth_preference(payload: PreferenceRequest) -> SimpleResponse:
+async def auth_preference(payload: PreferenceRequest, request: Request) -> SimpleResponse:
     """Record the admin's first-run auth on/off choice.
 
     Only valid when:
@@ -214,6 +260,10 @@ async def auth_preference(payload: PreferenceRequest) -> SimpleResponse:
     * No user has been provisioned yet — once an account exists the
       decision is "enabled" and disabling must go through a future
       password-gated endpoint to avoid drive-by lockouts.
+
+    Enabling is additionally gated by possession of any stored MCP token —
+    see :func:`_guard_stored_mcp_token` — so a drive-by can't flip the
+    install on and then hijack that token.
     """
     env_raw = _auth_env_override()
     if env_raw is not None:
@@ -227,6 +277,10 @@ async def auth_preference(payload: PreferenceRequest) -> SimpleResponse:
             status_code=status.HTTP_409_CONFLICT,
             detail=("A user already exists. Sign in and use the account settings to change preferences."),
         )
+    # Only the enable direction opens the install up; disabling can't be a
+    # takeover, so it stays ungated.
+    if payload.enabled:
+        _guard_stored_mcp_token(request, svc)
     svc.set_auth_preference("enabled" if payload.enabled else "disabled")
     return SimpleResponse(status="ok")
 
@@ -240,6 +294,11 @@ async def auth_setup(payload: SetupRequest, request: Request, response: Response
             status_code=status.HTTP_409_CONFLICT,
             detail="A user has already been created. Use /auth/login.",
         )
+    # Creating the first admin flips a disabled install to "enabled" and hands
+    # back a session — the same takeover /auth/preference guards. Provisioning
+    # is an independent path to it, so gate it on the same stored-MCP-token
+    # possession check rather than leaving a bypass open.
+    _guard_stored_mcp_token(request, svc)
     try:
         svc.create_initial_user(payload.username, payload.password)
     except AlreadySetup:
