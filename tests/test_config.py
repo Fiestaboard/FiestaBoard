@@ -346,22 +346,40 @@ class TestGetSummary:
         assert "transition_interval_ms" in result
         assert "transition_step_size" in result
 
+    @staticmethod
+    def _patch_settings_board(board):
+        """Patch the settings service get_summary reads its board fields from
+        (issue #1760: the summary reports settings.boards, not config.json)."""
+        ss = MagicMock()
+        ss.get_board_settings.return_value = MagicMock(boards=[board])
+        return patch("src.settings.service.get_settings_service", return_value=ss)
+
     def test_get_summary_board_host_cloud_when_cloud_mode(self, mock_config_manager):
-        mock_config_manager.get_board.return_value = {"api_mode": "cloud", "host": ""}
-        result = Config.get_summary()
+        with self._patch_settings_board({"api_mode": "cloud", "host": "", "cloud_key": "test-rw"}):
+            result = Config.get_summary()
         assert result["board_host"] == "cloud"
 
     def test_get_summary_board_host_actual_when_local_mode(self, mock_config_manager):
-        mock_config_manager.get_board.return_value = {
-            "api_mode": "local",
-            "host": "192.168.1.100",
-        }
-        result = Config.get_summary()
+        with self._patch_settings_board({"api_mode": "local", "host": "192.168.1.100", "local_api_key": "test-key"}):
+            result = Config.get_summary()
         assert result["board_host"] == "192.168.1.100"
 
+    def test_get_summary_board_fields_ignore_stale_config_json(self, mock_config_manager):
+        """Divergence (#948/#1760): config.json says one host, settings says
+        another — the summary reports the settings copy."""
+        mock_config_manager.get_board.return_value = {
+            "api_mode": "local",
+            "host": "192.0.2.99",
+            "local_api_key": "test_stale_config_key",
+        }
+        with self._patch_settings_board({"api_mode": "local", "host": "192.0.2.20", "local_api_key": ""}):
+            result = Config.get_summary()
+        assert result["board_host"] == "192.0.2.20"
+        assert result["board_key_set"] is False
+
     def test_get_summary_transition_keys_none_when_cloud_mode(self, mock_config_manager):
-        mock_config_manager.get_board.return_value = {"api_mode": "cloud"}
-        result = Config.get_summary()
+        with self._patch_settings_board({"api_mode": "cloud", "cloud_key": "test-rw"}):
+            result = Config.get_summary()
         assert result["transition_strategy"] is None
         assert result["transition_interval_ms"] is None
         assert result["transition_step_size"] is None

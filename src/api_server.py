@@ -3744,11 +3744,9 @@ async def send_welcome_message():
     Used by the setup wizard to confirm the board is working.
     Sends "HIYA FROM FIESTABOARD" with colorful borders.
 
-    Note: This creates a fresh BoardClient with current config values
-    to ensure any recent config changes (e.g., from the setup wizard) are used.
+    Note: This creates a fresh board client from the settings boards store
+    so any recent credential changes (setup wizard or Settings) are used.
     """
-    from .board_client import BoardClient
-
     # Check silence mode for the board this actually writes to (the primary
     # board — the wizard has no board picker).
     if _silence_active():
@@ -3760,19 +3758,20 @@ async def send_welcome_message():
         logger.info("Board is paused - blocking welcome message")
         return _paused_response()
 
-    # Create a fresh board client with current config values
-    # This ensures any config changes from the setup wizard are used
+    # Create a fresh board client from the primary settings board so recent
+    # credential edits are always used. Board credentials are unified on
+    # settings.json (issue #1760): the legacy config.json copy is never read.
+    board = _primary_board_entry()
     try:
-        use_cloud = Config.BOARD_API_MODE.lower() == "cloud"
-        board_client = BoardClient(
-            api_key=Config.get_board_api_key(),
-            host=Config.BOARD_HOST if not use_cloud else None,
-            use_cloud=use_cloud,
-            skip_unchanged=False,  # Always send the welcome message
-        )
+        board_client = board_client_from_board_dict(board) if board is not None else None
     except ValueError as e:
         logger.error(f"Failed to create board client: {e}")
         raise HTTPException(status_code=503, detail=f"Board not configured: {str(e)}") from e
+    if board_client is None:
+        raise HTTPException(
+            status_code=503, detail="Board not configured: no board with a usable connection"
+        )
+    board_client.skip_unchanged = False  # Always send the welcome message
 
     try:
         # Use custom welcome message if set, otherwise use the default
@@ -3853,20 +3852,64 @@ async def get_full_config():
     return config_manager.get_all_masked()
 
 
-@app.get("/config/board")
-async def get_board_config():
-    """Get board connection configuration (keys masked)."""
-    config_manager = get_config_manager()
-    board_config = config_manager.get_board()
-    masked = config_manager._mask_sensitive(board_config)
+# Deprecated /config/board shim (issue #1760): board credentials are unified
+# on the settings boards store. These endpoints keep their legacy wire shapes
+# during deprecation but read from and write through the settings service —
+# the config.json board block is left on disk untouched as a rollback copy
+# for older versions and is never read at runtime.
+_CONFIG_BOARD_SUCCESSOR_LINK = '</settings/board>; rel="successor-version"'
+_LEGACY_BOARD_CONNECTION_FIELDS = ("api_mode", "local_api_key", "cloud_key", "note_array_token", "host")
+_LEGACY_BOARD_SENSITIVE_FIELDS = ("local_api_key", "cloud_key", "note_array_token")
 
-    return {"config": masked, "api_modes": ["local", "cloud"]}
 
+def _legacy_board_config_view() -> dict:
+    """Project the primary settings board into the legacy config.json board
+    shape (the recorded ``GET/PUT /config/board`` wire contract).
 
-@app.put("/config/board")
-async def update_board_config(request: dict):
+    Transition fields come from the settings transitions section — the copy
+    the runtime actually uses.
     """
-    Update board configuration.
+    board = _primary_board_entry() or {}
+    transitions = get_settings_service().get_transition_settings()
+    return {
+        "api_mode": board.get("api_mode") or "local",
+        "local_api_key": board.get("local_api_key") or "",
+        "cloud_key": board.get("cloud_key") or "",
+        "note_array_token": board.get("note_array_token") or "",
+        "host": board.get("host") or "",
+        "transition_strategy": transitions.strategy,
+        "transition_interval_ms": transitions.step_interval_ms,
+        "transition_step_size": transitions.step_size,
+    }
+
+
+def _mask_legacy_board_view(view: dict) -> dict:
+    """Mask non-empty sensitive fields with '***' (legacy masking contract)."""
+    return {key: ("***" if key in _LEGACY_BOARD_SENSITIVE_FIELDS and value else value) for key, value in view.items()}
+
+
+# Deprecated: use GET /settings/board instead
+@app.get("/config/board")
+async def get_board_config(response: Response):
+    """Deprecated: use GET /settings/board instead (issue #1760).
+
+    Get board connection configuration (keys masked). Served from the
+    settings boards store — the single source of truth for board credentials.
+    """
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = _CONFIG_BOARD_SUCCESSOR_LINK
+
+    return {"config": _mask_legacy_board_view(_legacy_board_config_view()), "api_modes": ["local", "cloud"]}
+
+
+# Deprecated: use PUT /settings/board instead
+@app.put("/config/board")
+async def update_board_config(request: dict, response: Response):
+    """Deprecated: use PUT /settings/board instead (issue #1760).
+
+    Update board connection configuration. Writes go to the primary board in
+    the settings boards store ONLY — the legacy config.json board block is no
+    longer written (it stays on disk as a rollback copy for older versions).
 
     Example body:
     {
@@ -3875,24 +3918,27 @@ async def update_board_config(request: dict):
         "host": "192.168.1.100"
     }
     """
-    config_manager = get_config_manager()
+    response.headers["Deprecation"] = "true"
+    response.headers["Link"] = _CONFIG_BOARD_SUCCESSOR_LINK
 
-    # Update board config
-    config_manager.set_board(request)
+    settings_service = get_settings_service()
+    boards = [dict(b) for b in (settings_service.get_board_settings().boards or []) if isinstance(b, dict)]
+    if not boards:
+        from .devices import BoardInstance
 
-    # Reload config in the Config class
-    Config.reload()
+        boards = [BoardInstance(name="My Board", device_type="flagship", board_color="black").to_dict()]
 
-    # Reinitialize the board client with new config
-    service = get_service()
-    if service:
-        service.reinitialize_board_client()
+    updates = {key: request[key] for key in _LEGACY_BOARD_CONNECTION_FIELDS if key in request}
+    boards[0].update(updates)
+    try:
+        settings_service.set_boards(boards)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
-    # Get updated config (masked)
-    updated = config_manager.get_board()
-    masked = config_manager._mask_sensitive(updated)
+    # Reinitialize the board clients with the new connection
+    _reinitialize_board_clients()
 
-    return {"status": "success", "config": masked}
+    return {"status": "success", "config": _mask_legacy_board_view(_legacy_board_config_view())}
 
 
 @app.delete("/config/board")
@@ -7378,9 +7424,9 @@ def _primary_connection_info() -> tuple[str, str]:
 
     Reads the boards[] store — the source the live clients are built from
     and what Settings → Boards displays — then falls back to the live
-    primary client, and only then to legacy ``Config`` (config.json), which
-    only the setup wizard writes and therefore goes stale as soon as the
-    board is edited in Settings (issue #1791).
+    primary client. The legacy config.json copy is never consulted: board
+    credentials are unified on settings.json (issue #1760), so with no
+    boards entry and no live client the install is simply unconfigured.
     """
     board = _primary_board_entry()
     if board is not None:
@@ -7396,7 +7442,7 @@ def _primary_connection_info() -> tuple[str, str]:
         host = getattr(client, "host", "")
         return mode, host if isinstance(host, str) else ""
 
-    return (Config.BOARD_API_MODE or "local").lower(), Config.BOARD_HOST or ""
+    return "local", ""
 
 
 def _get_first_board_dims():
@@ -7732,9 +7778,9 @@ async def debug_get_system_info():
     client = _get_board_client()
     cache_status = client.get_cache_status() if client else None
 
-    # Check if board is configured: for a boards[] entry the client factory is
-    # the authority on "has a usable connection"; legacy Config installs keep
-    # the old credential check.
+    # Check if board is configured: the client factory is the authority on
+    # "has a usable connection". No boards[] entry means unconfigured — the
+    # legacy config.json copy is never consulted (issue #1760).
     board = _primary_board_entry()
     if board is not None:
         try:
@@ -7743,13 +7789,7 @@ async def debug_get_system_info():
             logger.debug("Could not evaluate board connection config: %s", exc)
             board_configured = False
     else:
-        board_configured = bool(
-            board_ip
-            and (
-                (connection_mode == "local" and Config.BOARD_LOCAL_API_KEY)
-                or (connection_mode == "cloud" and Config.BOARD_READ_WRITE_KEY)
-            )
-        )
+        board_configured = False
 
     return {
         "board_ip": board_ip,
@@ -7773,22 +7813,15 @@ async def debug_network_diagnostics():
     """
     from .network_diagnostics import run_full_diagnostics
 
-    # Diagnose the connection the send path actually uses: the boards[] store
-    # first, legacy Config (wizard-era config.json) only when no board is
-    # configured there (issue #1791).
-    board = _primary_board_entry()
-    if board is not None:
-        board_host = board.get("host") or None
-        board_port = board.get("port") or 7000
-        board_api_key = board.get("local_api_key") or None
-        use_cloud = (board.get("api_mode") or "local").lower() == "cloud"
-        cloud_key = board.get("cloud_key") or None
-    else:
-        board_host = Config.BOARD_HOST or None
-        board_port = 7000
-        board_api_key = Config.BOARD_LOCAL_API_KEY or None
-        use_cloud = (Config.BOARD_API_MODE or "local").lower() == "cloud"
-        cloud_key = Config.BOARD_READ_WRITE_KEY or None
+    # Diagnose the connection the send path actually uses: the boards[]
+    # store. The legacy config.json copy is never consulted (issue #1760) —
+    # with no boards entry the diagnostics run without board credentials.
+    board = _primary_board_entry() or {}
+    board_host = board.get("host") or None
+    board_port = board.get("port") or 7000
+    board_api_key = board.get("local_api_key") or None
+    use_cloud = (board.get("api_mode") or "local").lower() == "cloud"
+    cloud_key = board.get("cloud_key") or None
 
     try:
         results = run_full_diagnostics(

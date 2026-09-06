@@ -280,6 +280,17 @@ class TestSendWelcomeMessage:
             transition.step_interval_ms = 100
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
+            board_settings = Mock()
+            board_settings.boards = [
+                {
+                    "id": "b1",
+                    "device_type": "flagship",
+                    "api_mode": "local",
+                    "host": "192.168.1.100",
+                    "local_api_key": "test_key_12345",
+                }
+            ]
+            ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
@@ -312,6 +323,17 @@ class TestSendWelcomeMessage:
             transition.step_interval_ms = 100
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
+            board_settings = Mock()
+            board_settings.boards = [
+                {
+                    "id": "b1",
+                    "device_type": "flagship",
+                    "api_mode": "local",
+                    "host": "192.168.1.100",
+                    "local_api_key": "test_key_12345",
+                }
+            ]
+            ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
@@ -343,6 +365,16 @@ class TestSendWelcomeMessage:
             transition.step_interval_ms = 100
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
+            board_settings = Mock()
+            board_settings.boards = [
+                {
+                    "id": "b1",
+                    "device_type": "flagship",
+                    "api_mode": "cloud",
+                    "cloud_key": "test_cloud_key",
+                }
+            ]
+            ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
 
             response = client.post("/send-welcome-message")
@@ -378,7 +410,14 @@ class TestSendWelcomeMessage:
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
             board_settings = Mock()
-            board_settings.boards = [{"device_type": "note"}]
+            board_settings.boards = [
+                {
+                    "device_type": "note",
+                    "api_mode": "local",
+                    "host": "192.168.1.100",
+                    "local_api_key": "test_key_12345",
+                }
+            ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
 
@@ -428,7 +467,14 @@ class TestSendWelcomeMessage:
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
             board_settings = Mock()
-            board_settings.boards = [{"device_type": "flagship"}]
+            board_settings.boards = [
+                {
+                    "device_type": "flagship",
+                    "api_mode": "local",
+                    "host": "192.168.1.100",
+                    "local_api_key": "test_key_12345",
+                }
+            ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
 
@@ -469,7 +515,15 @@ class TestSendWelcomeMessage:
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
             board_settings = Mock()
-            board_settings.boards = [{"device_type": "note_array", "notes_wide": 2, "notes_tall": 1}]
+            board_settings.boards = [
+                {
+                    "device_type": "note_array",
+                    "notes_wide": 2,
+                    "notes_tall": 1,
+                    "api_mode": "cloud",
+                    "note_array_token": "test-token",
+                }
+            ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
 
@@ -508,7 +562,15 @@ class TestSendWelcomeMessage:
             transition.step_size = 1
             ss.get_transition_settings.return_value = transition
             board_settings = Mock()
-            board_settings.boards = [{"device_type": "note_array", "notes_wide": 1, "notes_tall": 2}]
+            board_settings.boards = [
+                {
+                    "device_type": "note_array",
+                    "notes_wide": 1,
+                    "notes_tall": 2,
+                    "api_mode": "cloud",
+                    "note_array_token": "test-token",
+                }
+            ]
             ss.get_board_settings.return_value = board_settings
             mock_ss.return_value = ss
 
