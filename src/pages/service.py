@@ -348,16 +348,58 @@ class PageService:
 
     # Rendering
 
-    def render_page(self, page: Page, context: dict | None = None) -> DisplayResult:
+    def shared_context_for(
+        self,
+        contexts: dict[str, dict] | None,
+        device_type: str,
+        notes_wide: int = 1,
+        notes_tall: int = 1,
+    ) -> dict | None:
+        """Get-or-build the per-tick shared template context for one board size.
+
+        ``contexts`` is a per-pass cache keyed by :func:`src.devices.size_key`
+        (the display loop creates one dict per tick, issue #1752). The first
+        consumer of a size pays the full plugin fan-out; every later consumer
+        of the same size — collection resolution, other boards' renders —
+        reuses the same dict, exactly as ``preview_pages_batch`` already
+        shares contexts per board size.
+
+        Returns None (caller falls back to building its own context, the
+        pre-#1752 behavior) when ``contexts`` is None or the build fails.
+        """
+        if contexts is None:
+            return None
+        key = size_key(device_type or DEFAULT_DEVICE_TYPE, notes_wide or 1, notes_tall or 1)
+        context = contexts.get(key)
+        if context is None:
+            try:
+                from src.plugins.registry import get_plugin_registry
+
+                board = board_context_for(device_type, notes_wide, notes_tall)
+                context = get_plugin_registry().build_template_context(board)
+            except Exception as e:
+                logger.error(f"Failed to build shared template context: {e}")
+                return None
+            contexts[key] = context
+        return context
+
+    def render_page(
+        self, page: Page, context: dict | None = None, contexts: dict[str, dict] | None = None
+    ) -> DisplayResult:
         """Render a page to formatted text.
 
         Args:
             page: The page to render
             context: Optional pre-built template context to avoid redundant plugin fetches
+            contexts: Optional per-tick shared context cache keyed by board
+                size (see :meth:`shared_context_for`). Consulted only when
+                ``context`` is not given.
 
         Returns:
             DisplayResult with formatted text
         """
+        if context is None and contexts is not None and page.type == "template":
+            context = self.shared_context_for(contexts, page.device_type, page.notes_wide, page.notes_tall)
         if page.type == "single":
             return self._render_single(page)
         if page.type == "composite":
@@ -518,7 +560,13 @@ class PageService:
                 error=f"Template rendering failed: {e!s}",
             )
 
-    def preview_page(self, page_id: str, force_refresh: bool = False) -> DisplayResult | None:
+    def preview_page(
+        self,
+        page_id: str,
+        force_refresh: bool = False,
+        context: dict | None = None,
+        contexts: dict[str, dict] | None = None,
+    ) -> DisplayResult | None:
         """Preview a page by ID.
 
         Uses cached preview if available and valid, unless force_refresh is True.
@@ -528,6 +576,9 @@ class PageService:
         Args:
             page_id: The page ID
             force_refresh: If True, bypass cache and always render fresh
+            context: Optional pre-built template context (skips the plugin fan-out)
+            contexts: Optional per-tick shared context cache keyed by board
+                size (issue #1752); see :meth:`shared_context_for`
 
         Returns:
             DisplayResult or None if page not found
@@ -545,7 +596,7 @@ class PageService:
 
         # Render fresh
         logger.debug(f"Rendering fresh preview for page {page_id} (force_refresh={force_refresh})")
-        result = self.render_page(page)
+        result = self.render_page(page, context=context, contexts=contexts)
 
         # Cache the result
         self._preview_cache[page_id] = CachedPreview(

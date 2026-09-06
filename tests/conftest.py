@@ -25,6 +25,26 @@ def _disable_auth_for_tests(request, monkeypatch):
     monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "false")
 
 
+@pytest.fixture(autouse=True)
+def _reset_silence_window_cache():
+    """Isolate the parsed silence-window cache (issue #1752) per test.
+
+    ``Config.silence_config_for`` caches its result keyed on the config
+    manager's write generation. In production every config change goes
+    through ``_save_internal`` (which bumps the generation), but tests
+    routinely swap the underlying feature dict via ``patch.object(Config,
+    "_get_feature", ...)`` — a seam the generation cannot see — so a cached
+    window from one test would leak into the next.
+    """
+    from src.config import Config
+
+    Config._silence_cache.clear()
+    Config._silence_migrations_ran = None
+    yield
+    Config._silence_cache.clear()
+    Config._silence_migrations_ran = None
+
+
 # Shared fixtures for test helpers
 @pytest.fixture
 def mock_board_client():

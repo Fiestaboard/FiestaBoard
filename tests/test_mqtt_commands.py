@@ -1057,7 +1057,7 @@ class TestDisplayServiceGuardIntegration:
         page_svc = MagicMock()
         page_svc.list_pages.return_value = page_objs
         page_svc.get_page.side_effect = lambda pid: next((p for p in page_objs if p.id == pid), None)
-        page_svc.preview_page.side_effect = lambda pid, force_refresh=False: (
+        page_svc.preview_page.side_effect = lambda pid, force_refresh=False, **_kwargs: (
             SimpleNamespace(available=True, formatted=pages[pid][1], error=None)
             if pid in pages
             else SimpleNamespace(available=False, formatted="", error="missing")
