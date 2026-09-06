@@ -1,0 +1,321 @@
+{
+  "_comment": "Golden response shapes for the system domain (issue #1756). Do not hand-edit: regenerate with `RECORD_RESPONSE_GOLDEN=1 pytest tests/test_response_shape_goldens.py` and review the diff.",
+  "records": [
+    {
+      "label": "version_ok",
+      "method": "GET",
+      "path_template": "/version",
+      "status": 200,
+      "shape": {
+        "build_version": "str",
+        "hardware_model": "str",
+        "is_dev": "bool",
+        "package_version": "str"
+      }
+    },
+    {
+      "label": "update_check_ok",
+      "method": "GET",
+      "path_template": "/system/update-check",
+      "status": 200,
+      "shape": {
+        "current_version": "str",
+        "error": "null",
+        "is_production": "bool",
+        "latest_version": "str",
+        "package_url": "str",
+        "update_available": "bool"
+      }
+    },
+    {
+      "label": "update_check_sources_down",
+      "method": "GET",
+      "path_template": "/system/update-check",
+      "status": 200,
+      "shape": {
+        "current_version": "str",
+        "error": "str",
+        "is_production": "bool",
+        "latest_version": "null",
+        "package_url": "str",
+        "update_available": "bool"
+      }
+    },
+    {
+      "label": "update_status_no_token",
+      "method": "GET",
+      "path_template": "/system/update/status",
+      "status": 200,
+      "shape": {
+        "auto_update_enabled": "bool",
+        "auto_update_interval": "str",
+        "last_check": "str",
+        "last_update": "null",
+        "last_update_action": "null",
+        "last_update_completed_at": "null",
+        "last_update_error": "null",
+        "last_update_previous_digest": "null",
+        "last_update_status": "null",
+        "managed_externally": "bool",
+        "post_upgrade_regression": "null",
+        "profile": "str",
+        "settings_snapshots": [],
+        "sidecar_url": "str",
+        "updater_available": "bool"
+      }
+    },
+    {
+      "label": "update_status_full",
+      "method": "GET",
+      "path_template": "/system/update/status",
+      "status": 200,
+      "shape": {
+        "auto_update_enabled": "bool",
+        "auto_update_interval": "str",
+        "last_check": "str",
+        "last_update": "str",
+        "last_update_action": "str",
+        "last_update_completed_at": "str",
+        "last_update_error": "null",
+        "last_update_previous_digest": "str",
+        "last_update_status": "str",
+        "managed_externally": "bool",
+        "post_upgrade_regression": {
+          "current_enabled_count": "int",
+          "missing_plugin_ids": [
+            "str"
+          ],
+          "rollback_hint": "str",
+          "snapshot_app_version": "str",
+          "snapshot_enabled_count": "int",
+          "snapshot_name": "str"
+        },
+        "profile": "str",
+        "settings_snapshots": [
+          {
+            "bytes": "int",
+            "created_at": "str",
+            "name": "str",
+            "previous_digest": "str",
+            "previous_image": "str"
+          }
+        ],
+        "sidecar_url": "str",
+        "updater_available": "bool"
+      }
+    },
+    {
+      "label": "update_apply_no_token",
+      "method": "POST",
+      "path_template": "/system/update",
+      "status": 503,
+      "shape": {
+        "detail": {
+          "hint": "str",
+          "mode": "str",
+          "status": "str"
+        }
+      }
+    },
+    {
+      "label": "update_apply_sidecar_down",
+      "method": "POST",
+      "path_template": "/system/update",
+      "status": 503,
+      "shape": {
+        "detail": {
+          "hint": "str",
+          "mode": "str",
+          "status": "str"
+        }
+      }
+    },
+    {
+      "label": "update_apply_ok",
+      "method": "POST",
+      "path_template": "/system/update",
+      "status": 200,
+      "shape": {
+        "hint": "null",
+        "mode": "str",
+        "previous_digest": "str",
+        "settings_snapshot": {
+          "bytes": "int",
+          "created_at": "str",
+          "name": "str",
+          "path": "str",
+          "previous_digest": "str",
+          "previous_image": "str"
+        },
+        "status": "str"
+      }
+    },
+    {
+      "label": "rollback_neither_flag",
+      "method": "POST",
+      "path_template": "/system/update/rollback",
+      "status": 400,
+      "shape": {
+        "detail": {
+          "error": "str",
+          "status": "str"
+        }
+      }
+    },
+    {
+      "label": "rollback_unknown_snapshot",
+      "method": "POST",
+      "path_template": "/system/update/rollback",
+      "status": 404,
+      "shape": {
+        "detail": {
+          "error": "str",
+          "status": "str"
+        }
+      }
+    },
+    {
+      "label": "rollback_settings_only",
+      "method": "POST",
+      "path_template": "/system/update/rollback",
+      "status": 200,
+      "shape": {
+        "image_rollback": "null",
+        "settings_rollback": {
+          "pre_restore_backup_suffix": "str",
+          "reload_errors": [],
+          "restored_files": [
+            "str"
+          ],
+          "restored_from": "str",
+          "skipped_files": []
+        },
+        "snapshot": "str",
+        "status": "str",
+        "warnings": []
+      }
+    },
+    {
+      "label": "rollback_full",
+      "method": "POST",
+      "path_template": "/system/update/rollback",
+      "status": 200,
+      "shape": {
+        "image_rollback": {
+          "queued": "bool",
+          "target_digest": "str",
+          "target_image": "str"
+        },
+        "settings_rollback": {
+          "pre_restore_backup_suffix": "str",
+          "reload_errors": [],
+          "restored_files": [
+            "str"
+          ],
+          "restored_from": "str",
+          "skipped_files": []
+        },
+        "snapshot": "str",
+        "status": "str",
+        "warnings": []
+      }
+    },
+    {
+      "label": "rollback_no_image_metadata",
+      "method": "POST",
+      "path_template": "/system/update/rollback",
+      "status": 200,
+      "shape": {
+        "image_rollback": "null",
+        "settings_rollback": "null",
+        "snapshot": "str",
+        "status": "str",
+        "warnings": [
+          "str"
+        ]
+      }
+    },
+    {
+      "label": "auto_set_interval",
+      "method": "POST",
+      "path_template": "/system/update/auto",
+      "status": 200,
+      "shape": {
+        "enabled": "bool",
+        "interval": "str"
+      }
+    },
+    {
+      "label": "auto_legacy_enabled",
+      "method": "POST",
+      "path_template": "/system/update/auto",
+      "status": 200,
+      "shape": {
+        "enabled": "bool",
+        "interval": "str"
+      }
+    },
+    {
+      "label": "auto_invalid_interval",
+      "method": "POST",
+      "path_template": "/system/update/auto",
+      "status": 422,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "auto_empty_body",
+      "method": "POST",
+      "path_template": "/system/update/auto",
+      "status": 422,
+      "shape": {
+        "detail": "str"
+      }
+    },
+    {
+      "label": "restart_no_token",
+      "method": "POST",
+      "path_template": "/system/restart",
+      "status": 503,
+      "shape": {
+        "detail": {
+          "hint": "str",
+          "status": "str"
+        }
+      }
+    },
+    {
+      "label": "shutdown_no_token",
+      "method": "POST",
+      "path_template": "/system/shutdown",
+      "status": 503,
+      "shape": {
+        "detail": {
+          "hint": "str",
+          "status": "str"
+        }
+      }
+    },
+    {
+      "label": "restart_ok",
+      "method": "POST",
+      "path_template": "/system/restart",
+      "status": 200,
+      "shape": {
+        "action": "str",
+        "status": "str"
+      }
+    },
+    {
+      "label": "shutdown_ok",
+      "method": "POST",
+      "path_template": "/system/shutdown",
+      "status": 200,
+      "shape": {
+        "action": "str",
+        "status": "str"
+      }
+    }
+  ]
+}
