@@ -379,21 +379,6 @@ def test_apply_env_overrides_invalid_int_value(monkeypatch, tmp_path):
     assert board.get("transition_interval_ms") is None
 
 
-def test_apply_env_overrides_invalid_float_value(monkeypatch, tmp_path):
-    """Handles invalid float env var values."""
-    monkeypatch.setenv("SURF_LATITUDE", "not_a_float")
-    config_path = tmp_path / "config.json"
-    config_data = {
-        "board": {},
-        "features": {"surf": {"latitude": None}},
-        "general": {},
-    }
-    config_path.write_text(json.dumps(config_data))
-    cm = ConfigManager(config_path=str(config_path))
-    surf = cm.get_feature("surf") or {}
-    assert surf.get("latitude") != "not_a_float"
-
-
 # --- get_all and get_all_masked ---
 
 

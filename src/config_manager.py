@@ -104,7 +104,87 @@ PLUGIN_RENAME_ADJUSTERS: dict[str, Any] = {
     "baywheels": _adjust_baywheels_to_lyft_bike_share,
 }
 
+# ---------------------------------------------------------------------------
+# Read-time env-var overlay for plugin config (issue #1761).
+#
+# Historically these env vars were written into the legacy ``features.*``
+# blocks and persisted — which made them silent no-ops on any install already
+# migrated to the plugin system, and left stale values on disk after the
+# variable was unset. They are now a pure overlay: applied when plugin config
+# is READ (``get_plugin_config`` / ``get_all_plugin_configs``, the choke
+# point the plugin registry and API read through), never persisted, and the
+# stored value returns as soon as the variable is unset.
+#
+# Semantics:
+#   * An env var wins over the stored value while it is set.
+#   * Placeholder values (``your_api_key_here`` etc.) are ignored.
+#   * Unparseable numeric/JSON values are ignored with a warning.
+#   * The overlay only augments plugins that already have a stored config
+#     entry — it never conjures a config for an uninstalled plugin.
+#   * Instance keys (``weather:sf``) share their base plugin's overrides.
+#
+# Board-connection and general env vars (BOARD_*, TIMEZONE, ...) are a
+# separate mechanism and keep their seed-once-into-config.json behavior in
+# ``_apply_env_overrides``.
+
+
+def _env_csv(value: str) -> list[str]:
+    """Parse a comma-separated env value into a list of stripped items."""
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _env_json(value: str) -> Any:
+    """Parse a JSON env value (e.g. HOME_ASSISTANT_ENTITIES)."""
+    return json.loads(value)
+
+
+# env var -> (plugin id, plugin config key, parser)
+ENV_PLUGIN_OVERRIDES: dict[str, tuple[str, str, Any]] = {
+    # Weather
+    "WEATHER_API_KEY": ("weather", "api_key", str),
+    "WEATHER_PROVIDER": ("weather", "provider", str),
+    "WEATHER_LOCATION": ("weather", "location", str),
+    # Guest WiFi
+    "GUEST_WIFI_SSID": ("guest_wifi", "ssid", str),
+    "GUEST_WIFI_PASSWORD": ("guest_wifi", "password", str),
+    "GUEST_WIFI_REFRESH_SECONDS": ("guest_wifi", "refresh_seconds", int),
+    # Home Assistant
+    "HOME_ASSISTANT_BASE_URL": ("home_assistant", "base_url", str),
+    "HOME_ASSISTANT_ACCESS_TOKEN": ("home_assistant", "access_token", str),
+    "HOME_ASSISTANT_TIMEOUT": ("home_assistant", "timeout", int),
+    "HOME_ASSISTANT_REFRESH_SECONDS": ("home_assistant", "refresh_seconds", int),
+    "HOME_ASSISTANT_ENTITIES": ("home_assistant", "entities", _env_json),
+    # Star Trek quotes
+    "STAR_TREK_QUOTES_RATIO": ("star_trek_quotes", "ratio", str),
+    # Muni
+    "MUNI_API_KEY": ("muni", "api_key", str),
+    "MUNI_REFRESH_SECONDS": ("muni", "refresh_seconds", int),
+    # Traffic
+    "GOOGLE_ROUTES_API_KEY": ("traffic", "api_key", str),
+    "TRAFFIC_REFRESH_SECONDS": ("traffic", "refresh_seconds", int),
+    # Bike share (the baywheels plugin was renamed to lyft_bike_share; the
+    # env var keeps its historical name)
+    "BAYWHEELS_REFRESH_SECONDS": ("lyft_bike_share", "refresh_seconds", int),
+    # Surf
+    "SURF_LATITUDE": ("surf", "latitude", float),
+    "SURF_LONGITUDE": ("surf", "longitude", float),
+    "SURF_REFRESH_SECONDS": ("surf", "refresh_seconds", int),
+    # Air quality / fog
+    "PURPLEAIR_API_KEY": ("air_fog", "purpleair_api_key", str),
+    "PURPLEAIR_SENSOR_ID": ("air_fog", "purpleair_sensor_id", str),
+    "OPENWEATHERMAP_API_KEY": ("air_fog", "openweathermap_api_key", str),
+    "AIR_FOG_LATITUDE": ("air_fog", "latitude", float),
+    "AIR_FOG_LONGITUDE": ("air_fog", "longitude", float),
+    "AIR_FOG_REFRESH_SECONDS": ("air_fog", "refresh_seconds", int),
+    # Stocks
+    "FINNHUB_API_KEY": ("stocks", "finnhub_api_key", str),
+    "STOCKS_TIME_WINDOW": ("stocks", "time_window", str),
+    "STOCKS_REFRESH_SECONDS": ("stocks", "refresh_seconds", int),
+    "STOCKS_SYMBOLS": ("stocks", "symbols", _env_csv),
+}
+
 # Default configuration schema
+
 DEFAULT_CONFIG: dict[str, Any] = {
     "board": {
         "api_mode": "local",
@@ -724,27 +804,26 @@ class ConfigManager:
         return v in ("changeme", "replace_me", "replace-me", "example", "placeholder")
 
     def _apply_env_overrides(self) -> None:
-        """Apply environment variable overrides to config.
+        """Apply board/general environment variable overrides to config.
 
         Only sets values if they're empty in config (allows env vars to provide defaults).
         Environment variables take precedence for initial setup but UI changes are preserved.
         Placeholder values from .env (e.g. ``your_api_key_here``) are ignored.
+
+        Plugin env vars (``WEATHER_API_KEY`` and friends) are NOT handled
+        here anymore: since #1761 they are a read-time overlay applied in
+        :meth:`get_plugin_config` / :meth:`get_all_plugin_configs` — never
+        persisted, active only while the variable is set. This method keeps
+        only the board-connection and general settings, which by design
+        seed ``config.json`` once on first boot.
         """
         changed = False
 
         # Ensure structures exist
         if "board" not in self._config:
             self._config["board"] = {}
-        if "features" not in self._config:
-            self._config["features"] = {}
         if "general" not in self._config:
             self._config["general"] = {}
-
-        # Helper to safely get/create feature config
-        def get_feature(name: str) -> dict:
-            if name not in self._config["features"]:
-                self._config["features"][name] = {}
-            return self._config["features"][name]
 
         # Helper to apply string env var
         def apply_str(config: dict, key: str, env_var: str, alt_env_var: str | None = None) -> bool:
@@ -774,18 +853,6 @@ class ConfigManager:
                     logger.warning(f"Invalid {env_var} value: {value}")
             return False
 
-        # Helper to apply float env var
-        def apply_float(config: dict, key: str, env_var: str) -> bool:
-            value = os.getenv(env_var, "").strip()
-            if value and config.get(key) is None:
-                try:
-                    config[key] = float(value)
-                    logger.info(f"Applied {env_var} from environment variable")
-                    return True
-                except ValueError:
-                    logger.warning(f"Invalid {env_var} value: {value}")
-            return False
-
         board_config = self._config["board"]
         general_config = self._config["general"]
 
@@ -807,86 +874,6 @@ class ConfigManager:
         changed |= apply_str(general_config, "timezone", "TIMEZONE")
         changed |= apply_int(general_config, "refresh_interval_seconds", "REFRESH_INTERVAL_SECONDS")
         changed |= apply_str(general_config, "output_target", "OUTPUT_TARGET")
-
-        # Silence schedule start/end times (enabling via env var is no longer supported;
-        # use the UI or config.json to set silence_schedule.enabled)
-        changed |= apply_str(general_config, "silence_schedule_start_time", "SILENCE_SCHEDULE_START_TIME")
-        changed |= apply_str(general_config, "silence_schedule_end_time", "SILENCE_SCHEDULE_END_TIME")
-
-        # ==================== Weather Feature ====================
-        weather = get_feature("weather")
-        changed |= apply_str(weather, "api_key", "WEATHER_API_KEY")
-        changed |= apply_str(weather, "provider", "WEATHER_PROVIDER")
-        changed |= apply_str(weather, "location", "WEATHER_LOCATION")
-
-        # ==================== Guest WiFi Feature ====================
-        guest_wifi = get_feature("guest_wifi")
-        changed |= apply_str(guest_wifi, "ssid", "GUEST_WIFI_SSID")
-        changed |= apply_str(guest_wifi, "password", "GUEST_WIFI_PASSWORD")
-        changed |= apply_int(guest_wifi, "refresh_seconds", "GUEST_WIFI_REFRESH_SECONDS")
-
-        # ==================== Home Assistant Feature ====================
-        home_assistant = get_feature("home_assistant")
-        changed |= apply_str(home_assistant, "base_url", "HOME_ASSISTANT_BASE_URL")
-        changed |= apply_str(home_assistant, "access_token", "HOME_ASSISTANT_ACCESS_TOKEN")
-        changed |= apply_int(home_assistant, "timeout", "HOME_ASSISTANT_TIMEOUT")
-        changed |= apply_int(home_assistant, "refresh_seconds", "HOME_ASSISTANT_REFRESH_SECONDS")
-        # Handle entities JSON
-        entities_str = os.getenv("HOME_ASSISTANT_ENTITIES", "").strip()
-        if entities_str and not home_assistant.get("entities"):
-            try:
-                import json
-
-                home_assistant["entities"] = json.loads(entities_str)
-                logger.info("Applied HOME_ASSISTANT_ENTITIES from environment variable")
-                changed = True
-            except json.JSONDecodeError:
-                logger.warning(f"Invalid HOME_ASSISTANT_ENTITIES JSON: {entities_str}")
-
-        # ==================== Star Trek Quotes Feature ====================
-        star_trek = get_feature("star_trek_quotes")
-        changed |= apply_str(star_trek, "ratio", "STAR_TREK_QUOTES_RATIO")
-
-        # ==================== Muni Feature ====================
-        muni = get_feature("muni")
-        changed |= apply_str(muni, "api_key", "MUNI_API_KEY")
-        changed |= apply_int(muni, "refresh_seconds", "MUNI_REFRESH_SECONDS")
-
-        # ==================== Traffic Feature ====================
-        traffic = get_feature("traffic")
-        changed |= apply_str(traffic, "api_key", "GOOGLE_ROUTES_API_KEY")
-        changed |= apply_int(traffic, "refresh_seconds", "TRAFFIC_REFRESH_SECONDS")
-
-        # ==================== Bay Wheels Feature ====================
-        baywheels = get_feature("baywheels")
-        changed |= apply_int(baywheels, "refresh_seconds", "BAYWHEELS_REFRESH_SECONDS")
-
-        # ==================== Surf Feature ====================
-        surf = get_feature("surf")
-        changed |= apply_float(surf, "latitude", "SURF_LATITUDE")
-        changed |= apply_float(surf, "longitude", "SURF_LONGITUDE")
-        changed |= apply_int(surf, "refresh_seconds", "SURF_REFRESH_SECONDS")
-
-        # ==================== Air/Fog Feature ====================
-        air_fog = get_feature("air_fog")
-        changed |= apply_str(air_fog, "purpleair_api_key", "PURPLEAIR_API_KEY")
-        changed |= apply_str(air_fog, "purpleair_sensor_id", "PURPLEAIR_SENSOR_ID")
-        changed |= apply_str(air_fog, "openweathermap_api_key", "OPENWEATHERMAP_API_KEY")
-        changed |= apply_float(air_fog, "latitude", "AIR_FOG_LATITUDE")
-        changed |= apply_float(air_fog, "longitude", "AIR_FOG_LONGITUDE")
-        changed |= apply_int(air_fog, "refresh_seconds", "AIR_FOG_REFRESH_SECONDS")
-
-        # ==================== Stocks Feature ====================
-        stocks = get_feature("stocks")
-        changed |= apply_str(stocks, "finnhub_api_key", "FINNHUB_API_KEY")
-        changed |= apply_str(stocks, "time_window", "STOCKS_TIME_WINDOW")
-        changed |= apply_int(stocks, "refresh_seconds", "STOCKS_REFRESH_SECONDS")
-        # Handle symbols as comma-separated list
-        symbols_str = os.getenv("STOCKS_SYMBOLS", "").strip()
-        if symbols_str and not stocks.get("symbols"):
-            stocks["symbols"] = [s.strip() for s in symbols_str.split(",") if s.strip()]
-            logger.info("Applied STOCKS_SYMBOLS from environment variable")
-            changed = True
 
         # Save if any changes were made
         if changed:
@@ -1474,20 +1461,58 @@ class ConfigManager:
 
     # ==================== Plugin Configuration Methods ====================
 
-    def get_plugin_config(self, plugin_id: str) -> dict[str, Any] | None:
+    @staticmethod
+    def _plugin_env_overrides(plugin_id: str) -> dict[str, Any]:
+        """Current env-var overrides for one plugin (issue #1761).
+
+        Computed from ``os.environ`` on every call so that unsetting a
+        variable immediately reverts reads to the stored value. Instance
+        keys (``weather:sf``) resolve to their base plugin id.
+        """
+        base_id = plugin_id.split(":", 1)[0]
+        overrides: dict[str, Any] = {}
+        for env_var, (target_id, key, parse) in ENV_PLUGIN_OVERRIDES.items():
+            if target_id != base_id:
+                continue
+            raw = os.getenv(env_var, "").strip()
+            if not raw:
+                continue
+            if ConfigManager._is_placeholder(raw):
+                logger.debug(f"Ignoring placeholder value for {env_var}")
+                continue
+            try:
+                overrides[key] = parse(raw)
+            except (ValueError, json.JSONDecodeError):
+                logger.warning(f"Invalid {env_var} value: {raw!r} — ignoring override")
+        return overrides
+
+    def get_plugin_config(self, plugin_id: str, include_env_overrides: bool = True) -> dict[str, Any] | None:
         """Get configuration for a specific plugin.
+
+        Environment-variable overrides (:data:`ENV_PLUGIN_OVERRIDES`) are
+        layered on top of the stored values at read time — they are never
+        persisted, and disappear as soon as the variable is unset. Callers
+        on a read-merge-write path (un-masking "***" against stored config,
+        or persisting a merged config) must pass
+        ``include_env_overrides=False`` so an env secret can never leak
+        into ``config.json``.
 
         Args:
             plugin_id: Plugin identifier (e.g., 'weather', 'stocks').
+            include_env_overrides: Layer current env-var overrides over the
+                stored values (default True — what plugins should run with).
 
         Returns:
             Plugin configuration dict or None if not found.
         """
         with self._file_lock:
             plugins = self._config.get("plugins", {})
-            if plugin_id in plugins:
-                return self._deep_copy(plugins[plugin_id])
-            return None
+            if plugin_id not in plugins:
+                return None
+            config = self._deep_copy(plugins[plugin_id])
+        if include_env_overrides:
+            config.update(self._plugin_env_overrides(plugin_id))
+        return config
 
     def set_plugin_config(self, plugin_id: str, config: dict[str, Any]) -> bool:
         """Set configuration for a specific plugin.
@@ -1579,14 +1604,27 @@ class ConfigManager:
         """
         return self.update_plugin_config(plugin_id, {"enabled": False})
 
-    def get_all_plugin_configs(self) -> dict[str, dict[str, Any]]:
+    def get_all_plugin_configs(self, include_env_overrides: bool = True) -> dict[str, dict[str, Any]]:
         """Get all plugin configurations.
+
+        Environment-variable overrides are layered over each stored entry at
+        read time (see :meth:`get_plugin_config`); the overlay never adds
+        entries for plugins that have no stored config.
+
+        Args:
+            include_env_overrides: Layer current env-var overrides over the
+                stored values (default True).
 
         Returns:
             Dict mapping plugin_id to configuration.
         """
         with self._file_lock:
-            return self._deep_copy(self._config.get("plugins", {}))
+            configs = self._deep_copy(self._config.get("plugins", {}))
+        if include_env_overrides:
+            for plugin_id, config in configs.items():
+                if isinstance(config, dict):
+                    config.update(self._plugin_env_overrides(plugin_id))
+        return configs
 
     def get_all_plugin_configs_masked(self) -> dict[str, dict[str, Any]]:
         """Get all plugin configurations with sensitive fields masked.

@@ -9696,7 +9696,10 @@ async def update_plugin_config(plugin_id: str, request: PluginConfigRequest):
     # well, whose validate_config()/on_config_change() would otherwise run
     # against three asterisks (issue #1743).
     config_manager = get_config_manager()
-    stored_config = config_manager.get_plugin_config(plugin_id) or {}
+    # Raw stored config, WITHOUT the env-var overlay: this value feeds the
+    # un-mask + persist path, and restoring "***" from the overlay would
+    # silently write an env secret into config.json (issue #1761).
+    stored_config = config_manager.get_plugin_config(plugin_id, include_env_overrides=False) or {}
     config = unmask_sensitive_values(request.config, stored_config)
 
     # Validate configuration against manifest schema
