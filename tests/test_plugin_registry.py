@@ -20,6 +20,25 @@ from src.plugins.sources import PluginSource, PluginUpdateCheck, RegistryEntry
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def _no_env_plugin_overrides(monkeypatch):
+    """Neutralize the read-time env overlay for this module (#1761).
+
+    These tests assert the *stored* config that migration and restore hand
+    to the registry. The overlay deliberately wins when seeding LIVE plugin
+    config, so with CI's ``WEATHER_API_KEY=test_key`` exported the live
+    values legitimately differ from the stored ones. Dropping the mapped
+    env vars keeps each test measuring the mechanic it names; the overlay's
+    own contract — including the live-seed path — is pinned by
+    ``tests/test_env_plugin_overrides.py`` and by
+    ``test_live_seed_applies_the_env_overlay`` below.
+    """
+    from src.config_manager import ENV_PLUGIN_OVERRIDES
+
+    for env_var in ENV_PLUGIN_OVERRIDES:
+        monkeypatch.delenv(env_var, raising=False)
+
+
 @pytest.fixture
 def mock_loader():
     """Create a mock PluginLoader."""
@@ -1245,6 +1264,48 @@ def test_auto_migrate_noop_when_stored_configs_empty(registry, mock_loader):
         registry.initialize()
 
     mock_load_reg.assert_not_called()
+
+
+@patch("src.plugins.registry.get_external_plugins_dir")
+@patch("src.plugins.registry.install_registry_plugin", return_value=(True, ""))
+@patch("src.plugins.registry.load_registry")
+def test_live_seed_applies_the_env_overlay(
+    mock_load_reg, mock_install, mock_ext_dir, registry, mock_loader, mock_plugin, mock_manifest, monkeypatch
+):
+    """The restore path seeds the LIVE plugin with env-overlaid config (#1761).
+
+    Opts back into the env this module's autouse fixture removes: an
+    operator's ``WEATHER_API_KEY`` must reach the running plugin even though
+    the stored config carries a different key — and the stored dict handed to
+    the registry must come back unmutated, because that same dict is what
+    persistence paths write.
+    """
+    monkeypatch.setenv("WEATHER_API_KEY", "test_env_key_from_ops")
+    mock_loader.load_all_plugins.return_value = {}
+    mock_manifest.id = "weather"
+    mock_load_reg.return_value = [
+        RegistryEntry(
+            plugin_id="weather",
+            name="Weather",
+            repository="https://github.com/Org/fiestaboard-plugin--weather",
+        )
+    ]
+    mock_loader.load_plugin.return_value = mock_plugin
+    mock_loader.get_manifest.return_value = mock_manifest
+
+    stored_cfg = {"enabled": True, "api_key": "test_stored_key", "location": "Seattle"}
+
+    with patch("src.config_manager.get_config_manager") as mock_cm:
+        mock_cm.return_value.is_v2_plugin_migration_done.return_value = False
+        mock_cm.return_value.get_all_plugin_configs.return_value = {"weather": stored_cfg}
+        registry.initialize()
+
+    # The live plugin runs on the operator's env credential...
+    assert mock_plugin.config["api_key"] == "test_env_key_from_ops"
+    assert mock_plugin.config["location"] == "Seattle"
+    # ...while the stored dict the registry was handed is untouched, so no
+    # persistence path can ever write the env value to disk.
+    assert stored_cfg["api_key"] == "test_stored_key"
 
 
 @patch("src.plugins.registry.get_external_plugins_dir")
