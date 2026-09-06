@@ -1,6 +1,9 @@
 "use client";
 
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Badge as BadgeUI,
   Box,
   Button,
@@ -30,6 +33,7 @@ import { SecretInput } from "@fiestaboard/ui/components/forms/secret-input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
+  AlertTriangle,
   Check,
   ChevronDown,
   ChevronRight,
@@ -48,7 +52,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { BoardSizeIndicator } from "@/components/board-size-indicator";
-import { queryKeys, useBoardSettings } from "@/hooks/use-board";
+import { queryKeys, useBoardSettings, useStatus } from "@/hooks/use-board";
 import { useTranslations } from "@/i18n/translations";
 import type { BoardInstance, Code62Glyph, DeviceType } from "@/lib/api";
 import { api } from "@/lib/api";
@@ -464,6 +468,10 @@ export function DisplaySettings() {
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const { data: boardSettings, isLoading } = useBoardSettings();
+  // Per-board init errors from the shared 15s status poll (issue #1829):
+  // a board the backend skipped at startup (issue #1749) carries the reason
+  // in `boards[<id>].error`, surfaced on its card below.
+  const { data: statusData } = useStatus();
   const [showTypePicker, setShowTypePicker] = useState(false);
   // Per-board UI state for the note-array selector / custom inputs / auto-detect.
   const [customOpen, setCustomOpen] = useState<Record<string, boolean>>({});
@@ -676,6 +684,9 @@ export function DisplaySettings() {
             : isNoteArray(board.device_type)
               ? isArrayConfigured(board)
               : (apiMode === "local" && hasLocalKey && hasHost) || (apiMode === "cloud" && hasCloudKey);
+          // Why this board has no client, when the backend skipped it at
+          // startup (issues #1749/#1829). Verbatim backend reason string.
+          const initError = statusData?.boards?.[board.id]?.error ?? null;
 
           return (
             <Collapsible
@@ -720,6 +731,17 @@ export function DisplaySettings() {
                   </Flex>
                 </Box>
                 <Flex align="center" gap="1.5" className="flex-shrink-0">
+                  {initError && (
+                    <BadgeUI
+                      variant="destructive"
+                      className="text-[10px] h-5"
+                      data-testid="board-init-error-badge"
+                      title={initError}
+                    >
+                      <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                      {t("initError.badge")}
+                    </BadgeUI>
+                  )}
                   {isPaused && (
                     <BadgeUI
                       variant="default"
@@ -752,6 +774,26 @@ export function DisplaySettings() {
 
               <CollapsibleContent>
                 <Stack gap="3" className="border-t px-4 pb-4 pt-3">
+                  {/* Why the backend skipped this board at startup (issue
+                      #1829) — verbatim reason, fixed via the form below
+                      (saving re-initializes the board's client). */}
+                  {initError && (
+                    <Alert variant="destructive" data-testid="board-init-error-detail">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>{t("initError.title")}</AlertTitle>
+                      <AlertDescription>
+                        <Stack gap="1">
+                          <Text size="xs" className="break-words">
+                            {initError}
+                          </Text>
+                          <Text size="xs" tone="muted">
+                            {t("initError.hint")}
+                          </Text>
+                        </Stack>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   {/* Board name (issue #1792). Trimmed on save; clearing it
                       saves "" and the backend restores its default name. */}
                   <BoardNameField board={board} onRename={(name) => handleUpdateBoard(board.id, { name })} />

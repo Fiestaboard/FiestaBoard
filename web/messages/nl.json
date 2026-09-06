@@ -132,6 +132,9 @@
     "description": "Bekijk je bordweergave en systeemactiviteit",
     "noBoardConfigured": "Geen bord geconfigureerd",
     "noBoardDescription": "Je bord is nog niet ingesteld. Verbind je bord om inhoud weer te geven.",
+    "boardInitErrorTitle": "{boardName} is niet beschikbaar",
+    "boardInitErrorTitleUnnamed": "Een bord is niet beschikbaar",
+    "boardInitErrorOpenSettings": "Bordinstellingen openen",
     "runSetupWizard": "Installatiewizard starten",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "Niet beschikbaar",
+      "title": "Dit bord kon niet worden geïnitialiseerd",
+      "hint": "Corrigeer de verbindingsgegevens hieronder — bij het opslaan wordt de verbinding opnieuw geprobeerd."
     },
     "deviceTypeAriaLabel": "Bordtype en -grootte",
     "deviceGroupLabel": "Apparaten",

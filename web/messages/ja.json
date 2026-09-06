@@ -132,6 +132,9 @@
     "description": "ボードの表示状態とシステムアクティビティを確認できます",
     "noBoardConfigured": "ボードが未設定です",
     "noBoardDescription": "ボードがまだセットアップされていません。ボードを接続してコンテンツの表示を開始しましょう。",
+    "boardInitErrorTitle": "{boardName}は利用できません",
+    "boardInitErrorTitleUnnamed": "利用できないボードがあります",
+    "boardInitErrorOpenSettings": "ボード設定を開く",
     "runSetupWizard": "セットアップウィザードを実行",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "利用不可",
+      "title": "このボードは初期化に失敗しました",
+      "hint": "以下の接続設定を修正してください。保存すると接続を再試行します。"
     },
     "deviceTypeAriaLabel": "ボードの種類とサイズ",
     "deviceGroupLabel": "デバイス",

@@ -132,6 +132,9 @@
     "description": "보드 표시 상태 및 시스템 활동을 모니터링하세요",
     "noBoardConfigured": "보드가 설정되지 않았습니다",
     "noBoardDescription": "보드가 아직 설정되지 않았습니다. 보드를 연결하여 콘텐츠 표시를 시작하세요.",
+    "boardInitErrorTitle": "{boardName}을(를) 사용할 수 없습니다",
+    "boardInitErrorTitleUnnamed": "사용할 수 없는 보드가 있습니다",
+    "boardInitErrorOpenSettings": "보드 설정 열기",
     "runSetupWizard": "설정 마법사 실행",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "사용 불가",
+      "title": "이 보드를 초기화하지 못했습니다",
+      "hint": "아래 연결 정보를 수정하세요. 저장하면 연결을 다시 시도합니다."
     },
     "deviceTypeAriaLabel": "보드 유형 및 크기",
     "deviceGroupLabel": "기기",

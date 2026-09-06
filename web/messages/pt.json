@@ -132,6 +132,9 @@
     "description": "Monitore a exibição do seu painel e a atividade do sistema",
     "noBoardConfigured": "Nenhum painel configurado",
     "noBoardDescription": "Seu painel ainda não foi configurado. Conecte seu painel para começar a exibir conteúdo.",
+    "boardInitErrorTitle": "{boardName} está indisponível",
+    "boardInitErrorTitleUnnamed": "Um painel está indisponível",
+    "boardInitErrorOpenSettings": "Abrir configurações do painel",
     "runSetupWizard": "Iniciar Assistente de Configuração",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "Indisponível",
+      "title": "Não foi possível inicializar este painel",
+      "hint": "Corrija os dados de conexão abaixo — ao salvar, a conexão será tentada novamente."
     },
     "deviceTypeAriaLabel": "Tipo e tamanho do quadro",
     "deviceGroupLabel": "Dispositivos",

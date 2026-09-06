@@ -132,6 +132,9 @@
     "description": "Supervisa la pantalla de tu tablero y la actividad del sistema",
     "noBoardConfigured": "Ningún tablero configurado",
     "noBoardDescription": "Tu tablero aún no está configurado. Conecta tu tablero para comenzar a mostrar contenido.",
+    "boardInitErrorTitle": "{boardName} no está disponible",
+    "boardInitErrorTitleUnnamed": "Un tablero no está disponible",
+    "boardInitErrorOpenSettings": "Abrir configuración del tablero",
     "runSetupWizard": "Ejecutar asistente de configuración",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "No disponible",
+      "title": "Este tablero no se pudo inicializar",
+      "hint": "Corrige los datos de conexión abajo; al guardar se reintenta la conexión."
     },
     "deviceTypeAriaLabel": "Tipo y tamaño del tablero",
     "deviceGroupLabel": "Dispositivos",

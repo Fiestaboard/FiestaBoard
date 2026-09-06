@@ -132,6 +132,9 @@
     "description": "Monitoruj wyświetlacz tablicy i aktywność systemu",
     "noBoardConfigured": "Tablica nie skonfigurowana",
     "noBoardDescription": "Twoja tablica nie jest jeszcze skonfigurowana. Połącz tablicę, aby zacząć wyświetlać treści.",
+    "boardInitErrorTitle": "{boardName} jest niedostępna",
+    "boardInitErrorTitleUnnamed": "Jedna z tablic jest niedostępna",
+    "boardInitErrorOpenSettings": "Otwórz ustawienia tablicy",
     "runSetupWizard": "Uruchom kreator konfiguracji",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "Niedostępna",
+      "title": "Nie udało się zainicjować tej tablicy",
+      "hint": "Popraw dane połączenia poniżej — zapisanie ponawia próbę połączenia."
     },
     "deviceTypeAriaLabel": "Typ i rozmiar tablicy",
     "deviceGroupLabel": "Urządzenia",

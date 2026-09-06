@@ -132,6 +132,9 @@
     "description": "Отслеживайте отображение доски и активность системы",
     "noBoardConfigured": "Доска не настроена",
     "noBoardDescription": "Ваша доска ещё не настроена. Подключите доску, чтобы начать отображать контент.",
+    "boardInitErrorTitle": "{boardName} недоступна",
+    "boardInitErrorTitleUnnamed": "Одна из досок недоступна",
+    "boardInitErrorOpenSettings": "Открыть настройки доски",
     "runSetupWizard": "Запустить мастер настройки",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "Недоступна",
+      "title": "Не удалось инициализировать эту доску",
+      "hint": "Исправьте данные подключения ниже — при сохранении подключение будет выполнено повторно."
     },
     "deviceTypeAriaLabel": "Тип и размер табло",
     "deviceGroupLabel": "Устройства",
