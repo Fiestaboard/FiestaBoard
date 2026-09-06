@@ -170,6 +170,7 @@ ignore = [
 # api_server's lint-ignore set so the extraction stays a pure move; the
 # convention cleanup happens with #1766.
 "src/pages/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
+"src/schedules/routes.py" = ["PTH", "SIM", "RET", "PIE", "RUF010", "RUF013", "RUF059", "RUF100"]
 # CodeQL-sensitive files: see the matching [tool.ruff.format].exclude entry
 # above for the rationale. Any rule fix here would shift line numbers and
 # re-trigger CodeQL's "new alert" false positives on pre-existing findings.
