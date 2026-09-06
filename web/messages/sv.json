@@ -132,6 +132,9 @@
     "description": "Övervaka din tavlas visning och systemaktivitet",
     "noBoardConfigured": "Ingen tavla konfigurerad",
     "noBoardDescription": "Din tavla är inte inställd ännu. Anslut din tavla för att börja visa innehåll.",
+    "boardInitErrorTitle": "{boardName} är inte tillgänglig",
+    "boardInitErrorTitleUnnamed": "En tavla är inte tillgänglig",
+    "boardInitErrorOpenSettings": "Öppna tavlans inställningar",
     "runSetupWizard": "Kör installationsguiden",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "Otillgänglig",
+      "title": "Den här tavlan kunde inte initieras",
+      "hint": "Rätta till anslutningsuppgifterna nedan — när du sparar görs ett nytt anslutningsförsök."
     },
     "deviceTypeAriaLabel": "Tavlans typ och storlek",
     "deviceGroupLabel": "Enheter",

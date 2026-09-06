@@ -132,6 +132,9 @@
     "description": "监控看板显示和系统活动",
     "noBoardConfigured": "未配置看板",
     "noBoardDescription": "您的看板尚未设置。连接看板以开始显示内容。",
+    "boardInitErrorTitle": "{boardName}不可用",
+    "boardInitErrorTitleUnnamed": "有看板不可用",
+    "boardInitErrorOpenSettings": "打开看板设置",
     "runSetupWizard": "运行设置向导",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "不可用",
+      "title": "此看板初始化失败",
+      "hint": "请修正下方的连接信息，保存后将重试连接。"
     },
     "deviceTypeAriaLabel": "板子类型和尺寸",
     "deviceGroupLabel": "设备",

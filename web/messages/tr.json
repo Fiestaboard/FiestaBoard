@@ -132,6 +132,9 @@
     "description": "Pano ekranınızı ve sistem etkinliğini izleyin",
     "noBoardConfigured": "Pano yapılandırılmadı",
     "noBoardDescription": "Panonuz henüz kurulmadı. İçerik görüntülemeye başlamak için panonuzu bağlayın.",
+    "boardInitErrorTitle": "{boardName} kullanılamıyor",
+    "boardInitErrorTitleUnnamed": "Bir pano kullanılamıyor",
+    "boardInitErrorOpenSettings": "Pano ayarlarını aç",
     "runSetupWizard": "Kurulum Sihirbazını Çalıştır",
     "silenceImminentTitle": "Silence starts in {minutes, plural, =0 {less than a minute} one {# minute} other {# minutes}}",
     "silenceImminentDescription": "Switch to “{pageName}” now so you don't have to wait for the schedule to catch up.",
@@ -935,6 +938,11 @@
       "resumeToggle": "Resume sends",
       "badge": "Paused",
       "tooltip": "When paused, FiestaBoard does not push anything to this board — scheduled pages, manual sends, plugin triggers, and MQTT commands are all blocked until you resume."
+    },
+    "initError": {
+      "badge": "Kullanılamıyor",
+      "title": "Bu pano başlatılamadı",
+      "hint": "Aşağıdaki bağlantı bilgilerini düzeltin — kaydettiğinizde bağlantı yeniden denenir."
     },
     "deviceTypeAriaLabel": "Pano türü ve boyutu",
     "deviceGroupLabel": "Cihazlar",
