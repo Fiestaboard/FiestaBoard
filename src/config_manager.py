@@ -4,8 +4,10 @@ Manages reading and writing configuration to a JSON file with validation
 and thread-safe file operations.
 
 Supports:
-- Legacy features (config.features.*) for backward compatibility
 - Plugin system (config.plugins.*) for data source integrations
+- System features (config.features.*) — since #1761 only ``silence_schedule``
+  lives there; the legacy per-integration feature blocks were retired and
+  survive solely as raw input to the one-shot feature->plugin migration
 """
 
 import json
@@ -115,143 +117,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "transition_step_size": None,
     },
     "features": {
-        "weather": {
-            "enabled": False,
-            "api_key": "",
-            "provider": "weatherapi",
-            "location": "San Francisco, CA",
-            "refresh_seconds": 300,  # 5 minutes - weather doesn't change fast
-            "color_rules": {
-                # Temperature color rules: prepend color tile based on value
-                "temp": [
-                    {"condition": ">=", "value": 90, "color": "red"},
-                    {"condition": ">=", "value": 80, "color": "orange"},
-                    {"condition": ">=", "value": 70, "color": "yellow"},
-                    {"condition": ">=", "value": 60, "color": "green"},
-                    {"condition": ">=", "value": 45, "color": "blue"},
-                    {"condition": "<", "value": 45, "color": "violet"},
-                ],
-            },
-        },
-        "date_time": {
-            "enabled": True,
-            "timezone": "America/Los_Angeles",
-            # No refresh_seconds - always current
-            "color_rules": {},
-        },
-        "home_assistant": {
-            "enabled": False,
-            "base_url": "",
-            "access_token": "",
-            "entities": [],
-            "timeout": 5,
-            "refresh_seconds": 30,  # 30 seconds for home status
-            "color_rules": {
-                # Entity state colors: shows status at a glance
-                "state": [
-                    {"condition": "==", "value": "on", "color": "red"},
-                    {"condition": "==", "value": "open", "color": "red"},
-                    {"condition": "==", "value": "unlocked", "color": "red"},
-                    {"condition": "==", "value": "off", "color": "green"},
-                    {"condition": "==", "value": "closed", "color": "green"},
-                    {"condition": "==", "value": "locked", "color": "green"},
-                ],
-            },
-        },
-        "guest_wifi": {
-            "enabled": False,
-            "ssid": "",
-            "password": "",
-            # No refresh_seconds - static data
-            "color_rules": {},
-        },
-        "star_trek_quotes": {
-            "enabled": False,
-            "ratio": "3:5:9",
-            # No refresh_seconds - changes per rotation
-            "color_rules": {
-                # Series colors match the show themes
-                "series": [
-                    {"condition": "==", "value": "TNG", "color": "yellow"},
-                    {"condition": "==", "value": "VOY", "color": "blue"},
-                    {"condition": "==", "value": "DS9", "color": "red"},
-                ],
-            },
-        },
-        "air_fog": {
-            "enabled": False,
-            "purpleair_api_key": "",  # PurpleAir API key
-            "openweathermap_api_key": "",  # OpenWeatherMap API key
-            "purpleair_sensor_id": "",  # Optional specific sensor ID
-            "latitude": 37.7749,  # San Francisco
-            "longitude": -122.4194,  # San Francisco
-            "refresh_seconds": 600,  # 10 minutes
-            "color_rules": {
-                "air_status": [
-                    {"condition": "==", "value": "GOOD", "color": "green"},
-                    {"condition": "==", "value": "MODERATE", "color": "yellow"},
-                    {"condition": "==", "value": "UNHEALTHY_SENSITIVE", "color": "orange"},
-                    {"condition": "==", "value": "UNHEALTHY", "color": "red"},
-                ],
-            },
-        },
-        "muni": {
-            "enabled": False,
-            "api_key": "",  # 511.org API key
-            "stop_code": "",  # Muni stop code (e.g., "15726") - backward compatibility
-            "stop_codes": [],  # List of stop codes to monitor (up to 4)
-            "stop_names": [],  # List of stop names for display
-            "line_name": "",  # Optional line filter (e.g., "N" for N-Judah)
-            "refresh_seconds": 60,  # 1 minute for transit data
-            "transit_cache_enabled": True,  # Enable regional transit cache
-            "transit_cache_refresh_seconds": 90,  # Refresh regional cache every 90 seconds
-            "color_rules": {},
-        },
-        "surf": {
-            "enabled": False,
-            "latitude": 37.7599,  # Ocean Beach, SF
-            "longitude": -122.5121,  # Ocean Beach, SF
-            "refresh_seconds": 1800,  # 30 minutes for surf conditions
-            "color_rules": {
-                "quality": [
-                    {"condition": "==", "value": "EXCELLENT", "color": "green"},
-                    {"condition": "==", "value": "GOOD", "color": "yellow"},
-                    {"condition": "==", "value": "FAIR", "color": "orange"},
-                    {"condition": "==", "value": "POOR", "color": "red"},
-                ],
-            },
-        },
-        "baywheels": {
-            "enabled": False,
-            "station_id": "",  # Bay Wheels/GBFS station ID (backward compatibility)
-            "station_ids": [],  # List of station IDs to monitor (up to 4)
-            "station_name": "",  # Display name for the station (backward compatibility)
-            "refresh_seconds": 60,  # 1 minute for bike availability
-            "color_rules": {
-                # Status colors based on electric bike availability
-                "electric_bikes": [
-                    {"condition": "<", "value": 2, "color": "red"},
-                    {"condition": "<=", "value": 5, "color": "yellow"},
-                    {"condition": ">", "value": 5, "color": "green"},
-                ],
-            },
-        },
-        "traffic": {
-            "enabled": False,
-            "api_key": "",  # Google Routes API key (using api_key for consistency)
-            "origin": "",  # Origin address or lat,lng - backward compatibility
-            "destination": "",  # Destination address or lat,lng - backward compatibility
-            "destination_name": "DOWNTOWN",  # Display name for destination - backward compatibility
-            "routes": [],  # List of route dicts: [{origin, destination, destination_name}]
-            "refresh_seconds": 300,  # 5 minutes
-            "color_rules": {
-                "traffic_status": [
-                    {"condition": "==", "value": "LIGHT", "color": "green"},
-                    {"condition": "==", "value": "MODERATE", "color": "yellow"},
-                    {"condition": "==", "value": "HEAVY", "color": "red"},
-                ],
-            },
-        },
         "silence_schedule": {
             "enabled": False,
             "start_time": "20:00",  # 8pm (will be migrated to UTC ISO format)
@@ -273,19 +138,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
             # set_feature() whitelists keys against it and would otherwise drop
             # this one silently.
             "by_board": {},
-        },
-        "stocks": {
-            "enabled": False,
-            "finnhub_api_key": "",  # Optional - enables better symbol search/autocomplete
-            "symbols": ["GOOG"],  # List of stock symbols (max 5)
-            "time_window": "1 Day",  # Options: "1 Day", "5 Days", "1 Month", "3 Months", "6 Months", "1 Year", "2 Years", "5 Years", "ALL"
-            "refresh_seconds": 300,  # 5 minutes default
-            "color_rules": {
-                "change_percent": [
-                    {"condition": ">", "value": 0, "color": "green"},  # Positive = green
-                    {"condition": "<", "value": 0, "color": "red"},  # Negative = red
-                ],
-            },
         },
     },
     "general": {
@@ -516,7 +368,10 @@ class ConfigManager:
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid JSON in config file: {e}")
                     logger.info("Creating new config with defaults")
-                    self._config = DEFAULT_CONFIG.copy()
+                    # Deep copy: a shallow .copy() shares the nested dicts, so
+                    # every later in-place write (env overrides, profile
+                    # defaults) would silently mutate DEFAULT_CONFIG itself.
+                    self._config = self._deep_copy(DEFAULT_CONFIG)
                     self._apply_profile_defaults()
                     self._stamp_app_version_seen()
                     self._save_internal()
@@ -1307,24 +1162,6 @@ class ConfigManager:
         logger.info("AI providers settings updated")
         return self.get_ai_providers_masked()
 
-    def is_feature_enabled(self, feature_name: str) -> bool:
-        """Check if a feature is enabled.
-
-        Args:
-            feature_name: Name of the feature.
-
-        Returns:
-            True if feature is enabled, False otherwise.
-        """
-        feature = self.get_feature(feature_name)
-        if feature:
-            return feature.get("enabled", False)
-        return False
-
-    def get_feature_list(self) -> list:
-        """Get list of all available features."""
-        return list(DEFAULT_CONFIG.get("features", {}).keys())
-
     def get_color_rules(self, feature_name: str, field_name: str) -> list:
         """Get color rules for a specific feature field.
 
@@ -1375,26 +1212,6 @@ class ConfigManager:
         if errors and self._has_configured_board_instance():
             board_error_prefixes = ("Board cloud_key", "Board local_api_key", "Board host")
             errors = [e for e in errors if not e.startswith(board_error_prefixes)]
-
-        # Validate features that are enabled
-        features = config.get("features", {})
-
-        if features.get("weather", {}).get("enabled") and not features["weather"].get("api_key"):
-            errors.append("Weather API key is required when weather is enabled")
-
-        if features.get("home_assistant", {}).get("enabled"):
-            ha = features["home_assistant"]
-            if not ha.get("base_url"):
-                errors.append("Home Assistant base_url is required when enabled")
-            if not ha.get("access_token"):
-                errors.append("Home Assistant access_token is required when enabled")
-
-        if features.get("guest_wifi", {}).get("enabled"):
-            wifi = features["guest_wifi"]
-            if not wifi.get("ssid"):
-                errors.append("Guest WiFi SSID is required when enabled")
-            if not wifi.get("password"):
-                errors.append("Guest WiFi password is required when enabled")
 
         return (len(errors) == 0, errors)
 
@@ -1480,9 +1297,12 @@ class ConfigManager:
             timezone = general_config.get("timezone")
 
             if not timezone:
-                # Fall back to date_time feature timezone
-                datetime_config = self.get_feature("date_time")
-                timezone = datetime_config.get("timezone", "America/Los_Angeles")
+                # Fall back to the legacy date_time feature timezone, read raw
+                # from whatever is still stored in an old config file. This is
+                # an upgrade path: the features.* blocks are retired (#1761)
+                # but a pre-migration install may still carry the value.
+                legacy_datetime = self._config.get("features", {}).get("date_time") or {}
+                timezone = legacy_datetime.get("timezone", "America/Los_Angeles")
 
             logger.info(f"Migrating silence schedule from local time to UTC using timezone: {timezone}")
 
@@ -1946,27 +1766,6 @@ class ConfigManager:
                 self._config.pop("removed_plugins", None)
             self._save_internal()
         logger.info("Cleared deliberate-removal tombstone for plugin '%s'", plugin_id)
-
-    def migrate_feature_to_plugin(self, feature_name: str, plugin_id: str) -> bool:
-        """Migrate a legacy feature configuration to plugin format.
-
-        This copies the feature configuration to the plugins section,
-        mapping field names as needed.
-
-        Args:
-            feature_name: Name of the legacy feature.
-            plugin_id: Target plugin identifier.
-
-        Returns:
-            True if migration was performed.
-        """
-        feature_config = self.get_feature(feature_name)
-        if not feature_config:
-            logger.warning(f"Feature '{feature_name}' not found for migration")
-            return False
-
-        # Copy to plugins section
-        return self.set_plugin_config(plugin_id, feature_config)
 
 
 # Global instance getter

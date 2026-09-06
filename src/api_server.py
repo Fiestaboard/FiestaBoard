@@ -5211,10 +5211,9 @@ async def list_all_muni_stops():
     try:
         # Fetch stops from 511.org
         # Note: 511.org requires an API key for most endpoints
-        # We'll use the configured MUNI API key
-        from src.config import Config
-
-        api_key = Config.MUNI_API_KEY
+        # We'll use the API key configured on the muni plugin
+        muni_config = get_config_manager().get_plugin_config("muni") or {}
+        api_key = muni_config.get("api_key", "")
 
         if not api_key:
             raise HTTPException(status_code=400, detail="MUNI API key not configured")
@@ -5504,11 +5503,11 @@ async def search_stock_symbols(
         [{"symbol": "GOOG", "name": "Alphabet Inc."}, ...]
     """
     try:
-        from src.config import Config
         from src.utils.stocks import StocksSource
 
-        # Get Finnhub API key if configured
-        finnhub_api_key = Config.FINNHUB_API_KEY if Config.FINNHUB_API_KEY else None
+        # Get Finnhub API key if configured on the stocks plugin
+        stocks_config = get_config_manager().get_plugin_config("stocks") or {}
+        finnhub_api_key = stocks_config.get("finnhub_api_key") or None
 
         results = StocksSource.search_symbols(query=query, limit=limit, finnhub_api_key=finnhub_api_key)
 
@@ -5615,7 +5614,6 @@ async def validate_traffic_route(request: dict):
     Returns:
         Validation result with distance and duration estimates
     """
-    from src.config import Config
     from src.utils.traffic import TrafficSource
 
     origin = request.get("origin")
@@ -5625,8 +5623,9 @@ async def validate_traffic_route(request: dict):
     if not origin or not destination:
         raise HTTPException(status_code=400, detail="origin and destination required")
 
-    # Get API key from config
-    api_key = getattr(Config, "GOOGLE_ROUTES_API_KEY", None)
+    # Get API key from the traffic plugin config
+    traffic_config = get_config_manager().get_plugin_config("traffic") or {}
+    api_key = traffic_config.get("api_key") or None
     if not api_key:
         raise HTTPException(status_code=400, detail="Google Routes API key not configured")
 

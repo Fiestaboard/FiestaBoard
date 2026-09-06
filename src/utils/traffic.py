@@ -7,8 +7,6 @@ import logging
 
 import requests
 
-from src.config import Config
-
 logger = logging.getLogger(__name__)
 
 
@@ -332,32 +330,3 @@ class TrafficSource:
 
         # Default to address
         return {"address": location}
-
-
-def get_traffic_source() -> TrafficSource | None:
-    """Get configured traffic source instance."""
-    api_key = Config.GOOGLE_ROUTES_API_KEY if hasattr(Config, "GOOGLE_ROUTES_API_KEY") else ""
-
-    if not api_key:
-        logger.warning("Google Routes API key not configured")
-        return None
-
-    # Support both new (TRAFFIC_ROUTES list) and old (TRAFFIC_ORIGIN/DESTINATION) config
-    routes = getattr(Config, "TRAFFIC_ROUTES", None)
-
-    if not routes:
-        # Fall back to single route (backward compatibility)
-        origin = Config.TRAFFIC_ORIGIN if hasattr(Config, "TRAFFIC_ORIGIN") else ""
-        destination = Config.TRAFFIC_DESTINATION if hasattr(Config, "TRAFFIC_DESTINATION") else ""
-        destination_name = (
-            Config.TRAFFIC_DESTINATION_NAME if hasattr(Config, "TRAFFIC_DESTINATION_NAME") else "DOWNTOWN"
-        )
-
-        if origin and destination:
-            routes = [{"origin": origin, "destination": destination, "destination_name": destination_name}]
-        else:
-            # No routes configured yet, but return source anyway so variables show in UI
-            routes = []
-
-    # Return source even with empty routes so template variables are available
-    return TrafficSource(api_key=api_key, routes=routes)

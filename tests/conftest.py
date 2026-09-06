@@ -85,7 +85,7 @@ def _disable_auth_for_tests(request, monkeypatch):
     """
     # Skip for the auth-specific suites that manage the env themselves.
     test_file = str(request.node.fspath)
-    if "test_auth_" in test_file or "test_secrets_encryption" in test_file:
+    if "test_auth_" in test_file:
         return
     monkeypatch.setenv("FIESTABOARD_AUTH_ENABLED", "false")
 
