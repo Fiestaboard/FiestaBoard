@@ -285,26 +285,35 @@ def delete_page(page_id: str) -> dict[str, Any]:
         return err(f"Error deleting page '{page_id}': {exc}")
 
 
-async def set_active_page(page_id: str) -> dict[str, Any]:
+async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
     """Set which page is currently shown on the display.
 
     Delegates to the REST handler rather than reimplementing it: selecting
     a page validates the ref, enforces page<->board size compatibility,
     dismisses active plugin triggers (#856), and renders to the board.
     Issue #1559 was a reimplementation going its own way.
+
+    ``board_id`` targets that board's active-page slot (#1765); omitted is
+    the legacy primary-board call, exactly as before — the REST handler
+    already speaks per-board (#1244), so the parameter simply flows through.
     """
     from fastapi import HTTPException
 
     from src.api_server import set_active_page as _rest_set_active_page
 
+    body: dict[str, Any] = {"page_id": page_id}
+    if board_id is not None:
+        body["board_id"] = board_id
     try:
-        response = await _rest_set_active_page({"page_id": page_id})
+        response = await _rest_set_active_page(body)
     except HTTPException as exc:
         return err(f"Error setting active page: {exc.detail}")
     except Exception as exc:
         return err(f"Error setting active page: {exc}")
 
     message = f"Active page set to '{page_id}'."
+    if board_id is not None:
+        message = f"Active page set to '{page_id}' on board '{board_id}'."
     if response.get("paused"):
         message += " The board is paused, so it will appear when you resume it."
     elif not response.get("sent_to_board"):
@@ -312,6 +321,7 @@ async def set_active_page(page_id: str) -> dict[str, Any]:
     return ok(
         message,
         page_id=page_id,
+        board_id=board_id,
         sent_to_board=bool(response.get("sent_to_board")),
         paused=bool(response.get("paused")),
         warnings=response.get("warnings", []),
@@ -435,19 +445,31 @@ def delete_schedule(schedule_id: str) -> dict[str, Any]:
         return err(f"Error deleting schedule '{schedule_id}': {exc}")
 
 
-def set_schedule_mode(enabled: bool) -> dict[str, Any]:
+def set_schedule_mode(enabled: bool, board_id: str | None = None) -> dict[str, Any]:
     """Enable or disable schedule-based display.
 
     Schedule mode is a settings flag (per-board since #1244), not
     something ScheduleService owns — same mixup as issue #1559.
+
+    ``board_id`` targets that board's flag (#1765); omitted keeps the
+    legacy primary-board call. An unknown board is an error here because
+    ``SettingsService.set_schedule_enabled`` logs-and-no-ops on one, which
+    over MCP would read as success while changing nothing.
     """
     try:
         from src.settings.service import get_settings_service
 
         svc = get_settings_service()
-        svc.set_schedule_enabled(enabled)
+        if board_id is not None:
+            boards = svc.get_board_settings().boards or []
+            if not any(isinstance(b, dict) and b.get("id") == board_id for b in boards):
+                return err(f"Board not found: {board_id}")
+            svc.set_schedule_enabled(enabled, board_id=board_id)
+        else:
+            svc.set_schedule_enabled(enabled)
         state = "enabled" if enabled else "disabled"
-        return ok(f"Schedule mode {state}.", enabled=enabled)
+        target = f" for board '{board_id}'" if board_id is not None else ""
+        return ok(f"Schedule mode {state}{target}.", enabled=enabled, board_id=board_id)
     except Exception as exc:
         return err(f"Error setting schedule mode: {exc}")
 

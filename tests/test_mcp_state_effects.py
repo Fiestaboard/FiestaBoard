@@ -87,13 +87,13 @@ COVERED = {
     "configure_plugin",
     "get_plugin_data",
     "update_plugin",
+    "set_active_page",
+    "set_schedule_mode",
 }
 
 #: Tools not yet covered here, each with the reason. Not an exemption list.
 UNCOVERED = {
     "list_registry_plugins": "hits the network-backed registry; needs a fixture",
-    "set_active_page": "delegates to the REST handler; needs board render wiring",
-    "set_schedule_mode": "routes through SettingsService; needs settings wiring",
 }
 
 
@@ -1115,3 +1115,149 @@ def test_update_plugin_refuses_a_plugin_that_is_not_a_git_checkout(mcp, updatabl
 def test_update_plugin_reports_an_error_for_an_unknown_plugin(mcp, updatable_plugins):
     result = call(mcp, "update_plugin", plugin_id="not_a_plugin")
     assert result.get("status") == "error", f"updating a plugin that does not exist reported success: {result}"
+
+
+# ---------------------------------------------------------------------------
+# Multi-board — issue #1765
+#
+# On a multi-board install, set_active_page and set_schedule_mode silently
+# targeted only the primary board while reporting success. These tests run a
+# real SettingsService over two configured boards and read the per-board
+# state back after each call.
+# ---------------------------------------------------------------------------
+
+NOTE_TEMPLATE = ["HI", "", ""]
+
+
+@pytest.fixture
+def two_boards(services, tmp_path, monkeypatch):
+    """A real SettingsService over tmp storage with two configured boards."""
+    import src.settings.service as settings_module
+
+    svc = settings_module.SettingsService(settings_file=str(tmp_path / "settings.json"))
+    svc.set_boards(
+        [
+            {"id": "board-main", "name": "Living Room", "device_type": "flagship"},
+            {"id": "board-note", "name": "Kitchen", "device_type": "note"},
+        ]
+    )
+    monkeypatch.setattr(settings_module, "_settings_service", svc)
+    # No display engine in this harness: selection must persist even when the
+    # immediate board send is skipped.
+    monkeypatch.setattr("src.api_server.get_service", lambda: None)
+    return svc
+
+
+def test_set_active_page_with_board_id_changes_only_that_board(mcp, services, two_boards):
+    main_page = assert_ok(
+        call(mcp, "create_page", name="Main", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    note_page = assert_ok(
+        call(mcp, "create_page", name="Note", template_lines=NOTE_TEMPLATE, device_type="note"),
+        "create_page",
+    )
+
+    assert_ok(call(mcp, "set_active_page", page_id=main_page["page_id"]), "set_active_page (primary)")
+    assert_ok(
+        call(mcp, "set_active_page", page_id=note_page["page_id"], board_id="board-note"),
+        "set_active_page (board-note)",
+    )
+
+    assert two_boards.get_active_page_id(board_id="board-note") == note_page["page_id"]
+    assert two_boards.get_active_page_id() == main_page["page_id"], (
+        "targeting board-note must leave the primary board's active page untouched"
+    )
+
+
+def test_set_active_page_without_board_id_keeps_targeting_the_primary_board(mcp, services, two_boards):
+    """Backward compatibility: omitting board_id is the legacy primary-board call."""
+    page = assert_ok(
+        call(mcp, "create_page", name="Legacy", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+
+    assert_ok(call(mcp, "set_active_page", page_id=page["page_id"]), "set_active_page")
+
+    assert two_boards.get_active_page_id() == page["page_id"]
+    assert two_boards.get_active_page_id(board_id="board-note") is None
+
+
+def test_set_schedule_mode_with_board_id_changes_only_that_board(mcp, services, two_boards):
+    assert_ok(call(mcp, "set_schedule_mode", enabled=True, board_id="board-note"), "set_schedule_mode")
+
+    assert two_boards.is_schedule_enabled("board-note") is True
+    assert two_boards.is_schedule_enabled("board-main") is False, (
+        "targeting board-note must leave the primary board's schedule mode untouched"
+    )
+
+
+def test_set_schedule_mode_without_board_id_keeps_targeting_the_primary_board(mcp, services, two_boards):
+    assert_ok(call(mcp, "set_schedule_mode", enabled=True), "set_schedule_mode")
+
+    assert two_boards.is_schedule_enabled("board-main") is True
+    assert two_boards.is_schedule_enabled("board-note") is False
+
+
+def test_set_schedule_mode_reports_an_unknown_board(mcp, services, two_boards):
+    result = call(mcp, "set_schedule_mode", enabled=True, board_id="no-such-board")
+
+    assert result.get("status") == "error", f"an unknown board_id was reported as success: {result}"
+    assert "no-such-board" in str(result.get("error", ""))
+    assert two_boards.is_schedule_enabled("board-main") is False
+    assert two_boards.is_schedule_enabled("board-note") is False
+
+
+def test_get_settings_summary_reports_boards_schedule_and_active_page(mcp, services, two_boards):
+    """The troubleshoot prompt walks schedule + active page; the boards list is
+    what lets a model target board 2 and pick correct dimensions (#1765)."""
+    page = assert_ok(
+        call(mcp, "create_page", name="Summary", template_lines=FLAGSHIP_TEMPLATE, device_type="flagship"),
+        "create_page",
+    )
+    assert_ok(call(mcp, "set_active_page", page_id=page["page_id"]), "set_active_page")
+    two_boards.set_schedule_enabled(True, board_id="board-note")
+
+    result = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
+
+    assert result.get("active_page_id") == page["page_id"]
+    assert result.get("schedule", {}).get("enabled") is False, "schedule reflects the primary board"
+
+    boards = {b["id"]: b for b in result.get("boards", [])}
+    assert set(boards) == {"board-main", "board-note"}
+
+    main = boards["board-main"]
+    assert main["name"] == "Living Room"
+    assert main["device_type"] == "flagship"
+    assert (main["rows"], main["cols"]) == (6, 22)
+    assert main["primary"] is True
+    assert main["active_page_id"] == page["page_id"]
+    assert "error" in main, "the #1813 per-board init error surface is part of the contract"
+
+    note = boards["board-note"]
+    assert note["device_type"] == "note"
+    assert (note["rows"], note["cols"]) == (3, 15)
+    assert note["primary"] is False
+    assert note["schedule_enabled"] is True
+    assert note["paused"] is False and note["enabled"] is True
+
+
+def test_get_settings_summary_boards_never_leak_credentials(mcp, services, two_boards):
+    two_boards.set_boards(
+        [
+            {
+                "id": "board-main",
+                "name": "Living Room",
+                "device_type": "flagship",
+                "host": "192.168.0.99",
+                "local_api_key": "test_secret_key",
+            },
+            {"id": "board-note", "name": "Kitchen", "device_type": "note"},
+        ]
+    )
+
+    result = assert_ok(call(mcp, "get_settings_summary"), "get_settings_summary")
+
+    flat = json.dumps(result.get("boards", []))
+    assert "test_secret_key" not in flat, "a board API key leaked through get_settings_summary"
+    assert "192.168.0.99" not in flat, "a board host leaked through get_settings_summary"

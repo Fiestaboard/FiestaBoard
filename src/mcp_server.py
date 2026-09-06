@@ -84,6 +84,77 @@ except ImportError:  # pragma: no cover
     )
 
 
+def _boards_summary(settings_service: Any) -> list[dict[str, Any]]:
+    """Per-board roster for ``get_settings_summary`` (#1765).
+
+    An explicit field projection, never the raw board dicts — those carry
+    credentials (host, API keys, note-array tokens) that must not cross the
+    MCP boundary even masked. ``error`` is the #1813 per-board init failure,
+    read defensively off the engine service when one exists.
+    """
+    from .devices import resolve_dimensions
+
+    init_errors: dict[str, str] = {}
+    try:
+        # peek, never create: a read-only summary must not boot the engine.
+        from .api_server import peek_service
+
+        engine = peek_service()
+        maybe = getattr(engine, "board_init_errors", None)
+        if isinstance(maybe, dict):
+            init_errors = maybe
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("get_settings_summary: could not read board init errors: %s", exc)
+
+    boards_out: list[dict[str, Any]] = []
+    try:
+        boards = settings_service.get_board_settings().boards or []
+        primary_id = settings_service.get_primary_board_id()
+    except Exception as exc:
+        logger.debug("get_settings_summary: could not read boards list: %s", exc)
+        return boards_out
+
+    for board in boards:
+        if not isinstance(board, dict) or not board.get("id"):
+            continue
+        bid = board["id"]
+        rows = cols = None
+        try:
+            dims = resolve_dimensions(
+                board.get("device_type") or "flagship",
+                board.get("notes_wide") or 1,
+                board.get("notes_tall") or 1,
+            )
+            rows, cols = dims.rows, dims.cols
+        except Exception as exc:
+            logger.debug("get_settings_summary: could not resolve dims for board %s: %s", bid, exc)
+        try:
+            active_page_id = settings_service.get_active_page_id(board_id=bid)
+        except Exception:
+            active_page_id = None
+        if not isinstance(active_page_id, str):
+            active_page_id = None
+        error = init_errors.get(bid)
+        boards_out.append(
+            {
+                "id": bid,
+                "name": board.get("name", ""),
+                "device_type": board.get("device_type", "flagship"),
+                "rows": rows,
+                "cols": cols,
+                "notes_wide": board.get("notes_wide", 1),
+                "notes_tall": board.get("notes_tall", 1),
+                "primary": bid == primary_id,
+                "enabled": bool(board.get("enabled", True)),
+                "paused": bool(board.get("paused", False)),
+                "schedule_enabled": bool(board.get("schedule_enabled", False)),
+                "active_page_id": active_page_id,
+                "error": error if isinstance(error, str) else None,
+            }
+        )
+    return boards_out
+
+
 def _build_mcp_server() -> Any:
     """Construct and return the MCPServer instance.
 
@@ -117,6 +188,12 @@ def _build_mcp_server() -> Any:
             "  • get_plugin_data(plugin_id) — see the LIVE values a plugin is\n"
             "    currently exposing. Use this when a page renders '???' or wrong\n"
             "    values; it tells you whether the plugin or the template is at fault.\n\n"
+            "MULTI-BOARD\n"
+            "  An install can drive several boards. get_settings_summary() returns\n"
+            "  a boards list (id, name, device_type, rows/cols, active page, error).\n"
+            "  Board-targeting tools take an optional board_id — omitted always\n"
+            "  means the primary board. When working against a specific board, use\n"
+            "  ITS device_type and dimensions, not the primary's.\n\n"
             # Board-dimensions and template-syntax teaching is GENERATED from
             # the defining modules (#1764) — the previous hardcoded copy had
             # rotted (nonexistent |upper/|lower filters, a 63–71 color range,
@@ -736,7 +813,15 @@ def _build_mcp_server() -> Any:
     def get_settings_summary() -> dict[str, Any]:
         """Get a summary of current FiestaBoard settings (non-sensitive fields only).
 
-        Returns display, output, location, and schedule settings.
+        Returns display, location, and output settings, plus:
+        - schedule: {enabled} — whether schedule mode drives the primary board
+        - active_page_id: the primary board's manually-selected page (or null)
+        - boards: one entry per configured board with id, name, device_type,
+          rows/cols, notes_wide/notes_tall, primary, enabled, paused,
+          schedule_enabled, active_page_id, and error (why the board failed to
+          initialize, or null). Use a board's id as the board_id argument to
+          board-targeting tools, and its rows/cols to size templates for it.
+
         AI provider credentials and board API keys are intentionally excluded.
         """
         try:
@@ -757,36 +842,51 @@ def _build_mcp_server() -> Any:
                         key,
                         exc,
                     )
+
+            # Schedule mode + active page (#1765): the troubleshoot prompt
+            # walks both, and until now no tool returned them.
+            try:
+                summary["schedule"] = {"enabled": bool(svc.is_schedule_enabled())}
+                summary["active_page_id"] = svc.get_active_page_id()
+            except Exception as exc:
+                logger.debug("get_settings_summary: could not fetch schedule/active page: %s", exc)
+
+            summary["boards"] = _boards_summary(svc)
             return summary
         except Exception as exc:
             return _err(str(exc))
 
     @mcp.tool()
-    async def set_active_page(page_id: str) -> dict[str, Any]:
+    async def set_active_page(page_id: str, board_id: str | None = None) -> dict[str, Any]:
         """Set which page is currently shown on the FiestaBoard display.
 
         This immediately changes what's visible on the board.
 
         Args:
             page_id: The page or collection ID to display (from list_pages() or list_collections()).
+            board_id: Board to target on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
         """
         # The executor delegates to the REST handler rather than
         # reimplementing it (#1559): selecting a page validates the ref,
         # enforces page<->board size compatibility, dismisses active plugin
         # triggers (#856), and renders to the board.
-        return await ops_executors.set_active_page(page_id)
+        return await ops_executors.set_active_page(page_id, board_id=board_id)
 
     @mcp.tool()
-    def set_schedule_mode(enabled: bool) -> dict[str, Any]:
+    def set_schedule_mode(enabled: bool, board_id: str | None = None) -> dict[str, Any]:
         """Enable or disable schedule mode.
 
         When enabled, FiestaBoard automatically switches pages according to
         the schedule you've configured. When disabled, it shows a fixed page.
+        Schedule mode is per-board on a multi-board install.
 
         Args:
             enabled: True to enable schedule-based display, False to disable.
+            board_id: Board to target on a multi-board install (from the boards
+                      list in get_settings_summary()). Omitted = the primary board.
         """
-        return ops_executors.set_schedule_mode(enabled)
+        return ops_executors.set_schedule_mode(enabled, board_id=board_id)
 
     # -----------------------------------------------------------------------
     # MCP Resources
